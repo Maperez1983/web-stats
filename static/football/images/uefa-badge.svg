@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" role="img" aria-labelledby="title desc">
+  <title id="title">RFEF badge</title>
+  <desc id="desc">Minimal circular RFEF-style badge used on UEFA-format training sheets.</desc>
+  <circle cx="70" cy="70" r="66" fill="#d62c31" />
+  <circle cx="70" cy="70" r="60" fill="none" stroke="#ffffff" stroke-width="3.8" />
+  <circle cx="70" cy="70" r="48" fill="none" stroke="#ffffff" stroke-width="1.8" opacity="0.92" />
+  <text x="70" y="22" text-anchor="middle" font-family="'Arial Narrow', Arial, Helvetica, sans-serif" font-size="7.6" font-weight="700" letter-spacing="3.2" fill="#ffffff">R E A L   F E D E R A C I O N</text>
+  <text x="70" y="126" text-anchor="middle" font-family="'Arial Narrow', Arial, Helvetica, sans-serif" font-size="7.6" font-weight="700" letter-spacing="2.6" fill="#ffffff">E S P A N O L A   D E   F U T B O L</text>
+  <text x="55" y="62" text-anchor="middle" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-size="30" font-weight="900" fill="#ffffff">R</text>
+  <text x="85" y="62" text-anchor="middle" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-size="30" font-weight="900" fill="#ffffff">F</text>
+  <text x="55" y="94" text-anchor="middle" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-size="30" font-weight="900" fill="#ffffff">E</text>
+  <text x="85" y="94" text-anchor="middle" font-family="'Arial Black', Arial, Helvetica, sans-serif" font-size="30" font-weight="900" fill="#ffffff">F</text>
+  <circle cx="70" cy="70" r="4" fill="#ffffff" />
+</svg>

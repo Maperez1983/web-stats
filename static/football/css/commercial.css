@@ -104,6 +104,8 @@ body.prod-commercial {
   --ui-muted-soft: var(--prod-muted-soft, #b0bccd);
   --ui-accent: var(--prod-secondary, #f4b400);
   --ui-accent-2: var(--prod-primary, #2f7d32);
+  --ui-info: var(--prod-info, #22d3ee);
+  --ui-success: var(--prod-success, #22c55e);
   --ui-danger: var(--prod-danger, #d64545);
 }
 
@@ -122,7 +124,7 @@ body.prod-commercial button.button,
 body.prod-commercial button.btn,
 body.prod-commercial a.button,
 body.prod-commercial a.btn {
-  appearance: none;
+  appearance: none !important;
   -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
@@ -130,9 +132,9 @@ body.prod-commercial a.btn {
   gap: 0.5rem;
   padding: 0.62rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid var(--ui-line);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--ui-text);
+  border: 1px solid var(--ui-line) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--ui-text) !important;
   text-decoration: none;
   font: inherit;
   font-size: 0.78rem;
@@ -179,28 +181,28 @@ body.prod-commercial .btn.primary,
 body.prod-commercial .btn-primary,
 body.prod-commercial button.primary,
 body.prod-commercial a.primary {
-  border-color: rgba(244, 180, 0, 0.34);
-  background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(244, 180, 0, 0.78));
-  color: rgba(8, 17, 29, 0.98);
-  box-shadow: 0 12px 32px rgba(244, 180, 0, 0.18);
+  border-color: rgba(244, 180, 0, 0.34) !important;
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.86)) !important;
+  color: rgba(8, 17, 29, 0.98) !important;
+  box-shadow: 0 12px 32px rgba(244, 180, 0, 0.18) !important;
 }
 
 body.prod-commercial .button.secondary,
 body.prod-commercial .btn.secondary,
 body.prod-commercial button.secondary,
 body.prod-commercial a.secondary {
-  border-color: rgba(47, 125, 50, 0.32);
-  background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84));
-  color: rgba(245, 247, 250, 0.96);
+  border-color: rgba(47, 125, 50, 0.32) !important;
+  background: linear-gradient(135deg, rgba(47, 125, 50, 0.88), rgba(24, 63, 38, 0.84)) !important;
+  color: rgba(245, 247, 250, 0.96) !important;
 }
 
 body.prod-commercial .button.danger,
 body.prod-commercial .btn.danger,
 body.prod-commercial button.danger,
 body.prod-commercial a.danger {
-  border-color: rgba(248, 113, 113, 0.5);
-  background: rgba(220, 38, 38, 0.18);
-  color: rgba(254, 226, 226, 0.95);
+  border-color: rgba(248, 113, 113, 0.5) !important;
+  background: rgba(220, 38, 38, 0.18) !important;
+  color: rgba(254, 226, 226, 0.95) !important;
 }
 
 body.prod-commercial .button.ghost,
@@ -245,14 +247,38 @@ body.prod-commercial .tab-link {
   justify-content: center;
   padding: 0.54rem 0.92rem;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(226, 232, 240, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-decoration: none;
+}
+
+/* Module tabs (legacy `.module-tab`) unify to the same tab styles. */
+body.prod-commercial .module-tab {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.54rem 0.92rem !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(226, 232, 240, 0.92) !important;
+  font-size: 0.76rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  text-decoration: none !important;
+}
+
+body.prod-commercial .module-tab.is-active,
+body.prod-commercial .tab-link.is-active {
+  border-color: rgba(244, 180, 0, 0.34) !important;
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.16), rgba(47, 125, 50, 0.14)) !important;
+  color: #fff7dd !important;
 }
 
 body.prod-commercial .tab-link:hover {
