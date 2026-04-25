@@ -126,6 +126,22 @@
             <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual para reutilizarla.</div>
             <div class="list" id="vs-projects"></div>
 
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Dashboard</div>
+              <div class="hint">Resumen rápido de <span class="k">timeline</span> y <span class="k">clips</span>.</div>
+              <div class="list" id="vs-dashboard" style="margin-top:0.55rem;"></div>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
+                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                  <input type="checkbox" id="vs-filter-unreviewed-clips" style="width:18px;height:18px;accent-color:#22d3ee;" />
+                  Clips: solo no revisados
+                </label>
+                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                  <input type="checkbox" id="vs-filter-unreviewed-events" style="width:18px;height:18px;accent-color:#22d3ee;" />
+                  Timeline: solo no revisados
+                </label>
+              </div>
+            </div>
+
 	            <div style="margin-top:0.9rem; display:grid; gap:0.45rem;">
 	              <label>
 	                Segmento (segundos)
@@ -170,6 +186,7 @@
 	                <button type="button" class="button primary" id="vs-export-pdf">PDF slides</button>
 	                <button type="button" class="button" id="vs-export-package">Paquete ZIP</button>
 	                <button type="button" class="button" id="vs-report-pdf">Informe PDF</button>
+	                <button type="button" class="button" id="vs-report-share">Compartir informe</button>
 	              </div>
 	            </div>
 
@@ -346,6 +363,8 @@
                 Etiqueta
                 <input type="text" id="vs-event-label" placeholder="Ej: Robo alto + remate" />
               </label>
+              <div class="hint">Presets rápidos:</div>
+              <div id="vs-event-presets" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
@@ -401,6 +420,7 @@
                   <button type="button" class="button" id="vs-inbox-send-clip">Enviar clip</button>
                   <button type="button" class="button" id="vs-inbox-send-playlist">Enviar playlist</button>
                   <button type="button" class="button" id="vs-inbox-send-export">Enviar export</button>
+                  <button type="button" class="button" id="vs-inbox-send-report">Enviar informe</button>
                 </div>
               </div>
             </div>
@@ -418,6 +438,7 @@
     <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
 	    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
 	    <input type="hidden" id="vs-share-clip-create-url" value="{% url 'share-video-clip-create' %}" />
+	    <input type="hidden" id="vs-share-report-create-url" value="{% url 'share-video-report-create' %}" />
 	    <input type="hidden" id="vs-share-playlist-create-url" value="{% url 'share-video-playlist-create' %}" />
 	    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
 	    <input type="hidden" id="vs-inbox-recipients-url" value="{% url 'analysis-video-inbox-recipients-api' %}" />
@@ -428,6 +449,7 @@
 	    <input type="hidden" id="vs-timeline-export-url" value="{% url 'analysis-video-studio-timeline-export-api' %}" />
 	    <input type="hidden" id="vs-timeline-import-url" value="{% url 'analysis-video-studio-timeline-import-api' %}" />
 	    <input type="hidden" id="vs-timeline-clear-url" value="{% url 'analysis-video-studio-timeline-clear-api' %}" />
+	    <input type="hidden" id="vs-review-url" value="{% url 'analysis-video-studio-review-api' %}" />
 	    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />

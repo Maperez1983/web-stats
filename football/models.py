@@ -1613,6 +1613,7 @@ class ShareLink(models.Model):
     KIND_VIDEO_CLIP = 'video_clip'
     KIND_VIDEO_EXPORT = 'video_export'
     KIND_VIDEO_PLAYLIST = 'video_playlist'
+    KIND_VIDEO_REPORT = 'video_report'
     KIND_CHOICES = [
         (KIND_TASK_PDF, 'PDF de tarea'),
         (KIND_CONVOCATION_PDF, 'PDF de convocatoria'),
@@ -1621,6 +1622,7 @@ class ShareLink(models.Model):
         (KIND_VIDEO_CLIP, 'Clip de vídeo'),
         (KIND_VIDEO_EXPORT, 'Export de vídeo'),
         (KIND_VIDEO_PLAYLIST, 'Lista de clips (vídeo)'),
+        (KIND_VIDEO_REPORT, 'Informe PDF (vídeo)'),
     ]
 
     token = models.CharField(max_length=120, unique=True, db_index=True)
@@ -1672,6 +1674,39 @@ class AuditEvent(models.Model):
 
     def __str__(self):
         return f'{self.action} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
+class VideoReviewMark(models.Model):
+    """
+    Marca de revisión por usuario (clips y eventos timeline).
+    """
+
+    KIND_CLIP = 'clip'
+    KIND_EVENT = 'event'
+    KIND_CHOICES = [
+        (KIND_CLIP, 'Clip'),
+        (KIND_EVENT, 'Timeline'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_review_marks')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='review_marks')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='video_review_marks')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default=KIND_CLIP)
+    object_id = models.PositiveIntegerField(default=0, db_index=True)
+    is_done = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        unique_together = ('team', 'video', 'user', 'kind', 'object_id')
+        indexes = [
+            models.Index(fields=['team', 'video', 'user', 'kind', 'object_id']),
+            models.Index(fields=['user', 'video', 'kind', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id}·{self.video_id}·{self.kind}·{self.object_id}'
 
 
 class AppUserRole(models.Model):

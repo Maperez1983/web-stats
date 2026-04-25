@@ -133,6 +133,7 @@ from football.models import (
     UserInvitation,
     ShareLink,
     AuditEvent,
+    VideoReviewMark,
     TaskBlueprint,
     AssistantKnowledgeDocument,
     SystemSetting,
@@ -14517,6 +14518,114 @@ def share_video_playlist_stream(request, token):
         content_type='video/mp4',
         filename=f'playlist-{video.id}.mp4',
     )
+
+
+@login_required
+@require_POST
+def share_video_report_create(request):
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    password = (request.POST.get('password') or '').strip()
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    validity_days = _parse_int(data.get('valid_days')) or validity_days
+    validity_days = max(1, min(validity_days, 60))
+    password = (str(data.get('password') or '') or password).strip()
+    include_ai = str(data.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'error': 'video_id requerido.'}, status=400)
+
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'error': 'Vídeo no encontrado.'}, status=404)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    clip_ids = data.get('clip_ids')
+    if not isinstance(clip_ids, list):
+        clip_ids = []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:260]
+    if clip_ids:
+        valid = list(
+            VideoClip.objects
+            .filter(team=primary_team, video_id=int(video.id), id__in=clip_ids)
+            .values_list('id', flat=True)[:400]
+        )
+        clip_ids = [int(x) for x in valid][:260]
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_REPORT,
+        payload={'video_id': int(video.id), 'clip_ids': clip_ids, 'include_ai': include_ai, 'title': title},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-video-report', args=[link.token]))
+    return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+
+
+def share_video_report_page(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_REPORT)
+    gated = _share_link_gate(request, link)
+    if gated:
+        return gated
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        raise Http404('Enlace no válido')
+    video = RivalVideo.objects.select_related('team', 'folder').filter(id=int(video_id)).first()
+    if not video:
+        raise Http404('Informe no disponible')
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    title = _sanitize_task_text(str(payload.get('title') or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    return render(
+        request,
+        'football/share_video_report.html',
+        {
+            'link': link,
+            'team': getattr(video, 'team', None),
+            'video': video,
+            'title': title,
+            'pdf_url': reverse('share-video-report-pdf', args=[link.token]),
+        },
+    )
+
+
+def share_video_report_pdf(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_REPORT)
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        raise Http404('Enlace no válido')
+    video = RivalVideo.objects.select_related('team').filter(id=int(video_id)).first()
+    if not video:
+        raise Http404('Informe no disponible')
+    team = getattr(video, 'team', None)
+    if not team:
+        raise Http404('Informe no disponible')
+    title = _sanitize_task_text(str(payload.get('title') or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    include_ai = str(payload.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return _video_report_pdf_response(request, primary_team=team, video=video, title=title, clip_ids=clip_ids, include_ai=include_ai)
 
 
 def share_video_export_page(request, token):
@@ -32288,7 +32397,87 @@ def analysis_video_inbox_open(request, item_id):
             return redirect(reverse('analysis-video-export-view', args=[int(export_id)]))
     if item.kind == VideoInboxItem.KIND_PLAYLIST:
         return redirect(reverse('analysis-video-inbox-playlist-view', args=[int(item.id)]))
+    if item.kind == VideoInboxItem.KIND_REPORT:
+        return redirect(reverse('analysis-video-inbox-report', args=[int(item.id)]))
     return redirect(reverse('analysis'))
+
+
+def _video_report_pdf_response(
+    request,
+    *,
+    primary_team,
+    video,
+    title: str,
+    clip_ids=None,
+    include_ai: bool = False,
+):
+    """
+    Genera el informe PDF/HTML del vídeo.
+    """
+    clip_ids = clip_ids or []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:400]
+
+    clip_qs = VideoClip.objects.filter(team=primary_team, video_id=int(video.id)).order_by('in_ms', 'id')
+    if clip_ids:
+        clip_qs = clip_qs.filter(id__in=clip_ids)
+    clips = list(clip_qs[:260])
+
+    timeline = list(
+        VideoTimelineEvent.objects
+        .filter(team=primary_team, video_id=int(video.id))
+        .order_by('time_ms', 'id')[:900]
+    )
+
+    ai_insight = None
+    if include_ai:
+        ai_insight = (
+            VideoAiInsight.objects
+            .filter(team=primary_team, video_id=int(video.id), status=VideoAiInsight.STATUS_OK)
+            .order_by('-updated_at', '-id')
+            .first()
+        )
+        if ai_insight and not isinstance(getattr(ai_insight, 'payload', None), dict):
+            ai_insight = None
+
+    context = {
+        'team': primary_team,
+        'video': video,
+        'title': title,
+        'generated_at': timezone.now(),
+        'clips': clips,
+        'timeline': timeline,
+        'ai_insight': ai_insight,
+    }
+    html = render_to_string('football/analysis_video_report_pdf.html', context)
+    filename = slugify(f'video-informe-{primary_team.id}-{int(video.id)}-{title}') or f'video-informe-{int(video.id)}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def analysis_video_inbox_report(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_REPORT:
+        raise Http404('Elemento no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        raise Http404('Informe no disponible')
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        raise Http404('Vídeo no disponible')
+    title = _sanitize_task_text(str(payload.get('title') or item.title or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    include_ai = str(payload.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return _video_report_pdf_response(request, primary_team=primary_team, video=video, title=title, clip_ids=clip_ids, include_ai=include_ai)
 
 
 @login_required
@@ -32339,7 +32528,7 @@ def analysis_video_inbox_send_api(request):
     except Exception:
         data = {}
     kind = str(data.get('kind') or '').strip().lower()
-    if kind not in {VideoInboxItem.KIND_CLIP, VideoInboxItem.KIND_EXPORT, VideoInboxItem.KIND_PLAYLIST}:
+    if kind not in {VideoInboxItem.KIND_CLIP, VideoInboxItem.KIND_EXPORT, VideoInboxItem.KIND_PLAYLIST, VideoInboxItem.KIND_REPORT}:
         return JsonResponse({'ok': False, 'error': 'kind no soportado.'}, status=400)
     user_ids = data.get('user_ids')
     if not isinstance(user_ids, list):
@@ -32371,7 +32560,7 @@ def analysis_video_inbox_send_api(request):
             return JsonResponse({'ok': False, 'error': 'Export no encontrado.'}, status=404)
         payload = {'export_id': int(export.id), 'video_id': int(getattr(export, 'video_id', 0) or 0)}
         title = title or str(export.title or '').strip() or f'Export {export.id}'
-    else:
+    elif kind == VideoInboxItem.KIND_PLAYLIST:
         video_id = _parse_int(data.get('video_id'))
         clip_ids = data.get('clip_ids')
         if not isinstance(clip_ids, list):
@@ -32390,6 +32579,25 @@ def analysis_video_inbox_send_api(request):
             return JsonResponse({'ok': False, 'error': 'Clips no válidos.'}, status=400)
         payload = {'video_id': int(video_id), 'clip_ids': valid_clip_ids}
         title = title or f'Playlist · {len(valid_clip_ids)} clips'
+    else:
+        video_id = _parse_int(data.get('video_id'))
+        if not video_id:
+            return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+        video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+        if not video:
+            return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+        include_ai = str(data.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+        clip_ids = data.get('clip_ids')
+        if not isinstance(clip_ids, list):
+            clip_ids = []
+        clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:260]
+        if clip_ids:
+            valid = list(
+                VideoClip.objects.filter(team=primary_team, video_id=int(video_id), id__in=clip_ids).values_list('id', flat=True)[:400]
+            )
+            clip_ids = [int(x) for x in valid][:260]
+        payload = {'video_id': int(video_id), 'clip_ids': clip_ids, 'include_ai': include_ai, 'title': title or ''}
+        title = title or f'Informe · {str(getattr(video, "title", "") or "").strip() or f"Vídeo {video_id}"}'
 
     allowed_users = set(
         WorkspaceMembership.objects.filter(workspace=active_ws, user_id__in=clean_user_ids).values_list('user_id', flat=True)
@@ -33143,6 +33351,91 @@ def analysis_video_studio_timeline_clear_api(request):
     return JsonResponse({'ok': True})
 
 
+@csrf_exempt
+@login_required
+def analysis_video_studio_review_api(request):
+    """
+    Estado de revisión (por usuario) para clips y eventos de timeline de un vídeo.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    if request.method == 'GET':
+        video_id = _parse_int(request.GET.get('video_id'))
+        if not video_id:
+            return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+        video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+        if not video:
+            return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+        rows = list(
+            VideoReviewMark.objects
+            .filter(team=primary_team, video_id=int(video_id), user=request.user, is_done=True)
+            .values('kind', 'object_id')[:4000]
+        )
+        clips = []
+        events = []
+        for r in rows:
+            kind = str(r.get('kind') or '').strip().lower()
+            oid = _parse_int(r.get('object_id')) or 0
+            if oid <= 0:
+                continue
+            if kind == VideoReviewMark.KIND_CLIP:
+                clips.append(int(oid))
+            elif kind == VideoReviewMark.KIND_EVENT:
+                events.append(int(oid))
+        return JsonResponse({'ok': True, 'clips': clips[:2500], 'events': events[:2500]})
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no soportado.'}, status=405)
+
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    video_id = _parse_int(data.get('video_id'))
+    kind = str(data.get('kind') or '').strip().lower()
+    object_id = _parse_int(data.get('object_id')) or 0
+    done = str(data.get('done') or '').strip().lower()
+    done = done in {'1', 'true', 'yes', 'on'}
+    if not video_id or object_id <= 0 or kind not in {VideoReviewMark.KIND_CLIP, VideoReviewMark.KIND_EVENT}:
+        return JsonResponse({'ok': False, 'error': 'Parámetros inválidos.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+
+    # Validación ligera: evita marcar ids absurdos.
+    if kind == VideoReviewMark.KIND_CLIP:
+        exists = VideoClip.objects.filter(team=primary_team, video_id=int(video_id), id=int(object_id)).exists()
+        if not exists:
+            return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+    else:
+        exists = VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id), id=int(object_id)).exists()
+        if not exists:
+            return JsonResponse({'ok': False, 'error': 'Evento no encontrado.'}, status=404)
+
+    try:
+        obj, _created = VideoReviewMark.objects.get_or_create(
+            team=primary_team,
+            video_id=int(video_id),
+            user=request.user,
+            kind=kind,
+            object_id=int(object_id),
+            defaults={'is_done': bool(done)},
+        )
+        if bool(obj.is_done) != bool(done):
+            VideoReviewMark.objects.filter(id=obj.id).update(is_done=bool(done), updated_at=timezone.now())
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+    return JsonResponse({'ok': True})
+
+
 @login_required
 def analysis_video_studio_share_links_api(request):
     """
@@ -33182,7 +33475,14 @@ def analysis_video_studio_share_links_api(request):
     )
     export_map = {int(x['id']): str(x.get('title') or '').strip() for x in export_rows if x.get('id')}
 
-    qs = ShareLink.objects.filter(kind__in=[ShareLink.KIND_VIDEO_CLIP, ShareLink.KIND_VIDEO_EXPORT, ShareLink.KIND_VIDEO_PLAYLIST]).order_by('-created_at', '-id')
+    qs = ShareLink.objects.filter(
+        kind__in=[
+            ShareLink.KIND_VIDEO_CLIP,
+            ShareLink.KIND_VIDEO_EXPORT,
+            ShareLink.KIND_VIDEO_PLAYLIST,
+            ShareLink.KIND_VIDEO_REPORT,
+        ]
+    ).order_by('-created_at', '-id')
     if not _can_access_platform(request.user):
         qs = qs.filter(created_by_user=request.user)
     candidates = list(qs[:2500])
@@ -33215,6 +33515,12 @@ def analysis_video_studio_share_links_api(request):
                 continue
             target_title = f'Playlist · {len(found_any)} clips'
             share_url = request.build_absolute_uri(reverse('share-video-playlist', args=[link.token]))
+        elif link.kind == ShareLink.KIND_VIDEO_REPORT:
+            vid = _parse_int(payload.get('video_id'))
+            if not vid or int(vid) != int(video_id):
+                continue
+            target_title = _sanitize_task_text(str(payload.get('title') or '').strip(), multiline=False, max_len=180) or 'Informe PDF'
+            share_url = request.build_absolute_uri(reverse('share-video-report', args=[link.token]))
         else:
             continue
         items.append(
@@ -33392,41 +33698,14 @@ def analysis_video_studio_report_pdf_api(request):
         clip_ids = []
     clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:400]
     include_ai = str(data.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-
-    clip_qs = VideoClip.objects.filter(team=primary_team, video_id=int(video_id)).order_by('in_ms', 'id')
-    if clip_ids:
-        clip_qs = clip_qs.filter(id__in=clip_ids)
-    clips = list(clip_qs[:260])
-
-    timeline = list(
-        VideoTimelineEvent.objects
-        .filter(team=primary_team, video_id=int(video_id))
-        .order_by('time_ms', 'id')[:900]
+    return _video_report_pdf_response(
+        request,
+        primary_team=primary_team,
+        video=video,
+        title=title,
+        clip_ids=clip_ids,
+        include_ai=include_ai,
     )
-
-    ai_insight = None
-    if include_ai:
-        ai_insight = (
-            VideoAiInsight.objects
-            .filter(team=primary_team, video_id=int(video_id), status=VideoAiInsight.STATUS_OK)
-            .order_by('-updated_at', '-id')
-            .first()
-        )
-        if ai_insight and not isinstance(getattr(ai_insight, 'payload', None), dict):
-            ai_insight = None
-
-    context = {
-        'team': primary_team,
-        'video': video,
-        'title': title,
-        'generated_at': timezone.now(),
-        'clips': clips,
-        'timeline': timeline,
-        'ai_insight': ai_insight,
-    }
-    html = render_to_string('football/analysis_video_report_pdf.html', context)
-    filename = slugify(f'video-informe-{primary_team.id}-{video_id}-{title}') or f'video-informe-{video_id}'
-    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 def _video_ai_build_input_hash(*, video, clips, timeline, context_hint: str = '') -> str:
