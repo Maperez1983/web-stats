@@ -33563,7 +33563,7 @@ def _video_ai_heuristic(*, video, clips, timeline) -> dict:
 def _video_ai_openai(*, video, clips, timeline):
     api_key = str(os.getenv('OPENAI_API_KEY') or '').strip()
     if not api_key or not requests:
-        return None, 'OPENAI_API_KEY no configurada'
+        return None, ''
 
     base_url = str(os.getenv('OPENAI_BASE_URL') or 'https://api.openai.com/v1').strip().rstrip('/')
     model = str(os.getenv('OPENAI_VIDEO_ANALYSIS_MODEL') or os.getenv('OPENAI_MODEL') or 'gpt-4o-mini').strip()
