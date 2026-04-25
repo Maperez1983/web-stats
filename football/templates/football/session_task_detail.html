@@ -704,6 +704,35 @@
       </section>
       {% endif %}
 
+      {% if related_tasks %}
+      <section class="panel">
+        <h2>Relacionadas</h2>
+        <p class="meta" style="margin-top:0;">Sugeridas por similitud (tipo, fase, objetivo y contexto).</p>
+        <div class="grid" style="margin-top:0.6rem;">
+          {% for rel in related_tasks %}
+          <a class="sheet-item" href="{% url 'session-task-detail' rel.id %}" style="text-decoration:none; color:inherit;">
+            <strong style="opacity:0.9;">{{ rel.title|default:"(sin título)" }}</strong>
+            <div style="margin-top:0.45rem;">
+              {% if rel.task_preview_image or rel.task_pdf %}
+              <img
+                src="{% url 'session-task-preview-file' rel.id %}{% if rel.task_preview_image %}?v={{ rel.task_preview_image.name|urlencode }}{% endif %}"
+                alt="Vista previa de {{ rel.title }}"
+                style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.14); object-fit:cover; background:rgba(255,255,255,0.05);"
+                loading="lazy"
+              />
+              {% else %}
+              <div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; opacity:0.7;">
+                Sin gráfico
+              </div>
+              {% endif %}
+            </div>
+            <p class="meta" style="margin-top:0.5rem;">{{ rel.objective_summary|default:"" }}</p>
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       {% if pdf_excerpt %}
       <section class="panel">
         <h2>Extracto del PDF</h2>

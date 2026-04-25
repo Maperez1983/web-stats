@@ -245,3 +245,140 @@ def filter_task_library(tasks, *, library_view, library_key):
         reverse=True,
     )
     return filtered
+
+
+def filter_task_library_advanced(
+    tasks,
+    *,
+    query: str = '',
+    phase_keys=None,
+    type_keys=None,
+    context_keys=None,
+    objective_keys=None,
+    players_band: str = '',
+    duration_band: str = '',
+    quality: str = '',
+    reference_date: str = '',
+):
+    filtered = list(tasks)
+    q = str(query or '').strip().lower()
+    phase_keys = [str(item).strip() for item in (phase_keys or []) if str(item).strip()]
+    type_keys = [str(item).strip() for item in (type_keys or []) if str(item).strip()]
+    context_keys = [str(item).strip() for item in (context_keys or []) if str(item).strip()]
+    objective_keys = [str(item).strip() for item in (objective_keys or []) if str(item).strip()]
+    players_band = str(players_band or '').strip()
+    duration_band = str(duration_band or '').strip()
+    quality = str(quality or '').strip()
+    reference_date = str(reference_date or '').strip()
+
+    if q:
+
+        def _haystack(task):
+            parts = [
+                getattr(task, 'title', ''),
+                getattr(task, 'objective', ''),
+                getattr(task, 'objective_summary', ''),
+                getattr(task, 'coaching_points', ''),
+                getattr(task, 'confrontation_rules', ''),
+                getattr(task, 'analysis_summary', ''),
+            ]
+            try:
+                sheet = getattr(task, 'task_sheet', None) or {}
+                if isinstance(sheet, dict):
+                    parts.append(sheet.get('description') or '')
+            except Exception:
+                pass
+            return '\n'.join([str(p or '') for p in parts]).lower()
+
+        filtered = [item for item in filtered if q in _haystack(item)]
+
+    if phase_keys:
+        filtered = [item for item in filtered if str(getattr(item, 'phase_folder_key', '') or '') in phase_keys]
+
+    if type_keys:
+        filtered = [item for item in filtered if set(type_keys).intersection(set(item.exercise_types or []))]
+
+    if context_keys:
+
+        def _contexts(task):
+            meta = getattr(task, 'analysis_meta', None) or {}
+            if isinstance(meta, dict):
+                raw = meta.get('work_contexts') or []
+                if isinstance(raw, list):
+                    return [str(x) for x in raw]
+            return []
+
+        filtered = [item for item in filtered if set(context_keys).intersection(set(_contexts(item)))]
+
+    if objective_keys:
+
+        def _objectives(task):
+            meta = getattr(task, 'analysis_meta', None) or {}
+            if isinstance(meta, dict):
+                raw = meta.get('objective_tags') or []
+                if isinstance(raw, list):
+                    return [str(x) for x in raw]
+            return []
+
+        filtered = [item for item in filtered if set(objective_keys).intersection(set(_objectives(item)))]
+
+    if players_band:
+        filtered = [item for item in filtered if str(getattr(item, 'players_band', '') or '') == players_band]
+
+    if duration_band:
+        filtered = [item for item in filtered if str(getattr(item, 'duration_band', '') or '') == duration_band]
+
+    if quality:
+        if quality == 'review':
+            filtered = [item for item in filtered if bool(getattr(item, 'needs_review', False))]
+        elif quality == 'validated':
+            filtered = [item for item in filtered if not bool(getattr(item, 'needs_review', False))]
+
+    if reference_date:
+        filtered = [item for item in filtered if str(getattr(item, 'reference_date_iso', '') or '') == reference_date]
+
+    filtered.sort(
+        key=lambda item: (
+            getattr(item, 'reference_date', None) or getattr(getattr(item, 'session', None), 'session_date', None) or date.min,
+            int(getattr(item, 'id', 0) or 0),
+        ),
+        reverse=True,
+    )
+    return filtered
+
+
+def suggest_related_tasks(tasks, base_task, *, limit: int = 8):
+    base_id = int(getattr(base_task, 'id', 0) or 0)
+    base_types = set(getattr(base_task, 'exercise_types', None) or [])
+    base_phases = set(getattr(base_task, 'phase_tags', None) or [])
+    base_meta = getattr(base_task, 'analysis_meta', None) or {}
+    base_ctx = set(base_meta.get('work_contexts') or []) if isinstance(base_meta, dict) else set()
+    base_obj = set(base_meta.get('objective_tags') or []) if isinstance(base_meta, dict) else set()
+    base_players = str(getattr(base_task, 'players_band', '') or '')
+    base_duration = str(getattr(base_task, 'duration_band', '') or '')
+
+    scored = []
+    for candidate in tasks:
+        cid = int(getattr(candidate, 'id', 0) or 0)
+        if not cid or cid == base_id:
+            continue
+        score = 0
+        cand_types = set(getattr(candidate, 'exercise_types', None) or [])
+        cand_phases = set(getattr(candidate, 'phase_tags', None) or [])
+        cand_meta = getattr(candidate, 'analysis_meta', None) or {}
+        cand_ctx = set(cand_meta.get('work_contexts') or []) if isinstance(cand_meta, dict) else set()
+        cand_obj = set(cand_meta.get('objective_tags') or []) if isinstance(cand_meta, dict) else set()
+        score += 3 * len(base_types.intersection(cand_types))
+        score += 2 * len(base_phases.intersection(cand_phases))
+        score += 2 * len(base_obj.intersection(cand_obj))
+        score += 1 * len(base_ctx.intersection(cand_ctx))
+        if base_players and base_players == str(getattr(candidate, 'players_band', '') or ''):
+            score += 1
+        if base_duration and base_duration == str(getattr(candidate, 'duration_band', '') or ''):
+            score += 1
+        if score <= 0:
+            continue
+        scored.append((score, candidate))
+
+    scored.sort(key=lambda row: (row[0], int(getattr(row[1], 'id', 0) or 0)), reverse=True)
+    return [row[1] for row in scored[: max(0, int(limit or 0))]]

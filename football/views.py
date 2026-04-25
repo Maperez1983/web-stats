@@ -216,7 +216,12 @@ from football.query_helpers import (
     parse_match_date_from_ui,
 )
 from football.injuries import categorize_time_loss, estimate_return_date as estimate_return_date_from_catalog, time_loss_days
-from football.task_library import filter_task_library, prepare_task_library
+from football.task_library import (
+    filter_task_library,
+    filter_task_library_advanced,
+    prepare_task_library,
+    suggest_related_tasks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25744,6 +25749,31 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     library_key = str(request.GET.get('library_key') or request.POST.get('library_key') or '').strip()
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
+    # Filtros combinables tipo "CoachLab": búsqueda + facetas (sin romper la vista legacy por carpetas).
+    library_q = str(request.GET.get('q') or request.POST.get('q') or '').strip()
+    library_phase_keys = [str(x).strip() for x in (request.GET.getlist('phase') or []) if str(x).strip()]
+    library_type_keys = [str(x).strip() for x in (request.GET.getlist('type') or []) if str(x).strip()]
+    library_context_keys = [str(x).strip() for x in (request.GET.getlist('context') or []) if str(x).strip()]
+    library_objective_keys = [str(x).strip() for x in (request.GET.getlist('objective') or []) if str(x).strip()]
+    library_players_band = str(request.GET.get('players') or request.POST.get('players') or '').strip()
+    library_duration_band = str(request.GET.get('duration') or request.POST.get('duration') or '').strip()
+    library_quality = str(request.GET.get('quality') or request.POST.get('quality') or '').strip()
+    library_reference_date = str(request.GET.get('ref_date') or request.POST.get('ref_date') or '').strip()
+    library_filters_active = bool(
+        library_q
+        or library_phase_keys
+        or library_type_keys
+        or library_context_keys
+        or library_objective_keys
+        or library_players_band
+        or library_duration_band
+        or library_quality
+        or library_reference_date
+    )
+    if library_filters_active:
+        library_view = 'overview'
+        library_key = ''
+
     planner_tables_ready = True
     try:
         SessionTask.objects.order_by('-id').values_list('id', flat=True).first()
@@ -27526,11 +27556,25 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     duration_band_group_rows = task_library_context['duration_band_group_rows']
     date_group_rows = task_library_context['date_group_rows']
     quality_group_rows = task_library_context['quality_group_rows']
-    task_library_filtered = filter_task_library(
-        task_library,
-        library_view=library_view,
-        library_key=library_key,
-    )
+    if library_filters_active:
+        task_library_filtered = filter_task_library_advanced(
+            task_library,
+            query=library_q,
+            phase_keys=library_phase_keys,
+            type_keys=library_type_keys,
+            context_keys=library_context_keys,
+            objective_keys=library_objective_keys,
+            players_band=library_players_band,
+            duration_band=library_duration_band,
+            quality=library_quality,
+            reference_date=library_reference_date,
+        )
+    else:
+        task_library_filtered = filter_task_library(
+            task_library,
+            library_view=library_view,
+            library_key=library_key,
+        )
 
     planning_microcycles = []
     planning_sessions = []
@@ -27891,6 +27935,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_view': library_view,
             'library_key': library_key,
             'library_repository': library_repository,
+            'library_filters_active': library_filters_active,
+            'library_q': library_q,
+            'library_phase_keys': library_phase_keys,
+            'library_type_keys': library_type_keys,
+            'library_context_keys': library_context_keys,
+            'library_objective_keys': library_objective_keys,
+            'library_players_band': library_players_band,
+            'library_duration_band': library_duration_band,
+            'library_quality': library_quality,
+            'library_reference_date': library_reference_date,
             'main_tab': main_tab,
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
@@ -30058,6 +30112,50 @@ def session_task_detail_page(request, task_id):
         graphic_editor_state['timeline'] = animation_frames
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
+
+    related_tasks = []
+    try:
+        team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+        repository = _library_repository_for_task(task)
+        if team:
+            candidates_raw = list(
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(session__microcycle__team=team, deleted_at__isnull=True)
+                .filter(
+                    Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                    | Q(session__microcycle__title__istartswith='Biblioteca ')
+                )
+                .order_by('-id')[:520]
+            )
+            candidates = [
+                item for item in candidates_raw
+                if _task_scope_for_item(item) == scope_key
+                and _is_library_session(getattr(item, 'session', None))
+                and _library_repository_for_task(item) == repository
+            ]
+            prepared = prepare_task_library(
+                [task] + candidates,
+                parse_int=_parse_int,
+                sanitize_text=_sanitize_task_text,
+                analysis_confidence_scores=_analysis_confidence_scores,
+                task_upload_date=_task_upload_date,
+                extract_effective_reference_date=_extract_effective_reference_date,
+                detect_keyword_tags=_detect_keyword_tags,
+                task_type_keywords=TASK_TYPE_KEYWORDS,
+                task_phase_keywords=TASK_PHASE_KEYWORDS,
+                players_band_label=_players_band_label,
+                estimate_players_count=_estimate_players_count,
+                duration_band_label=_duration_band_label,
+                phase_folder_key_for_task=_phase_folder_key_for_task,
+                phase_folder_meta=PHASE_FOLDER_META,
+                coerce_reference_date=_coerce_reference_date,
+                is_imported_task=_is_imported_task,
+            )['task_library']
+            if prepared and len(prepared) > 1:
+                related_tasks = suggest_related_tasks(prepared[1:], prepared[0], limit=8)
+    except Exception:
+        related_tasks = []
     return render(
         request,
         'football/session_task_detail.html',
@@ -30081,6 +30179,7 @@ def session_task_detail_page(request, task_id):
             'original_preview_url': original_preview_url,
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
+            'related_tasks': related_tasks,
         },
     )
 

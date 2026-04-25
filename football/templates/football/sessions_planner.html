@@ -2538,6 +2538,101 @@
             <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
           </div>
         </details>
+        <details style="margin:0 0 0.6rem;" {% if library_filters_active %}open{% endif %}>
+          <summary class="button secondary" style="display:inline-flex; width:max-content;">
+            Filtros
+            {% if library_filters_active %}
+            <span style="opacity:0.75; font-weight:700;">· activos</span>
+            {% endif %}
+          </summary>
+          <form method="get" style="margin-top:0.65rem; display:flex; flex-direction:column; gap:0.55rem;">
+            <input type="hidden" name="tab" value="library" />
+            <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+            <input type="hidden" name="library_view" value="overview" />
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:0.45rem;">
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Buscar</span>
+                <input type="text" name="q" value="{{ library_q }}" placeholder="Título, objetivo, consignas…" />
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Fase</span>
+                <select name="phase">
+                  <option value="">(todas)</option>
+                  {% for item in phase_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key in library_phase_keys %}selected{% endif %}>{{ item.label|default:item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Tipo</span>
+                <select name="type">
+                  <option value="">(todos)</option>
+                  {% for item in type_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key in library_type_keys %}selected{% endif %}>{{ item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Contexto</span>
+                <select name="context">
+                  <option value="">(todos)</option>
+                  {% for item in context_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key in library_context_keys %}selected{% endif %}>{{ item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Objetivo</span>
+                <select name="objective">
+                  <option value="">(todos)</option>
+                  {% for item in objective_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key in library_objective_keys %}selected{% endif %}>{{ item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Jugadores</span>
+                <select name="players">
+                  <option value="">(cualquiera)</option>
+                  {% for item in players_band_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key == library_players_band %}selected{% endif %}>{{ item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Duración</span>
+                <select name="duration">
+                  <option value="">(cualquiera)</option>
+                  {% for item in duration_band_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key == library_duration_band %}selected{% endif %}>{{ item.key }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Calidad</span>
+                <select name="quality">
+                  <option value="">(todas)</option>
+                  {% for item in quality_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key == library_quality %}selected{% endif %}>{{ item.label }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Fecha</span>
+                <select name="ref_date">
+                  <option value="">(todas)</option>
+                  {% for item in date_group_rows %}
+                  <option value="{{ item.key }}" {% if item.key == library_reference_date %}selected{% endif %}>{{ item.label }} · {{ item.count }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+            </div>
+            <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+              <button class="secondary" type="submit">Aplicar</button>
+              <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Limpiar</a>
+            </div>
+          </form>
+        </details>
         {% if library_deleted_tasks %}
         <details style="margin:-0.25rem 0 0.7rem;">
           <summary>Papelera biblioteca ({{ library_deleted_tasks|length }})</summary>
@@ -2656,6 +2751,15 @@
               </details>
 	              {% endif %}
 	              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                  <button
+                    type="button"
+                    class="button secondary task-preview-btn"
+                    data-title="{{ t.title|escapejs }}"
+                    data-summary="{{ t.objective_summary|escapejs }}"
+                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
+                    data-img-url="{% if t.task_preview_image or t.task_pdf %}{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}{% endif %}"
+                    data-open-url="{% if t.is_imported %}{% url 'session-task-detail' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
+                  >Vista previa</button>
 	                {% if t.task_pdf %}
 	                <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
 	                {% endif %}
@@ -2797,6 +2901,23 @@
 
       {% endif %}
     </main>
+
+    <dialog id="task-preview-dialog" style="max-width:980px; width:calc(100% - 2rem); border:1px solid rgba(148,163,184,0.25); border-radius:16px; background:rgba(7,22,44,0.98); color:#e5e7eb; padding:0; box-shadow:0 24px 80px rgba(0,0,0,0.45);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.7rem 0.9rem; border-bottom:1px solid rgba(148,163,184,0.18);">
+        <div style="display:flex; flex-direction:column; gap:0.15rem;">
+          <strong id="task-preview-title" style="letter-spacing:0.08em; text-transform:uppercase; font-size:0.9rem;"></strong>
+          <span id="task-preview-meta" class="meta" style="opacity:0.85;"></span>
+        </div>
+        <form method="dialog" style="margin:0; display:flex; gap:0.4rem;">
+          <a id="task-preview-open" class="button" href="#" style="text-decoration:none;">Abrir</a>
+          <button class="secondary" value="cancel" type="submit">Cerrar</button>
+        </form>
+      </div>
+      <div style="padding:0.85rem 0.9rem 1rem;">
+        <img id="task-preview-img" alt="Vista previa tarea" style="width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:14px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04);" />
+        <p id="task-preview-summary" class="meta" style="margin:0.8rem 0 0;"></p>
+      </div>
+    </dialog>
 	    <script>
 	      (() => {
 	        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
@@ -2818,6 +2939,52 @@
 	          });
 	        }
 	      })();
+
+        (() => {
+          const dialog = document.getElementById('task-preview-dialog');
+          if (!dialog) return;
+          const titleEl = document.getElementById('task-preview-title');
+          const metaEl = document.getElementById('task-preview-meta');
+          const imgEl = document.getElementById('task-preview-img');
+          const summaryEl = document.getElementById('task-preview-summary');
+          const openEl = document.getElementById('task-preview-open');
+
+          const closeIfBackdrop = (event) => {
+            const rect = dialog.getBoundingClientRect();
+            const inside =
+              event.clientX >= rect.left &&
+              event.clientX <= rect.right &&
+              event.clientY >= rect.top &&
+              event.clientY <= rect.bottom;
+            if (!inside) dialog.close();
+          };
+          dialog.addEventListener('click', closeIfBackdrop);
+
+          document.addEventListener('click', (event) => {
+            const btn = event.target.closest('.task-preview-btn');
+            if (!btn) return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            const title = btn.getAttribute('data-title') || '';
+            const meta = btn.getAttribute('data-meta') || '';
+            const summary = btn.getAttribute('data-summary') || '';
+            const imgUrl = btn.getAttribute('data-img-url') || '';
+            const openUrl = btn.getAttribute('data-open-url') || '#';
+
+            if (titleEl) titleEl.textContent = title || 'Vista previa';
+            if (metaEl) metaEl.textContent = meta;
+            if (summaryEl) summaryEl.textContent = summary;
+            if (openEl) openEl.setAttribute('href', openUrl);
+            if (imgEl) {
+              imgEl.src = imgUrl || '';
+              imgEl.style.display = imgUrl ? 'block' : 'none';
+            }
+
+            if (typeof dialog.showModal === 'function') dialog.showModal();
+            else dialog.setAttribute('open', 'open');
+          });
+        })();
 	
 		      (() => {
 		        const form = document.getElementById('session-texts-form');
