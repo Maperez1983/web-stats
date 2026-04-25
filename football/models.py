@@ -972,6 +972,41 @@ class SessionTaskBookmark(models.Model):
         return f'{self.user.username} ★ {self.task.title}'
 
 
+class SessionTaskCollection(models.Model):
+    REPO_TRADITIONAL = 'traditional'
+    REPO_INTERACTIVE = 'interactive'
+    REPO_CHOICES = [
+        (REPO_TRADITIONAL, 'Tradicionales'),
+        (REPO_INTERACTIVE, 'Interactivas'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='task_collections')
+    repository = models.CharField(max_length=32, choices=REPO_CHOICES, default=REPO_TRADITIONAL)
+    name = models.CharField(max_length=120)
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_collections')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('team', 'repository', 'name')
+        ordering = ['name', 'id']
+
+    def __str__(self):
+        return f'{self.team.name} · {self.name}'
+
+
+class SessionTaskCollectionItem(models.Model):
+    collection = models.ForeignKey(SessionTaskCollection, on_delete=models.CASCADE, related_name='items')
+    task = models.ForeignKey(SessionTask, on_delete=models.CASCADE, related_name='collection_items')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('collection', 'task')
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.collection.name} · {self.task.title}'
+
+
 class ImportedSessionDocument(models.Model):
     REPO_TRADITIONAL = 'traditional'
     REPO_INTERACTIVE = 'interactive'

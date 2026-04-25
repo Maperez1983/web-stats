@@ -100,6 +100,8 @@ from football.models import (
     PlayerStatistic,
     SessionTask,
     SessionTaskBookmark,
+    SessionTaskCollection,
+    SessionTaskCollectionItem,
     ImportedSessionDocument,
     PdfGraphicAsset,
     ScrapeSource,
@@ -25762,6 +25764,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     library_quality = str(request.GET.get('quality') or request.POST.get('quality') or '').strip()
     library_reference_date = str(request.GET.get('ref_date') or request.POST.get('ref_date') or '').strip()
     library_sort = str(request.GET.get('sort') or request.POST.get('sort') or 'recent').strip().lower()
+    library_collection_id = _parse_int(request.GET.get('collection_id') or request.POST.get('collection_id'))
     allowed_sorts = {'recent', 'quality', 'confidence', 'title'}
     if library_sort not in allowed_sorts:
         library_sort = 'recent'
@@ -25775,6 +25778,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         or library_duration_band
         or library_quality
         or library_reference_date
+        or library_collection_id
     )
     if library_filters_active:
         if library_view not in {'favorites'}:
@@ -25822,6 +25826,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'purge_session_task',
         }:
             return 'library', 'sessions'
+        if action_key in {'create_task_collection', 'delete_task_collection', 'add_task_to_collection', 'remove_task_from_collection'}:
+            return 'library', 'library'
         return fallback_main, fallback_sub
 
     # Navegación inicial (GET).
@@ -26308,6 +26314,68 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     f'Microciclos nuevos={created_microcycles} (omitidos={skipped_microcycles}), '
                     f'Sesiones nuevas={created_sessions} (omitidas={skipped_sessions}).'
                 )
+
+            elif planner_action == 'create_task_collection':
+                collection_name = _sanitize_task_text(
+                    str(request.POST.get('collection_name') or '').strip(),
+                    multiline=False,
+                    max_len=120,
+                )
+                if not collection_name:
+                    raise ValueError('Indica un nombre para la colección.')
+                try:
+                    SessionTaskCollection.objects.create(
+                        team=primary_team,
+                        repository=library_repository,
+                        name=collection_name,
+                        created_by_user=request.user if request.user and request.user.is_authenticated else None,
+                    )
+                    feedback = f'Colección creada: {collection_name}.'
+                except IntegrityError:
+                    feedback = 'Esa colección ya existe.'
+
+            elif planner_action == 'delete_task_collection':
+                collection_id = _parse_int(request.POST.get('collection_id'))
+                if not collection_id:
+                    raise ValueError('No se pudo identificar la colección.')
+                collection = SessionTaskCollection.objects.filter(
+                    id=collection_id,
+                    team=primary_team,
+                    repository=library_repository,
+                ).first()
+                if not collection:
+                    raise ValueError('Colección no encontrada.')
+                collection.delete()
+                feedback = 'Colección eliminada.'
+
+            elif planner_action == 'add_task_to_collection':
+                collection_id = _parse_int(request.POST.get('collection_id'))
+                task_id = _parse_int(request.POST.get('task_id'))
+                if not collection_id or not task_id:
+                    raise ValueError('Selecciona colección y tarea.')
+                collection = SessionTaskCollection.objects.filter(
+                    id=collection_id,
+                    team=primary_team,
+                    repository=library_repository,
+                ).first()
+                if not collection:
+                    raise ValueError('Colección no encontrada.')
+                task = SessionTask.objects.filter(id=task_id, deleted_at__isnull=True).first()
+                if not task:
+                    raise ValueError('Tarea no encontrada.')
+                try:
+                    SessionTaskCollectionItem.objects.create(collection=collection, task=task)
+                    feedback = 'Tarea añadida a colección.'
+                except IntegrityError:
+                    feedback = 'La tarea ya estaba en esa colección.'
+
+            elif planner_action == 'remove_task_from_collection':
+                collection_id = _parse_int(request.POST.get('collection_id'))
+                task_id = _parse_int(request.POST.get('task_id'))
+                if not collection_id or not task_id:
+                    raise ValueError('Selecciona colección y tarea.')
+                SessionTaskCollectionItem.objects.filter(collection_id=collection_id, task_id=task_id).delete()
+                feedback = 'Tarea eliminada de la colección.'
 
             elif planner_action == 'update_microcycle_plan':
                 microcycle_id = _parse_int(request.POST.get('edit_microcycle_id'))
@@ -27585,7 +27653,52 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library = []
     library_deleted_tasks = []
     bookmarked_task_ids = set()
+    library_collections = []
+    library_collection_map = {}
+    library_collection_counts = {}
+    collection_task_ids = set()
     if planner_tables_ready and active_tab == 'library':
+        try:
+            library_collections = list(
+                SessionTaskCollection.objects
+                .filter(team=primary_team, repository=library_repository)
+                .order_by('name', 'id')
+            )
+            library_collection_map = {int(c.id): c for c in library_collections}
+        except Exception:
+            library_collections = []
+            library_collection_map = {}
+        if library_collections:
+            try:
+                for col in library_collections:
+                    setattr(col, 'item_count', 0)
+            except Exception:
+                pass
+        if library_collections:
+            try:
+                counts = (
+                    SessionTaskCollectionItem.objects
+                    .filter(collection_id__in=[int(c.id) for c in library_collections])
+                    .values('collection_id')
+                    .annotate(c=Count('id'))
+                )
+                library_collection_counts = {int(row['collection_id']): int(row['c'] or 0) for row in counts}
+            except Exception:
+                library_collection_counts = {}
+            try:
+                for col in library_collections:
+                    setattr(col, 'item_count', int(library_collection_counts.get(int(col.id), 0)))
+            except Exception:
+                pass
+        if library_collection_id and library_collection_id in library_collection_map:
+            try:
+                collection_task_ids = set(
+                    SessionTaskCollectionItem.objects
+                    .filter(collection_id=library_collection_id)
+                    .values_list('task_id', flat=True)
+                )
+            except Exception:
+                collection_task_ids = set()
         task_library_raw = list(
             SessionTask.objects
             .select_related('session__microcycle')
@@ -27614,6 +27727,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if library_view == 'favorites' and bookmarked_task_ids:
             task_library = [t for t in task_library if int(getattr(t, 'id', 0) or 0) in bookmarked_task_ids]
         elif library_view == 'favorites' and not bookmarked_task_ids:
+            task_library = []
+        if library_collection_id and collection_task_ids:
+            task_library = [t for t in task_library if int(getattr(t, 'id', 0) or 0) in collection_task_ids]
+        elif library_collection_id and not collection_task_ids:
             task_library = []
         deleted_candidates = list(
             SessionTask.objects
@@ -28068,6 +28185,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_reference_date': library_reference_date,
             'library_sort': library_sort,
             'bookmarked_task_ids': bookmarked_task_ids,
+            'library_collections': library_collections,
+            'library_collection_counts': library_collection_counts,
+            'library_collection_id': library_collection_id,
             'main_tab': main_tab,
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
@@ -30330,6 +30450,94 @@ def toggle_session_task_bookmark(request, task_id):
         return JsonResponse({'ok': True, 'bookmarked': False})
     SessionTaskBookmark.objects.create(user=request.user, task=task)
     return JsonResponse({'ok': True, 'bookmarked': True})
+
+
+def session_task_related_api(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+
+    scope_key = _task_scope_for_item(task)
+    team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+    repository = _library_repository_for_task(task)
+    if not team:
+        return JsonResponse({'ok': True, 'items': []})
+
+    related_tasks = []
+    try:
+        candidates_raw = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=team, deleted_at__isnull=True)
+            .filter(
+                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(session__microcycle__title__istartswith='Biblioteca ')
+            )
+            .order_by('-id')[:520]
+        )
+        candidates = [
+            item for item in candidates_raw
+            if _task_scope_for_item(item) == scope_key
+            and _is_library_session(getattr(item, 'session', None))
+            and _library_repository_for_task(item) == repository
+        ]
+        prepared = prepare_task_library(
+            [task] + candidates,
+            parse_int=_parse_int,
+            sanitize_text=_sanitize_task_text,
+            analysis_confidence_scores=_analysis_confidence_scores,
+            task_upload_date=_task_upload_date,
+            extract_effective_reference_date=_extract_effective_reference_date,
+            detect_keyword_tags=_detect_keyword_tags,
+            task_type_keywords=TASK_TYPE_KEYWORDS,
+            task_phase_keywords=TASK_PHASE_KEYWORDS,
+            players_band_label=_players_band_label,
+            estimate_players_count=_estimate_players_count,
+            duration_band_label=_duration_band_label,
+            phase_folder_key_for_task=_phase_folder_key_for_task,
+            phase_folder_meta=PHASE_FOLDER_META,
+            coerce_reference_date=_coerce_reference_date,
+            is_imported_task=_is_imported_task,
+        )['task_library']
+        if prepared and len(prepared) > 1:
+            related_tasks = suggest_related_tasks(prepared[1:], prepared[0], limit=10)
+    except Exception:
+        related_tasks = []
+
+    items = []
+    for rel in related_tasks:
+        try:
+            rel_id = int(getattr(rel, 'id', 0) or 0)
+        except Exception:
+            rel_id = 0
+        if not rel_id:
+            continue
+        img_url = ''
+        try:
+            if getattr(rel, 'task_preview_image', None) or getattr(rel, 'task_pdf', None):
+                img_url = reverse('session-task-preview-file', args=[rel_id])
+                if getattr(rel, 'task_preview_image', None):
+                    img_url = f"{img_url}?v={quote(str(rel.task_preview_image.name or ''))}"
+        except Exception:
+            img_url = ''
+        items.append(
+            {
+                'id': rel_id,
+                'title': str(getattr(rel, 'title', '') or '').strip(),
+                'summary': str(getattr(rel, 'objective_summary', '') or '').strip(),
+                'img_url': img_url,
+                'open_url': reverse('session-task-detail', args=[rel_id]),
+            }
+        )
+
+    return JsonResponse({'ok': True, 'items': items})
 
 
 @authenticated_write

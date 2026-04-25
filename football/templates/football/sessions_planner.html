@@ -2573,6 +2573,70 @@
             <span style="opacity:0.75; font-weight:700;">· activos</span>
             {% endif %}
           </summary>
+          <div style="display:grid; gap:0.55rem; margin-top:0.65rem;">
+            <div>
+              <p class="meta" style="margin:0 0 0.3rem; font-weight:900;">Chips rápidos (multi-selección)</p>
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:0.5rem;">
+                <div>
+                  <p class="meta" style="margin:0 0 0.25rem; font-weight:800;">Fase</p>
+                  <div style="display:flex; flex-wrap:wrap; gap:0.35rem; max-height:7.5rem; overflow:auto; padding:0.1rem 0;">
+                    {% for item in phase_group_rows|slice:":18" %}
+                    <button
+                      type="button"
+                      class="badge facet-chip"
+                      data-facet="phase"
+                      data-value="{{ item.key }}"
+                      style="{% if item.key in library_phase_keys %}border-color:rgba(250,204,21,0.85); color:#fde68a;{% endif %}"
+                    >{{ item.label|default:item.key }} · {{ item.count }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div>
+                  <p class="meta" style="margin:0 0 0.25rem; font-weight:800;">Tipo</p>
+                  <div style="display:flex; flex-wrap:wrap; gap:0.35rem; max-height:7.5rem; overflow:auto; padding:0.1rem 0;">
+                    {% for item in type_group_rows|slice:":18" %}
+                    <button
+                      type="button"
+                      class="badge facet-chip"
+                      data-facet="type"
+                      data-value="{{ item.key }}"
+                      style="{% if item.key in library_type_keys %}border-color:rgba(250,204,21,0.85); color:#fde68a;{% endif %}"
+                    >{{ item.key }} · {{ item.count }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div>
+                  <p class="meta" style="margin:0 0 0.25rem; font-weight:800;">Contexto</p>
+                  <div style="display:flex; flex-wrap:wrap; gap:0.35rem; max-height:7.5rem; overflow:auto; padding:0.1rem 0;">
+                    {% for item in context_group_rows|slice:":18" %}
+                    <button
+                      type="button"
+                      class="badge facet-chip"
+                      data-facet="context"
+                      data-value="{{ item.key }}"
+                      style="{% if item.key in library_context_keys %}border-color:rgba(250,204,21,0.85); color:#fde68a;{% endif %}"
+                    >{{ item.key }} · {{ item.count }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+                <div>
+                  <p class="meta" style="margin:0 0 0.25rem; font-weight:800;">Objetivo</p>
+                  <div style="display:flex; flex-wrap:wrap; gap:0.35rem; max-height:7.5rem; overflow:auto; padding:0.1rem 0;">
+                    {% for item in objective_group_rows|slice:":18" %}
+                    <button
+                      type="button"
+                      class="badge facet-chip"
+                      data-facet="objective"
+                      data-value="{{ item.key }}"
+                      style="{% if item.key in library_objective_keys %}border-color:rgba(250,204,21,0.85); color:#fde68a;{% endif %}"
+                    >{{ item.key }} · {{ item.count }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              <p class="meta" style="margin:0.35rem 0 0;">Tip: pulsa varios chips y se aplican al instante. Para ver todos, usa los selects.</p>
+            </div>
+          </div>
           <form method="get" style="margin-top:0.65rem; display:flex; flex-direction:column; gap:0.55rem;">
             <input type="hidden" name="tab" value="library" />
             <input type="hidden" name="library_repo" value="{{ library_repository }}" />
@@ -2663,6 +2727,15 @@
                   <option value="title" {% if library_sort == 'title' %}selected{% endif %}>Título A→Z</option>
                 </select>
               </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Colección</span>
+                <select name="collection_id">
+                  <option value="">(todas)</option>
+                  {% for col in library_collections %}
+                  <option value="{{ col.id }}" {% if col.id == library_collection_id %}selected{% endif %}>{{ col.name }} · {{ col.item_count|default:0 }}</option>
+                  {% endfor %}
+                </select>
+              </label>
             </div>
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
               <button class="secondary" type="submit">Aplicar</button>
@@ -2671,6 +2744,39 @@
             </div>
             <div id="library-presets" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
           </form>
+        </details>
+
+        <details style="margin:-0.15rem 0 0.6rem;">
+          <summary class="button secondary" style="display:inline-flex; width:max-content;">Colecciones</summary>
+          <div style="margin-top:0.6rem; display:flex; flex-direction:column; gap:0.55rem;">
+            <form method="post" style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center; margin:0;">
+              {% csrf_token %}
+              <input type="hidden" name="planner_action" value="create_task_collection" />
+              <input type="hidden" name="planner_tab" value="library" />
+              <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+              <input type="text" name="collection_name" maxlength="120" placeholder="Nueva colección (ej: Presión alta)" style="min-width:220px;" />
+              <button type="submit" class="secondary">Crear</button>
+            </form>
+            {% if library_collections %}
+            <div style="display:flex; flex-direction:column; gap:0.35rem;">
+              {% for col in library_collections %}
+              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&collection_id={{ col.id }}">{{ col.name }} · {{ col.item_count|default:0 }}</a>
+                <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar la colección? No borra las tareas, solo la agrupación.');">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="delete_task_collection" />
+                  <input type="hidden" name="planner_tab" value="library" />
+                  <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                  <input type="hidden" name="collection_id" value="{{ col.id }}" />
+                  <button type="submit" class="secondary">Eliminar</button>
+                </form>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="meta">Sin colecciones todavía.</p>
+            {% endif %}
+          </div>
         </details>
         {% if library_deleted_tasks %}
         <details style="margin:-0.25rem 0 0.7rem;">
@@ -2806,6 +2912,7 @@
                     data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
                     data-img-url="{% if t.task_preview_image or t.task_pdf %}{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}{% endif %}"
                     data-open-url="{% if t.is_imported %}{% url 'session-task-detail' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
+                    data-related-url="{% url 'session-task-related' t.id %}"
                   >Vista previa</button>
 	                {% if t.task_pdf %}
 	                <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
@@ -2838,6 +2945,35 @@
                 <details class="task-more">
                   <summary class="button secondary">Más</summary>
                   <div class="task-more-body" role="menu">
+                    {% if library_collections %}
+                    <details style="margin:0 0 0.4rem;">
+                      <summary class="button secondary" style="display:inline-flex; width:max-content;">Colección</summary>
+                      <form method="post" style="margin:0.55rem 0 0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="add_task_to_collection" />
+                        <input type="hidden" name="planner_tab" value="library" />
+                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                        <input type="hidden" name="task_id" value="{{ t.id }}" />
+                        <select name="collection_id" style="min-width:220px;">
+                          {% for col in library_collections %}
+                          <option value="{{ col.id }}">{{ col.name }}</option>
+                          {% endfor %}
+                        </select>
+                        <button type="submit" class="secondary">Añadir</button>
+                      </form>
+                      {% if library_collection_id %}
+                      <form method="post" style="margin:0.45rem 0 0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="remove_task_from_collection" />
+                        <input type="hidden" name="planner_tab" value="library" />
+                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                        <input type="hidden" name="task_id" value="{{ t.id }}" />
+                        <input type="hidden" name="collection_id" value="{{ library_collection_id }}" />
+                        <button type="submit" class="secondary">Quitar de colección activa</button>
+                      </form>
+                      {% endif %}
+                    </details>
+                    {% endif %}
                     {% if t.task_pdf %}
 	                  <form method="post">
 	                    {% csrf_token %}
@@ -2963,6 +3099,10 @@
       <div style="padding:0.85rem 0.9rem 1rem;">
         <img id="task-preview-img" alt="Vista previa tarea" style="width:100%; aspect-ratio:16/9; object-fit:contain; border-radius:14px; border:1px solid rgba(148,163,184,0.18); background:rgba(255,255,255,0.04);" />
         <p id="task-preview-summary" class="meta" style="margin:0.8rem 0 0;"></p>
+        <div id="task-preview-related" style="margin-top:0.85rem; display:none;">
+          <p class="meta" style="margin:0 0 0.4rem; font-weight:900;">Relacionadas</p>
+          <div id="task-preview-related-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:0.5rem;"></div>
+        </div>
       </div>
     </dialog>
 	    <script>
@@ -3018,6 +3158,7 @@
             const summary = btn.getAttribute('data-summary') || '';
             const imgUrl = btn.getAttribute('data-img-url') || '';
             const openUrl = btn.getAttribute('data-open-url') || '#';
+            const relatedUrl = btn.getAttribute('data-related-url') || '';
 
             if (titleEl) titleEl.textContent = title || 'Vista previa';
             if (metaEl) metaEl.textContent = meta;
@@ -3030,6 +3171,46 @@
 
             if (typeof dialog.showModal === 'function') dialog.showModal();
             else dialog.setAttribute('open', 'open');
+
+            const relatedWrap = document.getElementById('task-preview-related');
+            const relatedGrid = document.getElementById('task-preview-related-grid');
+            if (relatedWrap) relatedWrap.style.display = 'none';
+            if (relatedGrid) relatedGrid.innerHTML = '';
+            if (relatedUrl) {
+              fetch(relatedUrl, { credentials: 'same-origin' })
+                .then((r) => r.json())
+                .then((data) => {
+                  const items = (data && data.items) || [];
+                  if (!Array.isArray(items) || !items.length) return;
+                  if (!relatedWrap || !relatedGrid) return;
+                  items.slice(0, 6).forEach((item) => {
+                    const card = document.createElement('a');
+                    card.href = item.open_url || '#';
+                    card.style.textDecoration = 'none';
+                    card.style.color = 'inherit';
+                    card.style.border = '1px solid rgba(148,163,184,0.18)';
+                    card.style.borderRadius = '12px';
+                    card.style.padding = '0.55rem';
+                    card.style.background = 'rgba(255,255,255,0.04)';
+                    card.innerHTML = `
+                      <div style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase; font-size:0.78rem; margin-bottom:0.35rem;">
+                        ${String(item.title || '').slice(0, 64)}
+                      </div>
+                      ${
+                        item.img_url
+                          ? `<img src="${item.img_url}" alt="" style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.12); object-fit:cover; background:rgba(0,0,0,0.12);" loading="lazy" />`
+                          : `<div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.16); display:flex; align-items:center; justify-content:center; opacity:0.75;">Sin gráfico</div>`
+                      }
+                      <div class="meta" style="margin-top:0.4rem; font-size:0.82rem; opacity:0.85;">
+                        ${String(item.summary || '').slice(0, 140)}
+                      </div>
+                    `;
+                    relatedGrid.appendChild(card);
+                  });
+                  relatedWrap.style.display = 'block';
+                })
+                .catch(() => {});
+            }
           });
         })();
 
@@ -3134,6 +3315,35 @@
             presets.unshift({ id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: name.slice(0, 42), href });
             writePresets(presets.slice(0, 30));
             renderPresets();
+          });
+        })();
+
+        (() => {
+          const chips = document.querySelectorAll('.facet-chip[data-facet][data-value]');
+          if (!chips.length) return;
+          const toggleParam = (params, key, value) => {
+            const current = params.getAll(key);
+            if (current.includes(value)) {
+              const next = current.filter((v) => v !== value);
+              params.delete(key);
+              next.forEach((v) => params.append(key, v));
+            } else {
+              params.append(key, value);
+            }
+          };
+          chips.forEach((chip) => {
+            chip.addEventListener('click', () => {
+              const facet = chip.getAttribute('data-facet');
+              const value = chip.getAttribute('data-value');
+              if (!facet || !value) return;
+              const params = new URLSearchParams(window.location.search || '');
+              params.set('tab', 'library');
+              // Al usar chips, evitamos que las vistas legacy "por carpeta" interfieran.
+              params.set('library_view', 'overview');
+              params.delete('library_key');
+              toggleParam(params, facet, value);
+              window.location.search = params.toString();
+            });
           });
         })();
 	

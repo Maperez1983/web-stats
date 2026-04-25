@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
+from football.tag_catalog import normalize_tags
+
 
 def prepare_task_library(
     tasks,
@@ -72,15 +74,19 @@ def prepare_task_library(
             if isinstance(analysis_meta.get('detected_materials'), list)
             else []
         )
-        task.exercise_types = (
-            analysis_meta.get('exercise_types')
-            if isinstance(analysis_meta.get('exercise_types'), list)
-            else []
+        task.exercise_types = normalize_tags(
+            (
+                analysis_meta.get('exercise_types')
+                if isinstance(analysis_meta.get('exercise_types'), list)
+                else []
+            )
         )
-        task.phase_tags = (
-            analysis_meta.get('phase_tags')
-            if isinstance(analysis_meta.get('phase_tags'), list)
-            else []
+        task.phase_tags = normalize_tags(
+            (
+                analysis_meta.get('phase_tags')
+                if isinstance(analysis_meta.get('phase_tags'), list)
+                else []
+            )
         )
         upload_date = task_upload_date(task)
         effective_reference_date = extract_effective_reference_date(task, analysis_meta=analysis_meta)
@@ -102,6 +108,8 @@ def prepare_task_library(
                 task.exercise_types = detect_keyword_tags(fallback_haystack, task_type_keywords)
             if not task.phase_tags:
                 task.phase_tags = detect_keyword_tags(fallback_haystack, task_phase_keywords)
+        task.exercise_types = normalize_tags(task.exercise_types)
+        task.phase_tags = normalize_tags(task.phase_tags)
         task.players_count_estimate = parse_int(analysis_meta.get('players_count_estimate'))
         task.players_band = str(analysis_meta.get('players_band') or '').strip()
         if not task.players_band and task.task_sheet:
@@ -130,9 +138,11 @@ def prepare_task_library(
         ).strip()
         task.card_summary = sanitize_text(card_summary, multiline=True, max_len=280)
         for ctx in analysis_meta.get('work_contexts') or []:
-            context_groups[str(ctx)].append(task)
+            for norm in normalize_tags([str(ctx)]):
+                context_groups[str(norm)].append(task)
         for obj in analysis_meta.get('objective_tags') or []:
-            objective_groups[str(obj)].append(task)
+            for norm in normalize_tags([str(obj)]):
+                objective_groups[str(norm)].append(task)
         for exercise_type in task.exercise_types:
             type_groups[str(exercise_type)].append(task)
         for phase_tag in task.phase_tags:
