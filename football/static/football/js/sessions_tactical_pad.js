@@ -2129,6 +2129,24 @@
 		    let penOnlyDraw = false;
 		    // Ruta dibujada → animación (Timeline Pro).
 		    let animPathMode = false;
+		    // Smart ink: convierte trazos a recursos limpios.
+		    let smartInkMode = 'off'; // off | arrow | shapes
+		    const setSmartInkMode = (mode) => {
+		      const next = safeText(mode, 'off').toLowerCase();
+		      smartInkMode = (next === 'arrow' || next === 'shapes') ? next : 'off';
+		      try {
+		        Array.from(document.querySelectorAll('button[data-action="smart_arrow"]')).forEach((btn) => {
+		          btn.classList.toggle('is-active', smartInkMode === 'arrow');
+		          try { btn.setAttribute('aria-pressed', smartInkMode === 'arrow' ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		        });
+		      } catch (e) { /* ignore */ }
+		      try {
+		        Array.from(document.querySelectorAll('button[data-action="smart_shapes"]')).forEach((btn) => {
+		          btn.classList.toggle('is-active', smartInkMode === 'shapes');
+		          try { btn.setAttribute('aria-pressed', smartInkMode === 'shapes' ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		        });
+		      } catch (e) { /* ignore */ }
+		    };
 		    let animPathCapturing = false;
 		    let animPathPointerId = null;
 		    let animPathPoints = [];
@@ -12615,7 +12633,13 @@
 			    });
 		    canvas.on('object:added', (event) => {
 		      if (event?.target?.data?.base) return;
-		      if (!canvas.__loading) {
+		      const target = event?.target;
+		      const deferSmartInkPath = (!canvas.__loading)
+		        && freeDrawMode
+		        && smartInkMode !== 'off'
+		        && target
+		        && target.type === 'path';
+		      if (!canvas.__loading && !deferSmartInkPath) {
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
@@ -12695,6 +12719,120 @@
 		        if (dist > max) max = dist;
 		      }
 		      return max;
+		    };
+		    const hexToRgb = (hex) => {
+		      const raw = safeText(hex).trim().replace('#', '');
+		      if (!raw) return null;
+		      const full = raw.length === 3 ? raw.split('').map((c) => `${c}${c}`).join('') : raw;
+		      if (full.length !== 6) return null;
+		      const n = Number.parseInt(full, 16);
+		      if (!Number.isFinite(n)) return null;
+		      // eslint-disable-next-line no-bitwise
+		      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+		    };
+		    const rgbaFromHex = (hex, alpha = 0.12) => {
+		      const rgb = hexToRgb(hex);
+		      if (!rgb) return `rgba(34,211,238,${clamp(Number(alpha) || 0.12, 0, 1)})`;
+		      return `rgba(${rgb.r},${rgb.g},${rgb.b},${clamp(Number(alpha) || 0.12, 0, 1)})`;
+		    };
+		    const boundsForPoints = (points) => {
+		      let minX = Infinity;
+		      let minY = Infinity;
+		      let maxX = -Infinity;
+		      let maxY = -Infinity;
+		      (points || []).forEach((p) => {
+		        const x = Number(p?.x);
+		        const y = Number(p?.y);
+		        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+		        if (x < minX) minX = x;
+		        if (y < minY) minY = y;
+		        if (x > maxX) maxX = x;
+		        if (y > maxY) maxY = y;
+		      });
+		      if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+		        return { minX: 0, minY: 0, maxX: 0, maxY: 0, w: 0, h: 0, cx: 0, cy: 0, diag: 0 };
+		      }
+		      const w = Math.max(0, maxX - minX);
+		      const h = Math.max(0, maxY - minY);
+		      return { minX, minY, maxX, maxY, w, h, cx: minX + (w / 2), cy: minY + (h / 2), diag: Math.hypot(w, h) || 0 };
+		    };
+		    const polygonArea = (points) => {
+		      if (!Array.isArray(points) || points.length < 3) return 0;
+		      let sum = 0;
+		      for (let i = 0; i < points.length; i += 1) {
+		        const a = points[i];
+		        const b = points[(i + 1) % points.length];
+		        const ax = Number(a?.x) || 0;
+		        const ay = Number(a?.y) || 0;
+		        const bx = Number(b?.x) || 0;
+		        const by = Number(b?.y) || 0;
+		        sum += (ax * by) - (bx * ay);
+		      }
+		      return Math.abs(sum) / 2;
+		    };
+		    const polyLength = (points) => {
+		      if (!Array.isArray(points) || points.length < 2) return 0;
+		      let len = 0;
+		      for (let i = 1; i < points.length; i += 1) {
+		        const a = points[i - 1];
+		        const b = points[i];
+		        len += Math.hypot((Number(b?.x) || 0) - (Number(a?.x) || 0), (Number(b?.y) || 0) - (Number(a?.y) || 0)) || 0;
+		      }
+		      return len;
+		    };
+		    const isClosedStroke = (points) => {
+		      if (!Array.isArray(points) || points.length < 3) return false;
+		      const start = points[0];
+		      const end = points[points.length - 1];
+		      const b = boundsForPoints(points);
+		      const dist = Math.hypot((Number(end?.x) || 0) - (Number(start?.x) || 0), (Number(end?.y) || 0) - (Number(start?.y) || 0)) || 0;
+		      const tol = Math.max(18, (b.diag || 0) * 0.12);
+		      return dist <= tol;
+		    };
+		    const classifySmartShape = (points) => {
+		      const pts = Array.isArray(points) ? points : [];
+		      if (pts.length < 2) return null;
+		      const b = boundsForPoints(pts);
+		      if (b.w < 24 && b.h < 24) return null;
+		      const start = pts[0];
+		      const end = pts[pts.length - 1];
+		      const len = Math.hypot((Number(end?.x) || 0) - (Number(start?.x) || 0), (Number(end?.y) || 0) - (Number(start?.y) || 0)) || 0;
+		      const wobble = maxDistanceToLine(pts, start, end);
+		      if (len >= 70 && (wobble / Math.max(1, len)) <= 0.12) {
+		        return { kind: 'line_solid', start, end };
+		      }
+		      const closed = isClosedStroke(pts);
+		      if (!closed) return null;
+		      const safeW = Math.max(1, b.w);
+		      const safeH = Math.max(1, b.h);
+		      const aspect = safeW / safeH;
+		      const area = polygonArea(pts);
+		      const perimeter = polyLength(pts) + Math.hypot((Number(pts[0]?.x) || 0) - (Number(pts[pts.length - 1]?.x) || 0), (Number(pts[0]?.y) || 0) - (Number(pts[pts.length - 1]?.y) || 0));
+		      const circularity = perimeter > 0 ? (4 * Math.PI * area) / (perimeter * perimeter) : 0;
+		      const boxArea = safeW * safeH;
+		      const fillRatio = boxArea > 0 ? (area / boxArea) : 0;
+
+		      if (circularity >= 0.72 && aspect >= 0.75 && aspect <= 1.33) {
+		        return { kind: 'shape_circle', bounds: b };
+		      }
+		      if (fillRatio >= 0.68 && circularity <= 0.68) {
+		        if (aspect >= 0.86 && aspect <= 1.18) return { kind: 'shape_square', bounds: b };
+		        if (aspect >= 2.05 || aspect <= 0.49) return { kind: 'shape_rect_long', bounds: b };
+		        return { kind: 'shape_rect', bounds: b };
+		      }
+		      return null;
+		    };
+		    const applySmartShapeStyle = (obj, stroke, strokeWidth) => {
+		      if (!obj) return;
+		      const fill = rgbaFromHex(stroke, 0.12);
+		      try {
+		        if (obj.type === 'circle' || obj.type === 'rect' || obj.type === 'triangle' || obj.type === 'path') {
+		          obj.set({ stroke, strokeWidth, fill });
+		        }
+		        if (obj.type === 'line') {
+		          obj.set({ stroke, strokeWidth });
+		        }
+		      } catch (e) { /* ignore */ }
 		    };
 		    const buildSmartArrowGroup = (start, end, options = {}) => {
 		      const fabric = window.fabric;
@@ -12780,20 +12918,85 @@
 		    canvas.on('path:created', (event) => {
 		      if (canvas.__loading) return;
 		      if (!freeDrawMode) return;
-		      if (smartInkMode !== 'arrow') return;
+		      if (smartInkMode === 'off') return;
 		      const pathObj = event?.path;
 		      if (!pathObj) return;
 		      if (isSimulating) return;
 
 		      const points = extractCanvasPointsFromPath(pathObj);
+		      const stroke = safeText(pathObj.stroke, colorInput?.value || '#22d3ee') || '#22d3ee';
+		      const strokeWidth = clamp(Number(pathObj.strokeWidth) || Number(strokeWidthInput?.value) || 4, 1, 26);
 		      if (points.length < 2) {
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
 		        return;
 		      }
-		      const start = points[0];
 
+		      if (smartInkMode === 'shapes') {
+		        const match = classifySmartShape(points);
+		        if (!match) {
+		          persistActiveStepSnapshot();
+		          pushHistory();
+		          renderLayers();
+		          return;
+		        }
+		        let replacement = null;
+		        if (match.kind === 'line_solid') {
+		          const factory = simpleFactory('line_solid');
+		          if (factory) {
+		            const a = match.start;
+		            const b = match.end;
+		            const cx = ((Number(a?.x) || 0) + (Number(b?.x) || 0)) / 2;
+		            const cy = ((Number(a?.y) || 0) + (Number(b?.y) || 0)) / 2;
+		            replacement = factory(cx, cy);
+		            try {
+		              const dx = (Number(b?.x) || 0) - (Number(a?.x) || 0);
+		              const dy = (Number(b?.y) || 0) - (Number(a?.y) || 0);
+		              const l = Math.hypot(dx, dy) || 0;
+		              const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+		              replacement.set({ angle: ang });
+		              const baseLen = 440;
+		              const scale = clamp(l / baseLen, 0.15, 8);
+		              replacement.set({ scaleX: scale, scaleY: scale });
+		            } catch (e) { /* ignore */ }
+		            applySmartShapeStyle(replacement, stroke, strokeWidth);
+		          }
+		        } else {
+		          const b = match.bounds || boundsForPoints(points);
+		          const factory = simpleFactory(match.kind);
+		          if (factory) replacement = factory(b.cx, b.cy);
+		          if (replacement) {
+		            applySmartShapeStyle(replacement, stroke, strokeWidth);
+		            try {
+		              const w = Math.max(10, Number(b.w) || 0);
+		              const h = Math.max(10, Number(b.h) || 0);
+		              if (replacement.type === 'circle') {
+		                const d0 = Math.max(1, (Number(replacement.radius) || 46) * 2);
+		                const s = clamp(Math.min(w, h) / d0, 0.18, 12);
+		                replacement.set({ scaleX: s, scaleY: s });
+		              } else if (replacement.type === 'rect') {
+		                const w0 = Math.max(1, Number(replacement.width) || 96);
+		                const h0 = Math.max(1, Number(replacement.height) || 96);
+		                const sx = clamp(w / w0, 0.15, 12);
+		                const sy = clamp(h / h0, 0.15, 12);
+		                replacement.set({ scaleX: sx, scaleY: sy });
+		              }
+		            } catch (e) { /* ignore */ }
+		          }
+		        }
+		        if (!replacement || !replacePathWithSmartObject(pathObj, replacement)) {
+		          persistActiveStepSnapshot();
+		          pushHistory();
+		          renderLayers();
+		          return;
+		        }
+		        setStatus('Forma convertida.');
+		        return;
+		      }
+
+		      // smartInkMode === 'arrow'
+		      const start = points[0];
 		      // Soporta “flecha con punta” dibujada en un único trazo: usa la punta (punto más lejano).
 		      let farIdx = points.length - 1;
 		      let farDist = -1;
@@ -12807,10 +13010,8 @@
 		      const tipIdx = (farIdx >= minIdxForTip) ? farIdx : (points.length - 1);
 		      const end = points[tipIdx];
 		      const mainPoints = points.slice(0, tipIdx + 1);
-
 		      const len = Math.hypot((Number(end?.x) || 0) - (Number(start?.x) || 0), (Number(end?.y) || 0) - (Number(start?.y) || 0)) || 0;
 		      if (len < 70) {
-		        // Demasiado corto → deja el trazo tal cual (pero guarda historial, ya que lo diferimos).
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
@@ -12818,14 +13019,11 @@
 		      }
 		      const wobble = maxDistanceToLine(mainPoints, start, end);
 		      if (wobble / Math.max(1, len) > 0.14) {
-		        // No parece una flecha recta.
 		        persistActiveStepSnapshot();
 		        pushHistory();
 		        renderLayers();
 		        return;
 		      }
-		      const stroke = safeText(pathObj.stroke, colorInput?.value || '#22d3ee') || '#22d3ee';
-		      const strokeWidth = clamp(Number(pathObj.strokeWidth) || Number(strokeWidthInput?.value) || 4, 1, 26);
 		      const arrow = buildSmartArrowGroup(start, end, { stroke, strokeWidth });
 		      if (!arrow || !replacePathWithSmartObject(pathObj, arrow)) {
 		        persistActiveStepSnapshot();
@@ -13403,7 +13601,7 @@
 	        } catch (e) { /* ignore */ }
 	        try {
 	          Array.from(document.querySelectorAll('button[data-action="draw_free"]')).forEach((btn) => {
-	            btn.classList.toggle('is-active', freeDrawMode && !pencilProMode);
+	            btn.classList.toggle('is-active', freeDrawMode && !pencilProMode && smartInkMode === 'off');
 	          });
 	        } catch (e) { /* ignore */ }
 	        if (freeDrawMode) {
@@ -13443,6 +13641,7 @@
 	      };
 	      if (action === 'select') {
 	        animPathMode = false;
+	        setSmartInkMode('off');
 	        pencilProMode = false;
 	        penOnlyDraw = false;
 	        setFreeDrawMode(false);
@@ -13455,14 +13654,36 @@
 	      if (action === 'draw_free') {
 	        // Modo clásico: permite dedo/ratón.
 	        animPathMode = false;
+	        setSmartInkMode('off');
 	        pencilProMode = false;
 	        penOnlyDraw = false;
 	        setFreeDrawMode(!freeDrawMode);
 	        return true;
 	      }
+	      if (action === 'smart_arrow') {
+	        animPathMode = false;
+	        pencilProMode = false;
+	        penOnlyDraw = false;
+	        const willEnable = smartInkMode !== 'arrow';
+	        setSmartInkMode(willEnable ? 'arrow' : 'off');
+	        setFreeDrawMode(willEnable ? true : freeDrawMode);
+	        setStatus(willEnable ? 'Auto flecha activa: dibuja una flecha y se convertirá en flecha limpia.' : 'Auto flecha desactivada.');
+	        return true;
+	      }
+	      if (action === 'smart_shapes') {
+	        animPathMode = false;
+	        pencilProMode = false;
+	        penOnlyDraw = false;
+	        const willEnable = smartInkMode !== 'shapes';
+	        setSmartInkMode(willEnable ? 'shapes' : 'off');
+	        setFreeDrawMode(willEnable ? true : freeDrawMode);
+	        setStatus(willEnable ? 'Auto formas activa: dibuja círculo/rectángulo/línea y se convertirá en forma limpia.' : 'Auto formas desactivada.');
+	        return true;
+	      }
 	      if (action === 'pencil_pro') {
 	        // Pencil Pro: dibuja solo con pen (palm rejection por bloqueo touch).
 	        animPathMode = false;
+	        setSmartInkMode('off');
 	        pencilProMode = !pencilProMode;
 	        penOnlyDraw = pencilProMode;
 	        try {
@@ -13477,6 +13698,7 @@
 	      if (action === 'draw_anim_path') {
 	        // Ruta animada: captura stroke y lo convierte en Timeline Pro para la ficha seleccionada.
 	        setFreeDrawMode(false);
+	        setSmartInkMode('off');
 	        pencilProMode = true;
 	        penOnlyDraw = true;
 	        animPathMode = !animPathMode;
