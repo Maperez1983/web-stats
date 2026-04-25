@@ -340,6 +340,13 @@ def billing_page(request):
     status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower() or 'trial'
     if status == 'trial' and expires_at and expires_at <= now:
         status = 'expired'
+    price_map = _stripe_price_map()
+    addons_available = {}
+    try:
+        for key in ('live', 'studio', 'analysis', 'tactics'):
+            addons_available[key] = bool((price_map.get((key, 'month')) or '').strip() or (price_map.get((key, 'year')) or '').strip())
+    except Exception:
+        addons_available = {}
     return render(
         request,
         'football/billing.html',
@@ -351,6 +358,7 @@ def billing_page(request):
             'stripe_ready': bool(str(os.getenv('STRIPE_SECRET_KEY', '') or '').strip()),
             'stripe_modular_ready': bool((_stripe_price_map().get(('core', 'month')) or '').strip()),
             'stripe_modular_enabled': _stripe_modular_billing_enabled(),
+            'stripe_addons_available': addons_available,
         },
     )
 
@@ -384,6 +392,8 @@ def _stripe_price_map():
         ('studio', 'year'): str(os.getenv('STRIPE_PRICE_STUDIO_YEARLY', '') or '').strip(),
         ('analysis', 'month'): str(os.getenv('STRIPE_PRICE_ANALYSIS_MONTHLY', '') or '').strip(),
         ('analysis', 'year'): str(os.getenv('STRIPE_PRICE_ANALYSIS_YEARLY', '') or '').strip(),
+        ('tactics', 'month'): str(os.getenv('STRIPE_PRICE_TACTICS_MONTHLY', '') or '').strip(),
+        ('tactics', 'year'): str(os.getenv('STRIPE_PRICE_TACTICS_YEARLY', '') or '').strip(),
     }
 
 
@@ -441,7 +451,7 @@ def billing_checkout_session_api(request):
     addons = []
     if raw_addons:
         addons = [a.strip().lower() for a in re.split(r'[, ]+', raw_addons) if a.strip()]
-    allowed_addons = {'live', 'studio', 'analysis'}
+    allowed_addons = {'live', 'studio', 'analysis', 'tactics'}
     addons = [a for a in addons if a in allowed_addons]
 
     line_items = []
@@ -4771,6 +4781,7 @@ def _workspace_default_modules(kind):
         'sessions': True,
         'analysis': True,
         'abp_board': True,
+        'tactics': True,
         'manual_stats': True,
     }
 
@@ -4793,6 +4804,7 @@ def _workspace_access_module_catalog(kind):
         {'key': 'sessions', 'label': 'Sesiones'},
         {'key': 'analysis', 'label': 'Análisis'},
         {'key': 'abp_board', 'label': 'ABP'},
+        {'key': 'tactics', 'label': 'Táctica'},
         {'key': 'manual_stats', 'label': 'Est. manuales'},
     ]
 
@@ -20107,6 +20119,160 @@ def coach_abp_board_page(request):
         {
             'players': players,
             'team_name': primary_team.display_name if primary_team else 'Equipo principal',
+        },
+    )
+
+
+@login_required
+@ensure_csrf_cookie
+def coach_tactics_page(request):
+    """
+    Módulo independiente de Táctica/Playbook.
+
+    Reutiliza el editor de pizarra (Tactical Pad) pero desactiva la creación de tareas:
+    aquí el output se guarda en el Playbook (clips) y en exportaciones (PNG/JSON/paquetes).
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    initial = _task_builder_initial_values(None)
+
+    player_catalog = []
+    available_players = []
+    try:
+        player_catalog = _build_tactical_player_catalog(request, primary_team)
+    except Exception:
+        player_catalog = []
+    try:
+        available_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
+    except Exception:
+        available_players = []
+
+    pdf_assets = []
+    pdf_assets_json = '[]'
+    try:
+        system_team = None
+        try:
+            system_team = Team.objects.filter(slug='pizarra').first()
+        except Exception:
+            system_team = None
+        assets_filter = Q(team=primary_team) | Q(owner=request.user)
+        if system_team:
+            assets_filter |= Q(team=system_team)
+        pdf_assets = list(
+            PdfGraphicAsset.objects
+            .filter(assets_filter)
+            .exclude(file='')
+            .order_by('-created_at', '-id')[:80]
+        )
+        pdf_assets_json = json.dumps(
+            [
+                {
+                    'id': int(item.id),
+                    'title': str(item.title or '').strip(),
+                    'url': reverse('pdf-graphic-asset-file', args=[item.id]),
+                    'width': int(item.width or 0),
+                    'height': int(item.height or 0),
+                }
+                for item in pdf_assets
+                if getattr(item, 'file', None)
+            ],
+            ensure_ascii=False,
+        )
+    except Exception:
+        pdf_assets = []
+        pdf_assets_json = '[]'
+
+    # Catálogos auxiliares (opcional). Si fallan, el módulo de táctica sigue funcionando.
+    ppt_icons = []
+    try:
+        if TASK_MATERIAL_PPT_DIR.exists():
+            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
+            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+            files = sorted(files, key=lambda p: p.name.lower())[:90]
+            for p in files:
+                ppt_icons.append(
+                    {
+                        'label': str(p.stem or '').strip()[:80],
+                        'static_path': f'football/images/task-materials/ppt/{p.name}',
+                    }
+                )
+    except Exception:
+        ppt_icons = []
+
+    drills_catalog = []
+    try:
+        drills_catalog = [
+            {
+                'id': item.id,
+                'label': item.label,
+                'category': item.category,
+                'icon_static_path': item.icon_static_path,
+                'age_min': item.age_min,
+                'age_max': item.age_max,
+            }
+            for item in DRILL_CATALOG
+        ]
+    except Exception:
+        drills_catalog = []
+
+    try:
+        back_url = reverse('dashboard-home')
+        active_team = _get_active_team_for_request(request)
+        if active_team:
+            back_url = f'{back_url}?team={int(active_team.id)}'
+    except Exception:
+        back_url = '/'
+
+    return render(
+        request,
+        'football/task_builder.html',
+        {
+            'scope_key': 'tactics',
+            'scope_title': 'Táctica',
+            'scope_route_name': 'coach-tactics',
+            'task': None,
+            'feedback': '',
+            'error': '',
+            'can_restore_original': False,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'all_sessions': [],
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_strategy_choices': TASK_STRATEGY_CHOICES,
+            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
+            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
+            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
+            'task_structure_choices': TASK_STRUCTURE_CHOICES,
+            'task_coordination_choices': TASK_COORDINATION_CHOICES,
+            'tactical_player_catalog': player_catalog,
+            'available_players': available_players,
+            'pdf_assets': pdf_assets,
+            'pdf_assets_json': pdf_assets_json,
+            'ppt_icons': ppt_icons,
+            'drills_catalog': drills_catalog,
+            'initial': initial,
+            'library_repository': LIBRARY_REPOSITORY_TRADITIONAL,
+            'back_url': back_url,
+            'back_label': 'Volver al club',
+            'pdf_preview_url': '',
+            'video_import_url': '',
+            'task_preview_url': '',
+            'show_session_selector': False,
+            'show_dragon_nav': True,
+            'tactics_mode': True,
         },
     )
 

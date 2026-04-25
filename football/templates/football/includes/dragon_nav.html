@@ -208,6 +208,9 @@
       {% if workspace_module_access.analysis|default:True %}
       <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Análisis</a>
       {% endif %}
+      {% if workspace_module_access.tactics|default:True %}
+      <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Táctica</a>
+      {% endif %}
       {% if active_team_options and active_team_options|length > 1 %}
       <div class="nav-more-subtitle">Equipo</div>
       <form class="team-switcher team-switcher--inline" method="post" action="{% url 'workspace-active-team' %}">

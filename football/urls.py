@@ -129,6 +129,7 @@ urlpatterns = [
     path('coach/roles/preparacion-fisica/', views.coach_role_fitness_page, name='coach-role-fitness'),
     path('coach/roles/abp/', views.coach_role_abp_page, name='coach-role-abp'),
     path('coach/abp/pizarra/', views.coach_abp_board_page, name='coach-abp-board'),
+    path('coach/tactica/', views.coach_tactics_page, name='coach-tactics'),
     path('coach/11-inicial/', views.initial_eleven_page, name='initial-eleven'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),
     path('coach/sesiones/tareas/nueva/', views.sessions_task_create_page, name='sessions-task-create'),

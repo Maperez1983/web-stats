@@ -90,6 +90,22 @@ Algunos modulos avanzados requieren dependencias del sistema:
 - `pytesseract`: OCR
 - `playwright`: login/captura browser para Universo RFAF (opcional si usas token)
 
+## Stripe (suscripción por módulos)
+
+La pantalla `/billing/` soporta Checkout modular (Core + add-ons) cuando:
+
+- `STRIPE_SECRET_KEY` y `STRIPE_PUBLISHABLE_KEY` están configuradas
+- `STRIPE_MODULAR_BILLING=1`
+- Hay Price IDs en el entorno (`STRIPE_PRICE_*`)
+
+Prices esperados (mensual/anual):
+
+- `STRIPE_PRICE_CORE_MONTHLY` / `STRIPE_PRICE_CORE_YEARLY`
+- `STRIPE_PRICE_LIVE_MONTHLY` / `STRIPE_PRICE_LIVE_YEARLY`
+- `STRIPE_PRICE_STUDIO_MONTHLY` / `STRIPE_PRICE_STUDIO_YEARLY`
+- `STRIPE_PRICE_ANALYSIS_MONTHLY` / `STRIPE_PRICE_ANALYSIS_YEARLY`
+- `STRIPE_PRICE_TACTICS_MONTHLY` / `STRIPE_PRICE_TACTICS_YEARLY` (módulo Táctica/Playbook)
+
 ## Plantillas de rivales (precarga para análisis)
 
 Para que el análisis/previa de partido no dependa de peticiones externas (403, bloqueos, etc.), puedes **precargar** las plantillas de todos los equipos de la liga en la BD (tabla `TeamRosterSnapshot`).

@@ -4,7 +4,7 @@
   <head>
 	    <meta charset="UTF-8" />
 		    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-		    <title>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
+    <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
 		    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 		    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 		    {% include 'football/pwa_head.html' %}
@@ -2831,8 +2831,14 @@
       {% endif %}
       <div class="topbar">
         <div>
-          <h1>{% if task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
-          <p class="meta">Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.</p>
+          <h1>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
+          <p class="meta">
+            {% if tactics_mode %}
+              Pizarra táctica + Playbook (clips), exportaciones y compartir. No crea tareas ni requiere sesión.
+            {% else %}
+              Superficie real de juego, recursos básicos y ficha corta para que la pizarra sea lo principal.
+            {% endif %}
+          </p>
         </div>
 		        <div class="actions">
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
@@ -2851,6 +2857,7 @@
 	                  </div>
                   </div>
                 </div>
+                {% if not tactics_mode %}
                 <div class="action-menu-group">
                   <div class="action-menu-title">PDF</div>
                   <div class="action-menu-row">
@@ -2862,7 +2869,8 @@
 	                  {% endif %}
                   </div>
                 </div>
-                {% if task and can_restore_original %}
+                {% endif %}
+                {% if not tactics_mode and task and can_restore_original %}
                 <div class="action-menu-group">
                   <div class="action-menu-title">Seguridad</div>
                   <div class="action-menu-row">
@@ -2888,6 +2896,7 @@
 				      <form
 				        method="post"
 				        id="task-builder-form"
+			        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
 			        data-scope-key="{{ scope_key }}"
 				        data-task-id="{% if task %}{{ task.id }}{% endif %}"
 				        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
@@ -4666,9 +4675,17 @@
 	                </div>
 	              </div>
 
+              {% if not tactics_mode %}
               <div class="submit-row">
                 <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
               </div>
+              {% else %}
+              <div class="submit-row" style="justify-content:flex-end;">
+                <div style="font-size:0.9rem; opacity:0.85; text-align:right;">
+                  Guarda como <strong>clip</strong> desde el Playbook o exporta en “Exportar”.
+                </div>
+              </div>
+              {% endif %}
             </div>
           </aside>
         </div>
@@ -4683,6 +4700,18 @@
 		    <script src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 					    <script>
 					      window.addEventListener('DOMContentLoaded', () => {
+				        const tacticsMode = document.getElementById('task-builder-form')?.dataset?.tacticsMode === '1';
+				        if (tacticsMode) {
+				          const form = document.getElementById('task-builder-form');
+				          form?.addEventListener('submit', (ev) => {
+				            ev.preventDefault();
+				            try {
+				              const status = document.getElementById('task-builder-status');
+				              if (status) status.textContent = 'Táctica: guarda como clip en Playbook (no se crea tarea).';
+				            } catch (e) {}
+				            return false;
+				          });
+				        }
 				        // Selector de dispositivo (solo UI): auto/desktop/tablet.
 			        const deviceKey = 'webstats:tpad:device';
 			        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));

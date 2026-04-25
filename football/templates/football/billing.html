@@ -108,7 +108,7 @@
           {% if stripe_modular_ready %}
             <h2 style="margin:0 0 0.35rem; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase;">Suscripción por módulos</h2>
             <p style="margin:0.35rem 0; color:rgba(148,163,184,0.92);">
-              Empieza con <strong>Core</strong> y añade módulos: <strong>Live</strong>, <strong>Studio</strong>, <strong>Analysis</strong>.
+              Empieza con <strong>Core</strong> y añade módulos: <strong>Live</strong>, <strong>Studio</strong>, <strong>Analysis</strong>{% if stripe_addons_available.tactics|default:False %}, <strong>Táctica</strong>{% endif %}.
             </p>
             {% if stripe_modular_enabled %}
               <div style="margin-top:0.65rem; display:grid; gap:0.55rem;">
@@ -133,6 +133,15 @@
                     <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Vídeo/estudio y análisis.</div>
                   </div>
                 </label>
+                {% if stripe_addons_available.tactics|default:False %}
+                <label style="display:flex; gap:0.6rem; align-items:flex-start;">
+                  <input type="checkbox" id="billing-addon-tactics" style="margin-top:0.2rem;" />
+                  <div>
+                    <div style="font-weight:800; letter-spacing:0.06em; text-transform:uppercase;">Táctica</div>
+                    <div style="color:rgba(148,163,184,0.92); font-size:0.92rem;">Playbook (pizarra, clips, export y compartir).</div>
+                  </div>
+                </label>
+                {% endif %}
               </div>
             {% else %}
               <div style="margin-top:0.65rem; border:1px solid rgba(251,191,36,0.25); background:rgba(251,191,36,0.08); border-radius:14px; padding:0.75rem 0.85rem;">
@@ -204,9 +213,11 @@
             const live = document.getElementById('billing-addon-live');
             const studio = document.getElementById('billing-addon-studio');
             const analysis = document.getElementById('billing-addon-analysis');
+            const tactics = document.getElementById('billing-addon-tactics');
             if (live && live.checked) list.push('live');
             if (studio && studio.checked) list.push('studio');
             if (analysis && analysis.checked) list.push('analysis');
+            if (tactics && tactics.checked) list.push('tactics');
             return list;
           };
 
