@@ -7151,7 +7151,30 @@
 				      })();
 
 				      if (!clips.length && !playbookRows) {
-				        simClipsList.innerHTML = '<div class="timeline-empty">Clips: todavía no hay ninguno. Pulsa “Guardar clip”.</div>';
+				        simClipsList.innerHTML = `
+				          ${templatesSection}
+				          <div class="timeline-empty" style="opacity:0.92; margin:0.75rem 0 0.35rem;">Clips: todavía no hay ninguno.</div>
+				          <div class="meta" style="opacity:0.88; margin:0 0 0.6rem;">
+				            Para crear el primero: <strong>Simulador</strong> → <strong>Entrar en simulación</strong> → <strong>Capturar paso</strong> → <strong>Guardar clip</strong>.
+				          </div>
+				          <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0.2rem 0 0.85rem;">
+				            <button type="button" class="button primary" id="task-playbook-first-open">Abrir simulador</button>
+				            <button type="button" class="button" id="task-playbook-first-capture">Capturar paso</button>
+				            <button type="button" class="button" id="task-playbook-first-save">Guardar clip</button>
+				          </div>
+				        `;
+				        const firstOpen = simClipsList.querySelector('#task-playbook-first-open');
+				        const firstCapture = simClipsList.querySelector('#task-playbook-first-capture');
+				        const firstSave = simClipsList.querySelector('#task-playbook-first-save');
+				        const openSim = () => {
+				          try {
+				            if (!isSimulating) enterSimulation();
+				          } catch (e) { /* ignore */ }
+				          try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				        };
+				        firstOpen?.addEventListener('click', () => openSim());
+				        firstCapture?.addEventListener('click', () => { openSim(); try { simCaptureBtn?.click(); } catch (e) { /* ignore */ } });
+				        firstSave?.addEventListener('click', () => { openSim(); try { simClipSaveBtn?.click(); } catch (e) { /* ignore */ } });
 				        return;
 				      }
 				      const rows = clips.map((clip, index) => {

@@ -63,6 +63,8 @@
     const inInput = document.getElementById('vs-in');
     const outInput = document.getElementById('vs-out');
     const qualitySelect = document.getElementById('vs-video-quality');
+    const fpsSelect = document.getElementById('vs-video-fps');
+    const audioToggle = document.getElementById('vs-video-audio');
     const slideAddBtn = document.getElementById('vs-slide-add');
     const slidesFromTimelineBtn = document.getElementById('vs-slides-from-timeline');
     const slidesClearBtn = document.getElementById('vs-slides-clear');
@@ -79,9 +81,13 @@
     const clipSaveUrl = safeText(document.getElementById('vs-clip-save-url')?.value);
 	    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
 	    const shareClipCreateUrl = safeText(document.getElementById('vs-share-clip-create-url')?.value);
+	    const shareLinksUrl = safeText(document.getElementById('vs-share-links-url')?.value);
 	    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
     const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
     const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
+	    const timelineExportUrl = safeText(document.getElementById('vs-timeline-export-url')?.value);
+	    const timelineImportUrl = safeText(document.getElementById('vs-timeline-import-url')?.value);
+	    const timelineClearUrl = safeText(document.getElementById('vs-timeline-clear-url')?.value);
 	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
@@ -109,6 +115,18 @@
     const eventAddBtn = document.getElementById('vs-event-add');
     const eventRefreshBtn = document.getElementById('vs-event-refresh');
     const timelineList = document.getElementById('vs-timeline');
+	    const timelineSearchInput = document.getElementById('vs-timeline-search');
+	    const timelineKindFilterSelect = document.getElementById('vs-timeline-filter-kind');
+	    const timelineCountEl = document.getElementById('vs-timeline-count');
+	    const timelinePrevBtn = document.getElementById('vs-timeline-prev');
+	    const timelineNextBtn = document.getElementById('vs-timeline-next');
+	    const timelineExportBtn = document.getElementById('vs-timeline-export');
+    const timelineImportBtn = document.getElementById('vs-timeline-import');
+    const timelineClearBtn = document.getElementById('vs-timeline-clear');
+    const timelineImportFile = document.getElementById('vs-timeline-import-file');
+
+	    const shareRefreshBtn = document.getElementById('vs-share-refresh');
+	    const shareLinksList = document.getElementById('vs-share-links');
 
     const layerEmpty = document.getElementById('vs-layer-empty');
     const layerForm = document.getElementById('vs-layer-form');
@@ -1153,12 +1171,16 @@
     let recMedia = null;
     let recStream = null;
     let recChunks = [];
-	    let recCanvas = null;
-	    let recCtx = null;
-	    let recRaf = null;
-	    let stopAt = null;
-	    let recDestination = 'download';
-	    let recUploadMeta = null;
+    let recCanvas = null;
+    let recCtx = null;
+    let recRaf = null;
+    let stopAt = null;
+    let recStartAt = null;
+    let recDestination = 'download';
+    let recUploadMeta = null;
+    let exportAudioCtx = null;
+    let exportAudioDest = null;
+    let exportAudioSource = null;
 
 	    const stopRecording = async () => {
       if (!recActive) return;
@@ -1172,6 +1194,7 @@
 	      recCanvas = null;
 	      recCtx = null;
 	      stopAt = null;
+	      recStartAt = null;
 	      recDestination = 'download';
 	      recUploadMeta = null;
 	      if (btnRecord) btnRecord.textContent = 'Grabar';
@@ -1614,6 +1637,93 @@
 	        .filter(Boolean)
 	        .slice(0, 24);
 	    };
+
+	    const fmtIsoShort = (iso) => {
+	      const s = safeText(iso, '');
+	      if (!s) return '';
+	      try {
+	        const d = new Date(s);
+	        if (Number.isNaN(Number(d.getTime()))) return s.slice(0, 19).replace('T', ' ');
+	        return d.toISOString().slice(0, 19).replace('T', ' ');
+	      } catch (e) {
+	        return s.slice(0, 19).replace('T', ' ');
+	      }
+	    };
+
+	    const refreshShareLinks = async () => {
+	      if (!shareLinksUrl || !videoId || !shareLinksList) return;
+	      shareLinksList.innerHTML = '<div class="meta">Cargando…</div>';
+	      try {
+	        const resp = await fetch(`${shareLinksUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        const items = Array.isArray(data?.items) ? data.items : [];
+	        const rows = items.slice(0, 220).map((l) => {
+	          const token = safeText(l?.token, '');
+	          if (!token) return '';
+	          const kind = safeText(l?.kind, '').replaceAll('_', ' ').toUpperCase();
+	          const title = safeText(l?.title, '');
+	          const url = safeText(l?.share_url, '');
+	          const revokeUrl = safeText(l?.revoke_url, '');
+	          const exp = fmtIsoShort(l?.expires_at);
+	          const active = Boolean(l?.is_active);
+	          const hits = Number(l?.access_count) || 0;
+	          return `
+	            <div class="row">
+	              <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0;">
+	                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(title || kind)}</strong>
+	                <small>${escHtml(kind)}${exp ? ` · caduca ${escHtml(exp)}` : ''}${hits ? ` · ${hits} visitas` : ''}${active ? '' : ' · INACTIVO'}</small>
+	              </div>
+	              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+	                <button type="button" class="button" data-vs-share-copy="${escHtml(url)}">Copiar</button>
+	                <button type="button" class="button danger" data-vs-share-revoke="${escHtml(revokeUrl)}" ${active ? '' : 'disabled'}>Revocar</button>
+	              </div>
+	            </div>
+	          `;
+	        }).filter(Boolean).join('');
+	        shareLinksList.innerHTML = rows || '<div class="meta">Sin enlaces.</div>';
+
+	        Array.from(shareLinksList.querySelectorAll('[data-vs-share-copy]')).forEach((btn) => {
+	          btn.addEventListener('click', async () => {
+	            const url = safeText(btn.getAttribute('data-vs-share-copy'));
+	            if (!url) return;
+	            try {
+	              if (navigator.clipboard?.writeText) {
+	                await navigator.clipboard.writeText(url);
+	                setStatus('Enlace copiado.');
+	                return;
+	              }
+	            } catch (e) { /* ignore */ }
+	            window.prompt('Copia este enlace:', url);
+	          });
+	        });
+	        Array.from(shareLinksList.querySelectorAll('[data-vs-share-revoke]')).forEach((btn) => {
+	          btn.addEventListener('click', async () => {
+	            const url = safeText(btn.getAttribute('data-vs-share-revoke'));
+	            if (!url) return;
+	            const ok = window.confirm('¿Revocar este enlace?');
+	            if (!ok) return;
+	            try {
+	              const resp2 = await fetch(url, {
+	                method: 'POST',
+	                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	                credentials: 'same-origin',
+	                body: JSON.stringify({}),
+	              });
+	              const data2 = await resp2.json().catch(() => ({}));
+	              if (!resp2.ok || !data2?.ok) throw new Error(data2?.error || 'error');
+	              await refreshShareLinks();
+	              setStatus('Enlace revocado.');
+	            } catch (e) {
+	              setStatus('No se pudo revocar.', true);
+	            }
+	          });
+	        });
+	      } catch (e) {
+	        shareLinksList.innerHTML = '<div class="meta">No se pudieron cargar enlaces.</div>';
+	      }
+	    };
+
 	    const renderClips = (items) => {
 	      if (!clipsList) return;
 	      const total = Array.isArray(clipsCache) ? clipsCache.length : 0;
@@ -1725,9 +1835,11 @@
 	              if (navigator.clipboard?.writeText) {
 	                await navigator.clipboard.writeText(url);
 	                setStatus('Enlace compartible copiado.');
+	                refreshShareLinks();
 	                return;
 	              }
 	            } catch (e) { /* ignore */ }
+	            refreshShareLinks();
 	            window.prompt('Copia este enlace:', url);
 	          } catch (e) {
 	            setStatus('No se pudo crear enlace.', true);
@@ -1824,12 +1936,39 @@
 	      } catch (e) { /* ignore */ }
 	    });
 
+	    shareRefreshBtn?.addEventListener('click', refreshShareLinks);
+	    refreshShareLinks();
+
     // Timeline (server)
     let timelineCache = [];
+    const timelineSelectedKinds = () => {
+      try {
+        const opts = Array.from(timelineKindFilterSelect?.selectedOptions || []);
+        const values = opts.map((o) => safeText(o?.value, '')).filter(Boolean);
+        if (!values.length) return null;
+        return new Set(values);
+      } catch (e) {
+        return null;
+      }
+    };
+    const applyTimelineFilters = (items) => {
+      const raw = Array.isArray(items) ? items : [];
+      const q = safeText(timelineSearchInput?.value, '').toLowerCase();
+      const kinds = timelineSelectedKinds();
+      return raw.filter((ev) => {
+        const kind = safeText(ev?.kind, 'tag');
+        const label = safeText(ev?.label, '');
+        if (kinds && !kinds.has(kind)) return false;
+        if (!q) return true;
+        return `${kind} ${label}`.toLowerCase().includes(q);
+      }).sort((a, b) => (Number(a?.time_s) || 0) - (Number(b?.time_s) || 0) || (Number(a?.id) || 0) - (Number(b?.id) || 0));
+    };
     const renderTimeline = (items) => {
       if (!timelineList) return;
       timelineCache = Array.isArray(items) ? items.slice() : [];
-      const rows = (Array.isArray(items) ? items : []).slice(0, 260).map((ev) => {
+      const filtered = applyTimelineFilters(timelineCache);
+      if (timelineCountEl) timelineCountEl.textContent = `${filtered.length} evento(s)`;
+      const rows = filtered.slice(0, 360).map((ev) => {
         const id = Number(ev?.id) || 0;
         if (!id) return '';
         const kind = safeText(ev?.kind, 'tag').toUpperCase();
@@ -1851,16 +1990,14 @@
         `;
       }).filter(Boolean).join('');
       timelineList.innerHTML = rows || '<div class="meta">Sin eventos.</div>';
+      renderMiniTimeline();
 
       Array.from(timelineList.querySelectorAll('[data-vs-ev-go]')).forEach((btn) => {
         btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-vs-ev-go') || 0);
           if (!id) return;
           try {
-            const resp = await fetch(`${timelineUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
-            const data = await resp.json().catch(() => ({}));
-            const items2 = Array.isArray(data?.items) ? data.items : [];
-            const found = items2.find((x) => Number(x?.id) === id);
+            const found = (Array.isArray(timelineCache) ? timelineCache : []).find((x) => Number(x?.id) === id);
             if (!found) return;
             const seek = Number(found?.time_s) || 0;
             video.currentTime = seek;
@@ -1906,6 +2043,33 @@
       }
     };
 
+    const timelineJump = (direction) => {
+      const items = applyTimelineFilters(timelineCache);
+      if (!items.length) { setStatus('No hay eventos.', true); return; }
+      const now = Number(video.currentTime) || 0;
+      let idx = -1;
+      for (let i = 0; i < items.length; i += 1) {
+        const t = Number(items[i]?.time_s) || 0;
+        if (t >= now - 0.05) { idx = i; break; }
+      }
+      if (direction < 0) {
+        // anterior: si estamos exactamente en un evento, ir al anterior.
+        let prev = idx - 1;
+        if (idx === -1) prev = items.length - 1;
+        if (prev < 0) prev = 0;
+        const t = Number(items[prev]?.time_s) || 0;
+        try { video.currentTime = Math.max(0, t); } catch (e) { /* ignore */ }
+        setStatus(`← ${fmtTimeShort(t)}`);
+        return;
+      }
+      // siguiente
+      let next = idx;
+      if (next < 0) next = 0;
+      const t = Number(items[next]?.time_s) || 0;
+      try { video.currentTime = Math.max(0, t); } catch (e) { /* ignore */ }
+      setStatus(`→ ${fmtTimeShort(t)}`);
+    };
+
     const addTimelineEvent = async () => {
       if (!timelineSaveUrl || !videoId) return;
       const kind = safeText(eventKindSelect?.value, 'tag');
@@ -1930,6 +2094,88 @@
     };
     eventAddBtn?.addEventListener('click', addTimelineEvent);
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
+    timelineSearchInput?.addEventListener('input', () => renderTimeline(timelineCache));
+    timelineKindFilterSelect?.addEventListener('change', () => renderTimeline(timelineCache));
+    timelinePrevBtn?.addEventListener('click', () => timelineJump(-1));
+    timelineNextBtn?.addEventListener('click', () => timelineJump(1));
+
+    const exportTimelineJson = async () => {
+      if (!timelineExportUrl || !videoId) { setStatus('No disponible.', true); return; }
+      try {
+        const resp = await fetch(`${timelineExportUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        const payload = {
+          version: 1,
+          video_id: videoId,
+          exported_at: new Date().toISOString(),
+          items: Array.isArray(data?.items) ? data.items : [],
+        };
+        downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `timeline-${videoId}.json`);
+        setStatus('Timeline exportada.');
+      } catch (e) {
+        setStatus('No se pudo exportar timeline.', true);
+      }
+    };
+
+    const importTimelineJson = async (payloadObj) => {
+      if (!timelineImportUrl || !videoId) { setStatus('No disponible.', true); return; }
+      const items = Array.isArray(payloadObj?.items) ? payloadObj.items : [];
+      if (!items.length) { setStatus('JSON sin items.', true); return; }
+      const ok = window.confirm('¿Reemplazar timeline actual por la importada? (Aceptar = reemplaza / Cancelar = fusiona)');
+      const mode = ok ? 'replace' : 'merge';
+      try {
+        const resp = await fetch(timelineImportUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ video_id: videoId, mode, items }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        await refreshTimeline();
+        setStatus(`Timeline importada (${mode}).`);
+      } catch (e) {
+        setStatus('No se pudo importar.', true);
+      }
+    };
+
+    timelineExportBtn?.addEventListener('click', exportTimelineJson);
+    timelineImportBtn?.addEventListener('click', () => {
+      try { timelineImportFile?.click(); } catch (e) { /* ignore */ }
+    });
+    timelineImportFile?.addEventListener('change', async () => {
+      const file = timelineImportFile?.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const obj = JSON.parse(text || '{}');
+        await importTimelineJson(obj);
+      } catch (e) {
+        setStatus('JSON inválido.', true);
+      } finally {
+        try { timelineImportFile.value = ''; } catch (e) { /* ignore */ }
+      }
+    });
+    timelineClearBtn?.addEventListener('click', async () => {
+      if (!timelineClearUrl || !videoId) return;
+      const ok = window.confirm('¿Vaciar timeline del vídeo?');
+      if (!ok) return;
+      try {
+        const resp = await fetch(timelineClearUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ video_id: videoId }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        await refreshTimeline();
+        setStatus('Timeline vaciada.');
+      } catch (e) {
+        setStatus('No se pudo vaciar.', true);
+      }
+    });
     refreshTimeline();
 
     // Slides + Export Pro

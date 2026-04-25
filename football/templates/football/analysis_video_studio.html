@@ -140,6 +140,19 @@
 	                  <option value="low">Baja</option>
 	                </select>
 	              </label>
+	              <label>
+	                FPS
+	                <select id="vs-video-fps">
+	                  <option value="">Auto</option>
+	                  <option value="24">24</option>
+	                  <option value="30" selected>30</option>
+	                  <option value="60">60</option>
+	                </select>
+	              </label>
+	              <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+	                <input type="checkbox" id="vs-video-audio" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+	                Incluir audio (si el dispositivo lo permite)
+	              </label>
 	            </div>
 
 	            <div class="split">
@@ -268,6 +281,27 @@
             <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Timeline</div>
               <label>
+                Buscar
+                <input type="text" id="vs-timeline-search" placeholder="Ej: presión, ABP, robo..." />
+              </label>
+              <label>
+                Filtro tipo
+                <select id="vs-timeline-filter-kind" multiple size="4" style="min-height:104px;">
+                  <option value="tag" selected>Tag</option>
+                  <option value="note" selected>Nota</option>
+                  <option value="goal" selected>Gol</option>
+                  <option value="shot" selected>Disparo</option>
+                  <option value="press" selected>Presión</option>
+                  <option value="turnover" selected>Pérdida</option>
+                  <option value="abp" selected>ABP</option>
+                </select>
+              </label>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                <button type="button" class="button" id="vs-timeline-prev">Anterior</button>
+                <button type="button" class="button" id="vs-timeline-next">Siguiente</button>
+                <div class="hint" id="vs-timeline-count" style="align-self:center;">—</div>
+              </div>
+              <label>
                 Tipo
                 <select id="vs-event-kind">
                   <option value="tag">Tag</option>
@@ -286,8 +320,21 @@
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
+                <button type="button" class="button" id="vs-timeline-export">Export JSON</button>
+                <button type="button" class="button" id="vs-timeline-import">Import JSON</button>
+                <button type="button" class="button danger" id="vs-timeline-clear">Vaciar</button>
               </div>
+              <input type="file" id="vs-timeline-import-file" accept="application/json" hidden />
               <div class="list" id="vs-timeline"></div>
+            </div>
+
+            <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Compartir</div>
+              <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.4rem;">
+                <button type="button" class="button" id="vs-share-refresh">Actualizar</button>
+              </div>
+              <div class="list" id="vs-share-links" style="margin-top:0.45rem;"></div>
             </div>
           </div>
         </aside>
@@ -303,9 +350,13 @@
     <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
 	    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
 	    <input type="hidden" id="vs-share-clip-create-url" value="{% url 'share-video-clip-create' %}" />
+	    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
 	    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
 	    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
 	    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
+	    <input type="hidden" id="vs-timeline-export-url" value="{% url 'analysis-video-studio-timeline-export-api' %}" />
+	    <input type="hidden" id="vs-timeline-import-url" value="{% url 'analysis-video-studio-timeline-import-api' %}" />
+	    <input type="hidden" id="vs-timeline-clear-url" value="{% url 'analysis-video-studio-timeline-clear-api' %}" />
 	    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />

@@ -32267,6 +32267,295 @@ def analysis_video_studio_timeline_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
+@login_required
+def analysis_video_studio_timeline_export_api(request):
+    """
+    Export JSON (timeline) para un vídeo.
+
+    Útil para compartir internamente, hacer backup o reimportar en otro momento.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    items = list(
+        VideoTimelineEvent.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('time_ms', 'id')[:2000]
+    )
+    payload = []
+    for obj in items:
+        payload.append(
+            {
+                'id': int(obj.id),
+                'time_ms': int(obj.time_ms or 0),
+                'time_s': float(obj.time_seconds),
+                'kind': str(obj.kind or 'tag'),
+                'label': str(obj.label or '').strip(),
+                'color': str(obj.color or '').strip(),
+                'payload': obj.payload if isinstance(obj.payload, dict) else {},
+            }
+        )
+    return JsonResponse(
+        {
+            'ok': True,
+            'meta': {
+                'video_id': int(video_id),
+                'title': str(getattr(video, 'title', '') or '').strip(),
+                'team_id': int(primary_team.id),
+            },
+            'items': payload,
+        }
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_timeline_import_api(request):
+    """
+    Import bulk de timeline.
+
+    JSON:
+    - video_id
+    - mode: replace|merge
+    - items: [{time_s|time_ms, kind, label, color, payload}]
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    mode = str(data.get('mode') or 'merge').strip().lower()
+    if mode not in {'replace', 'merge'}:
+        mode = 'merge'
+    raw_items = data.get('items')
+    if not isinstance(raw_items, list):
+        return JsonResponse({'ok': False, 'error': 'items debe ser una lista.'}, status=400)
+    if len(raw_items) > 2000:
+        return JsonResponse({'ok': False, 'error': 'Demasiados items (máx 2000).'}, status=400)
+
+    allowed_kinds = {k for k, _ in VideoTimelineEvent.KIND_CHOICES}
+    cleaned = []
+    for row in raw_items:
+        if not isinstance(row, dict):
+            continue
+        time_ms = _video_ms_from_seconds(row.get('time_s'), default=_parse_int(row.get('time_ms')) or 0)
+        time_ms = max(0, int(time_ms or 0))
+        kind = str(row.get('kind') or VideoTimelineEvent.KIND_TAG).strip().lower()
+        if kind not in allowed_kinds:
+            kind = VideoTimelineEvent.KIND_TAG
+        label = _sanitize_task_text(str(row.get('label') or '').strip(), multiline=False, max_len=160)
+        color = str(row.get('color') or '').strip()[:16]
+        payload = row.get('payload')
+        if not isinstance(payload, dict):
+            payload = {}
+        cleaned.append(
+            {
+                'time_ms': time_ms,
+                'kind': kind,
+                'label': label,
+                'color': color,
+                'payload': payload,
+            }
+        )
+    if not cleaned:
+        return JsonResponse({'ok': False, 'error': 'No hay eventos válidos.'}, status=400)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    try:
+        from django.db import transaction  # noqa: WPS433 (lazy import)
+    except Exception:
+        transaction = None
+
+    def _do_import():
+        existing_keys = set()
+        if mode == 'merge':
+            try:
+                for ev in VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).only('time_ms', 'kind', 'label')[:3000]:
+                    existing_keys.add((int(ev.time_ms or 0), str(ev.kind or ''), str(ev.label or '').strip()))
+            except Exception:
+                existing_keys.clear()
+        elif mode == 'replace':
+            VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).delete()
+
+        created = 0
+        for ev in cleaned:
+            key = (int(ev['time_ms']), ev['kind'], str(ev['label'] or '').strip())
+            if mode == 'merge' and key in existing_keys:
+                continue
+            try:
+                VideoTimelineEvent.objects.create(
+                    team=primary_team,
+                    video_id=int(video_id),
+                    time_ms=int(ev['time_ms']),
+                    kind=ev['kind'],
+                    label=ev['label'],
+                    color=ev['color'],
+                    payload=ev['payload'],
+                    created_by=username,
+                )
+                created += 1
+                if mode == 'merge':
+                    existing_keys.add(key)
+            except Exception:
+                continue
+        return created
+
+    try:
+        if transaction:
+            with transaction.atomic():
+                created = _do_import()
+        else:
+            created = _do_import()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo importar.'}, status=500)
+    return JsonResponse({'ok': True, 'created': int(created), 'mode': mode})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_timeline_clear_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    try:
+        VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo vaciar.'}, status=500)
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def analysis_video_studio_share_links_api(request):
+    """
+    Lista enlaces compartidos (ShareLink) relacionados con un vídeo (clips + exports).
+
+    Por defecto, devuelve solo los enlaces creados por el usuario actual, salvo admins de plataforma.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+
+    clip_rows = list(
+        VideoClip.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .values('id', 'title', 'collection')
+        .order_by('-updated_at', '-id')[:1200]
+    )
+    clip_map = {int(x['id']): str(x.get('title') or '').strip() for x in clip_rows if x.get('id')}
+
+    export_rows = list(
+        VideoExportAsset.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .values('id', 'title')
+        .order_by('-created_at', '-id')[:1200]
+    )
+    export_map = {int(x['id']): str(x.get('title') or '').strip() for x in export_rows if x.get('id')}
+
+    qs = ShareLink.objects.filter(kind__in=[ShareLink.KIND_VIDEO_CLIP, ShareLink.KIND_VIDEO_EXPORT]).order_by('-created_at', '-id')
+    if not _can_access_platform(request.user):
+        qs = qs.filter(created_by_user=request.user)
+    candidates = list(qs[:2500])
+
+    items = []
+    for link in candidates:
+        payload = link.payload if isinstance(link.payload, dict) else {}
+        target_title = ''
+        share_url = ''
+        if link.kind == ShareLink.KIND_VIDEO_CLIP:
+            clip_id = _parse_int(payload.get('clip_id'))
+            if not clip_id or int(clip_id) not in clip_map:
+                continue
+            target_title = clip_map.get(int(clip_id)) or f'Clip {clip_id}'
+            share_url = request.build_absolute_uri(reverse('share-video-clip', args=[link.token]))
+        elif link.kind == ShareLink.KIND_VIDEO_EXPORT:
+            export_id = _parse_int(payload.get('export_id'))
+            if not export_id or int(export_id) not in export_map:
+                continue
+            target_title = export_map.get(int(export_id)) or f'Export {export_id}'
+            share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+        else:
+            continue
+        items.append(
+            {
+                'token': str(link.token),
+                'kind': str(link.kind),
+                'title': target_title,
+                'is_active': bool(link.is_active),
+                'access_count': int(link.access_count or 0),
+                'expires_at': link.expires_at.isoformat() if getattr(link, 'expires_at', None) else None,
+                'last_accessed_at': link.last_accessed_at.isoformat() if getattr(link, 'last_accessed_at', None) else None,
+                'created_at': link.created_at.isoformat() if getattr(link, 'created_at', None) else None,
+                'created_by': str(link.created_by or '').strip(),
+                'share_url': share_url,
+                'revoke_url': reverse('share-link-revoke', args=[link.token]),
+            }
+        )
+        if len(items) >= 240:
+            break
+
+    items.sort(key=lambda x: (0 if x.get('is_active') else 1, x.get('expires_at') is None, x.get('expires_at') or '', x.get('created_at') or ''), reverse=False)
+    return JsonResponse({'ok': True, 'items': items})
+
+
 @csrf_exempt
 @login_required
 @require_POST
