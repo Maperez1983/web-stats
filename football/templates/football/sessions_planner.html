@@ -1514,7 +1514,7 @@
 		            </a>
 		            <a class="folder-card" href="#import-sesiones">
 		              <strong>Importar sesiones</strong>
-		              <span>Próximamente</span>
+		              <span>PDF (se guarda tal cual)</span>
 		            </a>
 		            <a class="folder-card" href="#import-microciclos">
 		              <strong>Importar microciclos</strong>
@@ -1534,11 +1534,11 @@
 		                <input type="hidden" name="planner_tab" value="import" />
 		                <input type="hidden" name="library_repo" value="traditional" />
 		                <label>
-		                  Nombre tarea
-		                  <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa" required />
+		                  Título (opcional)
+		                  <input type="text" name="pdf_task_title" maxlength="160" placeholder="Ej: Activación coordinativa (si lo dejas vacío usamos el nombre del PDF)" />
 		                </label>
 		                <label>
-		                  Bloque
+		                  Bloque (opcional)
 		                  <select name="pdf_task_block">
 		                    {% for value, label in task_blocks %}
 		                    <option value="{{ value }}">{{ label }}</option>
@@ -1546,7 +1546,7 @@
 		                  </select>
 		                </label>
 		                <label>
-		                  Minutos
+		                  Minutos (opcional)
 		                  <input type="number" name="pdf_task_minutes" min="5" max="90" value="15" />
 		                </label>
 		                <label>
@@ -1557,10 +1557,20 @@
 		                  Archivos PDF
 		                  <input type="file" name="library_task_pdf" accept="application/pdf" multiple required />
 		                </label>
-		                <label style="display:flex; gap:10px; align-items:center; margin-top:6px; grid-column:1/-1;">
-		                  <input type="checkbox" name="pdf_recreate_board" value="1" checked />
-		                  <span>Usar el gráfico del PDF como fondo editable (recomendado)</span>
-		                </label>
+                    <input type="hidden" name="pdf_import_mode" value="raw" />
+                    <details style="grid-column:1/-1;">
+                      <summary class="button secondary" style="display:inline-flex; width:max-content;">Opciones avanzadas</summary>
+                      <div style="margin-top:0.65rem; display:grid; gap:0.35rem;">
+                        <label style="display:flex; gap:10px; align-items:center;">
+                          <input type="checkbox" name="pdf_import_mode" value="analyze" />
+                          <span>Analizar y dividir un PDF multi-tarea en varias tareas (experimental)</span>
+                        </label>
+                        <label style="display:flex; gap:10px; align-items:center;">
+                          <input type="checkbox" name="pdf_recreate_board" value="1" />
+                          <span>Usar el gráfico del PDF como fondo editable</span>
+                        </label>
+                      </div>
+                    </details>
 		                <div style="display:flex; align-items:flex-end;">
 		                  <button type="submit" class="primary">Subir PDFs</button>
 		                </div>
@@ -2731,49 +2741,51 @@
       </section>
 
       <section class="panel">
-        <h2>Organización automática</h2>
-        <div class="grid">
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Tipo de tarea</h3>
-            {% if type_group_rows %}
-            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-              {% for item in type_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+        <details>
+          <summary class="button secondary" style="display:inline-flex; width:max-content;">Organización automática (resumen)</summary>
+          <div class="grid" style="margin-top:0.75rem;">
+            <div>
+              <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Tipo de tarea</h3>
+              {% if type_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in type_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">Sin datos todavía.</p>
+              {% endif %}
             </div>
-            {% else %}
-            <p class="empty">Sin datos todavía.</p>
-            {% endif %}
-          </div>
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Fase de juego</h3>
-            {% if phase_group_rows %}
-            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-              {% for item in phase_group_rows %}<span class="badge">{{ item.label|default:item.key }} · {{ item.count }}</span>{% endfor %}
+            <div>
+              <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Fase de juego</h3>
+              {% if phase_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in phase_group_rows %}<span class="badge">{{ item.label|default:item.key }} · {{ item.count }}</span>{% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">Sin datos todavía.</p>
+              {% endif %}
             </div>
-            {% else %}
-            <p class="empty">Sin datos todavía.</p>
-            {% endif %}
-          </div>
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Volumen de jugadores</h3>
-            {% if players_band_group_rows %}
-            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-              {% for item in players_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            <div>
+              <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Volumen de jugadores</h3>
+              {% if players_band_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in players_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">Sin datos todavía.</p>
+              {% endif %}
             </div>
-            {% else %}
-            <p class="empty">Sin datos todavía.</p>
-            {% endif %}
-          </div>
-          <div>
-            <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Duración</h3>
-            {% if duration_band_group_rows %}
-            <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
-              {% for item in duration_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+            <div>
+              <h3 style="margin:0 0 0.4rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Duración</h3>
+              {% if duration_band_group_rows %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                {% for item in duration_band_group_rows %}<span class="badge">{{ item.key }} · {{ item.count }}</span>{% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">Sin datos todavía.</p>
+              {% endif %}
             </div>
-            {% else %}
-            <p class="empty">Sin datos todavía.</p>
-            {% endif %}
           </div>
-        </div>
+        </details>
       </section>
       </div>
 
