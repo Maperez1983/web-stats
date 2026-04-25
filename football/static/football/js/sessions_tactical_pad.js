@@ -6039,33 +6039,54 @@
 				    };
 
 				    // Accesos directos desde la pestaña Playbook (modo táctica).
-				    const ensureSimOpenForProTools = () => {
+				    // Importante (iPad): el usuario puede pulsar estos botones mientras el JS aún está
+				    // inicializando (antes de que `enterSimulation` exista). Evitamos TDZ/ReferenceError
+				    // haciendo cola y ejecutando cuando el simulador esté listo.
+				    let playbookPendingAction = '';
+				    let playbookSimReady = false;
+				    const queuePlaybookAction = (action) => {
+				      playbookPendingAction = safeText(action);
+				      try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				      try { setStatus('Cargando simulador…'); } catch (e) { /* ignore */ }
+				    };
+				    const runPlaybookActionNow = (action) => {
+				      const kind = safeText(action);
 				      try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
 				      try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				      if (kind === '3d') { try { simView3dBtn?.click(); } catch (e) { /* ignore */ } }
+				      if (kind === 'video') { try { simVideoStudioBtn?.click(); } catch (e) { /* ignore */ } }
+				      if (kind === 'pack') { try { simPackBtn?.click(); } catch (e) { /* ignore */ } }
+				      try {
+				        const msg = kind === '3d'
+				          ? 'Simulador + Vista 3D abierto.'
+				          : kind === 'video'
+				            ? 'Simulador + Video Studio abierto.'
+				            : kind === 'pack'
+				              ? 'Simulador + Pack abierto.'
+				              : 'Simulador abierto (usa “Capturar paso” para crear la secuencia).';
+				        setStatus(msg);
+				      } catch (e) { /* ignore */ }
+				      try { document.getElementById('task-sim-toggle')?.focus?.(); } catch (e) { /* ignore */ }
+				    };
+				    const requestPlaybookAction = (action) => {
+				      if (!playbookSimReady) return queuePlaybookAction(action);
+				      return runPlaybookActionNow(action);
 				    };
 				    playbookOpenSimBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
-				      ensureSimOpenForProTools();
-				      try { setStatus('Simulador abierto (usa “Capturar paso” para crear la secuencia).'); } catch (e) { /* ignore */ }
-				      try { document.getElementById('task-sim-toggle')?.focus?.(); } catch (e) { /* ignore */ }
+				      requestPlaybookAction('sim');
 				    });
 				    playbookOpen3dBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
-				      ensureSimOpenForProTools();
-				      try { simView3dBtn?.click(); } catch (e) { /* ignore */ }
-				      try { setStatus('Vista 3D: abre el panel desde el simulador.'); } catch (e) { /* ignore */ }
+				      requestPlaybookAction('3d');
 				    });
 				    playbookOpenVideoBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
-				      ensureSimOpenForProTools();
-				      try { simVideoStudioBtn?.click(); } catch (e) { /* ignore */ }
-				      try { setStatus('Video Studio: añade capas/overlays y exporta el clip.'); } catch (e) { /* ignore */ }
+				      requestPlaybookAction('video');
 				    });
 				    playbookExportPackBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
-				      ensureSimOpenForProTools();
-				      try { simPackBtn?.click(); } catch (e) { /* ignore */ }
-				      try { setStatus('Pack: portada + índice + miniaturas (desde el simulador).'); } catch (e) { /* ignore */ }
+				      requestPlaybookAction('pack');
 				    });
 
 				    // Grabación de vídeo (2D) del simulador (pitch + fichas).
@@ -8474,8 +8495,18 @@
 					          try { renderClipsLibrary(); } catch (e) { /* ignore */ }
 					        });
 					      } catch (e) { /* ignore */ }
-					      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
-					    };
+				      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+				    };
+				    // Ahora el simulador está listo: si el usuario pulsó un botón de Playbook mientras
+				    // se inicializaba el JS, ejecutamos esa acción pendiente.
+				    try {
+				      playbookSimReady = true;
+				      if (playbookPendingAction) {
+				        const action = playbookPendingAction;
+				        playbookPendingAction = '';
+				        runPlaybookActionNow(action);
+				      }
+				    } catch (e) { /* ignore */ }
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
