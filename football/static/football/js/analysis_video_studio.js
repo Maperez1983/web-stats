@@ -44,6 +44,7 @@
 	    const btnOut = document.getElementById('vs-mark-out');
 	    const btnExportSeg = document.getElementById('vs-export-seg');
 	    const btnExportShare = document.getElementById('vs-export-share');
+	    const btnExportRetry = document.getElementById('vs-export-retry');
 	    const btnRecord = document.getElementById('vs-record');
 	    const btnSnap = document.getElementById('vs-snap');
 	    const btnFreeze = document.getElementById('vs-freeze');
@@ -86,7 +87,10 @@
     const clipSaveUrl = safeText(document.getElementById('vs-clip-save-url')?.value);
 	    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
 	    const shareClipCreateUrl = safeText(document.getElementById('vs-share-clip-create-url')?.value);
+	    const sharePlaylistCreateUrl = safeText(document.getElementById('vs-share-playlist-create-url')?.value);
 	    const shareLinksUrl = safeText(document.getElementById('vs-share-links-url')?.value);
+	    const inboxRecipientsUrl = safeText(document.getElementById('vs-inbox-recipients-url')?.value);
+	    const inboxSendUrl = safeText(document.getElementById('vs-inbox-send-url')?.value);
 	    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
     const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
     const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
@@ -112,6 +116,11 @@
 	    const clipClearFiltersBtn = document.getElementById('vs-clip-clear-filters');
 	    const clipCollectionsWrap = document.getElementById('vs-clip-collections');
 	    const clipCountEl = document.getElementById('vs-clip-count');
+	    const playlistPlayBtn = document.getElementById('vs-playlist-play');
+	    const playlistStopBtn = document.getElementById('vs-playlist-stop');
+	    const playlistClearBtn = document.getElementById('vs-playlist-clear');
+	    const playlistShareBtn = document.getElementById('vs-playlist-share');
+	    const playlistCountEl = document.getElementById('vs-playlist-count');
 	    const clipSaveBtn = document.getElementById('vs-clip-save');
 	    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
 	    const clipsList = document.getElementById('vs-clips');
@@ -133,6 +142,11 @@
 
 	    const shareRefreshBtn = document.getElementById('vs-share-refresh');
 	    const shareLinksList = document.getElementById('vs-share-links');
+	    const inboxUsersSelect = document.getElementById('vs-inbox-users');
+	    const inboxMessageInput = document.getElementById('vs-inbox-message');
+	    const inboxSendClipBtn = document.getElementById('vs-inbox-send-clip');
+	    const inboxSendPlaylistBtn = document.getElementById('vs-inbox-send-playlist');
+	    const inboxSendExportBtn = document.getElementById('vs-inbox-send-export');
 
     const layerEmpty = document.getElementById('vs-layer-empty');
     const layerForm = document.getElementById('vs-layer-form');
@@ -1302,17 +1316,20 @@
     let recMedia = null;
     let recStream = null;
     let recChunks = [];
-    let recCanvas = null;
-    let recCtx = null;
-    let recRaf = null;
-    let stopAt = null;
+	    let recCanvas = null;
+	    let recCtx = null;
+	    let recRaf = null;
+	    let stopAt = null;
     let recStartAt = null;
-    let recDestination = 'download';
-    let recUploadMeta = null;
+	    let recDestination = 'download';
+	    let recUploadMeta = null;
     let exportAudioCtx = null;
     let exportAudioDest = null;
     let exportAudioSource = null;
     let recLastProgressAt = 0;
+	    let lastExportAssetId = 0;
+	    let lastExportShareUrl = '';
+	    let lastFailedExport = null;
 
 	    const stopRecording = async () => {
       if (!recActive) return;
@@ -1348,6 +1365,8 @@
 	      const ext = String(blob.type || '').includes('mp4') ? 'mp4' : 'webm';
 	      const safeTitle = safeText(title, 'Export').slice(0, 160);
 	      const filename = `video-studio-${videoId || 'export'}.${ext}`;
+	      lastFailedExport = { blob, title: safeTitle, clipId: Number(clipId) || 0 };
+	      if (btnExportRetry) btnExportRetry.hidden = true;
 
 	      setStatus('Subiendo export…');
 	      return await new Promise((resolve) => {
@@ -1371,6 +1390,10 @@
 	              const data = JSON.parse(xhr.responseText || '{}');
 	              if (xhr.status >= 200 && xhr.status < 300 && data?.ok && data?.url) {
 	                const url = String(data.url);
+	                lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+	                lastExportShareUrl = url;
+	                lastFailedExport = null;
+	                if (btnExportRetry) btnExportRetry.hidden = true;
 	                try {
 	                  if (navigator.clipboard?.writeText) {
 	                    await navigator.clipboard.writeText(url);
@@ -1387,14 +1410,17 @@
 	                return;
 	              }
 	              setStatus(data?.error || 'No se pudo subir export.', true);
+	              if (btnExportRetry) btnExportRetry.hidden = false;
 	              resolve(null);
 	            } catch (e) {
 	              setStatus('No se pudo subir export.', true);
+	              if (btnExportRetry) btnExportRetry.hidden = false;
 	              resolve(null);
 	            }
 	          });
 	          xhr.addEventListener('error', () => {
 	            setStatus('Error de red al subir export.', true);
+	            if (btnExportRetry) btnExportRetry.hidden = false;
 	            resolve(null);
 	          });
 	          xhr.send(fd);
@@ -1564,6 +1590,14 @@
 	      return await startRecording({ from: start, to: end, destination: 'upload', uploadTitle: t, uploadClipId: activeClipId || 0 });
 	    });
 
+	    btnExportRetry?.addEventListener('click', async () => {
+	      if (!lastFailedExport || !lastFailedExport.blob) {
+	        setStatus('No hay export pendiente de reintento.', true);
+	        return;
+	      }
+	      await uploadExportBlob(lastFailedExport.blob, { title: lastFailedExport.title, clipId: lastFailedExport.clipId });
+	    });
+
     // Shortcuts
     document.addEventListener('keydown', (event) => {
       const key = String(event.key || '').toLowerCase();
@@ -1709,6 +1743,25 @@
 	    // Clips (server)
 	    let activeClipId = 0;
 	    let clipsCache = [];
+	    let playlistActive = false;
+	    let playlistIds = [];
+	    let playlistIndex = 0;
+	    let playlistBusy = false;
+	    const selectedClipIds = new Set();
+	    const thumbCache = new Map();
+	    const thumbQueue = [];
+	    const thumbQueued = new Set();
+	    let thumbBusy = false;
+	    let thumbObserver = null;
+	    const thumbVideo = document.createElement('video');
+	    try {
+	      const baseSrc = safeText(video.currentSrc, '') || safeText(video.querySelector('source')?.src, '');
+	      if (baseSrc) thumbVideo.src = baseSrc;
+	      thumbVideo.crossOrigin = 'anonymous';
+	      thumbVideo.muted = true;
+	      thumbVideo.playsInline = true;
+	      thumbVideo.preload = 'auto';
+	    } catch (e) { /* ignore */ }
 	    const clipFilterState = { q: '', collection: '' };
 	    const clipNorm = (value) => safeText(value, '').toLowerCase();
 	    const escHtml = (value) => safeText(value, '')
@@ -1815,6 +1868,112 @@
 	      }
 	    };
 
+	    const updatePlaylistCount = () => {
+	      if (!playlistCountEl) return;
+	      playlistCountEl.textContent = `${selectedClipIds.size} seleccionados`;
+	    };
+
+	    const clipById = (id) => {
+	      const x = (Array.isArray(clipsCache) ? clipsCache : []).find((c) => Number(c?.id) === Number(id));
+	      return x || null;
+	    };
+
+	    const selectedClipsOrdered = () => {
+	      const items = [];
+	      for (const id of selectedClipIds) {
+	        const c = clipById(id);
+	        if (c) items.push(c);
+	      }
+	      return items.sort((a, b) => (Number(a?.in_s) || 0) - (Number(b?.in_s) || 0) || (Number(a?.id) || 0) - (Number(b?.id) || 0));
+	    };
+
+	    const drawThumbDataUrl = () => {
+	      try {
+	        const w = 320;
+	        const h = 180;
+	        const off = document.createElement('canvas');
+	        off.width = w;
+	        off.height = h;
+	        const ctx = off.getContext('2d', { alpha: false });
+	        if (!ctx) return null;
+	        ctx.fillStyle = '#000';
+	        ctx.fillRect(0, 0, w, h);
+	        ctx.drawImage(thumbVideo, 0, 0, w, h);
+	        return off.toDataURL('image/jpeg', 0.72);
+	      } catch (e) {
+	        return null;
+	      }
+	    };
+
+	    const seekThumb = (t) => new Promise((resolve) => {
+	      let done = false;
+	      const onSeeked = () => {
+	        if (done) return;
+	        done = true;
+	        try { thumbVideo.removeEventListener('seeked', onSeeked); } catch (e) { /* ignore */ }
+	        resolve(true);
+	      };
+	      const timeout = window.setTimeout(() => {
+	        if (done) return;
+	        done = true;
+	        try { thumbVideo.removeEventListener('seeked', onSeeked); } catch (e) { /* ignore */ }
+	        resolve(false);
+	      }, 2200);
+	      thumbVideo.addEventListener('seeked', () => {
+	        try { window.clearTimeout(timeout); } catch (e) { /* ignore */ }
+	        onSeeked();
+	      }, { once: true });
+	      try { thumbVideo.currentTime = Math.max(0, Number(t) || 0); } catch (e) { resolve(false); }
+	    });
+
+	    const processThumbQueue = async () => {
+	      if (thumbBusy) return;
+	      if (thumbQueue.length === 0) return;
+	      if (!thumbVideo.src) return;
+	      // Evitar generar thumbs mientras se exporta/graba.
+	      if (recActive) return;
+	      thumbBusy = true;
+	      try {
+	        while (thumbQueue.length && thumbCache.size < 42) {
+	          const id = thumbQueue.shift();
+	          thumbQueued.delete(id);
+	          if (!id || thumbCache.has(id)) continue;
+	          const clip = clipById(id);
+	          if (!clip) continue;
+	          // No interrumpir reproducción/lista: solo generamos si el vídeo principal está en pausa.
+	          if (!video.paused) break;
+	          const t = Number(clip?.in_s) || 0;
+	          // eslint-disable-next-line no-await-in-loop
+	          const ok = await seekThumb(t);
+	          if (!ok) continue;
+	          // eslint-disable-next-line no-await-in-loop
+	          await sleep(80);
+	          const dataUrl = drawThumbDataUrl();
+	          if (!dataUrl) continue;
+	          thumbCache.set(id, dataUrl);
+	          try {
+	            const img = clipsList?.querySelector?.(`[data-vs-clip-thumb="${id}"]`);
+	            if (img && !img.src) img.src = dataUrl;
+	          } catch (e) { /* ignore */ }
+	        }
+	      } finally {
+	        thumbBusy = false;
+	      }
+	    };
+
+	    const ensureThumb = (id) => {
+	      if (!id) return;
+	      if (thumbCache.has(id)) return;
+	      if (thumbQueued.has(id)) return;
+	      thumbQueued.add(id);
+	      thumbQueue.push(id);
+	      processThumbQueue();
+	    };
+
+	    try {
+	      video.addEventListener('pause', () => processThumbQueue());
+	    } catch (e) { /* ignore */ }
+
 	    const refreshShareLinks = async () => {
 	      if (!shareLinksUrl || !videoId || !shareLinksList) return;
 	      shareLinksList.innerHTML = '<div class="meta">Cargando…</div>';
@@ -1889,6 +2048,75 @@
 	      }
 	    };
 
+	    const loadInboxRecipients = async () => {
+	      if (!inboxRecipientsUrl || !inboxUsersSelect) return;
+	      inboxUsersSelect.innerHTML = '';
+	      try {
+	        const resp = await fetch(inboxRecipientsUrl, { credentials: 'same-origin' });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        const items = Array.isArray(data?.items) ? data.items : [];
+	        inboxUsersSelect.innerHTML = items.slice(0, 240).map((u) => {
+	          const id = Number(u?.id) || 0;
+	          if (!id) return '';
+	          const label = escHtml(safeText(u?.label, safeText(u?.username, `User ${id}`)));
+	          return `<option value="${id}">${label}</option>`;
+	        }).filter(Boolean).join('');
+	      } catch (e) {
+	        inboxUsersSelect.innerHTML = '<option value="">(No disponible)</option>';
+	      }
+	    };
+
+	    const selectedInboxUserIds = () => {
+	      try {
+	        const opts = Array.from(inboxUsersSelect?.selectedOptions || []);
+	        return opts.map((o) => Number(o.value) || 0).filter((x) => x > 0).slice(0, 40);
+	      } catch (e) {
+	        return [];
+	      }
+	    };
+
+	    const sendInbox = async (payload) => {
+	      if (!inboxSendUrl) { setStatus('Inbox no disponible.', true); return false; }
+	      const userIds = selectedInboxUserIds();
+	      if (!userIds.length) { setStatus('Elige destinatarios.', true); return false; }
+	      const message = safeText(inboxMessageInput?.value, '').slice(0, 2000);
+	      try {
+	        const resp = await fetch(inboxSendUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({ ...payload, user_ids: userIds, message }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        setStatus(`Enviado a ${data?.created || userIds.length} usuario(s).`);
+	        return true;
+	      } catch (e) {
+	        setStatus('No se pudo enviar.', true);
+	        return false;
+	      }
+	    };
+
+	    inboxSendClipBtn?.addEventListener('click', async () => {
+	      if (!activeClipId) { setStatus('Selecciona o guarda un clip.', true); return; }
+	      const clip = clipById(activeClipId);
+	      const title = clip ? safeText(clip?.title, '') : '';
+	      await sendInbox({ kind: 'clip', clip_id: activeClipId, title });
+	    });
+	    inboxSendPlaylistBtn?.addEventListener('click', async () => {
+	      const picked = selectedClipsOrdered();
+	      const base = picked.length ? picked : applyClipFilters(clipsCache);
+	      const ids = base.slice(0, 80).map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	      if (!ids.length) { setStatus('No hay clips para enviar.', true); return; }
+	      await sendInbox({ kind: 'playlist', video_id: videoId, clip_ids: ids, title: `Playlist · ${ids.length} clips` });
+	    });
+	    inboxSendExportBtn?.addEventListener('click', async () => {
+	      if (!lastExportAssetId) { setStatus('Primero sube un export (Export + compartir).', true); return; }
+	      await sendInbox({ kind: 'export', export_id: lastExportAssetId, title: safeText(clipTitleInput?.value, '') || 'Export' });
+	    });
+	    loadInboxRecipients();
+
 	    const renderClips = (items) => {
 	      if (!clipsList) return;
 	      const total = Array.isArray(clipsCache) ? clipsCache.length : 0;
@@ -1904,22 +2132,55 @@
 	        const tags = Array.isArray(c?.tags) ? c.tags : [];
 	        const tagsLabel = tags.length ? ` · ${tags.slice(0, 6).map((t) => `#${safeText(t)}`).join(' ')}` : '';
 	        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
+	        const checked = selectedClipIds.has(id) ? 'checked' : '';
 	        return `
 	          <div class="row">
-	            <div style="display:flex; flex-direction:column; gap:0.05rem;">
-	              <strong>${title}</strong>
-	              <small>${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
-	            </div>
-		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+	            <div style="display:flex; gap:0.6rem; align-items:flex-start; width:100%;">
+                <input type="checkbox" data-vs-clip-select="${id}" ${checked} style="margin-top:0.25rem; width:18px;height:18px;accent-color:#22d3ee; flex:0 0 auto;" />
+                <div style="width:76px;height:46px;border-radius:12px;overflow:hidden;background:rgba(2,6,23,0.35);border:1px solid rgba(148,163,184,0.14);flex:0 0 auto;">
+                  <img data-vs-clip-thumb="${id}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                </div>
+	              <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0; flex:1;">
+	                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</strong>
+	                <small>${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
+	              </div>
+		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
+		              <button type="button" class="button" data-vs-clip-play="${id}">Play</button>
 		              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
 		              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
 		              <button type="button" class="button" data-vs-clip-share="${id}">Share</button>
 		              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
 		            </div>
+              </div>
 	          </div>
 	        `;
-	      }).filter(Boolean).join('');
+      }).filter(Boolean).join('');
       clipsList.innerHTML = rows || '<div class="meta">Sin clips guardados.</div>';
+
+      // Miniaturas (lazy)
+      try {
+        if (!thumbObserver && 'IntersectionObserver' in window) {
+          thumbObserver = new IntersectionObserver((entries) => {
+            for (const ent of entries) {
+              if (!ent.isIntersecting) continue;
+              const img = ent.target;
+              const id = Number(img?.getAttribute?.('data-vs-clip-thumb') || 0);
+              if (id) ensureThumb(id);
+              try { thumbObserver.unobserve(img); } catch (e) { /* ignore */ }
+            }
+          }, { root: null, rootMargin: '160px', threshold: 0.12 });
+        }
+        Array.from(clipsList.querySelectorAll('[data-vs-clip-thumb]')).forEach((img) => {
+          const id = Number(img.getAttribute('data-vs-clip-thumb') || 0);
+          const cached = id ? thumbCache.get(id) : '';
+          if (cached) {
+            img.src = cached;
+            return;
+          }
+          img.src = '';
+          if (thumbObserver) thumbObserver.observe(img);
+        });
+      } catch (e) { /* ignore */ }
 
 	      Array.from(clipsList.querySelectorAll('[data-vs-clip-load]')).forEach((btn) => {
 	        btn.addEventListener('click', async () => {
@@ -1956,6 +2217,39 @@
           } catch (e) {
             setStatus('No se pudo cargar clip.', true);
           }
+	        });
+	      });
+
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-select]')).forEach((chk) => {
+	        chk.addEventListener('change', () => {
+	          const id = Number(chk.getAttribute('data-vs-clip-select') || 0);
+	          if (!id) return;
+	          if (chk.checked) selectedClipIds.add(id);
+	          else selectedClipIds.delete(id);
+	          updatePlaylistCount();
+	        });
+	      });
+
+	      const playClipOnce = async (clip) => {
+	        if (!clip) return;
+	        playlistActive = false;
+	        playlistIds = [];
+	        playlistIndex = 0;
+	        const start = Number(clip?.in_s) || 0;
+	        const end = Number(clip?.out_s) || 0;
+	        if (inInput) inInput.value = String(start.toFixed(1));
+	        if (outInput) outInput.value = String(end.toFixed(1));
+	        try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
+	        try { await video.play(); } catch (e) { /* ignore */ }
+	        setStatus(`Play clip: ${fmtTimeShort(start)} → ${fmtTimeShort(end || start)}`);
+	      };
+
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-play]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
+	          const id = Number(btn.getAttribute('data-vs-clip-play') || 0);
+	          if (!id) return;
+	          const clip = clipById(id);
+	          await playClipOnce(clip);
 	        });
 	      });
 	      Array.from(clipsList.querySelectorAll('[data-vs-clip-link]')).forEach((btn) => {
@@ -2101,6 +2395,114 @@
 	      } catch (e) { /* ignore */ }
 	    });
 
+	    updatePlaylistCount();
+	    const stopPlaylist = () => {
+	      playlistActive = false;
+	      playlistIds = [];
+	      playlistIndex = 0;
+	      setStatus('Lista detenida.');
+	    };
+	    const startPlaylist = async () => {
+	      const picked = selectedClipsOrdered();
+	      const base = picked.length ? picked : applyClipFilters(clipsCache);
+	      const ids = base.slice(0, 120).map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	      if (!ids.length) { setStatus('No hay clips para reproducir.', true); return; }
+	      playlistActive = true;
+	      playlistIds = ids;
+	      playlistIndex = 0;
+	      const first = clipById(ids[0]);
+	      if (!first) { stopPlaylist(); return; }
+	      const start = Number(first?.in_s) || 0;
+	      const end = Number(first?.out_s) || 0;
+	      if (inInput) inInput.value = String(start.toFixed(1));
+	      if (outInput) outInput.value = String(end.toFixed(1));
+	      try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
+	      try { await video.play(); } catch (e) { /* ignore */ }
+	      setStatus(`Lista: 1/${playlistIds.length}`);
+	    };
+
+	    const playNextInPlaylist = async () => {
+	      if (!playlistActive) return;
+	      if (!playlistIds.length) return stopPlaylist();
+	      playlistIndex += 1;
+	      if (playlistIndex >= playlistIds.length) {
+	        playlistActive = false;
+	        setStatus('Lista finalizada.');
+	        return;
+	      }
+	      const next = clipById(playlistIds[playlistIndex]);
+	      if (!next) return stopPlaylist();
+	      const start = Number(next?.in_s) || 0;
+	      const end = Number(next?.out_s) || 0;
+	      if (inInput) inInput.value = String(start.toFixed(1));
+	      if (outInput) outInput.value = String(end.toFixed(1));
+	      try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
+	      try { await video.play(); } catch (e) { /* ignore */ }
+	      setStatus(`Lista: ${playlistIndex + 1}/${playlistIds.length}`);
+	    };
+
+	    const playlistAdvanceIfNeeded = () => {
+	      if (!playlistActive) return;
+	      if (playlistBusy) return;
+	      const id = playlistIds[playlistIndex];
+	      const clip = clipById(id);
+	      if (!clip) return;
+	      const end = Number(clip?.out_s) || 0;
+	      if (!end) return;
+	      const now = Number(video.currentTime) || 0;
+	      if (now >= end - 0.03) {
+	        playlistBusy = true;
+	        playNextInPlaylist().finally(() => {
+	          window.setTimeout(() => { playlistBusy = false; }, 120);
+	        });
+	      }
+	    };
+
+	    // Integración en timeupdate
+	    video.addEventListener('timeupdate', playlistAdvanceIfNeeded);
+
+	    playlistPlayBtn?.addEventListener('click', startPlaylist);
+	    playlistStopBtn?.addEventListener('click', stopPlaylist);
+	    playlistClearBtn?.addEventListener('click', () => {
+	      selectedClipIds.clear();
+	      updatePlaylistCount();
+	      renderClips(applyClipFilters(clipsCache));
+	    });
+	    playlistShareBtn?.addEventListener('click', async () => {
+	      if (!sharePlaylistCreateUrl) { setStatus('No hay endpoint para compartir lista.', true); return; }
+	      const picked = selectedClipsOrdered();
+	      const base = picked.length ? picked : applyClipFilters(clipsCache);
+	      const ids = base.slice(0, 60).map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	      if (!ids.length) { setStatus('No hay clips para compartir.', true); return; }
+	      setStatus('Creando enlace de lista…');
+	      try {
+	        const body = { clip_ids: ids, valid_days: 14 };
+	        const resp = await fetch(sharePlaylistCreateUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify(body),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok || !data?.url) throw new Error(data?.error || 'error');
+	        const url = String(data.url);
+	        try {
+	          if (navigator.clipboard?.writeText) {
+	            await navigator.clipboard.writeText(url);
+	            setStatus('Enlace de lista copiado.');
+	          } else {
+	            window.prompt('Copia este enlace:', url);
+	            setStatus('Copia el enlace de lista.');
+	          }
+	        } catch (e) {
+	          window.prompt('Copia este enlace:', url);
+	        }
+	        refreshShareLinks();
+	      } catch (e) {
+	        setStatus('No se pudo crear enlace de lista.', true);
+	      }
+	    });
+
 	    shareRefreshBtn?.addEventListener('click', refreshShareLinks);
 	    refreshShareLinks();
 
@@ -2136,20 +2538,39 @@
       const rows = filtered.slice(0, 360).map((ev) => {
         const id = Number(ev?.id) || 0;
         if (!id) return '';
-        const kind = safeText(ev?.kind, 'tag').toUpperCase();
+        const kind = safeText(ev?.kind, 'tag');
         const label = safeText(ev?.label, '');
         const color = safeText(ev?.color, '');
         const at = fmtTimeShort(Number(ev?.time_s) || 0);
+        const timeVal = (Number(ev?.time_s) || 0).toFixed(1);
         return `
           <div class="row">
-            <div style="display:flex; flex-direction:column; gap:0.05rem;">
-              <strong>${at} · ${kind}</strong>
-              <small>${label || '—'}</small>
-            </div>
-            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
-              ${color ? `<span style="width:12px;height:12px;border-radius:999px;background:${color};display:inline-block;border:1px solid rgba(255,255,255,0.25);"></span>` : ''}
-              <button type="button" class="button" data-vs-ev-go="${id}">Ir</button>
-              <button type="button" class="button danger" data-vs-ev-del="${id}">Borrar</button>
+            <div style="display:grid; gap:0.4rem; width:100%;">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">
+                <strong style="display:flex; gap:0.5rem; align-items:center;">
+                  ${color ? `<span style="width:12px;height:12px;border-radius:999px;background:${color};display:inline-block;border:1px solid rgba(255,255,255,0.25);"></span>` : ''}
+                  ${at} · ${safeText(kind, 'tag').toUpperCase()}
+                </strong>
+                <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                  <button type="button" class="button" data-vs-ev-go="${id}">Ir</button>
+                  <button type="button" class="button" data-vs-ev-now="${id}">Ahora</button>
+                  <button type="button" class="button" data-vs-ev-save="${id}">Guardar</button>
+                  <button type="button" class="button danger" data-vs-ev-del="${id}">Borrar</button>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns: 0.9fr 1fr 2fr; gap:0.45rem; align-items:center;">
+                <input type="number" step="0.1" min="0" value="${escHtml(timeVal)}" data-vs-ev-time="${id}" title="Tiempo (s)" />
+                <select data-vs-ev-kind="${id}" title="Tipo">
+                  <option value="tag" ${kind === 'tag' ? 'selected' : ''}>Tag</option>
+                  <option value="note" ${kind === 'note' ? 'selected' : ''}>Nota</option>
+                  <option value="goal" ${kind === 'goal' ? 'selected' : ''}>Gol</option>
+                  <option value="shot" ${kind === 'shot' ? 'selected' : ''}>Disparo</option>
+                  <option value="press" ${kind === 'press' ? 'selected' : ''}>Presión</option>
+                  <option value="turnover" ${kind === 'turnover' ? 'selected' : ''}>Pérdida</option>
+                  <option value="abp" ${kind === 'abp' ? 'selected' : ''}>ABP</option>
+                </select>
+                <input type="text" value="${escHtml(label)}" data-vs-ev-label="${id}" placeholder="Etiqueta..." />
+              </div>
             </div>
           </div>
         `;
@@ -2191,6 +2612,45 @@
             setStatus('Evento borrado.');
           } catch (e) {
             setStatus('No se pudo borrar.', true);
+          }
+        });
+      });
+
+      Array.from(timelineList.querySelectorAll('[data-vs-ev-now]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-vs-ev-now') || 0);
+          if (!id) return;
+          const inp = timelineList.querySelector(`[data-vs-ev-time="${id}"]`);
+          if (!inp) return;
+          try { inp.value = (Number(video.currentTime) || 0).toFixed(1); } catch (e) { /* ignore */ }
+          setStatus('Tiempo actualizado (Ahora).');
+        });
+      });
+
+      Array.from(timelineList.querySelectorAll('[data-vs-ev-save]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-ev-save') || 0);
+          if (!id) return;
+          if (!timelineSaveUrl || !videoId) return;
+          const timeInp = timelineList.querySelector(`[data-vs-ev-time="${id}"]`);
+          const kindSel = timelineList.querySelector(`[data-vs-ev-kind="${id}"]`);
+          const labelInp = timelineList.querySelector(`[data-vs-ev-label="${id}"]`);
+          const timeS = Number(timeInp?.value || 0) || 0;
+          const kind = safeText(kindSel?.value, 'tag');
+          const label = safeText(labelInp?.value, '');
+          try {
+            const resp = await fetch(timelineSaveUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              credentials: 'same-origin',
+              body: JSON.stringify({ id, video_id: videoId, time_s: timeS, kind, label, color: strokeColor() }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+            await refreshTimeline();
+            setStatus('Evento guardado.');
+          } catch (e) {
+            setStatus('No se pudo guardar evento.', true);
           }
         });
       });

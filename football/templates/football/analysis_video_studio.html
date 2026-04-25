@@ -78,6 +78,7 @@
 	              <button type="button" class="button" id="vs-mark-out">OUT</button>
 	              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
 	              <button type="button" class="button primary" id="vs-export-share">Export + compartir</button>
+	              <button type="button" class="button" id="vs-export-retry" hidden>Reintentar upload</button>
 	              <button type="button" class="button" id="vs-record">Grabar</button>
 	              <button type="button" class="button" id="vs-snap">PNG</button>
 	              <button type="button" class="button" id="vs-freeze">Freeze</button>
@@ -271,6 +272,13 @@
 	                  <button type="button" class="button ghost" id="vs-clip-clear-filters">Limpiar filtros</button>
 	                  <div class="hint" id="vs-clip-count" style="align-self:center;">—</div>
 	                </div>
+                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                    <button type="button" class="button" id="vs-playlist-play">Play lista</button>
+                    <button type="button" class="button" id="vs-playlist-stop">Stop</button>
+                    <button type="button" class="button ghost" id="vs-playlist-clear">Limpiar selección</button>
+                    <button type="button" class="button primary" id="vs-playlist-share">Compartir lista</button>
+                    <div class="hint" id="vs-playlist-count" style="align-self:center;">0 seleccionados</div>
+                  </div>
 	                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
 	              </div>
 	              <label>
@@ -354,8 +362,26 @@
               <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.4rem;">
                 <button type="button" class="button" id="vs-share-refresh">Actualizar</button>
+                <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
               </div>
               <div class="list" id="vs-share-links" style="margin-top:0.45rem;"></div>
+
+              <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(148,163,184,0.16); display:grid; gap:0.45rem;">
+                <div class="hint"><span class="k">Interno</span> Envía a miembros del workspace (sin enlace público).</div>
+                <label>
+                  Destinatarios
+                  <select id="vs-inbox-users" multiple size="5" style="min-height:132px;"></select>
+                </label>
+                <label>
+                  Mensaje (opcional)
+                  <textarea id="vs-inbox-message" style="min-height:84px;" placeholder="Qué mirar, consignas, correcciones..."></textarea>
+                </label>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                  <button type="button" class="button" id="vs-inbox-send-clip">Enviar clip</button>
+                  <button type="button" class="button" id="vs-inbox-send-playlist">Enviar playlist</button>
+                  <button type="button" class="button" id="vs-inbox-send-export">Enviar export</button>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
@@ -371,7 +397,10 @@
     <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
 	    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
 	    <input type="hidden" id="vs-share-clip-create-url" value="{% url 'share-video-clip-create' %}" />
+	    <input type="hidden" id="vs-share-playlist-create-url" value="{% url 'share-video-playlist-create' %}" />
 	    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
+	    <input type="hidden" id="vs-inbox-recipients-url" value="{% url 'analysis-video-inbox-recipients-api' %}" />
+	    <input type="hidden" id="vs-inbox-send-url" value="{% url 'analysis-video-inbox-send-api' %}" />
 	    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
 	    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
 	    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />

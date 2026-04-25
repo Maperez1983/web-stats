@@ -1395,6 +1395,73 @@ class VideoExportAsset(models.Model):
         return self.title or f'Export {self.id}'
 
 
+class VideoInboxItem(models.Model):
+    """
+    Elemento compartido internamente (sin enlaces públicos) para staff.
+    """
+
+    KIND_CLIP = 'clip'
+    KIND_EXPORT = 'export'
+    KIND_PLAYLIST = 'playlist'
+    KIND_REPORT = 'report'
+    KIND_CHOICES = [
+        (KIND_CLIP, 'Clip'),
+        (KIND_EXPORT, 'Export'),
+        (KIND_PLAYLIST, 'Playlist'),
+        (KIND_REPORT, 'Informe'),
+    ]
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='video_inbox_items')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_inbox_items')
+    target_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='video_inbox')
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='video_inbox_sent')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_CLIP)
+    title = models.CharField(max_length=180, blank=True)
+    message = models.TextField(blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['workspace', 'target_user', '-created_at']),
+            models.Index(fields=['team', 'target_user', '-created_at']),
+            models.Index(fields=['target_user', 'is_read', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.target_user.username} · {self.kind} · {self.created_at:%Y-%m-%d}'
+
+
+class ChunkedRivalVideoUpload(models.Model):
+    """
+    Subida por chunks para vídeos largos (evita timeouts y límites de proxy).
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='chunked_video_uploads')
+    created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='chunked_video_uploads')
+    upload_id = models.CharField(max_length=64, unique=True, db_index=True)
+    original_name = models.CharField(max_length=220, blank=True)
+    mime_type = models.CharField(max_length=80, blank=True)
+    size_bytes = models.BigIntegerField(default=0)
+    total_chunks = models.PositiveIntegerField(default=0)
+    received_chunks = models.PositiveIntegerField(default=0)
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.team_id} · upload {self.upload_id}'
+
+
 class RivalAnalysisReport(models.Model):
     STATUS_DRAFT = 'draft'
     STATUS_READY = 'ready'
@@ -1508,6 +1575,7 @@ class ShareLink(models.Model):
     KIND_TACTICAL_PLAYBOOK_CLIP = 'tactical_playbook_clip'
     KIND_VIDEO_CLIP = 'video_clip'
     KIND_VIDEO_EXPORT = 'video_export'
+    KIND_VIDEO_PLAYLIST = 'video_playlist'
     KIND_CHOICES = [
         (KIND_TASK_PDF, 'PDF de tarea'),
         (KIND_CONVOCATION_PDF, 'PDF de convocatoria'),
@@ -1515,6 +1583,7 @@ class ShareLink(models.Model):
         (KIND_TACTICAL_PLAYBOOK_CLIP, 'Clip Playbook'),
         (KIND_VIDEO_CLIP, 'Clip de vídeo'),
         (KIND_VIDEO_EXPORT, 'Export de vídeo'),
+        (KIND_VIDEO_PLAYLIST, 'Lista de clips (vídeo)'),
     ]
 
     token = models.CharField(max_length=120, unique=True, db_index=True)

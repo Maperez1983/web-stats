@@ -124,6 +124,8 @@ from football.models import (
     VideoTimelineEvent,
     VideoClip,
     VideoExportAsset,
+    VideoInboxItem,
+    ChunkedRivalVideoUpload,
     RivalAnalysisReport,
     AnalystMatchReport,
     AppUserRole,
@@ -32113,6 +32115,528 @@ def analysis_video_clip_view_page(request, clip_id):
             'clip': clip,
         },
     )
+
+
+@login_required
+def analysis_video_export_view_page(request, export_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    export = VideoExportAsset.objects.select_related('team', 'video', 'clip').filter(id=int(export_id), team=primary_team).first()
+    if not export:
+        raise Http404('Export no disponible')
+    return render(
+        request,
+        'football/analysis_video_export_view.html',
+        {
+            'team': primary_team,
+            'export': export,
+            'stream_url': reverse('analysis-video-export-stream', args=[int(export.id)]),
+        },
+    )
+
+
+@login_required
+def analysis_video_export_stream(request, export_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Export no disponible')
+    export = VideoExportAsset.objects.filter(id=int(export_id), team=primary_team).first()
+    if not export or not getattr(export, 'file', None):
+        raise Http404('Export no disponible')
+    return _file_field_stream_with_range(
+        request,
+        export.file,
+        content_type=str(export.mime_type or '').strip() or 'video/mp4',
+        filename=f'export-{export.id}.mp4',
+    )
+
+
+@login_required
+def analysis_video_inbox_playlist_view_page(request, item_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_PLAYLIST:
+        raise Http404('Elemento no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:120]
+    if not video_id or not clip_ids:
+        raise Http404('Playlist no disponible')
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        raise Http404('Vídeo no disponible')
+    clips = list(
+        VideoClip.objects
+        .filter(team=primary_team, video_id=int(video_id), id__in=clip_ids)
+        .order_by('in_ms', 'id')[:200]
+    )
+    items = []
+    for c in clips:
+        items.append(
+            {
+                'id': int(c.id),
+                'title': str(c.title or '').strip() or f'Clip {c.id}',
+                'collection': str(c.collection or '').strip(),
+                'in_s': float(c.in_seconds),
+                'out_s': float(c.out_seconds),
+                'tags': c.tags if isinstance(c.tags, list) else [],
+                'notes': str(c.notes or '').strip(),
+            }
+        )
+    return render(
+        request,
+        'football/analysis_video_playlist_view.html',
+        {
+            'team': primary_team,
+            'video': video,
+            'clips_json': json.dumps(items, ensure_ascii=False),
+        },
+    )
+
+
+@login_required
+def analysis_video_inbox_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    items = list(
+        VideoInboxItem.objects
+        .select_related('created_by_user')
+        .filter(workspace=active_ws, team=primary_team, target_user=request.user)
+        .order_by('-created_at', '-id')[:120]
+    )
+    unread = 0
+    try:
+        unread = int(
+            VideoInboxItem.objects.filter(workspace=active_ws, team=primary_team, target_user=request.user, is_read=False).count()
+        )
+    except Exception:
+        unread = 0
+    return render(
+        request,
+        'football/analysis_video_inbox.html',
+        {
+            'team': primary_team,
+            'workspace': active_ws,
+            'items': items,
+            'unread_count': unread,
+        },
+    )
+
+
+@login_required
+def analysis_video_inbox_open(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item:
+        raise Http404('Elemento no disponible')
+    if not item.is_read:
+        try:
+            VideoInboxItem.objects.filter(id=item.id).update(is_read=True, read_at=timezone.now())
+        except Exception:
+            pass
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    if item.kind == VideoInboxItem.KIND_CLIP:
+        clip_id = _parse_int(payload.get('clip_id'))
+        video_id = _parse_int(payload.get('video_id'))
+        if clip_id and video_id:
+            url = reverse('analysis-video-studio', args=[int(video_id)])
+            return redirect(f'{url}?clip={int(clip_id)}')
+    if item.kind == VideoInboxItem.KIND_EXPORT:
+        export_id = _parse_int(payload.get('export_id'))
+        if export_id:
+            return redirect(reverse('analysis-video-export-view', args=[int(export_id)]))
+    if item.kind == VideoInboxItem.KIND_PLAYLIST:
+        return redirect(reverse('analysis-video-inbox-playlist-view', args=[int(item.id)]))
+    return redirect(reverse('analysis'))
+
+
+@login_required
+def analysis_video_inbox_recipients_api(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    memberships = list(
+        WorkspaceMembership.objects
+        .select_related('user')
+        .filter(workspace=active_ws)
+        .order_by('user__username')[:240]
+    )
+    items = []
+    for m in memberships:
+        user = getattr(m, 'user', None)
+        if not user or int(user.id) == int(request.user.id):
+            continue
+        access = m.module_access if isinstance(m.module_access, dict) else {}
+        if access.get('analysis') is False:
+            continue
+        label = (f'{user.first_name} {user.last_name}').strip() or user.get_username()
+        items.append({'id': int(user.id), 'label': label, 'username': user.get_username()})
+    return JsonResponse({'ok': True, 'items': items})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_inbox_send_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    kind = str(data.get('kind') or '').strip().lower()
+    if kind not in {VideoInboxItem.KIND_CLIP, VideoInboxItem.KIND_EXPORT, VideoInboxItem.KIND_PLAYLIST}:
+        return JsonResponse({'ok': False, 'error': 'kind no soportado.'}, status=400)
+    user_ids = data.get('user_ids')
+    if not isinstance(user_ids, list):
+        user_ids = []
+    clean_user_ids = []
+    for x in user_ids:
+        try:
+            clean_user_ids.append(int(x))
+        except Exception:
+            continue
+    clean_user_ids = [x for x in clean_user_ids if x > 0][:40]
+    if not clean_user_ids:
+        return JsonResponse({'ok': False, 'error': 'user_ids requerido.'}, status=400)
+    message = _sanitize_task_text(str(data.get('message') or '').strip(), multiline=True, max_len=2000)
+
+    payload = {}
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
+    if kind == VideoInboxItem.KIND_CLIP:
+        clip_id = _parse_int(data.get('clip_id'))
+        clip = VideoClip.objects.select_related('video').filter(id=int(clip_id), team=primary_team).first() if clip_id else None
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+        payload = {'clip_id': int(clip.id), 'video_id': int(clip.video_id)}
+        title = title or str(clip.title or '').strip() or f'Clip {clip.id}'
+    elif kind == VideoInboxItem.KIND_EXPORT:
+        export_id = _parse_int(data.get('export_id'))
+        export = VideoExportAsset.objects.filter(id=int(export_id), team=primary_team).first() if export_id else None
+        if not export:
+            return JsonResponse({'ok': False, 'error': 'Export no encontrado.'}, status=404)
+        payload = {'export_id': int(export.id), 'video_id': int(getattr(export, 'video_id', 0) or 0)}
+        title = title or str(export.title or '').strip() or f'Export {export.id}'
+    else:
+        video_id = _parse_int(data.get('video_id'))
+        clip_ids = data.get('clip_ids')
+        if not isinstance(clip_ids, list):
+            clip_ids = []
+        clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:120]
+        if not video_id or not clip_ids:
+            return JsonResponse({'ok': False, 'error': 'video_id y clip_ids requeridos.'}, status=400)
+        video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+        if not video:
+            return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+        valid_clip_ids = list(
+            VideoClip.objects.filter(team=primary_team, video_id=int(video_id), id__in=clip_ids).values_list('id', flat=True)[:200]
+        )
+        valid_clip_ids = [int(x) for x in valid_clip_ids][:80]
+        if not valid_clip_ids:
+            return JsonResponse({'ok': False, 'error': 'Clips no válidos.'}, status=400)
+        payload = {'video_id': int(video_id), 'clip_ids': valid_clip_ids}
+        title = title or f'Playlist · {len(valid_clip_ids)} clips'
+
+    allowed_users = set(
+        WorkspaceMembership.objects.filter(workspace=active_ws, user_id__in=clean_user_ids).values_list('user_id', flat=True)
+    )
+    targets = [uid for uid in clean_user_ids if uid in allowed_users]
+    if not targets:
+        return JsonResponse({'ok': False, 'error': 'Destinatarios no válidos para este workspace.'}, status=400)
+
+    created = 0
+    for uid in targets:
+        try:
+            VideoInboxItem.objects.create(
+                workspace=active_ws,
+                team=primary_team,
+                target_user_id=int(uid),
+                created_by_user=request.user,
+                kind=kind,
+                title=title,
+                message=message,
+                payload=payload,
+                is_read=False,
+            )
+            created += 1
+        except Exception:
+            continue
+    return JsonResponse({'ok': True, 'created': int(created)})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_rival_video_chunk_init_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    total_chunks = _parse_int(data.get('total_chunks')) or 0
+    size_bytes = _parse_int(data.get('size_bytes')) or 0
+    original_name = str(data.get('name') or '').strip()[:220]
+    mime_type = str(data.get('mime_type') or '').strip()[:80]
+    if total_chunks <= 0 or total_chunks > 5000:
+        return JsonResponse({'ok': False, 'error': 'total_chunks inválido.'}, status=400)
+    if size_bytes <= 0:
+        return JsonResponse({'ok': False, 'error': 'size_bytes inválido.'}, status=400)
+
+    video_title = (data.get('video_title') or '').strip() or 'Vídeo rival'
+    video_source = (data.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
+    rival_team_id = _parse_int(data.get('video_team_id'))
+    folder_id = _parse_int(data.get('video_folder_id'))
+    notes = (data.get('video_notes') or '').strip()
+    assigned = data.get('assigned_player_ids')
+    if not isinstance(assigned, list):
+        assigned = []
+    assigned_ids = []
+    for x in assigned:
+        try:
+            assigned_ids.append(int(x))
+        except Exception:
+            continue
+    assigned_ids = [x for x in assigned_ids if x > 0][:200]
+
+    upload_id = uuid.uuid4().hex
+    try:
+        ChunkedRivalVideoUpload.objects.create(
+            team=primary_team,
+            created_by_user=request.user if request.user.is_authenticated else None,
+            upload_id=upload_id,
+            original_name=original_name,
+            mime_type=mime_type,
+            size_bytes=int(size_bytes),
+            total_chunks=int(total_chunks),
+            received_chunks=0,
+            meta={
+                'video_title': video_title[:180],
+                'video_source': video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
+                'video_team_id': int(rival_team_id or 0),
+                'video_folder_id': int(folder_id or 0),
+                'video_notes': notes[:4000],
+                'assigned_player_ids': assigned_ids,
+            },
+        )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo iniciar subida.'}, status=500)
+    return JsonResponse({'ok': True, 'upload_id': upload_id})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_rival_video_chunk_put_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    upload_id = str(request.POST.get('upload_id') or '').strip()
+    index = _parse_int(request.POST.get('index'))
+    if not upload_id or index is None:
+        return JsonResponse({'ok': False, 'error': 'upload_id e index requeridos.'}, status=400)
+    session = ChunkedRivalVideoUpload.objects.filter(upload_id=upload_id, team=primary_team).first()
+    if not session:
+        return JsonResponse({'ok': False, 'error': 'Sesión no encontrada.'}, status=404)
+    if int(index) < 0 or int(index) >= int(session.total_chunks or 0):
+        return JsonResponse({'ok': False, 'error': 'index fuera de rango.'}, status=400)
+    chunk = request.FILES.get('chunk')
+    if not chunk:
+        return JsonResponse({'ok': False, 'error': 'chunk requerido.'}, status=400)
+    rel_path = f'video-chunks/{upload_id}/{int(index):06d}.part'
+    try:
+        existed = default_storage.exists(rel_path)
+    except Exception:
+        existed = False
+    try:
+        if existed:
+            default_storage.delete(rel_path)
+    except Exception:
+        pass
+    try:
+        default_storage.save(rel_path, chunk)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar chunk.'}, status=500)
+    if not existed:
+        try:
+            ChunkedRivalVideoUpload.objects.filter(id=session.id).update(received_chunks=int(session.received_chunks or 0) + 1)
+        except Exception:
+            pass
+    return JsonResponse({'ok': True})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_rival_video_chunk_finish_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    upload_id = str(data.get('upload_id') or '').strip()
+    if not upload_id:
+        return JsonResponse({'ok': False, 'error': 'upload_id requerido.'}, status=400)
+    session = ChunkedRivalVideoUpload.objects.filter(upload_id=upload_id, team=primary_team).first()
+    if not session:
+        return JsonResponse({'ok': False, 'error': 'Sesión no encontrada.'}, status=404)
+    total = int(session.total_chunks or 0)
+    if total <= 0:
+        return JsonResponse({'ok': False, 'error': 'Sesión inválida.'}, status=400)
+
+    missing = []
+    for idx in range(total):
+        rel_path = f'video-chunks/{upload_id}/{int(idx):06d}.part'
+        try:
+            if not default_storage.exists(rel_path):
+                missing.append(idx)
+                if len(missing) >= 6:
+                    break
+        except Exception:
+            missing.append(idx)
+            break
+    if missing:
+        return JsonResponse({'ok': False, 'error': f'Faltan chunks: {missing[:6]}'}, status=400)
+
+    meta = session.meta if isinstance(session.meta, dict) else {}
+    video_title = str(meta.get('video_title') or '').strip() or 'Vídeo rival'
+    video_source = str(meta.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
+    rival_team_id = _parse_int(meta.get('video_team_id'))
+    folder_id = _parse_int(meta.get('video_folder_id'))
+    notes = str(meta.get('video_notes') or '').strip()
+    assigned_ids = meta.get('assigned_player_ids') if isinstance(meta.get('assigned_player_ids'), list) else []
+    assigned_ids = [int(x) for x in assigned_ids if str(x).isdigit()][:200]
+    rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
+    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+
+    tmp = tempfile.NamedTemporaryFile(prefix='2j-video-', suffix=Path(session.original_name or 'upload.mp4').suffix or '.mp4', delete=False)
+    tmp_path = tmp.name
+    try:
+        with tmp:
+            for idx in range(total):
+                rel_path = f'video-chunks/{upload_id}/{int(idx):06d}.part'
+                with default_storage.open(rel_path, 'rb') as fh:
+                    while True:
+                        buf = fh.read(1024 * 1024)
+                        if not buf:
+                            break
+                        tmp.write(buf)
+        from django.core.files import File  # noqa: WPS433 (lazy import)
+        with open(tmp_path, 'rb') as assembled:
+            entry = RivalVideo.objects.create(
+                team=primary_team,
+                rival_team=rival_team,
+                folder=folder,
+                title=video_title[:180],
+                source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
+                notes=notes[:4000],
+            )
+            entry.video.save(Path(session.original_name or 'video.mp4').name, File(assembled), save=True)
+            if assigned_ids:
+                entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
+    except Exception:
+        logger.exception('Chunk finish: no se pudo ensamblar/subir vídeo')
+        return JsonResponse({'ok': False, 'error': 'No se pudo finalizar la subida.'}, status=500)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+        # Limpiar chunks
+        try:
+            for idx in range(total):
+                rel_path = f'video-chunks/{upload_id}/{int(idx):06d}.part'
+                try:
+                    default_storage.delete(rel_path)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            ChunkedRivalVideoUpload.objects.filter(id=session.id).delete()
+        except Exception:
+            pass
+    return JsonResponse({'ok': True})
 
 
 @login_required

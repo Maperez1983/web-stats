@@ -861,10 +861,85 @@
 	        const bar = document.getElementById('video-upload-progress-bar');
 	        const label = document.getElementById('video-upload-progress-label');
 	        const maxMb = Number(form.dataset.maxMb || 0);
-	
+	        const chunkInitUrl = "{% url 'analysis-rival-video-chunk-init-api' %}";
+	        const chunkPutUrl = "{% url 'analysis-rival-video-chunk-put-api' %}";
+	        const chunkFinishUrl = "{% url 'analysis-rival-video-chunk-finish-api' %}";
+	        const chunkThresholdBytes = 80 * 1024 * 1024; // >80MB: chunk upload
+	        const chunkSize = 8 * 1024 * 1024; // 8MB
+
 	        const setProgress = (pct) => {
 	          if (bar) bar.value = pct;
 	          if (label) label.textContent = `${pct}%`;
+	        };
+
+	        const getCsrf = () => {
+	          const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
+	          return inp ? String(inp.value || '') : '';
+	        };
+
+	        const uploadChunked = async (file) => {
+	          const csrf = getCsrf();
+	          const totalChunks = Math.ceil(file.size / chunkSize);
+	          const title = String(document.getElementById('video_title')?.value || '').trim();
+	          const source = String(document.getElementById('video_source')?.value || '').trim();
+	          const teamId = String(document.querySelector('input[name="video_team_id"]')?.value || '').trim();
+	          const folderId = String(document.getElementById('video_folder_id')?.value || '').trim();
+	          const notes = String(document.getElementById('video_notes')?.value || '').trim();
+	          const assignedSel = document.getElementById('assigned_player_ids');
+	          const assigned = assignedSel ? Array.from(assignedSel.selectedOptions).map((o) => String(o.value || '')).filter(Boolean) : [];
+
+	          const initResp = await fetch(chunkInitUrl, {
+	            method: 'POST',
+	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	            credentials: 'same-origin',
+	            body: JSON.stringify({
+	              total_chunks: totalChunks,
+	              size_bytes: file.size,
+	              name: file.name || 'video.mp4',
+	              mime_type: file.type || '',
+	              video_title: title,
+	              video_source: source,
+	              video_team_id: teamId,
+	              video_folder_id: folderId,
+	              video_notes: notes,
+	              assigned_player_ids: assigned,
+	            }),
+	          });
+	          const initData = await initResp.json().catch(() => ({}));
+	          if (!initResp.ok || !initData?.ok || !initData?.upload_id) throw new Error(initData?.error || 'init');
+	          const uploadId = String(initData.upload_id);
+
+	          let uploaded = 0;
+	          for (let idx = 0; idx < totalChunks; idx += 1) {
+	            const start = idx * chunkSize;
+	            const end = Math.min(file.size, start + chunkSize);
+	            const chunk = file.slice(start, end);
+	            const fd = new FormData();
+	            fd.append('csrfmiddlewaretoken', csrf);
+	            fd.append('upload_id', uploadId);
+	            fd.append('index', String(idx));
+	            fd.append('chunk', chunk, `${file.name}.part`);
+	            let ok = false;
+	            for (let attempt = 0; attempt < 3 && !ok; attempt += 1) {
+	              const resp = await fetch(chunkPutUrl, { method: 'POST', credentials: 'same-origin', body: fd });
+	              const data = await resp.json().catch(() => ({}));
+	              ok = Boolean(resp.ok && data?.ok);
+	              if (!ok) await new Promise((r) => setTimeout(r, 450));
+	            }
+	            if (!ok) throw new Error('chunk');
+	            uploaded += (end - start);
+	            const pct = Math.max(0, Math.min(100, Math.round((uploaded / file.size) * 100)));
+	            setProgress(pct);
+	          }
+
+	          const finResp = await fetch(chunkFinishUrl, {
+	            method: 'POST',
+	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	            credentials: 'same-origin',
+	            body: JSON.stringify({ upload_id: uploadId }),
+	          });
+	          const finData = await finResp.json().catch(() => ({}));
+	          if (!finResp.ok || !finData?.ok) throw new Error(finData?.error || 'finish');
 	        };
 	
 	        form.addEventListener('submit', (ev) => {
@@ -877,6 +952,21 @@
 	          }
 	
 	          ev.preventDefault();
+	          // Chunk upload para vídeos grandes (mejor en redes móviles / iPad).
+	          if (file && file.size && file.size > chunkThresholdBytes && chunkInitUrl && chunkPutUrl && chunkFinishUrl) {
+	            setProgress(0);
+	            if (wrap) wrap.classList.add('is-visible');
+	            if (submit) submit.disabled = true;
+	            uploadChunked(file)
+	              .then(() => window.location.reload())
+	              .catch(() => {
+	                if (wrap) wrap.classList.remove('is-visible');
+	                if (submit) submit.disabled = false;
+	                alert('No se pudo subir el vídeo (chunks). Revisa conexión/tamaño e inténtalo de nuevo.');
+	              });
+	            return;
+	          }
+
 	          const xhr = new XMLHttpRequest();
 	          xhr.open('POST', form.getAttribute('action') || window.location.href);
 	          xhr.withCredentials = true;
