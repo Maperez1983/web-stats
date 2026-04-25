@@ -776,6 +776,25 @@
 				    const simProPanel = document.getElementById('task-sim-pro-panel');
 			    const simAdvancedDetails = document.getElementById('task-sim-advanced');
 			    const isTacticsMode = document.body.classList.contains('tactics-mode');
+			    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
+			    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
+			    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
+
+			    const setTacticsPanelOpen = (open) => {
+			      if (!isTacticsMode) return;
+			      document.body.classList.toggle('tactics-panel-open', !!open);
+			      try { window.localStorage.setItem('tpad_tactics_panel_open_v1', open ? '1' : '0'); } catch (e) { /* ignore */ }
+			    };
+			    const setTacticsToolsOpen = (open) => {
+			      if (!isTacticsMode) return;
+			      document.body.classList.toggle('tactics-tools-open', !!open);
+			      try { window.localStorage.setItem('tpad_tactics_tools_open_v1', open ? '1' : '0'); } catch (e) { /* ignore */ }
+			    };
+			    const restoreTacticsUi = () => {
+			      if (!isTacticsMode) return;
+			      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
+			      try { setTacticsToolsOpen(safeText(window.localStorage.getItem('tpad_tactics_tools_open_v1')) === '1'); } catch (e) { setTacticsToolsOpen(false); }
+			    };
 
 			    const ensurePlaybookDock = () => {
 			      if (!playbookPaneEl) return null;
@@ -825,6 +844,35 @@
 			      try { simPopover.hidden = true; } catch (e) { /* ignore */ }
 			    };
 			    try { dockSimPopoverIfNeeded(); } catch (e) { /* ignore */ }
+			    try { restoreTacticsUi(); } catch (e) { /* ignore */ }
+
+			    try {
+			      tacticsPanelToggle?.addEventListener('click', (event) => {
+			        event.preventDefault();
+			        const next = !document.body.classList.contains('tactics-panel-open');
+			        setTacticsPanelOpen(next);
+			      });
+			      tacticsToolsToggle?.addEventListener('click', (event) => {
+			        event.preventDefault();
+			        const next = !document.body.classList.contains('tactics-tools-open');
+			        setTacticsToolsOpen(next);
+			      });
+			      tacticsSimOpen?.addEventListener('click', (event) => {
+			        event.preventDefault();
+			        // abre panel lateral y muestra simulador
+			        setTacticsPanelOpen(true);
+			        try { simPopover.hidden = false; } catch (e) { /* ignore */ }
+			        try { simToggleBtn?.focus?.(); } catch (e) { /* ignore */ }
+			      });
+			      // ESC cierra el panel lateral en tácticas.
+			      document.addEventListener('keydown', (event) => {
+			        if (!isTacticsMode) return;
+			        const key = String(event.key || '').toLowerCase();
+			        if (key === 'escape' && document.body.classList.contains('tactics-panel-open')) {
+			          setTacticsPanelOpen(false);
+			        }
+			      });
+			    } catch (e) { /* ignore */ }
 
 			    // Pictogramas (drills): deben verse como "secuencia" para el entrenador,
 			    // pero no forman parte del dibujo del campo. Se renderizan como tira debajo de la pizarra.
