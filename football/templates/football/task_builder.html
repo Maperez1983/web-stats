@@ -3940,6 +3940,9 @@
 				                <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false">Asistente</button>
 				                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
 				                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
+                        {% if tactics_mode %}
+				                <button type="button" class="side-tab" data-pane="playbook" role="tab" aria-selected="false">Playbook</button>
+                        {% endif %}
 				                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
 				                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
 				                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
@@ -4546,6 +4549,24 @@
 	                </div>
 		              </div>
 		              </div>
+
+                  {% if tactics_mode %}
+		              <div class="side-pane" data-pane="playbook" role="tabpanel">
+	                <div class="section">
+	                  <h3>Playbook</h3>
+	                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
+	                  <div class="export-grid" style="margin:0.75rem 0 0.35rem;">
+	                    <button type="button" class="button" id="task-playbook-open-sim">Simulador</button>
+	                    <button type="button" class="button" id="task-playbook-open-3d">Vista 3D</button>
+	                    <button type="button" class="button" id="task-playbook-open-video">Video Studio</button>
+	                    <button type="button" class="button" id="task-playbook-export-pack">Pack</button>
+	                  </div>
+	                  <div id="task-playbook-pane">
+	                    <div class="timeline-empty">Cargando Playbook…</div>
+	                  </div>
+	                </div>
+		              </div>
+                  {% endif %}
 
 		              <div class="side-pane" data-pane="biblioteca" role="tabpanel">
 	                <div class="section">

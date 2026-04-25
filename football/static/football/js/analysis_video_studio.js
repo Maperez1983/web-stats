@@ -29,8 +29,12 @@
     const video = document.getElementById('vs-video');
     const canvasEl = document.getElementById('vs-canvas');
     const fxEl = document.getElementById('vs-fx');
-    const stage = document.getElementById('vs-stage');
-    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
+	    const stage = document.getElementById('vs-stage');
+	    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
+
+	    const miniTimeline = document.getElementById('vs-mini-timeline');
+	    const miniTrack = document.getElementById('vs-mini-track');
+	    const miniCursor = document.getElementById('vs-mini-cursor');
 
 	    const btnPlay = document.getElementById('vs-play');
 	    const btnPause = document.getElementById('vs-pause');
@@ -38,10 +42,11 @@
 	    const speedSelect = document.getElementById('vs-speed');
 	    const btnIn = document.getElementById('vs-mark-in');
 	    const btnOut = document.getElementById('vs-mark-out');
-    const btnExportSeg = document.getElementById('vs-export-seg');
-    const btnRecord = document.getElementById('vs-record');
-    const btnSnap = document.getElementById('vs-snap');
-    const btnFreeze = document.getElementById('vs-freeze');
+	    const btnExportSeg = document.getElementById('vs-export-seg');
+	    const btnExportShare = document.getElementById('vs-export-share');
+	    const btnRecord = document.getElementById('vs-record');
+	    const btnSnap = document.getElementById('vs-snap');
+	    const btnFreeze = document.getElementById('vs-freeze');
 
     const btnSelect = document.getElementById('vs-tool-select');
     const btnPen = document.getElementById('vs-tool-pen');
@@ -72,12 +77,14 @@
     const projectDeleteUrl = safeText(document.getElementById('vs-project-delete-url')?.value);
     const clipsUrl = safeText(document.getElementById('vs-clips-url')?.value);
     const clipSaveUrl = safeText(document.getElementById('vs-clip-save-url')?.value);
-    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
-    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
+	    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
+	    const shareClipCreateUrl = safeText(document.getElementById('vs-share-clip-create-url')?.value);
+	    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
     const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
     const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
-    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
-    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
+	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
+	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
+	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
 
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
@@ -210,7 +217,64 @@
 	        try { video.currentTime = start; } catch (e) { /* ignore */ }
 	      }
 	    };
-	    video.addEventListener('timeupdate', enforceLoop);
+	    const updateMiniCursor = () => {
+	      if (!miniCursor) return;
+	      const dur = Number(video.duration) || 0;
+	      if (!dur || !Number.isFinite(dur)) return;
+	      const now = Math.max(0, Number(video.currentTime) || 0);
+	      const pct = clamp(now / dur, 0, 1) * 100;
+	      miniCursor.style.left = `${pct}%`;
+	    };
+	    video.addEventListener('timeupdate', () => {
+	      enforceLoop();
+	      updateMiniCursor();
+	    });
+
+	    const renderMiniTimeline = () => {
+	      if (!miniTimeline || !miniTrack) return;
+	      const dur = Number(video.duration) || 0;
+	      if (!dur || !Number.isFinite(dur)) {
+	        miniTrack.innerHTML = '';
+	        return;
+	      }
+	      const clips = Array.isArray(clipsCache) ? clipsCache : [];
+	      const events = Array.isArray(timelineCache) ? timelineCache : [];
+	      const segHtml = clips.slice(0, 220).map((c) => {
+	        const a = Math.max(0, Number(c?.in_s) || 0);
+	        const b = Math.max(0, Number(c?.out_s) || 0);
+	        const start = Math.min(a, b);
+	        const end = Math.max(a, b);
+	        if (!end || end <= start) return '';
+	        const left = clamp(start / dur, 0, 1) * 100;
+	        const width = Math.max(0.4, clamp((end - start) / dur, 0, 1) * 100);
+	        return `<div data-seek="${start}" title="${safeText(c?.title, 'Clip')}" style="position:absolute;left:${left}%;width:${width}%;top:0;bottom:0;background:rgba(34,211,238,0.16);border-right:1px solid rgba(34,211,238,0.22);"></div>`;
+	      }).filter(Boolean).join('');
+	      const evHtml = events.slice(0, 420).map((ev) => {
+	        const t = Math.max(0, Number(ev?.time_s) || 0);
+	        const left = clamp(t / dur, 0, 1) * 100;
+	        const color = safeText(ev?.color, '') || 'rgba(250,204,21,0.95)';
+	        return `<div data-seek="${t}" title="${safeText(ev?.label, safeText(ev?.kind, 'tag'))}" style="position:absolute;left:${left}%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:999px;background:${color};border:1px solid rgba(255,255,255,0.35);"></div>`;
+	      }).join('');
+	      miniTrack.innerHTML = segHtml + evHtml;
+	      updateMiniCursor();
+	    };
+
+	    miniTimeline?.addEventListener('click', (ev) => {
+	      const dur = Number(video.duration) || 0;
+	      if (!dur || !Number.isFinite(dur)) return;
+	      const targetSeek = Number(ev.target?.getAttribute?.('data-seek') || 0);
+	      if (targetSeek) {
+	        try { video.currentTime = Math.max(0, targetSeek); } catch (e) { /* ignore */ }
+	        setStatus(`→ ${fmtTimeShort(targetSeek)}`);
+	        return;
+	      }
+	      const rect = miniTimeline.getBoundingClientRect();
+	      const pct = clamp((ev.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+	      const t = pct * dur;
+	      try { video.currentTime = t; } catch (e) { /* ignore */ }
+	      setStatus(`→ ${fmtTimeShort(t)}`);
+	    });
+	    video.addEventListener('loadedmetadata', renderMiniTimeline);
 
 	    const history = [];
 	    const pushHistory = () => {
@@ -1089,37 +1153,112 @@
     let recMedia = null;
     let recStream = null;
     let recChunks = [];
-    let recCanvas = null;
-    let recCtx = null;
-    let recRaf = null;
-    let stopAt = null;
+	    let recCanvas = null;
+	    let recCtx = null;
+	    let recRaf = null;
+	    let stopAt = null;
+	    let recDestination = 'download';
+	    let recUploadMeta = null;
 
-    const stopRecording = async () => {
+	    const stopRecording = async () => {
       if (!recActive) return;
       recActive = false;
       try { if (recRaf) window.cancelAnimationFrame(recRaf); } catch (e) { /* ignore */ }
       recRaf = null;
       try { recMedia?.stop?.(); } catch (e) { /* ignore */ }
       try { recStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
-      recStream = null;
-      recMedia = null;
-      recCanvas = null;
-      recCtx = null;
-      stopAt = null;
-      if (btnRecord) btnRecord.textContent = 'Grabar';
-      if (btnExportSeg) btnExportSeg.disabled = false;
-      setStatus('Grabación finalizada.');
-    };
+	      recStream = null;
+	      recMedia = null;
+	      recCanvas = null;
+	      recCtx = null;
+	      stopAt = null;
+	      recDestination = 'download';
+	      recUploadMeta = null;
+	      if (btnRecord) btnRecord.textContent = 'Grabar';
+	      if (btnExportSeg) btnExportSeg.disabled = false;
+	      if (btnExportShare) btnExportShare.disabled = false;
+	      setStatus('Grabación finalizada.');
+	    };
 
-    const startRecording = async ({ from = null, to = null } = {}) => {
-      if (recActive) return;
-      if (!('MediaRecorder' in window)) {
-        setStatus('Este navegador no soporta export de vídeo.', true);
-        return;
-      }
-      const w = fabricCanvas.getWidth();
-      const h = fabricCanvas.getHeight();
-      if (!w || !h) return;
+	    const uploadExportBlob = async (blob, { title = '', clipId = 0 } = {}) => {
+	      if (!exportUploadUrl) {
+	        setStatus('No hay endpoint de subida para export.', true);
+	        return null;
+	      }
+	      if (!blob || !blob.size) {
+	        setStatus('Export vacío.', true);
+	        return null;
+	      }
+	      const ext = String(blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+	      const safeTitle = safeText(title, 'Export').slice(0, 160);
+	      const filename = `video-studio-${videoId || 'export'}.${ext}`;
+
+	      setStatus('Subiendo export…');
+	      return await new Promise((resolve) => {
+	        try {
+	          const xhr = new XMLHttpRequest();
+	          xhr.open('POST', exportUploadUrl);
+	          xhr.withCredentials = true;
+	          const fd = new FormData();
+	          fd.append('csrfmiddlewaretoken', csrf);
+	          fd.append('video_id', String(videoId || ''));
+	          if (clipId) fd.append('clip_id', String(clipId));
+	          fd.append('title', safeTitle);
+	          fd.append('file', blob, filename);
+	          xhr.upload.addEventListener('progress', (e) => {
+	            if (!e.lengthComputable) return;
+	            const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+	            setStatus(`Subiendo… ${pct}%`);
+	          });
+	          xhr.addEventListener('load', async () => {
+	            try {
+	              const data = JSON.parse(xhr.responseText || '{}');
+	              if (xhr.status >= 200 && xhr.status < 300 && data?.ok && data?.url) {
+	                const url = String(data.url);
+	                try {
+	                  if (navigator.clipboard?.writeText) {
+	                    await navigator.clipboard.writeText(url);
+	                    setStatus('Export subido. Link copiado.');
+	                  } else {
+	                    setStatus('Export subido. Copia el link.');
+	                    window.prompt('Copia este enlace:', url);
+	                  }
+	                } catch (e) {
+	                  window.prompt('Copia este enlace:', url);
+	                }
+	                resolve(url);
+	                return;
+	              }
+	              setStatus(data?.error || 'No se pudo subir export.', true);
+	              resolve(null);
+	            } catch (e) {
+	              setStatus('No se pudo subir export.', true);
+	              resolve(null);
+	            }
+	          });
+	          xhr.addEventListener('error', () => {
+	            setStatus('Error de red al subir export.', true);
+	            resolve(null);
+	          });
+	          xhr.send(fd);
+	        } catch (e) {
+	          setStatus('No se pudo subir export.', true);
+	          resolve(null);
+	        }
+	      });
+	    };
+
+	    const startRecording = async ({ from = null, to = null, destination = 'download', uploadTitle = '', uploadClipId = 0 } = {}) => {
+	      if (recActive) return;
+	      if (!('MediaRecorder' in window)) {
+	        setStatus('Este navegador no soporta export de vídeo.', true);
+	        return;
+	      }
+	      recDestination = safeText(destination, 'download');
+	      recUploadMeta = { title: safeText(uploadTitle, ''), clipId: Number(uploadClipId || 0) || 0 };
+	      const w = fabricCanvas.getWidth();
+	      const h = fabricCanvas.getHeight();
+	      if (!w || !h) return;
 
       stopAt = (Number.isFinite(to) && to != null) ? Number(to) : null;
       if (Number.isFinite(from) && from != null) {
@@ -1165,12 +1304,17 @@
       } catch (e) {
         recMedia = new MediaRecorder(recStream);
       }
-      recMedia.ondataavailable = (ev) => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
-	      recMedia.onstop = () => {
+	      recMedia.ondataavailable = (ev) => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
+	      recMedia.onstop = async () => {
 	        try {
 	          const blob = new Blob(recChunks, { type: recChunks[0]?.type || 'video/webm' });
 	          const ext = String(blob.type || '').includes('mp4') ? 'mp4' : 'webm';
-	          downloadBlob(blob, `video-studio-${videoId || 'export'}.${ext}`);
+	          if (safeText(recDestination) === 'upload') {
+	            const t = safeText(recUploadMeta?.title, '') || `Export ${videoId || ''}`.trim();
+	            await uploadExportBlob(blob, { title: t, clipId: Number(recUploadMeta?.clipId || 0) || 0 });
+	          } else {
+	            downloadBlob(blob, `video-studio-${videoId || 'export'}.${ext}`);
+	          }
 	        } catch (e) { /* ignore */ }
 	      };
 
@@ -1190,10 +1334,11 @@
         recRaf = window.requestAnimationFrame(draw);
       };
 
-      recActive = true;
-      if (btnRecord) btnRecord.textContent = 'Parar';
-      if (btnExportSeg) btnExportSeg.disabled = true;
-      try { recMedia.start(250); } catch (e) { setStatus('No se pudo iniciar la grabación.', true); recActive = false; return; }
+	      recActive = true;
+	      if (btnRecord) btnRecord.textContent = 'Parar';
+	      if (btnExportSeg) btnExportSeg.disabled = true;
+	      if (btnExportShare) btnExportShare.disabled = true;
+	      try { recMedia.start(250); } catch (e) { setStatus('No se pudo iniciar la grabación.', true); recActive = false; return; }
       try { await video.play(); } catch (e) { /* ignore */ }
       recRaf = window.requestAnimationFrame(draw);
       setStatus('Grabando…');
@@ -1204,17 +1349,32 @@
       return await startRecording({});
     });
 
-    btnExportSeg?.addEventListener('click', async () => {
-      const a = Number(inInput?.value || 0) || 0;
-      const b = Number(outInput?.value || 0) || 0;
-      const start = Math.max(0, Math.min(a, b));
-      const end = Math.max(a, b);
-      if (!end || end <= start) {
-        setStatus('Define IN/OUT primero.', true);
-        return;
-      }
-      return await startRecording({ from: start, to: end });
-    });
+	    btnExportSeg?.addEventListener('click', async () => {
+	      const a = Number(inInput?.value || 0) || 0;
+	      const b = Number(outInput?.value || 0) || 0;
+	      const start = Math.max(0, Math.min(a, b));
+	      const end = Math.max(a, b);
+	      if (!end || end <= start) {
+	        setStatus('Define IN/OUT primero.', true);
+	        return;
+	      }
+	      return await startRecording({ from: start, to: end });
+	    });
+
+	    btnExportShare?.addEventListener('click', async () => {
+	      const a = Number(inInput?.value || 0) || 0;
+	      const b = Number(outInput?.value || 0) || 0;
+	      const start = Math.max(0, Math.min(a, b));
+	      const end = Math.max(a, b);
+	      if (!end || end <= start) {
+	        setStatus('Define IN/OUT primero.', true);
+	        return;
+	      }
+	      const baseTitle = safeText(clipTitleInput?.value, '').slice(0, 180);
+	      const coll = safeText(clipCollectionInput?.value, '').slice(0, 120);
+	      const t = baseTitle ? (coll ? `${baseTitle} · ${coll}` : baseTitle) : `Export ${fmtTimeShort(start)}-${fmtTimeShort(end)}`;
+	      return await startRecording({ from: start, to: end, destination: 'upload', uploadTitle: t, uploadClipId: activeClipId || 0 });
+	    });
 
     // Shortcuts
     document.addEventListener('keydown', (event) => {
@@ -1475,11 +1635,12 @@
 	              <strong>${title}</strong>
 	              <small>${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
 	            </div>
-	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
-	              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
-	              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
-	              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
-	            </div>
+		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+		              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
+		              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
+		              <button type="button" class="button" data-vs-clip-share="${id}">Share</button>
+		              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
+		            </div>
 	          </div>
 	        `;
 	      }).filter(Boolean).join('');
@@ -1538,6 +1699,41 @@
 	          window.prompt('Copia este enlace:', link);
 	        });
 	      });
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-share]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
+	          const id = Number(btn.getAttribute('data-vs-clip-share') || 0);
+	          if (!id) return;
+	          if (!shareClipCreateUrl) {
+	            setStatus('No hay endpoint de share.', true);
+	            return;
+	          }
+	          setStatus('Creando enlace…');
+	          try {
+	            const body = new URLSearchParams();
+	            body.set('clip_id', String(id));
+	            body.set('valid_days', '14');
+	            const resp = await fetch(shareClipCreateUrl, {
+	              method: 'POST',
+	              headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrf },
+	              credentials: 'same-origin',
+	              body: body.toString(),
+	            });
+	            const data = await resp.json().catch(() => ({}));
+	            if (!resp.ok || !data?.ok || !data?.url) throw new Error(data?.error || 'error');
+	            const url = String(data.url);
+	            try {
+	              if (navigator.clipboard?.writeText) {
+	                await navigator.clipboard.writeText(url);
+	                setStatus('Enlace compartible copiado.');
+	                return;
+	              }
+	            } catch (e) { /* ignore */ }
+	            window.prompt('Copia este enlace:', url);
+	          } catch (e) {
+	            setStatus('No se pudo crear enlace.', true);
+	          }
+	        });
+	      });
 	      Array.from(clipsList.querySelectorAll('[data-vs-clip-del]')).forEach((btn) => {
 	        btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-vs-clip-del') || 0);
@@ -1569,15 +1765,17 @@
 	        const resp = await fetch(`${clipsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
-	        clipsCache = Array.isArray(data?.items) ? data.items : [];
-	        rebuildCollectionFilters(clipsCache);
-	        renderClips(applyClipFilters(clipsCache));
-	      } catch (e) {
-	        clipsCache = [];
-	        rebuildCollectionFilters([]);
-	        renderClips([]);
-	      }
-	    };
+		        clipsCache = Array.isArray(data?.items) ? data.items : [];
+		        rebuildCollectionFilters(clipsCache);
+		        renderClips(applyClipFilters(clipsCache));
+		        renderMiniTimeline();
+		      } catch (e) {
+		        clipsCache = [];
+		        rebuildCollectionFilters([]);
+		        renderClips([]);
+		        renderMiniTimeline();
+		      }
+		    };
 
 	    const saveClip = async () => {
 	      if (!clipSaveUrl || !videoId) return;

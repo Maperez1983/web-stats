@@ -1366,6 +1366,35 @@ class VideoClip(models.Model):
         return f'{base} · {self.in_ms}-{self.out_ms}ms'
 
 
+class VideoExportAsset(models.Model):
+    """
+    Export de vídeo generado desde Video Studio (segmento grabado con telestración).
+
+    Nota: el render/encode se hace en cliente (MediaRecorder) y se sube aquí para compartirlo
+    sin depender de descargas del navegador (iPad/iOS).
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_export_assets')
+    video = models.ForeignKey(RivalVideo, on_delete=models.SET_NULL, null=True, blank=True, related_name='export_assets')
+    clip = models.ForeignKey(VideoClip, on_delete=models.SET_NULL, null=True, blank=True, related_name='export_assets')
+    title = models.CharField(max_length=180, blank=True)
+    file = models.FileField(upload_to='video-exports/')
+    mime_type = models.CharField(max_length=80, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', '-created_at']),
+            models.Index(fields=['video', '-created_at']),
+            models.Index(fields=['clip', '-created_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Export {self.id}'
+
+
 class RivalAnalysisReport(models.Model):
     STATUS_DRAFT = 'draft'
     STATUS_READY = 'ready'
@@ -1477,11 +1506,15 @@ class ShareLink(models.Model):
     KIND_CONVOCATION_PDF = 'convocation_pdf'
     KIND_TASK_SIMULATION = 'task_simulation'
     KIND_TACTICAL_PLAYBOOK_CLIP = 'tactical_playbook_clip'
+    KIND_VIDEO_CLIP = 'video_clip'
+    KIND_VIDEO_EXPORT = 'video_export'
     KIND_CHOICES = [
         (KIND_TASK_PDF, 'PDF de tarea'),
         (KIND_CONVOCATION_PDF, 'PDF de convocatoria'),
         (KIND_TASK_SIMULATION, 'Simulación de tarea'),
         (KIND_TACTICAL_PLAYBOOK_CLIP, 'Clip Playbook'),
+        (KIND_VIDEO_CLIP, 'Clip de vídeo'),
+        (KIND_VIDEO_EXPORT, 'Export de vídeo'),
     ]
 
     token = models.CharField(max_length=120, unique=True, db_index=True)

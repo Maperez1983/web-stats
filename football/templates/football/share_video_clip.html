@@ -1,0 +1,226 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Clip · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
+      .page { max-width: 1200px; margin: 0 auto; padding: 1.1rem 1rem 2.5rem; }
+      .head { display:flex; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; align-items:flex-end; }
+      .head h1 { margin:0; text-transform:uppercase; letter-spacing:0.14em; font-size:1rem; }
+      .meta { color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+      .card { margin-top: 1rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .toolbar { display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; justify-content:flex-start; margin-bottom:0.75rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
+      .stage canvas { position:absolute; left:0; top:0; width:100%; height:100%; touch-action:none; }
+      .stage #fx { z-index: 2; pointer-events:none; }
+      .stage #draw { z-index: 3; pointer-events:none; }
+      .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:0.7rem; margin-top:0.9rem; }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      input[type="text"], textarea {
+        width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
+        color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
+      }
+      textarea { min-height: 100px; resize: vertical; }
+      .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="head">
+        <div>
+          <h1>{{ clip.title|default:"Clip" }}</h1>
+          <div class="meta">2J · Video Studio · {{ video.title }}</div>
+        </div>
+        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+          <a class="button" href="{{ video_stream_url }}" download>Descargar</a>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="toolbar">
+          <button type="button" class="button primary" id="play">Play</button>
+          <button type="button" class="button" id="pause" hidden>Pausa</button>
+          <button type="button" class="button primary" id="loop">Loop ✓</button>
+          <select id="speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+          <span class="meta">Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">L</span> loop</span>
+        </div>
+
+        <div class="stage">
+          <video id="video" controls playsinline preload="metadata">
+            <source src="{{ video_stream_url }}" />
+          </video>
+          <canvas id="fx"></canvas>
+          <canvas id="draw"></canvas>
+        </div>
+
+        <div class="grid">
+          <label>
+            Colección
+            <input type="text" value="{{ clip.collection|default:'' }}" readonly />
+          </label>
+          <label>
+            Tags
+            <input type="text" value="{% if clip.tags %}{{ clip.tags|join:', ' }}{% endif %}" readonly />
+          </label>
+          <label style="grid-column: 1 / -1;">
+            Notas
+            <textarea readonly>{{ clip.notes }}</textarea>
+          </label>
+        </div>
+      </section>
+
+      {{ clip_payload|json_script:"clip-payload" }}
+      <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+      <script>
+        (function () {
+          const payload = JSON.parse(document.getElementById('clip-payload')?.textContent || '{}');
+          const video = document.getElementById('video');
+          const fx = document.getElementById('fx');
+          const draw = document.getElementById('draw');
+          const btnPlay = document.getElementById('play');
+          const btnPause = document.getElementById('pause');
+          const btnLoop = document.getElementById('loop');
+          const speed = document.getElementById('speed');
+          if (!video || !fx || !draw || !window.fabric) return;
+
+          const inS = Math.max(0, Number(payload?.in_s) || 0);
+          const outS = Math.max(0, Number(payload?.out_s) || 0);
+          const overlay = payload?.overlay && typeof payload.overlay === 'object' ? payload.overlay : {};
+          const fxLayers = Array.isArray(payload?.fx_layers) ? payload.fx_layers : [];
+          let loopActive = true;
+
+          const setLoopUi = () => {
+            if (!btnLoop) return;
+            btnLoop.classList.toggle('primary', loopActive);
+            btnLoop.textContent = loopActive ? 'Loop ✓' : 'Loop';
+          };
+          setLoopUi();
+
+          const canvas = new fabric.StaticCanvas(draw, { selection: false });
+          const fxCtx = fx.getContext('2d');
+
+          const computeAlpha = (layer, nowS) => {
+            const tIn = Math.max(0, Number(layer?.t_in_s) || 0);
+            const tOut = Math.max(0, Number(layer?.t_out_s) || 0);
+            const fadeInS = Math.max(0, (Number(layer?.fade_in_ms) || 0) / 1000);
+            const fadeOutS = Math.max(0, (Number(layer?.fade_out_ms) || 0) / 1000);
+            if (!tIn && !tOut) return 1;
+            if (nowS < tIn) return 0;
+            if (tOut > 0 && nowS > tOut) return 0;
+            let a = 1;
+            if (fadeInS > 0) a = Math.min(a, Math.max(0, Math.min(1, (nowS - tIn) / fadeInS)));
+            if (tOut > 0 && fadeOutS > 0) a = Math.min(a, Math.max(0, Math.min(1, (tOut - nowS) / fadeOutS)));
+            return Math.max(0, Math.min(1, a));
+          };
+
+          const renderFx = (nowS) => {
+            if (!fxCtx) return;
+            const w = fx.width || 1;
+            const h = fx.height || 1;
+            try { fxCtx.clearRect(0, 0, w, h); } catch (e) {}
+            const t = Number.isFinite(nowS) ? nowS : (Number(video.currentTime) || 0);
+            for (const layer of fxLayers) {
+              if (!layer || String(layer.kind || '') !== 'spotlight') continue;
+              const alpha = computeAlpha(layer, t);
+              if (alpha <= 0.001) continue;
+              const cx = Number(layer.cx) || (w / 2);
+              const cy = Number(layer.cy) || (h / 2);
+              const r = Math.max(8, Number(layer.r) || 40);
+              const intensity = Math.max(0.2, Math.min(0.9, Number(layer.intensity) || 0.68));
+              const feather = Math.max(0.02, Math.min(0.6, Number(layer.feather) || 0.18));
+              fxCtx.save();
+              fxCtx.globalAlpha = alpha;
+              fxCtx.fillStyle = `rgba(0,0,0,${intensity})`;
+              fxCtx.fillRect(0, 0, w, h);
+              fxCtx.globalCompositeOperation = 'destination-out';
+              const g = fxCtx.createRadialGradient(cx, cy, Math.max(1, r * (1 - feather)), cx, cy, r);
+              g.addColorStop(0, 'rgba(0,0,0,1)');
+              g.addColorStop(1, 'rgba(0,0,0,0)');
+              fxCtx.fillStyle = g;
+              fxCtx.beginPath();
+              fxCtx.arc(cx, cy, r, 0, Math.PI * 2);
+              fxCtx.fill();
+              fxCtx.restore();
+            }
+          };
+
+          const syncSizes = () => {
+            const w = video.videoWidth || 1280;
+            const h = video.videoHeight || 720;
+            draw.width = w;
+            draw.height = h;
+            fx.width = w;
+            fx.height = h;
+            canvas.setWidth(w);
+            canvas.setHeight(h);
+            try {
+              canvas.loadFromJSON(overlay, () => {
+                canvas.renderAll();
+              });
+            } catch (e) {}
+            renderFx(inS);
+          };
+
+          const enforceLoop = () => {
+            if (!loopActive) return;
+            if (!outS || outS <= inS) return;
+            const now = Number(video.currentTime) || 0;
+            if (now >= outS) {
+              try { video.currentTime = inS; } catch (e) {}
+            }
+          };
+
+          video.addEventListener('loadedmetadata', () => {
+            syncSizes();
+            try { video.currentTime = inS; } catch (e) {}
+          });
+          video.addEventListener('timeupdate', () => {
+            enforceLoop();
+            renderFx(Number(video.currentTime) || 0);
+          });
+
+          btnPlay?.addEventListener('click', () => video.play().catch(() => {}));
+          btnPause?.addEventListener('click', () => video.pause());
+          video.addEventListener('play', () => { if (btnPlay) btnPlay.hidden = true; if (btnPause) btnPause.hidden = false; });
+          video.addEventListener('pause', () => { if (btnPlay) btnPlay.hidden = false; if (btnPause) btnPause.hidden = true; });
+          btnLoop?.addEventListener('click', () => { loopActive = !loopActive; setLoopUi(); });
+          speed?.addEventListener('change', () => {
+            const sp = Number(speed.value || 1) || 1;
+            try { video.playbackRate = Math.max(0.25, Math.min(4, sp)); } catch (e) {}
+          });
+
+          document.addEventListener('keydown', (event) => {
+            const key = String(event.key || '').toLowerCase();
+            const tag = String(event.target?.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+            if (key === ' ') {
+              event.preventDefault();
+              if (video.paused) video.play().catch(() => {});
+              else video.pause();
+            } else if (key === 'l') {
+              event.preventDefault();
+              btnLoop?.click();
+            }
+          });
+        })();
+      </script>
+    </main>
+  </body>
+</html>
+

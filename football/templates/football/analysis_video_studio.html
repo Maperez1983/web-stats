@@ -77,9 +77,10 @@
 	              <button type="button" class="button" id="vs-mark-in">IN</button>
 	              <button type="button" class="button" id="vs-mark-out">OUT</button>
 	              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
+	              <button type="button" class="button primary" id="vs-export-share">Export + compartir</button>
 	              <button type="button" class="button" id="vs-record">Grabar</button>
-              <button type="button" class="button" id="vs-snap">PNG</button>
-              <button type="button" class="button" id="vs-freeze">Freeze</button>
+	              <button type="button" class="button" id="vs-snap">PNG</button>
+	              <button type="button" class="button" id="vs-freeze">Freeze</button>
             </div>
             <div class="right">
               <button type="button" class="button" id="vs-tool-select">Select</button>
@@ -96,15 +97,19 @@
             </div>
           </div>
 
-          <div class="stage" id="vs-stage">
-            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
-              <source src="{{ video.video.url }}" />
-            </video>
-            <canvas id="vs-fx"></canvas>
-            <canvas id="vs-canvas"></canvas>
-          </div>
-          <div class="status" id="vs-status">Listo.</div>
-        </section>
+	          <div class="stage" id="vs-stage">
+	            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
+	              <source src="{{ video.video.url }}" />
+	            </video>
+	            <canvas id="vs-fx"></canvas>
+	            <canvas id="vs-canvas"></canvas>
+	          </div>
+	          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer;">
+	            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
+	            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
+	          </div>
+	          <div class="status" id="vs-status">Listo.</div>
+	        </section>
 
         <aside class="card">
           <div class="field">
@@ -296,13 +301,15 @@
 	    <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
     <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
     <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
-    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
-    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
-    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
-    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
-    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
-    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
-    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
+	    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
+	    <input type="hidden" id="vs-share-clip-create-url" value="{% url 'share-video-clip-create' %}" />
+	    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
+	    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
+	    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
+	    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
+	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
+	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
+	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/analysis_video_studio.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

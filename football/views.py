@@ -40,7 +40,7 @@ from django.db import connections
 from django.db import transaction
 from django.db.models import Count, Max, Q
 from django.db.utils import OperationalError, ProgrammingError
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 from django.templatetags.static import static
@@ -123,6 +123,7 @@ from football.models import (
     VideoTelestrationProject,
     VideoTimelineEvent,
     VideoClip,
+    VideoExportAsset,
     RivalAnalysisReport,
     AnalystMatchReport,
     AppUserRole,
@@ -14142,6 +14143,284 @@ def share_link_revoke(request, token):
     link.save(update_fields=['is_active'])
     _audit(request, 'share_link_revoke', workspace=_get_active_workspace(request), message='Enlace compartido revocado', payload={'token': token, 'kind': link.kind})
     return JsonResponse({'ok': True})
+
+
+def _file_field_stream_with_range(request, file_field, *, content_type: str = '', filename: str = ''):
+    """
+    Stream de archivos (vídeo) con soporte de `Range` (206) para reproducción eficiente.
+
+    - En S3 devolvemos redirect al `.url` (S3 maneja Range de forma nativa).
+    - En local (MEDIA_ROOT) servimos bytes parciales desde Django.
+    """
+    if not file_field:
+        raise Http404('Archivo no disponible')
+    try:
+        if getattr(settings, 'USE_S3_MEDIA', False):
+            url = str(getattr(file_field, 'url', '') or '').strip()
+            if url:
+                return redirect(url)
+    except Exception:
+        pass
+
+    try:
+        file_size = int(getattr(file_field, 'size', 0) or 0)
+    except Exception:
+        file_size = 0
+    try:
+        fh = file_field.open('rb')
+    except Exception:
+        raise Http404('Archivo no disponible')
+
+    resolved_ct = content_type or (mimetypes.guess_type(str(getattr(file_field, 'name', '') or ''))[0] or 'application/octet-stream')
+    range_header = str(request.META.get('HTTP_RANGE') or '').strip()
+    if not range_header:
+        response = FileResponse(fh, content_type=resolved_ct)
+        response['Accept-Ranges'] = 'bytes'
+        if filename:
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['Cache-Control'] = 'private, max-age=60'
+        return response
+
+    # bytes=start-end
+    match = re.match(r'^bytes=(\d*)-(\d*)$', range_header)
+    if not match:
+        return HttpResponse(status=416)
+    start_raw, end_raw = match.groups()
+    try:
+        if start_raw == '' and end_raw:
+            # suffix bytes: last N
+            length = int(end_raw)
+            length = max(0, min(length, file_size)) if file_size else length
+            start = max(0, (file_size - length)) if file_size else 0
+            end = (file_size - 1) if file_size else 0
+        else:
+            start = int(start_raw) if start_raw else 0
+            end = int(end_raw) if end_raw else (file_size - 1)
+    except Exception:
+        return HttpResponse(status=416)
+
+    if file_size and start >= file_size:
+        return HttpResponse(status=416)
+    if file_size:
+        end = min(end, file_size - 1)
+    if end < start:
+        return HttpResponse(status=416)
+
+    try:
+        fh.seek(start)
+    except Exception:
+        # fallback sin Range real (storage sin seek)
+        response = FileResponse(fh, content_type=resolved_ct)
+        response['Accept-Ranges'] = 'bytes'
+        if filename:
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['Cache-Control'] = 'private, max-age=60'
+        return response
+
+    chunk_size = 1024 * 256
+    remaining = (end - start) + 1
+
+    def iterator():
+        nonlocal remaining
+        while remaining > 0:
+            read_len = min(chunk_size, remaining)
+            data = fh.read(read_len)
+            if not data:
+                break
+            remaining -= len(data)
+            yield data
+
+    resp = StreamingHttpResponse(iterator(), status=206, content_type=resolved_ct)
+    resp['Content-Length'] = str((end - start) + 1)
+    if file_size:
+        resp['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+    resp['Accept-Ranges'] = 'bytes'
+    if filename:
+        resp['Content-Disposition'] = f'inline; filename="{filename}"'
+    resp['Cache-Control'] = 'private, max-age=60'
+    return resp
+
+
+def _share_link_lookup(token: str, kind: str):
+    token = str(token or '').strip()
+    if not token:
+        return None
+    return (
+        ShareLink.objects
+        .filter(token=token, is_active=True, kind=str(kind or '').strip())
+        .order_by('-created_at')
+        .first()
+    )
+
+
+def _share_link_gate(request, link):
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    if (link.password_hash or '').strip():
+        if request.method != 'POST':
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': '', 'expires_at': link.expires_at},
+                status=200,
+            )
+        supplied = (request.POST.get('password') or '').strip()
+        if not supplied or not check_password(supplied, link.password_hash):
+            return render(
+                request,
+                'football/share_link_gate.html',
+                {'error': 'Contraseña incorrecta.', 'expires_at': link.expires_at},
+                status=403,
+            )
+    return None
+
+
+@login_required
+@require_POST
+def share_video_clip_create(request):
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
+    clip_id = _parse_int(request.POST.get('clip_id'))
+    if not clip_id:
+        return JsonResponse({'error': 'clip_id requerido.'}, status=400)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado.'}, status=400)
+    clip = VideoClip.objects.select_related('video').filter(id=int(clip_id), team=primary_team).first()
+    if not clip or not getattr(clip, 'video_id', None):
+        return JsonResponse({'error': 'Clip no encontrado.'}, status=404)
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_CLIP,
+        payload={'clip_id': int(clip.id)},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-video-clip', args=[link.token]))
+    return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+
+
+def share_video_clip_page(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_CLIP)
+    gated = _share_link_gate(request, link)
+    if gated:
+        return gated
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    clip_id = _parse_int(payload.get('clip_id'))
+    if not clip_id:
+        raise Http404('Enlace no válido')
+    clip = VideoClip.objects.select_related('video', 'team').filter(id=int(clip_id)).first()
+    if not clip or not getattr(clip, 'video', None):
+        raise Http404('Clip no disponible')
+    video = clip.video
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    overlay = clip.overlay if isinstance(clip.overlay, dict) else {}
+    fx_layers = []
+    try:
+        fx_layers = overlay.get('fx', {}).get('layers', []) if isinstance(overlay.get('fx'), dict) else []
+    except Exception:
+        fx_layers = []
+    clip_payload = {
+        'id': int(clip.id),
+        'title': str(clip.title or '').strip(),
+        'collection': str(clip.collection or '').strip(),
+        'in_s': float(clip.in_seconds),
+        'out_s': float(clip.out_seconds),
+        'tags': clip.tags if isinstance(clip.tags, list) else [],
+        'notes': str(clip.notes or '').strip(),
+        'overlay': overlay,
+        'fx_layers': fx_layers if isinstance(fx_layers, list) else [],
+    }
+    return render(
+        request,
+        'football/share_video_clip.html',
+        {
+            'link': link,
+            'team': getattr(video, 'team', None),
+            'video': video,
+            'clip': clip,
+            'clip_payload': clip_payload,
+            'video_stream_url': reverse('share-video-clip-stream', args=[link.token]),
+        },
+    )
+
+
+def share_video_clip_stream(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_CLIP)
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    clip_id = _parse_int(payload.get('clip_id'))
+    if not clip_id:
+        raise Http404('Enlace no válido')
+    clip = VideoClip.objects.select_related('video').filter(id=int(clip_id)).first()
+    if not clip or not getattr(clip, 'video', None) or not getattr(clip.video, 'video', None):
+        raise Http404('Vídeo no disponible')
+    return _file_field_stream_with_range(
+        request,
+        clip.video.video,
+        content_type='video/mp4',
+        filename=f'clip-{clip.id}.mp4',
+    )
+
+
+def share_video_export_page(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_EXPORT)
+    gated = _share_link_gate(request, link)
+    if gated:
+        return gated
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    export_id = _parse_int(payload.get('export_id'))
+    if not export_id:
+        raise Http404('Enlace no válido')
+    export = VideoExportAsset.objects.select_related('team', 'video', 'clip').filter(id=int(export_id)).first()
+    if not export:
+        raise Http404('Export no disponible')
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    return render(
+        request,
+        'football/share_video_export.html',
+        {
+            'link': link,
+            'export': export,
+            'stream_url': reverse('share-video-export-stream', args=[link.token]),
+        },
+    )
+
+
+def share_video_export_stream(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_EXPORT)
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    export_id = _parse_int(payload.get('export_id'))
+    if not export_id:
+        raise Http404('Enlace no válido')
+    export = VideoExportAsset.objects.filter(id=int(export_id)).first()
+    if not export or not getattr(export, 'file', None):
+        raise Http404('Export no disponible')
+    return _file_field_stream_with_range(
+        request,
+        export.file,
+        content_type=str(export.mime_type or '').strip() or 'video/mp4',
+        filename=f'export-{export.id}.mp4',
+    )
 
 
 @login_required
@@ -32625,6 +32904,83 @@ def analysis_video_studio_export_package_api(request):
     except Exception:
         pass
     return response
+
+
+@login_required
+@require_POST
+def analysis_video_studio_export_upload_api(request):
+    """
+    Subida de export de vídeo (segmento grabado en cliente) para compartirlo sin depender de descargas.
+
+    Espera multipart/form-data:
+    - video_id (int)
+    - clip_id (int, opcional)
+    - title (str)
+    - file (blob mp4/webm)
+    - valid_days (int, opcional)
+    - password (str, opcional)
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    video_id = _parse_int(request.POST.get('video_id'))
+    clip_id = _parse_int(request.POST.get('clip_id'))
+    title = _sanitize_task_text(str(request.POST.get('title') or '').strip(), multiline=False, max_len=180)
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (request.POST.get('password') or '').strip()
+
+    blob = request.FILES.get('file') or request.FILES.get('video') or request.FILES.get('export')
+    if not blob:
+        return JsonResponse({'ok': False, 'error': 'Archivo requerido.'}, status=400)
+    max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
+    if max_mb and int(getattr(blob, 'size', 0) or 0) > max_mb * 1024 * 1024:
+        return JsonResponse({'ok': False, 'error': f'El archivo supera el límite de {max_mb}MB.'}, status=400)
+
+    video = None
+    if video_id:
+        video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+        if not video:
+            return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
+    clip = None
+    if clip_id:
+        clip = VideoClip.objects.filter(id=int(clip_id), team=primary_team).first()
+        if clip and video and int(getattr(clip, 'video_id', 0) or 0) != int(video.id):
+            clip = None
+
+    mime_type = str(getattr(blob, 'content_type', '') or '').strip().lower()
+    if not mime_type:
+        mime_type = mimetypes.guess_type(str(getattr(blob, 'name', '') or ''))[0] or ''
+
+    asset = VideoExportAsset.objects.create(
+        team=primary_team,
+        video=video,
+        clip=clip,
+        title=title or (f'Export clip {clip.id}' if clip else 'Export vídeo'),
+        file=blob,
+        mime_type=mime_type[:80],
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+    )
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_EXPORT,
+        payload={'export_id': int(asset.id)},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    return JsonResponse({'ok': True, 'id': int(asset.id), 'url': url, 'expires_at': link.expires_at})
 
 
 @csrf_exempt

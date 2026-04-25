@@ -764,6 +764,11 @@
 				    const simClipFileInput = document.getElementById('task-sim-clip-file');
 				    const simVideoFileInput = document.getElementById('task-sim-video-file');
 				    const simClipsList = document.getElementById('task-sim-clips');
+				    const playbookPaneEl = document.getElementById('task-playbook-pane');
+				    const playbookOpenSimBtn = document.getElementById('task-playbook-open-sim');
+				    const playbookOpen3dBtn = document.getElementById('task-playbook-open-3d');
+				    const playbookOpenVideoBtn = document.getElementById('task-playbook-open-video');
+				    const playbookExportPackBtn = document.getElementById('task-playbook-export-pack');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
@@ -6033,6 +6038,31 @@
 				      if (open) syncSimUi();
 				    };
 
+				    // Accesos directos desde la pestaña Playbook (modo táctica).
+				    const ensureSimOpenForProTools = () => {
+				      try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
+				      try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				    };
+				    playbookOpenSimBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      ensureSimOpenForProTools();
+				    });
+				    playbookOpen3dBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      ensureSimOpenForProTools();
+				      try { simView3dBtn?.click(); } catch (e) { /* ignore */ }
+				    });
+				    playbookOpenVideoBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      ensureSimOpenForProTools();
+				      try { simVideoStudioBtn?.click(); } catch (e) { /* ignore */ }
+				    });
+				    playbookExportPackBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      ensureSimOpenForProTools();
+				      try { simPackBtn?.click(); } catch (e) { /* ignore */ }
+				    });
+
 				    // Grabación de vídeo (2D) del simulador (pitch + fichas).
 				    let simRecordActive = false;
 				    let simRecordCanvas = null;
@@ -6959,6 +6989,17 @@
 				        window.localStorage.setItem(clipsStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), items: safeItems }));
 				      } catch (e) { /* ignore */ }
 				    };
+
+				    // Si existe la pestaña lateral Playbook (modo táctica), hacemos que la librería de clips
+				    // viva ahí (en lugar de quedar "escondida" dentro del simulador).
+				    // Reutilizamos el mismo contenedor (`simClipsList`) para no duplicar DOM ni listeners.
+				    try {
+				      if (playbookPaneEl && simClipsList && simClipsList.parentElement !== playbookPaneEl) {
+				        playbookPaneEl.innerHTML = '';
+				        playbookPaneEl.appendChild(simClipsList);
+				        simClipsList.hidden = false;
+				      }
+				    } catch (e) { /* ignore */ }
 					    const renderClipsLibrary = () => {
 					      if (!simClipsList) return;
 					      const clips = readClipsLibrary();
@@ -7382,6 +7423,18 @@
 				        void fetchPlaybookClips({ force: true, silent: true }).then(() => renderClipsLibrary());
 				      });
 				    };
+
+				    // Si el módulo se está usando como "Táctica", precargamos el Playbook para que
+				    // la pestaña lateral muestre contenido sin necesidad de entrar al simulador.
+				    if (playbookPaneEl) {
+				      try { renderClipsLibrary(); } catch (e) { /* ignore */ }
+				      try {
+				        void fetchPlaybookClips({ silent: true }).then(() => {
+				          try { renderClipsLibrary(); } catch (err) { /* ignore */ }
+				        });
+				      } catch (e) { /* ignore */ }
+				    }
+
 				    const restoreSimulationBaseline = () => {
 				      if (!simulationBaselineSnapshot) return;
 				      let parsed = null;
