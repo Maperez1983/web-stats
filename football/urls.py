@@ -60,7 +60,6 @@ urlpatterns = [
     path('legal/terminos/', views.terms_page, name='terms-page'),
     path('support/', views.support_page, name='support-page'),
     path('account/', views.account_page, name='account-page'),
-    path('ui-kit/', views.ui_kit_page, name='ui-kit'),
     path('account/delete/', views.account_delete, name='account-delete'),
     path('api/system/kpi-audit/', views.kpi_audit, name='kpi-audit'),
     path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),

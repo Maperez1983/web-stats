@@ -2558,13 +2558,6 @@ def account_page(request):
 
 
 @login_required
-def ui_kit_page(request):
-    if not _is_admin_user(request.user):
-        return HttpResponse('No autorizado', status=403)
-    return render(request, 'football/ui_kit.html', {})
-
-
-@login_required
 @require_POST
 def account_delete(request):
     user = request.user
