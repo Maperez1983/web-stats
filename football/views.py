@@ -29025,51 +29025,72 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             can_restore_original = bool(original)
     except Exception:
         can_restore_original = False
-    all_sessions = list(
-        TrainingSession.objects
-        .select_related('microcycle')
-        .filter(microcycle__team=primary_team)
-        .order_by('-session_date', '-id')[:150]
-    )
-    player_catalog = _build_tactical_player_catalog(request, primary_team)
-    available_players = list(
-        Player.objects
-        .filter(team=primary_team, is_active=True)
-        .order_by('number', 'name')[:60]
-    )
+    all_sessions = []
+    player_catalog = []
+    available_players = []
+    try:
+        all_sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team)
+            .order_by('-session_date', '-id')[:150]
+        )
+    except Exception:
+        logger.exception('sessions_task_builder: no se pudieron cargar sesiones', extra={'team_id': getattr(primary_team, 'id', None)})
+    try:
+        player_catalog = _build_tactical_player_catalog(request, primary_team)
+    except Exception:
+        player_catalog = []
+        logger.exception('sessions_task_builder: no se pudo construir catálogo de jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
+    try:
+        available_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
+    except Exception:
+        available_players = []
+        logger.exception('sessions_task_builder: no se pudieron cargar jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
     # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
     # En sesiones (coach/club) mostramos:
     # - assets del equipo (team=primary_team)
     # - assets globales del sistema (team slug="pizarra")
     # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
-    system_team = None
+    pdf_assets = []
+    pdf_assets_json = '[]'
     try:
-        system_team = Team.objects.filter(slug='pizarra').first()
-    except Exception:
         system_team = None
-    assets_filter = Q(team=primary_team) | Q(owner=request.user)
-    if system_team:
-        assets_filter |= Q(team=system_team)
-    pdf_assets = list(
-        PdfGraphicAsset.objects
-        .filter(assets_filter)
-        .exclude(file='')
-        .order_by('-created_at', '-id')[:80]
-    )
-    pdf_assets_json = json.dumps(
-        [
-            {
-                'id': int(item.id),
-                'title': str(item.title or '').strip(),
-                'url': reverse('pdf-graphic-asset-file', args=[item.id]),
-                'width': int(item.width or 0),
-                'height': int(item.height or 0),
-            }
-            for item in pdf_assets
-            if getattr(item, 'file', None)
-        ],
-        ensure_ascii=False,
-    )
+        try:
+            system_team = Team.objects.filter(slug='pizarra').first()
+        except Exception:
+            system_team = None
+        assets_filter = Q(team=primary_team) | Q(owner=request.user)
+        if system_team:
+            assets_filter |= Q(team=system_team)
+        pdf_assets = list(
+            PdfGraphicAsset.objects
+            .filter(assets_filter)
+            .exclude(file='')
+            .order_by('-created_at', '-id')[:80]
+        )
+        pdf_assets_json = json.dumps(
+            [
+                {
+                    'id': int(item.id),
+                    'title': str(item.title or '').strip(),
+                    'url': reverse('pdf-graphic-asset-file', args=[item.id]),
+                    'width': int(item.width or 0),
+                    'height': int(item.height or 0),
+                }
+                for item in pdf_assets
+                if getattr(item, 'file', None)
+            ],
+            ensure_ascii=False,
+        )
+    except Exception:
+        pdf_assets = []
+        pdf_assets_json = '[]'
+        logger.exception('sessions_task_builder: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
     ppt_icons = []
     try:
         if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
@@ -29085,23 +29106,31 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 )
     except Exception:
         ppt_icons = []
-    drills_catalog = [
-        {
-            'id': item.id,
-            'label': item.label,
-            'category': item.category,
-            'icon_static_path': item.icon_static_path,
-            'age_min': item.age_min,
-            'age_max': item.age_max,
-        }
-        for item in DRILL_CATALOG
-    ]
+    drills_catalog = []
+    try:
+        drills_catalog = [
+            {
+                'id': item.id,
+                'label': item.label,
+                'category': item.category,
+                'icon_static_path': item.icon_static_path,
+                'age_min': item.age_min,
+                'age_max': item.age_max,
+            }
+            for item in DRILL_CATALOG
+        ]
+    except Exception:
+        drills_catalog = []
+        logger.exception('sessions_task_builder: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
     library_repository = _normalize_library_repository(request.GET.get('repo') or request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
     try:
         if task and _is_library_session(getattr(task, 'session', None)):
             library_repository = _library_repository_for_task(task)
     except Exception:
         pass
+    if not error and (not all_sessions or not available_players):
+        # Soft warning: evita 500 por fallos parciales y da pista al usuario.
+        error = 'El editor cargó, pero faltan datos (sesiones/jugadores/recursos). Recarga la página o revisa permisos/configuración del equipo.'
     return render(
         request,
         'football/task_builder.html',
