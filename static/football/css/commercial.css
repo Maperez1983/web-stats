@@ -735,108 +735,625 @@ body.prod-commercial .ws-skeleton::after {
 }
 
 /* ------------------------------------------------------------
-   Theme overrides for inline nav/command palette styles
-   (dragon_nav.html inlines dark-first CSS; aquí lo hacemos theme-aware)
+   Dragon nav + command palette (migrado desde inline CSS)
 ------------------------------------------------------------ */
 
-:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a {
-  color: rgba(15, 23, 42, 0.92) !important;
-  border-color: rgba(15, 23, 42, 0.14) !important;
-  background: rgba(15, 23, 42, 0.03) !important;
+body.prod-commercial .dragon-nav {
+  width: 94px;
+  height: 94px;
+  border-radius: 22px;
+  border: 1px solid rgba(244, 180, 0, 0.22);
+  background: linear-gradient(135deg, rgba(11, 18, 32, 0.96), rgba(21, 38, 63, 0.96));
+  padding: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
+  font-size: 0;
 }
 
-:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a:hover {
-  border-color: rgba(15, 23, 42, 0.22) !important;
-  background: rgba(15, 23, 42, 0.06) !important;
-  color: rgba(15, 23, 42, 0.92) !important;
+body.prod-commercial .dragon-link {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
 }
 
-:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a.is-active {
-  border-color: rgba(47, 125, 50, 0.32) !important;
-  background: linear-gradient(135deg, rgba(47, 125, 50, 0.12), rgba(244, 180, 0, 0.1)) !important;
-  color: rgba(15, 23, 42, 0.92) !important;
+body.prod-commercial .dragon-link img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-:root[data-theme="light"] body.prod-commercial .nav-context {
-  color: rgba(15, 23, 42, 0.72) !important;
+body.prod-commercial .logout-form,
+body.prod-commercial .platform-jump,
+body.prod-commercial .help-jump,
+body.prod-commercial .theme-jump {
+  margin-top: 0.35rem;
+  display: flex;
+  justify-content: center;
 }
 
-:root[data-theme="light"] body.prod-commercial .nav-context-sep {
-  color: rgba(15, 23, 42, 0.38) !important;
+body.prod-commercial .logout-form {
+  margin-top: 0.4rem;
 }
 
-:root[data-theme="light"] body.prod-commercial .nav-context-subtitle {
-  color: rgba(47, 125, 50, 0.92) !important;
+body.prod-commercial .help-btn,
+body.prod-commercial .theme-btn,
+body.prod-commercial .platform-btn,
+body.prod-commercial .logout-btn {
+  appearance: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 0.32rem 0.8rem;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-decoration: none;
 }
 
-:root[data-theme="light"] body.prod-commercial .nav-context-section {
-  color: rgba(71, 85, 105, 0.92) !important;
+body.prod-commercial .help-btn {
+  border: 1px solid rgba(34, 211, 238, 0.26);
+  background: rgba(34, 211, 238, 0.10);
+  color: rgba(226, 232, 240, 0.92);
+  font-weight: 900;
 }
 
-:root[data-theme="light"] body.prod-commercial .cmdk-backdrop {
-  background: rgba(15, 23, 42, 0.28) !important;
+body.prod-commercial .help-btn:hover {
+  border-color: rgba(34, 211, 238, 0.6);
+  color: #ffffff;
+}
+
+body.prod-commercial .theme-btn,
+body.prod-commercial .platform-btn {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.28);
+  color: rgba(226, 232, 240, 0.92);
+  font-weight: 900;
+}
+
+body.prod-commercial .theme-btn:hover,
+body.prod-commercial .platform-btn:hover {
+  border-color: rgba(148, 163, 184, 0.55);
+  color: #ffffff;
+}
+
+body.prod-commercial .platform-btn {
+  color: rgba(226, 232, 240, 0.86);
+  font-weight: 800;
+}
+
+body.prod-commercial .logout-btn {
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  background: rgba(15, 23, 42, 0.65);
+  color: rgba(245, 247, 250, 0.92);
+  font-weight: 800;
+}
+
+body.prod-commercial .logout-btn:hover {
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
+}
+
+body.prod-commercial .product-nav-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.42rem;
+}
+
+body.prod-commercial .nav-context {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.15rem 0.05rem 0.05rem;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+}
+
+body.prod-commercial .nav-context-name {
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial .nav-context-sep {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+body.prod-commercial .nav-context-subtitle {
+  font-weight: 800;
+  color: rgba(244, 180, 0, 0.88);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial .nav-context-team {
+  font-weight: 850;
+  color: rgba(226, 232, 240, 0.92);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial .nav-context-section {
+  font-weight: 900;
+  color: rgba(148, 163, 184, 0.92);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial .product-nav-shortcuts a,
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn,
+body.prod-commercial .nav-more summary {
+  text-decoration: none;
+  color: #f5f7fa;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  border-radius: 999px;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body.prod-commercial .product-nav-shortcuts a:hover,
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn:hover,
+body.prod-commercial .nav-more[open] summary {
+  border-color: rgba(244, 180, 0, 0.5);
+  color: #fff9e8;
+}
+
+body.prod-commercial .product-nav-shortcuts a.is-active,
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn.is-active,
+body.prod-commercial .nav-more.is-active summary {
+  border-color: rgba(244, 180, 0, 0.65);
+  background: rgba(244, 180, 0, 0.12);
+  color: #ffffff;
+}
+
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn {
+  cursor: pointer;
+}
+
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn--panel,
+body.prod-commercial .nav-more-panel a {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.55rem 0.65rem;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  font-size: 0.68rem;
+  text-align: left;
+}
+
+body.prod-commercial .product-nav-shortcuts button.nav-command-btn--panel:hover,
+body.prod-commercial .nav-more-panel a:hover {
+  border-color: rgba(244, 180, 0, 0.45);
+}
+
+body.prod-commercial .nav-more {
+  position: relative;
+}
+
+body.prod-commercial .nav-more summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+body.prod-commercial .nav-more summary::-webkit-details-marker {
+  display: none;
+}
+
+body.prod-commercial .nav-more-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  min-width: 210px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 16, 30, 0.92);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.45);
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.25rem;
+  z-index: 40;
+}
+
+body.prod-commercial .nav-more-subtitle {
+  margin-top: 0.15rem;
+  padding: 0.35rem 0.55rem 0.1rem;
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+body.prod-commercial .team-switcher {
+  margin-top: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+body.prod-commercial .team-switcher--inline {
+  width: 100%;
+  margin: 0;
+  padding: 0.25rem 0.45rem 0.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.prod-commercial .team-switcher-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.75);
+  font-weight: 800;
+}
+
+body.prod-commercial .team-switcher select {
+  width: 100%;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(244, 180, 0, 0.18);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+body.prod-commercial .team-switcher select:focus {
+  outline: 2px solid rgba(244, 180, 0, 0.45);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  body.prod-commercial .dragon-nav {
+    width: 82px;
+    height: 82px;
+    margin: 0 auto 0.45rem;
+  }
+  body.prod-commercial .product-nav-shortcuts {
+    justify-content: center;
+  }
+  body.prod-commercial .nav-more-panel {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  body.prod-commercial .team-switcher {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+/* Command palette */
+body.prod-commercial .cmdk {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+body.prod-commercial .cmdk[hidden] {
+  display: none;
+}
+
+body.prod-commercial .cmdk-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
   backdrop-filter: blur(3px);
 }
 
+body.prod-commercial .cmdk-panel {
+  position: absolute;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(720px, calc(100vw - 1.2rem));
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(7, 16, 30, 0.94);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+body.prod-commercial .cmdk-head {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+body.prod-commercial .cmdk-input {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(244, 180, 0, 0.24);
+  background: rgba(15, 23, 42, 0.65);
+  color: #f8fafc;
+  padding: 0.72rem 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-size: 0.95rem;
+}
+
+body.prod-commercial .cmdk-input:focus {
+  outline: 2px solid rgba(244, 180, 0, 0.45);
+  outline-offset: 2px;
+}
+
+body.prod-commercial .cmdk-close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(226, 232, 240, 0.92);
+  border-radius: 12px;
+  padding: 0.62rem 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+body.prod-commercial .cmdk-hint {
+  padding: 0.5rem 0.85rem;
+  color: rgba(226, 232, 240, 0.72);
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+body.prod-commercial .cmdk-list {
+  max-height: 58vh;
+  overflow: auto;
+  padding: 0.45rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+body.prod-commercial .cmdk-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 247, 250, 0.92);
+  cursor: pointer;
+}
+
+body.prod-commercial .cmdk-item:hover {
+  border-color: rgba(244, 180, 0, 0.45);
+}
+
+body.prod-commercial .cmdk-item[aria-selected="true"] {
+  border-color: rgba(244, 180, 0, 0.65);
+  background: rgba(244, 180, 0, 0.10);
+}
+
+body.prod-commercial .cmdk-main {
+  min-width: 0;
+}
+
+body.prod-commercial .cmdk-title {
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+body.prod-commercial .cmdk-sub {
+  margin-top: 0.15rem;
+  color: rgba(226, 232, 240, 0.70);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 46ch;
+}
+
+body.prod-commercial .cmdk-star {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(226, 232, 240, 0.92);
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+body.prod-commercial .cmdk-star.is-fav {
+  border-color: rgba(244, 180, 0, 0.55);
+  color: #fff9e8;
+  background: rgba(244, 180, 0, 0.12);
+}
+
+body.prod-commercial .cmdk-section {
+  margin: 0.35rem 0 0.2rem;
+  padding: 0.25rem 0.55rem 0.15rem;
+  color: rgba(148, 163, 184, 0.92);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 950;
+  font-size: 0.66rem;
+}
+
+/* Theme-aware (light / high-contrast) */
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a,
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts button.nav-command-btn,
+:root[data-theme="light"] body.prod-commercial .nav-more summary {
+  color: rgba(15, 23, 42, 0.92);
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(15, 23, 42, 0.03);
+}
+
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a.is-active,
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts button.nav-command-btn.is-active,
+:root[data-theme="light"] body.prod-commercial .nav-more.is-active summary {
+  border-color: rgba(47, 125, 50, 0.32);
+  background: linear-gradient(135deg, rgba(47, 125, 50, 0.12), rgba(244, 180, 0, 0.1));
+  color: rgba(15, 23, 42, 0.92);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context {
+  color: rgba(15, 23, 42, 0.72);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-sep {
+  color: rgba(15, 23, 42, 0.38);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-subtitle {
+  color: rgba(47, 125, 50, 0.92);
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-backdrop {
+  background: rgba(15, 23, 42, 0.28);
+}
+
 :root[data-theme="light"] body.prod-commercial .cmdk-panel {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border-color: rgba(15, 23, 42, 0.14) !important;
-  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.12) !important;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.12);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-head {
-  border-bottom-color: rgba(15, 23, 42, 0.12) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.12);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-input {
-  background: rgba(15, 23, 42, 0.04) !important;
-  border-color: rgba(15, 23, 42, 0.14) !important;
-  color: rgba(15, 23, 42, 0.92) !important;
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.14);
+  color: rgba(15, 23, 42, 0.92);
 }
 
-:root[data-theme="light"] body.prod-commercial .cmdk-hint {
-  color: rgba(71, 85, 105, 0.92) !important;
+:root[data-theme="light"] body.prod-commercial .cmdk-hint,
+:root[data-theme="light"] body.prod-commercial .cmdk-sub,
+:root[data-theme="light"] body.prod-commercial .cmdk-section {
+  color: rgba(71, 85, 105, 0.92);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-item {
-  border-color: rgba(15, 23, 42, 0.12) !important;
-  background: rgba(15, 23, 42, 0.03) !important;
-  color: rgba(15, 23, 42, 0.92) !important;
-}
-
-:root[data-theme="light"] body.prod-commercial .cmdk-sub {
-  color: rgba(71, 85, 105, 0.92) !important;
-}
-
-:root[data-theme="light"] body.prod-commercial .cmdk-section {
-  color: rgba(71, 85, 105, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.12);
+  background: rgba(15, 23, 42, 0.03);
+  color: rgba(15, 23, 42, 0.92);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-close,
 :root[data-theme="light"] body.prod-commercial .cmdk-star {
-  border-color: rgba(15, 23, 42, 0.14) !important;
-  background: rgba(15, 23, 42, 0.04) !important;
-  color: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.14);
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.9);
 }
 
 :root[data-theme="light"] body.prod-commercial .cmdk-star.is-fav {
-  border-color: rgba(47, 125, 50, 0.28) !important;
-  background: rgba(47, 125, 50, 0.08) !important;
+  border-color: rgba(47, 125, 50, 0.28);
+  background: rgba(47, 125, 50, 0.08);
+}
+
+:root[data-theme="hc"] body.prod-commercial .dragon-nav {
+  background: #000000;
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
+
+:root[data-theme="hc"] body.prod-commercial .product-nav-shortcuts a,
+:root[data-theme="hc"] body.prod-commercial .product-nav-shortcuts button.nav-command-btn,
+:root[data-theme="hc"] body.prod-commercial .nav-more summary {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+:root[data-theme="hc"] body.prod-commercial .nav-more-panel {
+  background: rgba(0, 0, 0, 0.98);
+  border-color: rgba(255, 255, 255, 0.34);
 }
 
 :root[data-theme="hc"] body.prod-commercial .cmdk-panel {
-  background: rgba(0, 0, 0, 0.98) !important;
-  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: rgba(0, 0, 0, 0.98);
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow: none;
 }
 
 :root[data-theme="hc"] body.prod-commercial .cmdk-item {
-  border-color: rgba(255, 255, 255, 0.26) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 :root[data-theme="hc"] body.prod-commercial .cmdk-item[aria-selected="true"] {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme="light"] body.prod-commercial .help-btn {
+  color: rgba(15, 23, 42, 0.92);
+  background: rgba(34, 211, 238, 0.10);
+  border-color: rgba(34, 211, 238, 0.24);
+}
+
+:root[data-theme="light"] body.prod-commercial .theme-btn,
+:root[data-theme="light"] body.prod-commercial .platform-btn,
+:root[data-theme="light"] body.prod-commercial .logout-btn,
+:root[data-theme="light"] body.prod-commercial .nav-more summary,
+:root[data-theme="light"] body.prod-commercial .team-switcher select {
+  background: rgba(15, 23, 42, 0.04);
+  color: rgba(15, 23, 42, 0.92);
+  border-color: rgba(15, 23, 42, 0.14);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-more-panel,
+:root[data-theme="light"] body.prod-commercial .team-switcher--inline {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(15, 23, 42, 0.14);
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.12);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-more-panel a,
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts button.nav-command-btn--panel {
+  background: rgba(15, 23, 42, 0.03);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: rgba(15, 23, 42, 0.92);
+}
+
+:root[data-theme="light"] body.prod-commercial .team-switcher-label {
+  color: rgba(71, 85, 105, 0.92);
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-more-subtitle {
+  color: rgba(71, 85, 105, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.prod-commercial .cmdk-backdrop,
+  body.prod-commercial .nav-more-panel {
+    backdrop-filter: none;
+  }
 }
 
 /* Presentation mode: ocultar navegación y dar más espacio al contenido. */
