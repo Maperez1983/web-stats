@@ -31649,6 +31649,47 @@ def analysis_video_studio_page(request, video_id):
 
 
 @login_required
+def analysis_video_clip_view_page(request, clip_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    clip_id = int(clip_id)
+    clip = (
+        VideoClip.objects
+        .select_related('video', 'video__folder', 'team')
+        .filter(id=clip_id, team=primary_team)
+        .first()
+    )
+    if not clip or not getattr(clip, 'video', None):
+        raise Http404('Clip no disponible')
+
+    video = clip.video
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    if entry_team_id and entry_team_id != int(primary_team.id):
+        raise Http404('Clip no disponible')
+    if folder_team_id and folder_team_id != int(primary_team.id):
+        raise Http404('Clip no disponible')
+
+    return render(
+        request,
+        'football/analysis_video_clip_view.html',
+        {
+            'team': primary_team,
+            'video': video,
+            'clip': clip,
+        },
+    )
+
+
+@login_required
 def analysis_video_studio_projects_api(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -31753,11 +31794,12 @@ def analysis_video_studio_clips_api(request):
     payload = []
     for obj in items:
         payload.append(
-            {
-                'id': int(obj.id),
-                'title': str(obj.title or '').strip(),
-                'collection': str(obj.collection or '').strip(),
-                'in_ms': int(obj.in_ms or 0),
+	            {
+	                'id': int(obj.id),
+	                'view_url': reverse('analysis-video-clip-view', args=[int(obj.id)]),
+	                'title': str(obj.title or '').strip(),
+	                'collection': str(obj.collection or '').strip(),
+	                'in_ms': int(obj.in_ms or 0),
                 'out_ms': int(obj.out_ms or 0),
                 'in_s': float(obj.in_seconds),
                 'out_s': float(obj.out_seconds),

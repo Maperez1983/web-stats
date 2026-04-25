@@ -217,6 +217,23 @@
 
 	            <div class="split">
 	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+	              <div style="display:grid; gap:0.45rem; margin-bottom:0.55rem;">
+	                <label style="margin:0;">
+	                  Buscar
+	                  <input type="text" id="vs-clip-search" placeholder="Título, notas, tags…" />
+	                </label>
+	                <label style="margin:0;">
+	                  Colección (playlist)
+	                  <select id="vs-clip-filter-collection">
+	                    <option value="">Todas</option>
+	                  </select>
+	                </label>
+	                <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+	                  <button type="button" class="button ghost" id="vs-clip-clear-filters">Limpiar filtros</button>
+	                  <div class="hint" id="vs-clip-count" style="align-self:center;">—</div>
+	                </div>
+	                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
+	              </div>
 	              <label>
 	                Título
 	                <input type="text" id="vs-clip-title" placeholder="Ej: Presión tras pérdida" />

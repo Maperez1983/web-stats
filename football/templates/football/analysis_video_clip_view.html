@@ -1,0 +1,180 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Clip · Video Studio · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .vs-page { max-width: 1180px; margin: 0 auto; padding: 1.1rem; }
+      .vs-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:0.9rem; }
+      .vs-head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .vs-meta { color: rgba(226,232,240,0.72); font-weight:700; }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .toolbar { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; justify-content:flex-start; margin-bottom:0.75rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .button.ghost { background: rgba(255,255,255,0.02); }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
+      .stage canvas { position:absolute; left:0; top:0; width:100%; height:100%; touch-action:none; }
+      .stage #vs-fx { z-index: 2; pointer-events:none; }
+      .stage #vs-canvas { z-index: 3; pointer-events:none; }
+      .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      input[type="text"], input[type="number"], select, textarea {
+        width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
+        color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      .grid { display:grid; gap:0.65rem; grid-template-columns: 1fr; margin-top:0.85rem; }
+      .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
+      .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="vs-page">
+      <div class="vs-head">
+        <div style="display:flex; flex-direction:column; gap:0.15rem;">
+          <h1>Clip · {{ clip.title|default:"(sin título)" }}</h1>
+          <div class="vs-meta">{% if team %}{{ team.display_name }}{% endif %} · {{ video.title }}</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:flex-start;">
+          <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}?clip={{ clip.id }}">Abrir en editor</a>
+          <a class="button ghost" href="{% url 'analysis' %}?tab=videos">Volver</a>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="toolbar">
+          <button type="button" class="button primary" id="vs-play">Play</button>
+          <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
+          <button type="button" class="button" id="vs-loop">Loop</button>
+          <select id="vs-speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+            <option value="0.5">0.5x</option>
+            <option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option>
+            <option value="1.25">1.25x</option>
+            <option value="1.5">1.5x</option>
+            <option value="2">2x</option>
+          </select>
+          <span class="hint">Atajo: <span class="k">Espacio</span> play/pausa · <span class="k">L</span> loop</span>
+        </div>
+
+        <div class="stage" id="vs-stage">
+          <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
+            <source src="{{ video.video.url }}" />
+          </video>
+          <canvas id="vs-fx"></canvas>
+          <canvas id="vs-canvas"></canvas>
+        </div>
+        <div class="status" id="vs-status">Cargando clip…</div>
+
+        <div class="grid">
+          <label>
+            Colección
+            <input type="text" id="vs-clip-collection" readonly />
+          </label>
+          <label>
+            Tags
+            <input type="text" id="vs-clip-tags" readonly />
+          </label>
+          <label>
+            Notas
+            <textarea id="vs-clip-notes" readonly></textarea>
+          </label>
+        </div>
+      </section>
+
+      <!-- Elementos ocultos para reutilizar el loader del Video Studio -->
+      <div style="display:none;">
+        <input type="text" id="vs-project-title" />
+        <button type="button" id="vs-project-save"></button>
+        <button type="button" id="vs-project-refresh"></button>
+        <div id="vs-projects"></div>
+        <input type="number" id="vs-in" value="0" />
+        <input type="number" id="vs-out" value="0" />
+        <select id="vs-video-quality"><option value="med" selected>Media</option></select>
+        <button type="button" id="vs-slide-add"></button>
+        <button type="button" id="vs-slides-from-timeline"></button>
+        <button type="button" id="vs-slides-clear"></button>
+        <div id="vs-slides"></div>
+        <button type="button" id="vs-export-pdf"></button>
+        <button type="button" id="vs-export-package"></button>
+        <div id="vs-layer-empty"></div>
+        <div id="vs-layer-form"></div>
+        <div id="vs-layer-kind"></div>
+        <input type="number" id="vs-layer-in" value="0" />
+        <input type="number" id="vs-layer-out" value="0" />
+        <button type="button" id="vs-layer-in-now"></button>
+        <button type="button" id="vs-layer-out-now"></button>
+        <input type="number" id="vs-layer-fade-in" value="0" />
+        <input type="number" id="vs-layer-fade-out" value="0" />
+        <select id="vs-layer-anim"><option value="none" selected>Ninguna</option></select>
+        <button type="button" id="vs-layer-del"></button>
+        <div id="vs-fx-form"></div>
+        <label id="vs-fx-spot-controls"></label>
+        <input type="number" id="vs-fx-intensity" value="0.68" />
+        <input type="number" id="vs-fx-feather" value="0.18" />
+        <label id="vs-fx-blur-controls"></label>
+        <input type="number" id="vs-fx-blur" value="10" />
+        <input type="number" id="vs-fx-opacity" value="1" />
+        <div id="vs-fx-layers"></div>
+        <div id="vs-draw-layers"></div>
+        <input type="text" id="vs-clip-title" />
+        <button type="button" id="vs-clip-save"></button>
+        <button type="button" id="vs-clip-refresh"></button>
+        <div id="vs-clips"></div>
+        <select id="vs-event-kind"><option value="tag" selected>Tag</option></select>
+        <input type="text" id="vs-event-label" />
+        <button type="button" id="vs-event-add"></button>
+        <button type="button" id="vs-event-refresh"></button>
+        <div id="vs-timeline"></div>
+        <button type="button" id="vs-tool-select"></button>
+        <button type="button" id="vs-tool-pen"></button>
+        <button type="button" id="vs-tool-arrow"></button>
+        <button type="button" id="vs-tool-text"></button>
+        <button type="button" id="vs-tool-callout"></button>
+        <button type="button" id="vs-tool-spot"></button>
+        <button type="button" id="vs-tool-blur"></button>
+        <button type="button" id="vs-undo"></button>
+        <button type="button" id="vs-clear"></button>
+        <input type="color" id="vs-color" value="#22d3ee" />
+        <input type="range" id="vs-width" min="2" max="22" step="1" value="6" />
+        <button type="button" id="vs-mark-in"></button>
+        <button type="button" id="vs-mark-out"></button>
+        <button type="button" id="vs-export-seg"></button>
+        <button type="button" id="vs-record"></button>
+        <button type="button" id="vs-snap"></button>
+        <button type="button" id="vs-freeze"></button>
+        <input type="text" id="vs-clip-search" />
+        <select id="vs-clip-filter-collection"><option value="" selected>Todas</option></select>
+        <button type="button" id="vs-clip-clear-filters"></button>
+        <div id="vs-clip-collections"></div>
+        <div id="vs-clip-count"></div>
+      </div>
+
+      <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
+      <input type="hidden" id="vs-initial-clip-id" value="{{ clip.id }}" />
+      <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
+      <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />
+      <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
+      <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
+      <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
+      <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
+      <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
+      <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
+      <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
+      <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
+      <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
+      <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
+
+      <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+      <script src="{% static 'football/js/analysis_video_studio.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    </main>
+  </body>
+</html>
+

@@ -64,6 +64,7 @@ urlpatterns = [
     path('api/system/kpi-audit/', views.kpi_audit, name='kpi-audit'),
     path('api/analysis/rival-form/', views.analysis_rival_form_api, name='analysis-rival-form-api'),
     path('analysis/video/<int:video_id>/', views.analysis_video_studio_page, name='analysis-video-studio'),
+    path('analysis/video/clip/<int:clip_id>/', views.analysis_video_clip_view_page, name='analysis-video-clip-view'),
     path('api/analysis/video-studio/projects/', views.analysis_video_studio_projects_api, name='analysis-video-studio-projects-api'),
     path('api/analysis/video-studio/projects/save/', views.analysis_video_studio_project_save_api, name='analysis-video-studio-project-save-api'),
     path('api/analysis/video-studio/projects/delete/', views.analysis_video_studio_project_delete_api, name='analysis-video-studio-project-delete-api'),

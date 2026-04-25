@@ -88,9 +88,14 @@
 	    const clipCollectionInput = document.getElementById('vs-clip-collection');
 	    const clipTagsInput = document.getElementById('vs-clip-tags');
 	    const clipNotesInput = document.getElementById('vs-clip-notes');
+	    const clipSearchInput = document.getElementById('vs-clip-search');
+	    const clipCollectionFilterSelect = document.getElementById('vs-clip-filter-collection');
+	    const clipClearFiltersBtn = document.getElementById('vs-clip-clear-filters');
+	    const clipCollectionsWrap = document.getElementById('vs-clip-collections');
+	    const clipCountEl = document.getElementById('vs-clip-count');
 	    const clipSaveBtn = document.getElementById('vs-clip-save');
-    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
-    const clipsList = document.getElementById('vs-clips');
+	    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
+	    const clipsList = document.getElementById('vs-clips');
 
     const eventKindSelect = document.getElementById('vs-event-kind');
     const eventLabelInput = document.getElementById('vs-event-label');
@@ -174,6 +179,9 @@
 	      btnLoop.classList.toggle('primary', loopActive);
 	      btnLoop.textContent = loopActive ? 'Loop ✓' : 'Loop';
 	    };
+	    if (initialClipId && String(window.location.pathname || '').includes('/analysis/video/clip/')) {
+	      loopActive = true;
+	    }
 	    updateLoopUi();
 	    btnLoop?.addEventListener('click', () => {
 	      loopActive = !loopActive;
@@ -1352,6 +1360,82 @@
 
 	    // Clips (server)
 	    let activeClipId = 0;
+	    let clipsCache = [];
+	    const clipFilterState = { q: '', collection: '' };
+	    const clipNorm = (value) => safeText(value, '').toLowerCase();
+	    const escHtml = (value) => safeText(value, '')
+	      .replaceAll('&', '&amp;')
+	      .replaceAll('<', '&lt;')
+	      .replaceAll('>', '&gt;')
+	      .replaceAll('"', '&quot;')
+	      .replaceAll("'", '&#39;');
+	
+	    const syncClipFiltersFromUi = () => {
+	      clipFilterState.q = clipNorm(clipSearchInput?.value || '');
+	      clipFilterState.collection = safeText(clipCollectionFilterSelect?.value, '').trim();
+	    };
+	
+	    const applyClipFilters = (items) => {
+	      syncClipFiltersFromUi();
+	      const q = clipFilterState.q;
+	      const coll = clipFilterState.collection;
+	      return (Array.isArray(items) ? items : []).filter((c) => {
+	        if (!c) return false;
+	        const cColl = safeText(c?.collection, '').trim();
+	        if (coll && cColl !== coll) return false;
+	        if (!q) return true;
+	        const tags = Array.isArray(c?.tags) ? c.tags : [];
+	        const hay = [
+	          safeText(c?.title, ''),
+	          cColl,
+	          safeText(c?.notes, ''),
+	          tags.map((t) => safeText(t)).join(' '),
+	        ].join(' ').toLowerCase();
+	        return hay.includes(q);
+	      });
+	    };
+	
+	    const rebuildCollectionFilters = (items) => {
+	      const list = (Array.isArray(items) ? items : []);
+	      const counts = new Map();
+	      for (const c of list) {
+	        const name = safeText(c?.collection, '').trim();
+	        if (!name) continue;
+	        counts.set(name, (counts.get(name) || 0) + 1);
+	      }
+	      const collections = Array.from(counts.entries())
+	        .sort((a, b) => a[0].localeCompare(b[0]))
+	        .map(([name, count]) => ({ name, count }));
+	
+	      // Select options
+	      if (clipCollectionFilterSelect) {
+	        const current = safeText(clipCollectionFilterSelect.value, '');
+	        clipCollectionFilterSelect.innerHTML = '<option value="">Todas</option>' + collections
+	          .map((row) => `<option value="${escHtml(row.name)}">${escHtml(row.name)} (${row.count})</option>`)
+	          .join('');
+	        if (current && collections.some((r) => r.name === current)) clipCollectionFilterSelect.value = current;
+	      }
+	
+	      // Chips
+	      if (clipCollectionsWrap) {
+	        const active = safeText(clipCollectionFilterSelect?.value, '');
+	        const chips = collections.slice(0, 30).map((row) => {
+	          const isActive = active && active === row.name;
+	          return `<button type="button" class="button ${isActive ? 'primary' : 'ghost'}" data-vs-clip-coll="${escHtml(row.name)}">${escHtml(row.name)} <span style="opacity:0.75;">(${row.count})</span></button>`;
+	        }).join('');
+	        clipCollectionsWrap.innerHTML = chips || '<span class="hint">Sin colecciones.</span>';
+	        Array.from(clipCollectionsWrap.querySelectorAll('[data-vs-clip-coll]')).forEach((btn) => {
+	          btn.addEventListener('click', () => {
+	            const name = safeText(btn.getAttribute('data-vs-clip-coll'), '');
+	            if (!clipCollectionFilterSelect) return;
+	            clipCollectionFilterSelect.value = (clipCollectionFilterSelect.value === name) ? '' : name;
+	            renderClips(applyClipFilters(clipsCache));
+	            rebuildCollectionFilters(clipsCache);
+	          });
+	        });
+	      }
+	    };
+
 	    const clipUrlForId = (id) => {
 	      try {
 	        const u = new URL(window.location.href);
@@ -1370,12 +1454,15 @@
 	        .filter(Boolean)
 	        .slice(0, 24);
 	    };
-    const renderClips = (items) => {
-      if (!clipsList) return;
-      const rows = (Array.isArray(items) ? items : []).slice(0, 120).map((c) => {
-        const id = Number(c?.id) || 0;
-        if (!id) return '';
-        const title = safeText(c?.title, `Clip ${id}`);
+	    const renderClips = (items) => {
+	      if (!clipsList) return;
+	      const total = Array.isArray(clipsCache) ? clipsCache.length : 0;
+	      const shown = Array.isArray(items) ? items.length : 0;
+	      if (clipCountEl) clipCountEl.textContent = `${shown}/${total} clips`;
+	      const rows = (Array.isArray(items) ? items : []).slice(0, 120).map((c) => {
+	        const id = Number(c?.id) || 0;
+	        if (!id) return '';
+	        const title = safeText(c?.title, `Clip ${id}`);
 	        const coll = safeText(c?.collection, '');
 	        const inS = Number(c?.in_s) || 0;
 	        const outS = Number(c?.out_s) || 0;
@@ -1390,12 +1477,12 @@
 	            </div>
 	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
 	              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
-	              <button type="button" class="button" data-vs-clip-link="${id}">Link</button>
+	              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
 	              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
 	            </div>
 	          </div>
 	        `;
-      }).filter(Boolean).join('');
+	      }).filter(Boolean).join('');
       clipsList.innerHTML = rows || '<div class="meta">Sin clips guardados.</div>';
 
 	      Array.from(clipsList.querySelectorAll('[data-vs-clip-load]')).forEach((btn) => {
@@ -1439,7 +1526,8 @@
 	        btn.addEventListener('click', async () => {
 	          const id = Number(btn.getAttribute('data-vs-clip-link') || 0);
 	          if (!id) return;
-	          const link = clipUrlForId(id);
+	          const viewUrl = safeText(btn.getAttribute('data-vs-clip-view'), '');
+	          const link = viewUrl ? (new URL(viewUrl, window.location.origin)).toString() : clipUrlForId(id);
 	          try {
 	            if (navigator.clipboard?.writeText) {
 	              await navigator.clipboard.writeText(link);
@@ -1475,17 +1563,21 @@
       });
     };
 
-    const refreshClips = async () => {
-      if (!clipsUrl || !videoId) return;
-      try {
-        const resp = await fetch(`${clipsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
-        renderClips(Array.isArray(data?.items) ? data.items : []);
-      } catch (e) {
-        renderClips([]);
-      }
-    };
+	    const refreshClips = async () => {
+	      if (!clipsUrl || !videoId) return;
+	      try {
+	        const resp = await fetch(`${clipsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        clipsCache = Array.isArray(data?.items) ? data.items : [];
+	        rebuildCollectionFilters(clipsCache);
+	        renderClips(applyClipFilters(clipsCache));
+	      } catch (e) {
+	        clipsCache = [];
+	        rebuildCollectionFilters([]);
+	        renderClips([]);
+	      }
+	    };
 
 	    const saveClip = async () => {
 	      if (!clipSaveUrl || !videoId) return;
@@ -1518,6 +1610,14 @@
 	    };
 	    clipSaveBtn?.addEventListener('click', saveClip);
 	    clipRefreshBtn?.addEventListener('click', refreshClips);
+	    clipSearchInput?.addEventListener('input', () => renderClips(applyClipFilters(clipsCache)));
+	    clipCollectionFilterSelect?.addEventListener('change', () => renderClips(applyClipFilters(clipsCache)));
+	    clipClearFiltersBtn?.addEventListener('click', () => {
+	      if (clipSearchInput) clipSearchInput.value = '';
+	      if (clipCollectionFilterSelect) clipCollectionFilterSelect.value = '';
+	      rebuildCollectionFilters(clipsCache);
+	      renderClips(applyClipFilters(clipsCache));
+	    });
 	    refreshClips().then(() => {
 	      if (!initialClipId) return;
 	      try {
