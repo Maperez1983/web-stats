@@ -14492,7 +14492,7 @@ def share_video_playlist_page(request, token):
         {
             'link': link,
             'video': video,
-            'clips_json': json.dumps(items, ensure_ascii=False),
+            'clips': items,
             'video_stream_url': reverse('share-video-playlist-stream', args=[link.token]),
         },
     )
@@ -32214,7 +32214,7 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
         {
             'team': primary_team,
             'video': video,
-            'clips_json': json.dumps(items, ensure_ascii=False),
+            'clips': items,
         },
     )
 

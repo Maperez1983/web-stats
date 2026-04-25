@@ -60,7 +60,7 @@
 
       <script>
         (function () {
-          const clips = {{ clips_json|safe }};
+          const clips = JSON.parse(document.getElementById('pl-clips')?.textContent || '[]');
           const video = document.getElementById('pl-video');
           const list = document.getElementById('pl-list');
           const status = document.getElementById('pl-status');
@@ -153,7 +153,7 @@
           });
         })();
       </script>
+      {{ clips|json_script:"pl-clips" }}
     </main>
   </body>
 </html>
-
