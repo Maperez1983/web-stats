@@ -12637,6 +12637,204 @@
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
+
+		    // Smart ink (Auto flecha): convierte un trazo a mano alzada en una flecha limpia y editable.
+		    const extractCanvasPointsFromPath = (pathObj) => {
+		      const path = pathObj?.path || pathObj?._path || pathObj?.get?.('path');
+		      if (!Array.isArray(path) || !path.length) return [];
+		      const fabric = window.fabric;
+		      const out = [];
+		      const offset = pathObj?.pathOffset || { x: 0, y: 0 };
+		      const matrix = (typeof pathObj?.calcTransformMatrix === 'function') ? pathObj.calcTransformMatrix() : null;
+		      const pushPoint = (x, y) => {
+		        const rawX = Number(x);
+		        const rawY = Number(y);
+		        if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return;
+		        let px = rawX - (Number(offset.x) || 0);
+		        let py = rawY - (Number(offset.y) || 0);
+		        if (fabric && matrix && fabric.util && typeof fabric.util.transformPoint === 'function' && fabric.Point) {
+		          try {
+		            const p = fabric.util.transformPoint(new fabric.Point(px, py), matrix);
+		            px = Number(p?.x) || px;
+		            py = Number(p?.y) || py;
+		          } catch (e) { /* ignore */ }
+		        }
+		        out.push({ x: px, y: py });
+		      };
+		      path.forEach((seg) => {
+		        if (!Array.isArray(seg) || !seg.length) return;
+		        const cmd = safeText(seg[0]).toUpperCase();
+		        if (cmd === 'M' || cmd === 'L') {
+		          pushPoint(seg[1], seg[2]);
+		          return;
+		        }
+		        if (cmd === 'Q') {
+		          pushPoint(seg[3], seg[4]);
+		          return;
+		        }
+		        if (cmd === 'C') {
+		          pushPoint(seg[5], seg[6]);
+		          return;
+		        }
+		      });
+		      return out;
+		    };
+		    const maxDistanceToLine = (points, a, b) => {
+		      const ax = Number(a?.x) || 0;
+		      const ay = Number(a?.y) || 0;
+		      const bx = Number(b?.x) || 0;
+		      const by = Number(b?.y) || 0;
+		      const dx = bx - ax;
+		      const dy = by - ay;
+		      const denom = Math.hypot(dx, dy) || 1;
+		      let max = 0;
+		      for (let i = 0; i < points.length; i += 1) {
+		        const px = Number(points[i]?.x) || 0;
+		        const py = Number(points[i]?.y) || 0;
+		        const dist = Math.abs((dy * px) - (dx * py) + (bx * ay) - (by * ax)) / denom;
+		        if (dist > max) max = dist;
+		      }
+		      return max;
+		    };
+		    const buildSmartArrowGroup = (start, end, options = {}) => {
+		      const fabric = window.fabric;
+		      if (!fabric) return null;
+		      const sx = Number(start?.x) || 0;
+		      const sy = Number(start?.y) || 0;
+		      const ex = Number(end?.x) || 0;
+		      const ey = Number(end?.y) || 0;
+		      const dx = ex - sx;
+		      const dy = ey - sy;
+		      const len = Math.hypot(dx, dy) || 0;
+		      if (len < 30) return null;
+		      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+		      const stroke = safeText(options.stroke, '#22d3ee') || '#22d3ee';
+		      const strokeWidth = clamp(Number(options.strokeWidth) || 4, 1, 26);
+		      const headSize = clamp(strokeWidth >= 7 ? 28 : 18, 14, 44);
+		      const headOffset = clamp((headSize / 2) + 6, 14, 60);
+		      // Ajusta para que el inicio y el fin coincidan con el gesto.
+		      const baseLen = clamp(len - headOffset, 30, 2200);
+		      const ux = (len > 0) ? (dx / len) : 1;
+		      const uy = (len > 0) ? (dy / len) : 0;
+		      const center = { x: sx + (ux * (baseLen / 2)), y: sy + (uy * (baseLen / 2)) };
+
+		      const line = new fabric.Line([-(baseLen / 2), 0, (baseLen / 2) - (headSize / 2), 0], {
+		        stroke,
+		        strokeWidth,
+		        strokeLineCap: 'round',
+		        originX: 'center',
+		        originY: 'center',
+		        selectable: false,
+		        evented: false,
+		      });
+		      const head = new fabric.Triangle({
+		        left: (baseLen / 2) - (headSize / 2) + headOffset,
+		        top: 0,
+		        width: headSize,
+		        height: headSize,
+		        angle: 90,
+		        fill: stroke,
+		        originX: 'center',
+		        originY: 'center',
+		        selectable: false,
+		        evented: false,
+		      });
+		      const group = new fabric.Group([line, head], {
+		        left: center.x,
+		        top: center.y,
+		        originX: 'center',
+		        originY: 'center',
+		        angle,
+		        data: { kind: 'arrow', stroke_color: stroke },
+		      });
+		      try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		      return group;
+		    };
+		    const replacePathWithSmartObject = (pathObj, replacement) => {
+		      if (!pathObj || !replacement) return false;
+		      if (isSimulating) return false;
+		      let prevLoading = false;
+		      try { prevLoading = !!canvas.__loading; } catch (e) { prevLoading = false; }
+		      try {
+		        canvas.__loading = true;
+		        try { canvas.remove(pathObj); } catch (e) { /* ignore */ }
+		        normalizeEditableObject(replacement);
+		        try { canvas.add(replacement); } catch (e) { /* ignore */ }
+		      } finally {
+		        try { canvas.__loading = prevLoading; } catch (e) { /* ignore */ }
+		      }
+		      try { canvas.setActiveObject(replacement); } catch (e) { /* ignore */ }
+		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      renderLayers();
+		      refreshLivePreview();
+		      scheduleTacticalOverlayRefresh();
+		      schedulePlayerBankUpdate();
+		      scheduleDraftSave('canvas');
+		      return true;
+		    };
+
+		    canvas.on('path:created', (event) => {
+		      if (canvas.__loading) return;
+		      if (!freeDrawMode) return;
+		      if (smartInkMode !== 'arrow') return;
+		      const pathObj = event?.path;
+		      if (!pathObj) return;
+		      if (isSimulating) return;
+
+		      const points = extractCanvasPointsFromPath(pathObj);
+		      if (points.length < 2) {
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		        return;
+		      }
+		      const start = points[0];
+
+		      // Soporta “flecha con punta” dibujada en un único trazo: usa la punta (punto más lejano).
+		      let farIdx = points.length - 1;
+		      let farDist = -1;
+		      for (let i = 1; i < points.length; i += 1) {
+		        const ddx = (Number(points[i]?.x) || 0) - (Number(start?.x) || 0);
+		        const ddy = (Number(points[i]?.y) || 0) - (Number(start?.y) || 0);
+		        const d = Math.hypot(ddx, ddy) || 0;
+		        if (d > farDist) { farDist = d; farIdx = i; }
+		      }
+		      const minIdxForTip = Math.floor(points.length * 0.55);
+		      const tipIdx = (farIdx >= minIdxForTip) ? farIdx : (points.length - 1);
+		      const end = points[tipIdx];
+		      const mainPoints = points.slice(0, tipIdx + 1);
+
+		      const len = Math.hypot((Number(end?.x) || 0) - (Number(start?.x) || 0), (Number(end?.y) || 0) - (Number(start?.y) || 0)) || 0;
+		      if (len < 70) {
+		        // Demasiado corto → deja el trazo tal cual (pero guarda historial, ya que lo diferimos).
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		        return;
+		      }
+		      const wobble = maxDistanceToLine(mainPoints, start, end);
+		      if (wobble / Math.max(1, len) > 0.14) {
+		        // No parece una flecha recta.
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		        return;
+		      }
+		      const stroke = safeText(pathObj.stroke, colorInput?.value || '#22d3ee') || '#22d3ee';
+		      const strokeWidth = clamp(Number(pathObj.strokeWidth) || Number(strokeWidthInput?.value) || 4, 1, 26);
+		      const arrow = buildSmartArrowGroup(start, end, { stroke, strokeWidth });
+		      if (!arrow || !replacePathWithSmartObject(pathObj, arrow)) {
+		        persistActiveStepSnapshot();
+		        pushHistory();
+		        renderLayers();
+		        return;
+		      }
+		      setStatus('Flecha convertida.');
+		    });
 				    canvas.on('object:moving', (event) => {
 			      const target = event?.target;
 			      const rawEvent = event?.e;
