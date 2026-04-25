@@ -28973,6 +28973,20 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
+
+    # Guardrail: si hay un despliegue sin migraciones aplicadas, el editor puede caer en 500.
+    # En lugar de eso, devolvemos un mensaje claro (y el traceback queda en logs).
+    try:
+        SessionTask.objects.order_by('-id').values_list('id', flat=True).first()
+    except (OperationalError, ProgrammingError):
+        logger.exception(
+            'sessions_task_builder: DB sin migrar',
+            extra={'team_id': getattr(primary_team, 'id', None), 'user_id': getattr(request.user, 'id', None)},
+        )
+        return HttpResponse(
+            'El editor de tareas requiere migración de base de datos. Ejecuta `python manage.py migrate` y recarga.',
+            status=503,
+        )
     task = None
     if task_id:
         task = (
@@ -29016,7 +29030,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         except Exception:
             error = 'No se pudo guardar la tarea.'
 
-    initial = _task_builder_initial_values(task)
+    try:
+        initial = _task_builder_initial_values(task)
+    except Exception:
+        logger.exception(
+            'sessions_task_builder: error calculando valores iniciales',
+            extra={'team_id': getattr(primary_team, 'id', None), 'task_id': getattr(task, 'id', None)},
+        )
+        initial = _task_builder_initial_values(None)
+        error = error or 'No se pudieron preparar los datos del editor. Recarga la página.'
     can_restore_original = False
     try:
         if task and isinstance(getattr(task, 'tactical_layout', None), dict):
