@@ -358,6 +358,22 @@
             </div>
 
             <div class="split">
+              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Asistente IA</div>
+              <div class="hint">Genera un resumen y sugerencias usando <span class="k">timeline</span> + <span class="k">clips</span>.</div>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
+                <button type="button" class="button primary" id="vs-ai-generate">Generar</button>
+                <button type="button" class="button" id="vs-ai-force">Recalcular</button>
+                <button type="button" class="button ghost" id="vs-ai-copy">Copiar</button>
+              </div>
+              <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0; margin-top:0.55rem;">
+                <input type="checkbox" id="vs-ai-include-report" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                Incluir en Informe PDF
+              </label>
+              <div class="hint" id="vs-ai-meta" style="margin-top:0.35rem;">—</div>
+              <pre id="vs-ai-output" style="margin:0.55rem 0 0; white-space:pre-wrap; word-break:break-word; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); padding:0.7rem 0.75rem; font-weight:800; color: rgba(226,232,240,0.82); min-height:84px;"></pre>
+            </div>
+
+            <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Compartir</div>
               <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.4rem;">
@@ -411,6 +427,7 @@
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
+	    <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
 	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

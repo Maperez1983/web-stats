@@ -42,6 +42,61 @@
       <div class="meta muted">Sugerencia: usa este informe como guion (tiempos + notas) y comparte clips/export si necesitas vídeo.</div>
     </div>
 
+    {% if ai_insight %}
+      <h2>Asistente IA</h2>
+      <div class="box">
+        <div class="meta muted">
+          {% if ai_insight.provider %}Proveedor: {{ ai_insight.provider }}{% endif %}
+          {% if ai_insight.model %} · Modelo: {{ ai_insight.model }}{% endif %}
+          {% if ai_insight.updated_at %} · Actualizado: {{ ai_insight.updated_at|date:"Y-m-d H:i" }}{% endif %}
+        </div>
+        {% if ai_insight.payload.summary %}
+          <div class="notes">{{ ai_insight.payload.summary }}</div>
+        {% endif %}
+
+        {% if ai_insight.payload.key_moments %}
+          <div class="spacer"></div>
+          <div class="meta"><span class="k">Momentos</span></div>
+          <table class="row">
+            {% for m in ai_insight.payload.key_moments %}
+              <tr>
+                <td style="white-space:nowrap;"><span class="k">{{ m.time_s|floatformat:1 }}s</span></td>
+                <td style="width:100%;">
+                  {{ m.title|default:m.kind|default:"Momento" }}
+                  {% if m.kind %}<span class="muted"> ({{ m.kind }})</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </table>
+        {% endif %}
+
+        {% if ai_insight.payload.training_focus %}
+          <div class="spacer"></div>
+          <div class="meta"><span class="k">Foco</span></div>
+          <div class="notes">
+            {% for x in ai_insight.payload.training_focus %}
+              • {{ x }}{% if not forloop.last %}<br />{% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if ai_insight.payload.recommended_tags %}
+          <div class="spacer"></div>
+          <div class="meta"><span class="k">Tags</span> {{ ai_insight.payload.recommended_tags|join:", " }}</div>
+        {% endif %}
+
+        {% if ai_insight.payload.caveats %}
+          <div class="spacer"></div>
+          <div class="meta"><span class="k">Notas</span></div>
+          <div class="notes">
+            {% for x in ai_insight.payload.caveats %}
+              • {{ x }}{% if not forloop.last %}<br />{% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <h2>Clips</h2>
     {% if clips %}
       {% for clip in clips %}
@@ -95,4 +150,3 @@
     {% endif %}
   </body>
 </html>
-

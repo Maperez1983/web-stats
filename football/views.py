@@ -123,6 +123,7 @@ from football.models import (
     VideoTelestrationProject,
     VideoTimelineEvent,
     VideoClip,
+    VideoAiInsight,
     VideoExportAsset,
     VideoInboxItem,
     ChunkedRivalVideoUpload,
@@ -33390,6 +33391,7 @@ def analysis_video_studio_report_pdf_api(request):
     if not isinstance(clip_ids, list):
         clip_ids = []
     clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:400]
+    include_ai = str(data.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     clip_qs = VideoClip.objects.filter(team=primary_team, video_id=int(video_id)).order_by('in_ms', 'id')
     if clip_ids:
@@ -33402,6 +33404,17 @@ def analysis_video_studio_report_pdf_api(request):
         .order_by('time_ms', 'id')[:900]
     )
 
+    ai_insight = None
+    if include_ai:
+        ai_insight = (
+            VideoAiInsight.objects
+            .filter(team=primary_team, video_id=int(video_id), status=VideoAiInsight.STATUS_OK)
+            .order_by('-updated_at', '-id')
+            .first()
+        )
+        if ai_insight and not isinstance(getattr(ai_insight, 'payload', None), dict):
+            ai_insight = None
+
     context = {
         'team': primary_team,
         'video': video,
@@ -33409,10 +33422,381 @@ def analysis_video_studio_report_pdf_api(request):
         'generated_at': timezone.now(),
         'clips': clips,
         'timeline': timeline,
+        'ai_insight': ai_insight,
     }
     html = render_to_string('football/analysis_video_report_pdf.html', context)
     filename = slugify(f'video-informe-{primary_team.id}-{video_id}-{title}') or f'video-informe-{video_id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+def _video_ai_build_input_hash(*, video, clips, timeline) -> str:
+    try:
+        payload = {
+            'video_id': int(getattr(video, 'id', 0) or 0),
+            'video_updated': str(getattr(video, 'created_at', '') or ''),
+            'clips': [
+                {
+                    'id': int(getattr(c, 'id', 0) or 0),
+                    'in_ms': int(getattr(c, 'in_ms', 0) or 0),
+                    'out_ms': int(getattr(c, 'out_ms', 0) or 0),
+                    'title': str(getattr(c, 'title', '') or '').strip()[:140],
+                    'tags': (c.tags if isinstance(getattr(c, 'tags', None), list) else [])[:24],
+                    'notes': str(getattr(c, 'notes', '') or '').strip()[:260],
+                    'updated_at': getattr(c, 'updated_at', None).isoformat() if getattr(c, 'updated_at', None) else '',
+                }
+                for c in (clips or [])[:120]
+            ],
+            'timeline': [
+                {
+                    'id': int(getattr(ev, 'id', 0) or 0),
+                    'time_ms': int(getattr(ev, 'time_ms', 0) or 0),
+                    'kind': str(getattr(ev, 'kind', '') or '').strip(),
+                    'label': str(getattr(ev, 'label', '') or '').strip()[:160],
+                    'updated_at': getattr(ev, 'updated_at', None).isoformat() if getattr(ev, 'updated_at', None) else '',
+                }
+                for ev in (timeline or [])[:1600]
+            ],
+        }
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode('utf-8')
+    except Exception:
+        raw = repr((getattr(video, 'id', ''), len(clips or []), len(timeline or []))).encode('utf-8')
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _video_ai_heuristic(*, video, clips, timeline) -> dict:
+    def _k(v):
+        return str(v or '').strip().lower()
+
+    kind_counts = {}
+    label_tokens = {}
+    key_moments = []
+    priority = {
+        VideoTimelineEvent.KIND_GOAL: 0,
+        VideoTimelineEvent.KIND_SHOT: 1,
+        VideoTimelineEvent.KIND_SET_PIECE: 2,
+        VideoTimelineEvent.KIND_TURNOVER: 3,
+        VideoTimelineEvent.KIND_PRESS: 4,
+        VideoTimelineEvent.KIND_NOTE: 5,
+        VideoTimelineEvent.KIND_TAG: 6,
+    }
+
+    for ev in (timeline or [])[:900]:
+        kind = _k(getattr(ev, 'kind', '') or VideoTimelineEvent.KIND_TAG)
+        kind_counts[kind] = int(kind_counts.get(kind, 0)) + 1
+        label = str(getattr(ev, 'label', '') or '').strip()
+        if label:
+            for token in re.split(r'[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ_-]+', label.lower()):
+                token = token.strip('-_').strip()
+                if len(token) < 3:
+                    continue
+                if token in {'con', 'para', 'por', 'del', 'las', 'los', 'una', 'uno', 'que', 'and', 'the'}:
+                    continue
+                label_tokens[token] = int(label_tokens.get(token, 0)) + 1
+        key_moments.append(
+            {
+                'time_s': float(getattr(ev, 'time_seconds', 0.0) or 0.0),
+                'kind': kind,
+                'label': label[:160],
+            }
+        )
+
+    key_moments.sort(key=lambda x: (priority.get(x.get('kind') or '', 99), x.get('time_s') or 0.0))
+    key_moments = key_moments[:12]
+
+    clip_tags = []
+    for c in (clips or [])[:120]:
+        tags = c.tags if isinstance(getattr(c, 'tags', None), list) else []
+        for t in tags[:24]:
+            t = str(t or '').strip()
+            if t:
+                clip_tags.append(t)
+    for t in clip_tags:
+        key = _k(t)
+        if key:
+            label_tokens[key] = int(label_tokens.get(key, 0)) + 2
+
+    top_tags = [k for k, _ in sorted(label_tokens.items(), key=lambda kv: (-kv[1], kv[0]))][:10]
+
+    shots = int(kind_counts.get(VideoTimelineEvent.KIND_SHOT, 0) or 0)
+    goals = int(kind_counts.get(VideoTimelineEvent.KIND_GOAL, 0) or 0)
+    turnovers = int(kind_counts.get(VideoTimelineEvent.KIND_TURNOVER, 0) or 0)
+    presses = int(kind_counts.get(VideoTimelineEvent.KIND_PRESS, 0) or 0)
+    abp = int(kind_counts.get(VideoTimelineEvent.KIND_SET_PIECE, 0) or 0)
+
+    focus = []
+    if turnovers >= 6:
+        focus.append('Reducir pérdidas: salida de balón + apoyos + perfiles.')
+    if presses >= 5:
+        focus.append('Preparar salida vs presión: tercer hombre + cambios de orientación.')
+    if shots >= 6 and goals <= 1:
+        focus.append('Mejorar finalización: último pase + ocupación de área + remate.')
+    if abp >= 4:
+        focus.append('Repasar ABP (ofensiva/defensiva): roles, segundas jugadas, bloqueos.')
+    if not focus:
+        focus.append('Añade más eventos (Disparo, Pérdida, Presión, ABP) para refinar el análisis.')
+
+    title = str(getattr(video, 'title', '') or '').strip()
+    summary = f'Resumen rápido: {title or "vídeo"} · eventos: {sum(kind_counts.values())}.'
+    if top_tags:
+        summary += f' Etiquetas/temas: {", ".join(top_tags[:8])}.'
+
+    moments = []
+    for ev in key_moments:
+        moments.append(
+            {
+                'time_s': float(ev.get('time_s') or 0.0),
+                'title': (ev.get('label') or '').strip() or (ev.get('kind') or 'momento'),
+                'kind': ev.get('kind') or '',
+            }
+        )
+
+    return {
+        'summary': summary,
+        'recommended_tags': top_tags,
+        'key_moments': moments,
+        'training_focus': focus[:8],
+        'counts': kind_counts,
+        'provider_note': 'heurístico',
+    }
+
+
+def _video_ai_openai(*, video, clips, timeline):
+    api_key = str(os.getenv('OPENAI_API_KEY') or '').strip()
+    if not api_key or not requests:
+        return None, 'OPENAI_API_KEY no configurada'
+
+    base_url = str(os.getenv('OPENAI_BASE_URL') or 'https://api.openai.com/v1').strip().rstrip('/')
+    model = str(os.getenv('OPENAI_VIDEO_ANALYSIS_MODEL') or os.getenv('OPENAI_MODEL') or 'gpt-4o-mini').strip()
+
+    items = []
+    for ev in (timeline or [])[:240]:
+        items.append(
+            {
+                't': float(getattr(ev, 'time_seconds', 0.0) or 0.0),
+                'kind': str(getattr(ev, 'kind', '') or '').strip(),
+                'label': str(getattr(ev, 'label', '') or '').strip()[:140],
+            }
+        )
+    clip_rows = []
+    for c in (clips or [])[:80]:
+        clip_rows.append(
+            {
+                'id': int(getattr(c, 'id', 0) or 0),
+                'in_s': float(getattr(c, 'in_seconds', 0.0) or 0.0),
+                'out_s': float(getattr(c, 'out_seconds', 0.0) or 0.0),
+                'title': str(getattr(c, 'title', '') or '').strip()[:140],
+                'tags': (c.tags if isinstance(getattr(c, 'tags', None), list) else [])[:18],
+                'notes': str(getattr(c, 'notes', '') or '').strip()[:220],
+            }
+        )
+
+    payload = {
+        'video_title': str(getattr(video, 'title', '') or '').strip()[:180],
+        'timeline': items,
+        'clips': clip_rows,
+    }
+
+    system = (
+        "Eres un analista de fútbol. Responde SIEMPRE en español y devuelve SOLO un JSON válido (sin markdown). "
+        "La salida debe tener estas claves: "
+        "summary (string), key_moments (lista de {time_s:number, title:string, kind:string}), "
+        "recommended_tags (lista de strings), training_focus (lista de strings), caveats (lista de strings). "
+        "No inventes datos no presentes; si faltan, dilo en caveats."
+    )
+
+    user = (
+        "Datos del vídeo (timeline + clips). Genera un resumen útil para staff y destaca los momentos clave.\n\n"
+        f"{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+    try:
+        resp = requests.post(
+            f'{base_url}/responses',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': model,
+                'input': [
+                    {'role': 'system', 'content': [{'type': 'text', 'text': system}]},
+                    {'role': 'user', 'content': [{'type': 'text', 'text': user}]},
+                ],
+                'max_output_tokens': 1200,
+            },
+            timeout=25,
+        )
+    except Exception as exc:
+        return None, f'openai_request:{exc}'
+
+    if not getattr(resp, 'ok', False):
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = {'error': {'message': resp.text[:300] if getattr(resp, 'text', '') else 'error'}}
+        msg = ''
+        try:
+            msg = str(((detail or {}).get('error') or {}).get('message') or '').strip()
+        except Exception:
+            msg = ''
+        return None, (msg or f'openai_http_{resp.status_code}')
+
+    try:
+        data = resp.json()
+    except Exception:
+        return None, 'openai_invalid_json'
+
+    def _extract_text(obj):
+        if isinstance(obj, dict):
+            if isinstance(obj.get('output_text'), str) and obj.get('output_text').strip():
+                return obj.get('output_text').strip()
+            out = obj.get('output')
+            if isinstance(out, list):
+                for item in out:
+                    if isinstance(item, dict):
+                        content = item.get('content')
+                        if isinstance(content, list):
+                            for c in content:
+                                if isinstance(c, dict) and c.get('type') == 'output_text' and isinstance(c.get('text'), str):
+                                    txt = c.get('text', '').strip()
+                                    if txt:
+                                        return txt
+                        if isinstance(item.get('text'), str) and item.get('text').strip():
+                            return item.get('text').strip()
+            if isinstance(obj.get('choices'), list):
+                for choice in obj.get('choices'):
+                    msg = (choice or {}).get('message') or {}
+                    content = msg.get('content')
+                    if isinstance(content, str) and content.strip():
+                        return content.strip()
+        return ''
+
+    raw_text = _extract_text(data)
+    if not raw_text:
+        return None, 'openai_empty_output'
+    raw_text = raw_text.strip().lstrip('\ufeff')
+    if raw_text.startswith('```'):
+        raw_text = re.sub(r'^```[a-zA-Z0-9_-]*\n', '', raw_text)
+        raw_text = raw_text.rsplit('```', 1)[0].strip()
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        return None, 'openai_output_not_json'
+    if not isinstance(parsed, dict):
+        return None, 'openai_output_not_object'
+    parsed['provider_note'] = 'openai'
+    return parsed, model
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_ai_api(request):
+    """
+    Asistente IA para análisis de vídeo (resumen + momentos + sugerencias).
+
+    Fallback sin OpenAI: heurísticas basadas en timeline/clips.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    force = str(data.get('force') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    clip_ids = data.get('clip_ids')
+    if not isinstance(clip_ids, list):
+        clip_ids = []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:400]
+
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    clip_qs = VideoClip.objects.filter(team=primary_team, video_id=int(video_id)).order_by('in_ms', 'id')
+    if clip_ids:
+        clip_qs = clip_qs.filter(id__in=clip_ids)
+    clips = list(clip_qs[:120])
+    timeline = list(
+        VideoTimelineEvent.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('time_ms', 'id')[:1600]
+    )
+
+    input_hash = _video_ai_build_input_hash(video=video, clips=clips, timeline=timeline)
+    now = timezone.now()
+    recent = now - timedelta(hours=12)
+
+    cached_obj = (
+        VideoAiInsight.objects
+        .filter(team=primary_team, video_id=int(video_id), input_hash=input_hash, status=VideoAiInsight.STATUS_OK)
+        .order_by('-updated_at', '-id')
+        .first()
+    )
+    if cached_obj and not force and getattr(cached_obj, 'updated_at', None) and cached_obj.updated_at >= recent:
+        payload = cached_obj.payload if isinstance(cached_obj.payload, dict) else {}
+        return JsonResponse(
+            {
+                'ok': True,
+                'cached': True,
+                'provider': str(cached_obj.provider or '').strip(),
+                'model': str(cached_obj.model or '').strip(),
+                'payload': payload,
+                'updated_at': cached_obj.updated_at.isoformat(),
+            }
+        )
+
+    provider = 'heuristic'
+    model_used = ''
+    error = ''
+    status = VideoAiInsight.STATUS_OK
+
+    payload = _video_ai_heuristic(video=video, clips=clips, timeline=timeline)
+
+    openai_payload, openai_model = _video_ai_openai(video=video, clips=clips, timeline=timeline)
+    if isinstance(openai_payload, dict):
+        provider = 'openai'
+        model_used = str(openai_model or '').strip()
+        payload = openai_payload
+    else:
+        if str(openai_model or '').strip():
+            error = str(openai_model).strip()
+
+    if not isinstance(payload, dict) or not payload:
+        status = VideoAiInsight.STATUS_ERROR
+        provider = provider or 'heuristic'
+        error = error or 'No se pudo generar.'
+        payload = {}
+
+    try:
+        VideoAiInsight.objects.create(
+            team=primary_team,
+            video_id=int(video_id),
+            input_hash=input_hash,
+            status=status,
+            provider=str(provider or '')[:32],
+            model=str(model_used or '')[:80],
+            payload=payload,
+            error=str(error or ''),
+            created_by=str(getattr(request.user, 'username', '') or '').strip()[:80],
+        )
+    except Exception:
+        # No bloquea al usuario: devolvemos aunque no se pueda persistir.
+        pass
+
+    return JsonResponse({'ok': True, 'cached': False, 'provider': provider, 'model': model_used, 'payload': payload, 'error': error})
 
 
 @csrf_exempt

@@ -92,6 +92,7 @@ urlpatterns = [
     path('api/analysis/video-studio/export/package/', views.analysis_video_studio_export_package_api, name='analysis-video-studio-export-package-api'),
     path('api/analysis/video-studio/export/upload/', views.analysis_video_studio_export_upload_api, name='analysis-video-studio-export-upload-api'),
     path('api/analysis/video-studio/report/pdf/', views.analysis_video_studio_report_pdf_api, name='analysis-video-studio-report-pdf-api'),
+    path('api/analysis/video-studio/ai/', views.analysis_video_studio_ai_api, name='analysis-video-studio-ai-api'),
     path('api/analysis/video-studio/share-links/', views.analysis_video_studio_share_links_api, name='analysis-video-studio-share-links-api'),
     path('api/analysis/video-inbox/recipients/', views.analysis_video_inbox_recipients_api, name='analysis-video-inbox-recipients-api'),
     path('api/analysis/video-inbox/send/', views.analysis_video_inbox_send_api, name='analysis-video-inbox-send-api'),

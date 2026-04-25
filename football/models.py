@@ -1366,6 +1366,43 @@ class VideoClip(models.Model):
         return f'{base} · {self.in_ms}-{self.out_ms}ms'
 
 
+class VideoAiInsight(models.Model):
+    """
+    Resultado de IA para un vídeo (resumen, momentos clave, sugerencias).
+
+    Se guarda por equipo/vídeo para evitar mezclar contextos.
+    """
+
+    STATUS_OK = 'ok'
+    STATUS_ERROR = 'error'
+    STATUS_CHOICES = [
+        (STATUS_OK, 'OK'),
+        (STATUS_ERROR, 'Error'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_ai_insights')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='ai_insights')
+    input_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_OK)
+    provider = models.CharField(max_length=32, blank=True, help_text='openai|heuristic|...')
+    model = models.CharField(max_length=80, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-updated_at']),
+            models.Index(fields=['video', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f'AI {self.team_id}·{self.video_id}·{self.status}'
+
+
 class VideoExportAsset(models.Model):
     """
     Export de vídeo generado desde Video Studio (segmento grabado con telestración).

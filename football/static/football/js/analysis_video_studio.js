@@ -101,6 +101,14 @@
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
 	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
+	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
+
+	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
+	    const aiForceBtn = document.getElementById('vs-ai-force');
+	    const aiCopyBtn = document.getElementById('vs-ai-copy');
+	    const aiIncludeReportToggle = document.getElementById('vs-ai-include-report');
+	    const aiMetaEl = document.getElementById('vs-ai-meta');
+	    const aiOutputEl = document.getElementById('vs-ai-output');
 
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
@@ -1887,6 +1895,95 @@
 	      return items.sort((a, b) => (Number(a?.in_s) || 0) - (Number(b?.in_s) || 0) || (Number(a?.id) || 0) - (Number(b?.id) || 0));
 	    };
 
+	    // AI helper (server)
+	    const buildAiClipIds = () => {
+	      if (selectedClipIds.size > 0) {
+	        return selectedClipsOrdered().map((c) => Number(c?.id) || 0).filter((x) => x > 0).slice(0, 120);
+	      }
+	      const q = safeText(clipSearchInput?.value, '');
+	      const coll = safeText(clipCollectionFilterSelect?.value, '');
+	      const hasFilter = Boolean(q || coll);
+	      if (!hasFilter) return [];
+	      const filtered = applyClipFilters(clipsCache);
+	      return filtered.slice(0, 120).map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	    };
+
+	    const renderAiPayload = (payload, meta = {}) => {
+	      if (!aiOutputEl) return;
+	      const p = payload && typeof payload === 'object' ? payload : {};
+	      const lines = [];
+	      const summary = safeText(p.summary, '');
+	      if (summary) lines.push(summary, '');
+	      const moments = Array.isArray(p.key_moments) ? p.key_moments : [];
+	      if (moments.length) {
+	        lines.push('Momentos clave:');
+	        for (const m of moments.slice(0, 14)) {
+	          const t = fmtTimeShort(Number(m?.time_s) || 0);
+	          const title = safeText(m?.title, safeText(m?.kind, 'Momento')).slice(0, 140);
+	          lines.push(`- ${t} · ${title}`);
+	        }
+	        lines.push('');
+	      }
+	      const focus = Array.isArray(p.training_focus) ? p.training_focus : [];
+	      if (focus.length) {
+	        lines.push('Foco de entrenamiento:');
+	        for (const f of focus.slice(0, 10)) lines.push(`- ${safeText(f).slice(0, 220)}`);
+	        lines.push('');
+	      }
+	      const tags = Array.isArray(p.recommended_tags) ? p.recommended_tags : [];
+	      if (tags.length) lines.push(`Tags sugeridos: ${tags.slice(0, 12).map((t) => safeText(t)).filter(Boolean).join(', ')}`, '');
+	      const caveats = Array.isArray(p.caveats) ? p.caveats : [];
+	      if (caveats.length) {
+	        lines.push('Notas:');
+	        for (const c of caveats.slice(0, 8)) lines.push(`- ${safeText(c).slice(0, 220)}`);
+	      }
+	      if (!lines.length) lines.push('Sin resultado IA todavía.');
+	      aiOutputEl.textContent = lines.join('\n').trim() + '\n';
+	      if (aiMetaEl) {
+	        const provider = safeText(meta.provider, safeText(p.provider_note, ''));
+	        const model = safeText(meta.model, '');
+	        const when = safeText(meta.updated_at, '');
+	        const cached = meta.cached ? ' · cache' : '';
+	        aiMetaEl.textContent = [provider ? `Proveedor: ${provider}` : '', model ? `Modelo: ${model}` : '', when ? `Actualizado: ${fmtIsoShort(when)}` : '']
+	          .filter(Boolean).join(' · ') + cached;
+	      }
+	    };
+
+	    const fetchAi = async (force = false) => {
+	      if (!aiUrl || !videoId) return;
+	      try {
+	        if (aiMetaEl) aiMetaEl.textContent = force ? 'Generando (recalcular)…' : 'Generando…';
+	        setStatus('Asistente IA: generando…');
+	        const resp = await fetch(aiUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({ video_id: videoId, clip_ids: buildAiClipIds(), force: Boolean(force) }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        renderAiPayload(data?.payload, { provider: data?.provider, model: data?.model, cached: Boolean(data?.cached), updated_at: data?.updated_at || '' });
+	        if (safeText(data?.error, '')) setStatus(`IA (fallback). ${safeText(data?.error)}`, false);
+	        else setStatus('IA lista.');
+	      } catch (e) {
+	        if (aiMetaEl) aiMetaEl.textContent = 'No se pudo generar.';
+	        setStatus(`No se pudo generar IA. ${safeText(e?.message, '')}`, true);
+	      }
+	    };
+
+	    aiGenerateBtn?.addEventListener('click', () => fetchAi(false));
+	    aiForceBtn?.addEventListener('click', () => fetchAi(true));
+	    aiCopyBtn?.addEventListener('click', async () => {
+	      const text = safeText(aiOutputEl?.textContent, '');
+	      if (!text) return;
+	      try {
+	        await navigator.clipboard.writeText(text);
+	        setStatus('IA copiada.');
+	      } catch (e) {
+	        setStatus('No se pudo copiar.', true);
+	      }
+	    });
+
 	    const drawThumbDataUrl = () => {
 	      try {
 	        const w = 320;
@@ -2996,6 +3093,7 @@
             video_id: videoId,
             title: buildExportTitle(),
             clip_ids: clipIds,
+            include_ai: Boolean(aiIncludeReportToggle?.checked),
           },
           fallbackName: 'video-informe.pdf',
         });
