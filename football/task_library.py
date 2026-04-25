@@ -259,6 +259,7 @@ def filter_task_library_advanced(
     duration_band: str = '',
     quality: str = '',
     reference_date: str = '',
+    sort_key: str = 'recent',
 ):
     filtered = list(tasks)
     q = str(query or '').strip().lower()
@@ -336,6 +337,50 @@ def filter_task_library_advanced(
 
     if reference_date:
         filtered = [item for item in filtered if str(getattr(item, 'reference_date_iso', '') or '') == reference_date]
+
+    if sort_key == 'title':
+        filtered.sort(key=lambda item: (str(getattr(item, 'title', '') or '').lower(), int(getattr(item, 'id', 0) or 0)))
+        return filtered
+
+    if sort_key == 'quality':
+        def _score(item):
+            meta = getattr(item, 'analysis_meta', None) or {}
+            if isinstance(meta, dict):
+                try:
+                    return int(meta.get('quality_score') or 0)
+                except Exception:
+                    return 0
+            return 0
+
+        filtered.sort(
+            key=lambda item: (
+                _score(item),
+                getattr(item, 'reference_date', None) or getattr(getattr(item, 'session', None), 'session_date', None) or date.min,
+                int(getattr(item, 'id', 0) or 0),
+            ),
+            reverse=True,
+        )
+        return filtered
+
+    if sort_key == 'confidence':
+        def _conf(item):
+            conf = getattr(item, 'analysis_confidence', None) or {}
+            if isinstance(conf, dict):
+                try:
+                    return int(conf.get('overall') or 0)
+                except Exception:
+                    return 0
+            return 0
+
+        filtered.sort(
+            key=lambda item: (
+                _conf(item),
+                getattr(item, 'reference_date', None) or getattr(getattr(item, 'session', None), 'session_date', None) or date.min,
+                int(getattr(item, 'id', 0) or 0),
+            ),
+            reverse=True,
+        )
+        return filtered
 
     filtered.sort(
         key=lambda item: (

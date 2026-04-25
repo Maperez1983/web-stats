@@ -99,6 +99,7 @@ from football.models import (
     PlayerPhysicalMetric,
     PlayerStatistic,
     SessionTask,
+    SessionTaskBookmark,
     ImportedSessionDocument,
     PdfGraphicAsset,
     ScrapeSource,
@@ -216,6 +217,7 @@ from football.query_helpers import (
     parse_match_date_from_ui,
 )
 from football.injuries import categorize_time_loss, estimate_return_date as estimate_return_date_from_catalog, time_loss_days
+from football.cycle_templates import cycle_templates_catalog
 from football.task_library import (
     filter_task_library,
     filter_task_library_advanced,
@@ -25742,7 +25744,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     active_tab = 'library'  # library (tareas) / sessions / microcycles
     allowed_subtabs = {'sessions', 'microcycles', 'library'}
     allowed_main_tabs = {'create', 'library', 'import'}
-    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date'}
+    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date', 'favorites'}
     library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
     if library_view not in allowed_library_views:
         library_view = 'overview'
@@ -25759,6 +25761,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     library_duration_band = str(request.GET.get('duration') or request.POST.get('duration') or '').strip()
     library_quality = str(request.GET.get('quality') or request.POST.get('quality') or '').strip()
     library_reference_date = str(request.GET.get('ref_date') or request.POST.get('ref_date') or '').strip()
+    library_sort = str(request.GET.get('sort') or request.POST.get('sort') or 'recent').strip().lower()
+    allowed_sorts = {'recent', 'quality', 'confidence', 'title'}
+    if library_sort not in allowed_sorts:
+        library_sort = 'recent'
     library_filters_active = bool(
         library_q
         or library_phase_keys
@@ -25771,8 +25777,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         or library_reference_date
     )
     if library_filters_active:
-        library_view = 'overview'
-        library_key = ''
+        if library_view not in {'favorites'}:
+            library_view = 'overview'
+            library_key = ''
 
     planner_tables_ready = True
     try:
@@ -25800,7 +25807,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     def _nav_from_action(action, fallback_main, fallback_sub):
         action_key = str(action or '').strip()
-        if action_key in {'create_microcycle_plan', 'update_microcycle_plan', 'attach_session_to_microcycle', 'detach_session_from_microcycle', 'clone_microcycle_plan'}:
+        if action_key in {'create_microcycle_plan', 'create_cycle_from_template', 'update_microcycle_plan', 'attach_session_to_microcycle', 'detach_session_from_microcycle', 'clone_microcycle_plan'}:
             return 'library', 'microcycles'
         if action_key in {
             'create_session_plan',
@@ -26209,6 +26216,98 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     feedback = f'Microciclo actualizado: {microcycle.title}.'
                 else:
                     feedback = f'Microciclo creado: {microcycle.title}.'
+
+            elif planner_action == 'create_cycle_from_template':
+                template_key = str(request.POST.get('cycle_template_key') or '').strip()
+                cycle_start_raw = str(request.POST.get('cycle_start_date') or '').strip()
+                title_prefix = str(request.POST.get('cycle_title_prefix') or '').strip()[:80]
+                if not template_key:
+                    raise ValueError('Selecciona una plantilla de ciclo.')
+                if not cycle_start_raw:
+                    raise ValueError('Indica la fecha de inicio del ciclo.')
+                try:
+                    cycle_start = datetime.strptime(cycle_start_raw, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError('Formato de fecha no válido para el ciclo.')
+
+                template_map = {tpl.key: tpl for tpl in (cycle_templates_catalog() or []) if getattr(tpl, 'key', None)}
+                template = template_map.get(template_key)
+                if not template:
+                    raise ValueError('Plantilla no encontrada.')
+
+                created_microcycles = 0
+                skipped_microcycles = 0
+                created_sessions = 0
+                skipped_sessions = 0
+                base_title = title_prefix or template.label
+                allowed_intensity = {item[0] for item in TrainingSession.INTENSITY_CHOICES}
+
+                for week_index in range(int(template.weeks or 0)):
+                    week_start = cycle_start + timedelta(days=7 * week_index)
+                    week_end = week_start + timedelta(days=6)
+                    week_tpl = None
+                    if getattr(template, 'week_templates', None) and week_index < len(template.week_templates or []):
+                        week_tpl = template.week_templates[week_index]
+                    week_title = f'{base_title} · Semana {week_index + 1}'
+                    week_objective = ''
+                    week_sessions = []
+                    if week_tpl:
+                        week_title = f'{base_title} · {week_tpl.title or ("Semana " + str(week_index + 1))}'
+                        week_objective = str(getattr(week_tpl, 'objective', '') or '').strip()[:200]
+                        week_sessions = list(getattr(week_tpl, 'sessions', None) or [])
+
+                    microcycle, created = TrainingMicrocycle.objects.get_or_create(
+                        team=primary_team,
+                        week_start=week_start,
+                        defaults={
+                            'week_end': week_end,
+                            'title': week_title[:140],
+                            'objective': week_objective,
+                            'status': TrainingMicrocycle.STATUS_DRAFT,
+                            'notes': '',
+                        },
+                    )
+                    if created:
+                        created_microcycles += 1
+                    else:
+                        skipped_microcycles += 1
+
+                    for order_index, sess_tpl in enumerate(week_sessions):
+                        try:
+                            day_offset = int(getattr(sess_tpl, 'day_offset', 0) or 0)
+                        except Exception:
+                            day_offset = 0
+                        session_date = week_start + timedelta(days=day_offset)
+                        focus = str(getattr(sess_tpl, 'focus', '') or '').strip()[:140] or f'Sesión {order_index + 1}'
+                        intensity = str(getattr(sess_tpl, 'intensity', '') or '').strip()
+                        if intensity not in allowed_intensity:
+                            intensity = TrainingSession.INTENSITY_MEDIUM
+                        try:
+                            duration_minutes = int(getattr(sess_tpl, 'duration_minutes', 90) or 90)
+                        except Exception:
+                            duration_minutes = 90
+                        session, sess_created = TrainingSession.objects.get_or_create(
+                            microcycle=microcycle,
+                            session_date=session_date,
+                            focus=focus,
+                            defaults={
+                                'duration_minutes': max(15, min(duration_minutes, 240)),
+                                'intensity': intensity,
+                                'status': TrainingSession.STATUS_PLANNED,
+                                'order': order_index,
+                                'content': '',
+                            },
+                        )
+                        if sess_created:
+                            created_sessions += 1
+                        else:
+                            skipped_sessions += 1
+
+                feedback = (
+                    f'Ciclo creado desde plantilla: {template.label}. '
+                    f'Microciclos nuevos={created_microcycles} (omitidos={skipped_microcycles}), '
+                    f'Sesiones nuevas={created_sessions} (omitidas={skipped_sessions}).'
+                )
 
             elif planner_action == 'update_microcycle_plan':
                 microcycle_id = _parse_int(request.POST.get('edit_microcycle_id'))
@@ -27485,6 +27584,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_library_raw = []
     task_library = []
     library_deleted_tasks = []
+    bookmarked_task_ids = set()
     if planner_tables_ready and active_tab == 'library':
         task_library_raw = list(
             SessionTask.objects
@@ -27502,6 +27602,19 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             and _is_library_session(getattr(item, 'session', None))
             and _library_repository_for_task(item) == library_repository
         ]
+        if request.user and request.user.is_authenticated and task_library:
+            try:
+                bookmarked_task_ids = set(
+                    SessionTaskBookmark.objects
+                    .filter(user=request.user, task_id__in=[int(t.id) for t in task_library if getattr(t, 'id', None)])
+                    .values_list('task_id', flat=True)
+                )
+            except Exception:
+                bookmarked_task_ids = set()
+        if library_view == 'favorites' and bookmarked_task_ids:
+            task_library = [t for t in task_library if int(getattr(t, 'id', 0) or 0) in bookmarked_task_ids]
+        elif library_view == 'favorites' and not bookmarked_task_ids:
+            task_library = []
         deleted_candidates = list(
             SessionTask.objects
             .select_related('session__microcycle')
@@ -27568,6 +27681,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             duration_band=library_duration_band,
             quality=library_quality,
             reference_date=library_reference_date,
+            sort_key=library_sort,
         )
     else:
         task_library_filtered = filter_task_library(
@@ -27575,6 +27689,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             library_view=library_view,
             library_key=library_key,
         )
+        if library_sort and library_sort != 'recent':
+            task_library_filtered = filter_task_library_advanced(task_library_filtered, sort_key=library_sort)
 
     planning_microcycles = []
     planning_sessions = []
@@ -27903,6 +28019,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     except Exception:
         imported_session_docs = []
 
+    try:
+        cycle_templates = cycle_templates_catalog()
+    except Exception:
+        cycle_templates = []
+
     return render(
         request,
         'football/sessions_planner.html',
@@ -27945,6 +28066,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_duration_band': library_duration_band,
             'library_quality': library_quality,
             'library_reference_date': library_reference_date,
+            'library_sort': library_sort,
+            'bookmarked_task_ids': bookmarked_task_ids,
             'main_tab': main_tab,
             'planning_microcycle_rows': microcycle_rows,
             'planning_sessions': planning_sessions,
@@ -27967,6 +28090,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'tactical_player_catalog': tactical_player_catalog,
             'prefill_microcycle_id': prefill_microcycle_id,
             'imported_session_docs': imported_session_docs,
+            'cycle_templates': cycle_templates,
         },
     )
 

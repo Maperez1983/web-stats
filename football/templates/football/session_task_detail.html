@@ -381,6 +381,14 @@
         <h1>Detalle de tarea</h1>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
           <a class="button" href="{% url scope_route_name %}">Volver</a>
+          <button
+            type="button"
+            class="button secondary"
+            id="bookmark-toggle"
+            data-task-id="{{ task.id }}"
+            aria-pressed="{% if is_bookmarked %}true{% else %}false{% endif %}"
+            title="{% if is_bookmarked %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
+          >{% if is_bookmarked %}★ Favorita{% else %}☆ Favorita{% endif %}</button>
           <a class="button" href="{% url 'session-task-pdf' task.id %}" target="_blank" rel="noopener">Imprimir UEFA</a>
           <a class="button" href="{% url 'session-task-pdf' task.id %}?style=club" target="_blank" rel="noopener">Imprimir Club</a>
           {% if task.task_pdf %}
@@ -1406,6 +1414,35 @@
             setStatus(err.message || 'Error al guardar gráfico.', true);
           } finally {
             saveBtn.disabled = false;
+          }
+        });
+
+        const bookmarkBtn = document.getElementById('bookmark-toggle');
+        bookmarkBtn?.addEventListener('click', async (event) => {
+          event.preventDefault();
+          const taskId = bookmarkBtn.getAttribute('data-task-id');
+          if (!taskId) return;
+          bookmarkBtn.disabled = true;
+          try {
+            const response = await fetch(`/coach/sesiones/tarea/${taskId}/bookmark/toggle/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+              },
+              credentials: 'same-origin',
+              body: JSON.stringify({}),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'No se pudo actualizar favorita.');
+            const bookmarked = !!data.bookmarked;
+            bookmarkBtn.textContent = bookmarked ? '★ Favorita' : '☆ Favorita';
+            bookmarkBtn.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
+            bookmarkBtn.title = bookmarked ? 'Quitar de favoritas' : 'Marcar como favorita';
+          } catch (err) {
+            setStatus(err.message || 'No se pudo actualizar favorita.', true);
+          } finally {
+            bookmarkBtn.disabled = false;
           }
         });
         let resizeTimer = null;

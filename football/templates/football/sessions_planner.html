@@ -2041,6 +2041,33 @@
 	                <div><button type="submit" class="primary">Guardar microciclo</button></div>
 	              </form>
 	            </div>
+              <div class="editor-box">
+                <h3>Crear ciclo (plantilla)</h3>
+                <p class="meta" style="margin-top:-0.35rem;">Crea varios microciclos (2–6 semanas) y sus sesiones en 1 clic. Luego ajusta focos y tareas.</p>
+                <form method="post" class="grid">
+                  {% csrf_token %}
+                  <input type="hidden" name="planner_action" value="create_cycle_from_template" />
+                  <input type="hidden" name="planner_tab" value="microcycles" />
+                  <label style="grid-column:1/-1;">
+                    Plantilla
+                    <select name="cycle_template_key" required>
+                      <option value="">Selecciona…</option>
+                      {% for tpl in cycle_templates %}
+                      <option value="{{ tpl.key }}">{{ tpl.label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Inicio del ciclo
+                    <input type="date" name="cycle_start_date" required />
+                  </label>
+                  <label>
+                    Prefijo título (opcional)
+                    <input type="text" name="cycle_title_prefix" maxlength="80" placeholder="Ej: Benagalbón Prebenjamín" />
+                  </label>
+                  <div><button type="submit" class="secondary">Crear ciclo</button></div>
+                </form>
+              </div>
 	          </div>
 		          <p class="meta" style="margin-top:0.75rem;">
 		            Flujo recomendado: crea sesiones sueltas (o dentro de un microciclo) en <strong>Sesiones</strong> y luego ordénalas aquí dentro del microciclo semanal.
@@ -2525,11 +2552,12 @@
           <summary class="button secondary" style="display:inline-flex; width:max-content;">
             Vistas
             <span style="opacity:0.75; font-weight:700;">
-              · {% if library_view == 'overview' %}Todas{% elif library_view == 'phase' %}Por fase{% elif library_view == 'type' %}Por tipo{% elif library_view == 'players' %}Por jugadores{% elif library_view == 'duration' %}Por duración{% elif library_view == 'date' %}Por fecha{% elif library_view == 'quality' %}Por calidad{% else %}Todas{% endif %}
+              · {% if library_view == 'overview' %}Todas{% elif library_view == 'favorites' %}Favoritas{% elif library_view == 'phase' %}Por fase{% elif library_view == 'type' %}Por tipo{% elif library_view == 'players' %}Por jugadores{% elif library_view == 'duration' %}Por duración{% elif library_view == 'date' %}Por fecha{% elif library_view == 'quality' %}Por calidad{% else %}Todas{% endif %}
             </span>
           </summary>
           <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
             <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
+            <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites">Favoritas</a>
             <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
             <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
             <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
@@ -2548,7 +2576,7 @@
           <form method="get" style="margin-top:0.65rem; display:flex; flex-direction:column; gap:0.55rem;">
             <input type="hidden" name="tab" value="library" />
             <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-            <input type="hidden" name="library_view" value="overview" />
+            <input type="hidden" name="library_view" value="{% if library_view == 'favorites' %}favorites{% else %}overview{% endif %}" />
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:0.45rem;">
               <label style="display:flex; flex-direction:column; gap:0.25rem;">
                 <span class="meta" style="font-weight:800;">Buscar</span>
@@ -2626,11 +2654,22 @@
                   {% endfor %}
                 </select>
               </label>
+              <label style="display:flex; flex-direction:column; gap:0.25rem;">
+                <span class="meta" style="font-weight:800;">Orden</span>
+                <select name="sort">
+                  <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
+                  <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mejor score</option>
+                  <option value="confidence" {% if library_sort == 'confidence' %}selected{% endif %}>Más confianza</option>
+                  <option value="title" {% if library_sort == 'title' %}selected{% endif %}>Título A→Z</option>
+                </select>
+              </label>
             </div>
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
               <button class="secondary" type="submit">Aplicar</button>
               <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Limpiar</a>
+              <button class="secondary" type="button" id="library-save-preset">Guardar preset</button>
             </div>
+            <div id="library-presets" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
           </form>
         </details>
         {% if library_deleted_tasks %}
@@ -2751,6 +2790,14 @@
               </details>
 	              {% endif %}
 	              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                  <button
+                    type="button"
+                    class="button secondary bookmark-btn"
+                    data-task-id="{{ t.id }}"
+                    aria-pressed="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}true{% else %}false{% endif %}"
+                    title="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
+                    style="min-width:3.1rem;"
+                  >{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}★{% else %}☆{% endif %}</button>
                   <button
                     type="button"
                     class="button secondary task-preview-btn"
@@ -2983,6 +3030,110 @@
 
             if (typeof dialog.showModal === 'function') dialog.showModal();
             else dialog.setAttribute('open', 'open');
+          });
+        })();
+
+        (() => {
+          const getCookie = (name) => {
+            const cookie = (document.cookie || '')
+              .split(';')
+              .map((v) => v.trim())
+              .find((v) => v.startsWith(`${name}=`));
+            return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+          };
+          const csrftoken = getCookie('csrftoken') || '';
+          const buttons = document.querySelectorAll('.bookmark-btn[data-task-id]');
+          if (!buttons.length) return;
+          buttons.forEach((btn) => {
+            btn.addEventListener('click', async (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const taskId = btn.getAttribute('data-task-id');
+              if (!taskId) return;
+              btn.disabled = true;
+              try {
+                const response = await fetch(`/coach/sesiones/tarea/${taskId}/bookmark/toggle/`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                  },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({}),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.error || 'No se pudo actualizar favorita.');
+                const bookmarked = !!data.bookmarked;
+                btn.textContent = bookmarked ? '★' : '☆';
+                btn.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
+                btn.title = bookmarked ? 'Quitar de favoritas' : 'Marcar como favorita';
+              } catch (e) {
+                alert(e.message || 'No se pudo actualizar favorita.');
+              } finally {
+                btn.disabled = false;
+              }
+            });
+          });
+        })();
+
+        (() => {
+          const saveBtn = document.getElementById('library-save-preset');
+          const container = document.getElementById('library-presets');
+          if (!saveBtn || !container) return;
+          const teamId = String({{ primary_team_id|default:0 }});
+          const storageKey = `webstats:library:presets:${teamId}:v1`;
+
+          const readPresets = () => {
+            try {
+              const raw = window.localStorage.getItem(storageKey);
+              const parsed = raw ? JSON.parse(raw) : [];
+              return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+              return [];
+            }
+          };
+          const writePresets = (presets) => {
+            try {
+              window.localStorage.setItem(storageKey, JSON.stringify(presets || []));
+            } catch (e) {}
+          };
+          const renderPresets = () => {
+            const presets = readPresets();
+            container.innerHTML = '';
+            if (!presets.length) return;
+            presets.slice(0, 12).forEach((p) => {
+              const wrap = document.createElement('span');
+              wrap.style.display = 'inline-flex';
+              wrap.style.gap = '0.35rem';
+              const link = document.createElement('a');
+              link.className = 'badge';
+              link.href = p.href || '#';
+              link.textContent = p.name || 'Preset';
+              const del = document.createElement('button');
+              del.type = 'button';
+              del.className = 'badge';
+              del.textContent = '×';
+              del.title = 'Eliminar preset';
+              del.addEventListener('click', () => {
+                const next = readPresets().filter((x) => x.id !== p.id);
+                writePresets(next);
+                renderPresets();
+              });
+              wrap.appendChild(link);
+              wrap.appendChild(del);
+              container.appendChild(wrap);
+            });
+          };
+          renderPresets();
+
+          saveBtn.addEventListener('click', () => {
+            const name = window.prompt('Nombre del preset (ej: “Prebenjamín · Pressing”):');
+            if (!name) return;
+            const href = `${window.location.pathname}${window.location.search}`;
+            const presets = readPresets();
+            presets.unshift({ id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, name: name.slice(0, 42), href });
+            writePresets(presets.slice(0, 30));
+            renderPresets();
           });
         })();
 	
