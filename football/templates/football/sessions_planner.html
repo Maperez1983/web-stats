@@ -2630,19 +2630,22 @@
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
               {% if t.analysis_meta %}
-              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-bottom:0.55rem;">
-                {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
-                {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
-                {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión necesaria</span>{% endif %}
-                {% for item in t.exercise_types %}
-                <span class="badge">Tipo: {{ item }}</span>
-                {% endfor %}
-                {% for phase in t.phase_tags %}
-                <span class="badge">Fase: {{ phase }}</span>
-                {% endfor %}
-                {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
-                {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
-              </div>
+              <details style="margin-bottom:0.55rem;">
+                <summary class="button secondary" style="display:inline-flex; width:max-content;">Etiquetas</summary>
+                <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.55rem;">
+                  {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
+                  {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
+                  {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión necesaria</span>{% endif %}
+                  {% for item in t.exercise_types %}
+                  <span class="badge">Tipo: {{ item }}</span>
+                  {% endfor %}
+                  {% for phase in t.phase_tags %}
+                  <span class="badge">Fase: {{ phase }}</span>
+                  {% endfor %}
+                  {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
+                  {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
+                </div>
+              </details>
 	              {% endif %}
 	              <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
 	                {% if t.task_pdf %}
@@ -2654,7 +2657,9 @@
 	                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
 	                {% endif %}
 	                {% if planning_session_items %}
-		                <form method="post" style="margin:0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+                  <details style="margin:0;">
+                    <summary class="button secondary" style="display:inline-flex; width:max-content;">Añadir a sesión</summary>
+		                <form method="post" style="margin:0.6rem 0 0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
 		                  {% csrf_token %}
 		                  <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
 	                  <input type="hidden" name="planner_tab" value="library" />
@@ -2667,8 +2672,9 @@
                     <option value="{{ session_item.id }}">{{ session_item.label }}</option>
                     {% endfor %}
                   </select>
-                  <button type="submit" class="secondary">Añadir a sesión</button>
+                  <button type="submit" class="secondary">Confirmar</button>
 	                </form>
+                  </details>
 	                {% endif %}
                 <details class="task-more">
                   <summary class="button secondary">Más</summary>

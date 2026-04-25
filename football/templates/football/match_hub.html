@@ -327,12 +327,10 @@
             {% endif %}
           </div>
           <div class="actions">
-            {% if active_match_id and can_finalize_match and actions_pending_count %}
-            <form method="post" action="{% url 'match-hub-finalize' %}" style="margin:0; display:inline-flex;">
-              {% csrf_token %}
-              <input type="hidden" name="match_id" value="{{ active_match_id }}" />
-              <button class="btn primary" type="submit">Guardar partido</button>
-            </form>
+            {% if active_match_id and can_finalize_match %}
+              <button class="btn primary" type="button" id="closeMatchBtn">
+                Cerrar partido{% if actions_pending_count %} · {{ actions_pending_count }} pendientes{% endif %}
+              </button>
             {% endif %}
             <a class="btn primary" href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Acta partido</a>
             <a class="btn" href="{% url 'match-staff-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}&team={{ primary_team_id }}{% endif %}" {% if not active_match_id %}aria-disabled="true"{% endif %}>Informe staff</a>
@@ -355,6 +353,64 @@
         </article>
       </section>
     </div>
+
+    {% if active_match_id and can_finalize_match %}
+    <div class="modal-backdrop" id="closeMatchModal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Cerrar partido">
+        <h3>Cerrar partido</h3>
+        <p>
+          Indica el resultado final. Al confirmar, se consolidan las acciones pendientes y se refrescan los KPIs de los jugadores.
+          {% if actions_pending_count %}<br/>Pendientes a guardar: <strong>{{ actions_pending_count }}</strong>.{% endif %}
+        </p>
+        <form method="post" action="{% url 'match-hub-finalize' %}">
+          {% csrf_token %}
+          <input type="hidden" name="match_id" value="{{ active_match_id }}" />
+          <div class="form-grid">
+            <div class="field">
+              <label for="scoreForInput">Goles a favor</label>
+              <input id="scoreForInput" name="score_for" type="number" min="0" step="1" value="{% if match_score_for != None %}{{ match_score_for }}{% endif %}" placeholder="—" />
+            </div>
+            <div class="field">
+              <label for="scoreAgainstInput">Goles en contra</label>
+              <input id="scoreAgainstInput" name="score_against" type="number" min="0" step="1" value="{% if match_score_against != None %}{{ match_score_against }}{% endif %}" placeholder="—" />
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn danger" id="closeMatchCancel">Cancelar</button>
+            <button type="submit" class="btn primary">Confirmar cierre</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script>
+      (function() {
+        const btn = document.getElementById('closeMatchBtn');
+        const modal = document.getElementById('closeMatchModal');
+        const cancel = document.getElementById('closeMatchCancel');
+        if (!btn || !modal || !cancel) return;
+        const open = () => {
+          modal.classList.add('is-open');
+          modal.setAttribute('aria-hidden', 'false');
+          setTimeout(() => {
+            const input = document.getElementById('scoreForInput');
+            if (input) input.focus();
+          }, 40);
+        };
+        const close = () => {
+          modal.classList.remove('is-open');
+          modal.setAttribute('aria-hidden', 'true');
+        };
+        btn.addEventListener('click', open);
+        cancel.addEventListener('click', close);
+        modal.addEventListener('click', (event) => {
+          if (event.target === modal) close();
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') close();
+        });
+      })();
+    </script>
+    {% endif %}
 
     {% if can_create_match %}
     <div class="modal-backdrop" id="createMatchModal" aria-hidden="true">

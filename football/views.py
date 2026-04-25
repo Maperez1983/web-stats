@@ -37114,6 +37114,8 @@ def match_hub_page(request):
     match_location = ''
     active_match_id = None
     match_context_label = ''
+    match_score_for = None
+    match_score_against = None
     if active_match:
         active_match_id = int(active_match.id)
         opponent = active_match.away_team if active_match.home_team_id == primary_team.id else active_match.home_team
@@ -37134,6 +37136,20 @@ def match_hub_page(request):
                 match_date_label = convocation_record.match_date.strftime('%d/%m/%Y')
             if convocation_record.location:
                 match_location = convocation_record.location
+        try:
+            # Marcador relativo al equipo activo (a favor / en contra) para prefill del cierre.
+            if active_match.home_team_id == primary_team.id:
+                match_score_for = active_match.home_score
+                match_score_against = active_match.away_score
+            elif active_match.away_team_id == primary_team.id:
+                match_score_for = active_match.away_score
+                match_score_against = active_match.home_score
+            else:
+                match_score_for = active_match.home_score
+                match_score_against = active_match.away_score
+        except Exception:
+            match_score_for = None
+            match_score_against = None
 
     can_render_pdfs = bool(weasyprint)
     pdf_smoke_detail = ''
@@ -37152,6 +37168,8 @@ def match_hub_page(request):
             'match_context_label': match_context_label,
             'active_match_id': active_match_id,
             'primary_team_id': int(primary_team.id),
+            'match_score_for': match_score_for,
+            'match_score_against': match_score_against,
             'has_convocation': bool(convocation_record and convocation_players_count > 0),
             'convocation_players_count': convocation_players_count,
             'has_lineup': bool(has_lineup),
@@ -37349,6 +37367,21 @@ def match_hub_finalize_match(request):
         match = get_requested_match(request, primary_team) or get_active_match(primary_team)
     if not match:
         return HttpResponse('No hay partido activo para guardar.', status=400)
+
+    # Permite fijar marcador desde el Hub sin tener que entrar a Registro de acciones.
+    # UI: trabaja como "a favor / en contra" relativo al equipo principal.
+    try:
+        if 'score_for' in request.POST or 'score_against' in request.POST:
+            _apply_match_info_overrides(
+                match,
+                primary_team,
+                {
+                    'score_for': request.POST.get('score_for'),
+                    'score_against': request.POST.get('score_against'),
+                },
+            )
+    except Exception:
+        pass
 
     try:
         updated = int(
