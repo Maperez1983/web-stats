@@ -138,6 +138,12 @@ body.prod-commercial {
   --ui-btn-letter: 0.06em;
   --ui-chip-pad-y: 0.34rem;
   --ui-chip-pad-x: 0.7rem;
+  --ui-card-pad: 1rem;
+  --ui-card-pad-compact: 0.85rem;
+  --ui-block-gap: 0.95rem;
+  --ui-block-gap-compact: 0.75rem;
+  --ui-title-gap: 0.55rem;
+  --ui-title-gap-compact: 0.42rem;
 }
 
 :root[data-density="compact"] body.prod-commercial {
@@ -147,6 +153,12 @@ body.prod-commercial {
   --ui-btn-letter: 0.05em;
   --ui-chip-pad-y: 0.26rem;
   --ui-chip-pad-x: 0.62rem;
+}
+
+:root[data-density="compact"] body.prod-commercial {
+  --ui-card-pad: var(--ui-card-pad-compact);
+  --ui-block-gap: var(--ui-block-gap-compact);
+  --ui-title-gap: var(--ui-title-gap-compact);
 }
 
 body.prod-commercial a {
@@ -196,6 +208,78 @@ body.prod-commercial h1 {
 body.prod-commercial h2,
 body.prod-commercial h3 {
   font-weight: 900;
+}
+
+/* Normalización de tamaños y ritmo (sin tocar templates).
+   - Evita “saltos” visuales entre módulos.
+   - Mantiene flexibilidad: páginas específicas pueden sobrescribir. */
+body.prod-commercial :where(h1, h2, h3) {
+  line-height: 1.12;
+  margin: 0;
+}
+
+body.prod-commercial :where(h1) {
+  font-size: clamp(1.25rem, 1.2rem + 1.1vw, 1.75rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial :where(h2) {
+  font-size: clamp(1.02rem, 0.98rem + 0.7vw, 1.28rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.prod-commercial :where(h3) {
+  font-size: clamp(0.9rem, 0.88rem + 0.5vw, 1.12rem);
+  letter-spacing: 0.05em;
+}
+
+body.prod-commercial :where(p) {
+  line-height: 1.45;
+}
+
+/* Espaciado “default” alrededor de bloques frecuentes. */
+body.prod-commercial :where(.topbar, .hero, .panel, .card, .product-card) + :where(.topbar, .hero, .panel, .card, .product-card) {
+  margin-top: var(--ui-block-gap);
+}
+
+/* Tarjetas/paneles: padding y bordes consistentes. */
+body.prod-commercial .topbar,
+body.prod-commercial .hero,
+body.prod-commercial .panel,
+body.prod-commercial .card,
+body.prod-commercial .product-card {
+  border-radius: var(--ui-radius-xl);
+  border: 1px solid var(--ui-line);
+  background: var(--ui-panel);
+}
+
+body.prod-commercial .topbar,
+body.prod-commercial .hero {
+  padding: calc(var(--ui-card-pad) + 0.05rem);
+}
+
+body.prod-commercial .panel {
+  padding: var(--ui-card-pad);
+}
+
+/* Muchas plantillas usan `.card` como contenedor sin padding; damos un padding seguro. */
+body.prod-commercial .card {
+  padding: var(--ui-card-pad);
+}
+
+/* Evita que el primer/último hijo “pegue saltos” raros. */
+body.prod-commercial :where(.topbar, .hero, .panel, .card, .product-card) > :where(h1, h2, h3) {
+  margin-bottom: var(--ui-title-gap);
+}
+
+body.prod-commercial :where(.topbar, .hero, .panel, .card, .product-card) > :first-child {
+  margin-top: 0;
+}
+
+body.prod-commercial :where(.topbar, .hero, .panel, .card, .product-card) > :last-child {
+  margin-bottom: 0;
 }
 
 /* Global states: badges/alerts/toasts (reusable). */
