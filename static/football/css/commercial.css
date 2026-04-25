@@ -853,81 +853,6 @@ body.prod-commercial .dragon-link img {
   object-fit: contain;
 }
 
-body.prod-commercial .logout-form,
-body.prod-commercial .platform-jump,
-body.prod-commercial .help-jump,
-body.prod-commercial .theme-jump {
-  margin-top: 0.35rem;
-  display: flex;
-  justify-content: center;
-}
-
-body.prod-commercial .logout-form {
-  margin-top: 0.4rem;
-}
-
-body.prod-commercial .help-btn,
-body.prod-commercial .theme-btn,
-body.prod-commercial .platform-btn,
-body.prod-commercial .logout-btn {
-  appearance: none;
-  cursor: pointer;
-  border-radius: 999px;
-  padding: 0.32rem 0.8rem;
-  font-size: 0.7rem;
-  line-height: 1.15;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  text-decoration: none;
-}
-
-body.prod-commercial .help-btn {
-  border: 1px solid rgba(34, 211, 238, 0.26);
-  background: rgba(34, 211, 238, 0.10);
-  color: rgba(226, 232, 240, 0.92);
-  font-weight: 900;
-}
-
-body.prod-commercial .help-btn:hover {
-  border-color: rgba(34, 211, 238, 0.6);
-  color: #ffffff;
-}
-
-body.prod-commercial .theme-btn,
-body.prod-commercial .platform-btn {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(2, 6, 23, 0.28);
-  color: rgba(226, 232, 240, 0.92);
-  font-weight: 900;
-}
-
-body.prod-commercial .theme-btn:hover,
-body.prod-commercial .platform-btn:hover {
-  border-color: rgba(148, 163, 184, 0.55);
-  color: #ffffff;
-}
-
-body.prod-commercial .platform-btn {
-  color: rgba(226, 232, 240, 0.86);
-  font-weight: 800;
-}
-
-body.prod-commercial .logout-btn {
-  border: 1px solid rgba(244, 180, 0, 0.18);
-  background: rgba(15, 23, 42, 0.65);
-  color: rgba(245, 247, 250, 0.92);
-  font-weight: 800;
-}
-
-body.prod-commercial .logout-btn:hover {
-  border-color: rgba(244, 180, 0, 0.5);
-  color: #fff9e8;
-}
-
 body.prod-commercial .product-nav-shortcuts {
   display: flex;
   flex-wrap: wrap;
@@ -1395,15 +1320,6 @@ body.prod-commercial .cmdk-section {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-:root[data-theme="light"] body.prod-commercial .help-btn {
-  color: rgba(15, 23, 42, 0.92);
-  background: rgba(34, 211, 238, 0.10);
-  border-color: rgba(34, 211, 238, 0.24);
-}
-
-:root[data-theme="light"] body.prod-commercial .theme-btn,
-:root[data-theme="light"] body.prod-commercial .platform-btn,
-:root[data-theme="light"] body.prod-commercial .logout-btn,
 :root[data-theme="light"] body.prod-commercial .nav-more summary,
 :root[data-theme="light"] body.prod-commercial .team-switcher select {
   background: rgba(15, 23, 42, 0.04);
@@ -1442,10 +1358,6 @@ body.prod-commercial .cmdk-section {
 
 /* Presentation mode: ocultar navegación y dar más espacio al contenido. */
 :root[data-presentation="1"] body.prod-commercial .dragon-nav,
-:root[data-presentation="1"] body.prod-commercial .logout-form,
-:root[data-presentation="1"] body.prod-commercial .help-jump,
-:root[data-presentation="1"] body.prod-commercial .theme-jump,
-:root[data-presentation="1"] body.prod-commercial .platform-jump,
 :root[data-presentation="1"] body.prod-commercial .product-nav-shortcuts {
   display: none !important;
 }
