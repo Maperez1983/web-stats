@@ -7,34 +7,6 @@
 </div>
 {% endif %}
 {% if request.user.is_authenticated %}
-<form class="logout-form" method="post" action="{% url 'logout' %}">
-  {% csrf_token %}
-  <button class="logout-btn" type="submit" title="Cerrar sesión">Salir</button>
-</form>
-<div class="help-jump">
-  <button class="help-btn" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
-      <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Zm0 17a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 19Zm1.6-6.9c-.8.5-1.1.9-1.1 1.9v.4h-2v-.6c0-1.6.7-2.5 2-3.3c.8-.5 1.2-.9 1.2-1.7c0-.9-.7-1.6-1.8-1.6c-1.1 0-1.8.7-1.9 1.7H8c.1-2.2 1.8-3.7 4-3.7c2.4 0 3.9 1.4 3.9 3.4c0 1.7-.9 2.6-2.3 3.5Z"/>
-    </svg>
-    <span>Guía</span>
-  </button>
-</div>
-<div class="theme-jump">
-  <button class="theme-btn" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/Claro/HC)">
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
-      <path fill="currentColor" d="M12 18a6 6 0 1 1 0-12a6 6 0 0 1 0 12Zm0-14.5a1 1 0 0 1 1 1V6a1 1 0 1 1-2 0V4.5a1 1 0 0 1 1-1ZM12 18a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V19a1 1 0 0 1 1-1ZM3.5 12a1 1 0 0 1 1-1H6a1 1 0 1 1 0 2H4.5a1 1 0 0 1-1-1Zm14.5-1a1 1 0 0 1 0 2H18a1 1 0 1 1 0-2h0Zm-12.2-6a1 1 0 0 1 1.4 0l1.1 1.1a1 1 0 1 1-1.4 1.4L5.8 6.4a1 1 0 0 1 0-1.4Zm10.4 10.4a1 1 0 0 1 1.4 0l1.1 1.1a1 1 0 1 1-1.4 1.4l-1.1-1.1a1 1 0 0 1 0-1.4ZM18.2 5a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 1 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0ZM8.3 15.1a1 1 0 0 1 0 1.4l-1.1 1.1a1 1 0 1 1-1.4-1.4l1.1-1.1a1 1 0 0 1 1.4 0Z"/>
-    </svg>
-    <span>Tema</span>
-  </button>
-</div>
-<div class="theme-jump">
-  <button class="theme-btn" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)">
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16">
-      <path fill="currentColor" d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/>
-    </svg>
-    <span>Densidad</span>
-  </button>
-</div>
 <script>
 (() => {
   const storageKey = '2j_theme';
@@ -114,11 +86,6 @@
   }
 })();
 </script>
-{% if is_admin_user %}
-<div class="platform-jump">
-  <a class="platform-btn" href="{% url 'platform-overview' %}" title="Volver a Platform">Platform</a>
-</div>
-{% endif %}
 {% endif %}
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">
@@ -165,6 +132,9 @@
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
     <summary>Menú</summary>
     <div class="nav-more-panel">
+      <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-global-help" title="Guía rápida (Alt: guía general)">Guía</button>
+      <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-theme-toggle" title="Cambiar tema (Oscuro/Claro/HC)"><span>Tema</span></button>
+      <button class="nav-command-btn nav-command-btn--panel" type="button" id="webstats-density-toggle" title="Cambiar densidad (Normal/Compacta)"><span>Densidad</span></button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
@@ -246,6 +216,10 @@
       <div class="nav-more-subtitle">Cuenta</div>
       {% if request.user.is_authenticated %}
       <a href="{% url 'account-page' %}">Cuenta</a>
+      <form method="post" action="{% url 'logout' %}" style="margin:0; padding-top:0.35rem;">
+        {% csrf_token %}
+        <button type="submit" class="nav-command-btn nav-command-btn--panel" style="width:100%; text-align:left;">Salir</button>
+      </form>
       {% endif %}
       <a href="{% url 'support-page' %}">Soporte</a>
       <a href="{% url 'privacy-policy' %}">Privacidad</a>
