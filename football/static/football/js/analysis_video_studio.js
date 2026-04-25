@@ -51,6 +51,7 @@
     const btnSelect = document.getElementById('vs-tool-select');
     const btnPen = document.getElementById('vs-tool-pen');
     const btnArrow = document.getElementById('vs-tool-arrow');
+    const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
     const btnCallout = document.getElementById('vs-tool-callout');
     const btnSpot = document.getElementById('vs-tool-spot');
@@ -71,6 +72,10 @@
     const slidesList = document.getElementById('vs-slides');
     const exportPdfBtn = document.getElementById('vs-export-pdf');
     const exportPackageBtn = document.getElementById('vs-export-package');
+    const reportPdfBtn = document.getElementById('vs-report-pdf');
+    const templateSelect = document.getElementById('vs-template');
+    const templateApplyBtn = document.getElementById('vs-template-apply');
+    const templateClearBtn = document.getElementById('vs-template-clear');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
 	    const initialClipId = Number(document.getElementById('vs-initial-clip-id')?.value || 0);
@@ -91,6 +96,7 @@
 	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
+	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 
     const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
@@ -319,6 +325,8 @@
       if (obj.data.fade_in_ms == null) obj.data.fade_in_ms = 0;
       if (obj.data.fade_out_ms == null) obj.data.fade_out_ms = 0;
       if (obj.data.anim == null) obj.data.anim = 'none';
+      if (obj.data.base_sx == null) obj.data.base_sx = Number(obj.scaleX) || 1;
+      if (obj.data.base_sy == null) obj.data.base_sy = Number(obj.scaleY) || 1;
     };
 
     const seedLayerDataNow = (extra = {}) => ({
@@ -705,10 +713,11 @@
       if (tool !== 'spot' && tool !== 'blur') fxPreview = null;
       fxEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'auto' : 'none';
 
-      Array.from([btnSelect, btnPen, btnArrow, btnText, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
       if (tool === 'select') btnSelect?.classList.add('primary');
       if (tool === 'pen') btnPen?.classList.add('primary');
       if (tool === 'arrow') btnArrow?.classList.add('primary');
+      if (tool === 'curve') btnCurve?.classList.add('primary');
       if (tool === 'text') btnText?.classList.add('primary');
       if (tool === 'callout') btnCallout?.classList.add('primary');
       if (tool === 'spot') btnSpot?.classList.add('primary');
@@ -871,7 +880,7 @@
     });
 
     fabricCanvas.on('mouse:down', (opt) => {
-      if (tool === 'arrow') {
+      if (tool === 'arrow' || tool === 'curve') {
         arrowStart = fabricCanvas.getPointer(opt.e);
       }
       if (tool === 'text') {
@@ -930,29 +939,68 @@
       }
     });
     fabricCanvas.on('mouse:up', (opt) => {
-      if (tool !== 'arrow' || !arrowStart) return;
+      if ((tool !== 'arrow' && tool !== 'curve') || !arrowStart) return;
       const end = fabricCanvas.getPointer(opt.e);
-      const line = new fabric.Line([arrowStart.x, arrowStart.y, end.x, end.y], {
-        stroke: strokeColor(),
-        strokeWidth: strokeWidth(),
-        selectable: true,
-      });
-      const ang = Math.atan2(end.y - arrowStart.y, end.x - arrowStart.x);
-      const headLen = 14 + strokeWidth();
-      const hx1 = end.x - headLen * Math.cos(ang - Math.PI / 7);
-      const hy1 = end.y - headLen * Math.sin(ang - Math.PI / 7);
-      const hx2 = end.x - headLen * Math.cos(ang + Math.PI / 7);
-      const hy2 = end.y - headLen * Math.sin(ang + Math.PI / 7);
-      const head = new fabric.Polygon([
-        { x: end.x, y: end.y },
-        { x: hx1, y: hy1 },
-        { x: hx2, y: hy2 },
-      ], { fill: strokeColor(), selectable: true });
-      const group = new fabric.Group([line, head], { selectable: true });
-      group.data = seedLayerDataNow({ kind: 'arrow', anim: 'draw', anim_ms: 700 });
-      fabricCanvas.add(group);
+      const sw = strokeWidth();
+      const color = strokeColor();
+      if (tool === 'curve') {
+        const dx = end.x - arrowStart.x;
+        const dy = end.y - arrowStart.y;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const mx = (arrowStart.x + end.x) / 2;
+        const my = (arrowStart.y + end.y) / 2;
+        const perpX = -dy / dist;
+        const perpY = dx / dist;
+        const offset = clamp(dist * 0.22, 18, 120);
+        const cx = mx + perpX * offset;
+        const cy = my + perpY * offset;
+        const pathStr = `M ${arrowStart.x} ${arrowStart.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
+        const path = new fabric.Path(pathStr, {
+          fill: '',
+          stroke: color,
+          strokeWidth: sw,
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          selectable: true,
+        });
+        path.data = { draw_len: Math.round(dist * 1.25) };
+        const ang = Math.atan2(end.y - cy, end.x - cx);
+        const headLen = 14 + sw;
+        const hx1 = end.x - headLen * Math.cos(ang - Math.PI / 7);
+        const hy1 = end.y - headLen * Math.sin(ang - Math.PI / 7);
+        const hx2 = end.x - headLen * Math.cos(ang + Math.PI / 7);
+        const hy2 = end.y - headLen * Math.sin(ang + Math.PI / 7);
+        const head = new fabric.Polygon([
+          { x: end.x, y: end.y },
+          { x: hx1, y: hy1 },
+          { x: hx2, y: hy2 },
+        ], { fill: color, selectable: true });
+        const group = new fabric.Group([path, head], { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'curve_arrow', anim: 'draw', anim_ms: 850 });
+        fabricCanvas.add(group);
+      } else {
+        const line = new fabric.Line([arrowStart.x, arrowStart.y, end.x, end.y], {
+          stroke: color,
+          strokeWidth: sw,
+          selectable: true,
+        });
+        const ang = Math.atan2(end.y - arrowStart.y, end.x - arrowStart.x);
+        const headLen = 14 + sw;
+        const hx1 = end.x - headLen * Math.cos(ang - Math.PI / 7);
+        const hy1 = end.y - headLen * Math.sin(ang - Math.PI / 7);
+        const hx2 = end.x - headLen * Math.cos(ang + Math.PI / 7);
+        const hy2 = end.y - headLen * Math.sin(ang + Math.PI / 7);
+        const head = new fabric.Polygon([
+          { x: end.x, y: end.y },
+          { x: hx1, y: hy1 },
+          { x: hx2, y: hy2 },
+        ], { fill: color, selectable: true });
+        const group = new fabric.Group([line, head], { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'arrow', anim: 'draw', anim_ms: 700 });
+        fabricCanvas.add(group);
+      }
       pushHistory();
-      fabricCanvas.setActiveObject(group);
+      try { fabricCanvas.setActiveObject(fabricCanvas.getObjects().slice(-1)[0]); } catch (e) { /* ignore */ }
       selectedFxId = 0;
       updateLayerPanel();
       renderFxList();
@@ -973,10 +1021,93 @@
     btnSelect?.addEventListener('click', () => setTool('select'));
     btnPen?.addEventListener('click', () => setTool('pen'));
     btnArrow?.addEventListener('click', () => setTool('arrow'));
+    btnCurve?.addEventListener('click', () => setTool('curve'));
     btnText?.addEventListener('click', () => setTool('text'));
     btnCallout?.addEventListener('click', () => setTool('callout'));
     btnSpot?.addEventListener('click', () => setTool('spot'));
     btnBlur?.addEventListener('click', () => setTool('blur'));
+
+    const clearTemplates = () => {
+      const toRemove = [];
+      for (const obj of fabricCanvas.getObjects()) {
+        const kind = safeText(obj?.data?.kind, '');
+        if (kind === 'template') toRemove.push(obj);
+      }
+      for (const obj of toRemove) {
+        try { fabricCanvas.remove(obj); } catch (e) { /* ignore */ }
+      }
+      if (toRemove.length) {
+        pushHistory();
+        updateLayerPanel();
+        renderDrawLayers();
+        setStatus('Plantillas eliminadas.');
+      }
+    };
+
+    const applyTemplate = () => {
+      const name = safeText(templateSelect?.value, '');
+      if (!name) { setStatus('Elige una plantilla.', true); return; }
+      const w = fabricCanvas.getWidth();
+      const h = fabricCanvas.getHeight();
+      if (!w || !h) return;
+      const objs = [];
+      if (name === 'lanes') {
+        for (let i = 1; i <= 4; i += 1) {
+          const x = (w * i) / 5;
+          objs.push(new fabric.Line([x, 0, x, h], { stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2, selectable: false, evented: false }));
+        }
+        objs.push(new fabric.Rect({ left: 0, top: 0, width: w, height: h, fill: 'rgba(255,255,255,0.02)', selectable: false, evented: false }));
+      } else if (name === 'central_box') {
+        const bw = w * 0.52;
+        const bh = h * 0.52;
+        objs.push(new fabric.Rect({
+          left: (w - bw) / 2,
+          top: (h - bh) / 2,
+          width: bw,
+          height: bh,
+          fill: 'rgba(34,211,238,0.08)',
+          stroke: 'rgba(34,211,238,0.6)',
+          strokeWidth: 2,
+          rx: 16,
+          ry: 16,
+          selectable: false,
+          evented: false,
+        }));
+      } else if (name === 'final_third') {
+        const x0 = w * 0.67;
+        objs.push(new fabric.Rect({
+          left: x0,
+          top: 0,
+          width: w - x0,
+          height: h,
+          fill: 'rgba(250,204,21,0.10)',
+          stroke: 'rgba(250,204,21,0.55)',
+          strokeWidth: 2,
+          selectable: false,
+          evented: false,
+        }));
+      } else {
+        setStatus('Plantilla no soportada.', true);
+        return;
+      }
+      const group = new fabric.Group(objs, { selectable: true });
+      group.data = seedLayerDataNow({ kind: 'template', template: name });
+      fabricCanvas.add(group);
+      pushHistory();
+      try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+      selectedFxId = 0;
+      updateLayerPanel();
+      renderFxList();
+      renderDrawLayers();
+      setStatus('Plantilla aplicada.');
+    };
+
+    templateApplyBtn?.addEventListener('click', applyTemplate);
+    templateClearBtn?.addEventListener('click', () => {
+      const ok = window.confirm('¿Quitar todas las plantillas?');
+      if (!ok) return;
+      clearTemplates();
+    });
 
     // Spotlight tool (FX canvas)
     let spotDrag = null;
@@ -1181,6 +1312,7 @@
     let exportAudioCtx = null;
     let exportAudioDest = null;
     let exportAudioSource = null;
+    let recLastProgressAt = 0;
 
 	    const stopRecording = async () => {
       if (!recActive) return;
@@ -1195,6 +1327,7 @@
 	      recCtx = null;
 	      stopAt = null;
 	      recStartAt = null;
+	      recLastProgressAt = 0;
 	      recDestination = 'download';
 	      recUploadMeta = null;
 	      if (btnRecord) btnRecord.textContent = 'Grabar';
@@ -1249,6 +1382,7 @@
 	                } catch (e) {
 	                  window.prompt('Copia este enlace:', url);
 	                }
+	                refreshShareLinks();
 	                resolve(url);
 	                return;
 	              }
@@ -1288,6 +1422,7 @@
         try { video.currentTime = Math.max(0, Number(from) || 0); } catch (e) { /* ignore */ }
         await sleep(120);
       }
+      recStartAt = Number(video.currentTime) || 0;
 
       recCanvas = document.createElement('canvas');
       recCanvas.width = w;
@@ -1296,14 +1431,35 @@
       if (!recCtx) return;
 
       const q = safeText(qualitySelect?.value, 'med');
-      const fps = q === 'low' ? 24 : 30;
+      let fps = Number(safeText(fpsSelect?.value, '')) || 0;
+      if (!fps) fps = q === 'low' ? 24 : 30;
+      fps = clamp(fps, 12, 60);
       const bps = q === 'high' ? 8_000_000 : (q === 'low' ? 2_200_000 : 4_000_000);
       const canvasStream = recCanvas.captureStream(fps);
       let audioTracks = [];
-      try {
-        const vStream = typeof video.captureStream === 'function' ? video.captureStream() : null;
-        audioTracks = vStream ? (vStream.getAudioTracks?.() || []) : [];
-      } catch (e) { audioTracks = []; }
+      const includeAudio = audioToggle ? Boolean(audioToggle.checked) : true;
+      if (includeAudio) {
+        try {
+          const vStream = typeof video.captureStream === 'function' ? video.captureStream() : (typeof video.mozCaptureStream === 'function' ? video.mozCaptureStream() : null);
+          audioTracks = vStream ? (vStream.getAudioTracks?.() || []) : [];
+        } catch (e) { audioTracks = []; }
+        if (!audioTracks.length) {
+          try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+              if (!exportAudioCtx) exportAudioCtx = new Ctx();
+              try { await exportAudioCtx.resume(); } catch (e) { /* ignore */ }
+              if (!exportAudioDest) exportAudioDest = exportAudioCtx.createMediaStreamDestination();
+              if (!exportAudioSource) {
+                exportAudioSource = exportAudioCtx.createMediaElementSource(video);
+                try { exportAudioSource.connect(exportAudioDest); } catch (e) { /* ignore */ }
+                try { exportAudioSource.connect(exportAudioCtx.destination); } catch (e) { /* ignore */ }
+              }
+              audioTracks = exportAudioDest.stream.getAudioTracks?.() || [];
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
 	      recStream = new MediaStream([...(canvasStream.getVideoTracks?.() || []), ...(audioTracks || [])]);
 
 	      recChunks = [];
@@ -1350,6 +1506,15 @@
           try { renderFx(recCtx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
           try { recCtx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
         } catch (e) { /* ignore */ }
+        if (stopAt != null && recStartAt != null) {
+          const nowS = Number(video.currentTime) || 0;
+          const total = Math.max(0.01, Number(stopAt) - Number(recStartAt));
+          const done = clamp((nowS - Number(recStartAt)) / total, 0, 1);
+          if (!recLastProgressAt || nowS - recLastProgressAt >= 0.5) {
+            recLastProgressAt = nowS;
+            setStatus(`Grabando… ${Math.round(done * 100)}%`);
+          }
+        }
         if (stopAt != null && (Number(video.currentTime) || 0) >= stopAt) {
           stopRecording();
           return;
@@ -2354,8 +2519,35 @@
       }
     };
 
+    const exportVideoReportPdf = async () => {
+      if (!reportPdfUrl || !videoId) return;
+      try {
+        const q = safeText(clipSearchInput?.value, '');
+        const coll = safeText(clipCollectionFilterSelect?.value, '');
+        const hasFilter = Boolean(q || coll);
+        let clipIds = [];
+        if (hasFilter) {
+          const filtered = applyClipFilters(clipsCache);
+          clipIds = filtered.slice(0, 260).map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+        }
+        await postJsonDownload({
+          url: reportPdfUrl,
+          payload: {
+            video_id: videoId,
+            title: buildExportTitle(),
+            clip_ids: clipIds,
+          },
+          fallbackName: 'video-informe.pdf',
+        });
+        setStatus('Informe descargado.');
+      } catch (e) {
+        setStatus(`No se pudo exportar informe. ${safeText(e?.message, '')}`, true);
+      }
+    };
+
     exportPdfBtn?.addEventListener('click', exportSlidesPdf);
     exportPackageBtn?.addEventListener('click', exportSlidesPackage);
+    reportPdfBtn?.addEventListener('click', exportVideoReportPdf);
 
     const applyTimedLayers = () => {
       const nowS = Number(video.currentTime) || 0;
@@ -2366,19 +2558,39 @@
         obj.visible = alpha > 0.001;
         obj.opacity = clamp(alpha, 0, 1);
 
-        if (safeText(obj.data.anim, 'none') === 'draw') {
+        const anim = safeText(obj.data.anim, 'none');
+        if (anim === 'pulse') {
+          anyAnim = true;
+          const tIn = Math.max(0, Number(obj.data.t_in_s) || 0);
+          const baseX = Number(obj.data.base_sx) || 1;
+          const baseY = Number(obj.data.base_sy) || 1;
+          const phase = (nowS - tIn) * Math.PI * 2 * 1.2;
+          const k = 1 + Math.sin(phase) * 0.08;
+          obj.scaleX = baseX * k;
+          obj.scaleY = baseY * k;
+          obj.dirty = true;
+        }
+
+        if (anim === 'draw') {
           anyAnim = true;
           const tIn = Math.max(0, Number(obj.data.t_in_s) || 0);
           const animMs = Math.max(50, Number(obj.data.anim_ms) || 700);
           const prog = clamp((nowS - tIn) / (animMs / 1000), 0, 1);
           if (obj.type === 'group' && Array.isArray(obj._objects)) {
             const line = obj._objects.find((x) => x?.type === 'line');
+            const path = obj._objects.find((x) => x?.type === 'path');
             const head = obj._objects.find((x) => x?.type === 'polygon');
             if (line && Number.isFinite(line.x1) && Number.isFinite(line.x2)) {
               const len = Math.max(1, Math.hypot((line.x2 - line.x1), (line.y2 - line.y1)));
               line.strokeDashArray = [len, len];
               line.strokeDashOffset = len * (1 - prog);
               line.dirty = true;
+            }
+            if (path) {
+              const len = Math.max(1, Number(path?.data?.draw_len) || 800);
+              path.strokeDashArray = [len, len];
+              path.strokeDashOffset = len * (1 - prog);
+              path.dirty = true;
             }
             if (head) {
               head.opacity = prog >= 0.98 ? 1 : 0;

@@ -86,6 +86,7 @@
               <button type="button" class="button" id="vs-tool-select">Select</button>
               <button type="button" class="button" id="vs-tool-pen">Pen</button>
               <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
+              <button type="button" class="button" id="vs-tool-curve">Curve</button>
               <button type="button" class="button" id="vs-tool-text">Texto</button>
               <button type="button" class="button" id="vs-tool-callout">Callout</button>
               <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
@@ -167,8 +168,27 @@
 	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
 	                <button type="button" class="button primary" id="vs-export-pdf">PDF slides</button>
 	                <button type="button" class="button" id="vs-export-package">Paquete ZIP</button>
+	                <button type="button" class="button" id="vs-report-pdf">Informe PDF</button>
 	              </div>
 	            </div>
+
+              <div class="split">
+                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Plantillas</div>
+                <div class="hint">Añade guías rápidas (carriles, zonas) para telestración.</div>
+                <label>
+                  Plantilla
+                  <select id="vs-template">
+                    <option value="">—</option>
+                    <option value="lanes">Carriles (5)</option>
+                    <option value="central_box">Caja central</option>
+                    <option value="final_third">Último tercio</option>
+                  </select>
+                </label>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
+                  <button type="button" class="button" id="vs-template-apply">Aplicar</button>
+                  <button type="button" class="button danger" id="vs-template-clear">Quitar plantillas</button>
+                </div>
+              </div>
 
 	            <div class="split">
 	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Capa seleccionada</div>
@@ -199,6 +219,7 @@
                   <select id="vs-layer-anim">
                     <option value="none">Ninguna</option>
                     <option value="draw">Trazo progresivo</option>
+                    <option value="pulse">Pulse</option>
                   </select>
                 </label>
                 <div id="vs-fx-form" style="display:none; gap:0.45rem;">
@@ -360,6 +381,7 @@
 	    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
+	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
 	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

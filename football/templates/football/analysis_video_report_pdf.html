@@ -1,0 +1,98 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{{ title }}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
+    <style>
+      @page { size: A4; margin: 14mm; }
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; }
+      h1 { margin: 0 0 6px 0; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; }
+      h2 { margin: 16px 0 8px 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+      .meta { color: #334155; font-weight: 700; font-size: 10px; }
+      .box { border: 1px solid rgba(15, 23, 42, 0.18); border-radius: 10px; padding: 10px; margin-top: 10px; }
+      .row { width: 100%; border-collapse: collapse; }
+      .row td { vertical-align: top; padding: 4px 6px; font-size: 10px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+      .k { display: inline-block; padding: 2px 6px; border-radius: 999px; background: rgba(2, 6, 23, 0.06); border: 1px solid rgba(15, 23, 42, 0.12); font-weight: 800; font-size: 9px; }
+      .clip-title { font-weight: 900; }
+      .notes { margin-top: 6px; font-size: 10px; color: #0f172a; white-space: pre-wrap; }
+      .muted { color: #64748b; }
+      .spacer { height: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>{{ title }}</h1>
+    <div class="meta">
+      {% if team %}{{ team.display_name|default:team.name }} · {% endif %}
+      {{ video.title|default:"Vídeo" }}
+      · Generado: {{ generated_at|date:"Y-m-d H:i" }}
+    </div>
+
+    <div class="box">
+      <table class="row">
+        <tr>
+          <td><span class="k">Clips</span></td>
+          <td style="width:100%">{{ clips|length }}</td>
+          <td><span class="k">Eventos</span></td>
+          <td>{{ timeline|length }}</td>
+        </tr>
+      </table>
+      <div class="meta muted">Sugerencia: usa este informe como guion (tiempos + notas) y comparte clips/export si necesitas vídeo.</div>
+    </div>
+
+    <h2>Clips</h2>
+    {% if clips %}
+      {% for clip in clips %}
+        <div class="box">
+          <div class="clip-title">
+            {{ forloop.counter }}. {{ clip.title|default:"Clip" }}
+          </div>
+          <div class="meta">
+            <span class="k">{{ clip.in_seconds|floatformat:1 }}s</span>
+            →
+            <span class="k">{{ clip.out_seconds|floatformat:1 }}s</span>
+            {% if clip.collection %} · <span class="k">{{ clip.collection }}</span>{% endif %}
+          </div>
+          {% if clip.tags %}
+            <div class="meta" style="margin-top:6px;">
+              <span class="k">Tags</span>
+              {{ clip.tags|join:", " }}
+            </div>
+          {% endif %}
+          {% if clip.notes %}
+            <div class="notes">{{ clip.notes }}</div>
+          {% else %}
+            <div class="notes muted">Sin notas.</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="meta muted">Sin clips.</div>
+    {% endif %}
+
+    <h2>Timeline</h2>
+    {% if timeline %}
+      <div class="box">
+        <table class="row">
+          <tr>
+            <td style="font-weight:900;">Tiempo</td>
+            <td style="font-weight:900;">Tipo</td>
+            <td style="font-weight:900; width:100%;">Etiqueta</td>
+          </tr>
+          {% for ev in timeline %}
+            <tr>
+              <td><span class="k">{{ ev.time_seconds|floatformat:1 }}s</span></td>
+              <td>{{ ev.get_kind_display }}</td>
+              <td>{{ ev.label|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% else %}
+      <div class="meta muted">Sin eventos.</div>
+    {% endif %}
+  </body>
+</html>
+

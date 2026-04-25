@@ -85,6 +85,7 @@ urlpatterns = [
     path('api/analysis/video-studio/export/pdf/', views.analysis_video_studio_export_pdf_api, name='analysis-video-studio-export-pdf-api'),
     path('api/analysis/video-studio/export/package/', views.analysis_video_studio_export_package_api, name='analysis-video-studio-export-package-api'),
     path('api/analysis/video-studio/export/upload/', views.analysis_video_studio_export_upload_api, name='analysis-video-studio-export-upload-api'),
+    path('api/analysis/video-studio/report/pdf/', views.analysis_video_studio_report_pdf_api, name='analysis-video-studio-report-pdf-api'),
     path('api/analysis/video-studio/share-links/', views.analysis_video_studio_share_links_api, name='analysis-video-studio-share-links-api'),
     path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),
     path('api/pdf-assets/delete/', views.pdf_graphic_asset_delete_api, name='pdf-graphic-asset-delete-api'),

@@ -32676,6 +32676,66 @@ def analysis_video_studio_timeline_delete_api(request):
 @csrf_exempt
 @login_required
 @require_POST
+def analysis_video_studio_report_pdf_api(request):
+    """
+    Informe PDF de vídeo (clips + timeline).
+
+    - No genera miniaturas (no hay extracción server-side de frames).
+    - Incluye notas, tags y tiempos para que el staff lo use como guion.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    clip_ids = data.get('clip_ids')
+    if not isinstance(clip_ids, list):
+        clip_ids = []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:400]
+
+    clip_qs = VideoClip.objects.filter(team=primary_team, video_id=int(video_id)).order_by('in_ms', 'id')
+    if clip_ids:
+        clip_qs = clip_qs.filter(id__in=clip_ids)
+    clips = list(clip_qs[:260])
+
+    timeline = list(
+        VideoTimelineEvent.objects
+        .filter(team=primary_team, video_id=int(video_id))
+        .order_by('time_ms', 'id')[:900]
+    )
+
+    context = {
+        'team': primary_team,
+        'video': video,
+        'title': title,
+        'generated_at': timezone.now(),
+        'clips': clips,
+        'timeline': timeline,
+    }
+    html = render_to_string('football/analysis_video_report_pdf.html', context)
+    filename = slugify(f'video-informe-{primary_team.id}-{video_id}-{title}') or f'video-informe-{video_id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@csrf_exempt
+@login_required
+@require_POST
 def analysis_video_studio_export_pdf_api(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
