@@ -12630,15 +12630,29 @@
       form.addEventListener('change', () => scheduleDraftSave('change'));
     }
 
-    const initTaskModeTabs = () => {
-      const tabs = document.getElementById('task-mode-tabs');
-      if (!tabs) return;
-      const buttons = Array.from(tabs.querySelectorAll('button[data-task-mode]'));
-      if (!buttons.length) return;
-      const storageKey = 'tpad_task_mode_v1';
-      const isNarrow = () => {
-        try { return window.matchMedia('(max-width: 1160px)').matches; } catch (error) { return true; }
-      };
+	    const initTaskModeTabs = () => {
+	      const tabs = document.getElementById('task-mode-tabs');
+	      if (!tabs) return;
+	      const buttons = Array.from(tabs.querySelectorAll('button[data-task-mode]'));
+	      if (!buttons.length) return;
+	      const storageKey = 'tpad_task_mode_v1';
+	      const isTacticsMode = (() => {
+	        try { return safeText(form?.dataset?.tacticsMode) === '1'; } catch (e) { return false; }
+	      })();
+	      // En Táctica necesitamos ver pizarra + panel lateral a la vez. El toggle (Pizarra/Contenido)
+	      // oculta uno de los paneles (modo board/text), lo que rompe "Simulador" porque el popover
+	      // vive en el panel de la pizarra. Por eso lo desactivamos aquí.
+	      if (isTacticsMode) {
+	        try { tabs.style.display = 'none'; } catch (e) { /* ignore */ }
+	        try {
+	          document.body.classList.remove('task-mode-ready', 'task-mode-board', 'task-mode-text', 'task-mode-both');
+	        } catch (e) { /* ignore */ }
+	        try { window.localStorage.removeItem(storageKey); } catch (e) { /* ignore */ }
+	        return;
+	      }
+	      const isNarrow = () => {
+	        try { return window.matchMedia('(max-width: 1160px)').matches; } catch (error) { return true; }
+	      };
       const readMode = () => {
         try {
           const stored = safeText(window.localStorage.getItem(storageKey));
