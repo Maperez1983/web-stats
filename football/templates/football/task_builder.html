@@ -8542,6 +8542,26 @@
 
 		        if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
 		        initTaskAssistant();
+
+            // Fallback UX (modo táctica): si el JS principal tarda en cargar o falla,
+            // al pulsar “Simulador” al menos mostramos el panel del simulador.
+            try {
+              const isTacticsModeFallback = {% if tactics_mode %}true{% else %}false{% endif %};
+              if (isTacticsModeFallback) {
+                const statusEl = document.getElementById('task-builder-status');
+                const simPopoverEl = document.getElementById('task-sim-popover');
+                const openSimFallback = () => {
+                  try { if (simPopoverEl) simPopoverEl.hidden = false; } catch (e) { /* ignore */ }
+                  try { if (statusEl) statusEl.textContent = 'Simulador: panel abierto.'; } catch (e) { /* ignore */ }
+                };
+                ['task-playbook-open-sim', 'task-playbook-open-3d', 'task-playbook-open-video', 'task-playbook-export-pack']
+                  .forEach((id) => {
+                    const btn = document.getElementById(id);
+                    if (!btn) return;
+                    btn.addEventListener('click', openSimFallback);
+                  });
+              }
+            } catch (e) { /* ignore */ }
 		      });
 		    </script>
     {% if task %}
