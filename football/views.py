@@ -16839,6 +16839,384 @@ def match_staff_report_pdf(request):
     return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
 
 
+def _kpi_explorer_derived_metrics():
+    return [
+        {'key': 'total_actions', 'label': 'Acciones (totales)', 'format': 'int'},
+        {'key': 'successes', 'label': 'Acciones OK', 'format': 'int'},
+        {'key': 'success_rate', 'label': '% éxito', 'format': 'pct'},
+        {'key': 'goals', 'label': 'Goles', 'format': 'int'},
+        {'key': 'assists', 'label': 'Asistencias', 'format': 'int'},
+        {'key': 'yellow_cards', 'label': 'Tarjetas amarillas', 'format': 'int'},
+        {'key': 'red_cards', 'label': 'Tarjetas rojas', 'format': 'int'},
+        {'key': 'duels_total', 'label': 'Duelos (totales)', 'format': 'int'},
+        {'key': 'duels_won', 'label': 'Duelos ganados', 'format': 'int'},
+        {'key': 'duel_rate', 'label': 'Duelos %', 'format': 'pct'},
+        {'key': 'aerial_duels_total', 'label': 'Duelos aéreos (totales)', 'format': 'int'},
+        {'key': 'aerial_duels_won', 'label': 'Duelos aéreos ganados', 'format': 'int'},
+        {'key': 'aerial_duel_rate', 'label': 'Duelos aéreos %', 'format': 'pct'},
+        {'key': 'shot_attempts', 'label': 'Disparos (intentos)', 'format': 'int'},
+        {'key': 'shots_on_target', 'label': 'Disparos a puerta', 'format': 'int'},
+        {'key': 'shots_accuracy', 'label': 'Tiro a puerta %', 'format': 'pct'},
+        {'key': 'pass_attempts', 'label': 'Pases (intentos)', 'format': 'int'},
+        {'key': 'passes_completed', 'label': 'Pases completados', 'format': 'int'},
+        {'key': 'passes_accuracy', 'label': 'Pase %', 'format': 'pct'},
+        {'key': 'key_passes_completed', 'label': 'Pases clave', 'format': 'int'},
+        {'key': 'goalkeeper_saves', 'label': 'Paradas', 'format': 'int'},
+    ]
+
+
+def _kpi_explorer_load_events(request, *, primary_team, scope, match_id=0, player_id=0, context='all'):
+    if not primary_team:
+        return []
+    scope = str(scope or 'team').strip().lower()
+    if scope not in {'team', 'player', 'match'}:
+        scope = 'team'
+    context = str(context or 'all').strip().lower()
+    if context not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+        context = 'all'
+
+    qs = (
+        confirmed_events_queryset()
+        .filter(player__team=primary_team)
+        .select_related('match', 'player')
+        .order_by('minute', 'id')
+    )
+    if context != 'all':
+        qs = qs.filter(match__context=context)
+    if match_id:
+        qs = qs.filter(match_id=int(match_id))
+    if scope == 'player' and player_id:
+        qs = qs.filter(player_id=int(player_id))
+    qs = qs[:20000]
+
+    preferred_sources = preferred_event_source_by_match(primary_team, scope=context)
+    return _filter_stats_events(list(qs), preferred_sources=preferred_sources)
+
+
+def _kpi_explorer_compute(events):
+    stats = {
+        'total_actions': 0,
+        'successes': 0,
+        'goals': 0,
+        'assists': 0,
+        'yellow_cards': 0,
+        'red_cards': 0,
+        'duels_total': 0,
+        'duels_won': 0,
+        'aerial_duels_total': 0,
+        'aerial_duels_won': 0,
+        'shot_attempts': 0,
+        'shots_on_target': 0,
+        'pass_attempts': 0,
+        'passes_completed': 0,
+        'key_passes_completed': 0,
+        'goalkeeper_saves': 0,
+    }
+    event_type_counter = Counter()
+    result_counter = Counter()
+    zone_counter = Counter()
+    tercio_counter = Counter()
+
+    for ev in events:
+        stats['total_actions'] += 1
+        etype = str(getattr(ev, 'event_type', '') or '').strip() or '—'
+        res = str(getattr(ev, 'result', '') or '').strip() or '—'
+        event_type_counter[etype] += 1
+        result_counter[res] += 1
+
+        if result_is_success(getattr(ev, 'result', None)):
+            stats['successes'] += 1
+        if is_goal_event(ev.event_type, ev.result, ev.observation):
+            stats['goals'] += 1
+        if is_assist_event(ev.event_type, ev.result, ev.observation):
+            stats['assists'] += 1
+        if is_yellow_card_event(ev.event_type, ev.result, ev.zone):
+            stats['yellow_cards'] += 1
+        if is_red_card_event(ev.event_type, ev.result, ev.zone):
+            stats['red_cards'] += 1
+
+        duel_event = classify_duel_event(ev.event_type, ev.result, ev.observation, ev.zone)
+        if duel_event.get('is_duel'):
+            stats['duels_total'] += 1
+            if duel_event.get('won'):
+                stats['duels_won'] += 1
+            if duel_event.get('aerial'):
+                stats['aerial_duels_total'] += 1
+                if duel_event.get('won'):
+                    stats['aerial_duels_won'] += 1
+
+        if is_shot_attempt_event(ev.event_type, ev.result, ev.observation):
+            stats['shot_attempts'] += 1
+            if is_shot_on_target_event(ev.event_type, ev.result, ev.observation):
+                stats['shots_on_target'] += 1
+        if is_goalkeeper_save_event(ev.event_type, ev.result, ev.observation):
+            stats['goalkeeper_saves'] += 1
+
+        is_pass_event = (
+            contains_keyword(ev.event_type, PASS_KEYWORDS)
+            or contains_keyword(ev.observation, PASS_KEYWORDS)
+            or is_assist_event(ev.event_type, ev.result, ev.observation)
+        )
+        if is_pass_event:
+            stats['pass_attempts'] += 1
+            completed = result_is_success(ev.result) or is_assist_event(ev.event_type, ev.result, ev.observation)
+            if completed:
+                stats['passes_completed'] += 1
+                if is_key_pass_event(ev.event_type, ev.result, ev.observation):
+                    stats['key_passes_completed'] += 1
+
+        zone_label = map_zone_label((getattr(ev, 'zone', '') or '').strip()) or ''
+        if zone_label:
+            zone_counter[zone_label] += 1
+        tercio_label = map_tercio((getattr(ev, 'tercio', '') or '').strip()) or ''
+        if not tercio_label and zone_label:
+            tercio_label = zone_to_tercio(zone_label)
+        if tercio_label:
+            tercio_counter[tercio_label] += 1
+
+    stats['success_rate'] = round((stats['successes'] / stats['total_actions']) * 100, 1) if stats['total_actions'] else 0
+    stats['duel_rate'] = round((stats['duels_won'] / stats['duels_total']) * 100, 1) if stats['duels_total'] else 0
+    stats['aerial_duel_rate'] = round((stats['aerial_duels_won'] / stats['aerial_duels_total']) * 100, 1) if stats['aerial_duels_total'] else 0
+    stats['shots_accuracy'] = round((stats['shots_on_target'] / stats['shot_attempts']) * 100, 1) if stats['shot_attempts'] else 0
+    stats['passes_accuracy'] = round((stats['passes_completed'] / stats['pass_attempts']) * 100, 1) if stats['pass_attempts'] else 0
+
+    dimensions = {
+        'event_types': [{'value': k, 'count': int(v)} for k, v in event_type_counter.most_common(220)],
+        'results': [{'value': k, 'count': int(v)} for k, v in result_counter.most_common(120)],
+        'zones': [{'value': k, 'count': int(v)} for k, v in zone_counter.most_common(120)],
+        'tercios': [{'value': k, 'count': int(v)} for k, v in tercio_counter.most_common(20)],
+    }
+    return stats, dimensions
+
+
+@login_required
+def kpi_explorer_page(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede acceder a KPIs.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    matches = list(
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team')
+        .order_by('-date', '-id')[:60]
+    )
+    roster = list(Player.objects.filter(team=primary_team).order_by('name')[:120])
+    match_items = []
+    for m in matches:
+        opp = m.away_team if m.home_team_id == primary_team.id else m.home_team
+        opp_name = str(getattr(opp, 'display_name', '') or getattr(opp, 'name', '') or '').strip() or 'Rival'
+        label = f"{m.date.strftime('%d/%m/%Y') if m.date else '—'} · vs {opp_name}"
+        if m.round:
+            label = f"{m.round} · {label}"
+        match_items.append({'id': int(m.id), 'label': label, 'context': str(getattr(m, 'context', '') or '').strip()})
+    player_items = [{'id': int(p.id), 'label': f"{p.name}{f' · #{p.number}' if p.number else ''}".strip()} for p in roster]
+    return render(
+        request,
+        'football/kpi_explorer.html',
+        {
+            'team': primary_team,
+            'match_items': match_items,
+            'player_items': player_items,
+            'derived_metrics': _kpi_explorer_derived_metrics(),
+        },
+    )
+
+
+@login_required
+def kpi_explorer_options_api(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo no disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    scope = str(request.GET.get('scope') or 'team').strip().lower()
+    match_id = _parse_int(request.GET.get('match_id')) or 0
+    player_id = _parse_int(request.GET.get('player_id')) or 0
+    context = str(request.GET.get('context') or 'all').strip().lower()
+    events = _kpi_explorer_load_events(request, primary_team=primary_team, scope=scope, match_id=match_id, player_id=player_id, context=context)
+    stats, dims = _kpi_explorer_compute(events)
+    return JsonResponse({'ok': True, 'derived': _kpi_explorer_derived_metrics(), 'stats': stats, 'dimensions': dims})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def kpi_explorer_query_api(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo no disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    scope = str(data.get('scope') or 'team').strip().lower()
+    match_id = _parse_int(data.get('match_id')) or 0
+    player_id = _parse_int(data.get('player_id')) or 0
+    context = str(data.get('context') or 'all').strip().lower()
+    metrics = data.get('metrics')
+    if not isinstance(metrics, list):
+        metrics = []
+    metrics = metrics[:80]
+    events = _kpi_explorer_load_events(request, primary_team=primary_team, scope=scope, match_id=match_id, player_id=player_id, context=context)
+    stats, dims = _kpi_explorer_compute(events)
+
+    event_type_counts = {row['value']: int(row['count']) for row in (dims.get('event_types') or []) if isinstance(row, dict)}
+    result_counts = {row['value']: int(row['count']) for row in (dims.get('results') or []) if isinstance(row, dict)}
+    zone_counts = {row['value']: int(row['count']) for row in (dims.get('zones') or []) if isinstance(row, dict)}
+    tercio_counts = {row['value']: int(row['count']) for row in (dims.get('tercios') or []) if isinstance(row, dict)}
+
+    out = []
+    derived_defs = _kpi_explorer_derived_metrics()
+    for m in metrics:
+        if not isinstance(m, dict):
+            continue
+        kind = str(m.get('kind') or '').strip().lower()
+        if kind == 'derived':
+            key = str(m.get('key') or '').strip()
+            if not key:
+                continue
+            label = next((x['label'] for x in derived_defs if x.get('key') == key), key)
+            value = stats.get(key, 0)
+            out.append({'kind': 'derived', 'key': key, 'label': label, 'value': value})
+        elif kind == 'event_type':
+            value = str(m.get('value') or '').strip()
+            if not value:
+                continue
+            out.append({'kind': 'event_type', 'key': value, 'label': f'Acción: {value}', 'value': int(event_type_counts.get(value, 0))})
+        elif kind == 'result':
+            value = str(m.get('value') or '').strip() or '—'
+            out.append({'kind': 'result', 'key': value, 'label': f'Resultado: {value}', 'value': int(result_counts.get(value, 0))})
+        elif kind == 'zone':
+            value = str(m.get('value') or '').strip()
+            if not value:
+                continue
+            out.append({'kind': 'zone', 'key': value, 'label': f'Zona: {value}', 'value': int(zone_counts.get(value, 0))})
+        elif kind == 'tercio':
+            value = str(m.get('value') or '').strip()
+            if not value:
+                continue
+            out.append({'kind': 'tercio', 'key': value, 'label': f'Tercio: {value}', 'value': int(tercio_counts.get(value, 0))})
+
+    return JsonResponse({'ok': True, 'stats': stats, 'dimensions': dims, 'results': out})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def kpi_explorer_pdf_api(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo no disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180) or 'KPIs'
+
+    # Reusa lógica de query para construir tabla (misma request body).
+    try:
+        query_payload = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        query_payload = {}
+    # Montamos una request-like: reutilizamos directamente el compute con los parámetros.
+    scope = str(query_payload.get('scope') or 'team').strip().lower()
+    match_id = _parse_int(query_payload.get('match_id')) or 0
+    player_id = _parse_int(query_payload.get('player_id')) or 0
+    context = str(query_payload.get('context') or 'all').strip().lower()
+    metrics = query_payload.get('metrics')
+    if not isinstance(metrics, list):
+        metrics = []
+    metrics = metrics[:80]
+
+    events = _kpi_explorer_load_events(request, primary_team=primary_team, scope=scope, match_id=match_id, player_id=player_id, context=context)
+    stats, dims = _kpi_explorer_compute(events)
+    # Construye resultados igual que query_api.
+    event_type_counts = {row['value']: int(row['count']) for row in (dims.get('event_types') or []) if isinstance(row, dict)}
+    result_counts = {row['value']: int(row['count']) for row in (dims.get('results') or []) if isinstance(row, dict)}
+    zone_counts = {row['value']: int(row['count']) for row in (dims.get('zones') or []) if isinstance(row, dict)}
+    tercio_counts = {row['value']: int(row['count']) for row in (dims.get('tercios') or []) if isinstance(row, dict)}
+    derived_defs = _kpi_explorer_derived_metrics()
+    results = []
+    for m in metrics:
+        if not isinstance(m, dict):
+            continue
+        kind = str(m.get('kind') or '').strip().lower()
+        if kind == 'derived':
+            key = str(m.get('key') or '').strip()
+            if not key:
+                continue
+            label = next((x['label'] for x in derived_defs if x.get('key') == key), key)
+            results.append({'label': label, 'value': stats.get(key, 0)})
+        elif kind == 'event_type':
+            value = str(m.get('value') or '').strip()
+            if value:
+                results.append({'label': f'Acción: {value}', 'value': int(event_type_counts.get(value, 0))})
+        elif kind == 'result':
+            value = str(m.get('value') or '').strip() or '—'
+            results.append({'label': f'Resultado: {value}', 'value': int(result_counts.get(value, 0))})
+        elif kind == 'zone':
+            value = str(m.get('value') or '').strip()
+            if value:
+                results.append({'label': f'Zona: {value}', 'value': int(zone_counts.get(value, 0))})
+        elif kind == 'tercio':
+            value = str(m.get('value') or '').strip()
+            if value:
+                results.append({'label': f'Tercio: {value}', 'value': int(tercio_counts.get(value, 0))})
+
+    match_label = ''
+    player_label = ''
+    try:
+        if match_id:
+            m = _team_match_queryset(primary_team).select_related('home_team', 'away_team').filter(id=int(match_id)).first()
+            if m:
+                opp = m.away_team if m.home_team_id == primary_team.id else m.home_team
+                opp_name = str(getattr(opp, 'display_name', '') or getattr(opp, 'name', '') or '').strip() or 'Rival'
+                match_label = f"{m.date.strftime('%d/%m/%Y') if m.date else '—'} · vs {opp_name}"
+                if m.round:
+                    match_label = f"{m.round} · {match_label}"
+        if player_id:
+            p = Player.objects.filter(team=primary_team, id=int(player_id)).first()
+            if p:
+                player_label = p.name
+    except Exception:
+        pass
+
+    context_map = dict(Match.CONTEXT_CHOICES)
+    scope_map = {'team': 'Equipo', 'match': 'Partido', 'player': 'Jugador'}
+    html = render_to_string(
+        'football/kpi_explorer_pdf.html',
+        {
+            'team': primary_team,
+            'title': title,
+            'generated_at': timezone.now(),
+            'scope_label': scope_map.get(scope, scope),
+            'context_label': context_map.get(context, context) if context != 'all' else 'Todos',
+            'match_label': match_label,
+            'player_label': player_label,
+            'rows': results,
+        },
+    )
+    filename = slugify(f'kpis-{scope}-{match_id or "all"}-{player_id or "all"}-{title}') or 'kpis'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
 @login_required
 def team_season_report_pdf(request):
     if not _can_edit_match_actions(request.user):

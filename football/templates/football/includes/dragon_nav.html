@@ -184,6 +184,9 @@
       {% if workspace_module_access.analysis|default:True %}
       <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Análisis</a>
       {% endif %}
+      {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
+      <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">KPIs avanzados</a>
+      {% endif %}
       {% if workspace_module_access.tactics|default:True %}
       <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Táctica</a>
       {% endif %}
