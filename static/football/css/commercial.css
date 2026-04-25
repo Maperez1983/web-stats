@@ -734,6 +734,111 @@ body.prod-commercial .ws-skeleton::after {
   }
 }
 
+/* ------------------------------------------------------------
+   Theme overrides for inline nav/command palette styles
+   (dragon_nav.html inlines dark-first CSS; aquí lo hacemos theme-aware)
+------------------------------------------------------------ */
+
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a {
+  color: rgba(15, 23, 42, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  background: rgba(15, 23, 42, 0.03) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a:hover {
+  border-color: rgba(15, 23, 42, 0.22) !important;
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .product-nav-shortcuts a.is-active {
+  border-color: rgba(47, 125, 50, 0.32) !important;
+  background: linear-gradient(135deg, rgba(47, 125, 50, 0.12), rgba(244, 180, 0, 0.1)) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context {
+  color: rgba(15, 23, 42, 0.72) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-sep {
+  color: rgba(15, 23, 42, 0.38) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-subtitle {
+  color: rgba(47, 125, 50, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .nav-context-section {
+  color: rgba(71, 85, 105, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-backdrop {
+  background: rgba(15, 23, 42, 0.28) !important;
+  backdrop-filter: blur(3px);
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-panel {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.12) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-head {
+  border-bottom-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-input {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-hint {
+  color: rgba(71, 85, 105, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-item {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  background: rgba(15, 23, 42, 0.03) !important;
+  color: rgba(15, 23, 42, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-sub {
+  color: rgba(71, 85, 105, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-section {
+  color: rgba(71, 85, 105, 0.92) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-close,
+:root[data-theme="light"] body.prod-commercial .cmdk-star {
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  background: rgba(15, 23, 42, 0.04) !important;
+  color: rgba(15, 23, 42, 0.9) !important;
+}
+
+:root[data-theme="light"] body.prod-commercial .cmdk-star.is-fav {
+  border-color: rgba(47, 125, 50, 0.28) !important;
+  background: rgba(47, 125, 50, 0.08) !important;
+}
+
+:root[data-theme="hc"] body.prod-commercial .cmdk-panel {
+  background: rgba(0, 0, 0, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.34) !important;
+}
+
+:root[data-theme="hc"] body.prod-commercial .cmdk-item {
+  border-color: rgba(255, 255, 255, 0.26) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+:root[data-theme="hc"] body.prod-commercial .cmdk-item[aria-selected="true"] {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
 /* Presentation mode: ocultar navegación y dar más espacio al contenido. */
 :root[data-presentation="1"] body.prod-commercial .dragon-nav,
 :root[data-presentation="1"] body.prod-commercial .logout-form,
