@@ -856,10 +856,32 @@
         max-height: min(68vh, 640px);
         overflow: auto;
       }
-	      .scenarios-popover-body .meta {
-	        margin: 0 0 0.6rem;
-	        opacity: 0.9;
-	      }
+      .scenarios-popover-body .meta {
+        margin: 0 0 0.6rem;
+        opacity: 0.9;
+      }
+      /* En iPad/portrait el contenedor del campo tiene `overflow:hidden` para recortar el canvas.
+         Los popovers “flotantes” (simulador/capas/escenarios) deben salir fuera del campo, así que
+         en modo táctica los convertimos en overlays fijos para que siempre sean visibles. */
+      body.tactics-mode .layers-popover,
+      body.tactics-mode .scenarios-popover,
+      body.tactics-mode .sim-popover {
+        position: fixed;
+        top: calc(88px + env(safe-area-inset-top));
+        right: calc(14px + env(safe-area-inset-right));
+        left: auto;
+        z-index: 1200;
+        max-height: calc(100vh - 110px - env(safe-area-inset-top));
+      }
+      @media (max-width: 820px) {
+        body.tactics-mode .layers-popover,
+        body.tactics-mode .scenarios-popover,
+        body.tactics-mode .sim-popover {
+          left: calc(14px + env(safe-area-inset-left));
+          right: calc(14px + env(safe-area-inset-right));
+          width: auto;
+        }
+      }
 	      .sim-popover {
 	        position: absolute;
 	        top: calc(100% + 10px);
@@ -2801,7 +2823,7 @@
 	      }
 	    </style>
   </head>
-  <body class="prod-commercial">
+  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
     <main class="page">
       {% if show_dragon_nav|default:True %}
       {% include 'football/includes/dragon_nav.html' %}
