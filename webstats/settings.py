@@ -206,11 +206,17 @@ SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV
 
-# Payloads grandes (preview HD de la pizarra)
-# Por defecto Django limita el tamaño del body en memoria (≈2.5MB). Las previews en base64 pueden
-# superar ese límite y hacer que "Guardar" falle silenciosamente o devuelva 400/413.
-DATA_UPLOAD_MAX_MEMORY_SIZE = _env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 30 * 1024 * 1024)  # 30MB
-FILE_UPLOAD_MAX_MEMORY_SIZE = _env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 30 * 1024 * 1024)  # 30MB
+# Payloads grandes (preview HD de la pizarra / vídeo / assets)
+# Por defecto Django limita el tamaño del body en memoria (≈2.5MB). Entre previews en base64 y
+# subidas de vídeo, ese límite puede romper guardados (400/413) o impedir subir archivos grandes.
+#
+# Nota: el límite real en producción también depende del reverse proxy / plataforma.
+DATA_UPLOAD_MAX_MEMORY_SIZE = _env_int('DATA_UPLOAD_MAX_MEMORY_SIZE', 512 * 1024 * 1024)  # 512MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = _env_int('FILE_UPLOAD_MAX_MEMORY_SIZE', 64 * 1024 * 1024)  # 64MB (memoria → tmp)
+
+# Subidas: vídeos (análisis)
+# El límite real puede ser menor según hosting, pero esto nos permite dar un error claro en UI.
+ANALYSIS_VIDEO_MAX_UPLOAD_MB = _env_int('ANALYSIS_VIDEO_MAX_UPLOAD_MB', 2048)  # 2GB
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', True)

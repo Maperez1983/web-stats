@@ -30180,8 +30180,32 @@ def session_task_detail_page(request, task_id):
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
             'related_tasks': related_tasks,
+            'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
+            if request.user and request.user.is_authenticated
+            else False,
         },
     )
+
+
+@authenticated_write
+@require_POST
+def toggle_session_task_bookmark(request, task_id):
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'error': 'No tienes permisos para acceder a sesiones.'}, status=403)
+    task = (
+        SessionTask.objects
+        .select_related('session__microcycle__team')
+        .filter(id=task_id, deleted_at__isnull=True)
+        .first()
+    )
+    if not task:
+        return JsonResponse({'error': 'Tarea no encontrada.'}, status=404)
+    bookmark = SessionTaskBookmark.objects.filter(user=request.user, task=task).first()
+    if bookmark:
+        bookmark.delete()
+        return JsonResponse({'ok': True, 'bookmarked': False})
+    SessionTaskBookmark.objects.create(user=request.user, task=task)
+    return JsonResponse({'ok': True, 'bookmarked': True})
 
 
 @authenticated_write
@@ -30603,26 +30627,32 @@ def analysis_page(request):
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
             folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
-            if not video_file:
+            if not primary_team:
+                video_error = 'No hay equipo principal configurado.'
+            elif not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
             else:
-                entry = RivalVideo.objects.create(
-                    team=primary_team,
-                    rival_team=rival_team,
-                    folder=folder,
-                    title=video_title,
-                    video=video_file,
-                    source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
-                    notes=(request.POST.get('video_notes') or '').strip(),
-                )
-                assigned_player_ids = [
-                    player_id
-                    for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
-                    if player_id
-                ]
-                if assigned_player_ids:
-                    entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
-                video_message = 'Vídeo subido correctamente.'
+                max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
+                if max_mb and int(getattr(video_file, 'size', 0) or 0) > max_mb * 1024 * 1024:
+                    video_error = f'El vídeo supera el límite de {max_mb}MB.'
+                else:
+                    entry = RivalVideo.objects.create(
+                        team=primary_team,
+                        rival_team=rival_team,
+                        folder=folder,
+                        title=video_title,
+                        video=video_file,
+                        source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
+                        notes=(request.POST.get('video_notes') or '').strip(),
+                    )
+                    assigned_player_ids = [
+                        player_id
+                        for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
+                        if player_id
+                    ]
+                    if assigned_player_ids:
+                        entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
+                    video_message = 'Vídeo subido correctamente.'
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
             if not primary_team:
@@ -31201,11 +31231,12 @@ def analysis_page(request):
             'rival_videos': rival_videos,
             'video_error': video_error,
             'video_message': video_message,
-            'video_sources': RivalVideo.SOURCE_CHOICES,
-            'video_folders': video_folders,
-            'selected_folder_id': selected_folder_id,
-            'folder_message': folder_message,
-            'folder_error': folder_error,
+	            'video_sources': RivalVideo.SOURCE_CHOICES,
+	            'analysis_video_max_upload_mb': int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0),
+	            'video_folders': video_folders,
+	            'selected_folder_id': selected_folder_id,
+	            'folder_message': folder_message,
+	            'folder_error': folder_error,
             'analyst_players': analyst_players,
             'home_rival_name': home_rival_name,
             'extracted': extracted,

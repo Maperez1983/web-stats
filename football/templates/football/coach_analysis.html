@@ -279,6 +279,24 @@
       .multi-select {
         min-height: 150px;
       }
+      .upload-progress {
+        display: none;
+        gap: 0.5rem;
+        align-items: center;
+        margin-top: 0.6rem;
+      }
+      .upload-progress.is-visible {
+        display: flex;
+      }
+      .upload-progress progress {
+        width: 100%;
+        height: 14px;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .upload-progress .meta {
+        white-space: nowrap;
+      }
       .report-row {
         display: flex;
         flex-wrap: wrap;
@@ -584,11 +602,18 @@
               {% endfor %}
             </div>
             {% endif %}
-            <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.5rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="upload_video" />
-              <input type="hidden" name="video_team_id" value="{{ team_id }}" />
-              <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+	            <form
+	              class="form"
+	              method="post"
+	              enctype="multipart/form-data"
+	              style="margin-top:0.5rem;"
+	              id="video-upload-form"
+	              data-max-mb="{{ analysis_video_max_upload_mb|default:'' }}"
+	            >
+	              {% csrf_token %}
+	              <input type="hidden" name="form_action" value="upload_video" />
+	              <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+	              <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
               <div>
                 <label for="video_title">Título</label>
                 <input id="video_title" name="video_title" type="text" placeholder="Análisis jornada, ABP, transiciones..." />
@@ -610,10 +635,13 @@
                   {% endfor %}
                 </select>
               </div>
-              <div>
-                <label for="video_file">Vídeo</label>
-                <input id="video_file" name="video_file" type="file" accept="video/*" required />
-              </div>
+	              <div>
+	                <label for="video_file">Vídeo</label>
+	                <input id="video_file" name="video_file" type="file" accept="video/*" required />
+	                {% if analysis_video_max_upload_mb %}
+	                  <div class="meta" style="margin-top:0.35rem;">Máx: {{ analysis_video_max_upload_mb }}MB (según hosting puede ser menor).</div>
+	                {% endif %}
+	              </div>
               <div>
                 <label for="video_notes">Notas</label>
                 <textarea id="video_notes" name="video_notes" style="min-height:80px;"></textarea>
@@ -626,10 +654,14 @@
                   {% endfor %}
                 </select>
               </div>
-              <div class="actions">
-                <button class="button" type="submit">Subir vídeo</button>
-              </div>
-            </form>
+	              <div class="actions">
+	                <button class="button" type="submit" id="video-upload-submit">Subir vídeo</button>
+	              </div>
+	              <div class="upload-progress" id="video-upload-progress">
+	                <progress id="video-upload-progress-bar" value="0" max="100"></progress>
+	                <span class="meta" id="video-upload-progress-label">0%</span>
+	              </div>
+	            </form>
             {% if video_message %}
             <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
             {% endif %}
@@ -818,7 +850,66 @@
             if (summary) summary.textContent = 'No se pudo cargar la forma reciente.';
             if (list) list.innerHTML = '<li><span class="meta">Revisa la configuración de Universo.</span></li>';
           });
-      })();
-    </script>
-  </body>
-</html>
+	      })();
+	
+	      (function () {
+	        const form = document.getElementById('video-upload-form');
+	        if (!form) return;
+	        const fileInput = document.getElementById('video_file');
+	        const submit = document.getElementById('video-upload-submit');
+	        const wrap = document.getElementById('video-upload-progress');
+	        const bar = document.getElementById('video-upload-progress-bar');
+	        const label = document.getElementById('video-upload-progress-label');
+	        const maxMb = Number(form.dataset.maxMb || 0);
+	
+	        const setProgress = (pct) => {
+	          if (bar) bar.value = pct;
+	          if (label) label.textContent = `${pct}%`;
+	        };
+	
+	        form.addEventListener('submit', (ev) => {
+	          if (!fileInput || !fileInput.files || !fileInput.files.length) return;
+	          const file = fileInput.files[0];
+	          if (maxMb && file && file.size && file.size > maxMb * 1024 * 1024) {
+	            ev.preventDefault();
+	            alert(`El vídeo supera el límite de ${maxMb}MB.`);
+	            return;
+	          }
+	
+	          ev.preventDefault();
+	          const xhr = new XMLHttpRequest();
+	          xhr.open('POST', form.getAttribute('action') || window.location.href);
+	          xhr.withCredentials = true;
+	          setProgress(0);
+	          if (wrap) wrap.classList.add('is-visible');
+	          if (submit) submit.disabled = true;
+	
+	          xhr.upload.addEventListener('progress', (e) => {
+	            if (!e.lengthComputable) return;
+	            const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
+	            setProgress(pct);
+	          });
+	
+	          xhr.addEventListener('load', () => {
+	            if (xhr.status >= 200 && xhr.status < 300) {
+	              window.location.reload();
+	              return;
+	            }
+	            if (wrap) wrap.classList.remove('is-visible');
+	            if (submit) submit.disabled = false;
+	            alert('No se pudo subir el vídeo. Revisa el tamaño o inténtalo de nuevo.');
+	          });
+	
+	          xhr.addEventListener('error', () => {
+	            if (wrap) wrap.classList.remove('is-visible');
+	            if (submit) submit.disabled = false;
+	            alert('Error de red al subir el vídeo.');
+	          });
+	
+	          const fd = new FormData(form);
+	          xhr.send(fd);
+	        });
+	      })();
+	    </script>
+	  </body>
+	</html>

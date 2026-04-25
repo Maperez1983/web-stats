@@ -958,11 +958,18 @@ class SessionTask(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
 
+
+class SessionTaskBookmark(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_task_bookmarks')
+    task = models.ForeignKey(SessionTask, on_delete=models.CASCADE, related_name='bookmarks')
+    created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
-        ordering = ['order', 'id']
+        unique_together = ('user', 'task')
+        ordering = ['-created_at', '-id']
 
     def __str__(self):
-        return f'{self.session} · {self.title}'
+        return f'{self.user.username} ★ {self.task.title}'
 
 
 class ImportedSessionDocument(models.Model):
