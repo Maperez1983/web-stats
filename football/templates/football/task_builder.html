@@ -120,30 +120,7 @@
         gap: 0.5rem;
         align-items: center;
       }
-      .device-toggle {
-        display: inline-flex;
-        gap: 0.35rem;
-        align-items: center;
-        padding: 6px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.04);
-      }
-      .device-toggle button {
-        border-radius: 999px;
-        padding: 0.55rem 0.8rem;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(255,255,255,0.04);
-        color: rgba(226,232,240,0.92);
-        font-weight: 900;
-        letter-spacing: 0.04em;
-        cursor: pointer;
-      }
-	      .device-toggle button.is-active {
-	        background: rgba(34, 211, 238, 0.14);
-	        border-color: rgba(34, 211, 238, 0.42);
-	        color: rgba(224, 242, 254, 0.95);
-	      }
+      /* Selector manual de dispositivo retirado de UI (queda override opcional por URL `?device=`). */
       .button, button {
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.05);
@@ -2847,16 +2824,6 @@
             <details class="action-menu" id="task-builder-actions-menu">
               <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
               <div class="action-menu-body" role="menu">
-                <div class="action-menu-group">
-                  <div class="action-menu-title">Modo de edición</div>
-                  <div class="action-menu-row">
-	                  <div class="device-toggle" role="group" aria-label="Modo de edición">
-	                    <button type="button" data-device-mode="desktop">Ordenador</button>
-	                    <button type="button" data-device-mode="tablet">iPad</button>
-	                    <button type="button" data-device-mode="auto" class="is-active">Auto</button>
-	                  </div>
-                  </div>
-                </div>
                 {% if not tactics_mode %}
                 <div class="action-menu-group">
                   <div class="action-menu-title">PDF</div>
@@ -4712,9 +4679,7 @@
 				            return false;
 				          });
 				        }
-				        // Selector de dispositivo (solo UI): auto/desktop/tablet.
-			        const deviceKey = 'webstats:tpad:device';
-			        const deviceButtons = Array.from(document.querySelectorAll('[data-device-mode]'));
+				        // Override opcional de layout por URL: `?device=tablet|desktop`.
 		        const normalizeDevice = (value) => {
 	          const v = String(value || '').trim().toLowerCase();
 	          if (v === 'desktop' || v === 'tablet') return v;
@@ -4725,7 +4690,6 @@
 	          document.body.classList.toggle('ui-desktop', normalized === 'desktop');
 	          document.body.classList.toggle('ui-tablet', normalized === 'tablet');
 	          document.body.dataset.deviceMode = normalized;
-	          deviceButtons.forEach((btn) => btn.classList.toggle('is-active', normalizeDevice(btn.dataset.deviceMode) === normalized));
 	          try { window.dispatchEvent(new CustomEvent('webstats:tpad:device-change', { detail: { mode: normalized } })); } catch (error) {}
 	        };
 	        let initialDevice = 'auto';
@@ -4733,18 +4697,10 @@
 	          const url = new URL(window.location.href);
 	          const fromUrl = normalizeDevice(url.searchParams.get('device'));
 	          if (url.searchParams.has('device')) initialDevice = fromUrl;
-	          else initialDevice = normalizeDevice(window.localStorage?.getItem(deviceKey));
 	        } catch (error) {
 	          initialDevice = 'auto';
 	        }
 	        applyDevice(initialDevice);
-		        deviceButtons.forEach((btn) => {
-		          btn.addEventListener('click', () => {
-		            const mode = normalizeDevice(btn.dataset.deviceMode);
-		            try { window.localStorage?.setItem(deviceKey, mode); } catch (error) {}
-		            applyDevice(mode);
-		          });
-		        });
 
 		        // Tutorial rápido (nuevos usuarios).
 		        try {
@@ -4754,7 +4710,7 @@
 		            {
 		              anchor: '.topbar .actions',
 		              title: '1) Acciones rápidas',
-		              body: 'Arriba tienes lo esencial (Volver, Ayuda y Vista compacta). En “Opciones” está el modo (Ordenador/iPad/Auto) y la generación/compartición de PDF (UEFA/Club).',
+		              body: 'Arriba tienes lo esencial (Volver, Ayuda y Vista compacta). En “Opciones” están las acciones extra (PDF UEFA/Club, compartir, etc.).',
 		            },
 		            {
 		              anchor: '#task-pitch-stage',
