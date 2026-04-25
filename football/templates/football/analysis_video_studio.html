@@ -360,9 +360,14 @@
             <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Asistente IA</div>
               <div class="hint">Genera un resumen y sugerencias usando <span class="k">timeline</span> + <span class="k">clips</span>.</div>
+              <label style="margin-top:0.55rem;">
+                Contexto (opcional)
+                <textarea id="vs-ai-context" style="min-height:72px;" placeholder="Ej: Analiza presión tras pérdida, salida vs presión rival, ocupación de área..."></textarea>
+              </label>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
                 <button type="button" class="button primary" id="vs-ai-generate">Generar</button>
                 <button type="button" class="button" id="vs-ai-force">Recalcular</button>
+                <button type="button" class="button" id="vs-ai-to-timeline">Crear timeline</button>
                 <button type="button" class="button ghost" id="vs-ai-copy">Copiar</button>
               </div>
               <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0; margin-top:0.55rem;">

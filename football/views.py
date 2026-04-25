@@ -33429,11 +33429,12 @@ def analysis_video_studio_report_pdf_api(request):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
-def _video_ai_build_input_hash(*, video, clips, timeline) -> str:
+def _video_ai_build_input_hash(*, video, clips, timeline, context_hint: str = '') -> str:
     try:
         payload = {
             'video_id': int(getattr(video, 'id', 0) or 0),
             'video_updated': str(getattr(video, 'created_at', '') or ''),
+            'context': str(context_hint or '').strip()[:800],
             'clips': [
                 {
                     'id': int(getattr(c, 'id', 0) or 0),
@@ -33560,7 +33561,10 @@ def _video_ai_heuristic(*, video, clips, timeline) -> dict:
     }
 
 
-def _video_ai_openai(*, video, clips, timeline):
+def _video_ai_openai(*, video, clips, timeline, context_hint: str = ''):
+    enabled = str(os.getenv('OPENAI_VIDEO_ANALYSIS_ENABLED') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if not enabled:
+        return None, ''
     api_key = str(os.getenv('OPENAI_API_KEY') or '').strip()
     if not api_key or not requests:
         return None, ''
@@ -33592,6 +33596,7 @@ def _video_ai_openai(*, video, clips, timeline):
 
     payload = {
         'video_title': str(getattr(video, 'title', '') or '').strip()[:180],
+        'context': str(context_hint or '').strip()[:800],
         'timeline': items,
         'clips': clip_rows,
     }
@@ -33715,6 +33720,7 @@ def analysis_video_studio_ai_api(request):
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
     force = str(data.get('force') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    context_hint = _sanitize_task_text(str(data.get('context') or '').strip(), multiline=True, max_len=600)
 
     clip_ids = data.get('clip_ids')
     if not isinstance(clip_ids, list):
@@ -33735,7 +33741,7 @@ def analysis_video_studio_ai_api(request):
         .order_by('time_ms', 'id')[:1600]
     )
 
-    input_hash = _video_ai_build_input_hash(video=video, clips=clips, timeline=timeline)
+    input_hash = _video_ai_build_input_hash(video=video, clips=clips, timeline=timeline, context_hint=context_hint)
     now = timezone.now()
     recent = now - timedelta(hours=12)
 
@@ -33764,8 +33770,14 @@ def analysis_video_studio_ai_api(request):
     status = VideoAiInsight.STATUS_OK
 
     payload = _video_ai_heuristic(video=video, clips=clips, timeline=timeline)
+    if context_hint:
+        try:
+            payload['context'] = context_hint
+        except Exception:
+            pass
 
-    openai_payload, openai_model = _video_ai_openai(video=video, clips=clips, timeline=timeline)
+    # Si OpenAI está habilitado en entorno, le pasamos también contexto.
+    openai_payload, openai_model = _video_ai_openai(video=video, clips=clips, timeline=timeline, context_hint=context_hint)
     if isinstance(openai_payload, dict):
         provider = 'openai'
         model_used = str(openai_model or '').strip()

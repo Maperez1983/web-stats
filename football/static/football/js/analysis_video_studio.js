@@ -105,7 +105,9 @@
 
 	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
 	    const aiForceBtn = document.getElementById('vs-ai-force');
+	    const aiToTimelineBtn = document.getElementById('vs-ai-to-timeline');
 	    const aiCopyBtn = document.getElementById('vs-ai-copy');
+	    const aiContextInput = document.getElementById('vs-ai-context');
 	    const aiIncludeReportToggle = document.getElementById('vs-ai-include-report');
 	    const aiMetaEl = document.getElementById('vs-ai-meta');
 	    const aiOutputEl = document.getElementById('vs-ai-output');
@@ -1896,6 +1898,7 @@
 	    };
 
 	    // AI helper (server)
+	    let aiLastPayload = null;
 	    const buildAiClipIds = () => {
 	      if (selectedClipIds.size > 0) {
 	        return selectedClipsOrdered().map((c) => Number(c?.id) || 0).filter((x) => x > 0).slice(0, 120);
@@ -1911,6 +1914,7 @@
 	    const renderAiPayload = (payload, meta = {}) => {
 	      if (!aiOutputEl) return;
 	      const p = payload && typeof payload === 'object' ? payload : {};
+	      aiLastPayload = p;
 	      const lines = [];
 	      const summary = safeText(p.summary, '');
 	      if (summary) lines.push(summary, '');
@@ -1958,7 +1962,7 @@
 	          method: 'POST',
 	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
 	          credentials: 'same-origin',
-	          body: JSON.stringify({ video_id: videoId, clip_ids: buildAiClipIds(), force: Boolean(force) }),
+	          body: JSON.stringify({ video_id: videoId, clip_ids: buildAiClipIds(), force: Boolean(force), context: safeText(aiContextInput?.value, '').slice(0, 600) }),
 	        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
@@ -1973,6 +1977,47 @@
 
 	    aiGenerateBtn?.addEventListener('click', () => fetchAi(false));
 	    aiForceBtn?.addEventListener('click', () => fetchAi(true));
+	    aiToTimelineBtn?.addEventListener('click', async () => {
+	      if (!timelineSaveUrl || !videoId) return;
+	      const p = aiLastPayload && typeof aiLastPayload === 'object' ? aiLastPayload : {};
+	      const moments = Array.isArray(p.key_moments) ? p.key_moments : [];
+	      if (!moments.length) { setStatus('IA sin momentos clave.', true); return; }
+	      const ok = window.confirm(`Crear ${Math.min(12, moments.length)} eventos en Timeline a partir de la IA?`);
+	      if (!ok) return;
+	      const mapKind = (k) => {
+	        const v = safeText(k, '').toLowerCase();
+	        if (['goal', 'gol'].includes(v)) return 'goal';
+	        if (['shot', 'disparo', 'tiro'].includes(v)) return 'shot';
+	        if (['press', 'presión', 'presion'].includes(v)) return 'press';
+	        if (['turnover', 'pérdida', 'perdida'].includes(v)) return 'turnover';
+	        if (['abp', 'set_piece', 'balón parado', 'balon parado'].includes(v)) return 'abp';
+	        if (['note', 'nota'].includes(v)) return 'note';
+	        return 'tag';
+	      };
+	      try {
+	        setStatus('Creando eventos IA…');
+	        for (const m of moments.slice(0, 12)) {
+	          const timeS = Number(m?.time_s) || 0;
+	          const kind = mapKind(m?.kind);
+	          const label = safeText(m?.title, safeText(m?.kind, 'IA')).slice(0, 160);
+	          // eslint-disable-next-line no-await-in-loop
+	          const resp = await fetch(timelineSaveUrl, {
+	            method: 'POST',
+	            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	            credentials: 'same-origin',
+	            body: JSON.stringify({ video_id: videoId, time_s: timeS, kind, label, color: strokeColor() }),
+	          });
+	          const data = await resp.json().catch(() => ({}));
+	          if (!resp.ok || !data?.ok) break;
+	          // eslint-disable-next-line no-await-in-loop
+	          await sleep(40);
+	        }
+	        await refreshTimeline();
+	        setStatus('Eventos IA añadidos a Timeline.');
+	      } catch (e) {
+	        setStatus('No se pudieron crear eventos IA.', true);
+	      }
+	    });
 	    aiCopyBtn?.addEventListener('click', async () => {
 	      const text = safeText(aiOutputEl?.textContent, '');
 	      if (!text) return;
