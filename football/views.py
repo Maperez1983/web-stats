@@ -14376,6 +14376,146 @@ def share_video_clip_stream(request, token):
     )
 
 
+@login_required
+@require_POST
+def share_video_playlist_create(request):
+    validity_days = _parse_int(request.POST.get('valid_days')) or 14
+    password = (request.POST.get('password') or '').strip()
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    validity_days = _parse_int(data.get('valid_days')) or validity_days
+    validity_days = max(1, min(validity_days, 60))
+    password = (str(data.get('password') or '') or password).strip()
+    clip_ids = data.get('clip_ids')
+    if not isinstance(clip_ids, list):
+        clip_ids = []
+    clip_ids_clean = []
+    for x in clip_ids:
+        try:
+            clip_ids_clean.append(int(x))
+        except Exception:
+            continue
+    clip_ids_clean = [x for x in clip_ids_clean if x > 0][:120]
+    if not clip_ids_clean:
+        return JsonResponse({'error': 'clip_ids requerido.'}, status=400)
+
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado.'}, status=400)
+
+    clips = list(
+        VideoClip.objects
+        .select_related('video')
+        .filter(team=primary_team, id__in=clip_ids_clean)
+        .order_by('in_ms', 'id')[:200]
+    )
+    if not clips:
+        return JsonResponse({'error': 'Clips no encontrados.'}, status=404)
+    video_id = int(getattr(clips[0], 'video_id', 0) or 0)
+    if not video_id:
+        return JsonResponse({'error': 'Vídeo no válido.'}, status=400)
+    # Asegurar que todos pertenecen al mismo vídeo para reproducir playlist sin saltos.
+    filtered_ids = []
+    for c in clips:
+        if int(getattr(c, 'video_id', 0) or 0) != video_id:
+            continue
+        filtered_ids.append(int(c.id))
+    filtered_ids = filtered_ids[:80]
+    if not filtered_ids:
+        return JsonResponse({'error': 'La lista debe pertenecer a un único vídeo.'}, status=400)
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_PLAYLIST,
+        payload={'video_id': int(video_id), 'clip_ids': filtered_ids},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    url = request.build_absolute_uri(reverse('share-video-playlist', args=[link.token]))
+    return JsonResponse({'ok': True, 'url': url, 'expires_at': link.expires_at})
+
+
+def share_video_playlist_page(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_PLAYLIST)
+    gated = _share_link_gate(request, link)
+    if gated:
+        return gated
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:120]
+    if not video_id or not clip_ids:
+        raise Http404('Enlace no válido')
+    video = RivalVideo.objects.select_related('team').filter(id=int(video_id)).first()
+    if not video or not getattr(video, 'video', None):
+        raise Http404('Vídeo no disponible')
+    clips = list(
+        VideoClip.objects
+        .filter(video_id=int(video_id), id__in=clip_ids)
+        .order_by('in_ms', 'id')[:200]
+    )
+    if not clips:
+        raise Http404('Clips no disponibles')
+    try:
+        ShareLink.objects.filter(id=link.id).update(access_count=(link.access_count or 0) + 1, last_accessed_at=timezone.now())
+    except Exception:
+        pass
+    items = []
+    for c in clips:
+        items.append(
+            {
+                'id': int(c.id),
+                'title': str(c.title or '').strip() or f'Clip {c.id}',
+                'collection': str(c.collection or '').strip(),
+                'in_s': float(c.in_seconds),
+                'out_s': float(c.out_seconds),
+                'tags': c.tags if isinstance(c.tags, list) else [],
+                'notes': str(c.notes or '').strip(),
+            }
+        )
+    return render(
+        request,
+        'football/share_video_playlist.html',
+        {
+            'link': link,
+            'video': video,
+            'clips_json': json.dumps(items, ensure_ascii=False),
+            'video_stream_url': reverse('share-video-playlist-stream', args=[link.token]),
+        },
+    )
+
+
+def share_video_playlist_stream(request, token):
+    link = _share_link_lookup(token, ShareLink.KIND_VIDEO_PLAYLIST)
+    now = timezone.now()
+    if not link or not link.can_be_used(now=now):
+        raise Http404('Enlace no disponible')
+    payload = link.payload if isinstance(link.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        raise Http404('Enlace no válido')
+    video = RivalVideo.objects.filter(id=int(video_id)).first()
+    if not video or not getattr(video, 'video', None):
+        raise Http404('Vídeo no disponible')
+    return _file_field_stream_with_range(
+        request,
+        video.video,
+        content_type='video/mp4',
+        filename=f'playlist-{video.id}.mp4',
+    )
+
+
 def share_video_export_page(request, token):
     link = _share_link_lookup(token, ShareLink.KIND_VIDEO_EXPORT)
     gated = _share_link_gate(request, link)
@@ -20399,6 +20539,13 @@ def coach_tactics_page(request):
         raise Http404('Equipo principal no configurado')
 
     initial = _task_builder_initial_values(None)
+    # En modo táctica queremos que la multipizarra (escenarios) esté lista desde el inicio,
+    # sin obligar al usuario a entrar en “Avanzado”.
+    try:
+        if isinstance(initial, dict):
+            initial['multi_board_enabled'] = True
+    except Exception:
+        pass
 
     player_catalog = []
     available_players = []
@@ -32510,7 +32657,7 @@ def analysis_video_studio_share_links_api(request):
     )
     export_map = {int(x['id']): str(x.get('title') or '').strip() for x in export_rows if x.get('id')}
 
-    qs = ShareLink.objects.filter(kind__in=[ShareLink.KIND_VIDEO_CLIP, ShareLink.KIND_VIDEO_EXPORT]).order_by('-created_at', '-id')
+    qs = ShareLink.objects.filter(kind__in=[ShareLink.KIND_VIDEO_CLIP, ShareLink.KIND_VIDEO_EXPORT, ShareLink.KIND_VIDEO_PLAYLIST]).order_by('-created_at', '-id')
     if not _can_access_platform(request.user):
         qs = qs.filter(created_by_user=request.user)
     candidates = list(qs[:2500])
@@ -32532,6 +32679,17 @@ def analysis_video_studio_share_links_api(request):
                 continue
             target_title = export_map.get(int(export_id)) or f'Export {export_id}'
             share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+        elif link.kind == ShareLink.KIND_VIDEO_PLAYLIST:
+            ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+            ids = [int(x) for x in ids if str(x).isdigit()][:200]
+            if not ids:
+                continue
+            # Solo listamos playlists del vídeo actual (por clip_ids -> mapa)
+            found_any = [cid for cid in ids if cid in clip_map]
+            if not found_any:
+                continue
+            target_title = f'Playlist · {len(found_any)} clips'
+            share_url = request.build_absolute_uri(reverse('share-video-playlist', args=[link.token]))
         else:
             continue
         items.append(
