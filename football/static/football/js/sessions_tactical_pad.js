@@ -6046,21 +6046,26 @@
 				    playbookOpenSimBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      ensureSimOpenForProTools();
+				      try { setStatus('Simulador abierto (usa “Capturar paso” para crear la secuencia).'); } catch (e) { /* ignore */ }
+				      try { document.getElementById('task-sim-toggle')?.focus?.(); } catch (e) { /* ignore */ }
 				    });
 				    playbookOpen3dBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      ensureSimOpenForProTools();
 				      try { simView3dBtn?.click(); } catch (e) { /* ignore */ }
+				      try { setStatus('Vista 3D: abre el panel desde el simulador.'); } catch (e) { /* ignore */ }
 				    });
 				    playbookOpenVideoBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      ensureSimOpenForProTools();
 				      try { simVideoStudioBtn?.click(); } catch (e) { /* ignore */ }
+				      try { setStatus('Video Studio: añade capas/overlays y exporta el clip.'); } catch (e) { /* ignore */ }
 				    });
 				    playbookExportPackBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      ensureSimOpenForProTools();
 				      try { simPackBtn?.click(); } catch (e) { /* ignore */ }
+				      try { setStatus('Pack: portada + índice + miniaturas (desde el simulador).'); } catch (e) { /* ignore */ }
 				    });
 
 				    // Grabación de vídeo (2D) del simulador (pitch + fichas).
