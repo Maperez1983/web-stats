@@ -8540,8 +8540,15 @@
 				          bootFromQueue();
 				        };
 
-		        if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
-		        initTaskAssistant();
+            try {
+		          if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
+            } catch (e) {
+              try {
+                const statusEl = document.getElementById('task-builder-status');
+                if (statusEl) statusEl.textContent = 'Error al inicializar la pizarra. Se activó modo seguro.';
+              } catch (err) { /* ignore */ }
+            }
+            try { initTaskAssistant(); } catch (e) { /* ignore */ }
 
             // Fallback UX (modo táctica): si el JS principal tarda en cargar o falla,
             // al pulsar “Simulador” al menos mostramos el panel del simulador.
@@ -8564,6 +8571,26 @@
             } catch (e) { /* ignore */ }
 		      });
 		    </script>
+        {% if tactics_mode %}
+        <script>
+          // Seguro extra: si el script principal falló antes de enganchar listeners, estos botones
+          // deben seguir abriendo el panel del simulador (al menos).
+          (function () {
+            const statusEl = document.getElementById('task-builder-status');
+            const simPopoverEl = document.getElementById('task-sim-popover');
+            const open = function () {
+              try { if (simPopoverEl) simPopoverEl.hidden = false; } catch (e) {}
+              try { if (statusEl) statusEl.textContent = 'Simulador: panel abierto.'; } catch (e) {}
+            };
+            ['task-playbook-open-sim', 'task-playbook-open-3d', 'task-playbook-open-video', 'task-playbook-export-pack']
+              .forEach(function (id) {
+                var btn = document.getElementById(id);
+                if (!btn) return;
+                btn.addEventListener('click', open);
+              });
+          })();
+        </script>
+        {% endif %}
     {% if task %}
     <script>
       (function () {
