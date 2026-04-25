@@ -32,10 +32,12 @@
     const stage = document.getElementById('vs-stage');
     if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
 
-    const btnPlay = document.getElementById('vs-play');
-    const btnPause = document.getElementById('vs-pause');
-    const btnIn = document.getElementById('vs-mark-in');
-    const btnOut = document.getElementById('vs-mark-out');
+	    const btnPlay = document.getElementById('vs-play');
+	    const btnPause = document.getElementById('vs-pause');
+	    const btnLoop = document.getElementById('vs-loop');
+	    const speedSelect = document.getElementById('vs-speed');
+	    const btnIn = document.getElementById('vs-mark-in');
+	    const btnOut = document.getElementById('vs-mark-out');
     const btnExportSeg = document.getElementById('vs-export-seg');
     const btnRecord = document.getElementById('vs-record');
     const btnSnap = document.getElementById('vs-snap');
@@ -63,8 +65,9 @@
     const exportPdfBtn = document.getElementById('vs-export-pdf');
     const exportPackageBtn = document.getElementById('vs-export-package');
 
-    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
-    const projectsUrl = safeText(document.getElementById('vs-projects-url')?.value);
+	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
+	    const initialClipId = Number(document.getElementById('vs-initial-clip-id')?.value || 0);
+	    const projectsUrl = safeText(document.getElementById('vs-projects-url')?.value);
     const projectSaveUrl = safeText(document.getElementById('vs-project-save-url')?.value);
     const projectDeleteUrl = safeText(document.getElementById('vs-project-delete-url')?.value);
     const clipsUrl = safeText(document.getElementById('vs-clips-url')?.value);
@@ -81,9 +84,11 @@
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
 
-    const clipTitleInput = document.getElementById('vs-clip-title');
-    const clipCollectionInput = document.getElementById('vs-clip-collection');
-    const clipSaveBtn = document.getElementById('vs-clip-save');
+	    const clipTitleInput = document.getElementById('vs-clip-title');
+	    const clipCollectionInput = document.getElementById('vs-clip-collection');
+	    const clipTagsInput = document.getElementById('vs-clip-tags');
+	    const clipNotesInput = document.getElementById('vs-clip-notes');
+	    const clipSaveBtn = document.getElementById('vs-clip-save');
     const clipRefreshBtn = document.getElementById('vs-clip-refresh');
     const clipsList = document.getElementById('vs-clips');
 
@@ -155,15 +160,52 @@
       const ss = Math.floor(s % 60);
       return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
     };
-    const fmtTime = (t) => {
-      const v = Math.max(0, Number(t) || 0);
-      const m = Math.floor(v / 60);
-      const s = v - (m * 60);
-      return `${m}:${String(Math.floor(s)).padStart(2, '0')}.${String(Math.round((s % 1) * 10))}`;
-    };
+	    const fmtTime = (t) => {
+	      const v = Math.max(0, Number(t) || 0);
+	      const m = Math.floor(v / 60);
+	      const s = v - (m * 60);
+	      return `${m}:${String(Math.floor(s)).padStart(2, '0')}.${String(Math.round((s % 1) * 10))}`;
+	    };
 
-    const history = [];
-    const pushHistory = () => {
+	    // Playback helpers
+	    let loopActive = false;
+	    const updateLoopUi = () => {
+	      if (!btnLoop) return;
+	      btnLoop.classList.toggle('primary', loopActive);
+	      btnLoop.textContent = loopActive ? 'Loop ✓' : 'Loop';
+	    };
+	    updateLoopUi();
+	    btnLoop?.addEventListener('click', () => {
+	      loopActive = !loopActive;
+	      updateLoopUi();
+	      setStatus(loopActive ? 'Loop activado.' : 'Loop desactivado.');
+	    });
+	    speedSelect?.addEventListener('change', () => {
+	      const sp = Number(speedSelect.value || 1) || 1;
+	      try { video.playbackRate = clamp(sp, 0.25, 4); } catch (e) { /* ignore */ }
+	      setStatus(`Velocidad: ${String(video.playbackRate || sp)}x`);
+	    });
+	    try {
+	      const sp0 = Number(speedSelect?.value || 1) || 1;
+	      video.playbackRate = clamp(sp0, 0.25, 4);
+	    } catch (e) { /* ignore */ }
+
+	    const enforceLoop = () => {
+	      if (!loopActive) return;
+	      const a = Number(inInput?.value || 0) || 0;
+	      const b = Number(outInput?.value || 0) || 0;
+	      const start = Math.max(0, Math.min(a, b));
+	      const end = Math.max(a, b);
+	      if (!end || end <= start) return;
+	      const now = Number(video.currentTime) || 0;
+	      if (now >= end) {
+	        try { video.currentTime = start; } catch (e) { /* ignore */ }
+	      }
+	    };
+	    video.addEventListener('timeupdate', enforceLoop);
+
+	    const history = [];
+	    const pushHistory = () => {
       try {
         const json = fabricCanvas.toDatalessJSON(['data']);
         history.push(json);
@@ -1092,12 +1134,23 @@
         const vStream = typeof video.captureStream === 'function' ? video.captureStream() : null;
         audioTracks = vStream ? (vStream.getAudioTracks?.() || []) : [];
       } catch (e) { audioTracks = []; }
-      recStream = new MediaStream([...(canvasStream.getVideoTracks?.() || []), ...(audioTracks || [])]);
+	      recStream = new MediaStream([...(canvasStream.getVideoTracks?.() || []), ...(audioTracks || [])]);
 
-      recChunks = [];
-      let mime = 'video/webm;codecs=vp9,opus';
-      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8,opus';
-      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+	      recChunks = [];
+	      const mimeCandidates = [
+	        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+	        'video/mp4',
+	        'video/webm;codecs=vp9,opus',
+	        'video/webm;codecs=vp8,opus',
+	        'video/webm',
+	      ];
+	      let mime = '';
+	      for (const cand of mimeCandidates) {
+	        try {
+	          if (MediaRecorder.isTypeSupported(cand)) { mime = cand; break; }
+	        } catch (e) { /* ignore */ }
+	      }
+	      if (!mime) mime = 'video/webm';
 
       try {
         recMedia = new MediaRecorder(recStream, { mimeType: mime, videoBitsPerSecond: bps });
@@ -1105,12 +1158,13 @@
         recMedia = new MediaRecorder(recStream);
       }
       recMedia.ondataavailable = (ev) => { if (ev.data && ev.data.size) recChunks.push(ev.data); };
-      recMedia.onstop = () => {
-        try {
-          const blob = new Blob(recChunks, { type: recChunks[0]?.type || 'video/webm' });
-          downloadBlob(blob, `video-studio-${videoId || 'export'}.webm`);
-        } catch (e) { /* ignore */ }
-      };
+	      recMedia.onstop = () => {
+	        try {
+	          const blob = new Blob(recChunks, { type: recChunks[0]?.type || 'video/webm' });
+	          const ext = String(blob.type || '').includes('mp4') ? 'mp4' : 'webm';
+	          downloadBlob(blob, `video-studio-${videoId || 'export'}.${ext}`);
+	        } catch (e) { /* ignore */ }
+	      };
 
       const draw = () => {
         if (!recActive || !recCtx || !recCanvas) return;
@@ -1172,11 +1226,14 @@
       } else if (key === 'c') {
         event.preventDefault();
         clipSaveBtn?.click();
-      } else if (key === 't') {
-        event.preventDefault();
-        eventAddBtn?.click();
-      }
-    });
+	      } else if (key === 't') {
+	        event.preventDefault();
+	        eventAddBtn?.click();
+	      } else if (key === 'l') {
+	        event.preventDefault();
+	        btnLoop?.click();
+	      }
+	    });
 
     // Projects (server)
     let activeProjectId = 0;
@@ -1293,35 +1350,56 @@
     projectRefreshBtn?.addEventListener('click', refreshProjects);
     refreshProjects();
 
-    // Clips (server)
-    let activeClipId = 0;
+	    // Clips (server)
+	    let activeClipId = 0;
+	    const clipUrlForId = (id) => {
+	      try {
+	        const u = new URL(window.location.href);
+	        u.searchParams.set('clip', String(id));
+	        return u.toString();
+	      } catch (e) {
+	        return `${window.location.pathname}?clip=${encodeURIComponent(String(id))}`;
+	      }
+	    };
+	    const parseTagsInput = () => {
+	      const raw = safeText(clipTagsInput?.value, '');
+	      if (!raw) return [];
+	      return raw
+	        .split(',')
+	        .map((t) => safeText(t).toLowerCase())
+	        .filter(Boolean)
+	        .slice(0, 24);
+	    };
     const renderClips = (items) => {
       if (!clipsList) return;
       const rows = (Array.isArray(items) ? items : []).slice(0, 120).map((c) => {
         const id = Number(c?.id) || 0;
         if (!id) return '';
         const title = safeText(c?.title, `Clip ${id}`);
-        const coll = safeText(c?.collection, '');
-        const inS = Number(c?.in_s) || 0;
-        const outS = Number(c?.out_s) || 0;
-        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
-        return `
-          <div class="row">
-            <div style="display:flex; flex-direction:column; gap:0.05rem;">
-              <strong>${title}</strong>
-              <small>${coll ? `${coll} · ` : ''}${label}</small>
-            </div>
-            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
-              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
-              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
-            </div>
-          </div>
-        `;
+	        const coll = safeText(c?.collection, '');
+	        const inS = Number(c?.in_s) || 0;
+	        const outS = Number(c?.out_s) || 0;
+	        const tags = Array.isArray(c?.tags) ? c.tags : [];
+	        const tagsLabel = tags.length ? ` · ${tags.slice(0, 6).map((t) => `#${safeText(t)}`).join(' ')}` : '';
+	        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
+	        return `
+	          <div class="row">
+	            <div style="display:flex; flex-direction:column; gap:0.05rem;">
+	              <strong>${title}</strong>
+	              <small>${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
+	            </div>
+	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+	              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
+	              <button type="button" class="button" data-vs-clip-link="${id}">Link</button>
+	              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
+	            </div>
+	          </div>
+	        `;
       }).filter(Boolean).join('');
       clipsList.innerHTML = rows || '<div class="meta">Sin clips guardados.</div>';
 
-      Array.from(clipsList.querySelectorAll('[data-vs-clip-load]')).forEach((btn) => {
-        btn.addEventListener('click', async () => {
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-load]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-vs-clip-load') || 0);
           if (!id) return;
           try {
@@ -1330,11 +1408,13 @@
             const items2 = Array.isArray(data?.items) ? data.items : [];
             const found = items2.find((x) => Number(x?.id) === id);
             if (!found) return;
-            activeClipId = id;
-            if (clipTitleInput) clipTitleInput.value = safeText(found?.title);
-            if (clipCollectionInput) clipCollectionInput.value = safeText(found?.collection);
-            if (inInput) inInput.value = String((Number(found?.in_s) || 0).toFixed(1));
-            if (outInput) outInput.value = String((Number(found?.out_s) || 0).toFixed(1));
+	            activeClipId = id;
+	            if (clipTitleInput) clipTitleInput.value = safeText(found?.title);
+	            if (clipCollectionInput) clipCollectionInput.value = safeText(found?.collection);
+	            if (clipTagsInput) clipTagsInput.value = (Array.isArray(found?.tags) ? found.tags : []).map((t) => safeText(t)).filter(Boolean).join(', ');
+	            if (clipNotesInput) clipNotesInput.value = safeText(found?.notes, '');
+	            if (inInput) inInput.value = String((Number(found?.in_s) || 0).toFixed(1));
+	            if (outInput) outInput.value = String((Number(found?.out_s) || 0).toFixed(1));
             const overlay = found?.overlay || {};
             if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
               restoreJson(overlay);
@@ -1353,10 +1433,25 @@
           } catch (e) {
             setStatus('No se pudo cargar clip.', true);
           }
-        });
-      });
-      Array.from(clipsList.querySelectorAll('[data-vs-clip-del]')).forEach((btn) => {
-        btn.addEventListener('click', async () => {
+	        });
+	      });
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-link]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
+	          const id = Number(btn.getAttribute('data-vs-clip-link') || 0);
+	          if (!id) return;
+	          const link = clipUrlForId(id);
+	          try {
+	            if (navigator.clipboard?.writeText) {
+	              await navigator.clipboard.writeText(link);
+	              setStatus('Link copiado al portapapeles.');
+	              return;
+	            }
+	          } catch (e) { /* ignore */ }
+	          window.prompt('Copia este enlace:', link);
+	        });
+	      });
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-del]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-vs-clip-del') || 0);
           if (!id) return;
           const ok = window.confirm('¿Borrar clip?');
@@ -1392,24 +1487,26 @@
       }
     };
 
-    const saveClip = async () => {
-      if (!clipSaveUrl || !videoId) return;
-      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
-      const collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
-      const inS = Number(inInput?.value || 0) || 0;
-      const outS = Number(outInput?.value || 0) || 0;
+	    const saveClip = async () => {
+	      if (!clipSaveUrl || !videoId) return;
+	      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
+	      const collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
+	      const tags = parseTagsInput();
+	      const notes = safeText(clipNotesInput?.value, '').slice(0, 5000);
+	      const inS = Number(inInput?.value || 0) || 0;
+	      const outS = Number(outInput?.value || 0) || 0;
       if (!outS || outS <= inS) {
         setStatus('Define IN/OUT para el clip.', true);
         return;
       }
       const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
       try {
-        const resp = await fetch(clipSaveUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-          credentials: 'same-origin',
-          body: JSON.stringify({ id: activeClipId || 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay }),
-        });
+	        const resp = await fetch(clipSaveUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({ id: activeClipId || 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay, tags, notes }),
+	        });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
         activeClipId = Number(data?.id) || activeClipId;
@@ -1418,10 +1515,16 @@
       } catch (e) {
         setStatus('No se pudo guardar clip.', true);
       }
-    };
-    clipSaveBtn?.addEventListener('click', saveClip);
-    clipRefreshBtn?.addEventListener('click', refreshClips);
-    refreshClips();
+	    };
+	    clipSaveBtn?.addEventListener('click', saveClip);
+	    clipRefreshBtn?.addEventListener('click', refreshClips);
+	    refreshClips().then(() => {
+	      if (!initialClipId) return;
+	      try {
+	        const btn = clipsList?.querySelector?.(`[data-vs-clip-load="${initialClipId}"]`);
+	        if (btn) btn.click();
+	      } catch (e) { /* ignore */ }
+	    });
 
     // Timeline (server)
     let timelineCache = [];

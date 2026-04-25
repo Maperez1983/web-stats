@@ -61,14 +61,23 @@
 
       <div class="vs-grid">
         <section class="card">
-          <div class="toolbar">
-            <div class="left">
-              <button type="button" class="button primary" id="vs-play">Play</button>
-              <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
-              <button type="button" class="button" id="vs-mark-in">IN</button>
-              <button type="button" class="button" id="vs-mark-out">OUT</button>
-              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
-              <button type="button" class="button" id="vs-record">Grabar</button>
+	          <div class="toolbar">
+	            <div class="left">
+	              <button type="button" class="button primary" id="vs-play">Play</button>
+	              <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
+	              <button type="button" class="button" id="vs-loop">Loop</button>
+	              <select id="vs-speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+	                <option value="0.5">0.5x</option>
+	                <option value="0.75">0.75x</option>
+	                <option value="1" selected>1x</option>
+	                <option value="1.25">1.25x</option>
+	                <option value="1.5">1.5x</option>
+	                <option value="2">2x</option>
+	              </select>
+	              <button type="button" class="button" id="vs-mark-in">IN</button>
+	              <button type="button" class="button" id="vs-mark-out">OUT</button>
+	              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
+	              <button type="button" class="button" id="vs-record">Grabar</button>
               <button type="button" class="button" id="vs-snap">PNG</button>
               <button type="button" class="button" id="vs-freeze">Freeze</button>
             </div>
@@ -206,25 +215,33 @@
                 <div class="list" id="vs-draw-layers"></div>
               </div>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
-              <label>
-                Título
-                <input type="text" id="vs-clip-title" placeholder="Ej: Presión tras pérdida" />
-              </label>
-              <label>
-                Colección
-                <input type="text" id="vs-clip-collection" placeholder="Ej: J2 · Torremoya" />
-              </label>
-              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
-                <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
-                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
-              </div>
-              <div class="meta" style="margin-top:0.2rem;">
-                Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">I</span> IN · <span class="k">O</span> OUT · <span class="k">C</span> guardar clip · <span class="k">T</span> tag.
-              </div>
-              <div class="list" id="vs-clips"></div>
-            </div>
+	            <div class="split">
+	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+	              <label>
+	                Título
+	                <input type="text" id="vs-clip-title" placeholder="Ej: Presión tras pérdida" />
+	              </label>
+	              <label>
+	                Colección
+	                <input type="text" id="vs-clip-collection" placeholder="Ej: J2 · Torremoya" />
+	              </label>
+	              <label>
+	                Tags (separados por coma)
+	                <input type="text" id="vs-clip-tags" placeholder="Ej: presión, robo, finalización" />
+	              </label>
+	              <label>
+	                Notas
+	                <textarea id="vs-clip-notes" style="min-height:90px;" placeholder="Qué mirar, consignas, correcciones..."></textarea>
+	              </label>
+	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+	                <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
+	                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
+	              </div>
+	              <div class="meta" style="margin-top:0.2rem;">
+	                Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">I</span> IN · <span class="k">O</span> OUT · <span class="k">C</span> guardar clip · <span class="k">T</span> tag.
+	              </div>
+	              <div class="list" id="vs-clips"></div>
+	            </div>
 
             <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Timeline</div>
@@ -255,10 +272,11 @@
       </div>
     </main>
 
-    <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
-    <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
-    <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />
-    <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
+	    <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
+	    <input type="hidden" id="vs-initial-clip-id" value="{{ request.GET.clip|default:'' }}" />
+	    <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
+	    <input type="hidden" id="vs-project-save-url" value="{% url 'analysis-video-studio-project-save-api' %}" />
+	    <input type="hidden" id="vs-project-delete-url" value="{% url 'analysis-video-studio-project-delete-api' %}" />
     <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
     <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
     <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
