@@ -2510,26 +2510,34 @@
 			          </a>
 			          <a class="folder-card" href="?tab=import&library_repo={{ library_repository }}">
 			            <strong>Importar</strong>
-			            <span>PDF, vídeo y (próximamente) sesiones</span>
+			            <span>PDF, vídeo y sesiones</span>
 			          </a>
 			        </div>
 	      </section>
 		      <section class="panel">
 		        <h2>Biblioteca de tareas</h2>
-		        <p class="meta" style="margin-top:0;">Vista de resultados del importador PDF con el máximo de información detectada automáticamente.</p>
+		        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
         <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
           <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
           <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
         </div>
-        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
-          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
-          <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
-          <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
-          <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
-          <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
-          <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
-          <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
-        </div>
+        <details style="margin:0 0 0.6rem;">
+          <summary class="button secondary" style="display:inline-flex; width:max-content;">
+            Vistas
+            <span style="opacity:0.75; font-weight:700;">
+              · {% if library_view == 'overview' %}Todas{% elif library_view == 'phase' %}Por fase{% elif library_view == 'type' %}Por tipo{% elif library_view == 'players' %}Por jugadores{% elif library_view == 'duration' %}Por duración{% elif library_view == 'date' %}Por fecha{% elif library_view == 'quality' %}Por calidad{% else %}Todas{% endif %}
+            </span>
+          </summary>
+          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
+            <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
+            <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
+            <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
+            <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
+            <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
+            <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
+            <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
+          </div>
+        </details>
         {% if library_deleted_tasks %}
         <details style="margin:-0.25rem 0 0.7rem;">
           <summary>Papelera biblioteca ({{ library_deleted_tasks|length }})</summary>
