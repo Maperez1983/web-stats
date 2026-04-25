@@ -136,6 +136,9 @@
     {% if 'coach/sesiones' in request.path|default:'' %}
     <span class="nav-context-sep">·</span>
     <span class="nav-context-section">Entrenos</span>
+    {% elif 'coach/tactica' in request.path|default:'' %}
+    <span class="nav-context-sep">·</span>
+    <span class="nav-context-section">Táctica</span>
     {% elif 'registro-acciones' in request.path|default:'' or 'convocatoria' in request.path|default:'' or '11-inicial' in request.path|default:'' or request.path|slice:":9" == '/partido/' or request.path|slice:":7" == '/match/' or request.path|slice:":12" == '/incidencias/' %}
     <span class="nav-context-sep">·</span>
     <span class="nav-context-section">Partido</span>
@@ -152,11 +155,14 @@
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenos</a>
   {% endif %}
+  {% if workspace_module_access.tactics|default:True %}
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
+  {% endif %}
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
   {# Buscador se mantiene dentro del Menú (y atajo Ctrl/Cmd+K). Evitamos saturar la barra superior. #}
-  <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
+  <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">
     <summary>Menú</summary>
     <div class="nav-more-panel">
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
@@ -272,6 +278,7 @@
   {"label":"11 inicial","url":"{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"11 inicial lineup titulares"},
   {"label":"Registro acciones","url":"{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"acciones registro en vivo"},
   {"label":"Entrenos","url":"{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"entrenos sesiones microciclos"},
+  {"label":"Táctica","url":"{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"tactica táctica pizarra playbook clips"},
   {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"crear tarea pizarra editor"},
   {"label":"Calendario (ICS)","url":"{% url 'team-calendar-ics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"calendario ics exportar google apple"},
   {"label":"Buscar (página)","url":"{% url 'search-page' %}","keywords":"buscar search"},
