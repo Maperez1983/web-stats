@@ -145,9 +145,9 @@
     {% endif %}
   </div>
   {% endif %}
-  {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' %}
+  {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% if club_dashboard_url %}{{ club_dashboard_url }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
+  <a href="{% if cdurl %}{{ cdurl }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenos</a>
@@ -263,7 +263,7 @@
 </div>
 <script type="application/json" id="cmdk-static-items">
 [
-  {"label":"Portada","url":"{% if club_dashboard_url %}{{ club_dashboard_url|escapejs }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if '?' in club_dashboard_url %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}","keywords":"home portada dashboard"},
+  {"label":"Portada","url":"{% if cdurl %}{{ cdurl|escapejs }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}","keywords":"home portada dashboard"},
   {"label":"Partido","url":"{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"partido match hub"},
   {"label":"Convocatoria","url":"{% url 'convocation' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"convocatoria convocatoria pdf lista"},
   {"label":"11 inicial","url":"{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"11 inicial lineup titulares"},
