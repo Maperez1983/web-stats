@@ -27349,9 +27349,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             if wants_json and planner_action == 'update_session_sections':
                 return JsonResponse({'ok': False, 'error': error}, status=500)
     elif request.method == 'GET':
-        requested_tab = _normalize_tab(request.GET.get('tab') or '')
-        if requested_tab:
-            active_tab = requested_tab
+        # Compat: antes existía `_normalize_tab` (solo sub-tabs). Ahora usamos `_normalize_nav`
+        # para pestañas principales + subtabs (biblioteca/sesiones/microciclos).
+        main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
 
     all_sessions = list(
         TrainingSession.objects
