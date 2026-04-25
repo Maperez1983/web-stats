@@ -949,6 +949,41 @@
 	        margin: 0 0 0.75rem;
 	        opacity: 0.9;
 	      }
+	      .sim-advanced {
+	        margin-top: 0.65rem;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.12);
+	        background: rgba(255,255,255,0.03);
+	        overflow: hidden;
+	      }
+	      .sim-advanced > summary {
+	        cursor: pointer;
+	        padding: 10px 12px;
+	        font-size: 0.76rem;
+	        font-weight: 900;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: rgba(226,232,240,0.9);
+	        list-style: none;
+	        display: flex;
+	        align-items: center;
+	        justify-content: space-between;
+	        gap: 0.75rem;
+	      }
+	      .sim-advanced > summary::-webkit-details-marker { display: none; }
+	      .sim-advanced > summary::after {
+	        content: "▾";
+	        opacity: 0.75;
+	        font-size: 0.9rem;
+	      }
+	      .sim-advanced[open] > summary::after { content: "▴"; }
+	      .sim-advanced > summary:hover {
+	        background: rgba(255,255,255,0.05);
+	      }
+	      .sim-advanced .sim-controls,
+	      .sim-advanced .sim-options {
+	        padding: 0 12px 12px;
+	      }
 	      .sim-controls {
 	        display: flex;
 	        flex-wrap: wrap;
@@ -2947,11 +2982,13 @@
 	        <input type="hidden" name="draw_task_pitch_grass_style" id="draw-task-pitch-grass-style" value="{{ initial.pitch_grass_style|default:'classic' }}" />
 	        <div id="assigned-players-hidden" style="display:none;"></div>
 
+        {% if not tactics_mode %}
         <div class="task-mode-tabs" id="task-mode-tabs" role="tablist" aria-label="Vista de edición">
           <button type="button" class="is-active" data-task-mode="board" role="tab" aria-selected="true">Pizarra</button>
           <button type="button" data-task-mode="text" role="tab" aria-selected="false">Contenido</button>
           <span class="hint">Alterna para editar sin scroll.</span>
         </div>
+        {% endif %}
 
         <div class="builder">
           <section class="panel">
@@ -3214,77 +3251,82 @@
 					                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
 					                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
 					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
-					                          <button type="button" class="button" id="task-sim-to-scenarios" hidden>Crear escenarios</button>
-					                          <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
-					                          <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
-					                          <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
-					                          <button type="button" class="button" id="task-sim-record" hidden>Grabar vídeo</button>
-					                          <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
-					                          <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
-						                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
-						                          <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
-						                          <button type="button" class="button" id="task-sim-video-import" hidden>Importar vídeo</button>
-						                          <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
-						                            Destino
-						                            <select id="task-sim-clip-dest">
-						                              <option value="local" selected>Local</option>
-						                              <option value="team">Playbook equipo</option>
-						                              {% if user.is_superuser %}
-						                              <option value="system">Playbook sistema</option>
-						                              {% endif %}
-						                            </select>
-						                          </label>
-					                          <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
+					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
 						                        </div>
+						                        <details class="sim-advanced" id="task-sim-advanced" hidden>
+						                          <summary>Opciones avanzadas</summary>
+						                          <div class="sim-controls" style="margin-top:0.65rem;">
+						                            <button type="button" class="button" id="task-sim-to-scenarios" hidden>Crear escenarios</button>
+						                            <button type="button" class="button" id="task-sim-share" hidden>Copiar enlace</button>
+						                            <button type="button" class="button" id="task-sim-export-step" hidden>PNG paso</button>
+						                            <button type="button" class="button" id="task-sim-export-all" hidden>PNG pasos</button>
+						                            <button type="button" class="button" id="task-sim-record" hidden>Grabar vídeo</button>
+						                            <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
+						                            <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
+						                            <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
+						                            <button type="button" class="button" id="task-sim-video-import" hidden>Importar vídeo</button>
+						                            <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
+						                              Destino
+						                              <select id="task-sim-clip-dest">
+						                                <option value="local" selected>Local</option>
+						                                <option value="team">Playbook equipo</option>
+						                                {% if user.is_superuser %}
+						                                <option value="system">Playbook sistema</option>
+						                                {% endif %}
+						                              </select>
+						                            </label>
+						                            <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
+						                          </div>
+						                          <div class="sim-options">
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-autocapture" />
+						                              Auto-capturar al mover
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-pro-enabled" />
+						                              Timeline Pro
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-trajectories" />
+						                              Trayectorias
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-magnets" />
+						                              Imanes
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-guides" />
+						                              Guías
+						                            </label>
+						                            <label class="sim-check">
+						                              <input type="checkbox" id="task-sim-collision" />
+						                              Colisión suave
+						                            </label>
+						                            <label>
+						                              Velocidad
+						                              <select id="task-sim-speed">
+						                                <option value="0.5">0.5×</option>
+						                                <option value="1" selected>1×</option>
+						                                <option value="1.5">1.5×</option>
+						                                <option value="2">2×</option>
+						                              </select>
+						                            </label>
+						                            <label>
+						                              Formato vídeo
+						                              <select id="task-sim-record-format">
+						                                <option value="match" selected>Tal cual (pizarra)</option>
+						                                <option value="ig_4_5">Instagram 4:5 (1080×1350)</option>
+						                                <option value="ig_9_16">Instagram 9:16 (1080×1920)</option>
+						                              </select>
+						                            </label>
+						                            <label class="sim-check" title="Muestra el título de la tarea en el vídeo exportado.">
+						                              <input type="checkbox" id="task-sim-record-title" checked />
+						                              Título en vídeo
+						                            </label>
+						                          </div>
+						                        </details>
 						                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
 						                        <input type="file" id="task-sim-video-file" accept="video/*" hidden />
-						                        <div class="sim-options">
-					                          <label class="sim-check">
-					                            <input type="checkbox" id="task-sim-autocapture" />
-					                            Auto-capturar al mover
-				                          </label>
-					                          <label class="sim-check">
-					                            <input type="checkbox" id="task-sim-pro-enabled" />
-					                            Timeline Pro
-					                          </label>
-				                          <label class="sim-check">
-				                            <input type="checkbox" id="task-sim-trajectories" />
-				                            Trayectorias
-				                          </label>
-				                          <label class="sim-check">
-				                            <input type="checkbox" id="task-sim-magnets" />
-				                            Imanes
-				                          </label>
-				                          <label class="sim-check">
-				                            <input type="checkbox" id="task-sim-guides" />
-				                            Guías
-				                          </label>
-				                          <label class="sim-check">
-				                            <input type="checkbox" id="task-sim-collision" />
-				                            Colisión suave
-				                          </label>
-						                          <label>
-						                            Velocidad
-						                            <select id="task-sim-speed">
-						                              <option value="0.5">0.5×</option>
-						                              <option value="1" selected>1×</option>
-						                              <option value="1.5">1.5×</option>
-						                              <option value="2">2×</option>
-						                            </select>
-						                          </label>
-					                          <label>
-					                            Formato vídeo
-					                            <select id="task-sim-record-format">
-					                              <option value="match" selected>Tal cual (pizarra)</option>
-					                              <option value="ig_4_5">Instagram 4:5 (1080×1350)</option>
-					                              <option value="ig_9_16">Instagram 9:16 (1080×1920)</option>
-					                            </select>
-					                          </label>
-					                          <label class="sim-check" title="Muestra el título de la tarea en el vídeo exportado.">
-					                            <input type="checkbox" id="task-sim-record-title" checked />
-					                            Título en vídeo
-					                          </label>
-						                        </div>
 					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
 					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
 					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
@@ -4000,7 +4042,8 @@
                         {% endif %}
 				              </div>
 
-              <div class="side-pane{% if not tactics_mode %} is-active{% endif %}" data-pane="ficha" role="tabpanel">
+              {% if not tactics_mode %}
+              <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
                 <div class="section">
                   <h3>Base de la tarea</h3>
                   <div class="compact-grid">
@@ -4190,7 +4233,9 @@
 	                </div>
 		              </div>
 		              </div>
+              {% endif %}
 
+              {% if not tactics_mode %}
 	              <div class="side-pane" data-pane="assistant" role="tabpanel">
 	                <div class="section">
 	                  <h3>Asistente de tareas</h3>
@@ -4383,6 +4428,7 @@
 		                </div>
 		              </div>
 
+              {% if not tactics_mode %}
 			              <div class="side-pane" data-pane="avanzado" role="tabpanel">
 			                <div class="section">
 			                  <h3>Ajustes avanzados</h3>
@@ -4606,6 +4652,8 @@
 	                </div>
 		              </div>
 		              </div>
+              {% endif %}
+              {% endif %}
 
                   {% if tactics_mode %}
 		              <div class="side-pane is-active" data-pane="playbook" role="tabpanel">
@@ -4645,6 +4693,7 @@
 		              </div>
                   {% endif %}
 
+              {% if not tactics_mode %}
 		              <div class="side-pane" data-pane="biblioteca" role="tabpanel">
 	                <div class="section">
 	                  <h3>Biblioteca visual</h3>
@@ -4686,6 +4735,7 @@
 	                  </div>
 	                </div>
 		              </div>
+              {% endif %}
 
 		              <div class="side-pane" data-pane="capas" role="tabpanel">
 		                <div class="section">
@@ -4715,6 +4765,7 @@
 		                </div>
 		              </div>
 
+              {% if not tactics_mode %}
 			              <div class="side-pane" data-pane="preview" role="tabpanel">
 			                <div class="section preview-card">
 			                  <h3>Vista previa</h3>
@@ -4722,8 +4773,9 @@
 	                    <img id="task-live-preview" src="{{ task_preview_url }}" alt="Preview de tarea" {% if not task_preview_url %}hidden{% endif %} />
 	                    <div id="task-live-preview-placeholder" class="live-preview-placeholder" {% if task_preview_url %}hidden{% endif %}>
 	                      La preview se genera mientras diseñas la tarea.
-	                    </div>
-	                  </div>
+			                </div>
+			              </div>
+              {% endif %}
 		                  {% if task and task.task_pdf %}
 	                  <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
 	                    <button

@@ -774,6 +774,7 @@
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
 				    const simProPanel = document.getElementById('task-sim-pro-panel');
+			    const simAdvancedDetails = document.getElementById('task-sim-advanced');
 			    const isTacticsMode = document.body.classList.contains('tactics-mode');
 
 			    const ensurePlaybookDock = () => {
@@ -3974,6 +3975,10 @@
 				        simToggleBtn.classList.toggle('danger', !!isSimulating);
 				        simToggleBtn.classList.toggle('primary', !isSimulating);
 				      }
+					      if (simAdvancedDetails) {
+					        simAdvancedDetails.hidden = !isSimulating;
+					        if (!isSimulating) simAdvancedDetails.open = false;
+					      }
 					      if (simResetBtn) simResetBtn.hidden = !isSimulating;
 					      if (simCaptureBtn) simCaptureBtn.hidden = !isSimulating;
 					      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
