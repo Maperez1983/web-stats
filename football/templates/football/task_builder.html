@@ -1806,6 +1806,14 @@
         gap: 0.55rem;
         margin-top: 0.75rem;
       }
+      body.tactics-mode #task-playbook-open-sim,
+      body.tactics-mode #task-playbook-open-3d,
+      body.tactics-mode #task-playbook-open-video,
+      body.tactics-mode #task-playbook-export-pack {
+        position: relative;
+        z-index: 2005;
+        pointer-events: auto;
+      }
       .export-note {
         margin-top: 0.75rem;
         font-size: 0.86rem;
@@ -4588,10 +4596,30 @@
 	                  <h3>Playbook</h3>
 	                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
 	                  <div class="export-grid" style="margin:0.75rem 0 0.35rem;">
-	                    <button type="button" class="button" id="task-playbook-open-sim">Simulador</button>
-	                    <button type="button" class="button" id="task-playbook-open-3d">Vista 3D</button>
-	                    <button type="button" class="button" id="task-playbook-open-video">Video Studio</button>
-	                    <button type="button" class="button" id="task-playbook-export-pack">Pack</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-open-sim"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto.';}catch(e){};return false;"
+                      >Simulador</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-open-3d"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Vista 3D).';}catch(e){};return false;"
+                      >Vista 3D</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-open-video"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Video Studio).';}catch(e){};return false;"
+                      >Video Studio</button>
+	                    <button
+                        type="button"
+                        class="button"
+                        id="task-playbook-export-pack"
+                        onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Pack).';}catch(e){};return false;"
+                      >Pack</button>
 	                  </div>
 	                  <div id="task-playbook-pane">
 	                    <div class="timeline-empty">Cargando Playbook…</div>
