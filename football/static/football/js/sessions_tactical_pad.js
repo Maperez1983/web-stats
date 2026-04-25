@@ -774,6 +774,56 @@
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
 				    const simProPanel = document.getElementById('task-sim-pro-panel');
+			    const isTacticsMode = document.body.classList.contains('tactics-mode');
+
+			    const ensurePlaybookDock = () => {
+			      if (!playbookPaneEl) return null;
+			      let dock = document.getElementById('task-playbook-dock');
+			      if (dock) return dock;
+			      dock = document.createElement('div');
+			      dock.id = 'task-playbook-dock';
+			      dock.style.display = 'grid';
+			      dock.style.gap = '0.75rem';
+			      playbookPaneEl.innerHTML = '';
+			      playbookPaneEl.appendChild(dock);
+			      return dock;
+			    };
+
+			    const ensureDockSection = (dock, id, title) => {
+			      if (!dock) return null;
+			      let section = document.getElementById(id);
+			      if (section) return section;
+			      section = document.createElement('div');
+			      section.id = id;
+			      section.style.display = 'grid';
+			      section.style.gap = '0.55rem';
+			      if (title) {
+			        const h = document.createElement('div');
+			        h.className = 'meta';
+			        h.style.fontWeight = '900';
+			        h.style.letterSpacing = '0.08em';
+			        h.style.textTransform = 'uppercase';
+			        h.textContent = title;
+			        section.appendChild(h);
+			      }
+			      dock.appendChild(section);
+			      return section;
+			    };
+
+			    const dockSimPopoverIfNeeded = () => {
+			      if (!isTacticsMode) return;
+			      if (!playbookPaneEl || !simPopover) return;
+			      const dock = ensurePlaybookDock();
+			      if (!dock) return;
+			      const simHost = ensureDockSection(dock, 'task-playbook-sim-host', 'Simulador');
+			      if (!simHost) return;
+			      if (simPopover.parentElement !== simHost) {
+			        simHost.appendChild(simPopover);
+			      }
+			      try { simPopover.classList.add('is-docked'); } catch (e) { /* ignore */ }
+			      try { simPopover.hidden = true; } catch (e) { /* ignore */ }
+			    };
+			    try { dockSimPopoverIfNeeded(); } catch (e) { /* ignore */ }
 
 			    // Pictogramas (drills): deben verse como "secuencia" para el entrenador,
 			    // pero no forman parte del dibujo del campo. Se renderizan como tira debajo de la pizarra.
@@ -7020,7 +7070,15 @@
 				    // viva ahí (en lugar de quedar "escondida" dentro del simulador).
 				    // Reutilizamos el mismo contenedor (`simClipsList`) para no duplicar DOM ni listeners.
 				    try {
-				      if (playbookPaneEl && simClipsList && simClipsList.parentElement !== playbookPaneEl) {
+				      if (playbookPaneEl && simClipsList && isTacticsMode) {
+				        dockSimPopoverIfNeeded();
+				        const dock = ensurePlaybookDock();
+				        const clipsHost = ensureDockSection(dock, 'task-playbook-clips-host', 'Clips');
+				        if (clipsHost && simClipsList.parentElement !== clipsHost) {
+				          clipsHost.appendChild(simClipsList);
+				        }
+				        simClipsList.hidden = false;
+				      } else if (playbookPaneEl && simClipsList && simClipsList.parentElement !== playbookPaneEl) {
 				        playbookPaneEl.innerHTML = '';
 				        playbookPaneEl.appendChild(simClipsList);
 				        simClipsList.hidden = false;

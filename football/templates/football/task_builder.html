@@ -873,6 +873,18 @@
         z-index: 1200;
         max-height: calc(100vh - 110px - env(safe-area-inset-top));
       }
+      /* En modo táctica, si el simulador se acopla en el panel lateral, no debe ser overlay fijo. */
+      body.tactics-mode .sim-popover.is-docked {
+        position: relative;
+        top: auto;
+        right: auto;
+        left: auto;
+        width: 100%;
+        max-height: none;
+        margin-top: 0.65rem;
+        z-index: 1;
+        box-shadow: none;
+      }
       @media (max-width: 820px) {
         body.tactics-mode .layers-popover,
         body.tactics-mode .scenarios-popover,
@@ -880,6 +892,11 @@
           left: calc(14px + env(safe-area-inset-left));
           right: calc(14px + env(safe-area-inset-right));
           width: auto;
+        }
+        body.tactics-mode .sim-popover.is-docked {
+          left: auto;
+          right: auto;
+          width: 100%;
         }
       }
 	      .sim-popover {
