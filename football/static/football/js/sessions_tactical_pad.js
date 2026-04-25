@@ -12915,6 +12915,330 @@
 		      return true;
 		    };
 
+		    // UI: mini barra “Convertir a…” (muy ligera) para cambiar rápidamente el tipo
+		    // sin tapar el lienzo. Se oculta sola o al tocar fuera.
+		    const smartInkUi = {
+		      bar: null,
+		      picker: null,
+		      hideTimer: null,
+		      src: null,
+		      activeObj: null,
+		      currentKind: '',
+		    };
+		    const clearSmartInkUiTimer = () => {
+		      if (!smartInkUi.hideTimer) return;
+		      try { window.clearTimeout(smartInkUi.hideTimer); } catch (e) { /* ignore */ }
+		      smartInkUi.hideTimer = null;
+		    };
+		    const hideSmartInkBar = () => {
+		      clearSmartInkUiTimer();
+		      if (smartInkUi.bar) smartInkUi.bar.hidden = true;
+		    };
+		    const hideSmartInkPicker = () => {
+		      if (smartInkUi.picker) smartInkUi.picker.hidden = true;
+		    };
+		    const hideSmartInkAll = () => {
+		      hideSmartInkBar();
+		      hideSmartInkPicker();
+		      smartInkUi.src = null;
+		      smartInkUi.activeObj = null;
+		      smartInkUi.currentKind = '';
+		    };
+		    const ensureSmartInkBar = () => {
+		      if (smartInkUi.bar) return smartInkUi.bar;
+		      if (!stage) return null;
+		      const el = document.createElement('div');
+		      el.className = 'tpad-smart-ink-bar';
+		      el.hidden = true;
+		      el.style.position = 'absolute';
+		      el.style.zIndex = '140';
+		      el.style.display = 'flex';
+		      el.style.gap = '6px';
+		      el.style.padding = '6px';
+		      el.style.borderRadius = '999px';
+		      el.style.border = '1px solid rgba(148,163,184,0.22)';
+		      el.style.background = 'rgba(2,6,23,0.62)';
+		      el.style.backdropFilter = 'blur(10px)';
+		      el.style.boxShadow = '0 18px 34px rgba(2,6,23,0.35)';
+		      el.style.pointerEvents = 'auto';
+		      el.style.transform = 'translate(-18%, -112%)';
+		      el.addEventListener('pointerdown', (ev) => {
+		        ev.stopPropagation();
+		      }, true);
+		      stage.appendChild(el);
+		      smartInkUi.bar = el;
+		      return el;
+		    };
+		    const ensureSmartInkPicker = () => {
+		      if (smartInkUi.picker) return smartInkUi.picker;
+		      if (!stage) return null;
+		      const wrap = document.createElement('div');
+		      wrap.className = 'tpad-smart-ink-picker';
+		      wrap.hidden = true;
+		      wrap.style.position = 'absolute';
+		      wrap.style.right = '12px';
+		      wrap.style.bottom = '12px';
+		      wrap.style.zIndex = '150';
+		      wrap.style.width = '260px';
+		      wrap.style.maxWidth = '80vw';
+		      wrap.style.maxHeight = '44vh';
+		      wrap.style.display = 'flex';
+		      wrap.style.flexDirection = 'column';
+		      wrap.style.gap = '10px';
+		      wrap.style.padding = '12px';
+		      wrap.style.borderRadius = '16px';
+		      wrap.style.border = '1px solid rgba(148,163,184,0.22)';
+		      wrap.style.background = 'rgba(2,6,23,0.78)';
+		      wrap.style.backdropFilter = 'blur(12px)';
+		      wrap.style.boxShadow = '0 24px 44px rgba(2,6,23,0.45)';
+		      wrap.style.pointerEvents = 'auto';
+		      wrap.addEventListener('pointerdown', (ev) => ev.stopPropagation(), true);
+
+		      const header = document.createElement('div');
+		      header.style.display = 'flex';
+		      header.style.alignItems = 'center';
+		      header.style.justifyContent = 'space-between';
+		      header.style.gap = '10px';
+		      const title = document.createElement('div');
+		      title.textContent = 'Convertir a…';
+		      title.style.fontWeight = '800';
+		      title.style.fontSize = '12px';
+		      title.style.letterSpacing = '0.08em';
+		      title.style.textTransform = 'uppercase';
+		      title.style.color = 'rgba(226,232,240,0.92)';
+		      const close = document.createElement('button');
+		      close.type = 'button';
+		      close.textContent = '✕';
+		      close.title = 'Cerrar';
+		      close.style.border = '1px solid rgba(148,163,184,0.22)';
+		      close.style.background = 'rgba(15,23,42,0.55)';
+		      close.style.color = 'rgba(226,232,240,0.92)';
+		      close.style.borderRadius = '10px';
+		      close.style.padding = '6px 10px';
+		      close.style.fontWeight = '900';
+		      close.addEventListener('click', () => hideSmartInkPicker());
+		      header.appendChild(title);
+		      header.appendChild(close);
+
+		      const search = document.createElement('input');
+		      search.type = 'search';
+		      search.placeholder = 'Buscar recurso…';
+		      search.autocomplete = 'off';
+		      search.style.width = '100%';
+		      search.style.padding = '10px 12px';
+		      search.style.borderRadius = '12px';
+		      search.style.border = '1px solid rgba(148,163,184,0.22)';
+		      search.style.background = 'rgba(15,23,42,0.42)';
+		      search.style.color = 'rgba(226,232,240,0.96)';
+		      search.style.outline = 'none';
+
+		      const list = document.createElement('div');
+		      list.className = 'tpad-smart-ink-picker-list';
+		      list.style.display = 'grid';
+		      list.style.gridTemplateColumns = '1fr';
+		      list.style.gap = '8px';
+		      list.style.overflow = 'auto';
+		      list.style.paddingRight = '2px';
+
+		      wrap.appendChild(header);
+		      wrap.appendChild(search);
+		      wrap.appendChild(list);
+		      stage.appendChild(wrap);
+		      smartInkUi.picker = wrap;
+
+		      wrap.__searchEl = search;
+		      wrap.__listEl = list;
+		      return wrap;
+		    };
+		    const worldPointToStageXY = (pt) => {
+		      const fabric = window.fabric;
+		      if (!fabric || !pt || !stage) return null;
+		      const vpt = canvas?.viewportTransform || [1, 0, 0, 1, 0, 0];
+		      let px = Number(pt.x) || 0;
+		      let py = Number(pt.y) || 0;
+		      try {
+		        const p = fabric.util.transformPoint(new fabric.Point(px, py), vpt);
+		        px = Number(p?.x) || px;
+		        py = Number(p?.y) || py;
+		      } catch (e) { /* ignore */ }
+		      const stageRect = stage.getBoundingClientRect();
+		      const canvasRect = (canvas?.upperCanvasEl || canvasEl)?.getBoundingClientRect?.();
+		      if (!stageRect || !canvasRect) return null;
+		      const x = (canvasRect.left - stageRect.left) + px;
+		      const y = (canvasRect.top - stageRect.top) + py;
+		      return { x, y, w: stageRect.width || 0, h: stageRect.height || 0 };
+		    };
+		    const smartBuildFromKind = (kindRaw, src) => {
+		      const kind = safeText(kindRaw).trim();
+		      if (!kind || !src) return null;
+		      const stroke = safeText(src.stroke, '#22d3ee') || '#22d3ee';
+		      const strokeWidth = clamp(Number(src.strokeWidth) || 4, 1, 26);
+		      const bounds = src.bounds || boundsForPoints(src.points || []);
+		      const center = { x: Number(bounds.cx) || 0, y: Number(bounds.cy) || 0 };
+		      const start = src.start || (src.points && src.points[0]) || center;
+		      const end = src.end || (src.points && src.points[src.points.length - 1]) || center;
+
+		      if (kind === 'arrow' || kind === 'arrow_solid') return buildSmartArrowGroup(start, end, { stroke, strokeWidth });
+
+		      if (kind === 'line' || kind === 'line_solid') {
+		        const factory = simpleFactory('line_solid');
+		        if (!factory) return null;
+		        const obj = factory(center.x, center.y);
+		        try {
+		          const dx = (Number(end?.x) || 0) - (Number(start?.x) || 0);
+		          const dy = (Number(end?.y) || 0) - (Number(start?.y) || 0);
+		          const len = Math.hypot(dx, dy) || 0;
+		          const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
+		          obj.set({ angle: ang });
+		          const baseLen = 440;
+		          const scale = clamp(len / baseLen, 0.15, 12);
+		          obj.set({ scaleX: scale, scaleY: scale });
+		        } catch (e) { /* ignore */ }
+		        applySmartShapeStyle(obj, stroke, strokeWidth);
+		        return obj;
+		      }
+
+		      const factory = simpleFactory(kind);
+		      if (!factory) return null;
+		      const obj = factory(center.x, center.y);
+		      applySmartShapeStyle(obj, stroke, strokeWidth);
+
+		      // Intenta adaptar el tamaño al gesto (si hay bounds razonables).
+		      try {
+		        const target = clamp(Math.max(60, Number(bounds.diag) || 0), 60, 260);
+		        const rect = (typeof obj.getBoundingRect === 'function') ? obj.getBoundingRect(true, true) : null;
+		        const base = rect ? Math.max(1, Math.max(Number(rect.width) || 1, Number(rect.height) || 1)) : Math.max(1, Math.max(Number(obj.width) || 1, Number(obj.height) || 1));
+		        const s = clamp(target / base, 0.18, 12);
+		        obj.set({ scaleX: (Number(obj.scaleX) || 1) * s, scaleY: (Number(obj.scaleY) || 1) * s });
+		      } catch (e) { /* ignore */ }
+		      return obj;
+		    };
+		    const replaceSmartActiveObject = (replacement) => {
+		      if (!replacement || !smartInkUi.activeObj) return false;
+		      if (isSimulating) return false;
+		      let prevLoading = false;
+		      try { prevLoading = !!canvas.__loading; } catch (e) { prevLoading = false; }
+		      try {
+		        canvas.__loading = true;
+		        try { canvas.remove(smartInkUi.activeObj); } catch (e) { /* ignore */ }
+		        normalizeEditableObject(replacement);
+		        try { canvas.add(replacement); } catch (e) { /* ignore */ }
+		      } finally {
+		        try { canvas.__loading = prevLoading; } catch (e) { /* ignore */ }
+		      }
+		      smartInkUi.activeObj = replacement;
+		      try { canvas.setActiveObject(replacement); } catch (e) { /* ignore */ }
+		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		      persistActiveStepSnapshot();
+		      pushHistory();
+		      syncInspector();
+		      renderLayers();
+		      refreshLivePreview();
+		      scheduleTacticalOverlayRefresh();
+		      schedulePlayerBankUpdate();
+		      scheduleDraftSave('canvas');
+		      return true;
+		    };
+		    const showSmartInkPicker = () => {
+		      const picker = ensureSmartInkPicker();
+		      if (!picker) return;
+		      const listEl = picker.__listEl;
+		      const searchEl = picker.__searchEl;
+		      if (!listEl || !searchEl) return;
+		      picker.hidden = false;
+		      try { searchEl.focus(); } catch (e) { /* ignore */ }
+		      const all = Object.entries(RESOURCE_LABELS || {})
+		        .map(([kind, label]) => ({ kind, label: safeText(label, kind) }))
+		        .filter((item) => !!safeText(item.kind));
+		      const render = () => {
+		        const q = safeText(searchEl.value).toLowerCase().trim();
+		        const items = all
+		          .filter((it) => {
+		            if (!q) return true;
+		            return safeText(it.kind).toLowerCase().includes(q) || safeText(it.label).toLowerCase().includes(q);
+		          })
+		          .slice(0, 60);
+		        listEl.innerHTML = items.map((it) => {
+		          const k = safeText(it.kind).replace(/"/g, '&quot;');
+		          const l = safeText(it.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		          return `<button type="button" class="tpad-smart-ink-item" data-kind="${k}" title="${l}" style="text-align:left;border:1px solid rgba(148,163,184,0.20);background:rgba(15,23,42,0.42);color:rgba(226,232,240,0.92);border-radius:12px;padding:10px 12px;font-weight:800;font-size:13px;">${l}</button>`;
+		        }).join('');
+		      };
+		      render();
+		      searchEl.oninput = render;
+		      listEl.onclick = (ev) => {
+		        const btn = ev.target.closest('button[data-kind]');
+		        if (!btn) return;
+		        const kind = safeText(btn.dataset.kind);
+		        const replacement = smartBuildFromKind(kind, smartInkUi.src);
+		        if (!replacement) {
+		          setStatus('Ese recurso no se puede generar desde un trazo (todavía).', true);
+		          return;
+		        }
+		        if (replaceSmartActiveObject(replacement)) {
+		          hideSmartInkPicker();
+		          setStatus('Recurso convertido.');
+		        }
+		      };
+		    };
+		    const showSmartInkBar = (anchorWorldPoint, options = []) => {
+		      const bar = ensureSmartInkBar();
+		      if (!bar) return;
+		      const pos = worldPointToStageXY(anchorWorldPoint);
+		      if (!pos) return;
+		      clearSmartInkUiTimer();
+		      hideSmartInkPicker();
+		      const safeX = clamp((Number(pos.x) || 0), 16, Math.max(16, (Number(pos.w) || 0) - 16));
+		      const safeY = clamp((Number(pos.y) || 0), 16, Math.max(16, (Number(pos.h) || 0) - 16));
+		      bar.style.left = `${safeX}px`;
+		      bar.style.top = `${safeY}px`;
+		      bar.hidden = false;
+		      bar.innerHTML = options.map((opt) => {
+		        const key = safeText(opt.key);
+		        const label = safeText(opt.label, key);
+		        const icon = safeText(opt.icon, label);
+		        const active = !!opt.active;
+		        const cls = active ? 'tpad-smart-ink-btn is-active' : 'tpad-smart-ink-btn';
+		        const border = active ? 'rgba(244,180,0,0.65)' : 'rgba(148,163,184,0.22)';
+		        const bg = active ? 'rgba(244,180,0,0.12)' : 'rgba(15,23,42,0.20)';
+		        return `<button type="button" class="${cls}" data-smart="${key}" title="${label}" style="appearance:none;cursor:pointer;border:1px solid ${border};background:${bg};color:rgba(226,232,240,0.95);border-radius:999px;padding:6px 10px;font-weight:950;letter-spacing:0.02em;font-size:12px;line-height:1;">${icon}</button>`;
+		      }).join('');
+		      bar.onclick = (ev) => {
+		        const btn = ev.target.closest('button[data-smart]');
+		        if (!btn) return;
+		        const key = safeText(btn.dataset.smart);
+		        if (key === '__picker__') {
+		          hideSmartInkBar();
+		          showSmartInkPicker();
+		          return;
+		        }
+		        if (!key) return;
+		        if (key === smartInkUi.currentKind) {
+		          hideSmartInkBar();
+		          return;
+		        }
+		        const replacement = smartBuildFromKind(key, smartInkUi.src);
+		        if (!replacement) {
+		          setStatus('No se puede convertir a ese recurso desde el trazo.', true);
+		          return;
+		        }
+		        if (replaceSmartActiveObject(replacement)) {
+		          smartInkUi.currentKind = key;
+		          hideSmartInkBar();
+		          setStatus('Convertido.');
+		        }
+		      };
+		      // Auto-oculta rápido (no debe estorbar).
+		      smartInkUi.hideTimer = window.setTimeout(() => hideSmartInkBar(), 1600);
+		    };
+		    // Oculta al tocar fuera.
+		    stage?.addEventListener('pointerdown', (ev) => {
+		      const t = ev.target;
+		      if (smartInkUi.bar && !smartInkUi.bar.hidden && t && smartInkUi.bar.contains(t)) return;
+		      if (smartInkUi.picker && !smartInkUi.picker.hidden && t && smartInkUi.picker.contains(t)) return;
+		      hideSmartInkAll();
+		    }, true);
+
 		    canvas.on('path:created', (event) => {
 		      if (canvas.__loading) return;
 		      if (!freeDrawMode) return;
@@ -12933,6 +13257,15 @@
 		        return;
 		      }
 
+		      const src = {
+		        points,
+		        bounds: boundsForPoints(points),
+		        start: points[0],
+		        end: points[points.length - 1],
+		        stroke,
+		        strokeWidth,
+		      };
+
 		      if (smartInkMode === 'shapes') {
 		        const match = classifySmartShape(points);
 		        if (!match) {
@@ -12942,11 +13275,14 @@
 		          return;
 		        }
 		        let replacement = null;
+		        let currentKind = safeText(match.kind);
 		        if (match.kind === 'line_solid') {
 		          const factory = simpleFactory('line_solid');
 		          if (factory) {
 		            const a = match.start;
 		            const b = match.end;
+		            src.start = a;
+		            src.end = b;
 		            const cx = ((Number(a?.x) || 0) + (Number(b?.x) || 0)) / 2;
 		            const cy = ((Number(a?.y) || 0) + (Number(b?.y) || 0)) / 2;
 		            replacement = factory(cx, cy);
@@ -12964,6 +13300,7 @@
 		          }
 		        } else {
 		          const b = match.bounds || boundsForPoints(points);
+		          src.bounds = b;
 		          const factory = simpleFactory(match.kind);
 		          if (factory) replacement = factory(b.cx, b.cy);
 		          if (replacement) {
@@ -12991,6 +13328,17 @@
 		          renderLayers();
 		          return;
 		        }
+		        smartInkUi.src = src;
+		        smartInkUi.activeObj = replacement;
+		        smartInkUi.currentKind = currentKind;
+		        const anchor = (match.kind === 'line_solid') ? src.end : { x: src.bounds.maxX, y: src.bounds.minY };
+		        showSmartInkBar(anchor, [
+		          { key: currentKind, label: 'Mantener', icon: '✓', active: true },
+		          { key: 'arrow', label: 'Flecha', icon: '↗︎' },
+		          { key: 'line_solid', label: 'Línea', icon: '—' },
+		          { key: 'cone', label: 'Cono', icon: '▲' },
+		          { key: '__picker__', label: 'Más…', icon: '…' },
+		        ]);
 		        setStatus('Forma convertida.');
 		        return;
 		      }
@@ -13031,6 +13379,18 @@
 		        renderLayers();
 		        return;
 		      }
+		      src.start = start;
+		      src.end = end;
+		      smartInkUi.src = src;
+		      smartInkUi.activeObj = arrow;
+		      smartInkUi.currentKind = 'arrow';
+		      showSmartInkBar(end, [
+		        { key: 'arrow', label: 'Mantener flecha', icon: '✓', active: true },
+		        { key: 'line_solid', label: 'Línea', icon: '—' },
+		        { key: 'shape_circle', label: 'Círculo', icon: '○' },
+		        { key: 'cone', label: 'Cono', icon: '▲' },
+		        { key: '__picker__', label: 'Más…', icon: '…' },
+		      ]);
 		      setStatus('Flecha convertida.');
 		    });
 				    canvas.on('object:moving', (event) => {
