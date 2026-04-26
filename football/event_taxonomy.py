@@ -3,6 +3,19 @@ import unicodedata
 
 
 SUCCESS_RESULTS = {"ok", "ganado", "g", "ganó", "goles", "anotado", "marcado"}
+
+# Disparos "a puerta" usados históricamente por el staff (ej: "AP") o nuevas variantes.
+SHOT_ON_TARGET_RESULTS = {
+    "ap",
+    "a puerta",
+    "apuerta",
+    "a_puerta",
+    "a-puerta",
+    "a/p",
+    "a p",
+    "a- p",
+    "a",
+}
 DUEL_EVENT_KEYWORDS = {
     "duelo",
     "regate",
@@ -285,9 +298,11 @@ def is_shot_attempt_event(event_type, result=None, observation=None):
 def is_shot_on_target_event(event_type, result=None, observation=None):
     if not is_shot_attempt_event(event_type, result=result, observation=observation):
         return False
+    normalized_result = normalize_label(result)
     return (
         is_goal_event(event_type, result=result, observation=observation)
         or is_goalkeeper_save_event(event_type, result=result, observation=observation)
+        or normalized_result in SHOT_ON_TARGET_RESULTS
         or result_is_success(result)
     )
 

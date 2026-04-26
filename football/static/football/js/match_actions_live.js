@@ -854,6 +854,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       btn.classList.add('quake-action-active');
       actionInput.value = btn.dataset.action;
       pushRecentAction(btn.dataset.action);
+      try {
+        actionInput.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (e) {}
     });
   });
 

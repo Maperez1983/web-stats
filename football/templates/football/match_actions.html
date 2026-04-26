@@ -2889,6 +2889,7 @@
       const tercioInput = popupForm.querySelector('input[name="tercio"]');
       const tercioDisplay = popupForm.querySelector('[data-tercio-display]');
       const observationInput = popupForm.querySelector('textarea[name="observation"]');
+      const resultSelect = popupForm.querySelector('select[name="result"]');
       const popupEditToggle = document.getElementById('popup-edit-toggle');
       const setPopupEditMode = (enabled, { focusField = false } = {}) => {
         const isEdit = Boolean(enabled);
@@ -2917,6 +2918,8 @@
         });
       }
       setPopupEditMode(false);
+      // Resultado: si ya venimos con acción preseleccionada, ajusta opciones (Disparo => A puerta/Fuera).
+      try { syncResultOptionsForAction(actionInput?.value || ''); } catch (e) {}
       const playerInput = document.getElementById('selected-player');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
@@ -2970,6 +2973,61 @@
         const next = [clean, ...existing.filter((item) => normalizeActionKey(item) !== key)].slice(0, 12);
         writeRecentActions(next);
       };
+      const baseResultOptions = (() => {
+        const out = [];
+        try {
+          (resultSelect?.querySelectorAll('option') || []).forEach((opt) => {
+            const value = String(opt.value || '').trim();
+            if (!value) return;
+            out.push(value);
+          });
+        } catch (e) {}
+        return out.length ? out : ['Ganado', 'Perdido'];
+      })();
+      const shotResultOptions = ['A puerta', 'Fuera'];
+      const isShotAction = (actionLabel) => {
+        const key = normalizeActionKey(actionLabel);
+        if (!key) return false;
+        return (
+          key.includes('disparo')
+          || key.includes('tiro')
+          || key.includes('remate')
+          || key.includes('chut')
+          || key.includes('shot')
+        );
+      };
+      const setResultOptions = (options, { keepValue = true } = {}) => {
+        if (!resultSelect) return;
+        const previous = String(resultSelect.value || '').trim();
+        const nextValue = keepValue ? previous : '';
+        resultSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Selecciona resultado';
+        resultSelect.appendChild(placeholder);
+        (options || []).forEach((value) => {
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.textContent = value;
+          resultSelect.appendChild(opt);
+        });
+        if (nextValue && Array.from(resultSelect.options).some((opt) => String(opt.value) === nextValue)) {
+          resultSelect.value = nextValue;
+        } else {
+          resultSelect.value = '';
+        }
+      };
+      const syncResultOptionsForAction = (actionLabel) => {
+        if (!resultSelect) return;
+        const useShot = isShotAction(actionLabel);
+        const active = Array.from(resultSelect.options).map((opt) => String(opt.value || '').trim()).filter(Boolean);
+        const target = useShot ? shotResultOptions : baseResultOptions;
+        const normalizedActive = active.join('|');
+        const normalizedTarget = target.join('|');
+        if (normalizedActive !== normalizedTarget) {
+          setResultOptions(target, { keepValue: true });
+        }
+      };
       const parseHistoryActionType = (raw) => {
         const text = String(raw || '').trim();
         if (!text) return '';
@@ -3015,6 +3073,7 @@
             try { quickButtons.forEach((other) => other.classList.remove('quake-action-active')); } catch (e) {}
             if (actionInput) actionInput.value = label;
             pushRecentAction(label);
+            syncResultOptionsForAction(label);
             closeActionPicker();
           });
           container.appendChild(btn);
@@ -3113,6 +3172,8 @@
           event.preventDefault();
           openActionPicker();
         });
+        actionInput.addEventListener('input', () => syncResultOptionsForAction(actionInput.value));
+        actionInput.addEventListener('change', () => syncResultOptionsForAction(actionInput.value));
       }
       if (actionPickerCloseBtn) {
         actionPickerCloseBtn.addEventListener('click', () => closeActionPicker());
