@@ -193,6 +193,7 @@ from football.services import (
     find_roster_entry,
     get_roster_stats_cache,
     load_match_actions,
+    load_match_quick_actions,
     load_match_results,
     normalize_player_name,
     parse_preferente_roster,
@@ -15241,6 +15242,24 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
                         out_row['slot_index'] = slot_index
             except Exception:
                 pass
+            try:
+                if section == 'starters':
+                    raw_x = row.get('x_pct')
+                    raw_y = row.get('y_pct')
+                    if raw_x is None and 'x' in row:
+                        raw_x = row.get('x')
+                    if raw_y is None and 'y' in row:
+                        raw_y = row.get('y')
+                    if raw_x is not None and raw_y is not None:
+                        x = float(str(raw_x).strip())
+                        y = float(str(raw_y).strip())
+                        if x == x and y == y:  # NaN guard
+                            x = max(0.0, min(100.0, x))
+                            y = max(0.0, min(100.0, y))
+                            out_row['x_pct'] = round(x, 2)
+                            out_row['y_pct'] = round(y, 2)
+            except Exception:
+                pass
             base[section].append(out_row)
     # dedupe: a player must appear only once across sections
     seen = set()
@@ -15274,6 +15293,30 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
                 continue
             if idx < 0 or idx >= starters_limit:
                 row.pop('slot_index', None)
+    except Exception:
+        pass
+    # Normaliza coordenadas libres (modo táctil) al rango del campo.
+    try:
+        for row in base['starters']:
+            if not isinstance(row, dict):
+                continue
+            if 'x_pct' not in row or 'y_pct' not in row:
+                continue
+            try:
+                x = float(row.get('x_pct'))
+                y = float(row.get('y_pct'))
+            except Exception:
+                row.pop('x_pct', None)
+                row.pop('y_pct', None)
+                continue
+            if not (x == x and y == y):
+                row.pop('x_pct', None)
+                row.pop('y_pct', None)
+                continue
+            x = max(0.0, min(100.0, x))
+            y = max(0.0, min(100.0, y))
+            row['x_pct'] = round(x, 2)
+            row['y_pct'] = round(y, 2)
     except Exception:
         pass
     return base
@@ -15543,7 +15586,8 @@ def match_action_page(request):
             'message': message,
             'team_name': primary_team.name,
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True) or '',
-            'quick_actions': load_match_actions(),
+            'quick_actions': load_match_quick_actions(),
+            'action_catalog': load_match_actions(),
             'field_zone_defs': FIELD_ZONES,
             'result_options': load_match_results(),
             'tercio_options': STANDARD_TERCIO_LABELS,

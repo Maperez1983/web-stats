@@ -1296,6 +1296,13 @@ DEFAULT_QUICK_ACTIONS = [
     'Saque de esquina en contra',
 ]
 
+def load_match_quick_actions():
+    """
+    Acciones rápidas para el registro en vivo (UI).
+    Mantener corto y estable para no saturar iPad/webview.
+    """
+    return DEFAULT_QUICK_ACTIONS.copy()
+
 def load_match_actions():
     actions, _ = _read_match_list_sheet()
     if not actions:

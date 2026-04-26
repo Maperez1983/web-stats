@@ -534,6 +534,40 @@
         lineupState.bench = bench;
       };
 
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const fieldPctFromClient = (clientX, clientY) => {
+        const rect = field.getBoundingClientRect();
+        const x = ((clientX - rect.left) / Math.max(1, rect.width)) * 100;
+        const y = ((clientY - rect.top) / Math.max(1, rect.height)) * 100;
+        return { x: clamp(x, 2, 98), y: clamp(y, 2, 98) };
+      };
+      const upsertStarterWithPosition = (playerPayload, { x, y } = {}) => {
+        if (!playerPayload?.id) return;
+        const pid = String(playerPayload.id);
+        const next = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
+        next.push({
+          ...playerPayload,
+          x_pct: Number.isFinite(x) ? clamp(x, 2, 98) : playerPayload.x_pct,
+          y_pct: Number.isFinite(y) ? clamp(y, 2, 98) : playerPayload.y_pct,
+        });
+        lineupState.starters = next.slice(0, STARTERS_REQUIRED);
+        recomputeBenchFromChecks();
+      };
+      const ensureStarterPositionsFromTemplate = ({ force = false } = {}) => {
+        const slots = activeSlots();
+        if (!slots.length) return;
+        lineupState.starters = (lineupState.starters || []).map((row, index) => {
+          const hasXY = row && row.x_pct !== undefined && row.y_pct !== undefined;
+          if (hasXY && !force) return row;
+          const slot = slots[index] || slots[Math.max(0, Math.min(index, slots.length - 1))];
+          return {
+            ...row,
+            x_pct: Number.isFinite(Number(row?.x_pct)) && !force ? Number(row.x_pct) : Number(slot.x),
+            y_pct: Number.isFinite(Number(row?.y_pct)) && !force ? Number(row.y_pct) : Number(slot.y),
+          };
+        });
+      };
+
       const renderField = () => {
         field.innerHTML = '';
         const markings = document.createElement('div');
@@ -549,99 +583,45 @@
           <span class="pitch-goal bottom"></span>
         `;
         field.appendChild(markings);
-        const slots = activeSlots();
-        const assignedByIndex = new Map();
-        (lineupState.starters || []).forEach((row, idx) => {
-          if (!row) return;
-          const stored = row.slot_index;
-          const slotIndex = Number.isFinite(Number(stored)) ? Number(stored) : null;
-          if (slotIndex === null || slotIndex < 0) {
-            // Fallback legacy: por orden (índice).
-            assignedByIndex.set(idx, row);
-            return;
+        // Asegura posiciones iniciales si vienen de un seed antiguo o de autocompletado.
+        ensureStarterPositionsFromTemplate({ force: false });
+
+        // Render tokens libres (arrastre).
+        (lineupState.starters || []).forEach((player) => {
+          if (!player?.id) return;
+          const x = clamp(Number(player.x_pct ?? 50), 2, 98);
+          const y = clamp(Number(player.y_pct ?? 50), 2, 98);
+          const wrap = document.createElement('div');
+          wrap.className = 'field-token';
+          wrap.dataset.playerId = String(player.id);
+          wrap.style.left = `${x}%`;
+          wrap.style.top = `${y}%`;
+          if (activePlayerId && String(activePlayerId) === String(player.id)) {
+            wrap.classList.add('is-active');
           }
-          assignedByIndex.set(slotIndex, row);
-        });
-        slots.forEach((slot, index) => {
-          const box = document.createElement('div');
-          box.className = 'slot';
-          if (activePlayerId) box.classList.add('is-target');
-          box.style.left = `${slot.x}%`;
-          box.style.top = `${slot.y}%`;
-          box.dataset.slotIndex = String(index);
-          const title = document.createElement('div');
-          title.className = 'slot-label';
-          title.textContent = slot.label;
-          box.appendChild(title);
-          const player = assignedByIndex.get(index) || null;
-          if (player) {
-            const token = document.createElement('div');
-            token.className = 'token';
-            const photo = document.createElement('img');
-            photo.className = 'token-photo';
-            photo.src = player.photo || avatarFallback;
-            photo.alt = player.name || 'Jugador';
-            photo.loading = 'lazy';
-            photo.onerror = () => {
-              photo.onerror = null;
-              photo.src = avatarFallback;
+          wrap.innerHTML = `
+            <div class="token">
+              <img class="token-photo" src="${player.photo || avatarFallback}" alt="${player.name || 'Jugador'}" loading="lazy" />
+              <span class="token-name">#${player.number || '--'} ${String(player.name || '').toUpperCase()}</span>
+            </div>
+          `;
+          const img = wrap.querySelector('img');
+          if (img) {
+            img.onerror = () => {
+              img.onerror = null;
+              img.src = avatarFallback;
             };
-            const name = document.createElement('span');
-            name.className = 'token-name';
-            name.textContent = `#${player.number || '--'} ${String(player.name || '').toUpperCase()}`;
-            token.appendChild(photo);
-            token.appendChild(name);
-            box.appendChild(token);
           }
-          box.addEventListener('click', () => {
-            if (hasPendingConvocation) return;
-            const slotIdx = parseInt(String(box.dataset.slotIndex || ''), 10);
-            if (!Number.isFinite(slotIdx) || slotIdx < 0) return;
-            const selectedCard = activePlayerId
-              ? playerCards.find((card) => String(card.dataset.playerId || '') === String(activePlayerId))
-              : null;
-            if (!selectedCard) {
-              // Sin jugador activo: si hay jugador en el slot, lo liberamos.
-              const nextStarters = (lineupState.starters || []).filter((row) => {
-                const idx = Number(row?.slot_index);
-                if (Number.isFinite(idx)) return idx !== slotIdx;
-                return true;
-              });
-              if (nextStarters.length !== (lineupState.starters || []).length) {
-                manualMode = true;
-                lineupState.starters = nextStarters;
-                recomputeBenchFromChecks();
-                renderField();
-              }
-              return;
-            }
-            const payload = parseCard(selectedCard);
-            if (!payload?.id) return;
-            const checkbox = selectedCard.querySelector('input[type="checkbox"]');
-            if (checkbox && !checkbox.checked) checkbox.checked = true;
-            manualMode = true;
-            // Quita este jugador de cualquier slot anterior y quita el ocupante del slot actual.
-            const filtered = (lineupState.starters || [])
-              .filter((row) => String(row?.id || '') !== String(payload.id));
-            const withoutSlot = filtered.filter((row) => {
-              const idx = Number(row?.slot_index);
-              if (Number.isFinite(idx)) return idx !== slotIdx;
-              return true;
-            });
-            const next = [...withoutSlot, { ...payload, slot_index: slotIdx }];
-            lineupState.starters = next;
-            recomputeBenchFromChecks();
-            renderField();
-          });
-          field.appendChild(box);
+          field.appendChild(wrap);
         });
-        const missing = Math.max(0, STARTERS_REQUIRED - lineupState.starters.length);
+
+        const missing = Math.max(0, STARTERS_REQUIRED - (lineupState.starters || []).length);
         if (hasPendingConvocation) {
           statusMsg.textContent = 'Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.';
           statusMsg.classList.add('warn');
           statusMsg.classList.remove('ok');
         } else {
-          statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar la alineación.` : 'Alineación inicial completa.';
+          statusMsg.textContent = missing ? `Faltan ${missing} jugadores para completar el 11.` : '11 inicial completo.';
           statusMsg.classList.toggle('warn', missing > 0);
           statusMsg.classList.toggle('ok', missing === 0);
         }

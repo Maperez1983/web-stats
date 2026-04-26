@@ -126,6 +126,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const mid = String(currentMatchId || '').trim();
     return mid ? `webstats:live:state:v1:${mid}` : '';
   })();
+  const recentActionsKey = 'webstats:live:recent_actions:v1';
   const safeParseJson = (raw, fallback) => {
     try {
       return JSON.parse(String(raw || ''));
@@ -167,6 +168,30 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       window.localStorage.setItem(liveStateKey, JSON.stringify(value && typeof value === 'object' ? value : {}));
     } catch (error) {
       // ignore quota errors
+    }
+  };
+  const pushRecentAction = (label) => {
+    if (!canUseStorage) return;
+    const clean = String(label || '').trim();
+    if (!clean) return;
+    const normalize = (value) => {
+      const raw = String(value || '').trim().toLowerCase();
+      try {
+        return raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      } catch (e) {
+        return raw;
+      }
+    };
+    const key = normalize(clean);
+    if (!key) return;
+    try {
+      const raw = window.localStorage.getItem(recentActionsKey) || '[]';
+      const parsed = safeParseJson(raw, []);
+      const existing = Array.isArray(parsed) ? parsed.map((item) => String(item || '').trim()).filter(Boolean) : [];
+      const next = [clean, ...existing.filter((item) => normalize(item) !== key)].slice(0, 12);
+      window.localStorage.setItem(recentActionsKey, JSON.stringify(next));
+    } catch (error) {
+      // ignore
     }
   };
   const updateOfflineQueueUi = () => {
@@ -828,6 +853,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
       btn.classList.add('quake-action-active');
       actionInput.value = btn.dataset.action;
+      pushRecentAction(btn.dataset.action);
     });
   });
 

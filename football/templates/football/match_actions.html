@@ -1252,6 +1252,140 @@
         flex-wrap: wrap;
         gap: 0.35rem;
       }
+      .field-popup .popup-label-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .field-popup .popup-label-action {
+        margin-left: auto;
+        border-radius: 999px;
+        padding: 0.25rem 0.6rem;
+        border: 1px solid rgba(34, 211, 238, 0.35);
+        background: rgba(34, 211, 238, 0.12);
+        color: rgba(224, 242, 254, 0.95);
+        font-weight: 800;
+        font-size: 0.62rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .action-picker-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.62);
+        backdrop-filter: blur(10px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        z-index: 9999;
+      }
+      .action-picker-overlay.is-open {
+        display: flex;
+      }
+      .action-picker {
+        width: min(720px, 100%);
+        max-height: min(78vh, 840px);
+        overflow: hidden;
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(8, 17, 29, 0.98);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.8);
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+      }
+      .action-picker header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      }
+      .action-picker header strong {
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+      }
+      .action-picker-close {
+        border: none;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(248, 250, 252, 0.95);
+        border-radius: 12px;
+        padding: 0.4rem 0.65rem;
+        cursor: pointer;
+        font-weight: 900;
+      }
+      .action-picker-search {
+        padding: 0.8rem 1rem;
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+      }
+      .action-picker-search input {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.75);
+        color: #f8fafc;
+        padding: 0.7rem 0.85rem;
+        font-weight: 800;
+      }
+      .action-picker-search .action-picker-meta {
+        font-size: 0.7rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.65);
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .action-picker-body {
+        overflow: auto;
+        padding: 0.85rem 1rem 1rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+      .action-picker-section-title {
+        margin: 0 0 0.35rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        color: rgba(226, 232, 240, 0.65);
+      }
+      .action-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 0.45rem;
+      }
+      .action-picker-item {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(248, 250, 252, 0.95);
+        padding: 0.65rem 0.8rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        text-align: left;
+      }
+      .action-picker-item:hover {
+        border-color: rgba(34, 211, 238, 0.45);
+        background: rgba(34, 211, 238, 0.12);
+      }
+      .action-picker-item small {
+        display: block;
+        margin-top: 0.15rem;
+        color: rgba(226, 232, 240, 0.7);
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+      }
       .field-popup,
       .field-popup .popup-quick-actions button,
       .field-popup .popup-actions .button,
@@ -2383,7 +2517,10 @@
                 </div>
                 <input type="hidden" name="player" id="selected-player" />
                 <label>
-                  Tipo de acción
+                  <span class="popup-label-row">
+                    <span>Tipo de acción</span>
+                    <button type="button" class="popup-label-action" id="action-picker-open">Todas</button>
+                  </span>
                   <input
                     type="text"
                     name="action_type"
@@ -2682,10 +2819,33 @@
         <ol class="quick-history-list" id="quick-history-list"></ol>
       </div>
     </div>
+    <div class="action-picker-overlay" id="action-picker" aria-hidden="true">
+      <div class="action-picker" role="dialog" aria-modal="true" aria-label="Selector de acciones">
+        <header>
+          <strong>Acciones</strong>
+          <button type="button" class="action-picker-close" id="action-picker-close">Cerrar</button>
+        </header>
+        <div class="action-picker-search">
+          <input type="text" id="action-picker-search" placeholder="Buscar acción… (ej: duelo, pase, robo)" autocomplete="off" />
+          <span class="action-picker-meta" id="action-picker-count">0</span>
+        </div>
+        <div class="action-picker-body">
+          <section>
+            <div class="action-picker-section-title">Más usadas (este partido)</div>
+            <div class="action-picker-grid" id="action-picker-favorites"></div>
+          </section>
+          <section>
+            <div class="action-picker-section-title">Todas</div>
+            <div class="action-picker-grid" id="action-picker-list"></div>
+          </section>
+        </div>
+      </div>
+    </div>
     {{ field_zone_defs|json_script:"field-zone-defs" }}
     {{ team_fields|json_script:"team-fields-data" }}
     {{ substitution_history|json_script:"substitution-history-data" }}
     {{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|json_script:"initial-lineup-server" }}
+    {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
     <script src="{% static 'football/js/match_actions_chrome.js' %}"></script>
     <script src="{% static 'football/js/match_actions_live.js' %}"></script>
     <script>
@@ -2762,6 +2922,241 @@
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
       const convocationCards = document.querySelectorAll('.convocation-card');
       const historyList = document.getElementById('history-list');
+      const actionCatalog = (() => {
+        try {
+          const raw = document.getElementById('match-action-catalog')?.textContent || '[]';
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.filter(Boolean).map((item) => String(item).trim()).filter(Boolean) : [];
+        } catch (e) {
+          return [];
+        }
+      })();
+      const actionPickerOverlay = document.getElementById('action-picker');
+      const actionPickerOpenBtn = document.getElementById('action-picker-open');
+      const actionPickerCloseBtn = document.getElementById('action-picker-close');
+      const actionPickerSearch = document.getElementById('action-picker-search');
+      const actionPickerCount = document.getElementById('action-picker-count');
+      const actionPickerFavorites = document.getElementById('action-picker-favorites');
+      const actionPickerList = document.getElementById('action-picker-list');
+      const normalizeActionKey = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        try {
+          return raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        } catch (e) {
+          return raw;
+        }
+      };
+      const recentActionsKey = 'webstats:live:recent_actions:v1';
+      const readRecentActions = () => {
+        try {
+          const raw = window.localStorage?.getItem(recentActionsKey) || '[]';
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.map((item) => String(item || '').trim()).filter(Boolean) : [];
+        } catch (e) {
+          return [];
+        }
+      };
+      const writeRecentActions = (items) => {
+        try {
+          window.localStorage?.setItem(recentActionsKey, JSON.stringify(Array.isArray(items) ? items : []));
+        } catch (e) {}
+      };
+      const pushRecentAction = (label) => {
+        const clean = String(label || '').trim();
+        if (!clean) return;
+        const key = normalizeActionKey(clean);
+        if (!key) return;
+        const existing = readRecentActions();
+        const next = [clean, ...existing.filter((item) => normalizeActionKey(item) !== key)].slice(0, 12);
+        writeRecentActions(next);
+      };
+      const parseHistoryActionType = (raw) => {
+        const text = String(raw || '').trim();
+        if (!text) return '';
+        const [action = ''] = text.split('·').map((part) => part.trim());
+        return action;
+      };
+      const buildMatchActionCounts = () => {
+        const counts = new Map();
+        try {
+          historyList?.querySelectorAll('.history-item .hist-text')?.forEach((el) => {
+            const actionType = parseHistoryActionType(el.textContent || '');
+            const key = normalizeActionKey(actionType);
+            if (!key) return;
+            counts.set(key, (counts.get(key) || 0) + 1);
+          });
+        } catch (e) {}
+        return counts;
+      };
+      const renderActionPickerButtons = (container, items, { showCounts = false, counts = null } = {}) => {
+        if (!container) return;
+        container.innerHTML = '';
+        if (!items.length) {
+          const empty = document.createElement('div');
+          empty.className = 'pre-lineup-empty';
+          empty.textContent = 'Sin datos todavía.';
+          container.appendChild(empty);
+          return;
+        }
+        items.forEach((label) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'action-picker-item';
+          btn.dataset.action = label;
+          btn.textContent = label;
+          if (showCounts && counts) {
+            const key = normalizeActionKey(label);
+            const value = counts.get(key) || 0;
+            const small = document.createElement('small');
+            small.textContent = value ? `${value}x` : '—';
+            btn.appendChild(small);
+          }
+          btn.addEventListener('click', () => {
+            quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
+            if (actionInput) actionInput.value = label;
+            pushRecentAction(label);
+            closeActionPicker();
+          });
+          container.appendChild(btn);
+        });
+      };
+      const computeFavorites = () => {
+        const counts = buildMatchActionCounts();
+        const scored = actionCatalog
+          .map((label, idx) => ({
+            label,
+            idx,
+            score: counts.get(normalizeActionKey(label)) || 0,
+          }))
+          .filter((row) => row.label);
+        scored.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+        const favorites = scored.filter((row) => row.score > 0).slice(0, 12).map((row) => row.label);
+        const seen = new Set(favorites.map((label) => normalizeActionKey(label)));
+        const recents = readRecentActions();
+        recents.forEach((label) => {
+          if (favorites.length >= 12) return;
+          const key = normalizeActionKey(label);
+          if (!key || seen.has(key)) return;
+          if (!actionCatalog.some((item) => normalizeActionKey(item) === key)) return;
+          seen.add(key);
+          favorites.push(label);
+        });
+        return { favorites, counts };
+      };
+      const loadFallbackFavorites = () => {
+        const defaults = Array.from(quickButtons).map((btn) => String(btn.dataset.action || '').trim()).filter(Boolean);
+        const seen = new Set();
+        const out = [];
+        defaults.forEach((label) => {
+          const key = normalizeActionKey(label);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          out.push(label);
+        });
+        readRecentActions().forEach((label) => {
+          if (out.length >= 12) return;
+          const key = normalizeActionKey(label);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          out.push(label);
+        });
+        actionCatalog.forEach((label) => {
+          if (out.length >= 12) return;
+          const key = normalizeActionKey(label);
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          out.push(label);
+        });
+        return out.slice(0, 12);
+      };
+      const filterCatalog = (query) => {
+        const q = normalizeActionKey(query);
+        if (!q) return actionCatalog.slice(0, 60);
+        const results = [];
+        for (const label of actionCatalog) {
+          const key = normalizeActionKey(label);
+          if (key.includes(q)) results.push(label);
+          if (results.length >= 80) break;
+        }
+        return results;
+      };
+      const syncActionPickerCount = (shown, total) => {
+        if (!actionPickerCount) return;
+        if (!total) actionPickerCount.textContent = '0';
+        else actionPickerCount.textContent = `${shown}/${total}`;
+      };
+      const openActionPicker = () => {
+        if (!actionPickerOverlay) return;
+        actionPickerOverlay.classList.add('is-open');
+        actionPickerOverlay.setAttribute('aria-hidden', 'false');
+        const { favorites, counts } = computeFavorites();
+        renderActionPickerButtons(actionPickerFavorites, favorites.length ? favorites : loadFallbackFavorites(), { showCounts: true, counts });
+        const list = filterCatalog(actionPickerSearch?.value || '');
+        renderActionPickerButtons(actionPickerList, list, { showCounts: false });
+        syncActionPickerCount(list.length, actionCatalog.length);
+        try {
+          actionPickerSearch?.focus();
+          actionPickerSearch?.select?.();
+        } catch (e) {}
+      };
+      const closeActionPicker = () => {
+        if (!actionPickerOverlay) return;
+        actionPickerOverlay.classList.remove('is-open');
+        actionPickerOverlay.setAttribute('aria-hidden', 'true');
+      };
+      if (actionPickerOpenBtn) {
+        actionPickerOpenBtn.addEventListener('click', () => openActionPicker());
+      }
+      if (actionInput) {
+        actionInput.addEventListener('click', (event) => {
+          if (!actionInput.readOnly) return;
+          event.preventDefault();
+          openActionPicker();
+        });
+      }
+      if (actionPickerCloseBtn) {
+        actionPickerCloseBtn.addEventListener('click', () => closeActionPicker());
+      }
+      if (actionPickerOverlay) {
+        actionPickerOverlay.addEventListener('click', (event) => {
+          if (event.target === actionPickerOverlay) closeActionPicker();
+        });
+      }
+      document.addEventListener('keydown', (event) => {
+        const isOpen = actionPickerOverlay?.classList.contains('is-open');
+        if (event.key === 'Escape' && isOpen) closeActionPicker();
+        const activeTag = String(document.activeElement?.tagName || '').toLowerCase();
+        const isTyping = ['input', 'textarea', 'select'].includes(activeTag);
+        const wantsOpen = (
+          (event.key === 'k' && (event.metaKey || event.ctrlKey))
+          || event.key === '/'
+        );
+        if (!isOpen && wantsOpen && !isTyping) {
+          event.preventDefault();
+          openActionPicker();
+        }
+      });
+      (() => {
+        if (!actionPickerSearch) return;
+        let t = null;
+        const run = () => {
+          const list = filterCatalog(actionPickerSearch.value || '');
+          renderActionPickerButtons(actionPickerList, list, { showCounts: false });
+          syncActionPickerCount(list.length, actionCatalog.length);
+        };
+        actionPickerSearch.addEventListener('input', () => {
+          if (t) window.clearTimeout(t);
+          t = window.setTimeout(run, 120);
+        });
+        actionPickerSearch.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') return;
+          const first = actionPickerList?.querySelector('.action-picker-item');
+          if (first) {
+            event.preventDefault();
+            first.click();
+          }
+        });
+      })();
       const lineupInput = document.getElementById('initial-lineup-data');
       const startersLimit = (() => {
         const value = Number('{{ starters_limit|default:11 }}');
