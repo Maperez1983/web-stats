@@ -4992,7 +4992,17 @@
 		          const urlForce = (() => {
 		            try { return new URLSearchParams(window.location.search).get('tour') === '1'; } catch (e) { return false; }
 		          })();
-		          if (tour) tour.startIfNeeded(tourId, steps, { force: urlForce || isNew });
+		          // Importante: en modo Táctica no auto-lanzamos el tutorial porque bloquea clics con el backdrop
+		          // (en app nativa se percibe como “los botones no funcionan”). Solo se lanza manualmente:
+		          // - Botón “Ayuda” (arriba)
+		          // - `?tour=1`
+		          if (tour) {
+		            if (urlForce) {
+		              tour.start(tourId, steps, { force: true });
+		            } else if (!isTacticsMode) {
+		              tour.startIfNeeded(tourId, steps, { force: isNew });
+		            }
+		          }
 		        } catch (e) { /* ignore */ }
 
 		        const compactKey = 'webstats:tpad:compact';
