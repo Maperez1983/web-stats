@@ -6,27 +6,112 @@
     <title>Partido · {{ match.opponent }}</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <script defer src="{% static 'football/js/match_stats_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <style>
       body {
         font-family: 'Inter', sans-serif;
         background: #030712;
         color: #e2e8f0;
         margin: 0;
-        padding: 2rem;
+        padding: 0;
       }
-      header {
+      .match-stats-shell {
+        padding: 1.25rem;
+      }
+      .match-stats-topbar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
         display: flex;
+        align-items: flex-start;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
+        gap: 1.25rem;
+        padding: 1rem 1.1rem;
+        border-radius: 1.25rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(2, 6, 23, 0.86);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        margin-bottom: 1rem;
       }
-      header h1 {
+      .match-stats-kicker {
         margin: 0;
-        font-size: 1.8rem;
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.85rem;
+        letter-spacing: 0.02em;
       }
-      header a {
-        color: #93c5fd;
+      .match-stats-title {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 0.25rem 0 0;
+        font-size: 1.55rem;
+        line-height: 1.15;
+      }
+      .match-stats-score {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 900;
+        color: #0b1220;
+        background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      }
+      .match-stats-sub {
+        margin: 0.25rem 0 0;
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.9rem;
+      }
+      .match-stats-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+      .ms-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.65);
+        color: rgba(226, 232, 240, 0.95);
         text-decoration: none;
+        font-weight: 800;
+        font-size: 0.9rem;
+        cursor: pointer;
+        user-select: none;
+      }
+      .ms-btn:hover {
+        border-color: rgba(148, 163, 184, 0.48);
+        background: rgba(30, 41, 59, 0.7);
+      }
+      .ms-btn.primary {
+        border-color: rgba(251, 191, 36, 0.35);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fbbf24;
+      }
+      .ms-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.7rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(2, 6, 23, 0.35);
+        font-weight: 800;
+        color: rgba(226, 232, 240, 0.92);
+        font-size: 0.85rem;
+      }
+      .ms-switch input {
+        width: 18px;
+        height: 18px;
+        accent-color: #fbbf24;
       }
       .card {
         background: rgba(15, 23, 42, 0.9);
@@ -34,11 +119,6 @@
         border-radius: 1rem;
         border: 1px solid rgba(148, 163, 184, 0.25);
         margin-bottom: 1rem;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1rem;
       }
       .metric-list {
         list-style: none;
@@ -48,6 +128,160 @@
       .metric-list li {
         margin: 0.35rem 0;
         color: rgba(226, 232, 240, 0.9);
+      }
+      .match-stats-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 1rem;
+        align-items: start;
+      }
+      .match-stats-main {
+        min-width: 0;
+      }
+      .match-stats-side {
+        min-width: 0;
+      }
+      .match-stats-tabs {
+        display: none;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+      }
+      .match-stats-tab {
+        flex: 1;
+        text-align: center;
+      }
+      .ms-split {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .ms-kpi-big {
+        display: grid;
+        gap: 0.25rem;
+        padding: 0.9rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(2, 6, 23, 0.45);
+      }
+      .ms-kpi-big strong {
+        font-size: 2.2rem;
+        line-height: 1;
+      }
+      .ms-kpi-big span {
+        color: rgba(148, 163, 184, 0.95);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+      }
+      .ms-window {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 0.75rem;
+      }
+      .ms-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.92);
+        font-weight: 800;
+        font-size: 0.84rem;
+        white-space: nowrap;
+      }
+      .ms-chip strong {
+        font-weight: 900;
+      }
+      .ms-chip.is-active {
+        border-color: rgba(251, 191, 36, 0.35);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fbbf24;
+      }
+      .ms-chip-btn {
+        cursor: pointer;
+        user-select: none;
+      }
+      .ms-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+      }
+      .ms-input {
+        flex: 1;
+        min-width: 200px;
+        padding: 0.55rem 0.7rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.95);
+        outline: none;
+      }
+      .ms-input::placeholder {
+        color: rgba(148, 163, 184, 0.9);
+      }
+      .ms-events {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.55rem;
+        max-height: 66vh;
+        overflow: auto;
+        scrollbar-gutter: stable;
+      }
+      .ms-event {
+        display: grid;
+        grid-template-columns: 90px minmax(0, 1fr);
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(2, 6, 23, 0.35);
+      }
+      .ms-event-time {
+        color: rgba(148, 163, 184, 0.95);
+        font-weight: 900;
+        font-size: 0.95rem;
+      }
+      .ms-event-main {
+        display: grid;
+        gap: 0.25rem;
+        min-width: 0;
+      }
+      .ms-event-title {
+        display: flex;
+        align-items: baseline;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .ms-event-player {
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.98);
+      }
+      .ms-event-type {
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.9);
+      }
+      .ms-event-meta {
+        color: rgba(148, 163, 184, 0.95);
+        font-size: 0.88rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .players-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
       }
       .player-card {
         background: rgba(2, 6, 23, 0.6);
@@ -88,60 +322,175 @@
         font-size: 0.85rem;
         color: rgba(226, 232, 240, 0.8);
       }
+      @media (max-width: 1060px) {
+        .match-stats-layout {
+          grid-template-columns: 1fr;
+        }
+        .match-stats-tabs {
+          display: flex;
+        }
+        body[data-ms-tab="resumen"] [data-ms-panel="timeline"],
+        body[data-ms-tab="resumen"] [data-ms-panel="jugadores"] {
+          display: none;
+        }
+        body[data-ms-tab="timeline"] [data-ms-panel="resumen"],
+        body[data-ms-tab="timeline"] [data-ms-panel="jugadores"] {
+          display: none;
+        }
+        body[data-ms-tab="jugadores"] [data-ms-panel="resumen"],
+        body[data-ms-tab="jugadores"] [data-ms-panel="timeline"] {
+          display: none;
+        }
+        .ms-events {
+          max-height: 56vh;
+        }
+      }
     </style>
   </head>
   <body class="prod-commercial">
     {% include 'football/includes/dragon_nav.html' %}
-    <header>
-      <div>
-        <p style="margin:0;color:#94a3b8;">Estadísticas del partido</p>
-        <h1>
-          {{ match.opponent }} · Jornada {{ match.round }}
-          {% if match.score_label %}
-            <span style="margin-left:0.75rem;color:#facc15;font-weight:800;">{{ match.score_label }}</span>
-          {% endif %}
-        </h1>
-        <p style="margin:0;color:#94a3b8;">{{ match.date }} · {{ match.location }}</p>
-      </div>
-      <div style="display:flex;gap:1rem;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
-        <a href="{{ match.edit_actions_url }}">Editar acciones / marcador</a>
-        <a href="{{ match.edit_match_url }}">Editor completo</a>
-        <a href="{% url 'player-dashboard' %}">← Volver a jugadores</a>
-      </div>
-    </header>
+    <div class="match-stats-shell" id="match-stats-shell">
+      <section class="match-stats-topbar" aria-label="Cabecera del partido">
+        <div style="min-width:0;">
+          <p class="match-stats-kicker">Estadísticas en directo</p>
+          <h1 class="match-stats-title">
+            <span>{{ match.opponent }}</span>
+            <span style="color:rgba(148,163,184,0.95);font-weight:900;">· Jornada {{ match.round }}</span>
+            {% if match.score_label %}
+              <span class="match-stats-score" aria-label="Marcador">{{ match.score_label }}</span>
+            {% endif %}
+          </h1>
+          <p class="match-stats-sub">{{ match.date }} · {{ match.location }}</p>
+        </div>
+        <div class="match-stats-actions">
+          <button type="button" class="ms-btn primary" id="ms-refresh">Actualizar</button>
+          <label class="ms-switch" title="Recarga automática cada 30s">
+            <input type="checkbox" id="ms-auto-refresh" />
+            Auto
+          </label>
+          <a class="ms-btn" href="{{ match.edit_actions_url }}">Editar acciones</a>
+          <a class="ms-btn" href="{{ match.edit_match_url }}">Editor</a>
+          <a class="ms-btn" href="{% url 'player-dashboard' %}">← Jugadores</a>
+        </div>
+      </section>
 
-    <div class="card">
-      <h2 style="margin:0 0 0.6rem;">Resumen del partido</h2>
-      <ul class="metric-list">
-        <li>Total acciones: <strong>{{ team_metrics.total_events }}</strong></li>
-        {% for item in team_metrics.top_event_types %}
-          <li>{{ item.event }} · {{ item.count }}</li>
-        {% empty %}
-          <li>Sin acciones registradas.</li>
-        {% endfor %}
-      </ul>
-    </div>
+      <nav class="match-stats-tabs" aria-label="Vistas">
+        <button type="button" class="ms-btn match-stats-tab" data-ms-tab="resumen">Resumen</button>
+        <button type="button" class="ms-btn match-stats-tab" data-ms-tab="timeline">Timeline</button>
+        <button type="button" class="ms-btn match-stats-tab" data-ms-tab="jugadores">Jugadores</button>
+      </nav>
 
-    <div class="card">
-      <h2 style="margin:0 0 0.6rem;">Jugadores del partido</h2>
-      <div class="grid">
-        {% for player in player_cards %}
-          <article class="player-card">
-            <div class="player-head">
-              {% if player.photo_url %}
-                <img class="player-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
-              {% else %}
-                <span class="player-photo fallback">{{ player.name|initials }}</span>
-              {% endif %}
-              <strong>#{{ player.number }} {{ player.name }}</strong>
+      <div class="match-stats-layout">
+        <main class="match-stats-main">
+          <section class="card" data-ms-panel="resumen">
+            <div class="ms-row">
+              <h2 style="margin:0;">Resumen</h2>
+              <div class="ms-window" role="group" aria-label="Ventana temporal">
+                <span class="ms-chip ms-chip-btn is-active" data-ms-window="all">Partido</span>
+                <span class="ms-chip ms-chip-btn" data-ms-window="last10">Últ. 10'</span>
+                <span class="ms-chip ms-chip-btn" data-ms-window="last5">Últ. 5'</span>
+              </div>
             </div>
-            <span>Acciones: {{ player.actions }} · Éxitos: {{ player.successes }}</span>
-            <span>Éxito: {{ player.success_rate }}%</span>
-          </article>
-        {% empty %}
-          <p>Sin jugadores con acciones en este partido.</p>
-        {% endfor %}
+
+            <div class="ms-split">
+              <div class="ms-kpi-big">
+                <strong id="ms-total-actions">{{ team_metrics.total_events }}</strong>
+                <span>Acciones</span>
+              </div>
+              <div>
+                <p style="margin:0 0 0.45rem;color:rgba(148,163,184,0.95);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Top acciones</p>
+                <div id="ms-top-types" style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+                  {% for item in team_metrics.top_event_types %}
+                    <span class="ms-chip"><strong>{{ item.count }}</strong> {{ item.event }}</span>
+                  {% empty %}
+                    <span class="ms-chip">Sin acciones</span>
+                  {% endfor %}
+                </div>
+
+                <p style="margin:0.75rem 0 0.45rem;color:rgba(148,163,184,0.95);font-weight:900;letter-spacing:0.03em;text-transform:uppercase;font-size:0.82rem;">Resultados</p>
+                <div id="ms-top-results" style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+                  {% for item in team_metrics.top_results %}
+                    {% if item.result %}
+                      <span class="ms-chip"><strong>{{ item.count }}</strong> {{ item.result }}</span>
+                    {% endif %}
+                  {% empty %}
+                    <span class="ms-chip">—</span>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" data-ms-panel="timeline">
+            <div class="ms-row">
+              <h2 style="margin:0;">Timeline</h2>
+              <input id="ms-event-filter" class="ms-input" type="search" placeholder="Filtra por jugador o acción…" autocomplete="off" />
+            </div>
+            <ul class="ms-events" id="ms-events">
+              {% for ev in timeline_events %}
+                <li class="ms-event" data-ms-search="{{ ev.player_name|lower }} {{ ev.event_type|lower }} {{ ev.result|lower }} {{ ev.zone|lower }} {{ ev.tercio|lower }}">
+                  <div class="ms-event-time">{{ ev.time_label }}</div>
+                  <div class="ms-event-main">
+                    <div class="ms-event-title">
+                      <span class="ms-event-player">#{{ ev.player_number }} {{ ev.player_name }}</span>
+                      <span class="ms-event-type">{{ ev.event_type }}</span>
+                      {% if ev.result %}
+                        <span class="ms-chip" style="padding:0.2rem 0.45rem;font-size:0.78rem;">{{ ev.result }}</span>
+                      {% endif %}
+                    </div>
+                    {% if ev.zone or ev.tercio or ev.observation %}
+                      <div class="ms-event-meta">
+                        {% if ev.zone %}{{ ev.zone }}{% endif %}{% if ev.tercio %} · {{ ev.tercio }}{% endif %}{% if ev.observation %} · {{ ev.observation }}{% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </li>
+              {% empty %}
+                <li class="ms-event">
+                  <div class="ms-event-time">—</div>
+                  <div class="ms-event-main">
+                    <div class="ms-event-title">
+                      <span class="ms-event-type">Sin acciones registradas.</span>
+                    </div>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        </main>
+
+        <aside class="match-stats-side" data-ms-panel="jugadores">
+          <section class="card">
+            <div class="ms-row">
+              <h2 style="margin:0;">Jugadores</h2>
+              <input id="ms-player-filter" class="ms-input" type="search" placeholder="Busca jugador…" autocomplete="off" />
+            </div>
+            <div class="players-grid" id="ms-player-grid">
+              {% for player in player_cards %}
+                <article class="player-card" data-ms-player-search="{{ player.name|lower }}" data-ms-actions="{{ player.actions }}" data-ms-success="{{ player.success_rate }}">
+                  <a href="{% url 'player-match-stats' player.player_id match.id %}" style="display:block;color:inherit;text-decoration:none;">
+                    <div class="player-head">
+                      {% if player.photo_url %}
+                        <img class="player-photo" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+                      {% else %}
+                        <span class="player-photo fallback">{{ player.name|initials }}</span>
+                      {% endif %}
+                      <div style="min-width:0;">
+                        <strong style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">#{{ player.number }} {{ player.name }}</strong>
+                        <span style="margin-top:0.1rem;">Acciones: {{ player.actions }} · Éxitos: {{ player.successes }} · Éxito: {{ player.success_rate }}%</span>
+                      </div>
+                    </div>
+                  </a>
+                </article>
+              {% empty %}
+                <p>Sin jugadores con acciones en este partido.</p>
+              {% endfor %}
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
+
+    {{ team_windows|json_script:"match-stats-windows" }}
   </body>
 </html>

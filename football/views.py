@@ -36297,6 +36297,7 @@ def match_stats_page(request, match_id):
         away_score = int(goals_for)
 
     payload = {
+        'id': int(match.id),
         'round': match.round or 'Partido sin jornada',
         'date': match.date.strftime('%d/%m/%Y') if match.date else 'Fecha por definir',
         'location': match.location or 'Campo por confirmar',
@@ -36312,12 +36313,91 @@ def match_stats_page(request, match_id):
     }
     team_metrics = compute_team_metrics_for_match(match, primary_team=primary_team)
     player_cards = compute_player_cards_for_match(match, primary_team)
+
+    # Timeline (para stats en directo): últimos eventos confirmados del equipo.
+    try:
+        preferred_sources = preferred_event_source_by_match(primary_team)
+        timeline_rows = _filter_stats_events(
+            confirmed_events_queryset()
+            .filter(match=match, player__team=primary_team)
+            .select_related('player')
+            .order_by('created_at', 'id'),
+            preferred_sources=preferred_sources,
+        )
+    except Exception:
+        timeline_rows = []
+
+    # Ventanas temporales (últimos 10/5 minutos de registro). Si falta created_at, cae a "all".
+    now_anchor = None
+    try:
+        now_anchor = max((e.created_at for e in timeline_rows if getattr(e, 'created_at', None)), default=None)
+    except Exception:
+        now_anchor = None
+
+    def _metrics_for_rows(rows):
+        counter = Counter(getattr(e, 'event_type', '') for e in rows)
+        result_counter = Counter(getattr(e, 'result', '') for e in rows)
+        return {
+            'total_events': len(rows),
+            'top_event_types': [{'event': k, 'count': v} for k, v in counter.most_common(6)],
+            'top_results': [{'result': k, 'count': v} for k, v in result_counter.most_common(6)],
+        }
+
+    windows = {'all': _metrics_for_rows(timeline_rows)}
+    if now_anchor:
+        try:
+            cut10 = now_anchor - timedelta(minutes=10)
+            cut5 = now_anchor - timedelta(minutes=5)
+            windows['last10'] = _metrics_for_rows([e for e in timeline_rows if e.created_at and e.created_at >= cut10])
+            windows['last5'] = _metrics_for_rows([e for e in timeline_rows if e.created_at and e.created_at >= cut5])
+        except Exception:
+            pass
+
+    # Render-friendly: últimos N eventos (most recent first).
+    timeline_limit = 140
+    timeline_events = []
+    try:
+        sorted_rows = sorted(
+            timeline_rows,
+            key=lambda e: (getattr(e, 'created_at', None) or datetime.min),
+            reverse=True,
+        )
+    except Exception:
+        sorted_rows = list(timeline_rows)[-timeline_limit:][::-1]
+    for ev in sorted_rows[:timeline_limit]:
+        player = getattr(ev, 'player', None)
+        minute_value = getattr(ev, 'minute', None)
+        period_value = getattr(ev, 'period', None)
+        time_label = ''
+        if minute_value is not None and period_value:
+            time_label = f"{int(period_value)}ª · {int(minute_value)}'"
+        elif minute_value is not None:
+            time_label = f"{int(minute_value)}'"
+        elif period_value:
+            time_label = f"{int(period_value)}ª"
+        timeline_events.append(
+            {
+                'id': getattr(ev, 'id', None),
+                'time_label': time_label or '—',
+                'minute': minute_value,
+                'period': period_value,
+                'player_number': getattr(player, 'number', None) or '--',
+                'player_name': getattr(player, 'name', '') or 'Equipo',
+                'event_type': getattr(ev, 'event_type', '') or '',
+                'result': getattr(ev, 'result', '') or '',
+                'zone': getattr(ev, 'zone', '') or '',
+                'tercio': getattr(ev, 'tercio', '') or '',
+                'observation': getattr(ev, 'observation', '') or '',
+            }
+        )
     return render(
         request,
         'football/match_stats.html',
         {
             'match': payload,
             'team_metrics': team_metrics,
+            'team_windows': windows,
+            'timeline_events': timeline_events,
             'player_cards': player_cards,
         },
     )
