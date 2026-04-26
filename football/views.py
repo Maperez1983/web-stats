@@ -15754,8 +15754,29 @@ def save_match_lineup(request):
         )
         if str(player.id) not in starter_ids and str(player.id) not in bench_ids
     ]
+    starters_payload = []
+    for row in (normalized.get('starters') or []):
+        if not isinstance(row, dict):
+            continue
+        pid = str(row.get('id') or '').strip()
+        if not pid:
+            continue
+        starter = {'id': pid}
+        try:
+            if row.get('slot_index') is not None:
+                starter['slot_index'] = int(row.get('slot_index'))
+        except Exception:
+            pass
+        try:
+            if row.get('x_pct') is not None and row.get('y_pct') is not None:
+                starter['x_pct'] = float(row.get('x_pct'))
+                starter['y_pct'] = float(row.get('y_pct'))
+        except Exception:
+            pass
+        starters_payload.append(starter)
     expanded_payload = {
-        'starters': [{'id': str(row.get('id'))} for row in (normalized.get('starters') or []) if str(row.get('id') or '').strip()],
+        'formation': normalized.get('formation') if isinstance(normalized.get('formation'), str) else '',
+        'starters': starters_payload,
         'bench': (
             [{'id': str(row.get('id'))} for row in (normalized.get('bench') or []) if str(row.get('id') or '').strip()]
             + [{'id': str(player.id)} for player in remaining_players]
