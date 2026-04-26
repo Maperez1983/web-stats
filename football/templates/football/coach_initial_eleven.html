@@ -334,6 +334,15 @@
         opacity: 0.45;
         pointer-events: none;
       }
+      .toolbar .toggle {
+        border-color: rgba(34, 211, 238, 0.45);
+        color: rgba(224, 242, 254, 0.95);
+      }
+      .toolbar .toggle.is-off {
+        border-color: rgba(148, 163, 184, 0.35);
+        color: rgba(226, 232, 240, 0.92);
+        opacity: 0.85;
+      }
       @media (max-width: 980px) {
         .layout { grid-template-columns: 1fr; }
         .field { width: min(100%, 480px); }
@@ -386,11 +395,12 @@
             <p>No hay jugadores convocados.</p>
             {% endfor %}
           </div>
-          <div class="toolbar">
-            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
-            <button type="button" id="clear-btn">Limpiar</button>
-            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
-          </div>
+	          <div class="toolbar">
+	            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
+	            <button type="button" id="clear-btn">Limpiar</button>
+              <button type="button" class="toggle {% if has_pending_convocation %}is-disabled{% endif %}" id="snap-toggle">Imán: ON</button>
+	            <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
+	          </div>
           <div class="field-row">
             <label for="formation-select">Estructura</label>
             <select id="formation-select" {% if has_pending_convocation %}disabled{% endif %}></select>
@@ -404,13 +414,16 @@
           <p class="field-help">
             En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
           </p>
-          <p class="field-help" style="margin-top:-0.25rem;">
-            Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición (ideal para iPad + Pencil).
-          </p>
-          <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
-            {% if has_pending_convocation %}
-              Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.
-            {% elif has_pending_lineup %}
+	          <p class="field-help" style="margin-top:-0.25rem;">
+	            Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición (ideal para iPad + Pencil).
+	          </p>
+            <p class="field-help" style="margin-top:-0.25rem;">
+              Tip: con el “Imán” activo, al soltar una ficha cerca de una posición del esquema se ajusta automáticamente. Para quitar un titular, arrastra su ficha fuera del campo o haz doble toque.
+            </p>
+	          <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
+	            {% if has_pending_convocation %}
+	              Convocatoria pendiente. La alineación inicial se activará cuando haya jugadores convocados.
+	            {% elif has_pending_lineup %}
               Alineación pendiente. Faltan titulares por definir.
             {% else %}
               Selecciona convocados y se colocan en campo automáticamente.
@@ -432,6 +445,7 @@
       const saveBtn = document.getElementById('save-btn');
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
+      const snapToggleBtn = document.getElementById('snap-toggle');
       const gkSelect = document.getElementById('lineup-gk-select');
       const formationSelect = document.getElementById('formation-select');
       const hasPendingConvocation = {{ has_pending_convocation|yesno:"true,false" }};
@@ -560,15 +574,70 @@
         const y = ((clientY - rect.top) / Math.max(1, rect.height)) * 100;
         return { x: clamp(x, 2, 98), y: clamp(y, 2, 98) };
       };
+      const isClientOutsideField = (clientX, clientY, { marginPx = 16 } = {}) => {
+        const rect = field.getBoundingClientRect();
+        if (clientX < rect.left - marginPx) return true;
+        if (clientX > rect.right + marginPx) return true;
+        if (clientY < rect.top - marginPx) return true;
+        if (clientY > rect.bottom + marginPx) return true;
+        return false;
+      };
+      const snapSettingsKey = 'webstats:lineup:snap:v1';
+      let snapEnabled = true;
+      try {
+        const raw = window.localStorage?.getItem(snapSettingsKey);
+        if (raw === '0') snapEnabled = false;
+      } catch (_) {}
+      const syncSnapToggle = () => {
+        if (!snapToggleBtn) return;
+        snapToggleBtn.textContent = snapEnabled ? 'Imán: ON' : 'Imán: OFF';
+        snapToggleBtn.classList.toggle('is-off', !snapEnabled);
+      };
+      syncSnapToggle();
+      snapToggleBtn?.addEventListener('click', () => {
+        if (hasPendingConvocation) return;
+        snapEnabled = !snapEnabled;
+        syncSnapToggle();
+        try {
+          window.localStorage?.setItem(snapSettingsKey, snapEnabled ? '1' : '0');
+        } catch (_) {}
+      });
+      const nearestSnapSlot = ({ x, y }, { threshold = 7 } = {}) => {
+        const slots = activeSlots();
+        if (!slots.length) return null;
+        let best = null;
+        let bestD2 = Infinity;
+        slots.forEach((slot) => {
+          if (!slot) return;
+          const dx = Number(slot.x) - Number(x);
+          const dy = Number(slot.y) - Number(y);
+          const d2 = (dx * dx) + (dy * dy);
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            best = slot;
+          }
+        });
+        if (!best) return null;
+        if (bestD2 > (threshold * threshold)) return null;
+        return best;
+      };
       const upsertStarterWithPosition = (playerPayload, { x, y } = {}) => {
         if (!playerPayload?.id) return;
         const pid = String(playerPayload.id);
         const next = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
-        next.push({
+        const candidate = {
           ...playerPayload,
           x_pct: Number.isFinite(x) ? clamp(x, 2, 98) : playerPayload.x_pct,
           y_pct: Number.isFinite(y) ? clamp(y, 2, 98) : playerPayload.y_pct,
-        });
+        };
+        if (snapEnabled && Number.isFinite(Number(candidate.x_pct)) && Number.isFinite(Number(candidate.y_pct))) {
+          const slot = nearestSnapSlot({ x: Number(candidate.x_pct), y: Number(candidate.y_pct) });
+          if (slot) {
+            candidate.x_pct = Number(slot.x);
+            candidate.y_pct = Number(slot.y);
+          }
+        }
+        next.push(candidate);
         lineupState.starters = next.slice(0, STARTERS_REQUIRED);
         recomputeBenchFromChecks();
       };
@@ -597,6 +666,7 @@
       };
 
       let dragState = null;
+      const lastTapByPlayerId = new Map();
       const setActivePlayer = (playerId, { rerender = true } = {}) => {
         activePlayerId = String(playerId || '');
         playerCards.forEach((card) => {
@@ -618,6 +688,16 @@
           if (!row || String(row.id || '') !== pid) return row;
           return { ...row, x_pct: clamp(Number(x), 2, 98), y_pct: clamp(Number(y), 2, 98) };
         });
+      };
+      const removeStarter = (playerId) => {
+        const pid = String(playerId || '').trim();
+        if (!pid) return;
+        lineupState.starters = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
+        recomputeBenchFromChecks();
+        if (String(activePlayerId || '') === pid) setActivePlayer('', { rerender: false });
+        statusMsg.textContent = 'Titular quitado (queda como suplente si está marcado).';
+        statusMsg.classList.add('warn');
+        statusMsg.classList.remove('ok');
       };
 
       const renderField = () => {
@@ -674,6 +754,8 @@
               pointerId: event.pointerId,
               playerId: String(player.id),
               el: wrap,
+              start: { x, y },
+              moved: false,
             };
             wrap.classList.add('is-dragging');
             try {
@@ -891,16 +973,51 @@
           dragState.el.style.left = `${x}%`;
           dragState.el.style.top = `${y}%`;
         }
+        if (!dragState.moved) {
+          const dx = Number(x) - Number(dragState.start?.x ?? x);
+          const dy = Number(y) - Number(dragState.start?.y ?? y);
+          if ((dx * dx) + (dy * dy) > 0.8) dragState.moved = true;
+        }
         setStarterXY(dragState.playerId, { x, y });
       });
       const endDrag = (event) => {
         if (!dragState) return;
         if (event && event.pointerId !== dragState.pointerId) return;
+        const pid = String(dragState.playerId || '');
+        const el = dragState.el;
+        const moved = Boolean(dragState.moved);
+        const releasedOutside = event ? isClientOutsideField(event.clientX, event.clientY) : false;
         try {
           dragState.el?.classList.remove('is-dragging');
           if (event) dragState.el?.releasePointerCapture?.(event.pointerId);
         } catch (_) {}
         dragState = null;
+        if (releasedOutside) {
+          manualMode = true;
+          removeStarter(pid);
+          renderField();
+          return;
+        }
+        if (!moved) {
+          const now = Date.now();
+          const prev = lastTapByPlayerId.get(pid) || 0;
+          lastTapByPlayerId.set(pid, now);
+          if (now - prev < 360) {
+            manualMode = true;
+            removeStarter(pid);
+            renderField();
+            return;
+          }
+        } else if (snapEnabled && el) {
+          try {
+            const xNow = clamp(Number(String(el.style.left || '').replace('%', '')) || 50, 2, 98);
+            const yNow = clamp(Number(String(el.style.top || '').replace('%', '')) || 50, 2, 98);
+            const slot = nearestSnapSlot({ x: xNow, y: yNow });
+            if (slot) {
+              setStarterXY(pid, { x: Number(slot.x), y: Number(slot.y) });
+            }
+          } catch (_) {}
+        }
         renderField();
       };
       window.addEventListener('pointerup', endDrag);
