@@ -193,6 +193,15 @@
           <button type="button" class="icon-btn" data-paste-into="#id_password" aria-label="Pegar contraseña" title="Pegar">📋</button>
           <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar / ocultar">👁</button>
         </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-top:0.65rem;">
+          <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
+            <input id="remember_username" type="checkbox" checked style="width:auto;accent-color:var(--amber);" />
+            Recordar usuario
+          </label>
+          <span style="color:rgba(145,161,185,0.85);font-size:0.72rem;">
+            No guardamos contraseñas.
+          </span>
+        </div>
         <button class="pill-button" type="submit">Entrar</button>
         {% if public_signup_enabled %}
         <a class="ghost-link" href="{% url 'signup' %}">Crear cuenta</a>
@@ -238,6 +247,40 @@
           }
         });
       });
+
+      // UX: recordar usuario (no contraseña) para acelerar login en iOS/WKWebView.
+      (function() {
+        const STORAGE_KEY = "webstats:login:remember_username_v1";
+        const usernameInput = document.getElementById("id_username");
+        const passwordInput = document.getElementById("id_password");
+        const remember = document.getElementById("remember_username");
+        const form = usernameInput ? usernameInput.closest("form") : null;
+
+        if (!usernameInput || !remember) return;
+
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY) || "";
+          if (saved) {
+            usernameInput.value = saved;
+            // Si ya tenemos usuario, facilita que el foco vaya a contraseña.
+            if (passwordInput && !passwordInput.value) {
+              passwordInput.focus();
+            }
+          }
+        } catch (_) {}
+
+        if (form) {
+          form.addEventListener("submit", () => {
+            try {
+              if (remember.checked) {
+                localStorage.setItem(STORAGE_KEY, (usernameInput.value || "").trim());
+              } else {
+                localStorage.removeItem(STORAGE_KEY);
+              }
+            } catch (_) {}
+          });
+        }
+      })();
     </script>
   </body>
 </html>
