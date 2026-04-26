@@ -793,15 +793,16 @@
             } else {
               player = pickFallback();
             }
-            if (!player) return;
-            starters.push({
-              ...player,
-              slot_index: idx,
-              x_pct: Number(slot?.x ?? 50),
-              y_pct: Number(slot?.y ?? 50),
-            });
+          if (!player) return;
+          starters.push({
+            ...player,
+            slot_index: idx,
+            x_pct: Number(slot?.x ?? 50),
+            y_pct: Number(slot?.y ?? 50),
           });
-        const bench = (players || []).filter((p) => p?.id && !new Set(starters.map((s) => String(s.id))).has(String(p.id)));
+        });
+        const starterIds = new Set(starters.map((row) => String(row?.id || '')));
+        const bench = (players || []).filter((p) => p?.id && !starterIds.has(String(p.id)));
         bench.sort((a, b) => numberValue(a) - numberValue(b));
         return { starters: starters.slice(0, STARTERS_REQUIRED), bench };
       };
@@ -819,7 +820,7 @@
           // Manual: no pisamos las posiciones elegidas; solo retiramos jugadores desmarcados.
           const allowed = new Set(selected.map((p) => String(p.id)));
           lineupState.starters = (lineupState.starters || []).filter((row) => allowed.has(String(row?.id || '')));
-          if (activePlayerId && !allowed.has(String(activePlayerId))) activePlayerId = '';
+          if (activePlayerId && !allowed.has(String(activePlayerId))) setActivePlayer('', { rerender: false });
           const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
           const bench = selected.filter((p) => !starterIds.has(String(p.id)));
           bench.sort((a, b) => numberValue(a) - numberValue(b));
@@ -861,6 +862,12 @@
         if (!card) return;
         const checkbox = card.querySelector('input[type="checkbox"]');
         if (checkbox && !checkbox.checked) checkbox.checked = true;
+        try {
+          const selectedNow = playerCards
+            .filter((c) => c.querySelector('input[type="checkbox"]')?.checked)
+            .map(parseCard);
+          syncGkSelectOptions(selectedNow);
+        } catch (_) {}
         const payload = parseCard(card);
         if (!payload?.id) return;
         const already = (lineupState.starters || []).some((row) => String(row?.id || '') === pid);
