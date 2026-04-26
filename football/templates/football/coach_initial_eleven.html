@@ -144,6 +144,8 @@
         border-radius: 18px;
         overflow: hidden;
         border: 1px solid rgba(148, 163, 184, 0.28);
+        touch-action: none;
+        user-select: none;
         background:
           radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 18%),
           linear-gradient(0deg, transparent 49.4%, rgba(255,255,255,0.65) 50%, transparent 50.6%),
@@ -220,6 +222,23 @@
         bottom: 0;
         transform: translateY(100%);
         border-top: none;
+      }
+      .field-token {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+      .field-token:active {
+        cursor: grabbing;
+      }
+      .field-token.is-active .token {
+        border-color: rgba(56, 189, 248, 0.92);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.6);
+      }
+      .field-token.is-dragging .token {
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
       }
       .slot {
         position: absolute;
@@ -386,7 +405,7 @@
             En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
           </p>
           <p class="field-help" style="margin-top:-0.25rem;">
-            Para colocar jugadores: toca un jugador en la lista y luego toca una posición en el campo. Si tocas una posición sin jugador activo, se libera.
+            Modo libre: toca un jugador en la lista y luego toca el campo para colocarlo. Después puedes arrastrar su ficha para ajustar la posición (ideal para iPad + Pencil).
           </p>
           <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
             {% if has_pending_convocation %}
@@ -557,14 +576,47 @@
         const slots = activeSlots();
         if (!slots.length) return;
         lineupState.starters = (lineupState.starters || []).map((row, index) => {
-          const hasXY = row && row.x_pct !== undefined && row.y_pct !== undefined;
-          if (hasXY && !force) return row;
-          const slot = slots[index] || slots[Math.max(0, Math.min(index, slots.length - 1))];
+          if (!row) return row;
+          const xRaw = row.x_pct;
+          const yRaw = row.y_pct;
+          const x = Number(xRaw);
+          const y = Number(yRaw);
+          if (!force && Number.isFinite(x) && Number.isFinite(y)) {
+            return { ...row, x_pct: clamp(x, 2, 98), y_pct: clamp(y, 2, 98) };
+          }
+          let slotIndex = Number(row?.slot_index);
+          if (!Number.isFinite(slotIndex)) slotIndex = index;
+          slotIndex = Math.max(0, Math.min(slotIndex, slots.length - 1));
+          const slot = slots[slotIndex] || slots[0];
           return {
             ...row,
-            x_pct: Number.isFinite(Number(row?.x_pct)) && !force ? Number(row.x_pct) : Number(slot.x),
-            y_pct: Number.isFinite(Number(row?.y_pct)) && !force ? Number(row.y_pct) : Number(slot.y),
+            x_pct: force ? Number(slot.x) : (Number.isFinite(x) ? clamp(x, 2, 98) : Number(slot.x)),
+            y_pct: force ? Number(slot.y) : (Number.isFinite(y) ? clamp(y, 2, 98) : Number(slot.y)),
           };
+        });
+      };
+
+      let dragState = null;
+      const setActivePlayer = (playerId, { rerender = true } = {}) => {
+        activePlayerId = String(playerId || '');
+        playerCards.forEach((card) => {
+          card.classList.toggle('is-active', String(card.dataset.playerId || '') === String(activePlayerId));
+        });
+        if (!rerender) {
+          try {
+            field.querySelectorAll('.field-token').forEach((el) => {
+              el.classList.toggle('is-active', String(el.dataset.playerId || '') === String(activePlayerId));
+            });
+          } catch (_) {}
+          return;
+        }
+        renderField();
+      };
+      const setStarterXY = (playerId, { x, y }) => {
+        const pid = String(playerId || '');
+        lineupState.starters = (lineupState.starters || []).map((row) => {
+          if (!row || String(row.id || '') !== pid) return row;
+          return { ...row, x_pct: clamp(Number(x), 2, 98), y_pct: clamp(Number(y), 2, 98) };
         });
       };
 
@@ -612,6 +664,22 @@
               img.src = avatarFallback;
             };
           }
+          wrap.addEventListener('pointerdown', (event) => {
+            if (hasPendingConvocation) return;
+            event.preventDefault();
+            event.stopPropagation();
+            manualMode = true;
+            setActivePlayer(String(player.id), { rerender: false });
+            dragState = {
+              pointerId: event.pointerId,
+              playerId: String(player.id),
+              el: wrap,
+            };
+            wrap.classList.add('is-dragging');
+            try {
+              wrap.setPointerCapture(event.pointerId);
+            } catch (_) {}
+          });
           field.appendChild(wrap);
         });
 
@@ -685,7 +753,9 @@
         const suggested = buildGkChoice(selectedPlayers || [], '');
         if (suggested) gkSelect.value = String(suggested.id || '');
       };
-      const orderPlayersByRole = (players, forcedGkId = '') => {
+      const orderPlayersByFormation = (players, formationKey, forcedGkId = '') => {
+        const safeFormation = String(formationKey || '').trim();
+        const slots = formations[safeFormation] || formations[defaultFormationKey] || [];
         const chosenGk = buildGkChoice(players || [], forcedGkId);
         const remainingPlayers = (players || []).filter((p) => !chosenGk || String(p.id) !== String(chosenGk.id));
         const groups = { def: [], mid: [], fwd: [], other: [] };
@@ -695,27 +765,45 @@
           else groups.other.push(player);
         });
         Object.keys(groups).forEach((key) => groups[key].sort((a, b) => numberValue(a) - numberValue(b)));
-        const starters = [];
-        if (chosenGk) starters.push(chosenGk);
-        const consume = (role, amount) => {
-          while (amount > 0 && groups[role].length) {
-            starters.push(groups[role].shift());
-            amount -= 1;
+        const used = new Set();
+        if (chosenGk) used.add(String(chosenGk.id));
+        const fallback = [...groups.def, ...groups.mid, ...groups.fwd, ...groups.other].slice(0);
+        fallback.sort((a, b) => numberValue(a) - numberValue(b));
+        const pickFallback = () => {
+          while (fallback.length) {
+            const cand = fallback.shift();
+            if (!cand?.id) continue;
+            const id = String(cand.id);
+            if (used.has(id)) continue;
+            used.add(id);
+            return cand;
           }
+          return null;
         };
-        consume('def', 4);
-        consume('mid', 3);
-        consume('fwd', 3);
-        const remaining = [...groups.def, ...groups.mid, ...groups.fwd, ...groups.other];
-        remaining.sort((a, b) => numberValue(a) - numberValue(b));
-        while (starters.length < STARTERS_REQUIRED && remaining.length) {
-          starters.push(remaining.shift());
-        }
-        const startersFixed = starters.slice(0, STARTERS_REQUIRED).map((row, index) => ({ ...row, slot_index: index }));
-        return {
-          starters: startersFixed,
-          bench: [...remaining].slice(0),
-        };
+        const starters = [];
+        (slots.length ? slots : new Array(STARTERS_REQUIRED).fill(null).map((_, idx) => ({ x: 50, y: 50, role: idx === 0 ? 'gk' : 'mid' })))
+          .slice(0, STARTERS_REQUIRED)
+          .forEach((slot, idx) => {
+            let player = null;
+            if (slot?.role === 'gk') {
+              player = chosenGk || pickFallback();
+            } else if (slot?.role && groups[slot.role] && groups[slot.role].length) {
+              player = groups[slot.role].shift();
+              used.add(String(player.id));
+            } else {
+              player = pickFallback();
+            }
+            if (!player) return;
+            starters.push({
+              ...player,
+              slot_index: idx,
+              x_pct: Number(slot?.x ?? 50),
+              y_pct: Number(slot?.y ?? 50),
+            });
+          });
+        const bench = (players || []).filter((p) => p?.id && !new Set(starters.map((s) => String(s.id))).has(String(p.id)));
+        bench.sort((a, b) => numberValue(a) - numberValue(b));
+        return { starters: starters.slice(0, STARTERS_REQUIRED), bench };
       };
 
       const syncFromChecks = () => {
@@ -724,13 +812,14 @@
           .map(parseCard);
         syncGkSelectOptions(selected);
         if (!manualMode) {
-          const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
+          const ordered = orderPlayersByFormation(selected, lineupState.formation, String(gkSelect?.value || ''));
           lineupState.starters = ordered.starters;
           lineupState.bench = ordered.bench;
         } else {
           // Manual: no pisamos las posiciones elegidas; solo retiramos jugadores desmarcados.
           const allowed = new Set(selected.map((p) => String(p.id)));
           lineupState.starters = (lineupState.starters || []).filter((row) => allowed.has(String(row?.id || '')));
+          if (activePlayerId && !allowed.has(String(activePlayerId))) activePlayerId = '';
           const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
           const bench = selected.filter((p) => !starterIds.has(String(p.id)));
           bench.sort((a, b) => numberValue(a) - numberValue(b));
@@ -757,16 +846,62 @@
           if (event.target && (event.target.tagName || '').toLowerCase() === 'input') return;
           const nextId = String(card.dataset.playerId || '');
           if (!nextId) return;
-          activePlayerId = activePlayerId === nextId ? '' : nextId;
-          playerCards.forEach((c) => c.classList.toggle('is-active', String(c.dataset.playerId || '') === String(activePlayerId)));
-          renderField();
+          setActivePlayer(activePlayerId === nextId ? '' : nextId, { rerender: true });
         });
       });
 
+      field.addEventListener('pointerdown', (event) => {
+        if (hasPendingConvocation) return;
+        if (dragState) return;
+        const targetToken = event.target?.closest?.('.field-token');
+        if (targetToken) return;
+        const pid = String(activePlayerId || '').trim();
+        if (!pid) return;
+        const card = playerCards.find((c) => String(c.dataset.playerId || '') === pid);
+        if (!card) return;
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (checkbox && !checkbox.checked) checkbox.checked = true;
+        const payload = parseCard(card);
+        if (!payload?.id) return;
+        const already = (lineupState.starters || []).some((row) => String(row?.id || '') === pid);
+        if (!already && (lineupState.starters || []).length >= STARTERS_REQUIRED) {
+          statusMsg.textContent = 'El 11 ya está completo. Quita un titular o mueve uno existente.';
+          statusMsg.classList.add('warn');
+          statusMsg.classList.remove('ok');
+          return;
+        }
+        manualMode = true;
+        const { x, y } = fieldPctFromClient(event.clientX, event.clientY);
+        upsertStarterWithPosition(payload, { x, y });
+        renderField();
+      });
+
+      window.addEventListener('pointermove', (event) => {
+        if (!dragState) return;
+        if (event.pointerId !== dragState.pointerId) return;
+        const { x, y } = fieldPctFromClient(event.clientX, event.clientY);
+        if (dragState.el) {
+          dragState.el.style.left = `${x}%`;
+          dragState.el.style.top = `${y}%`;
+        }
+        setStarterXY(dragState.playerId, { x, y });
+      });
+      const endDrag = (event) => {
+        if (!dragState) return;
+        if (event && event.pointerId !== dragState.pointerId) return;
+        try {
+          dragState.el?.classList.remove('is-dragging');
+          if (event) dragState.el?.releasePointerCapture?.(event.pointerId);
+        } catch (_) {}
+        dragState = null;
+        renderField();
+      };
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+
       clearBtn?.addEventListener('click', () => {
         manualMode = false;
-        activePlayerId = '';
-        playerCards.forEach((c) => c.classList.remove('is-active'));
+        setActivePlayer('', { rerender: false });
         lineupState = { formation: lineupState.formation || defaultFormationKey, starters: [], bench: [] };
         playerCards.forEach((card) => {
           const input = card.querySelector('input[type="checkbox"]');
@@ -779,7 +914,7 @@
         if (hasPendingConvocation) return;
         const all = playerCards.map(parseCard);
         syncGkSelectOptions(all);
-        const ordered = orderPlayersByRole(all, String(gkSelect?.value || ''));
+        const ordered = orderPlayersByFormation(all, lineupState.formation, String(gkSelect?.value || ''));
         manualMode = false;
         lineupState.starters = ordered.starters;
         lineupState.bench = ordered.bench;
@@ -793,19 +928,29 @@
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
           .map(parseCard);
         if (!manualMode) {
-          const ordered = orderPlayersByRole(selected, String(gkSelect.value || ''));
+          const ordered = orderPlayersByFormation(selected, lineupState.formation, String(gkSelect.value || ''));
           lineupState.starters = ordered.starters;
           lineupState.bench = ordered.bench;
         } else {
           const forced = String(gkSelect.value || '').trim();
           if (forced) {
-            // En manual, el selector de portero fuerza el slot 0.
             const card = playerCards.find((c) => String(c.dataset.playerId || '') === forced);
             if (card) {
+              const checkbox = card.querySelector('input[type="checkbox"]');
+              if (checkbox && !checkbox.checked) checkbox.checked = true;
               const payload = parseCard(card);
-              lineupState.starters = (lineupState.starters || []).filter((row) => String(row?.id || '') !== forced);
-              lineupState.starters = (lineupState.starters || []).filter((row) => Number(row?.slot_index) !== 0);
-              lineupState.starters.push({ ...payload, slot_index: 0 });
+              const already = (lineupState.starters || []).some((row) => String(row?.id || '') === forced);
+              if (!already && (lineupState.starters || []).length >= STARTERS_REQUIRED) {
+                statusMsg.textContent = 'El 11 ya está completo. Desmarca un jugador para meter al portero.';
+                statusMsg.classList.add('warn');
+                statusMsg.classList.remove('ok');
+                return;
+              }
+              const slots = activeSlots();
+              const gkSlotIndex = Math.max(0, slots.findIndex((s) => s?.role === 'gk'));
+              const gkSlot = slots[gkSlotIndex] || slots[0] || { x: 50, y: 90 };
+              manualMode = true;
+              upsertStarterWithPosition(payload, { x: Number(gkSlot.x || 50), y: Number(gkSlot.y || 90) });
             }
           }
         }
@@ -834,11 +979,10 @@
         if (hasPendingConvocation) return;
         setFormation(String(formationSelect.value || ''));
         if (!manualMode) {
-          // En auto, recalcula para que slot_index siga siendo secuencial al nuevo esquema.
           const selected = playerCards
             .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
             .map(parseCard);
-          const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
+          const ordered = orderPlayersByFormation(selected, lineupState.formation, String(gkSelect?.value || ''));
           lineupState.starters = ordered.starters;
           lineupState.bench = ordered.bench;
         }
@@ -849,20 +993,21 @@
         if (hasPendingConvocation) return;
         try {
           lineupState.formation = String(lineupState.formation || defaultFormationKey || '').trim();
-          // Normaliza antes de enviar: evita slots duplicados / fuera de rango y recalcula banquillo.
-          const slotCount = activeSlots().length || STARTERS_REQUIRED;
-          const seenSlots = new Set();
           const seenPlayers = new Set();
-          lineupState.starters = (lineupState.starters || []).filter((row) => {
-            const pid = String(row?.id || '').trim();
-            if (!pid || seenPlayers.has(pid)) return false;
-            const idx = Number(row?.slot_index);
-            if (!Number.isFinite(idx) || idx < 0 || idx >= slotCount) return false;
-            if (seenSlots.has(idx)) return false;
-            seenSlots.add(idx);
-            seenPlayers.add(pid);
-            return true;
-          });
+          ensureStarterPositionsFromTemplate({ force: false });
+          lineupState.starters = (lineupState.starters || [])
+            .filter((row) => {
+              const pid = String(row?.id || '').trim();
+              if (!pid || seenPlayers.has(pid)) return false;
+              seenPlayers.add(pid);
+              return true;
+            })
+            .slice(0, STARTERS_REQUIRED)
+            .map((row) => ({
+              ...row,
+              x_pct: clamp(Number(row?.x_pct ?? 50), 0, 100),
+              y_pct: clamp(Number(row?.y_pct ?? 50), 0, 100),
+            }));
           recomputeBenchFromChecks();
           const response = await fetch(saveUrl, {
             method: 'POST',
