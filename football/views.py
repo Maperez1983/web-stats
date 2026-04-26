@@ -26651,7 +26651,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
-        raise Http404('Equipo principal no configurado')
+        # UX: si el usuario entra sin contexto de club/categoría, evitar 404 en la app y guiar a onboarding.
+        try:
+            return redirect(reverse('club-onboarding'))
+        except Exception:
+            return HttpResponse('Equipo principal no configurado', status=400)
 
     feedback = ''
     error = ''

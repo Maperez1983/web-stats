@@ -56,6 +56,8 @@ async function main() {
   const baseUrl = (process.env.E2E_BASE_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
   const username = process.env.E2E_USERNAME || 'localadmin';
   const password = process.env.E2E_PASSWORD || 'localadmin';
+  const workspaceId = parseInt(process.env.E2E_WORKSPACE_ID || '0', 10) || 0;
+  const teamId = parseInt(process.env.E2E_TEAM_ID || '0', 10) || 0;
   const convocationCount = Math.max(1, Math.min(parseInt(process.env.E2E_CONVOCATION_COUNT || '11', 10) || 11, 30));
   const outDir =
     process.env.E2E_OUT_DIR ||
@@ -476,6 +478,14 @@ async function main() {
   if (!loginResult.ok) {
     globalLog.actions.push({ action: 'abort', reason: 'login_failed' });
   } else {
+    // Fijar contexto (workspace + equipo) para evitar 404/400 por falta de configuración.
+    if (workspaceId) {
+      await gotoTracked(`/platform/workspaces/${workspaceId}/enter/`, { label: 'set-workspace' });
+    }
+    if (teamId) {
+      await gotoTracked(`/?team=${teamId}`, { label: 'set-team' });
+    }
+
     // Descubre un player_id real si existe.
     let playerId = 1;
     await gotoTracked('/players/', { label: 'players' });
@@ -489,7 +499,6 @@ async function main() {
     }
 
     // Acciones críticas (crean datos y validan que no haya logout involuntario).
-    const createdTaskStudio = await createBuilderTask('/task-studio/tareas/nueva/', { labelPrefix: 'task-studio' });
     const createdSessionCoach = await createBuilderTask('/coach/sesiones/tareas/nueva/', { labelPrefix: 'sessions-coach' });
     const createdSessionGk = await createBuilderTask('/coach/sesiones/porteros/tareas/nueva/', { labelPrefix: 'sessions-gk' });
     const createdSessionFit = await createBuilderTask('/coach/sesiones/preparacion-fisica/tareas/nueva/', { labelPrefix: 'sessions-fit' });
@@ -515,9 +524,6 @@ async function main() {
       '/coach/11-inicial/',
       '/convocatoria/',
       '/registro-acciones/',
-      '/task-studio/',
-      '/task-studio/perfil/',
-      '/task-studio/plantilla/',
       '/platform/',
       '/platform/?tab=users',
       '/platform/?tab=workspaces',
@@ -535,11 +541,6 @@ async function main() {
       '/incidencias/',
     ];
 
-    if (createdTaskStudio?.details?.task_id) {
-      const id = createdTaskStudio.details.task_id;
-      seedPaths.push(`/task-studio/tareas/${id}/pdf/`);
-      seedPaths.push(`/task-studio/tareas/${id}/preview/`);
-    }
     [createdSessionCoach, createdSessionGk, createdSessionFit].forEach((created) => {
       const id = created?.details?.task_id;
       if (!id) return;
