@@ -164,7 +164,7 @@
       </p>
       {% endif %}
 
-      <form method="post">
+      <form method="post" autocomplete="on">
         {% csrf_token %}
         <label for="id_username">Usuario</label>
         <input
@@ -194,12 +194,18 @@
           <button type="button" class="icon-btn" data-toggle-password="#id_password" aria-label="Mostrar u ocultar contraseña" title="Mostrar / ocultar">👁</button>
         </div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-top:0.65rem;">
-          <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
-            <input id="remember_username" type="checkbox" checked style="width:auto;accent-color:var(--amber);" />
-            Recordar usuario
-          </label>
+          <div style="display:flex;flex-direction:column;gap:0.35rem;">
+            <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
+              <input id="remember_username" type="checkbox" checked style="width:auto;accent-color:var(--amber);" />
+              Recordar usuario
+            </label>
+            <label style="margin:0;display:flex;align-items:center;gap:0.5rem;font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;color:rgba(245,247,250,0.8);">
+              <input id="remember_session" name="remember_session" type="checkbox" checked style="width:auto;accent-color:var(--cyan);" />
+              Mantener sesión
+            </label>
+          </div>
           <span style="color:rgba(145,161,185,0.85);font-size:0.72rem;">
-            No guardamos contraseñas.
+            La contraseña la guarda iOS (Llavero) si tú quieres.
           </span>
         </div>
         <button class="pill-button" type="submit">Entrar</button>

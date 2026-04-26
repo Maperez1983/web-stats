@@ -112,6 +112,23 @@ class RoleAwareLoginView(auth_views.LoginView):
             return redirect(f"{app_base}/login/{suffix}")
         return super().dispatch(request, *args, **kwargs)
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # UX: "Mantener sesión" para iPad/WKWebView (evita pedir contraseña cada vez).
+        # No guardamos contraseñas: solo extendemos la validez de la cookie de sesión.
+        try:
+            remember_raw = str(self.request.POST.get("remember_session") or "").strip().lower()
+            remember = remember_raw in {"1", "true", "yes", "on"}
+            if remember:
+                days = int(str(os.getenv("REMEMBER_SESSION_DAYS", "30") or "30").strip() or 30)
+                days = max(1, min(days, 365))
+                self.request.session.set_expiry(days * 86400)
+            else:
+                self.request.session.set_expiry(0)
+        except Exception:
+            pass
+        return response
+
     def _is_blocked_next(self, user, next_url: str) -> bool:
         if not next_url:
             return False
