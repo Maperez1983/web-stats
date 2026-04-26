@@ -68,10 +68,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 
 @objc(MainViewController)
-class MainViewController: CAPBridgeViewController {
+class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
     private let cookieHostSuffix = "segundajugada.es"
     private let persistedCookiesKeychainAccount = "persistedCookies.v1"
-    private let cookieNamesToPersist: Set<String> = ["webstats_sessionid", "csrftoken", "access_token"]
+    // Persistimos cookies del dominio para mantener sesión en WKWebView incluso si iOS “olvida” el store.
+    // Importante: no persistimos contraseñas, solo cookies http.
+    private let cookieNamesToExclude: Set<String> = []
+    private var cookiePersistDebounce: DispatchWorkItem?
 
     private func keychainService() -> String {
         return (Bundle.main.bundleIdentifier ?? "es.segundajugada.app").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -112,7 +115,7 @@ class MainViewController: CAPBridgeViewController {
 
     private func shouldPersistCookie(_ cookie: HTTPCookie) -> Bool {
         let name = cookie.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !cookieNamesToPersist.contains(name) { return false }
+        if cookieNamesToExclude.contains(name) { return false }
         let domain = cookie.domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if domain == cookieHostSuffix { return true }
         if domain.hasSuffix("." + cookieHostSuffix) { return true }
@@ -212,11 +215,37 @@ class MainViewController: CAPBridgeViewController {
         persistCookiesNow()
     }
 
+    @objc private func appWillResignActive() {
+        // Se dispara de forma más fiable que willTerminate cuando el usuario cambia de app.
+        persistCookiesNow()
+    }
+
+    private func schedulePersistCookiesSoon() {
+        cookiePersistDebounce?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.persistCookiesNow()
+        }
+        cookiePersistDebounce = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: work)
+    }
+
+    // WKHTTPCookieStoreObserver
+    func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+        schedulePersistCookiesSoon()
+    }
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
 
         NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appWillTerminate), name: UIApplication.willTerminateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
+
+        // Observa cambios de cookies para persistir justo tras el login (o refresh token) sin depender
+        // de que el usuario cierre la app “bien”.
+        if #available(iOS 11.0, *) {
+            webView?.configuration.websiteDataStore.httpCookieStore.add(self)
+        }
 
         restorePersistedCookies { [weak self] restored in
             guard let self = self else { return }
