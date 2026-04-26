@@ -107,6 +107,10 @@
         padding: 0.45rem;
         background: rgba(2, 6, 23, 0.76);
       }
+      .player-card.is-active {
+        border-color: rgba(56, 189, 248, 0.85);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+      }
       .player-card img,
       .avatar {
         width: 40px;
@@ -227,6 +231,12 @@
         background: rgba(2, 6, 23, 0.45);
         padding: 0.25rem;
         text-align: center;
+        cursor: pointer;
+        user-select: none;
+      }
+      .slot.is-target {
+        border-color: rgba(56, 189, 248, 0.92);
+        background: rgba(2, 6, 23, 0.64);
       }
       .slot-label {
         font-size: 0.6rem;
@@ -280,6 +290,10 @@
       .toolbar .primary {
         border-color: rgba(56, 189, 248, 0.8);
         color: #bae6fd;
+      }
+      .toolbar .ghost {
+        border-color: rgba(148, 163, 184, 0.35);
+        color: rgba(226, 232, 240, 0.92);
       }
       .status {
         margin-top: 0.5rem;
@@ -359,6 +373,10 @@
             <button type="button" class="primary {% if has_pending_convocation %}is-disabled{% endif %}" id="save-btn">Guardar</button>
           </div>
           <div class="field-row">
+            <label for="formation-select">Estructura</label>
+            <select id="formation-select" {% if has_pending_convocation %}disabled{% endif %}></select>
+          </div>
+          <div class="field-row">
             <label for="lineup-gk-select">Portero (este partido)</label>
             <select id="lineup-gk-select" {% if has_pending_convocation %}disabled{% endif %}>
               <option value="">Auto</option>
@@ -366,6 +384,9 @@
           </div>
           <p class="field-help">
             En categorías de niños es normal que un jugador marcado como “POR” juegue en cualquier posición. Selecciona aquí quién ocupa la casilla de portero en el 11 inicial.
+          </p>
+          <p class="field-help" style="margin-top:-0.25rem;">
+            Para colocar jugadores: toca un jugador en la lista y luego toca una posición en el campo. Si tocas una posición sin jugador activo, se libera.
           </p>
           <p class="status {% if has_pending_convocation or has_pending_lineup %}warn{% endif %}" id="status-msg">
             {% if has_pending_convocation %}
@@ -393,47 +414,125 @@
       const clearBtn = document.getElementById('clear-btn');
       const autoFillBtn = document.getElementById('auto-fill-btn');
       const gkSelect = document.getElementById('lineup-gk-select');
+      const formationSelect = document.getElementById('formation-select');
       const hasPendingConvocation = {{ has_pending_convocation|yesno:"true,false" }};
       const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
         || '';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
-      const slotsF11 = [
-        { key: 'gk', label: 'POR', x: 50, y: 90, role: 'gk' },
-        { key: 'lb', label: 'LI', x: 18, y: 74, role: 'def' },
-        { key: 'lcb', label: 'DFC', x: 37, y: 76, role: 'def' },
-        { key: 'rcb', label: 'DFC', x: 63, y: 76, role: 'def' },
-        { key: 'rb', label: 'LD', x: 82, y: 74, role: 'def' },
-        { key: 'lcm', label: 'MC', x: 30, y: 56, role: 'mid' },
-        { key: 'cm', label: 'MCD', x: 50, y: 54, role: 'mid' },
-        { key: 'rcm', label: 'MC', x: 70, y: 56, role: 'mid' },
-        { key: 'lw', label: 'EI', x: 24, y: 34, role: 'fwd' },
-        { key: 'st', label: 'DC', x: 50, y: 24, role: 'fwd' },
-        { key: 'rw', label: 'ED', x: 76, y: 34, role: 'fwd' },
-      ];
-      const slotsF7 = [
-        { key: 'gk', label: 'POR', x: 50, y: 88, role: 'gk' },
-        { key: 'ld', label: 'LD', x: 80, y: 68, role: 'def' },
-        { key: 'dfc', label: 'DFC', x: 50, y: 70, role: 'def' },
-        { key: 'li', label: 'LI', x: 20, y: 68, role: 'def' },
-        { key: 'mc1', label: 'MC', x: 34, y: 46, role: 'mid' },
-        { key: 'mc2', label: 'MC', x: 66, y: 46, role: 'mid' },
-        { key: 'dc', label: 'DC', x: 50, y: 22, role: 'fwd' },
-      ];
-      const slots = STARTERS_REQUIRED <= 7 ? slotsF7 : slotsF11;
+      const formationsF11 = {
+        '4-3-3': [
+          { label: 'POR', x: 50, y: 90, role: 'gk' },
+          { label: 'LI', x: 18, y: 74, role: 'def' },
+          { label: 'DFC', x: 37, y: 76, role: 'def' },
+          { label: 'DFC', x: 63, y: 76, role: 'def' },
+          { label: 'LD', x: 82, y: 74, role: 'def' },
+          { label: 'MC', x: 30, y: 56, role: 'mid' },
+          { label: 'MCD', x: 50, y: 54, role: 'mid' },
+          { label: 'MC', x: 70, y: 56, role: 'mid' },
+          { label: 'EI', x: 24, y: 34, role: 'fwd' },
+          { label: 'DC', x: 50, y: 24, role: 'fwd' },
+          { label: 'ED', x: 76, y: 34, role: 'fwd' },
+        ],
+        '4-4-2': [
+          { label: 'POR', x: 50, y: 90, role: 'gk' },
+          { label: 'LI', x: 18, y: 74, role: 'def' },
+          { label: 'DFC', x: 38, y: 76, role: 'def' },
+          { label: 'DFC', x: 62, y: 76, role: 'def' },
+          { label: 'LD', x: 82, y: 74, role: 'def' },
+          { label: 'MI', x: 20, y: 54, role: 'mid' },
+          { label: 'MC', x: 40, y: 58, role: 'mid' },
+          { label: 'MC', x: 60, y: 58, role: 'mid' },
+          { label: 'MD', x: 80, y: 54, role: 'mid' },
+          { label: 'DC', x: 44, y: 24, role: 'fwd' },
+          { label: 'DC', x: 56, y: 24, role: 'fwd' },
+        ],
+        '4-2-3-1': [
+          { label: 'POR', x: 50, y: 90, role: 'gk' },
+          { label: 'LI', x: 18, y: 74, role: 'def' },
+          { label: 'DFC', x: 38, y: 76, role: 'def' },
+          { label: 'DFC', x: 62, y: 76, role: 'def' },
+          { label: 'LD', x: 82, y: 74, role: 'def' },
+          { label: 'MCD', x: 42, y: 60, role: 'mid' },
+          { label: 'MCD', x: 58, y: 60, role: 'mid' },
+          { label: 'EI', x: 22, y: 42, role: 'mid' },
+          { label: 'MP', x: 50, y: 44, role: 'mid' },
+          { label: 'ED', x: 78, y: 42, role: 'mid' },
+          { label: 'DC', x: 50, y: 22, role: 'fwd' },
+        ],
+        '3-5-2': [
+          { label: 'POR', x: 50, y: 90, role: 'gk' },
+          { label: 'DFC', x: 28, y: 76, role: 'def' },
+          { label: 'DFC', x: 50, y: 78, role: 'def' },
+          { label: 'DFC', x: 72, y: 76, role: 'def' },
+          { label: 'Carril I', x: 16, y: 58, role: 'mid' },
+          { label: 'MC', x: 36, y: 58, role: 'mid' },
+          { label: 'MCD', x: 50, y: 54, role: 'mid' },
+          { label: 'MC', x: 64, y: 58, role: 'mid' },
+          { label: 'Carril D', x: 84, y: 58, role: 'mid' },
+          { label: 'DC', x: 44, y: 24, role: 'fwd' },
+          { label: 'DC', x: 56, y: 24, role: 'fwd' },
+        ],
+      };
+      const formationsF7 = {
+        '3-2-1': [
+          { label: 'POR', x: 50, y: 88, role: 'gk' },
+          { label: 'LD', x: 80, y: 68, role: 'def' },
+          { label: 'DFC', x: 50, y: 70, role: 'def' },
+          { label: 'LI', x: 20, y: 68, role: 'def' },
+          { label: 'MC', x: 34, y: 46, role: 'mid' },
+          { label: 'MC', x: 66, y: 46, role: 'mid' },
+          { label: 'DC', x: 50, y: 22, role: 'fwd' },
+        ],
+        '2-3-1': [
+          { label: 'POR', x: 50, y: 88, role: 'gk' },
+          { label: 'DF', x: 32, y: 70, role: 'def' },
+          { label: 'DF', x: 68, y: 70, role: 'def' },
+          { label: 'MI', x: 24, y: 48, role: 'mid' },
+          { label: 'MC', x: 50, y: 48, role: 'mid' },
+          { label: 'MD', x: 76, y: 48, role: 'mid' },
+          { label: 'DC', x: 50, y: 22, role: 'fwd' },
+        ],
+      };
+      const formations = STARTERS_REQUIRED <= 7 ? formationsF7 : formationsF11;
+      const defaultFormationKey = (() => {
+        const keys = Object.keys(formations);
+        if (!keys.length) return '';
+        return STARTERS_REQUIRED <= 7 ? '3-2-1' : '4-3-3';
+      })();
 
-      let lineupState = { starters: [], bench: [] };
+      let lineupState = { formation: defaultFormationKey, starters: [], bench: [] };
+      let manualMode = false;
+      let activePlayerId = '';
       const avatarFallback = '{% static "football/images/player-avatar.svg" %}';
       try {
         const seed = JSON.parse(document.getElementById('lineup-seed-data')?.textContent || '{}');
         if (seed && typeof seed === 'object') {
           lineupState = {
+            formation: String(seed.formation || defaultFormationKey || '').trim() || defaultFormationKey,
             starters: Array.isArray(seed.starters) ? seed.starters : [],
             bench: Array.isArray(seed.bench) ? seed.bench : [],
           };
         }
       } catch (_) {}
+
+      const activeSlots = () => formations[lineupState.formation] || formations[defaultFormationKey] || [];
+      const setFormation = (key) => {
+        const safeKey = String(key || '').trim();
+        if (!safeKey || !formations[safeKey]) return;
+        lineupState.formation = safeKey;
+      };
+
+      const recomputeBenchFromChecks = () => {
+        const selected = playerCards
+          .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
+          .map(parseCard);
+        const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
+        const bench = selected.filter((p) => !starterIds.has(String(p.id)));
+        bench.sort((a, b) => numberValue(a) - numberValue(b));
+        lineupState.bench = bench;
+      };
 
       const renderField = () => {
         field.innerHTML = '';
@@ -450,16 +549,31 @@
           <span class="pitch-goal bottom"></span>
         `;
         field.appendChild(markings);
+        const slots = activeSlots();
+        const assignedByIndex = new Map();
+        (lineupState.starters || []).forEach((row, idx) => {
+          if (!row) return;
+          const stored = row.slot_index;
+          const slotIndex = Number.isFinite(Number(stored)) ? Number(stored) : null;
+          if (slotIndex === null || slotIndex < 0) {
+            // Fallback legacy: por orden (índice).
+            assignedByIndex.set(idx, row);
+            return;
+          }
+          assignedByIndex.set(slotIndex, row);
+        });
         slots.forEach((slot, index) => {
           const box = document.createElement('div');
           box.className = 'slot';
+          if (activePlayerId) box.classList.add('is-target');
           box.style.left = `${slot.x}%`;
           box.style.top = `${slot.y}%`;
+          box.dataset.slotIndex = String(index);
           const title = document.createElement('div');
           title.className = 'slot-label';
           title.textContent = slot.label;
           box.appendChild(title);
-          const player = lineupState.starters[index];
+          const player = assignedByIndex.get(index) || null;
           if (player) {
             const token = document.createElement('div');
             token.className = 'token';
@@ -479,6 +593,46 @@
             token.appendChild(name);
             box.appendChild(token);
           }
+          box.addEventListener('click', () => {
+            if (hasPendingConvocation) return;
+            const slotIdx = parseInt(String(box.dataset.slotIndex || ''), 10);
+            if (!Number.isFinite(slotIdx) || slotIdx < 0) return;
+            const selectedCard = activePlayerId
+              ? playerCards.find((card) => String(card.dataset.playerId || '') === String(activePlayerId))
+              : null;
+            if (!selectedCard) {
+              // Sin jugador activo: si hay jugador en el slot, lo liberamos.
+              const nextStarters = (lineupState.starters || []).filter((row) => {
+                const idx = Number(row?.slot_index);
+                if (Number.isFinite(idx)) return idx !== slotIdx;
+                return true;
+              });
+              if (nextStarters.length !== (lineupState.starters || []).length) {
+                manualMode = true;
+                lineupState.starters = nextStarters;
+                recomputeBenchFromChecks();
+                renderField();
+              }
+              return;
+            }
+            const payload = parseCard(selectedCard);
+            if (!payload?.id) return;
+            const checkbox = selectedCard.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.checked) checkbox.checked = true;
+            manualMode = true;
+            // Quita este jugador de cualquier slot anterior y quita el ocupante del slot actual.
+            const filtered = (lineupState.starters || [])
+              .filter((row) => String(row?.id || '') !== String(payload.id));
+            const withoutSlot = filtered.filter((row) => {
+              const idx = Number(row?.slot_index);
+              if (Number.isFinite(idx)) return idx !== slotIdx;
+              return true;
+            });
+            const next = [...withoutSlot, { ...payload, slot_index: slotIdx }];
+            lineupState.starters = next;
+            recomputeBenchFromChecks();
+            renderField();
+          });
           field.appendChild(box);
         });
         const missing = Math.max(0, STARTERS_REQUIRED - lineupState.starters.length);
@@ -577,8 +731,9 @@
         while (starters.length < STARTERS_REQUIRED && remaining.length) {
           starters.push(remaining.shift());
         }
+        const startersFixed = starters.slice(0, STARTERS_REQUIRED).map((row, index) => ({ ...row, slot_index: index }));
         return {
-          starters: starters.slice(0, STARTERS_REQUIRED),
+          starters: startersFixed,
           bench: [...remaining].slice(0),
         };
       };
@@ -588,9 +743,19 @@
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
           .map(parseCard);
         syncGkSelectOptions(selected);
-        const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
-        lineupState.starters = ordered.starters;
-        lineupState.bench = ordered.bench;
+        if (!manualMode) {
+          const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
+          lineupState.starters = ordered.starters;
+          lineupState.bench = ordered.bench;
+        } else {
+          // Manual: no pisamos las posiciones elegidas; solo retiramos jugadores desmarcados.
+          const allowed = new Set(selected.map((p) => String(p.id)));
+          lineupState.starters = (lineupState.starters || []).filter((row) => allowed.has(String(row?.id || '')));
+          const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
+          const bench = selected.filter((p) => !starterIds.has(String(p.id)));
+          bench.sort((a, b) => numberValue(a) - numberValue(b));
+          lineupState.bench = bench;
+        }
         renderField();
       };
 
@@ -608,10 +773,21 @@
       playerCards.forEach((card) => {
         const input = card.querySelector('input[type="checkbox"]');
         input?.addEventListener('change', syncFromChecks);
+        card.addEventListener('click', (event) => {
+          if (event.target && (event.target.tagName || '').toLowerCase() === 'input') return;
+          const nextId = String(card.dataset.playerId || '');
+          if (!nextId) return;
+          activePlayerId = activePlayerId === nextId ? '' : nextId;
+          playerCards.forEach((c) => c.classList.toggle('is-active', String(c.dataset.playerId || '') === String(activePlayerId)));
+          renderField();
+        });
       });
 
       clearBtn?.addEventListener('click', () => {
-        lineupState = { starters: [], bench: [] };
+        manualMode = false;
+        activePlayerId = '';
+        playerCards.forEach((c) => c.classList.remove('is-active'));
+        lineupState = { formation: lineupState.formation || defaultFormationKey, starters: [], bench: [] };
         playerCards.forEach((card) => {
           const input = card.querySelector('input[type="checkbox"]');
           if (input) input.checked = false;
@@ -624,6 +800,7 @@
         const all = playerCards.map(parseCard);
         syncGkSelectOptions(all);
         const ordered = orderPlayersByRole(all, String(gkSelect?.value || ''));
+        manualMode = false;
         lineupState.starters = ordered.starters;
         lineupState.bench = ordered.bench;
         hydrateChecks();
@@ -635,15 +812,78 @@
         const selected = playerCards
           .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
           .map(parseCard);
-        const ordered = orderPlayersByRole(selected, String(gkSelect.value || ''));
-        lineupState.starters = ordered.starters;
-        lineupState.bench = ordered.bench;
+        if (!manualMode) {
+          const ordered = orderPlayersByRole(selected, String(gkSelect.value || ''));
+          lineupState.starters = ordered.starters;
+          lineupState.bench = ordered.bench;
+        } else {
+          const forced = String(gkSelect.value || '').trim();
+          if (forced) {
+            // En manual, el selector de portero fuerza el slot 0.
+            const card = playerCards.find((c) => String(c.dataset.playerId || '') === forced);
+            if (card) {
+              const payload = parseCard(card);
+              lineupState.starters = (lineupState.starters || []).filter((row) => String(row?.id || '') !== forced);
+              lineupState.starters = (lineupState.starters || []).filter((row) => Number(row?.slot_index) !== 0);
+              lineupState.starters.push({ ...payload, slot_index: 0 });
+            }
+          }
+        }
+        renderField();
+      });
+
+      const hydrateFormationSelect = () => {
+        if (!formationSelect) return;
+        formationSelect.innerHTML = '';
+        Object.keys(formations).forEach((key) => {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key;
+          formationSelect.appendChild(opt);
+        });
+        const current = String(lineupState.formation || '').trim();
+        if (current && formations[current]) {
+          formationSelect.value = current;
+        } else {
+          formationSelect.value = defaultFormationKey;
+          setFormation(defaultFormationKey);
+        }
+      };
+      hydrateFormationSelect();
+      formationSelect?.addEventListener('change', () => {
+        if (hasPendingConvocation) return;
+        setFormation(String(formationSelect.value || ''));
+        if (!manualMode) {
+          // En auto, recalcula para que slot_index siga siendo secuencial al nuevo esquema.
+          const selected = playerCards
+            .filter((card) => card.querySelector('input[type="checkbox"]')?.checked)
+            .map(parseCard);
+          const ordered = orderPlayersByRole(selected, String(gkSelect?.value || ''));
+          lineupState.starters = ordered.starters;
+          lineupState.bench = ordered.bench;
+        }
         renderField();
       });
 
       saveBtn?.addEventListener('click', async () => {
         if (hasPendingConvocation) return;
         try {
+          lineupState.formation = String(lineupState.formation || defaultFormationKey || '').trim();
+          // Normaliza antes de enviar: evita slots duplicados / fuera de rango y recalcula banquillo.
+          const slotCount = activeSlots().length || STARTERS_REQUIRED;
+          const seenSlots = new Set();
+          const seenPlayers = new Set();
+          lineupState.starters = (lineupState.starters || []).filter((row) => {
+            const pid = String(row?.id || '').trim();
+            if (!pid || seenPlayers.has(pid)) return false;
+            const idx = Number(row?.slot_index);
+            if (!Number.isFinite(idx) || idx < 0 || idx >= slotCount) return false;
+            if (seenSlots.has(idx)) return false;
+            seenSlots.add(idx);
+            seenPlayers.add(pid);
+            return true;
+          });
+          recomputeBenchFromChecks();
           const response = await fetch(saveUrl, {
             method: 'POST',
             credentials: 'same-origin',

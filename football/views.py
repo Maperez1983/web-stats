@@ -15206,6 +15206,15 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
     base = {'starters': [], 'bench': []}
     if not isinstance(payload, dict):
         return base
+    try:
+        formation = str(payload.get('formation') or '').strip()
+    except Exception:
+        formation = ''
+    if formation:
+        # Guardamos el esquema tal cual (sanitizado) para poder representar el 11 inicial en distintas estructuras.
+        safe = ''.join(ch for ch in formation if ch.isalnum() or ch in {'-', '_'}).strip()
+        if safe:
+            base['formation'] = safe[:32]
     for section in ('starters', 'bench'):
         rows = payload.get(section)
         if not isinstance(rows, list):
@@ -15217,15 +15226,22 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
             if not pid or pid not in allowed:
                 continue
             player = allowed[pid]
-            base[section].append(
-                {
-                    'id': str(player.id),
-                    'name': (player.name or '').upper(),
-                    'number': player.number if player.number is not None else '--',
-                    'position': player.position or '',
-                    'photo': resolve_player_photo_url(None, player),
-                }
-            )
+            out_row = {
+                'id': str(player.id),
+                'name': (player.name or '').upper(),
+                'number': player.number if player.number is not None else '--',
+                'position': player.position or '',
+                'photo': resolve_player_photo_url(None, player),
+            }
+            try:
+                slot_index = row.get('slot_index')
+                if slot_index is not None and section == 'starters':
+                    slot_index = int(str(slot_index).strip())
+                    if slot_index >= 0:
+                        out_row['slot_index'] = slot_index
+            except Exception:
+                pass
+            base[section].append(out_row)
     # dedupe: a player must appear only once across sections
     seen = set()
     for section in ('starters', 'bench'):
@@ -15244,6 +15260,22 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
         overflow = base['starters'][starters_limit:]
         base['starters'] = base['starters'][:starters_limit]
         base['bench'].extend(overflow)
+    # Normaliza slot_index al rango disponible para evitar basura de cliente/caches.
+    try:
+        for row in base['starters']:
+            if not isinstance(row, dict):
+                continue
+            if 'slot_index' not in row:
+                continue
+            try:
+                idx = int(row.get('slot_index'))
+            except Exception:
+                row.pop('slot_index', None)
+                continue
+            if idx < 0 or idx >= starters_limit:
+                row.pop('slot_index', None)
+    except Exception:
+        pass
     return base
 
 
