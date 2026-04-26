@@ -991,6 +991,11 @@
 	        border: 1px solid rgba(34, 211, 238, 0.24);
 	        color: rgba(226, 232, 240, 0.95);
 	      }
+	      .closure-actions .sheet {
+	        background: rgba(74, 222, 128, 0.12);
+	        border: 1px solid rgba(74, 222, 128, 0.22);
+	        color: rgba(226, 232, 240, 0.95);
+	      }
       .field-clock {
         display: flex;
         align-items: center;
@@ -2538,6 +2543,13 @@
                 >
                   Acta PDF
                 </a>
+                <a
+                  class="sheet"
+                  href="{% url 'match-stats' match_info.match_id %}"
+                  title="Abrir ficha del partido"
+                >
+                  Ficha partido
+                </a>
                 {% endif %}
                 <button type="button" class="reset" id="match-reset-btn">Reiniciar registro</button>
                 <button type="button" class="toolbar-pill" data-stage-jump="live">Volver al directo</button>
@@ -2808,18 +2820,32 @@
       const deleteUrl = urlWithMatchId('{% url "match-action-delete" %}');
       const matchInfoSaveUrl = urlWithMatchId('{% url "match-info-save" %}');
       const finalizeUrl = urlWithMatchId('{% url "match-action-finalize" %}');
-      const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
-      const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
-      const lineupStorageKey = initialMatchDbIdEl?.textContent
-        ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
-        : '';
-      let lineupState = {
-        starters: [],
-        bench: [],
-      };
-      let lineupPersistTimer = null;
-      let lastSavedLineupSnapshot = '';
-      let lineupPersistDisabled = false;
+	      const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
+	      const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
+	      const lineupGetUrl = urlWithMatchId('{% url "match-lineup-get" %}');
+	      const lineupStorageKey = initialMatchDbIdEl?.textContent
+	        ? `touchFieldLineup:${String(initialMatchDbIdEl.textContent).trim()}`
+	        : '';
+	      let lineupState = {
+	        starters: [],
+	        bench: [],
+	      };
+	      let lastLineupSignature = '';
+	      let lineupPersistTimer = null;
+	      let lastSavedLineupSnapshot = '';
+	      let lineupPersistDisabled = false;
+	      const lineupSignature = (state) => {
+	        try {
+	          const starters = Array.isArray(state?.starters) ? state.starters : [];
+	          const bench = Array.isArray(state?.bench) ? state.bench : [];
+	          return JSON.stringify({
+	            starters: starters.map((row) => String(row?.id || '').trim()).filter(Boolean),
+	            bench: bench.map((row) => String(row?.id || '').trim()).filter(Boolean),
+	          });
+	        } catch (e) {
+	          return '';
+	        }
+	      };
 
 	      const persistentClockEl = document.getElementById('persistent-clock');
 	      const persistentYellowEl = document.getElementById('persistent-yellow');
@@ -3021,56 +3047,138 @@
           }
         });
       }
-      const hydrateLineupState = () => {
-        try {
-          const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
-          if (seedRaw) {
-            const seed = JSON.parse(seedRaw);
-            if (seed && typeof seed === 'object') {
-              lineupState = {
-                starters: Array.isArray(seed?.starters) ? seed.starters : [],
-                bench: Array.isArray(seed?.bench) ? seed.bench : [],
-              };
-            }
-          }
-        } catch (err) {
-          console.warn('No se pudo leer el 11 inicial del servidor', err);
-        }
-        if (lineupStorageKey) {
-          try {
-            const rawPersisted = localStorage.getItem(lineupStorageKey);
-            if (rawPersisted) {
-              const persisted = JSON.parse(rawPersisted);
-              lineupState = {
-                starters: Array.isArray(persisted?.starters) ? persisted.starters : [],
-                bench: Array.isArray(persisted?.bench) ? persisted.bench : [],
-              };
-              return;
-            }
-          } catch (err) {
-            console.warn('No se pudo recuperar el 11 inicial persistido', err);
-          }
-        }
+	      const hydrateLineupState = () => {
+	        const parseEpoch = (value) => {
+	          const raw = String(value || '').trim();
+	          if (!raw) return 0;
+	          const parsed = Date.parse(raw);
+	          return Number.isFinite(parsed) ? parsed : 0;
+	        };
+	        const isRecentLocal = (persisted) => {
+	          try {
+	            const ts = Number(persisted?._meta?.local_ts || 0);
+	            if (!Number.isFinite(ts) || ts <= 0) return false;
+	            return (Date.now() - ts) < 120000; // 2 min
+	          } catch (e) {
+	            return false;
+	          }
+	        };
+	        try {
+	          const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
+	          if (seedRaw) {
+	            const seed = JSON.parse(seedRaw);
+	            if (seed && typeof seed === 'object') {
+	              lineupState = seed;
+	            }
+	          }
+	        } catch (err) {
+	          console.warn('No se pudo leer el 11 inicial del servidor', err);
+	        }
+	        if (lineupStorageKey) {
+	          try {
+	            const rawPersisted = localStorage.getItem(lineupStorageKey);
+	            if (rawPersisted) {
+	              const persisted = JSON.parse(rawPersisted);
+	              const serverSavedAt = parseEpoch(lineupState?._meta?.saved_at || lineupState?._meta?.server_saved_at);
+	              const persistedServerSavedAt = parseEpoch(persisted?._meta?.server_saved_at || persisted?._meta?.saved_at);
+	              const prefersServer = Boolean(
+	                serverSavedAt
+	                && (!persistedServerSavedAt || serverSavedAt > persistedServerSavedAt)
+	                && !isRecentLocal(persisted),
+	              );
+	              if (prefersServer) {
+	                try {
+	                  localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] }));
+	                } catch (e) {}
+	              } else if (persisted && typeof persisted === 'object') {
+	                lineupState = persisted;
+	                return;
+	              }
+	            }
+	          } catch (err) {
+	            console.warn('No se pudo recuperar el 11 inicial persistido', err);
+	          }
+	        }
         if (!lineupInput?.value) {
           return;
         }
-        try {
-          const current = JSON.parse(lineupInput.value);
-          lineupState = {
-            starters: Array.isArray(current?.starters) ? current.starters : [],
-            bench: Array.isArray(current?.bench) ? current.bench : [],
-          };
-        } catch (err) {
-          console.error('Invalid lineup payload', err);
-        }
-        lastSavedLineupSnapshot = JSON.stringify(lineupState);
-      };
-      const updateLineupInput = () => {
-        const lineupSnapshot = JSON.stringify(lineupState);
-        if (lineupInput) {
-          lineupInput.value = lineupSnapshot;
-        }
-        if (lineupStorageKey) {
+	        try {
+	          const current = JSON.parse(lineupInput.value);
+	          lineupState = current && typeof current === 'object' ? current : lineupState;
+	        } catch (err) {
+	          console.error('Invalid lineup payload', err);
+	        }
+	        try {
+	          if (!lineupState || typeof lineupState !== 'object') lineupState = { starters: [], bench: [] };
+	          if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
+	          if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
+	        } catch (e) {}
+	        lastLineupSignature = lineupSignature(lineupState);
+	        lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
+	      };
+	      const refreshLineupFromServer = async ({ quiet = true } = {}) => {
+	        if (!lineupGetUrl) return false;
+	        try {
+	          if (!navigator.onLine) return false;
+	        } catch (e) {}
+	        try {
+	          const response = await fetch(lineupGetUrl, {
+	            method: 'GET',
+	            credentials: 'same-origin',
+	            headers: { Accept: 'application/json' },
+	          });
+	          const data = await response.json().catch(() => ({}));
+	          if (!response.ok || !data || data.ok !== true || typeof data.lineup !== 'object') {
+	            return false;
+	          }
+	          const incoming = data.lineup;
+	          const parseEpoch = (value) => {
+	            const raw = String(value || '').trim();
+	            if (!raw) return 0;
+	            const parsed = Date.parse(raw);
+	            return Number.isFinite(parsed) ? parsed : 0;
+	          };
+	          const incomingSavedAt = parseEpoch(incoming?._meta?.saved_at || incoming?._meta?.server_saved_at);
+	          const currentSavedAt = parseEpoch(lineupState?._meta?.server_saved_at || lineupState?._meta?.saved_at);
+	          if (incomingSavedAt && currentSavedAt && incomingSavedAt <= currentSavedAt) {
+	            return false;
+	          }
+	          lineupState = incoming;
+	          try { lastLineupSignature = lineupSignature(lineupState); } catch (e) {}
+	          lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
+	          if (lineupStorageKey) {
+	            try { localStorage.setItem(lineupStorageKey, lastSavedLineupSnapshot); } catch (e) {}
+	          }
+	          if (lineupInput) lineupInput.value = lastSavedLineupSnapshot;
+	          try { renderLineup(); } catch (e) {}
+	          if (!quiet && typeof showPageStatus === 'function') {
+	            showPageStatus('11 inicial sincronizado.', 'info', 1800);
+	          }
+	          return true;
+	        } catch (err) {
+	          return false;
+	        }
+	      };
+	      const updateLineupInput = () => {
+	        try {
+	          lineupState = lineupState && typeof lineupState === 'object' ? lineupState : { starters: [], bench: [] };
+	          if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
+	          if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
+	          lineupState._meta = lineupState._meta && typeof lineupState._meta === 'object' ? lineupState._meta : {};
+	          const sig = lineupSignature(lineupState);
+	          if (sig && sig !== lastLineupSignature) {
+	            lastLineupSignature = sig;
+	            lineupState._meta.local_ts = Date.now();
+	          }
+	          if (lineupState._meta.saved_at && !lineupState._meta.server_saved_at) {
+	            lineupState._meta.server_saved_at = lineupState._meta.saved_at;
+	          }
+	        } catch (e) {}
+	        const lineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
+	        if (lineupInput) {
+	          lineupInput.value = lineupSnapshot;
+	        }
+	        if (lineupStorageKey) {
           try {
             localStorage.setItem(lineupStorageKey, lineupSnapshot);
           } catch (err) {
@@ -3106,12 +3214,34 @@
                 5200,
               );
               return;
-            }
-            lastSavedLineupSnapshot = lineupSnapshot;
-          } catch (err) {
-            console.warn('No se pudo guardar el 11 inicial en servidor', err);
-            showPageStatus('No se pudo guardar el 11 inicial en servidor.', 'warning', 5200);
-          }
+	            }
+	            const data = await response.json().catch(() => ({}));
+	            try {
+	              const serverLineup = (data && typeof data.lineup === 'object') ? data.lineup : null;
+	              const savedAt = (data && data.saved_at) ? String(data.saved_at) : '';
+	              if (serverLineup) {
+	                lineupState = serverLineup;
+	              }
+		              if (savedAt) {
+		                lineupState = lineupState && typeof lineupState === 'object' ? lineupState : { starters: [], bench: [] };
+		                lineupState._meta = lineupState._meta && typeof lineupState._meta === 'object' ? lineupState._meta : {};
+		                lineupState._meta.server_saved_at = savedAt;
+		                lineupState._meta.saved_at = savedAt;
+		              }
+		              try { lastLineupSignature = lineupSignature(lineupState); } catch (e) {}
+		              lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
+		              if (lineupStorageKey) {
+		                try { localStorage.setItem(lineupStorageKey, lastSavedLineupSnapshot); } catch (e) {}
+		              }
+	              if (lineupInput) lineupInput.value = lastSavedLineupSnapshot;
+	              try { renderLineup(); } catch (e) {}
+	            } catch (e) {
+	              lastSavedLineupSnapshot = lineupSnapshot;
+	            }
+	          } catch (err) {
+	            console.warn('No se pudo guardar el 11 inicial en servidor', err);
+	            showPageStatus('No se pudo guardar el 11 inicial en servidor.', 'warning', 5200);
+	          }
         }, 450);
       };
 	      let selectedPlayerId = null;
@@ -3168,18 +3298,22 @@
         number.className = 'lineup-chip-number';
         number.textContent = numberLabel;
         span.appendChild(number);
-        span.dataset.playerId = player.id;
-        span.dataset.playerNumber = player.number || '';
-        span.dataset.section = sectionKey;
-        span.draggable = true;
-        span.addEventListener('dragstart', (event) => {
-          event.dataTransfer?.setData('text/plain', JSON.stringify(player));
-          event.dataTransfer?.setData('source-section', sectionKey);
-        });
-        span.addEventListener('click', () => selectPlayer(player.id));
-        span.addEventListener('dblclick', () => removeLineupEntry(player.id));
-        return span;
-      };
+	        span.dataset.playerId = player.id;
+	        span.dataset.playerNumber = player.number || '';
+	        span.dataset.section = sectionKey;
+	        span.draggable = true;
+	        span.addEventListener('dragstart', (event) => {
+	          try { document.body.classList.add('is-dragging'); } catch (e) {}
+	          event.dataTransfer?.setData('text/plain', JSON.stringify(player));
+	          event.dataTransfer?.setData('source-section', sectionKey);
+	        });
+	        span.addEventListener('dragend', () => {
+	          try { document.body.classList.remove('is-dragging'); } catch (e) {}
+	        });
+	        span.addEventListener('click', () => selectPlayer(player.id));
+	        span.addEventListener('dblclick', () => removeLineupEntry(player.id));
+	        return span;
+	      };
       const renderLineupSection = (sectionKey) => {
         const section = lineupSections[sectionKey];
         if (!section?.element) {
@@ -3606,43 +3740,82 @@
         clearPlayerSelection();
         renderLineup();
       };
-      hydrateLineupState();
-      renderLineup();
-      if (lineupAutoPickBtn) {
-        lineupAutoPickBtn.addEventListener('click', autoPickStarters);
-      }
+	      hydrateLineupState();
+	      renderLineup();
+	      // Mantiene registro de acciones sincronizado con el 11 inicial (si se edita desde otra pantalla).
+	      try {
+	        window.addEventListener('focus', () => { void refreshLineupFromServer({ quiet: true }); });
+	        document.addEventListener('visibilitychange', () => {
+	          if (!document.hidden) void refreshLineupFromServer({ quiet: true });
+	        });
+	        window.setTimeout(() => { void refreshLineupFromServer({ quiet: true }); }, 1200);
+	      } catch (e) {}
+	      if (lineupAutoPickBtn) {
+	        lineupAutoPickBtn.addEventListener('click', autoPickStarters);
+	      }
       if (lineupFillBenchBtn) {
         lineupFillBenchBtn.addEventListener('click', fillBenchFromRemaining);
       }
       if (lineupClearBtn) {
         lineupClearBtn.addEventListener('click', clearLineupState);
       }
-      convocationCards.forEach((card) => {
-        card.setAttribute('draggable', 'true');
-        card.addEventListener('dragstart', (event) => {
-          event.dataTransfer?.setData(
-            'text/plain',
-            JSON.stringify({
-              id: card.dataset.playerId,
+	      convocationCards.forEach((card) => {
+	        card.setAttribute('draggable', 'true');
+	        card.addEventListener('dragstart', (event) => {
+	          try { document.body.classList.add('is-dragging'); } catch (e) {}
+	          event.dataTransfer?.setData(
+	            'text/plain',
+	            JSON.stringify({
+	              id: card.dataset.playerId,
               name: card.dataset.playerName,
               number: card.dataset.playerNumber,
               photo: card.dataset.playerPhoto || '',
               position: card.dataset.playerPosition || '',
-            }),
-          );
-        });
-        card.addEventListener('click', () => selectPlayer(card.dataset.playerId));
-      });
-      Object.keys(lineupSections).forEach((sectionKey) => {
-        const section = lineupSections[sectionKey];
-        const container = section?.element;
-        if (!container) {
-          return;
-        }
-        container.addEventListener('dragover', (event) => {
-          event.preventDefault();
-          container.classList.add('is-drag-over');
-        });
+	            }),
+	          );
+	        });
+	        card.addEventListener('dragend', () => {
+	          try { document.body.classList.remove('is-dragging'); } catch (e) {}
+	        });
+	        card.addEventListener('click', () => selectPlayer(card.dataset.playerId));
+	      });
+	      // Auto-scroll durante arrastres (útil en iPad/webview): evita sensación de pantalla "bloqueada".
+	      (() => {
+	        let lastScrollAt = 0;
+	        document.addEventListener('dragover', (event) => {
+	          if (!document.body.classList.contains('is-dragging')) return;
+	          const now = Date.now();
+	          if (now - lastScrollAt < 32) return;
+	          lastScrollAt = now;
+	          const y = event.clientY || 0;
+	          const h = window.innerHeight || 0;
+	          const edge = 84;
+	          const speed = 18;
+	          if (y < edge) window.scrollBy({ top: -speed, left: 0 });
+	          else if (h && y > (h - edge)) window.scrollBy({ top: speed, left: 0 });
+	        }, { passive: true });
+	        document.addEventListener('drop', () => {
+	          try { document.body.classList.remove('is-dragging'); } catch (e) {}
+	        }, true);
+	      })();
+	      Object.keys(lineupSections).forEach((sectionKey) => {
+	        const section = lineupSections[sectionKey];
+	        const container = section?.element;
+	        if (!container) {
+	          return;
+	        }
+	        // Tap-to-add/move: en iPad es más fiable que el drag nativo.
+	        container.addEventListener('click', (event) => {
+	          if (event.target?.closest?.('.lineup-chip')) return;
+	          if (!selectedPlayerId) return;
+	          const payload = findPlayerPayload(selectedPlayerId);
+	          if (!payload?.id) return;
+	          addPlayerToSection(sectionKey, payload);
+	        });
+	        container.addEventListener('dragover', (event) => {
+	          event.preventDefault();
+	          container.classList.add('is-drag-over');
+	        });
         container.addEventListener('dragleave', () => {
           container.classList.remove('is-drag-over');
         });
@@ -3780,20 +3953,16 @@
         }
 	        if (closeSummaryAlerts) {
 	          const alerts = [];
-	          const criticalAlerts = [];
           const forValue = String(summaryInfo.score_for || '').trim();
           const againstValue = String(summaryInfo.score_against || '').trim();
           if (!summaryInfo.opponent) {
             alerts.push('Falta definir el rival.');
-            criticalAlerts.push('Falta definir el rival.');
           }
           if (!forValue && !againstValue) {
             alerts.push('Falta definir el marcador final.');
-            criticalAlerts.push('Falta definir el marcador final.');
           }
           if (startersCount < requiredStarters) {
             alerts.push('El once inicial no está completo.');
-            criticalAlerts.push('El once inicial no está completo.');
           }
           if (!(liveSummaryState.actions > 0)) alerts.push('Todavía no hay acciones registradas en vivo.');
           if (!(liveSummaryState.elapsedSeconds > 0)) alerts.push('El cronómetro sigue en cero.');
@@ -3804,10 +3973,11 @@
 	            item.textContent = message;
 	            closeSummaryAlerts.appendChild(item);
 	          });
-	          const hasCritical = criticalAlerts.length > 0;
+	          const warningTitle = alerts.length ? alerts.join(' ') : 'Guardar partido';
 	          matchFinalizeBtn.forEach((button) => {
-	            button.disabled = hasCritical;
-	            button.title = hasCritical ? criticalAlerts.join(' ') : 'Guardar partido';
+	            // No bloqueamos el cierre: el staff puede querer consolidar acciones aunque falten datos.
+	            // La confirmación/validación se hace en servidor o con avisos en la UI.
+	            button.title = warningTitle;
 	          });
 	        }
 	      };

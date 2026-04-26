@@ -487,6 +487,72 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return '';
   };
 
+  const bootstrapQuickHudFromExistingHistory = () => {
+    if (!historyList) return;
+    // El servidor renderiza el historial de acciones pendientes al cargar la página, pero los contadores
+    // (amarillas/rojas/córners/cambios) se recalculan en cliente. Si no lo hacemos, la UI muestra 0 aunque
+    // el historial tenga acciones.
+    const resetKeys = ['amarilla', 'roja', 'corner_for', 'corner_against'];
+    resetKeys.forEach((key) => {
+      quickStats[key] = 0;
+      quickHistoryState[key] = [];
+    });
+
+    const shouldBootstrapSubs = !(Array.isArray(quickHistoryState?.subs) && quickHistoryState.subs.length);
+    if (shouldBootstrapSubs) {
+      quickHistoryState.subs = [];
+    }
+
+    const safeText = (value) => String(value ?? '').trim();
+    const pushHistoryRow = (historyKey, playerName, minute, label) => {
+      if (!historyKey) return;
+      const minuteNum = parseInt(String(minute ?? '').replace(/[^\d]/g, ''), 10);
+      const minuteLabel = Number.isFinite(minuteNum) ? minuteNum : Math.floor(elapsedRef.value / 60);
+      const nameLabel = safeText(playerName).toUpperCase() || 'JUGADOR';
+      const entryText = `${nameLabel} · ${minuteLabel}' · ${safeText(label).toUpperCase()}`.trim();
+      if (!quickHistoryState[historyKey]) quickHistoryState[historyKey] = [];
+      quickHistoryState[historyKey].push(entryText);
+    };
+
+    historyList.querySelectorAll('.history-item[data-event-id]').forEach((item) => {
+      const text = item.querySelector('.hist-text')?.textContent || '';
+      const [action = '', zone = '', result = ''] = text.split('·').map((part) => part.trim());
+      const derived = classifyCounterDropKey({ action, result });
+      if (!derived) return;
+      const minuteLabel = item.querySelector('.hist-minute')?.textContent || '';
+      const playerLabel = item.querySelector('strong')?.textContent || '';
+      const normalizedPlayer = safeText(playerLabel).replace(/^#\S+\s+/, '').trim() || playerLabel || 'Jugador';
+
+      if (derived === 'amarilla') {
+        quickStats.amarilla += 1;
+        pushHistoryRow('amarilla', normalizedPlayer, minuteLabel, result || action);
+      } else if (derived === 'roja') {
+        quickStats.roja += 1;
+        pushHistoryRow('roja', normalizedPlayer, minuteLabel, result || action);
+      } else if (derived === 'corner_for') {
+        quickStats.corner_for += 1;
+        pushHistoryRow('corner_for', normalizedPlayer, minuteLabel, result || action);
+      } else if (derived === 'corner_against') {
+        quickStats.corner_against += 1;
+        pushHistoryRow('corner_against', normalizedPlayer, minuteLabel, result || action);
+      } else if (shouldBootstrapSubs && (derived === 'subida' || derived === 'bajada')) {
+        pushHistoryRow('subs', normalizedPlayer, minuteLabel, result || action || 'Sustitución');
+      }
+    });
+
+    // Actualiza contadores y previews.
+    if (quickCounters.amarilla) quickCounters.amarilla.textContent = String(quickStats.amarilla || 0);
+    if (quickCounters.roja) quickCounters.roja.textContent = String(quickStats.roja || 0);
+    if (quickCounters.corner_for) quickCounters.corner_for.textContent = String(quickStats.corner_for || 0);
+    if (quickCounters.corner_against) quickCounters.corner_against.textContent = String(quickStats.corner_against || 0);
+    renderQuickHistoryPreview('amarilla');
+    renderQuickHistoryPreview('roja');
+    renderQuickHistoryPreview('corner_for');
+    renderQuickHistoryPreview('corner_against');
+    if (shouldBootstrapSubs) renderQuickHistoryPreview('subs');
+    refreshStatusCounters();
+  };
+
   Object.entries({
     amarilla: document.getElementById('yellow-history'),
     roja: document.getElementById('red-history'),
@@ -533,6 +599,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   } catch (err) {
     console.warn('No se pudo cargar historial inicial de sustituciones', err);
   }
+  bootstrapQuickHudFromExistingHistory();
   refreshStatusCounters();
 
   let clockInterval = null;
@@ -1137,6 +1204,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     formData.set('zone', zoneLabel || '');
     formData.set('tercio', '');
     formData.set('observation', '');
+    // UID por envío para deduplicar reintentos de red sin bloquear acciones reales consecutivas.
+    formData.set('client_event_uid', makeClientEventUid());
     if (currentMatchId) formData.set('match_id', currentMatchId);
     try {
       if (!navigator.onLine) throw new Error('offline');

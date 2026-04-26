@@ -15647,7 +15647,33 @@ def save_match_lineup(request):
         return JsonResponse({'error': 'Payload inválido'}, status=400)
     lineup = payload.get('lineup')
     allowed_players = list(convocation_record.players.all())
+    # Normaliza payload (limita titulares, dedup) y auto-rellena banquillo con el resto de convocados.
     normalized = _normalize_lineup_payload_with_limit(lineup, allowed_players, starters_limit=starters_limit)
+    starter_ids = {str(row.get('id')) for row in (normalized.get('starters') or []) if str(row.get('id') or '').strip()}
+    bench_ids = {str(row.get('id')) for row in (normalized.get('bench') or []) if str(row.get('id') or '').strip()}
+    remaining_players = [
+        player
+        for player in sorted(
+            allowed_players,
+            key=lambda p: ((p.number if p.number is not None else 999), (p.name or '').lower()),
+        )
+        if str(player.id) not in starter_ids and str(player.id) not in bench_ids
+    ]
+    expanded_payload = {
+        'starters': [{'id': str(row.get('id'))} for row in (normalized.get('starters') or []) if str(row.get('id') or '').strip()],
+        'bench': (
+            [{'id': str(row.get('id'))} for row in (normalized.get('bench') or []) if str(row.get('id') or '').strip()]
+            + [{'id': str(player.id)} for player in remaining_players]
+        ),
+    }
+    normalized = _normalize_lineup_payload_with_limit(expanded_payload, allowed_players, starters_limit=starters_limit)
+    saved_at = timezone.now().isoformat()
+    normalized['_meta'] = {
+        'saved_at': saved_at,
+        'starters_limit': int(starters_limit or 11),
+        'match_id': int(getattr(target_match, 'id', 0) or 0),
+        'source': 'match-lineup-save',
+    }
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=['lineup_data'])
     _invalidate_team_dashboard_caches(primary_team)
@@ -15658,8 +15684,38 @@ def save_match_lineup(request):
             'starters': starters_count,
             'bench': len(normalized['bench']),
             'pending_lineup': starters_count < starters_limit,
+            'saved_at': saved_at,
+            'lineup': normalized,
         }
     )
+
+
+@login_required
+def get_match_lineup(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede acceder al 11 inicial.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    starters_limit = _required_starters_for_team(primary_team)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=target_match,
+        fallback_to_latest=True,
+    )
+    if not convocation_record:
+        return JsonResponse({'error': 'No hay convocatoria activa para este partido.'}, status=404)
+    stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+    meta = stored.get('_meta') if isinstance(stored.get('_meta'), dict) else {}
+    allowed_players = list(convocation_record.players.all())
+    normalized = _normalize_lineup_payload_with_limit(stored, allowed_players, starters_limit=starters_limit)
+    if meta:
+        normalized['_meta'] = meta
+    return JsonResponse({'ok': True, 'lineup': normalized})
 
 
 @authenticated_write
@@ -37782,26 +37838,111 @@ def _infer_team_goals_from_events(match, primary_team):
         )
     except Exception:
         events = []
-    return sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation))
+    def _is_goal_against_event(ev):
+        # Heurística: en Registro de acciones, el staff suele registrar goles encajados como
+        # "parada fallada" / "gol rival" / "gol en contra". Sin esta separación, se sumarían como goles a favor.
+        if not is_goal_event(ev.event_type, ev.result, ev.observation):
+            return False
+        text = normalize_label(
+            ' '.join(
+                [
+                    str(getattr(ev, 'event_type', '') or ''),
+                    str(getattr(ev, 'result', '') or ''),
+                    str(getattr(ev, 'observation', '') or ''),
+                    str(getattr(ev, 'zone', '') or ''),
+                ]
+            )
+        )
+        if not text:
+            return False
+        if 'autogol' in text or 'puerta propia' in text or 'en propia' in text:
+            return True
+        if 'gol en contra' in text or 'en contra' in text:
+            return True
+        if 'encaj' in text or 'conced' in text:
+            return True
+        if 'gol' in text and 'rival' in text:
+            return True
+        # Portero: si hay palabras de parada + gol y se marca como fallo, tratamos como gol encajado.
+        if 'parad' in text and 'gol' in text and ('fall' in text or 'error' in text):
+            return True
+        return False
+
+    return sum(1 for ev in events if is_goal_event(ev.event_type, ev.result, ev.observation) and not _is_goal_against_event(ev))
+
+
+def _infer_team_goals_against_from_events(match, primary_team):
+    if not match or not primary_team:
+        return 0
+    try:
+        preferred_sources = preferred_event_source_by_match(primary_team)
+        events = _filter_stats_events(
+            confirmed_events_queryset()
+            .filter(match=match, player__team=primary_team)
+            .select_related('player')
+            .order_by('minute', 'id'),
+            preferred_sources=preferred_sources,
+        )
+    except Exception:
+        events = []
+
+    goals_against = 0
+    for ev in events:
+        if not is_goal_event(ev.event_type, ev.result, ev.observation):
+            continue
+        text = normalize_label(
+            ' '.join(
+                [
+                    str(getattr(ev, 'event_type', '') or ''),
+                    str(getattr(ev, 'result', '') or ''),
+                    str(getattr(ev, 'observation', '') or ''),
+                    str(getattr(ev, 'zone', '') or ''),
+                ]
+            )
+        )
+        if not text:
+            continue
+        if (
+            'autogol' in text
+            or 'puerta propia' in text
+            or 'en propia' in text
+            or 'gol en contra' in text
+            or 'en contra' in text
+            or 'encaj' in text
+            or 'conced' in text
+            or ('gol' in text and 'rival' in text)
+            or ('parad' in text and 'gol' in text and ('fall' in text or 'error' in text))
+        ):
+            goals_against += 1
+    return goals_against
 
 
 def _sync_match_score_from_events(match, primary_team):
     """
-    Si el partido no tiene marcador, intenta rellenar "goles a favor" a partir de eventos.
-    No toca el "goles en contra" (no tenemos eventos del rival).
+    Si el partido no tiene marcador, intenta rellenar goles a partir de eventos confirmados.
+
+    Nota: el registro táctil puede incluir señales de goles encajados (p.ej. "parada fallada" + "gol rival"),
+    así que intentamos también inferir "goles en contra" sin sobrescribir valores manuales.
     """
     if not match or not primary_team:
         return
     goals_for = _infer_team_goals_from_events(match, primary_team)
+    goals_against = _infer_team_goals_against_from_events(match, primary_team)
     changed_fields = []
     if match.home_team_id == primary_team.id:
         if match.home_score is None:
             match.home_score = int(goals_for)
             changed_fields.append('home_score')
+        if match.away_score is None and int(goals_against) > 0:
+            match.away_score = int(goals_against)
+            changed_fields.append('away_score')
     elif match.away_team_id == primary_team.id:
         if match.away_score is None:
             match.away_score = int(goals_for)
             changed_fields.append('away_score')
+        if match.home_score is None and int(goals_against) > 0:
+            match.home_score = int(goals_against)
+            changed_fields.append('home_score')
     if match.home_score is not None and match.away_score is not None:
         desired_result = f'{int(match.home_score)}-{int(match.away_score)}'
         if (match.result or '').strip() != desired_result:
