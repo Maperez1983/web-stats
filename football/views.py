@@ -37884,8 +37884,6 @@ def _infer_team_goals_from_events(match, primary_team):
     def _is_goal_against_event(ev):
         # Heurística: en Registro de acciones, el staff suele registrar goles encajados como
         # "parada fallada" / "gol rival" / "gol en contra". Sin esta separación, se sumarían como goles a favor.
-        if not is_goal_event(ev.event_type, ev.result, ev.observation):
-            return False
         text = normalize_label(
             ' '.join(
                 [
@@ -37897,6 +37895,11 @@ def _infer_team_goals_from_events(match, primary_team):
             )
         )
         if not text:
+            return False
+        # Patrón explícito usado en la app: "Parada" + "Perdida" = gol encajado.
+        if 'parada' in text and 'perdid' in text:
+            return True
+        if not is_goal_event(ev.event_type, ev.result, ev.observation):
             return False
         if 'autogol' in text or 'puerta propia' in text or 'en propia' in text:
             return True
@@ -37931,8 +37934,6 @@ def _infer_team_goals_against_from_events(match, primary_team):
 
     goals_against = 0
     for ev in events:
-        if not is_goal_event(ev.event_type, ev.result, ev.observation):
-            continue
         text = normalize_label(
             ' '.join(
                 [
@@ -37944,6 +37945,12 @@ def _infer_team_goals_against_from_events(match, primary_team):
             )
         )
         if not text:
+            continue
+        # Patrón explícito usado en la app: "Parada" + "Perdida" = gol encajado.
+        if 'parada' in text and 'perdid' in text:
+            goals_against += 1
+            continue
+        if not is_goal_event(ev.event_type, ev.result, ev.observation):
             continue
         if (
             'autogol' in text
