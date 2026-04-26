@@ -15423,11 +15423,30 @@ def match_action_page(request):
                 match_info['date'] = convocation_record.match_date.strftime('%d/%m/%Y')
             if convocation_record.match_time:
                 match_info['time'] = convocation_record.match_time.strftime('%H:%M')
-        substitution_events = (
-            MatchEvent.objects.filter(match=active_match, player__team=primary_team)
+        # Sustituciones: evita duplicados entre fuentes (admin/manual/import) usando la fuente preferida
+        # y añade las acciones pendientes del registro táctil (touch-field) que aún no están confirmadas.
+        try:
+            preferred_sources = preferred_event_source_by_match(primary_team)
+            confirmed_subs = _filter_stats_events(
+                confirmed_events_queryset()
+                .filter(match=active_match, player__team=primary_team)
+                .select_related('player')
+                .order_by('created_at', 'id'),
+                preferred_sources=preferred_sources,
+            )
+        except Exception:
+            confirmed_subs = []
+        pending_subs = list(
+            MatchEvent.objects.filter(
+                match=active_match,
+                player__team=primary_team,
+                source_file='registro-acciones',
+                system='touch-field',
+            )
             .select_related('player')
             .order_by('created_at', 'id')
         )
+        substitution_events = list(confirmed_subs) + pending_subs
         for event in substitution_events:
             if not (
                 is_substitution_event(event.event_type, event.zone)
@@ -15803,6 +15822,13 @@ def finalize_match_actions(request):
     except Exception:
         pass
     _invalidate_team_dashboard_caches(primary_team)
+    try:
+        is_home = match.home_team_id == primary_team.id
+        score_for = match.home_score if is_home else match.away_score
+        score_against = match.away_score if is_home else match.home_score
+    except Exception:
+        score_for = None
+        score_against = None
     return JsonResponse(
         {
             'saved': True,
@@ -15810,6 +15836,8 @@ def finalize_match_actions(request):
             'deduplicated': 0,
             'match_id': match.id,
             'match_label': str(match),
+            'score_for': '' if score_for is None else str(int(score_for)),
+            'score_against': '' if score_against is None else str(int(score_against)),
         }
     )
 
@@ -15893,7 +15921,22 @@ def save_match_info(request):
             pass
 
     _invalidate_team_dashboard_caches(primary_team)
-    return JsonResponse({'saved': True, 'match_id': match.id, 'match_label': str(match)})
+    try:
+        is_home = match.home_team_id == primary_team.id
+        score_for = match.home_score if is_home else match.away_score
+        score_against = match.away_score if is_home else match.home_score
+    except Exception:
+        score_for = None
+        score_against = None
+    return JsonResponse(
+        {
+            'saved': True,
+            'match_id': match.id,
+            'match_label': str(match),
+            'score_for': '' if score_for is None else str(int(score_for)),
+            'score_against': '' if score_against is None else str(int(score_against)),
+        }
+    )
 
 
 @authenticated_write

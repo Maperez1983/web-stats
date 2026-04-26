@@ -1026,6 +1026,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         } catch (error) {
           // ignore
         }
+        try {
+          if (Object.prototype.hasOwnProperty.call(data, 'score_for')) {
+            matchInfoState.score_for = String(data.score_for ?? '').trim();
+          }
+          if (Object.prototype.hasOwnProperty.call(data, 'score_against')) {
+            matchInfoState.score_against = String(data.score_against ?? '').trim();
+          }
+        } catch (error) {
+          // ignore
+        }
         renderMatchInfoState(matchInfoState);
         if (matchInfoCard) matchInfoCard.classList.remove('is-editing');
         emitSummaryChange();

@@ -3040,6 +3040,18 @@
               showPageStatus(data.error || data.message || 'No se pudo guardar el partido.', 'danger', 5200);
               return;
             }
+            try {
+              if (Object.prototype.hasOwnProperty.call(data, 'score_for')) {
+                matchInfoState.score_for = String(data.score_for ?? '').trim();
+              }
+              if (Object.prototype.hasOwnProperty.call(data, 'score_against')) {
+                matchInfoState.score_against = String(data.score_against ?? '').trim();
+              }
+              renderMatchInfoState(matchInfoState);
+              requestAnimationFrame(() => {
+                if (typeof updateCloseSummary === 'function') updateCloseSummary({ matchInfo: { ...matchInfoState } });
+              });
+            } catch (e) {}
             showPageStatus('Datos del partido guardados.', 'success', 3200);
           } catch (err) {
             console.warn('No se pudo guardar el partido', err);
