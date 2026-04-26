@@ -14628,6 +14628,59 @@ def share_video_report_pdf(request, token):
     return _video_report_pdf_response(request, primary_team=team, video=video, title=title, clip_ids=clip_ids, include_ai=include_ai)
 
 
+@login_required
+def pdf_viewer_page(request):
+    """
+    Visor HTML para PDFs dentro de webviews (Capacitor/iOS) para evitar quedar "atrapado" en una pestaña nueva.
+    Recibe `?u=<ruta>` y opcionalmente `back=<ruta>` y `title=<texto>`.
+    """
+    raw_url = str(request.GET.get('u') or '').strip()
+    if not raw_url:
+        return HttpResponse('Falta parámetro `u` (URL del PDF).', status=400)
+
+    parsed = urlparse(raw_url)
+    # Solo permitimos rutas internas (sin esquema ni host).
+    if parsed.scheme or parsed.netloc:
+        return HttpResponse('URL no válida.', status=400)
+
+    path = (parsed.path or '').strip()
+    if not path:
+        return HttpResponse('URL no válida.', status=400)
+    if not path.startswith('/'):
+        path = '/' + path
+    if '..' in path:
+        return HttpResponse('URL no válida.', status=400)
+
+    pdf_url = path + (f'?{parsed.query}' if parsed.query else '')
+
+    raw_back = str(request.GET.get('back') or '').strip()
+    back_url = ''
+    if raw_back:
+        back_parsed = urlparse(raw_back)
+        if not back_parsed.scheme and not back_parsed.netloc:
+            back_path = (back_parsed.path or '').strip() or '/'
+            if not back_path.startswith('/'):
+                back_path = '/' + back_path
+            back_url = back_path
+            if back_parsed.query:
+                back_url += f'?{back_parsed.query}'
+            if back_parsed.fragment:
+                back_url += f'#{back_parsed.fragment}'
+            if '..' in back_url:
+                back_url = ''
+
+    title = _sanitize_task_text(str(request.GET.get('title') or '').strip(), multiline=False, max_len=140) or 'PDF'
+    return render(
+        request,
+        'football/pdf_viewer.html',
+        {
+            'title': title,
+            'pdf_url': pdf_url,
+            'back_url': back_url or reverse('dashboard-home'),
+        },
+    )
+
+
 def share_video_export_page(request, token):
     link = _share_link_lookup(token, ShareLink.KIND_VIDEO_EXPORT)
     gated = _share_link_gate(request, link)
@@ -26649,7 +26702,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    # Acepta `?team=<id>` además del equipo activo guardado en sesión para evitar pantallas rotas en app/webview.
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         # UX: si el usuario entra sin contexto de club/categoría, evitar 404 en la app y guiar a onboarding.
         try:
@@ -31156,7 +31210,10 @@ def _clone_task_studio_task(source_task):
 @login_required
 @ensure_csrf_cookie
 def sessions_page(request):
-    return _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+    response = _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
+    if response is None:
+        return HttpResponse('Error interno: la vista de sesiones no devolvió respuesta.', status=500)
+    return response
 
 
 @csrf_exempt
@@ -31174,7 +31231,10 @@ def sessions_task_edit_page(request, task_id):
 @login_required
 @ensure_csrf_cookie
 def sessions_goalkeeper_page(request):
-    return _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
+    response = _sessions_workspace_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
+    if response is None:
+        return HttpResponse('Error interno: la vista de sesiones no devolvió respuesta.', status=500)
+    return response
 
 
 @csrf_exempt
@@ -31192,7 +31252,10 @@ def sessions_goalkeeper_task_edit_page(request, task_id):
 @login_required
 @ensure_csrf_cookie
 def sessions_fitness_page(request):
-    return _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+    response = _sessions_workspace_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
+    if response is None:
+        return HttpResponse('Error interno: la vista de sesiones no devolvió respuesta.', status=500)
+    return response
 
 
 @csrf_exempt

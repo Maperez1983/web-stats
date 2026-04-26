@@ -1,5 +1,47 @@
 (() => {
   const safeText = (value, fallback = '') => String(value ?? '').trim() || fallback;
+  const isNativeApp = () => {
+    try {
+      if (window.Capacitor && typeof window.Capacitor.getPlatform === 'function') {
+        return String(window.Capacitor.getPlatform() || '').toLowerCase() !== 'web';
+      }
+    } catch (e) {}
+    const ua = safeText(navigator.userAgent).toLowerCase();
+    return ua.includes('capacitor') || ua.includes('wkwebview') || (ua.includes('webview') && !ua.includes('safari'));
+  };
+
+  const buildPdfViewerUrl = (href, title = 'PDF') => {
+    try {
+      const target = new URL(String(href || ''), window.location.href);
+      const u = `${target.pathname || '/'}${target.search || ''}`;
+      const back = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+      const viewer = new URL('/pdf/viewer/', window.location.origin);
+      viewer.searchParams.set('u', u);
+      viewer.searchParams.set('back', back);
+      viewer.searchParams.set('title', safeText(title, 'PDF').slice(0, 140));
+      return `${viewer.pathname}${viewer.search}`;
+    } catch (e) {
+      const back = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+      const encoded = encodeURIComponent(String(href || '').trim());
+      const encodedBack = encodeURIComponent(back);
+      const encodedTitle = encodeURIComponent(safeText(title, 'PDF').slice(0, 140));
+      return `/pdf/viewer/?u=${encoded}&back=${encodedBack}&title=${encodedTitle}`;
+    }
+  };
+
+  const isPdfLikeHref = (href) => {
+    const h = safeText(href).toLowerCase();
+    if (!h || h === '#') return false;
+    if (h.startsWith('/pdf/viewer')) return false;
+    if (h.includes('/pdf')) return true;
+    if (h.endsWith('.pdf')) return true;
+    return false;
+  };
+
+  const openPdfInViewer = (href, title) => {
+    const viewerUrl = buildPdfViewerUrl(href, title);
+    try { window.location.href = viewerUrl; } catch (e) {}
+  };
 
   const findNavLinkByText = (needle) => {
     const links = Array.from(document.querySelectorAll('.product-nav-shortcuts a'));
@@ -93,6 +135,32 @@
   window.addEventListener('DOMContentLoaded', () => {
     wireHelpButtons();
     autoStartOnce();
+    // En iOS/Capacitor, `target=_blank` abre un webview sin navegación y el usuario puede quedar atrapado.
+    // Interceptamos enlaces a PDFs y los abrimos en un visor con botón "Volver".
+    if (isNativeApp()) {
+      try {
+        window.WebstatsPdf = window.WebstatsPdf || {};
+        window.WebstatsPdf.isNativeApp = isNativeApp;
+        window.WebstatsPdf.buildViewerUrl = buildPdfViewerUrl;
+        window.WebstatsPdf.openInViewer = openPdfInViewer;
+      } catch (e) {}
+
+      document.addEventListener(
+        'click',
+        (event) => {
+          const target = event.target;
+          const link = target && target.closest ? target.closest('a[href]') : null;
+          if (!link) return;
+          const href = link.getAttribute('href') || '';
+          if (!isPdfLikeHref(href)) return;
+          if (safeText(link.getAttribute('data-no-pdf-viewer')).trim() === '1') return;
+          event.preventDefault();
+          event.stopPropagation();
+          const title = safeText(link.getAttribute('data-pdf-title')) || safeText(link.textContent) || 'PDF';
+          openPdfInViewer(href, title);
+        },
+        true,
+      );
+    }
   });
 })();
-
