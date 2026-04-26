@@ -71,6 +71,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
     private let cookieHostSuffix = "segundajugada.es"
     private let persistedCookiesKeychainAccount = "persistedCookies.v1"
+    private let lastUrlDefaultsKey = "lastWebUrl.v1"
     // Persistimos cookies del dominio para mantener sesión en WKWebView incluso si iOS “olvida” el store.
     // Importante: no persistimos contraseñas, solo cookies http.
     private let cookieNamesToExclude: Set<String> = []
@@ -207,17 +208,57 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
         }
     }
 
+    private func isEligibleHost(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased(), !host.isEmpty else { return false }
+        return host == cookieHostSuffix || host.hasSuffix("." + cookieHostSuffix)
+    }
+
+    private func persistLastUrlNow() {
+        guard let url = webView?.url else { return }
+        guard url.scheme?.lowercased().hasPrefix("http") == true else { return }
+        guard isEligibleHost(url) else { return }
+        let absolute = url.absoluteString
+        guard !absolute.isEmpty else { return }
+        UserDefaults.standard.set(absolute, forKey: lastUrlDefaultsKey)
+    }
+
+    private func restoreLastUrlIfNeeded() {
+        guard let saved = UserDefaults.standard.string(forKey: lastUrlDefaultsKey), !saved.isEmpty else { return }
+        guard let target = URL(string: saved) else { return }
+        guard target.scheme?.lowercased().hasPrefix("http") == true else { return }
+        guard isEligibleHost(target) else { return }
+
+        // Si estamos en /login o en la home, devolvemos al último punto guardado.
+        let current = webView?.url
+        let currentPath = current?.path.lowercased() ?? ""
+        let isLogin = currentPath.contains("/login")
+        let isRoot = currentPath == "/" || currentPath.isEmpty
+        if !(isLogin || isRoot) {
+            return
+        }
+        // Evita bucles: no re-navegar a /login como "última url".
+        if target.path.lowercased().contains("/login") {
+            return
+        }
+
+        let request = URLRequest(url: target, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
+        webView?.load(request)
+    }
+
     @objc private func appDidEnterBackground() {
         persistCookiesNow()
+        persistLastUrlNow()
     }
 
     @objc private func appWillTerminate() {
         persistCookiesNow()
+        persistLastUrlNow()
     }
 
     @objc private func appWillResignActive() {
         // Se dispara de forma más fiable que willTerminate cuando el usuario cambia de app.
         persistCookiesNow()
+        persistLastUrlNow()
     }
 
     private func schedulePersistCookiesSoon() {
@@ -240,6 +281,7 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
         NotificationCenter.default.addObserver(self, selector: #selector(appDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appWillTerminate), name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(appWillResignActive), name: UIApplication.willResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(appDidBecomeActive), name: UIApplication.didBecomeActiveNotification, object: nil)
 
         // Observa cambios de cookies para persistir justo tras el login (o refresh token) sin depender
         // de que el usuario cierre la app “bien”.
@@ -249,10 +291,19 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
 
         restorePersistedCookies { [weak self] restored in
             guard let self = self else { return }
-            guard restored else { return }
+            guard restored else {
+                // Aunque no haya cookies restauradas, intentamos volver a la última URL para no "reiniciar" siempre en onboarding/home.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    self?.restoreLastUrlIfNeeded()
+                }
+                return
+            }
             // Evita quedarse en /login/ si la cookie existe pero WKWebView la "pierde" al arrancar.
             if let urlString = self.webView?.url?.absoluteString, urlString.contains("/login") {
                 self.webView?.reload()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.restoreLastUrlIfNeeded()
             }
         }
 
@@ -363,5 +414,23 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
 
         let script = WKUserScript(source: source, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         webView?.configuration.userContentController.addUserScript(script)
+    }
+
+    @objc private func appDidBecomeActive() {
+        // iOS puede matar el proceso al bloquear o por memoria; al volver, restauramos la última ruta conocida.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.restoreLastUrlIfNeeded()
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Para sesiones/partidos: evita autolock por inactividad (muy útil en iPad durante el registro).
+        UIApplication.shared.isIdleTimerDisabled = true
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 }
