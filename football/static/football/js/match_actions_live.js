@@ -54,6 +54,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     resetClockExternal,
     registerLiveEvent,
     removeLiveEvent,
+    onFieldTap,
     onSummaryChange,
   } = options || {};
 
@@ -1111,10 +1112,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     highlight.style.left = `${fieldX}px`;
     highlight.style.top = `${fieldY}px`;
     highlight.classList.add('active');
-    const zoneMatch = findClosestZone((fieldX / rect.width) * 100, (fieldY / rect.height) * 100);
+    const xPct = (fieldX / rect.width) * 100;
+    const yPct = (fieldY / rect.height) * 100;
+    const zoneMatch = findClosestZone(xPct, yPct);
     if (zoneMatch) {
       zoneInput.value = zoneMatch.label;
       syncAutoFields({ zone: zoneMatch.label });
+      try {
+        if (typeof onFieldTap === 'function') {
+          onFieldTap({ x_pct: xPct, y_pct: yPct, zone: zoneMatch.label });
+        }
+      } catch (e) {}
       showZoneLabel(zoneMatch, fieldX, fieldY);
       showPopup(fieldX, fieldY);
     } else {

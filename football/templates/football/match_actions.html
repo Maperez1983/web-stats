@@ -1433,6 +1433,62 @@
         gap: 0.4rem;
         flex-wrap: wrap;
       }
+      .auto-player-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.55rem 0.65rem;
+      }
+      .auto-player-row header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+        color: rgba(226, 232, 240, 0.7);
+      }
+      .auto-player-toggle {
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(2, 6, 23, 0.55);
+        color: rgba(248, 250, 252, 0.92);
+        padding: 0.22rem 0.55rem;
+        font-weight: 900;
+        cursor: pointer;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        font-size: 0.6rem;
+      }
+      .auto-player-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .auto-player-chip {
+        border-radius: 999px;
+        border: 1px solid rgba(34, 211, 238, 0.28);
+        background: rgba(34, 211, 238, 0.12);
+        color: rgba(224, 242, 254, 0.95);
+        padding: 0.25rem 0.55rem;
+        cursor: pointer;
+        font-weight: 900;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .auto-player-chip small {
+        font-size: 0.62rem;
+        opacity: 0.8;
+        letter-spacing: 0.18em;
+      }
       .field-popup .popup-actions .button {
         padding: 0.55rem 1rem;
       }
@@ -2516,6 +2572,13 @@
                   {% endfor %}
                 </div>
                 <input type="hidden" name="player" id="selected-player" />
+                <div class="auto-player-row" id="auto-player-row" hidden>
+                  <header>
+                    <span>Jugador sugerido</span>
+                    <button type="button" class="auto-player-toggle" id="auto-player-toggle" title="Activa o desactiva sugerencia automática">Auto: ON</button>
+                  </header>
+                  <div class="auto-player-chips" id="auto-player-chips"></div>
+                </div>
                 <label>
                   <span class="popup-label-row">
                     <span>Tipo de acción</span>
@@ -2890,6 +2953,9 @@
       const tercioDisplay = popupForm.querySelector('[data-tercio-display]');
       const observationInput = popupForm.querySelector('textarea[name="observation"]');
       const resultSelect = popupForm.querySelector('select[name="result"]');
+      const autoPlayerRow = document.getElementById('auto-player-row');
+      const autoPlayerChips = document.getElementById('auto-player-chips');
+      const autoPlayerToggleBtn = document.getElementById('auto-player-toggle');
       const popupEditToggle = document.getElementById('popup-edit-toggle');
       const setPopupEditMode = (enabled, { focusField = false } = {}) => {
         const isEdit = Boolean(enabled);
@@ -3713,8 +3779,39 @@
         }, 450);
       };
 	      let selectedPlayerId = null;
+	      let lastPlayerPickAt = 0;
+	      let lastPlayerPickSource = 'manual';
+	      let nextPlayerPickSource = 'manual';
+	      const autoPlayerStorageKey = 'webstats:live:auto_player:v1';
+	      let autoPlayerEnabled = (() => {
+	        try {
+	          const raw = localStorage.getItem(autoPlayerStorageKey);
+	          if (raw === null || raw === undefined || raw === '') return true;
+	          return String(raw) === '1';
+	        } catch (e) {
+	          return true;
+	        }
+	      })();
+	      const syncAutoPlayerToggleUi = () => {
+	        if (!autoPlayerToggleBtn) return;
+	        autoPlayerToggleBtn.textContent = autoPlayerEnabled ? 'Auto: ON' : 'Auto: OFF';
+	        autoPlayerToggleBtn.style.borderColor = autoPlayerEnabled ? 'rgba(34, 211, 238, 0.45)' : 'rgba(248, 113, 113, 0.4)';
+	        autoPlayerToggleBtn.style.background = autoPlayerEnabled ? 'rgba(34, 211, 238, 0.12)' : 'rgba(127, 29, 29, 0.25)';
+	        autoPlayerToggleBtn.style.color = autoPlayerEnabled ? 'rgba(224, 242, 254, 0.95)' : 'rgba(254, 202, 202, 0.95)';
+	      };
+	      if (autoPlayerToggleBtn) {
+	        syncAutoPlayerToggleUi();
+	        autoPlayerToggleBtn.addEventListener('click', () => {
+	          autoPlayerEnabled = !autoPlayerEnabled;
+	          try { localStorage.setItem(autoPlayerStorageKey, autoPlayerEnabled ? '1' : '0'); } catch (e) {}
+	          syncAutoPlayerToggleUi();
+	          showPageStatus(autoPlayerEnabled ? 'Auto-jugador activado.' : 'Auto-jugador desactivado.', 'info', 1800);
+	        });
+	      }
 	      const clearPlayerSelection = () => {
 	        selectedPlayerId = null;
+	        lastPlayerPickAt = Date.now();
+	        lastPlayerPickSource = 'manual';
 	        if (playerInput) {
 	          playerInput.value = '';
 	        }
@@ -3729,6 +3826,9 @@
 	      };
 	      const selectPlayer = (playerId) => {
 	        selectedPlayerId = playerId;
+	        lastPlayerPickAt = Date.now();
+	        lastPlayerPickSource = nextPlayerPickSource || 'manual';
+	        nextPlayerPickSource = 'manual';
 	        if (playerInput) {
 	          playerInput.value = playerId;
 	        }
@@ -3778,7 +3878,10 @@
 	        span.addEventListener('dragend', () => {
 	          try { document.body.classList.remove('is-dragging'); } catch (e) {}
 	        });
-	        span.addEventListener('click', () => selectPlayer(player.id));
+	        span.addEventListener('click', () => {
+	          nextPlayerPickSource = 'manual';
+	          selectPlayer(player.id);
+	        });
 	        span.addEventListener('dblclick', () => removeLineupEntry(player.id));
 	        return span;
 	      };
@@ -4026,6 +4129,53 @@
 	        const minute = Number.isFinite(pendingSubstitution.minute)
 	          ? pendingSubstitution.minute
 	          : getCurrentMatchMinute();
+	        const applySubstitutionToLineupState = ({ outPlayer, inPlayer }) => {
+	          try {
+	            const outId = String(outPlayer?.id || '').trim();
+	            const inId = String(inPlayer?.id || '').trim();
+	            if (!outId || !inId) return;
+	            lineupState = lineupState && typeof lineupState === 'object' ? lineupState : { starters: [], bench: [] };
+	            if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
+	            if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
+	            const starters = [...lineupState.starters];
+	            const bench = [...lineupState.bench];
+	            const outIdx = starters.findIndex((row) => String(row?.id || '') === outId);
+	            const outgoing = outIdx >= 0 ? starters[outIdx] : null;
+	            const cleanedStarters = starters.filter((row) => {
+	              const rid = String(row?.id || '');
+	              return rid && rid !== outId && rid !== inId;
+	            });
+	            const insertIndex = outIdx >= 0 ? Math.max(0, Math.min(outIdx, cleanedStarters.length)) : cleanedStarters.length;
+	            const incomingRow = {
+	              ...inPlayer,
+	            };
+	            if (outgoing && typeof outgoing === 'object') {
+	              if (outgoing.slot_index !== undefined) incomingRow.slot_index = outgoing.slot_index;
+	              if (outgoing.x_pct !== undefined && outgoing.y_pct !== undefined) {
+	                incomingRow.x_pct = outgoing.x_pct;
+	                incomingRow.y_pct = outgoing.y_pct;
+	              }
+	            }
+	            cleanedStarters.splice(insertIndex, 0, incomingRow);
+	            lineupState.starters = cleanedStarters.slice(0, startersLimit);
+
+	            const cleanedBench = bench.filter((row) => {
+	              const rid = String(row?.id || '');
+	              return rid && rid !== outId && rid !== inId;
+	            });
+	            // El saliente pasa al banquillo (si no estaba ya).
+	            cleanedBench.unshift(outgoing || outPlayer);
+	            // Dedup
+	            const seen = new Set();
+	            lineupState.bench = cleanedBench.filter((row) => {
+	              const rid = String(row?.id || '');
+	              if (!rid || seen.has(rid)) return false;
+	              seen.add(rid);
+	              return true;
+	            });
+	            try { renderLineup(); } catch (e) {}
+	          } catch (e) {}
+	        };
 	        try {
 	          showPageStatus(`Registrando cambio (${minute}')...`, 'info', 1800);
 	          const ok = await liveController?.registerSubstitutionPair?.({
@@ -4037,6 +4187,11 @@
 	            showPageStatus('No se pudo registrar el cambio. Usa la tarjeta de Sustituciones.', 'warning', 5200);
 	            return;
 	          }
+	          // Mantiene el "en campo" actualizado para auto-jugador por zona.
+	          applySubstitutionToLineupState({
+	            outPlayer: pendingSubstitution.outPlayer,
+	            inPlayer: pendingSubstitution.inPlayer,
+	          });
 		          showPageStatus(
 		            `Cambio registrado · ${pendingSubstitution.outPlayer.name || 'Sale'} → ${pendingSubstitution.inPlayer.name || 'Entra'} · ${minute}'`,
 		            'success',
@@ -4067,6 +4222,147 @@
 	          (entry) => String(entry.id) === id,
 	        );
 	        return fallback || null;
+	      };
+	      const roleBucketFromPosition = (positionRaw) => {
+	        const pos = String(positionRaw || '').trim().toLowerCase();
+	        if (!pos) return 'any';
+	        const compact = pos.replace(/\s+/g, '');
+	        if (compact.includes('por') || compact.includes('portero') || compact === 'gk') return 'gk';
+	        if (
+	          compact.includes('def')
+	          || compact.includes('central')
+	          || compact.includes('lateral')
+	          || compact.includes('carril')
+	          || compact.includes('cb')
+	          || compact.includes('lb')
+	          || compact.includes('rb')
+	        ) return 'def';
+	        if (
+	          compact.includes('mc')
+	          || compact.includes('mcd')
+	          || compact.includes('mco')
+	          || compact.includes('medio')
+	          || compact.includes('interior')
+	          || compact.includes('piv')
+	          || compact.includes('mp')
+	          || compact.includes('cm')
+	        ) return 'mid';
+	        if (
+	          compact.includes('del')
+	          || compact.includes('ext')
+	          || compact.includes('ei')
+	          || compact.includes('ed')
+	          || compact.includes('punta')
+	          || compact === 'dc'
+	          || compact.includes('st')
+	          || compact.includes('fw')
+	        ) return 'att';
+	        return 'any';
+	      };
+	      const tercioFromZoneLabel = (zoneLabelText) => {
+	        const normalized = String(zoneLabelText || '').toLowerCase();
+	        if (!normalized) return '';
+	        if (normalized.includes('porter')) return 'def';
+	        if (normalized.includes('defensa')) return 'def';
+	        if (normalized.includes('medio')) return 'mid';
+	        if (normalized.includes('ataque')) return 'att';
+	        return '';
+	      };
+	      const scorePlayerForTap = ({ player, tapX, tapY, tercioKey }) => {
+	        const x = Number(player?.x_pct);
+	        const y = Number(player?.y_pct);
+	        const hasXY = Number.isFinite(x) && Number.isFinite(y);
+	        const dx = hasXY ? (x - tapX) : 0;
+	        const dy = hasXY ? (y - tapY) : 0;
+	        const distance = hasXY ? Math.sqrt((dx * dx) + (dy * dy)) : 999;
+	        const bucket = roleBucketFromPosition(player?.position);
+	        let bias = 0;
+	        if (tercioKey === 'def') {
+	          if (bucket === 'def') bias += 7;
+	          else if (bucket === 'mid') bias += 4;
+	          else if (bucket === 'gk') bias += 6;
+	          else if (bucket === 'att') bias -= 2;
+	        } else if (tercioKey === 'mid') {
+	          if (bucket === 'mid') bias += 7;
+	          else if (bucket === 'def') bias += 3;
+	          else if (bucket === 'att') bias += 3;
+	          else if (bucket === 'gk') bias -= 6;
+	        } else if (tercioKey === 'att') {
+	          if (bucket === 'att') bias += 7;
+	          else if (bucket === 'mid') bias += 4;
+	          else if (bucket === 'def') bias -= 2;
+	          else if (bucket === 'gk') bias -= 10;
+	        } else {
+	          if (bucket === 'gk') bias -= 6;
+	        }
+	        // La cercanía pesa más que el rol, pero el rol ayuda cuando hay varios jugadores en la zona.
+	        const score = (-distance * 1.0) + (bias * 1.2);
+	        return { score, distance, bucket, hasXY };
+	      };
+	      const renderAutoPlayerSuggestions = (candidates) => {
+	        if (!autoPlayerRow || !autoPlayerChips) return;
+	        const list = Array.isArray(candidates) ? candidates.slice(0, 5) : [];
+	        if (!list.length) {
+	          autoPlayerRow.hidden = true;
+	          autoPlayerChips.innerHTML = '';
+	          return;
+	        }
+	        autoPlayerRow.hidden = false;
+	        autoPlayerChips.innerHTML = '';
+	        list.forEach((item) => {
+	          const payload = item?.player;
+	          if (!payload?.id) return;
+	          const btn = document.createElement('button');
+	          btn.type = 'button';
+	          btn.className = 'auto-player-chip';
+	          const numberLabel = payload.number ? `#${payload.number}` : '#--';
+	          const name = String(payload.name || 'Jugador').toUpperCase();
+	          const role = String(item.bucket || '').toUpperCase();
+	          btn.textContent = `${numberLabel} ${name}`;
+	          if (role) {
+	            const small = document.createElement('small');
+	            small.textContent = role;
+	            btn.appendChild(small);
+	          }
+	          btn.addEventListener('click', () => {
+	            nextPlayerPickSource = 'manual';
+	            selectPlayer(String(payload.id));
+	          });
+	          autoPlayerChips.appendChild(btn);
+	        });
+	      };
+	      const handleAutoPlayerForTap = ({ x_pct, y_pct, zone }) => {
+	        const tapX = Number(x_pct);
+	        const tapY = Number(y_pct);
+	        if (!Number.isFinite(tapX) || !Number.isFinite(tapY)) return;
+	        const tercioKey = tercioFromZoneLabel(zone);
+	        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+	        const onField = starters.filter((row) => row && row.id);
+	        if (!onField.length) {
+	          renderAutoPlayerSuggestions([]);
+	          return;
+	        }
+	        const scored = onField.map((player) => {
+	          const meta = scorePlayerForTap({ player, tapX, tapY, tercioKey });
+	          return { ...meta, player };
+	        });
+	        scored.sort((a, b) => (b.score - a.score));
+	        const best = scored[0];
+	        const second = scored[1];
+	        renderAutoPlayerSuggestions(scored);
+	        if (!autoPlayerEnabled) return;
+	        if (!best?.player?.id) return;
+	        // Si el usuario acaba de elegir manualmente, respetamos unos segundos.
+	        const sincePick = Date.now() - (Number(lastPlayerPickAt) || 0);
+	        const justManual = lastPlayerPickSource === 'manual' && sincePick < 4500;
+	        if (justManual) return;
+	        // Confianza: muy cerca, o diferencia clara con el segundo.
+	        const bestDist = Number(best.distance) || 999;
+	        const secondDist = Number(second?.distance) || 999;
+	        const confident = (bestDist <= 10) || ((secondDist - bestDist) >= 8) || (best.hasXY && !second?.hasXY);
+	        if (!confident) return;
+	        nextPlayerPickSource = 'auto';
+	        selectPlayer(String(best.player.id));
 	      };
 		      updatePlayerQuickPanel = () => {
 		        if (!playerQuickBlock) return;
@@ -4245,7 +4541,10 @@
 	        card.addEventListener('dragend', () => {
 	          try { document.body.classList.remove('is-dragging'); } catch (e) {}
 	        });
-	        card.addEventListener('click', () => selectPlayer(card.dataset.playerId));
+	        card.addEventListener('click', () => {
+	          nextPlayerPickSource = 'manual';
+	          selectPlayer(card.dataset.playerId);
+	        });
 	      });
 	      // Auto-scroll durante arrastres (útil en iPad/webview): evita sensación de pantalla "bloqueada".
 	      (() => {
@@ -4534,6 +4833,7 @@
         selectPlayer,
         registerLiveEvent,
         removeLiveEvent,
+        onFieldTap: handleAutoPlayerForTap,
 	        onSummaryChange: updateCloseSummary,
 	      });
 		      playerQuickButtons.forEach((btn) => {
