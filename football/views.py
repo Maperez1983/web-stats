@@ -15599,6 +15599,7 @@ def match_action_page(request):
             'category_rivals': category_rivals,
             'team_fields': team_fields,
             'substitution_history': substitution_history,
+            'initial_lineup_payload': initial_lineup_payload,
             'initial_lineup_json': json.dumps(initial_lineup_payload, ensure_ascii=False),
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,

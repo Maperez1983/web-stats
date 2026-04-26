@@ -2844,7 +2844,7 @@
     {{ field_zone_defs|json_script:"field-zone-defs" }}
     {{ team_fields|json_script:"team-fields-data" }}
     {{ substitution_history|json_script:"substitution-history-data" }}
-    {{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|json_script:"initial-lineup-server" }}
+    {{ initial_lineup_payload|json_script:"initial-lineup-server" }}
     {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
     <script src="{% static 'football/js/match_actions_chrome.js' %}"></script>
     <script src="{% static 'football/js/match_actions_live.js' %}"></script>
