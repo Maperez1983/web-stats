@@ -226,15 +226,27 @@
     };
 
     const startIfNeeded = (id, steps, options = {}) => {
+      // Política producto: el tutorial NO debe auto-saltar. Solo se muestra:
+      // - Si el usuario lo fuerza vía URL `?tour=1`
+      // - O si el propio usuario lo lanza desde "Ayuda" (que usa `start()`)
+      // - (Opcional interno) si se habilita explícitamente el auto-tutorial en localStorage
+      //   `webstats:ui_tour:auto` = "1"
+      const urlForce = (() => {
+        try { return new URLSearchParams(window.location.search).get('tour') === '1'; } catch (e) { return false; }
+      })();
+      const autoEnabled = (() => {
+        try { return safeText(window.localStorage?.getItem('webstats:ui_tour:auto')) === '1'; } catch (e) { return false; }
+      })();
+      if (!urlForce && !autoEnabled) return false;
+
       const storageKey = safeText(options.storageKey) || buildStorageKey(id);
-      const force = options.force === true;
-      if (!force) {
+      if (!urlForce) {
         try {
           const seen = safeText(window.localStorage?.getItem(storageKey));
           if (seen === '1') return false;
         } catch (e) { /* ignore */ }
       }
-      return start(id, steps, { ...options, storageKey });
+      return start(id, steps, { ...options, storageKey, force: true });
     };
 
     const reset = (id) => {
@@ -247,4 +259,3 @@
 
   window.WebstatsTour = window.WebstatsTour || Tour();
 })();
-
