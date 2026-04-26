@@ -1012,8 +1012,8 @@
             .slice(0, STARTERS_REQUIRED)
             .map((row) => ({
               ...row,
-              x_pct: clamp(Number(row?.x_pct ?? 50), 0, 100),
-              y_pct: clamp(Number(row?.y_pct ?? 50), 0, 100),
+              x_pct: clamp(Number(row?.x_pct ?? 50), 2, 98),
+              y_pct: clamp(Number(row?.y_pct ?? 50), 2, 98),
             }));
           recomputeBenchFromChecks();
           const response = await fetch(saveUrl, {

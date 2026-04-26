@@ -3012,7 +3012,7 @@
             btn.appendChild(small);
           }
           btn.addEventListener('click', () => {
-            quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
+            try { quickButtons.forEach((other) => other.classList.remove('quake-action-active')); } catch (e) {}
             if (actionInput) actionInput.value = label;
             pushRecentAction(label);
             closeActionPicker();
