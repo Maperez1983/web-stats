@@ -23,8 +23,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import views as auth_views
 
 from football.auth_views import RoleAwareLoginView
+from football import views as football_views
 
 urlpatterns = [
+    path('.well-known/apple-app-site-association', football_views.apple_app_site_association, name='apple-app-site-association'),
+    path('apple-app-site-association', football_views.apple_app_site_association, name='apple-app-site-association-root'),
     path('login/', RoleAwareLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('admin/', admin.site.urls),

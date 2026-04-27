@@ -49,6 +49,8 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
@@ -2523,6 +2525,32 @@ def terms_page(request):
             'legal_owner': owner,
         },
     )
+
+
+@cache_control(max_age=3600, public=True)
+@require_http_methods(['GET'])
+def apple_app_site_association(request):
+    """
+    AASA (apple-app-site-association) para `webcredentials`.
+
+    Esto permite que iOS muestre el autocompletado de contraseñas (Llavero) dentro
+    de la app (WKWebView/Capacitor) sin obligarte a buscar manualmente en el llavero.
+
+    Debe servirse SIN extensión, en:
+    - `/.well-known/apple-app-site-association`
+    - `/apple-app-site-association`
+    """
+    team_id = (str(os.getenv('IOS_DEVELOPMENT_TEAM') or '').strip() or 'WAMU8TTHLH').strip()
+    bundle_id = (str(os.getenv('IOS_BUNDLE_ID') or '').strip() or 'es.segundajugada.app').strip()
+    app_id = f'{team_id}.{bundle_id}'.strip('.')
+    payload = {
+        'webcredentials': {
+            'apps': [app_id],
+        },
+    }
+    response = JsonResponse(payload)
+    response['Content-Type'] = 'application/json'
+    return response
 
 
 def support_page(request):
