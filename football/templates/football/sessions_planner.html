@@ -1364,28 +1364,41 @@
 		      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
 		        <section class="panel">
 		          <h2>Crear</h2>
-		          <p class="meta" style="margin-top:0;">Crea tareas, sesiones o microciclos. Para reutilizar y mantener orden, la Biblioteca te lo separa por tipo.</p>
+		          <p class="meta" style="margin-top:0;">
+		            Aquí solo eliges “qué quieres crear”. El trabajo diario se hace en <strong>Biblioteca → Sesiones</strong> (para asignar tareas por bloque) y en <strong>Biblioteca → Tareas</strong> (para reutilizar).
+		          </p>
+		          <div class="alert" style="margin-top:0.65rem;">
+		            <strong>Flujo recomendado</strong>
+		            <ol style="margin:0.5rem 0 0; padding-left:1.15rem; display:grid; gap:0.25rem;">
+		              <li><strong>Crear tarea</strong> (Clásica o Interactiva) → se guarda en Biblioteca.</li>
+		              <li><strong>Crear sesión</strong> (día) o <strong>microciclo</strong> (semana).</li>
+		              <li>En <strong>Biblioteca → Sesiones</strong> usa “Añadir desde biblioteca” para asignar tareas al bloque.</li>
+		            </ol>
+		          </div>
 		          <div class="folder-grid" style="margin-top:0.75rem;">
 		            <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional">
 		              <strong>Crear tarea (Clásica)</strong>
-		              <span>Repositorio Tradicionales</span>
+		              <span>Se guarda en Biblioteca</span>
 		            </a>
 		            <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive">
 		              <strong>Crear tarea (Interactiva)</strong>
-		              <span>Repositorio Interactivas</span>
+		              <span>Se guarda en Biblioteca</span>
 		            </a>
-		            <a class="folder-card" href="?tab=sessions&library_repo={{ library_repository }}">
-		              <strong>Crear sesión</strong>
-		              <span>Sesión diaria por bloques</span>
+		            <a class="folder-card" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
+		              <strong>Planificar sesiones</strong>
+		              <span>Añadir tareas por bloque</span>
 		            </a>
-		            <a class="folder-card" href="?tab=microcycles&library_repo={{ library_repository }}">
-		              <strong>Crear microciclo</strong>
-		              <span>Semana, sesiones y mapa</span>
+		            <a class="folder-card" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
+		              <strong>Planificar microciclos</strong>
+		              <span>Semana completa</span>
 		            </a>
 		          </div>
 		          <div class="grid" style="margin-top:0.85rem;">
 		            <div class="editor-box" id="create-session-box">
 		              <h3>Crear sesión</h3>
+		              <p class="meta" style="margin-top:-0.35rem;">
+		                Crea la sesión (día). Al guardar, el sistema te lleva a <strong>Biblioteca → Sesiones</strong> para asignar tareas por bloque.
+		              </p>
 		              <form method="post" class="grid">
 		                {% csrf_token %}
 		                <input type="hidden" name="planner_action" value="create_session_plan" />
@@ -1450,6 +1463,9 @@
 		            </div>
 		            <div class="editor-box" id="create-microcycle-box">
 		              <h3>Crear microciclo</h3>
+		              <p class="meta" style="margin-top:-0.35rem;">
+		                Crea la semana (microciclo). Luego entra en <strong>Biblioteca → Microciclos</strong> para ver el mapa y sus sesiones.
+		              </p>
 		              <form method="post" class="grid">
 		                {% csrf_token %}
 		                <input type="hidden" name="planner_action" value="create_microcycle_plan" />
