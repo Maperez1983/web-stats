@@ -5099,6 +5099,21 @@
 				          const knowledgeUrl = String(form?.dataset?.assistantKnowledgeUrl || '').trim();
 				          const knowledgeUploadUrl = String(form?.dataset?.assistantKnowledgeUploadUrl || '').trim();
 				          const csrfToken = String(form?.querySelector('input[name=csrfmiddlewaretoken]')?.value || '').trim();
+				          const coachDictionaryUrl = "{% static 'football/data/coach_dictionary_es_v1.json' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}";
+				          let coachDictionary = null;
+				          let coachDictionaryLoaded = false;
+				          const loadCoachDictionary = async () => {
+				            if (coachDictionaryLoaded) return coachDictionary;
+				            coachDictionaryLoaded = true;
+				            try {
+				              const res = await fetch(coachDictionaryUrl, { credentials: 'same-origin' });
+				              const data = res.ok ? await res.json() : null;
+				              if (data && typeof data === 'object') coachDictionary = data;
+				            } catch (e) {
+				              coachDictionary = null;
+				            }
+				            return coachDictionary;
+				          };
 				          let assistantBlueprints = [];
 				          let assistantBlueprintsLoaded = false;
 				          const reloadAssistantBlueprints = async () => {
@@ -5124,6 +5139,7 @@
 
 				          // Cargamos en segundo plano para tenerlas disponibles en sugerencias.
 				          try { loadAssistantBlueprints(); } catch (e) {}
+				          try { loadCoachDictionary(); } catch (e) {}
 
 		          const toInt = (value, fallback) => {
 		            const parsed = Number.parseInt(String(value || ''), 10);
@@ -7626,6 +7642,30 @@
 					                  if (!matches) score -= 2;
 					                } catch (e) {}
 					              }
+					              // Principio elegido: prioriza tareas que ya lo contienen (o vocabulario asociado).
+					              if (principle && principle !== 'auto') {
+					                try {
+					                  const spec = (coachDictionary && coachDictionary.principles && coachDictionary.principles[principle]) ? coachDictionary.principles[principle] : null;
+					                  const keys = Array.isArray(spec?.keywords) ? spec.keywords : [];
+					                  if (keys.length) {
+					                    const corpus = normalizeKey([
+					                      tpl.title,
+					                      tpl.objective,
+					                      tpl.training_type,
+					                      stripHtml(tpl.description_html),
+					                      stripHtml(tpl.coaching_html),
+					                      stripHtml(tpl.rules_html),
+					                    ].join(' '));
+					                    let hits = 0;
+					                    keys.slice(0, 18).forEach((kw) => {
+					                      const needle = normalizeKey(kw);
+					                      if (needle && corpus.includes(needle)) hits += 1;
+					                    });
+					                    score += Math.min(18, hits * 4);
+					                    if (!hits) score -= 2;
+					                  }
+					                } catch (e) {}
+					              }
 						              // Bonus por ficha "completa": hace que la recomendación sea más útil sin tocar el modelo.
 						              if (tpl.description_html) score += 2;
 						              if (tpl.coaching_html) score += 1;
@@ -7672,13 +7712,28 @@
 						            };
 						            const promptTokens = tokenize(smartPrompt).slice(0, 18);
 						            const applyPromptToTpl = (tpl) => {
-						              if (!smartPrompt) return tpl;
 						              if (!tpl || typeof tpl !== 'object') return tpl;
-						              const note = `<li><strong>Adaptación (descripción):</strong> ${escapeHtml(smartPrompt)}</li>`;
 						              const next = { ...tpl };
-						              next.description_html = (next.description_html || '').includes('<ul>')
-						                ? String(next.description_html || '').replace('</ul>', `${note}</ul>`)
-						                : `<ul>${note}</ul>${ensureListHtml(next.description_html || '')}`;
+						              if (smartPrompt) {
+						                const note = `<li><strong>Adaptación (descripción):</strong> ${escapeHtml(smartPrompt)}</li>`;
+						                next.description_html = (next.description_html || '').includes('<ul>')
+						                  ? String(next.description_html || '').replace('</ul>', `${note}</ul>`)
+						                  : `<ul>${note}</ul>${ensureListHtml(next.description_html || '')}`;
+						              }
+						              if (principle && principle !== 'auto') {
+						                const spec = (coachDictionary && coachDictionary.principles && coachDictionary.principles[principle]) ? coachDictionary.principles[principle] : null;
+						                const label = String(spec?.label || '').trim()
+						                  || String(document.getElementById('task-assistant-smart-principle')?.selectedOptions?.[0]?.textContent || '').trim();
+						                const points = Array.isArray(spec?.coaching_points) ? spec.coaching_points : [];
+						                const line = label
+						                  ? `<li><strong>Foco (principio):</strong> ${escapeHtml(label)}${points.length ? ` · ${escapeHtml(String(points[0] || '').trim())}` : ''}</li>`
+						                  : '';
+						                if (line) {
+						                  next.coaching_html = (next.coaching_html || '').includes('<ul>')
+						                    ? String(next.coaching_html || '').replace('</ul>', `${line}</ul>`)
+						                    : `<ul>${line}</ul>${ensureListHtml(next.coaching_html || '')}`;
+						                }
+						              }
 						              if (materialsHint) {
 						                next.materials = String(next.materials || '').trim()
 						                  ? String(next.materials || '').trim()

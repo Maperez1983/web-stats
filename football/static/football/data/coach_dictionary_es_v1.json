@@ -1,0 +1,179 @@
+{
+  "v": 1,
+  "lang": "es",
+  "source": "UEFA (marco) + metodología aplicada",
+  "principles": {
+    "width_depth": {
+      "label": "Amplitud + profundidad",
+      "keywords": [
+        "amplitud",
+        "anchura",
+        "profundidad",
+        "estirar",
+        "fijar por fuera",
+        "fijar por dentro",
+        "altura",
+        "llegar a línea",
+        "llegar a linea",
+        "atacar espalda",
+        "espalda del lateral",
+        "pasillo exterior",
+        "pasillo interior"
+      ],
+      "coaching_points": [
+        "Ocupar carriles: 1 por fuera + 1 por dentro (evitar duplicar alturas).",
+        "Amenaza a la espalda para fijar la última línea antes de jugar por dentro.",
+        "Si el balón va fuera: preparar el pase atrás / centro raso y proteger transición."
+      ]
+    },
+    "third_man": {
+      "label": "Tercer hombre",
+      "keywords": [
+        "tercer hombre",
+        "3er hombre",
+        "third man",
+        "apoyo de cara",
+        "descarga",
+        "pared",
+        "de cara",
+        "de primeras",
+        "hombre libre",
+        "fijar y soltar"
+      ],
+      "coaching_points": [
+        "1º fija (atrae), 2º apoya de cara, 3º ataca el espacio libre.",
+        "Orientación corporal: perfilar para jugar a 1–2 toques con ventaja.",
+        "Tiempo de desmarque: salir cuando el pasador puede levantar la cabeza."
+      ]
+    },
+    "fix_release": {
+      "label": "Fijar y soltar",
+      "keywords": [
+        "fijar",
+        "soltar",
+        "atraer",
+        "arrastrar",
+        "enganchar",
+        "liberar",
+        "ventaja",
+        "superioridad",
+        "2v1",
+        "3v2",
+        "fijación",
+        "fijacion"
+      ],
+      "coaching_points": [
+        "Con balón: atraer al defensor directo antes de soltar (no soltar sin fijar).",
+        "Sin balón: ofrecer línea de pase en el lado ciego del defensor.",
+        "Tras soltar: re-ocupar altura/carril para sostener la posesión."
+      ]
+    },
+    "switch": {
+      "label": "Cambio de orientación",
+      "keywords": [
+        "cambio de orientación",
+        "cambio de orientacion",
+        "switch",
+        "lado débil",
+        "lado debil",
+        "invertir",
+        "basculación rival",
+        "basculacion rival",
+        "trasladar",
+        "cambiar de lado"
+      ],
+      "coaching_points": [
+        "Atraer en un lado para atacar el lado débil con ventaja.",
+        "Calidad técnica: pase tenso/rápido al pie adecuado (perfilado del receptor).",
+        "Ocupar el lado débil antes del cambio (no llegar tarde)."
+      ]
+    },
+    "support_angles": {
+      "label": "Ángulos de apoyo",
+      "keywords": [
+        "apoyo",
+        "ángulo",
+        "angulo",
+        "línea de pase",
+        "linea de pase",
+        "triángulo",
+        "rombo",
+        "escalón",
+        "escalon",
+        "perfilado",
+        "perfiles",
+        "cuerpo orientado"
+      ],
+      "coaching_points": [
+        "Generar 2 líneas de pase (corto + largo) alrededor del poseedor.",
+        "Apoyos a distintas alturas y con diferentes orientaciones (no en línea).",
+        "Con balón: primer control fuera de presión para habilitar el siguiente pase."
+      ]
+    },
+    "press_triggers": {
+      "label": "Triggers de presión",
+      "keywords": [
+        "trigger",
+        "señal",
+        "senal",
+        "pase atrás",
+        "pase atras",
+        "control orientado",
+        "mal control",
+        "balón al lateral",
+        "balon al lateral",
+        "balón aéreo",
+        "balon aereo",
+        "pase vertical forzado",
+        "perfil cerrado"
+      ],
+      "coaching_points": [
+        "Definir 2–3 triggers claros y sincronizar: saltador + coberturas + cierre de pase atrás.",
+        "Orientar la presión hacia banda/sector objetivo (no presionar “a lo loco”).",
+        "Tras robo: primer pase vertical o conducción para castigar."
+      ]
+    },
+    "cover_balance": {
+      "label": "Cobertura + equilibrio",
+      "keywords": [
+        "cobertura",
+        "equilibrio",
+        "basculación",
+        "basculacion",
+        "permuta",
+        "temporizar",
+        "cierre",
+        "cerrar dentro",
+        "cerrar fuera",
+        "compactar",
+        "distancias"
+      ],
+      "coaching_points": [
+        "El 2º defensor cierra línea de pase interior; el 3º equilibra por detrás.",
+        "Basculación coordinada: mover el bloque manteniendo distancias (compacto).",
+        "Temporizar si no hay igualdad numérica; esperar ayudas."
+      ]
+    },
+    "rest_defense": {
+      "label": "Equilibrio defensivo (rest-defense)",
+      "keywords": [
+        "rest defense",
+        "rest-defense",
+        "vigilancias",
+        "equilibrio defensivo",
+        "coberturas preventivas",
+        "estructura",
+        "seguridad",
+        "protección",
+        "transición defensiva",
+        "transicion defensiva"
+      ],
+      "coaching_points": [
+        "Mientras atacas: mantener 2+1 o 3+2 detrás del balón según riesgo.",
+        "Vigilancias: controlar referencias (punta y mediapuntas rivales) antes del centro/pase final.",
+        "Tras pérdida: primer segundo = frenar contraataque (delay) + reorganizar."
+      ]
+    }
+  }
+}
+
