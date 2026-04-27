@@ -667,6 +667,7 @@
   };
 
   window.initSessionsTacticalPad = function initSessionsTacticalPad() {
+    try {
     const form = document.getElementById('task-builder-form');
     if (!form) return;
     const coachDictionaryUrl = String(form?.dataset?.coachDictionaryUrl || '').trim()
@@ -16528,5 +16529,22 @@
 		        try { if (child.strokeWidth !== undefined) child.strokeUniform = true; } catch (e) { /* ignore */ }
 		      });
 		    });
+    } catch (err) {
+      try {
+        const message = (err && typeof err === 'object' && 'message' in err) ? String(err.message || '') : String(err || '');
+        const stack = (err && typeof err === 'object' && 'stack' in err) ? String(err.stack || '') : '';
+        window.__WEBSTATS_LAST_TPAD_ERROR = { message, stack, at: new Date().toISOString() };
+        try {
+          window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(window.__WEBSTATS_LAST_TPAD_ERROR));
+        } catch (e) { /* ignore */ }
+        const statusEl = document.getElementById('task-builder-status');
+        if (statusEl) {
+          const shortMsg = message ? message.slice(0, 140) : 'Error desconocido';
+          statusEl.textContent = `Error al inicializar la pizarra (${shortMsg}). Se activó modo seguro.`;
+          statusEl.style.color = '#fca5a5';
+        }
+      } catch (e) { /* ignore */ }
+      // No re-lanzar: evita quedar bloqueado en modo seguro global.
+    }
 	  };
 })();
