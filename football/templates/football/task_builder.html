@@ -3004,6 +3004,7 @@
 			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
 			        data-assistant-knowledge-url="{% url 'task-assistant-knowledge-api' %}"
 			        data-assistant-knowledge-upload-url="{% url 'task-assistant-knowledge-upload-api' %}"
+			        data-coach-dictionary-url="{% static 'football/data/coach_dictionary_es_v1.json' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 			        data-keepalive-url="{% url 'session-keepalive' %}"
 			        data-save-success="{% if feedback %}1{% else %}0{% endif %}"
 			        data-draft-key="webstats:tpad:draft:{{ scope_key }}:{% if task %}{{ task.id }}{% else %}new{% endif %}:{% firstof request.GET.workspace '' %}"

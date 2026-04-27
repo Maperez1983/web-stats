@@ -669,6 +669,22 @@
   window.initSessionsTacticalPad = function initSessionsTacticalPad() {
     const form = document.getElementById('task-builder-form');
     if (!form) return;
+    const coachDictionaryUrl = String(form?.dataset?.coachDictionaryUrl || '').trim()
+      || '/static/football/data/coach_dictionary_es_v1.json';
+    let coachDictionary = null;
+    let coachDictionaryLoaded = false;
+    const loadCoachDictionary = async () => {
+      if (coachDictionaryLoaded) return coachDictionary;
+      coachDictionaryLoaded = true;
+      try {
+        const res = await fetch(coachDictionaryUrl, { credentials: 'same-origin' });
+        const data = res.ok ? await res.json() : null;
+        if (data && typeof data === 'object') coachDictionary = data;
+      } catch (e) {
+        coachDictionary = null;
+      }
+      return coachDictionary;
+    };
     const canvasEl = document.getElementById('create-task-canvas');
     const stage = document.getElementById('task-pitch-stage');
 	    const svgSurface = document.getElementById('task-pitch-surface');
@@ -726,8 +742,11 @@
 		    const strokePresetsRow = document.getElementById('task-stroke-presets');
 		    const tokenMetaRow = document.getElementById('task-token-meta');
 		    const tokenNameInput = document.getElementById('task-token-name');
-		    const tokenNumberInput = document.getElementById('task-token-number');
-		    const tokenStyleActions = document.getElementById('task-token-style-actions');
+				    const tokenNumberInput = document.getElementById('task-token-number');
+				    const tokenStyleActions = document.getElementById('task-token-style-actions');
+
+    // Cargamos en segundo plano para que el parser (guion natural) tenga keywords disponibles.
+    try { void loadCoachDictionary(); } catch (e) { /* ignore */ }
 		    const tokenColorGrid = document.getElementById('task-token-color-grid');
 		    const tokenBaseColorInput = document.getElementById('task-token-base-color');
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
@@ -8564,6 +8583,92 @@
 				      const objects = (canvas.getObjects?.() || []).filter((obj) => obj && !obj?.data?.base);
 				      return objects.find((obj) => safeText(obj?.data?.kind) === 'ball') || null;
 				    };
+				    const findObjectForSelector = (selectorRaw) => {
+				      const selector = safeText(selectorRaw).trim();
+				      if (!selector) return null;
+				      if (selector.toLowerCase() === 'ball') return findBallObject();
+				      return findTokenByDorsal(selector);
+				    };
+				    const resolvePitchAnchorPct = (phraseRaw) => {
+				      const phrase = safeText(phraseRaw).toLowerCase();
+				      if (!phrase) return null;
+				      // Mapa simple (v1): 5 carriles + 3 tercios + zonas comunes.
+				      const lane = (() => {
+				        if (phrase.includes('carril izquierdo') || phrase.includes('banda izquierda') || phrase.includes('pasillo izquierdo') || phrase.includes('izquierda')) return 10;
+				        if (phrase.includes('carril derecho') || phrase.includes('banda derecha') || phrase.includes('pasillo derecho') || phrase.includes('derecha')) return 90;
+				        if (phrase.includes('medio espacio izq') || phrase.includes('medioespacio izq') || phrase.includes('half space izq') || phrase.includes('interior izquierdo')) return 30;
+				        if (phrase.includes('medio espacio dcha') || phrase.includes('medio espacio der') || phrase.includes('medioespacio der') || phrase.includes('half space der') || phrase.includes('interior derecho')) return 70;
+				        if (phrase.includes('centro') || phrase.includes('central') || phrase.includes('pasillo central') || phrase.includes('carril central')) return 50;
+				        return null;
+				      })();
+				      const third = (() => {
+				        if (phrase.includes('primer tercio') || phrase.includes('salida') || phrase.includes('inicio')) return 22;
+				        if (phrase.includes('tercio medio') || phrase.includes('medio campo') || phrase.includes('progres')) return 52;
+				        if (phrase.includes('último tercio') || phrase.includes('ultimo tercio') || phrase.includes('finaliz') || phrase.includes('área') || phrase.includes('area')) return 82;
+				        return null;
+				      })();
+				      // Ajustes finos
+				      if (phrase.includes('zona 14')) return { x_pct: 78, y_pct: 50 };
+				      if (phrase.includes('entre líneas') || phrase.includes('entre lineas')) return { x_pct: 66, y_pct: lane ?? 50 };
+				      if (phrase.includes('a la espalda') || phrase.includes('espalda')) return { x_pct: 86, y_pct: lane ?? 50 };
+				      if (phrase.includes('primer palo')) return { x_pct: 86, y_pct: 42 };
+				      if (phrase.includes('segundo palo')) return { x_pct: 86, y_pct: 58 };
+				      if (lane != null || third != null) return { x_pct: third ?? 52, y_pct: lane ?? 50 };
+				      return null;
+				    };
+				    const buildMovesFromNatural = (lineRaw) => {
+				      const line = safeText(lineRaw).trim();
+				      if (!line) return null;
+				      const low = line.toLowerCase();
+
+				      // Soporta: "dur=4" incrustado en texto natural.
+				      let duration = 3;
+				      try {
+				        const dur = low.match(/dur\s*=\s*(\d{1,2})/i);
+				        if (dur) duration = clamp(Number.parseInt(dur[1], 10) || 3, 1, 20);
+				      } catch (e) { /* ignore */ }
+
+				      const moves = [];
+				      const pushMove = (selector, xPct, yPct, extra = {}) => {
+				        if (!selector) return;
+				        const x = Number(xPct);
+				        const y = Number(yPct);
+				        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+				        moves.push({ selector, x_pct: clamp(x, 0, 100), y_pct: clamp(y, 0, 100), ...extra });
+				      };
+
+				      // 1) Pase: "6 pasa a 10" / "6 filtra al 9" -> mueve balón al receptor.
+				      try {
+				        const pass = low.match(/\b(\d{1,2})\b.*\b(pasa|juega|filtra|asiste|centra|descarga)\b.*\b(a|al|para)\s+(\d{1,2})\b/);
+				        if (pass) {
+				          const to = pass[4];
+				          pushMove('ball', 0, 0, { target_selector: to, mode: 'follow' });
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 2) Movimiento a zona: "10 ataca carril derecho en último tercio"
+				      try {
+				        const mv = low.match(/\b(\d{1,2})\b.*\b(ataca|va|sube|cae|ocupa|llega)\b.*\b(a|al|hacia)\s+(.+)$/);
+				        if (mv) {
+				          const who = mv[1];
+				          const zonePhrase = mv[4] || '';
+				          const anchor = resolvePitchAnchorPct(zonePhrase);
+				          if (anchor) pushMove(who, anchor.x_pct, anchor.y_pct);
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 3) "Bloque ... bascula a izquierda/derecha" (v1: mueve el balón como referencia visual)
+				      try {
+				        if (low.includes('bascul') && (low.includes('izquierda') || low.includes('derecha'))) {
+				          const yPct = low.includes('izquierda') ? 22 : 78;
+				          pushMove('ball', 52, yPct);
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      if (!moves.length) return null;
+				      const title = safeText(lineRaw.replace(/dur\s*=\s*\d{1,2}/i, '').trim(), 'Paso');
+				      return { title, duration, moves };
+				    };
 				    const applyScriptMovesToCanvas = (moves) => {
 				      if (!Array.isArray(moves) || !moves.length) return { moved: 0, missing: 0 };
 				      const { w, h } = worldSize();
@@ -8574,11 +8679,22 @@
 				      let missing = 0;
 				      moves.forEach((move) => {
 				        const selector = safeText(move?.selector);
-				        const xPct = clamp(Number(move?.x_pct) || 0, 0, 100);
-				        const yPct = clamp(Number(move?.y_pct) || 0, 0, 100);
+				        const mode = safeText(move?.mode);
+				        let xPct = clamp(Number(move?.x_pct) || 0, 0, 100);
+				        let yPct = clamp(Number(move?.y_pct) || 0, 0, 100);
+				        const targetSelector = safeText(move?.target_selector);
+				        if (mode === 'follow' && targetSelector) {
+				          const dest = findObjectForSelector(targetSelector);
+				          if (dest) {
+				            const dx = Number(dest.left) || 0;
+				            const dy = Number(dest.top) || 0;
+				            xPct = clamp((dx / width) * 100, 0, 100);
+				            yPct = clamp((dy / height) * 100, 0, 100);
+				          }
+				        }
 				        const x = (width * xPct) / 100;
 				        const y = (height * yPct) / 100;
-				        const target = selector.toLowerCase() === 'ball' ? findBallObject() : findTokenByDorsal(selector);
+				        const target = findObjectForSelector(selector);
 				        if (!target || target?.data?.locked) {
 				          missing += 1;
 				          return;
@@ -8596,6 +8712,11 @@
 				      const line = safeText(raw).trim();
 				      if (!line) return null;
 				      if (line.startsWith('#') || line.startsWith('//')) return null;
+				      // Si no parece el formato "selector@x,y", intentamos lenguaje natural (v1).
+				      if (!line.includes('@')) {
+				        const natural = buildMovesFromNatural(line);
+				        if (natural) return natural;
+				      }
 				      const parts = line.split('|').map((p) => safeText(p).trim()).filter(Boolean);
 				      const title = safeText(parts[0], 'Paso');
 				      let duration = 3;
