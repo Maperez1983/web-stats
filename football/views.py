@@ -27223,6 +27223,13 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     # Navegación inicial (GET).
     main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
+    # Compat/UX: el botón "Cargar" de "Sesión activa" es un GET con `session_id`.
+    # Si el parámetro `tab` no viaja (webview/app), aterrizamos igualmente en la pestaña Sesiones.
+    try:
+        if request.method == 'GET' and not str(request.GET.get('tab') or '').strip() and _parse_int(request.GET.get('session_id')):
+            main_tab, active_tab = 'library', 'sessions'
+    except Exception:
+        pass
 
     if request.method == 'POST' and planner_tables_ready:
         planner_action = (request.POST.get('planner_action') or '').strip()

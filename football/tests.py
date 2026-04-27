@@ -6435,3 +6435,62 @@ class SessionsPlannerCreateSessionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         created = TrainingSession.objects.filter(microcycle=self.microcycle, focus__iexact='Transición + finalización').first()
         self.assertIsNotNone(created)
+
+
+class SessionsPlannerLoadPastSessionTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo pruebas cargar sesión',
+            slug='equipo-pruebas-cargar',
+            short_name='Pruebas',
+            category='senior',
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-load-session',
+            email='coach-load-session@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB PRUEBAS CARGAR',
+            slug='club-pruebas-cargar',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+        today = timezone.localdate()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            week_start=week_start,
+            week_end=week_end,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+        self.past_session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=today - timedelta(days=2),
+            focus='Sesión realizada',
+            status=TrainingSession.STATUS_DONE,
+            order=1,
+        )
+
+    def test_load_past_session_without_tab_param_stays_on_sessions_tab(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?workspace={self.workspace.id}&team={self.team.id}&session_id={self.past_session.id}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn('data-tab=\"sessions\"', html)
+        self.assertIn('tab-panel is-active', html)
+        self.assertIn('Sesión activa', html)
