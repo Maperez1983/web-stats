@@ -1332,7 +1332,7 @@
 		      <div class="top" id="planner-top">
 		        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
             <div style="display:flex; gap:0.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
-              {% if is_admin_user %}
+              {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
               <a href="{% url 'coach-detail' %}" class="button">Volver</a>

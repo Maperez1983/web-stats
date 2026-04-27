@@ -3005,7 +3005,7 @@
           </p>
         </div>
 		        <div class="actions">
-              {% if is_admin_user %}
+              {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
