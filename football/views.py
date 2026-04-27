@@ -28171,6 +28171,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     copied.block = target_block
                     copied.save(update_fields=['block'])
                 feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
+                # Mantener la sesión seleccionada tras asignar (si no se envía `selected_session_id`
+                # el planner puede cambiar a "la próxima sesión" y parece que no se ha asignado).
+                active_tab = 'sessions'
+                auto_selected_session_id = int(getattr(target_session, 'id', 0) or 0) or None
 
             elif planner_action == 'move_task_to_block':
                 task_id = _parse_int(request.POST.get('task_id'))

@@ -1850,6 +1850,7 @@
 		                {% csrf_token %}
 		                <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
 		                <input type="hidden" name="planner_tab" value="sessions" />
+		                <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		                <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
 		                <input type="hidden" name="replace_existing" value="1" />
 		                {% if section.block_keys|length == 1 %}
