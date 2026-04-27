@@ -531,8 +531,11 @@
         gap: 0.45rem;
         margin-left: auto;
       }
-      /* Reducimos ruido: el selector rápido es redundante con las pestañas desplegables. */
+      /* En pantallas pequeñas el selector rápido ayuda a no perderse. */
       .resource-select { display: none; }
+      @media (max-width: 979px) {
+        .resource-select { display: inline-flex; }
+      }
       .resource-select label {
         display: inline-flex;
         align-items: center;
@@ -553,6 +556,10 @@
         margin: 0;
         padding: 0;
       }
+      /* Siempre “una sola vista”: sin desplegable flotante. */
+      .resource-summary { display: none !important; }
+      .resource-details > summary { display: none !important; }
+      .resource-details:not([open]) > :not(summary) { display: flex; }
       .resource-summary {
         list-style: none;
         display: inline-flex;
@@ -580,19 +587,16 @@
         text-transform: none;
       }
       .resource-details[open] .resource-tabs {
-        position: absolute;
-        top: calc(100% + 10px);
-        left: 0;
-        z-index: 70;
-        width: min(520px, 92vw);
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-        gap: 0.6rem;
-        padding: 0.7rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(8, 18, 30, 0.96);
-        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        position: static;
+        display: flex;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        width: auto;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
       }
       @media (min-width: 980px) {
         .resource-summary { display: none; }
@@ -627,39 +631,7 @@
       /* Selector de dispositivo (UI):
          - ui-desktop fuerza pestañas siempre visibles (sin desplegable).
          - ui-tablet fuerza desplegable (para dejar más espacio al campo). */
-      body.ui-desktop .resource-summary { display: none !important; }
-      body.ui-desktop .resource-details:not([open]) > :not(summary) { display: flex !important; }
-      body.ui-desktop .resource-details .resource-tabs,
-      body.ui-desktop .resource-details[open] .resource-tabs {
-        position: static !important;
-        display: flex !important;
-        padding: 0 !important;
-        border: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        width: auto !important;
-        gap: 0.5rem !important;
-        flex-wrap: wrap !important;
-        align-items: center !important;
-      }
-      body.ui-tablet .resource-summary { display: inline-flex !important; }
-      body.ui-tablet .resource-details:not([open]) > :not(summary) { display: none !important; }
-      body.ui-tablet .resource-details .resource-tabs { display: none; }
-      body.ui-tablet .resource-details[open] .resource-tabs {
-        position: absolute;
-        top: calc(100% + 10px);
-        left: 0;
-        z-index: 70;
-        width: min(520px, 92vw);
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-        gap: 0.6rem;
-        padding: 0.7rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(8, 18, 30, 0.96);
-        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
-      }
+      body.ui-tablet .resource-select { display: inline-flex !important; }
 
       /* ui-tablet: el campo debe caber completo sin recortes horizontales (iPad/rotación). */
       body.ui-tablet .pitch-stage {

@@ -16229,13 +16229,8 @@
 		      if (getDeviceMode() === 'desktop') return false;
 		      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
 		    };
-		    // En escritorio ocultamos el <summary> y mostramos las pestañas siempre vía CSS
-		    // (sin necesidad de abrir el <details>, que podía superponer el contenido).
-		    try {
-		      if (resourceDetails && isDesktopUi()) {
-		        resourceDetails.open = false;
-		      }
-		    } catch (error) { /* ignore */ }
+		    // Siempre mostramos recursos en una sola vista (sin desplegable flotante).
+		    try { if (resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
 		    let activeResourceKey = '';
     const resourceLabelForKey = (key) => {
       const normalized = safeText(key);
@@ -16266,12 +16261,6 @@
 	        const target = safeText(tab.dataset.resource);
 	        if (target && target === activeResourceKey) activateResourcePanel('');
 	        else activateResourcePanel(target);
-	        // En móvil/tablet, cerrar el desplegable al elegir una pestaña.
-	        try {
-	          if (resourceDetails && resourceDetails.open && isSmallUi()) {
-	            resourceDetails.open = false;
-	          }
-	        } catch (error) { /* ignore */ }
 	      });
 	    });
 	    resourceSelect?.addEventListener('change', () => {
@@ -16279,14 +16268,15 @@
 	      activateResourcePanel(key);
 	    });
 		    if (resourceTabs.length && resourcePanels.length) {
-	      // En escritorio mostramos por defecto "Recursos base" (más rápido).
-	      // En pantallas pequeñas arrancamos cerrado para dejar más espacio al campo.
-	      let initialResource = '';
-	      try {
-	        initialResource = isWideUi() ? 'base' : '';
-	      } catch (error) {
-	        initialResource = 'base';
-	      }
+          // Por defecto: si hay recursos importados (PDF/PPT), los mostramos.
+          // Si no, arrancamos en “Recursos base”. En pantallas pequeñas no dejamos esto “cerrado”
+          // para evitar la sensación de que “desapareció”.
+          let initialResource = 'base';
+          try {
+            const importedPanel = document.querySelector('.resource-panel[data-panel="importados"]');
+            const hasImportedAssets = Boolean(importedPanel && importedPanel.querySelector('.pdf-asset-btn img'));
+            initialResource = hasImportedAssets ? 'importados' : 'base';
+          } catch (error) { /* ignore */ }
 		      activateResourcePanel(initialResource);
 		    }
 		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
