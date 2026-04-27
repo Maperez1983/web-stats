@@ -6370,3 +6370,68 @@ class SessionsPlannerTaskAssignTests(TestCase):
         self.assertIsNotNone(copied)
         html = response.content.decode('utf-8', errors='ignore')
         self.assertIn(f'data-task-id=\"{copied.id}\"', html)
+
+
+class SessionsPlannerCreateSessionTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo pruebas crear sesión',
+            slug='equipo-pruebas-sesion',
+            short_name='Pruebas',
+            category='senior',
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-create-session',
+            email='coach-create-session@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB PRUEBAS SESIÓN',
+            slug='club-pruebas-sesion',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+        today = timezone.localdate()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            week_start=week_start,
+            week_end=week_end,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+
+    def test_create_session_plan_persists_when_team_and_workspace_are_posted(self):
+        self.client.force_login(self.user)
+        url = reverse('sessions')
+        today = timezone.localdate()
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'sessions',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'plan_microcycle_id': str(self.microcycle.id),
+                'plan_session_date': today.strftime('%Y-%m-%d'),
+                'plan_session_focus': 'Transición + finalización',
+                'plan_session_minutes': '90',
+                'plan_session_intensity': TrainingSession.INTENSITY_MEDIUM,
+                'plan_session_status': TrainingSession.STATUS_PLANNED,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        created = TrainingSession.objects.filter(microcycle=self.microcycle, focus__iexact='Transición + finalización').first()
+        self.assertIsNotNone(created)

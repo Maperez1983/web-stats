@@ -28174,10 +28174,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     SessionTask.objects
                     .select_related('session__microcycle')
                     .filter(session=target_session, deleted_at__isnull=True)
-                    .order_by('-id')[:120]
                 )
                 if normalized_target_block:
                     existing_qs = existing_qs.filter(block=normalized_target_block)
+                existing_qs = existing_qs.order_by('-id')[:120]
                 existing_items = [item for item in list(existing_qs) if _task_scope_for_item(item) == scope_key]
                 already_assigned = next((item for item in existing_items if _matches_source_task(item)), None)
                 if already_assigned:

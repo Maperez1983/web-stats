@@ -1348,16 +1348,16 @@
 	      </section>
 
 			      <div class="tabs" id="planner-tabs">
-			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create">Crear</a>
-			        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}">Biblioteca</a>
-			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}">Importar</a>
+			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
+			        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
+			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 			      </div>
 
 			      {% if main_tab == 'library' %}
 			      <div class="tabs" style="margin-top:-0.15rem;">
-			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}">Tareas</a>
-			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}">Sesiones</a>
-			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}">Microciclos</a>
+			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
+			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
+			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
 			      </div>
 			      {% endif %}
 
@@ -1390,6 +1390,8 @@
 		                {% csrf_token %}
 		                <input type="hidden" name="planner_action" value="create_session_plan" />
 		                <input type="hidden" name="planner_tab" value="create" />
+		                <input type="hidden" name="team" value="{{ primary_team_id }}" />
+		                {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
 		                <label>
 		                  Microciclo
 		                  <select name="plan_microcycle_id">
@@ -1662,8 +1664,8 @@
 		        <section class="panel">
 		          <h2>Sesiones · Estructura por bloques</h2>
 		          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
-		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=sessions&library_repo=traditional{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Clásicas</a>
-		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=sessions&library_repo=interactive{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Interactivas</a>
+		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=sessions&library_repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Clásicas</a>
+		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=sessions&library_repo=interactive&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Interactivas</a>
 		          </div>
               {% if imported_session_docs %}
               <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
@@ -1691,6 +1693,8 @@
 			                {% csrf_token %}
 			                <input type="hidden" name="planner_action" value="create_session_plan" />
 			                <input type="hidden" name="planner_tab" value="sessions" />
+			                <input type="hidden" name="team" value="{{ primary_team_id }}" />
+			                {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
 			                <label>
 			                  Microciclo
 			                  <select name="plan_microcycle_id">
