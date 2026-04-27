@@ -2644,19 +2644,23 @@
             <div class="live-stats-hud-body">
               <div class="live-stats-chips">
                 <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
-                <article class="live-stats-chip" title="Estimación por proporción de pases sobre acciones registradas (capada 35–75)."><span>Posesión aprox</span><strong id="live-stat-possession">50%</strong></article>
                 <article class="live-stats-chip" title="Acciones registradas / minuto (según cronómetro del registro)."><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
                 <article class="live-stats-chip" title="Acciones registradas en los últimos 5 minutos / 5."><span>Últ. 5'</span><strong id="live-stat-pace5">0.0/min</strong></article>
+                <article class="live-stats-chip" title="Pases OK / Pases totales (según resultado: OK/ganado/completado)."><span>Pase %</span><strong id="live-stat-pass-acc">0%</strong></article>
                 <article class="live-stats-chip"><span>Tiros</span><strong id="live-stat-shots">0</strong></article>
                 <article class="live-stats-chip"><span>A puerta</span><strong id="live-stat-shots-target">0</strong></article>
-                <article class="live-stats-chip"><span>Pases</span><strong id="live-stat-passes">0</strong></article>
-                <article class="live-stats-chip"><span>Pérd/Robo</span><strong id="live-stat-turnovers">0/0</strong></article>
+                <article class="live-stats-chip" title="Acciones registradas en tercio de ataque (según zona)."><span>Ataque</span><strong id="live-stat-attack">0</strong></article>
+                <article class="live-stats-chip" title="Balón parado (corners/faltas/saques) detectado por texto."><span>ABP</span><strong id="live-stat-abp">0</strong></article>
+                <article class="live-stats-chip" title="Pérdidas registradas en tercio defensivo (salida)."><span>Pérd salida</span><strong id="live-stat-losses-def">0</strong></article>
+                <article class="live-stats-chip" title="Robos/recuperaciones en tercio de ataque (presión alta)."><span>Recup altas</span><strong id="live-stat-steals-high">0</strong></article>
+                <article class="live-stats-chip"><span>Duelos</span><strong id="live-stat-duels">0/0 · 0%</strong></article>
                 <article class="live-stats-chip"><span>Tarjetas</span><strong id="live-stat-cards">0</strong></article>
-                <article class="live-stats-chip"><span>Duelos G/T</span><strong id="live-stat-duels">0/0</strong></article>
-                <article class="live-stats-chip"><span>Acierto duelo</span><strong id="live-stat-duel-rate">0%</strong></article>
               </div>
               <div class="live-stats-details">
                 <span>Sustituciones: <strong id="live-stat-subs">0</strong></span>
+                <span title="Estimación por proporción de pases sobre acciones registradas (capada 35–75).">Posesión aprox: <strong id="live-stat-possession">50%</strong></span>
+                <span title="Pases OK/TOT según resultado.">Pases: <strong id="live-stat-passes">0/0</strong></span>
+                <span title="Pérdidas vs robos/recuperaciones detectadas por texto.">Pérd/Robo: <strong id="live-stat-turnovers">0/0</strong></span>
                 <span>Atajo teclado: <strong>S</strong> para mostrar/ocultar</span>
                 <span title="Recuento de acciones por tercio inferido desde la etiqueta de zona (Defensa/Medio/Ataque).">Territorios: <strong id="live-stat-tercios">D 0 · M 0 · A 0</strong></span>
                 <span>Alertas: <strong id="live-stat-alerts">—</strong></span>
@@ -3395,14 +3399,18 @@
         possession: document.getElementById('live-stat-possession'),
         pace: document.getElementById('live-stat-pace'),
         pace5: document.getElementById('live-stat-pace5'),
+        passAcc: document.getElementById('live-stat-pass-acc'),
         shots: document.getElementById('live-stat-shots'),
         shotsTarget: document.getElementById('live-stat-shots-target'),
         passes: document.getElementById('live-stat-passes'),
         turnovers: document.getElementById('live-stat-turnovers'),
         cards: document.getElementById('live-stat-cards'),
         subs: document.getElementById('live-stat-subs'),
+        attack: document.getElementById('live-stat-attack'),
+        abp: document.getElementById('live-stat-abp'),
+        lossesDef: document.getElementById('live-stat-losses-def'),
+        stealsHigh: document.getElementById('live-stat-steals-high'),
         duels: document.getElementById('live-stat-duels'),
-        duelRate: document.getElementById('live-stat-duel-rate'),
         tercios: document.getElementById('live-stat-tercios'),
         alerts: document.getElementById('live-stat-alerts'),
       };
@@ -3434,6 +3442,10 @@
         const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
         const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
         const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
+        const setPiece =
+          containsText(action, ['abp', 'balon parado', 'balón parado', 'corner', 'córner', 'saque de esquina', 'falta', 'libre directo', 'libre indirecto', 'penalti', 'penalti', 'saque']) ||
+          containsText(result, ['abp', 'corner', 'córner', 'falta', 'penalti', 'saque']);
+        const cross = containsText(action, ['centro', 'cross']) || containsText(result, ['centro']);
         const loss =
           containsText(action, ['perdida', 'pérdida', 'perd']) ||
           containsText(result, ['perdid', 'error', 'fall']);
@@ -3456,13 +3468,16 @@
           (offensiveDuel && offensiveSuccess && !offensiveFail) ||
           (defensiveDuel && defensiveSuccess && !defensiveFail)
         );
+        const passOk = pass && offensiveSuccess && !offensiveFail;
         const zoneText = String(zone || '').toLowerCase();
         const tercio =
           zoneText.includes('porter') || zoneText.includes('defensa') ? 'def'
           : zoneText.includes('medio') ? 'mid'
           : zoneText.includes('ataque') ? 'att'
           : '';
-        return { shot, shotOnTarget, pass, card, sub, loss, steal, duel, duelWon, tercio };
+        const lossDef = loss && tercio === 'def';
+        const stealHigh = steal && tercio === 'att';
+        return { shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, loss, lossDef, steal, stealHigh, duel, duelWon, tercio };
       };
       const refreshLiveStatsHud = () => {
         const totals = {
@@ -3470,12 +3485,17 @@
           shots: 0,
           shotsTarget: 0,
           passes: 0,
+          passesOk: 0,
           cards: 0,
           subs: 0,
+          abp: 0,
+          crosses: 0,
           duels: 0,
           duelsWon: 0,
           losses: 0,
+          lossesDef: 0,
           steals: 0,
+          stealsHigh: 0,
           tercio_def: 0,
           tercio_mid: 0,
           tercio_att: 0,
@@ -3495,9 +3515,14 @@
           if (summary.shot) totals.shots += 1;
           if (summary.shotOnTarget) totals.shotsTarget += 1;
           if (summary.pass) totals.passes += 1;
+          if (summary.passOk) totals.passesOk += 1;
           if (summary.card) totals.cards += 1;
           if (summary.loss) totals.losses += 1;
+          if (summary.lossDef) totals.lossesDef += 1;
           if (summary.steal) totals.steals += 1;
+          if (summary.stealHigh) totals.stealsHigh += 1;
+          if (summary.setPiece) totals.abp += 1;
+          if (summary.cross) totals.crosses += 1;
           if (summary.sub) {
             const resultText = String(eventData?.result || '').toLowerCase();
             if (resultText.includes('salida')) subExits += 1;
@@ -3515,13 +3540,14 @@
             last5.actions += 1;
             if (summary.shot) last5.shots += 1;
             if (summary.shotOnTarget) last5.shotsTarget += 1;
-            if (summary.loss && summary.tercio === 'def') last5.lossesDef += 1;
+            if (summary.lossDef) last5.lossesDef += 1;
           }
         });
         totals.subs = Math.max(subEntries, subExits);
         const minutes = Math.max(1, elapsedRef.value / 60);
         const pace = totals.actions / minutes;
         const pace5 = last5.actions / 5;
+        const passAcc = totals.passes ? Math.round((totals.passesOk / totals.passes) * 100) : 0;
         const possessionApprox = totals.actions
           ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
           : 50;
@@ -3530,18 +3556,26 @@
           const parts = [];
           if (last5.lossesDef >= 3) parts.push('PÉRDIDAS EN SALIDA');
           if (totals.shotsTarget >= 3 && totals.shots >= 5) parts.push('MUCHO TIRO A PUERTA');
+          if (currentMinute >= 20 && totals.shots === 0) parts.push('SIN TIROS');
+          if (totals.cards >= 3) parts.push('RIESGO TARJETAS');
+          if (totals.duels >= 10 && duelRate <= 40) parts.push('DUELOS PERDIDOS');
+          if (totals.abp >= 5) parts.push('MUCHO ABP');
           if (!parts.length) return '—';
           return parts.slice(0, 2).join(' · ');
         })();
         if (liveStatEls.actions) liveStatEls.actions.textContent = String(totals.actions);
         if (liveStatEls.shots) liveStatEls.shots.textContent = String(totals.shots);
         if (liveStatEls.shotsTarget) liveStatEls.shotsTarget.textContent = String(totals.shotsTarget);
-        if (liveStatEls.passes) liveStatEls.passes.textContent = String(totals.passes);
+        if (liveStatEls.passAcc) liveStatEls.passAcc.textContent = `${passAcc}%`;
+        if (liveStatEls.passes) liveStatEls.passes.textContent = `${totals.passesOk}/${totals.passes}`;
         if (liveStatEls.turnovers) liveStatEls.turnovers.textContent = `${totals.losses}/${totals.steals}`;
         if (liveStatEls.cards) liveStatEls.cards.textContent = String(totals.cards);
         if (liveStatEls.subs) liveStatEls.subs.textContent = String(totals.subs);
-        if (liveStatEls.duels) liveStatEls.duels.textContent = `${totals.duelsWon}/${totals.duels}`;
-        if (liveStatEls.duelRate) liveStatEls.duelRate.textContent = `${duelRate}%`;
+        if (liveStatEls.attack) liveStatEls.attack.textContent = String(totals.tercio_att);
+        if (liveStatEls.abp) liveStatEls.abp.textContent = String(totals.abp);
+        if (liveStatEls.lossesDef) liveStatEls.lossesDef.textContent = String(totals.lossesDef);
+        if (liveStatEls.stealsHigh) liveStatEls.stealsHigh.textContent = String(totals.stealsHigh);
+        if (liveStatEls.duels) liveStatEls.duels.textContent = `${totals.duelsWon}/${totals.duels} · ${duelRate}%`;
         if (liveStatEls.possession) liveStatEls.possession.textContent = `${possessionApprox}%`;
         if (liveStatEls.pace) liveStatEls.pace.textContent = `${pace.toFixed(1)}/min`;
         if (liveStatEls.pace5) liveStatEls.pace5.textContent = `${pace5.toFixed(1)}/min`;
