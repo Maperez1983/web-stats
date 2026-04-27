@@ -3005,6 +3005,9 @@
           </p>
         </div>
 		        <div class="actions">
+              {% if is_admin_user %}
+              <a href="{% url 'platform-overview' %}" class="button">Platform</a>
+              {% endif %}
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
 		          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
 	          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>

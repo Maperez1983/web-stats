@@ -1331,7 +1331,12 @@
       {% include 'football/includes/dragon_nav.html' %}
 		      <div class="top" id="planner-top">
 		        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
-		        <a href="{% url 'coach-detail' %}" class="button">Volver</a>
+            <div style="display:flex; gap:0.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              {% if is_admin_user %}
+              <a href="{% url 'platform-overview' %}" class="button">Platform</a>
+              {% endif %}
+              <a href="{% url 'coach-detail' %}" class="button">Volver</a>
+            </div>
 		      </div>
 	      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
 
