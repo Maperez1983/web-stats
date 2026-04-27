@@ -2,6 +2,59 @@
   "v": 1,
   "lang": "es",
   "source": "UEFA (marco) + metodología aplicada",
+  "zones": {
+    "own_third_left": { "label": "Primer tercio · banda izquierda", "x_pct": 22, "y_pct": 12, "keywords": ["primer tercio izquierda", "salida banda izquierda", "inicio banda izquierda", "banda izquierda primer tercio"] },
+    "own_third_halfspace_left": { "label": "Primer tercio · medio espacio izq", "x_pct": 22, "y_pct": 30, "keywords": ["medio espacio izq primer tercio", "interior izquierdo primer tercio", "half space izq primer tercio"] },
+    "own_third_center": { "label": "Primer tercio · carril central", "x_pct": 22, "y_pct": 50, "keywords": ["primer tercio centro", "salida por dentro", "inicio por dentro", "carril central primer tercio"] },
+    "own_third_halfspace_right": { "label": "Primer tercio · medio espacio dcho", "x_pct": 22, "y_pct": 70, "keywords": ["medio espacio der primer tercio", "interior derecho primer tercio", "half space der primer tercio"] },
+    "own_third_right": { "label": "Primer tercio · banda derecha", "x_pct": 22, "y_pct": 88, "keywords": ["primer tercio derecha", "salida banda derecha", "inicio banda derecha", "banda derecha primer tercio"] },
+
+    "mid_third_left": { "label": "Tercio medio · banda izquierda", "x_pct": 52, "y_pct": 12, "keywords": ["tercio medio izquierda", "medio campo izquierda", "banda izquierda tercio medio"] },
+    "mid_third_halfspace_left": { "label": "Tercio medio · medio espacio izq", "x_pct": 52, "y_pct": 30, "keywords": ["medio espacio izq tercio medio", "interior izquierdo tercio medio", "half space izq tercio medio"] },
+    "mid_third_center": { "label": "Tercio medio · carril central", "x_pct": 52, "y_pct": 50, "keywords": ["tercio medio centro", "zona central tercio medio", "carril central tercio medio"] },
+    "mid_third_halfspace_right": { "label": "Tercio medio · medio espacio dcho", "x_pct": 52, "y_pct": 70, "keywords": ["medio espacio der tercio medio", "interior derecho tercio medio", "half space der tercio medio"] },
+    "mid_third_right": { "label": "Tercio medio · banda derecha", "x_pct": 52, "y_pct": 88, "keywords": ["tercio medio derecha", "medio campo derecha", "banda derecha tercio medio"] },
+
+    "final_third_left": { "label": "Último tercio · banda izquierda", "x_pct": 82, "y_pct": 12, "keywords": ["ultimo tercio izquierda", "último tercio izquierda", "banda izquierda ultimo tercio", "banda izquierda último tercio"] },
+    "final_third_halfspace_left": { "label": "Último tercio · medio espacio izq", "x_pct": 82, "y_pct": 30, "keywords": ["medio espacio izq ultimo tercio", "medio espacio izq último tercio", "interior izquierdo ultimo tercio", "interior izquierdo último tercio"] },
+    "final_third_center": { "label": "Último tercio · carril central", "x_pct": 82, "y_pct": 50, "keywords": ["ultimo tercio centro", "último tercio centro", "carril central ultimo tercio", "carril central último tercio"] },
+    "final_third_halfspace_right": { "label": "Último tercio · medio espacio dcho", "x_pct": 82, "y_pct": 70, "keywords": ["medio espacio der ultimo tercio", "medio espacio der último tercio", "interior derecho ultimo tercio", "interior derecho último tercio"] },
+    "final_third_right": { "label": "Último tercio · banda derecha", "x_pct": 82, "y_pct": 88, "keywords": ["ultimo tercio derecha", "último tercio derecha", "banda derecha ultimo tercio", "banda derecha último tercio"] },
+
+    "zone_14": { "label": "Zona 14", "x_pct": 78, "y_pct": 50, "keywords": ["zona 14", "zona14"] },
+    "between_lines": { "label": "Entre líneas", "x_pct": 66, "y_pct": 50, "keywords": ["entre líneas", "entre lineas"] },
+    "behind_defense": { "label": "A la espalda", "x_pct": 86, "y_pct": 50, "keywords": ["a la espalda", "a espalda", "espalda de la defensa", "espalda defensa"] },
+    "first_post": { "label": "Primer palo", "x_pct": 86, "y_pct": 42, "keywords": ["primer palo"] },
+    "second_post": { "label": "Segundo palo", "x_pct": 86, "y_pct": 58, "keywords": ["segundo palo"] },
+    "cutback": { "label": "Pase atrás / cutback", "x_pct": 78, "y_pct": 50, "keywords": ["pase atrás", "pase atras", "cutback"] }
+  },
+  "intents": {
+    "pass": {
+      "label": "Pase",
+      "verbs": ["pasa", "juega", "filtra", "asiste", "descarga", "cambia", "envía", "manda"],
+      "objects": ["a", "al", "para", "hacia"]
+    },
+    "carry": {
+      "label": "Conducción",
+      "verbs": ["conduce", "conducción", "conduccion", "avanza", "progresa"],
+      "objects": ["a", "hacia"]
+    },
+    "move": {
+      "label": "Desmarque / movimiento",
+      "verbs": ["ataca", "va", "sube", "cae", "ocupa", "llega", "apoya", "se ofrece", "amenaza", "rompe"],
+      "objects": ["a", "al", "hacia"]
+    },
+    "cross": {
+      "label": "Centro",
+      "verbs": ["centra", "pone", "cuélga", "cuelga"],
+      "objects": ["a", "al", "hacia"]
+    },
+    "press": {
+      "label": "Presión",
+      "verbs": ["presiona", "salta", "encima", "aprieta"],
+      "objects": ["a", "al", "sobre"]
+    }
+  },
   "principles": {
     "width_depth": {
       "label": "Amplitud + profundidad",
@@ -176,4 +229,3 @@
     }
   }
 }
-

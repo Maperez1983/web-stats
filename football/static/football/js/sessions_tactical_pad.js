@@ -8592,6 +8592,40 @@
 				    const resolvePitchAnchorPct = (phraseRaw) => {
 				      const phrase = safeText(phraseRaw).toLowerCase();
 				      if (!phrase) return null;
+				      const normalize = (value) => {
+				        const raw = safeText(value).toLowerCase().trim();
+				        if (!raw) return '';
+				        try {
+				          return raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+				        } catch (e) {
+				          return raw;
+				        }
+				      };
+				      const phraseKey = normalize(phrase);
+				      // 0) Diccionario: zonas definidas (keywords -> coordenadas).
+				      try {
+				        const zones = coachDictionary && typeof coachDictionary === 'object' ? coachDictionary.zones : null;
+				        if (zones && typeof zones === 'object') {
+				          let best = null;
+				          let bestLen = 0;
+				          Object.values(zones).forEach((zone) => {
+				            if (!zone || typeof zone !== 'object') return;
+				            const kws = Array.isArray(zone.keywords) ? zone.keywords : [];
+				            kws.slice(0, 40).forEach((kw) => {
+				              const needle = normalize(kw);
+				              if (!needle) return;
+				              if (!phraseKey.includes(needle)) return;
+				              if (needle.length > bestLen) {
+				                bestLen = needle.length;
+				                best = zone;
+				              }
+				            });
+				          });
+				          if (best && Number.isFinite(Number(best.x_pct)) && Number.isFinite(Number(best.y_pct))) {
+				            return { x_pct: Number(best.x_pct), y_pct: Number(best.y_pct) };
+				          }
+				        }
+				      } catch (e) { /* ignore */ }
 				      // Mapa simple (v1): 5 carriles + 3 tercios + zonas comunes.
 				      const lane = (() => {
 				        if (phrase.includes('carril izquierdo') || phrase.includes('banda izquierda') || phrase.includes('pasillo izquierdo') || phrase.includes('izquierda')) return 10;
@@ -8639,10 +8673,46 @@
 
 				      // 1) Pase: "6 pasa a 10" / "6 filtra al 9" -> mueve balón al receptor.
 				      try {
-				        const pass = low.match(/\b(\d{1,2})\b.*\b(pasa|juega|filtra|asiste|centra|descarga)\b.*\b(a|al|para)\s+(\d{1,2})\b/);
+				        const passVerbs = (() => {
+				          try {
+				            const verbs = coachDictionary?.intents?.pass?.verbs;
+				            if (Array.isArray(verbs) && verbs.length) return verbs.map((v) => safeText(v).toLowerCase()).filter(Boolean).slice(0, 30);
+				          } catch (e) { /* ignore */ }
+				          return ['pasa', 'juega', 'filtra', 'asiste', 'descarga', 'cambia'];
+				        })();
+				        const passVerbRx = passVerbs.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+				        const pass = low.match(new RegExp(`\\b(\\d{1,2})\\b.*\\b(${passVerbRx})\\b.*\\b(a|al|para)\\s+(\\d{1,2})\\b`));
 				        if (pass) {
 				          const to = pass[4];
 				          pushMove('ball', 0, 0, { target_selector: to, mode: 'follow' });
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 1b) Pase a zona: "balón a zona 14" / "pase atrás"
+				      try {
+				        if (low.includes('balon') || low.includes('balón') || low.includes('pase')) {
+				          const anchor = resolvePitchAnchorPct(low);
+				          if (anchor && (low.includes('pase atras') || low.includes('pase atrás') || low.includes('cutback') || low.includes('zona 14') || low.includes('primer palo') || low.includes('segundo palo'))) {
+				            pushMove('ball', anchor.x_pct, anchor.y_pct);
+				          }
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 1c) Centro: "6 centra al segundo palo" -> mueve balón a zona.
+				      try {
+				        const crossVerbs = (() => {
+				          try {
+				            const verbs = coachDictionary?.intents?.cross?.verbs;
+				            if (Array.isArray(verbs) && verbs.length) return verbs.map((v) => safeText(v).toLowerCase()).filter(Boolean).slice(0, 20);
+				          } catch (e) { /* ignore */ }
+				          return ['centra', 'pone', 'cuelga'];
+				        })();
+				        const crossVerbRx = crossVerbs.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+				        const cross = low.match(new RegExp(`\\b(\\d{1,2})\\b.*\\b(${crossVerbRx})\\b.*\\b(a|al|hacia)\\s+(.+)$`));
+				        if (cross) {
+				          const zonePhrase = cross[4] || '';
+				          const anchor = resolvePitchAnchorPct(zonePhrase);
+				          if (anchor) pushMove('ball', anchor.x_pct, anchor.y_pct);
 				        }
 				      } catch (e) { /* ignore */ }
 
@@ -8654,6 +8724,47 @@
 				          const zonePhrase = mv[4] || '';
 				          const anchor = resolvePitchAnchorPct(zonePhrase);
 				          if (anchor) pushMove(who, anchor.x_pct, anchor.y_pct);
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 2b) Conducción: "6 conduce a zona 14" -> mueve jugador + balón siguiendo al jugador.
+				      try {
+				        const carryVerbs = (() => {
+				          try {
+				            const verbs = coachDictionary?.intents?.carry?.verbs;
+				            if (Array.isArray(verbs) && verbs.length) return verbs.map((v) => safeText(v).toLowerCase()).filter(Boolean).slice(0, 20);
+				          } catch (e) { /* ignore */ }
+				          return ['conduce', 'avanza', 'progresa'];
+				        })();
+				        const carryVerbRx = carryVerbs.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+				        const carry = low.match(new RegExp(`\\b(\\d{1,2})\\b.*\\b(${carryVerbRx})\\b.*\\b(a|hacia)\\s+(.+)$`));
+				        if (carry) {
+				          const who = carry[1];
+				          const zonePhrase = carry[4] || '';
+				          const anchor = resolvePitchAnchorPct(zonePhrase);
+				          if (anchor) {
+				            pushMove(who, anchor.x_pct, anchor.y_pct);
+				            pushMove('ball', 0, 0, { target_selector: who, mode: 'follow' });
+				          }
+				        }
+				      } catch (e) { /* ignore */ }
+
+				      // 3) Presión: "9 presiona a 4" -> acerca 9 a la posición del 4 (v1).
+				      try {
+				        const pressVerbs = (() => {
+				          try {
+				            const verbs = coachDictionary?.intents?.press?.verbs;
+				            if (Array.isArray(verbs) && verbs.length) return verbs.map((v) => safeText(v).toLowerCase()).filter(Boolean).slice(0, 20);
+				          } catch (e) { /* ignore */ }
+				          return ['presiona', 'salta', 'aprieta'];
+				        })();
+				        const pressVerbRx = pressVerbs.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+				        const press = low.match(new RegExp(`\\b(\\d{1,2})\\b.*\\b(${pressVerbRx})\\b.*\\b(a|al|sobre)\\s+(\\d{1,2})\\b`));
+				        if (press) {
+				          const who = press[1];
+				          const target = press[4];
+				          // Usamos el modo follow con un pequeño offset hacia "delante" para simular acoso.
+				          pushMove(who, 0, 0, { target_selector: target, mode: 'follow_offset', offset_x_pct: -4 });
 				        }
 				      } catch (e) { /* ignore */ }
 
@@ -8683,13 +8794,17 @@
 				        let xPct = clamp(Number(move?.x_pct) || 0, 0, 100);
 				        let yPct = clamp(Number(move?.y_pct) || 0, 0, 100);
 				        const targetSelector = safeText(move?.target_selector);
-				        if (mode === 'follow' && targetSelector) {
+				        if ((mode === 'follow' || mode === 'follow_offset') && targetSelector) {
 				          const dest = findObjectForSelector(targetSelector);
 				          if (dest) {
 				            const dx = Number(dest.left) || 0;
 				            const dy = Number(dest.top) || 0;
 				            xPct = clamp((dx / width) * 100, 0, 100);
 				            yPct = clamp((dy / height) * 100, 0, 100);
+				            if (mode === 'follow_offset') {
+				              xPct = clamp(xPct + (Number(move?.offset_x_pct) || 0), 0, 100);
+				              yPct = clamp(yPct + (Number(move?.offset_y_pct) || 0), 0, 100);
+				            }
 				          }
 				        }
 				        const x = (width * xPct) / 100;
