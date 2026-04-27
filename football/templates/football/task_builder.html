@@ -8905,6 +8905,7 @@
                 const statusEl = document.getElementById('task-builder-status');
                 if (statusEl) statusEl.textContent = 'Error al inicializar la pizarra. Se activó modo seguro.';
               } catch (err) { /* ignore */ }
+              try { window.alert('Error al inicializar la pizarra. Envía una captura del mensaje rojo superior para diagnosticar.'); } catch (err) { /* ignore */ }
             }
             try { initTaskAssistant(); } catch (e) { /* ignore */ }
 
