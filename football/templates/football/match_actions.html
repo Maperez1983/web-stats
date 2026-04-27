@@ -2638,15 +2638,15 @@
           </div>
           <section class="live-stats-hud is-collapsed" id="live-stats-hud" aria-live="polite">
             <header class="live-stats-hud-header">
-              <h4 class="live-stats-hud-title">Stats en vivo</h4>
+              <h4 class="live-stats-hud-title" title="Indicadores aproximados basados en acciones registradas (no es tracking ni posesión real).">Stats en vivo</h4>
               <button type="button" class="live-stats-hud-toggle" id="live-stats-toggle">Mostrar</button>
             </header>
             <div class="live-stats-hud-body">
               <div class="live-stats-chips">
                 <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
-                <article class="live-stats-chip"><span>Posesión aprox</span><strong id="live-stat-possession">50%</strong></article>
-                <article class="live-stats-chip"><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
-                <article class="live-stats-chip"><span>Últ. 5'</span><strong id="live-stat-pace5">0.0/min</strong></article>
+                <article class="live-stats-chip" title="Estimación por proporción de pases sobre acciones registradas (capada 35–75)."><span>Posesión aprox</span><strong id="live-stat-possession">50%</strong></article>
+                <article class="live-stats-chip" title="Acciones registradas / minuto (según cronómetro del registro)."><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
+                <article class="live-stats-chip" title="Acciones registradas en los últimos 5 minutos / 5."><span>Últ. 5'</span><strong id="live-stat-pace5">0.0/min</strong></article>
                 <article class="live-stats-chip"><span>Tiros</span><strong id="live-stat-shots">0</strong></article>
                 <article class="live-stats-chip"><span>A puerta</span><strong id="live-stat-shots-target">0</strong></article>
                 <article class="live-stats-chip"><span>Pases</span><strong id="live-stat-passes">0</strong></article>
@@ -2658,7 +2658,7 @@
               <div class="live-stats-details">
                 <span>Sustituciones: <strong id="live-stat-subs">0</strong></span>
                 <span>Atajo teclado: <strong>S</strong> para mostrar/ocultar</span>
-                <span>Territorios: <strong id="live-stat-tercios">D 0 · M 0 · A 0</strong></span>
+                <span title="Recuento de acciones por tercio inferido desde la etiqueta de zona (Defensa/Medio/Ataque).">Territorios: <strong id="live-stat-tercios">D 0 · M 0 · A 0</strong></span>
                 <span>Alertas: <strong id="live-stat-alerts">—</strong></span>
               </div>
             </div>
