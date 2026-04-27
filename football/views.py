@@ -39812,22 +39812,49 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         except Exception:
             team_played_matches = 0
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
-    max_decisive_actions_per90 = 0.0
+    # Max del equipo para normalizar "Influencia".
+    # Ojo: si incluimos jugadores con minutos residuales (ej. 3' + 1 acción decisiva),
+    # el máximo se dispara y aplana la influencia del resto. Por eso aplicamos un umbral
+    # mínimo de minutos cuando ya hay suficientes partidos jugados.
+    try:
+        min_minutes_for_influence_norm = 1
+        if team_played_matches >= 3:
+            min_minutes_for_influence_norm = max(1, int(match_regulation_minutes or 90))
+        elif team_played_matches >= 2:
+            min_minutes_for_influence_norm = max(1, int((match_regulation_minutes or 90) * 0.5))
+        else:
+            min_minutes_for_influence_norm = max(1, int((match_regulation_minutes or 90) * 0.25))
+    except Exception:
+        min_minutes_for_influence_norm = 1
+
+    candidates_for_influence = []
     for stats in player_stats.values():
         minutes_value = int(stats.get('minutes', 0) or 0)
-        successes_value = int(stats.get('successes', 0) or 0)
         if minutes_value <= 0:
             continue
+        successes_value = int(stats.get('successes', 0) or 0)
         decisive_actions = (
             successes_value
             + (int(stats.get('goals', 0) or 0) * 6)
             + (int(stats.get('assists', 0) or 0) * 4)
             + (int(stats.get('key_passes_completed', 0) or 0) * 2)
         )
+        candidates_for_influence.append((minutes_value, decisive_actions))
+
+    max_decisive_actions_per90 = 0.0
+    for minutes_value, decisive_actions in candidates_for_influence:
+        if minutes_value < min_minutes_for_influence_norm:
+            continue
         max_decisive_actions_per90 = max(
             max_decisive_actions_per90,
             round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
         )
+    if max_decisive_actions_per90 <= 0 and candidates_for_influence:
+        for minutes_value, decisive_actions in candidates_for_influence:
+            max_decisive_actions_per90 = max(
+                max_decisive_actions_per90,
+                round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
+            )
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
