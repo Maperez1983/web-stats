@@ -1,5 +1,5 @@
 {
-  "v": 1,
+  "v": 2,
   "lang": "es",
   "source": "UEFA (marco) + metodología aplicada",
   "zones": {
@@ -53,7 +53,157 @@
       "label": "Presión",
       "verbs": ["presiona", "salta", "encima", "aprieta"],
       "objects": ["a", "al", "sobre"]
+    },
+    "shoot": {
+      "label": "Tiro",
+      "verbs": ["tira", "remata", "chuta", "dispara", "finaliza"],
+      "objects": ["a", "hacia"]
+    },
+    "recover": {
+      "label": "Recuperación",
+      "verbs": ["recupera", "roba", "intercepta", "gana", "anticipa"],
+      "objects": ["a", "al", "sobre"]
     }
+  },
+  "agebands": {
+    "u8": {
+      "label": "Prebenjamín/Benjamín (4–8) · iniciación",
+      "age_range": [4, 8],
+      "categories": ["Prebenjamín", "Benjamín"],
+      "formats": ["3v3", "4v4", "5v5"],
+      "keywords": ["u8", "prebenjamin", "pre-benjamin", "benjamin", "iniciacion", "futbol base", "grassroots"],
+      "style": { "macro_steps_max": 2, "overlays": "big", "language": "simple", "rules_max": 2 },
+      "coaching_points": [
+        "1 consigna clave por bloque (máximo 2). Demostración corta y a jugar.",
+        "Muchos contactos: conducir, orientar, pasar corto y finalizar cerca.",
+        "Rotaciones rápidas (60–120s) para mantener intensidad y atención.",
+        "Refuerzo positivo: corregir con palabras simples + ejemplo (no charlas largas)."
+      ],
+      "task_design": {
+        "touches": "libre",
+        "space_hint": "pequeño-medio, referencias claras (conos/zonas)",
+        "rest_hint": "descansos cortos y frecuentes",
+        "constraints": ["dirección clara", "puntos extra por conducción/1v1", "porterías pequeñas"]
+      }
+    },
+    "u12": {
+      "label": "Alevín (8–12) · formación",
+      "age_range": [8, 12],
+      "categories": ["Alevín"],
+      "formats": ["5v5", "7v7", "8v8"],
+      "keywords": ["u12", "alevin", "formacion", "tecnificacion", "futbol base"],
+      "style": { "macro_steps_max": 3, "overlays": "medium", "language": "simple", "rules_max": 3 },
+      "coaching_points": [
+        "Técnica aplicada: perfil corporal, primer control y pase al pie fuerte/débil.",
+        "Principios básicos: amplitud/profundidad y apoyos en triángulo.",
+        "Reglas con propósito (no muchas): orientar el juego a un foco (carril, zona, lado débil).",
+        "Cierre con 1 pregunta: ¿qué buscamos? (auto-descubrimiento guiado)."
+      ],
+      "task_design": {
+        "touches": "2–3 toques (según nivel) o libre con bonus por 1 toque",
+        "space_hint": "medio, con zonas para dar contexto (carriles/tercios)",
+        "rest_hint": "descanso activo breve + feedback rápido",
+        "constraints": ["mínimo pases", "marcar tras cambio de orientación", "comodín interior (si hace falta)"]
+      }
+    },
+    "u15": {
+      "label": "Infantil (12–15) · rendimiento",
+      "age_range": [12, 15],
+      "categories": ["Infantil"],
+      "formats": ["8v8", "9v9", "11v11"],
+      "keywords": ["u15", "infantil", "rendimiento", "competicion", "competición", "desarrollo"],
+      "style": { "macro_steps_max": 3, "overlays": "medium", "language": "standard", "rules_max": 4 },
+      "coaching_points": [
+        "Decisión bajo presión: escanear antes de recibir, orientar control y jugar con ventaja.",
+        "Gestión de distancias (compacto) y vigilancias en ataque (rest-defense).",
+        "En transiciones: primer segundo = frenar/asegurar; después verticalidad si hay ventaja.",
+        "Coaching por preguntas + objetivos medibles (robos, progresiones, finalizaciones)."
+      ],
+      "task_design": {
+        "touches": "2 toques en zonas de presión / libre en zonas de ventaja",
+        "space_hint": "medio-grande, para sostener intensidades y lectura táctica",
+        "rest_hint": "bloques 2–4 min, descansos 1–2 min",
+        "constraints": ["puntuación por progresar línea", "ventana transición 6–8s", "pérdida = contra-press 5s"]
+      }
+    },
+    "u19": {
+      "label": "Cadete/Juvenil/Sénior (16+) · competición",
+      "age_range": [16, 99],
+      "categories": ["Cadete", "Juvenil", "Sénior"],
+      "formats": ["11v11"],
+      "keywords": ["u19", "cadete", "juvenil", "senior", "sénior", "competicion", "competición"],
+      "style": { "macro_steps_max": 4, "overlays": "precise", "language": "standard", "rules_max": 5 },
+      "coaching_points": [
+        "Ejecución a intensidad: velocidad de balón y tiempos de desmarque.",
+        "Micro-objetivos: atraer/fijar, identificar hombre libre, atacar lado débil.",
+        "Sin balón: sincronizar saltos + coberturas + cierre de pase atrás (triggers).",
+        "Detalles: perfilado, orientaciones, temporización y comunicación constante."
+      ],
+      "task_design": {
+        "touches": "según objetivo (1–2 toques en superioridad, libre en finalización)",
+        "space_hint": "medio-grande, similar al contexto competitivo",
+        "rest_hint": "bloques 3–5 min, descansos 1–2 min",
+        "constraints": ["roles claros", "marcadores reales", "condicionantes por fase (press/posicional)"]
+      }
+    }
+  },
+  "game_phases": {
+    "attack_organization": {
+      "label": "Organización ofensiva",
+      "keywords": ["organizacion ofensiva", "ataque posicional", "construccion", "progresion", "finalizacion", "juego de posicion", "juego de posición"]
+    },
+    "build_up": { "label": "Salida de balón", "keywords": ["salida", "build up", "build-up", "iniciar", "primer pase", "primer tercio"], "parent": "attack_organization" },
+    "progression": { "label": "Progresión (superar líneas)", "keywords": ["progresion", "progresión", "superar lineas", "superar líneas", "entre lineas", "entre líneas", "tercio medio"], "parent": "attack_organization" },
+    "final_third": { "label": "Último tercio", "keywords": ["ultimo tercio", "último tercio", "zona 14", "centro", "finalizacion", "finalización"], "parent": "attack_organization" },
+    "defense_organization": {
+      "label": "Organización defensiva",
+      "keywords": ["organizacion defensiva", "bloque", "presion", "presión", "repliegue", "basculacion", "basculación", "compactar", "coberturas"]
+    },
+    "pressing": { "label": "Presión organizada", "keywords": ["presion alta", "presión alta", "salto", "trigger", "triggers", "orientar a banda"], "parent": "defense_organization" },
+    "defending": { "label": "Defensa en bloque", "keywords": ["bloque medio", "bloque bajo", "repliegue", "cerrar dentro", "temporizar"], "parent": "defense_organization" },
+    "counterpress": { "label": "Presión tras pérdida", "keywords": ["presion tras perdida", "presión tras pérdida", "contrapresion", "contrapresión", "5 segundos"], "parent": "transition_atd" },
+    "transition_atd": { "label": "Transición ataque→defensa", "keywords": ["tras perdida", "transicion ataque defensa", "transición ataque defensa", "reaccion", "delay"] },
+    "transition_dta": { "label": "Transición defensa→ataque", "keywords": ["tras recuperacion", "tras recuperación", "transicion defensa ataque", "contraataque", "primer pase", "atacar espacio"] },
+    "set_pieces": { "label": "ABP (balón parado)", "keywords": ["abp", "balon parado", "balón parado", "córner", "corner", "falta", "saque de banda"] },
+    "corner_attack": { "label": "Córner ofensivo", "keywords": ["corner ofensivo", "córner ofensivo", "saque de esquina ataque"], "parent": "set_pieces" },
+    "corner_defend": { "label": "Córner defensivo", "keywords": ["corner defensivo", "córner defensivo", "defender corner"], "parent": "set_pieces" },
+    "throw_in": { "label": "Saque de banda", "keywords": ["saque de banda", "banda", "throw in", "throw-in"], "parent": "set_pieces" }
+  },
+  "structures": {
+    "4-3-3": { "label": "4-3-3", "keywords": ["433", "4-3-3"], "notes": ["Amplitud alta con extremos + escalonamiento interior (8/10)."] },
+    "4-2-3-1": { "label": "4-2-3-1", "keywords": ["4231", "4-2-3-1"], "notes": ["Doble pivote para salida/seguridad; mediapunta entre líneas."] },
+    "4-4-2": { "label": "4-4-2", "keywords": ["442", "4-4-2"], "notes": ["Plano o rombo; define alturas de banda/interiores."] },
+    "4-4-2_diamond": { "label": "4-4-2 · rombo", "keywords": ["4-4-2 rombo", "442 rombo", "rombo 442", "diamante 442"], "notes": ["Superioridad interior; amplitud por laterales."] },
+    "4-1-4-1": { "label": "4-1-4-1", "keywords": ["4141", "4-1-4-1"], "notes": ["MCD fija equilibrio; presión con 2ª línea (4)."] },
+    "3-5-2": { "label": "3-5-2", "keywords": ["352", "3-5-2"], "notes": ["Carrileros dan amplitud; vigilancias a espaldas."] },
+    "3-4-3": { "label": "3-4-3", "keywords": ["343", "3-4-3"], "notes": ["Salida 3; extremos fijan; atención a transiciones."] },
+    "5-3-2": { "label": "5-3-2", "keywords": ["532", "5-3-2"], "notes": ["Bloque bajo/medio; salidas por carrileros o punta."] },
+    "rombo": { "label": "Rombo", "keywords": ["rombo", "diamante"], "notes": ["Estructura interior (4 jugadores): triángulos/ángulos constantes."] }
+  },
+  "roles": {
+    "gk": { "label": "Portero", "keywords": ["gk", "portero", "porter@", "goalkeeper"] },
+    "cb": { "label": "Central", "keywords": ["central", "centrales", "cb", "stoper", "stoperes", "defensa central"] },
+    "fb": { "label": "Lateral", "keywords": ["lateral", "lb", "rb", "ld", "li"] },
+    "wb": { "label": "Carrilero", "keywords": ["carrilero", "wingback", "wb"] },
+    "dm": { "label": "Pivote / MCD", "keywords": ["pivote", "mcd", "6", "mediocentro defensivo"] },
+    "cm": { "label": "Interior / MC", "keywords": ["interior", "mc", "8", "mediocentro"] },
+    "am": { "label": "Mediapunta", "keywords": ["mediapunta", "mp", "10", "enganche"] },
+    "w": { "label": "Extremo", "keywords": ["extremo", "winger", "bandas", "rw", "lw"] },
+    "st": { "label": "Delantero / 9", "keywords": ["delantero", "punta", "9", "ariete"] }
+  },
+  "constraints": {
+    "touch_limit": { "label": "Límite de toques", "keywords": ["toques", "1 toque", "2 toques", "3 toques", "a 2 toques"] },
+    "directional": { "label": "Direccional", "keywords": ["direccional", "atacar", "defender", "porterias", "porterías"] },
+    "zonal_scoring": { "label": "Puntuación por zona", "keywords": ["zona", "zona 14", "entre lineas", "entre líneas", "carriles"] },
+    "transition_window": { "label": "Ventana de transición", "keywords": ["ventana", "6 segundos", "8 segundos", "transicion", "transición"] },
+    "overload": { "label": "Superioridad numérica", "keywords": ["superioridad", "comodin", "comodín", "3v2", "4v3", "2v1"] }
+  },
+  "figures": {
+    "wall_pass": { "label": "Pared (1-2)", "keywords": ["pared", "uno-dos", "1-2", "pared y ruptura", "apoyo y ruptura"] },
+    "overlap": { "label": "Solapamiento (overlap)", "keywords": ["solapamiento", "overlap", "doblar por fuera", "pasa y va"] },
+    "underlap": { "label": "Subida interior (underlap)", "keywords": ["underlap", "doblar por dentro", "subida interior"] },
+    "cutback": { "label": "Pase atrás (cutback)", "keywords": ["pase atras", "pase atrás", "cutback", "línea de fondo", "linea de fondo"] },
+    "overload_isolate": { "label": "Atraer y aislar (overload-to-isolate)", "keywords": ["sobrecargar", "atraer", "aislar", "lado fuerte", "lado debil", "lado débil"] }
   },
   "principles": {
     "width_depth": {
@@ -84,14 +234,13 @@
       "keywords": [
         "tercer hombre",
         "3er hombre",
-        "third man",
-        "apoyo de cara",
-        "descarga",
-        "pared",
-        "de cara",
-        "de primeras",
-        "hombre libre",
-        "fijar y soltar"
+	        "third man",
+	        "apoyo de cara",
+	        "descarga",
+	        "de cara",
+	        "de primeras",
+	        "hombre libre",
+	        "fijar y soltar"
       ],
       "coaching_points": [
         "1º fija (atrae), 2º apoya de cara, 3º ataca el espacio libre.",

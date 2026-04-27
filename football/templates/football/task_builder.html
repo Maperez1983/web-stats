@@ -6221,16 +6221,57 @@
 				              if (h.includes('<ul')) return h;
 				              return `<ul><li>${h}</li></ul>`;
 				            };
-				            const appendBullets = (html, bullets) => {
-				              const items = (Array.isArray(bullets) ? bullets : []).map((b) => String(b || '').trim()).filter(Boolean);
-				              if (!items.length) return html;
-				              const base = ensureListHtml(html);
-				              const extra = items.map((b) => `<li>${b}</li>`).join('');
-				              return base.replace('</ul>', `${extra}</ul>`);
-				            };
+					            const appendBullets = (html, bullets) => {
+					              const items = (Array.isArray(bullets) ? bullets : []).map((b) => String(b || '').trim()).filter(Boolean);
+					              if (!items.length) return html;
+					              const base = ensureListHtml(html);
+					              const extra = items.map((b) => `<li>${b}</li>`).join('');
+					              return base.replace('</ul>', `${extra}</ul>`);
+					            };
+					            const escapeHtmlLite = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+					              '&': '&amp;',
+					              '<': '&lt;',
+					              '>': '&gt;',
+					              '"': '&quot;',
+					              "'": '&#39;',
+					            }[ch] || ch));
+					            const scaleDimensions = (dimensionsRaw, factor) => {
+					              const raw = String(dimensionsRaw || '').trim();
+					              if (!raw) return raw;
+					              const f = Number(factor);
+					              if (!Number.isFinite(f) || f < 0.5 || f > 1.6) return raw;
+					              const match = raw.match(/\b(\d{2,3})\s*x\s*(\d{2,3})\b/i);
+					              if (!match) return raw;
+					              const w = Math.max(10, Math.round((Number(match[1]) || 0) * f));
+					              const h = Math.max(10, Math.round((Number(match[2]) || 0) * f));
+					              return raw.replace(match[0], `${w}x${h}`);
+					            };
+					            const applyAgebandHints = (tpl, opts = {}) => {
+					              if (!tpl || typeof tpl !== 'object') return tpl;
+					              const next = { ...tpl };
+					              const ageKey = String(opts.age || age || '').trim();
+					              const spec = coachDictionary?.agebands?.[ageKey] || null;
+					              if (!spec) return next;
+					              const label = String(spec?.label || '').trim();
+					              const coachingPoints = Array.isArray(spec?.coaching_points) ? spec.coaching_points : [];
+					              const constraints = Array.isArray(spec?.task_design?.constraints) ? spec.task_design.constraints : [];
+					              const alreadyTagged = String(next.coaching_html || '').includes('Etapa:');
+					              if (!alreadyTagged && label) {
+					                next.coaching_html = appendBullets(next.coaching_html, [`Etapa: ${escapeHtmlLite(label)}`]);
+					              }
+					              if (coachingPoints.length) {
+					                next.coaching_html = appendBullets(next.coaching_html, coachingPoints.slice(0, 2).map((p) => escapeHtmlLite(p)));
+					              }
+					              if (constraints.length) {
+					                next.rules_html = appendBullets(next.rules_html, constraints.slice(0, 2).map((p) => escapeHtmlLite(p)));
+					              }
+					              const factor = ageKey === 'u8' ? 0.82 : (ageKey === 'u12' ? 0.92 : (ageKey === 'u19' ? 1.08 : 1.0));
+					              next.dimensions = scaleDimensions(next.dimensions, factor);
+					              return next;
+					            };
 
-				            // Ajustes por sub-fase (opcional): enfoca la tarea sin cambiar la estructura base.
-				            const SUBPHASE_PRESETS = {
+					            // Ajustes por sub-fase (opcional): enfoca la tarea sin cambiar la estructura base.
+					            const SUBPHASE_PRESETS = {
 				              warmup: {
 				                no_ball: {
 				                  title_suffix: 'sin balón',
@@ -6857,18 +6898,18 @@
 				              pickBase.dimensions = pickBase.dimensions || '25x20 m';
 				            }
 				            // Añade una pista de material si el usuario la ha escrito.
-				            if (materialsHint) {
-				              try {
-				                if (pickBase) {
-				                  pickBase.materials = pickBase.materials ? `${pickBase.materials} · ${materialsHint}` : materialsHint;
-				                }
-				              } catch (e) { /* ignore */ }
-				            }
-				            const pickWithSubphase = applySubphase((pickBase || pick), goal, smartSubphase);
-					            const cooldown = {
-					              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
-					              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
-					              minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.8))),
+					            if (materialsHint) {
+					              try {
+					                if (pickBase) {
+					                  pickBase.materials = pickBase.materials ? `${pickBase.materials} · ${materialsHint}` : materialsHint;
+					                }
+					              } catch (e) { /* ignore */ }
+					            }
+					            const pickWithSubphase = applyAgebandHints(applySubphase((pickBase || pick), goal, smartSubphase));
+						            const cooldown = {
+						              title: `Vuelta a la calma · movilidad + respiración (${levelLabel})`,
+						              objective: 'Bajar pulsaciones, recuperar movilidad y cerrar con feedback breve.',
+						              minutes: Math.max(6, Math.min(12, Math.round(minutes * 0.8))),
 				              block: 'recovery',
 				              player_count: 'Todo el equipo',
 				              dimensions: 'Zona central',
@@ -6887,9 +6928,10 @@
 				                  <li>Cierra con 1 idea: qué se hizo bien y qué mejorar.</li>
 				                </ul>
 				              `,
-					              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
-					              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
-					            };
+						              rules_html: '<ul><li>Sin competición. Prioriza recuperación.</li></ul>',
+						              board: { items: [{ payload: { kind: 'text' }, x: 0.50, y: 0.50 }] },
+						            };
+						            const cooldownTpl = applyAgebandHints(cooldown);
 
 					            const buildExternalKnowledgeCandidates = () => {
 					              // Usamos recursos públicos como inspiración y enlazamos a la fuente.
@@ -7735,13 +7777,13 @@
 						                    : `<ul>${line}</ul>${ensureListHtml(next.coaching_html || '')}`;
 						                }
 						              }
-						              if (materialsHint) {
-						                next.materials = String(next.materials || '').trim()
-						                  ? String(next.materials || '').trim()
-						                  : materialsHint;
-						              }
-						              return next;
-						            };
+							              if (materialsHint) {
+							                next.materials = String(next.materials || '').trim()
+							                  ? String(next.materials || '').trim()
+							                  : materialsHint;
+							              }
+							              return applyAgebandHints(next);
+							            };
 						            const scoredCandidates = catalog
 						              .filter((item) => {
 						                if (!item?.tpl) return false;
@@ -7845,14 +7887,14 @@
 
 					            const best = suggestions[0]?.tpl || applyPromptToTpl(pickWithSubphase);
 
-				            return {
-				              smart_generate: best,
-				              smart_suggestions: suggestions,
-				              smart_block_1: warmup,
-				              smart_block_2: best,
-			              smart_block_3: cooldown,
-			            };
-			          };
+					            return {
+					              smart_generate: applyAgebandHints(best),
+					              smart_suggestions: (Array.isArray(suggestions) ? suggestions : []).map((s) => (s && s.tpl ? ({ ...s, tpl: applyAgebandHints(s.tpl) }) : s)),
+					              smart_block_1: applyAgebandHints(warmup),
+					              smart_block_2: applyAgebandHints(best),
+				              smart_block_3: cooldownTpl,
+				            };
+				          };
 
 				          const buildTemplatesForProgram = (program) => {
 					            const p = String(program || '').trim();

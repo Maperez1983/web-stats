@@ -8829,18 +8829,24 @@
 				      if (line.startsWith('#') || line.startsWith('//')) return null;
 				      // Modo macro (v2): una línea puede expandirse a varios pasos.
 				      // Lo activamos cuando detectamos un principio o una "receta" táctica conocida.
-				      const detectMacro = (textRaw) => {
-				        const normalize = (value) => {
-				          const raw2 = safeText(value).toLowerCase().trim();
-				          if (!raw2) return '';
-				          try { return raw2.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { return raw2; }
-				        };
-				        const text = normalize(textRaw);
-				        if (!text) return null;
-				        // 1) Principio explícito por label/key/keywords del diccionario.
-				        try {
-				          const principles = coachDictionary?.principles;
-				          if (principles && typeof principles === 'object') {
+					      const detectMacro = (textRaw) => {
+					        const normalize = (value) => {
+					          const raw2 = safeText(value).toLowerCase().trim();
+					          if (!raw2) return '';
+					          try { return raw2.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { return raw2; }
+					        };
+					        const text = normalize(textRaw);
+					        if (!text) return null;
+					        // 0) Figuras claras (atajos) para evitar colisiones con principios genéricos.
+					        if (text.includes('pared') || text.includes('uno-dos') || text.includes('1-2')) return { kind: 'figure', key: 'wall_pass' };
+					        if (text.includes('solap') || text.includes('overlap') || text.includes('doblar por fuera')) return { kind: 'figure', key: 'overlap' };
+					        if (text.includes('underlap') || text.includes('doblar por dentro')) return { kind: 'figure', key: 'underlap' };
+					        if (text.includes('cutback') || text.includes('pase atras') || text.includes('pase atrás')) return { kind: 'figure', key: 'cutback' };
+					        if (text.includes('sobrecarg') || text.includes('aislar') || text.includes('overload')) return { kind: 'figure', key: 'overload_isolate' };
+					        // 1) Principio explícito por label/key/keywords del diccionario.
+					        try {
+					          const principles = coachDictionary?.principles;
+					          if (principles && typeof principles === 'object') {
 				            let bestKey = '';
 				            let bestScore = 0;
 				            Object.entries(principles).forEach(([key, spec]) => {
@@ -8859,14 +8865,40 @@
 				                bestKey = String(key);
 				              }
 				            });
-				            if (bestKey && bestScore >= 6) return { kind: 'principle', key: bestKey };
-				          }
-				        } catch (e) { /* ignore */ }
+					            if (bestKey && bestScore >= 6) return { kind: 'principle', key: bestKey };
+					          }
+					        } catch (e) { /* ignore */ }
 
-				        // 2) Atajos textuales.
-				        if (text.includes('tercer hombre') || text.includes('3er hombre')) return { kind: 'principle', key: 'third_man' };
-				        if (text.includes('fijar y soltar')) return { kind: 'principle', key: 'fix_release' };
-				        if (text.includes('cambio de orientacion') || text.includes('cambio de orientación') || text.includes('switch')) return { kind: 'principle', key: 'switch' };
+					        // 1b) Figura por keywords de diccionario (si existe).
+					        try {
+					          const figures = coachDictionary?.figures;
+					          if (figures && typeof figures === 'object') {
+					            let bestKey = '';
+					            let bestScore = 0;
+					            Object.entries(figures).forEach(([key, spec]) => {
+					              if (!key || !spec || typeof spec !== 'object') return;
+					              const label = normalize(spec.label || '');
+					              const kws = Array.isArray(spec.keywords) ? spec.keywords : [];
+					              let score = 0;
+					              if (label && text.includes(label)) score += Math.min(10, label.length / 2);
+					              kws.slice(0, 40).forEach((kw) => {
+					                const needle = normalize(kw);
+					                if (!needle) return;
+					                if (text.includes(needle)) score += Math.min(6, needle.length / 3);
+					              });
+					              if (score > bestScore) {
+					                bestScore = score;
+					                bestKey = String(key);
+					              }
+					            });
+					            if (bestKey && bestScore >= 6) return { kind: 'figure', key: bestKey };
+					          }
+					        } catch (e) { /* ignore */ }
+
+					        // 2) Atajos textuales.
+					        if (text.includes('tercer hombre') || text.includes('3er hombre')) return { kind: 'principle', key: 'third_man' };
+					        if (text.includes('fijar y soltar')) return { kind: 'principle', key: 'fix_release' };
+					        if (text.includes('cambio de orientacion') || text.includes('cambio de orientación') || text.includes('switch')) return { kind: 'principle', key: 'switch' };
 				        if (text.includes('trigger') || text.includes('triggers') || text.includes('señal de presion') || text.includes('senal de presion')) return { kind: 'principle', key: 'press_triggers' };
 				        return null;
 				      };
@@ -8889,14 +8921,14 @@
 				        }
 				      };
 
-				      const macro = detectMacro(line);
-				      if (macro && macro.kind === 'principle') {
-				        const dorsals = extractDorsals(line);
-				        const titleBase = safeText(line, 'Jugada').slice(0, 120);
-				        const durMatch = line.toLowerCase().match(/dur\s*=\s*(\d{1,2})/i);
-				        const baseDur = clamp(Number.parseInt(durMatch?.[1] || '3', 10) || 3, 1, 20);
-				        const zone = resolvePitchAnchorPct(line) || resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
-				        const steps = [];
+					      const macro = detectMacro(line);
+					      if (macro && (macro.kind === 'principle' || macro.kind === 'figure')) {
+					        const dorsals = extractDorsals(line);
+					        const titleBase = safeText(line, 'Jugada').slice(0, 120);
+					        const durMatch = line.toLowerCase().match(/dur\s*=\s*(\d{1,2})/i);
+					        const baseDur = clamp(Number.parseInt(durMatch?.[1] || '3', 10) || 3, 1, 20);
+					        const zone = resolvePitchAnchorPct(line) || resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
+					        const steps = [];
 
 				        const pushStep = (title, duration, moves) => {
 				          if (!Array.isArray(moves) || !moves.length) return;
@@ -8908,9 +8940,9 @@
 				          if (!who || !anchor) return null;
 				          return { selector: who, x_pct: anchor.x_pct, y_pct: anchor.y_pct, ...opts };
 				        };
-				        const ballFollow = (who) => ({ selector: 'ball', x_pct: 0, y_pct: 0, target_selector: String(who || '').trim(), mode: 'follow' });
+					        const ballFollow = (who) => ({ selector: 'ball', x_pct: 0, y_pct: 0, target_selector: String(who || '').trim(), mode: 'follow' });
 
-				        if (macro.key === 'third_man') {
+					        if (macro.key === 'third_man') {
 				          // Esperado: A (poseedor) -> B (apoyo) -> C (3º hombre). Si faltan dorsales, usamos 6-10-8 por defecto.
 				          const a = dorsals[0] || '6';
 				          const b = dorsals[1] || '10';
@@ -8947,19 +8979,59 @@
 				          if (r) step2Moves.push(mvTo(r, rightAnchor));
 				          step2Moves.push({ selector: 'ball', x_pct: rightAnchor.x_pct, y_pct: rightAnchor.y_pct });
 				          pushStep('Cambio de orientación · atacar lado débil', baseDur, step2Moves.filter(Boolean));
-				        } else if (macro.key === 'press_triggers') {
-				          // Triggers de presión: saltador + cierres. V1: acerca 2 jugadores al balón/objetivo y recoloca el balón como referencia.
-				          const presser = dorsals[0] || '9';
-				          const cover = dorsals[1] || '10';
-				          const lock = dorsals[2] || '6';
+					        } else if (macro.key === 'press_triggers') {
+					          // Triggers de presión: saltador + cierres. V1: acerca 2 jugadores al balón/objetivo y recoloca el balón como referencia.
+					          const presser = dorsals[0] || '9';
+					          const cover = dorsals[1] || '10';
+					          const lock = dorsals[2] || '6';
 				          const ballAnchor = resolvePitchAnchorPct('tercio medio carril central') || { x_pct: 52, y_pct: 50 };
 				          pushStep('Triggers presión · activar', Math.max(2, Math.round(baseDur * 0.8)), [
 				            { selector: 'ball', x_pct: ballAnchor.x_pct, y_pct: ballAnchor.y_pct },
 				            { selector: presser, x_pct: ballAnchor.x_pct - 6, y_pct: ballAnchor.y_pct, mode: 'follow_offset', target_selector: 'ball', offset_x_pct: -4 },
 				            { selector: cover, x_pct: ballAnchor.x_pct - 10, y_pct: ballAnchor.y_pct - 10 },
 				            { selector: lock, x_pct: ballAnchor.x_pct - 12, y_pct: ballAnchor.y_pct + 10 },
-				          ].filter(Boolean));
-				        }
+					          ].filter(Boolean));
+					        } else if (macro.key === 'wall_pass') {
+					          // Pared (1-2): A -> B (apoyo) -> A (devolución) y ruptura.
+					          const a = dorsals[0] || '10';
+					          const b = dorsals[1] || '9';
+					          const supportPos = resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
+					          const breakPos = zone;
+					          pushStep(`Pared · apoyo (${b})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(b, supportPos), ballFollow(b)].filter(Boolean));
+					          pushStep(`Pared · devolución y ruptura (${a})`, baseDur, [ballFollow(a), mvTo(a, breakPos)].filter(Boolean));
+					        } else if (macro.key === 'overlap') {
+					          // Solapamiento: receptor fija por fuera, lateral/carrilero supera por banda.
+					          const wide = dorsals[0] || '7';
+					          const runner = dorsals[1] || '2';
+					          const widePos = resolvePitchAnchorPct(line) || resolvePitchAnchorPct('banda derecha tercio medio') || { x_pct: 60, y_pct: 88 };
+					          const runPos = resolvePitchAnchorPct('a la espalda banda derecha') || { x_pct: 82, y_pct: 88 };
+					          pushStep(`Solapamiento · fijar por fuera (${wide})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(wide, widePos), ballFollow(wide)].filter(Boolean));
+					          pushStep(`Solapamiento · romper por fuera (${runner})`, baseDur, [mvTo(runner, runPos), ballFollow(runner)].filter(Boolean));
+					        } else if (macro.key === 'underlap') {
+					          // Underlap: carrera interior desde banda a medio espacio / área.
+					          const wide = dorsals[0] || '11';
+					          const runner = dorsals[1] || '3';
+					          const widePos = resolvePitchAnchorPct(line) || resolvePitchAnchorPct('banda izquierda tercio medio') || { x_pct: 60, y_pct: 12 };
+					          const runPos = resolvePitchAnchorPct('medio espacio izq ultimo tercio') || resolvePitchAnchorPct('zona 14') || { x_pct: 82, y_pct: 30 };
+					          pushStep(`Underlap · atraer por fuera (${wide})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(wide, widePos), ballFollow(wide)].filter(Boolean));
+					          pushStep(`Underlap · ruptura interior (${runner})`, baseDur, [mvTo(runner, runPos), ballFollow(runner)].filter(Boolean));
+					        } else if (macro.key === 'cutback') {
+					          // Cutback: llegar a línea y pase atrás (zona 14 / punto de penalti).
+					          const carrier = dorsals[0] || '7';
+					          const finisher = dorsals[1] || '9';
+					          const byline = resolvePitchAnchorPct('línea de fondo banda derecha') || resolvePitchAnchorPct('banda derecha último tercio') || { x_pct: 86, y_pct: 88 };
+					          const cutbackPos = resolvePitchAnchorPct('pase atrás') || resolvePitchAnchorPct('zona 14') || { x_pct: 78, y_pct: 50 };
+					          pushStep(`Cutback · llegar a línea (${carrier})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(carrier, byline), ballFollow(carrier)].filter(Boolean));
+					          pushStep(`Cutback · atacar zona remate (${finisher})`, baseDur, [mvTo(finisher, cutbackPos), { selector: 'ball', x_pct: cutbackPos.x_pct, y_pct: cutbackPos.y_pct }].filter(Boolean));
+					        } else if (macro.key === 'overload_isolate') {
+					          // Sobrecargar para aislar: atrae en un lado y ataca el lado débil.
+					          const r = dorsals[0] || '7';
+					          const l = dorsals[1] || '11';
+					          const strong = resolvePitchAnchorPct('banda derecha tercio medio') || { x_pct: 52, y_pct: 88 };
+					          const weak = resolvePitchAnchorPct('banda izquierda último tercio') || { x_pct: 82, y_pct: 12 };
+					          pushStep('Sobrecarga · atraer lado fuerte', Math.max(2, Math.round(baseDur * 0.9)), [mvTo(r, strong), { selector: 'ball', x_pct: strong.x_pct, y_pct: strong.y_pct }].filter(Boolean));
+					          pushStep('Aislar · atacar lado débil', baseDur, [mvTo(l, weak), { selector: 'ball', x_pct: weak.x_pct, y_pct: weak.y_pct }].filter(Boolean));
+					        }
 
 				        if (steps.length) return { steps, macro: true, title: titleBase };
 				      }
