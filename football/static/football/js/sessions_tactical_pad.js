@@ -1654,7 +1654,13 @@
 	      }
 	    };
 
-		    const canvas = new fabric.Canvas(canvasEl, {
+		    const fabricLib = window.fabric;
+		    if (!canvasEl || !fabricLib || typeof fabricLib.Canvas !== 'function') {
+		      try { setStatus('No se pudo cargar el motor de pizarra. Recarga la página (modo seguro).', true); } catch (e) { /* ignore */ }
+		      return;
+		    }
+
+		    const canvas = new fabricLib.Canvas(canvasEl, {
 		      preserveObjectStacking: true,
 		      selection: true,
 		      enableRetinaScaling: true,
@@ -12471,7 +12477,20 @@
 
 		      const sourceWidth = Number.parseInt(String(widthInput?.value || ''), 10) || 0;
 		      const sourceHeight = Number.parseInt(String(heightInput?.value || ''), 10) || 0;
-		      applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
+		      try {
+		        applySerializedState(parsed, { pushHistory: true, sourceWidth, sourceHeight });
+		      } catch (error) {
+		        // iOS/webview: si algún objeto guardado no se puede rehidratar (estado corrupto o
+		        // versión antigua), no podemos dejar la pizarra rota. Caemos a estado vacío.
+		        try {
+		          const safe = { version: '5.3.0', objects: [] };
+		          applySerializedState(safe, { pushHistory: true, sourceWidth, sourceHeight });
+		          setStatus('La pizarra guardada no se pudo cargar. Se abrió en modo seguro (sin objetos).', true);
+		        } catch (err) {
+		          // Último recurso: dejar que el init superior capture el fallo.
+		          throw error;
+		        }
+		      }
 		      schedulePlayerBankUpdate();
 			    };
 
