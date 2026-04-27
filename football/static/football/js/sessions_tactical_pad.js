@@ -8827,6 +8827,143 @@
 				      const line = safeText(raw).trim();
 				      if (!line) return null;
 				      if (line.startsWith('#') || line.startsWith('//')) return null;
+				      // Modo macro (v2): una línea puede expandirse a varios pasos.
+				      // Lo activamos cuando detectamos un principio o una "receta" táctica conocida.
+				      const detectMacro = (textRaw) => {
+				        const normalize = (value) => {
+				          const raw2 = safeText(value).toLowerCase().trim();
+				          if (!raw2) return '';
+				          try { return raw2.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (e) { return raw2; }
+				        };
+				        const text = normalize(textRaw);
+				        if (!text) return null;
+				        // 1) Principio explícito por label/key/keywords del diccionario.
+				        try {
+				          const principles = coachDictionary?.principles;
+				          if (principles && typeof principles === 'object') {
+				            let bestKey = '';
+				            let bestScore = 0;
+				            Object.entries(principles).forEach(([key, spec]) => {
+				              if (!key || !spec || typeof spec !== 'object') return;
+				              const label = normalize(spec.label || '');
+				              const kws = Array.isArray(spec.keywords) ? spec.keywords : [];
+				              let score = 0;
+				              if (label && text.includes(label)) score += Math.min(12, label.length / 2);
+				              kws.slice(0, 40).forEach((kw) => {
+				                const needle = normalize(kw);
+				                if (!needle) return;
+				                if (text.includes(needle)) score += Math.min(6, needle.length / 3);
+				              });
+				              if (score > bestScore) {
+				                bestScore = score;
+				                bestKey = String(key);
+				              }
+				            });
+				            if (bestKey && bestScore >= 6) return { kind: 'principle', key: bestKey };
+				          }
+				        } catch (e) { /* ignore */ }
+
+				        // 2) Atajos textuales.
+				        if (text.includes('tercer hombre') || text.includes('3er hombre')) return { kind: 'principle', key: 'third_man' };
+				        if (text.includes('fijar y soltar')) return { kind: 'principle', key: 'fix_release' };
+				        if (text.includes('cambio de orientacion') || text.includes('cambio de orientación') || text.includes('switch')) return { kind: 'principle', key: 'switch' };
+				        if (text.includes('trigger') || text.includes('triggers') || text.includes('señal de presion') || text.includes('senal de presion')) return { kind: 'principle', key: 'press_triggers' };
+				        return null;
+				      };
+
+				      const extractDorsals = (text) => {
+				        try {
+				          const hits = String(text || '').match(/\b\d{1,2}\b/g) || [];
+				          // Dedup manteniendo orden.
+				          const seen = new Set();
+				          const out = [];
+				          hits.forEach((h) => {
+				            const key = String(h);
+				            if (seen.has(key)) return;
+				            seen.add(key);
+				            out.push(key);
+				          });
+				          return out.slice(0, 10);
+				        } catch (e) {
+				          return [];
+				        }
+				      };
+
+				      const macro = detectMacro(line);
+				      if (macro && macro.kind === 'principle') {
+				        const dorsals = extractDorsals(line);
+				        const titleBase = safeText(line, 'Jugada').slice(0, 120);
+				        const durMatch = line.toLowerCase().match(/dur\s*=\s*(\d{1,2})/i);
+				        const baseDur = clamp(Number.parseInt(durMatch?.[1] || '3', 10) || 3, 1, 20);
+				        const zone = resolvePitchAnchorPct(line) || resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
+				        const steps = [];
+
+				        const pushStep = (title, duration, moves) => {
+				          if (!Array.isArray(moves) || !moves.length) return;
+				          steps.push({ title, duration: clamp(Number(duration) || baseDur, 1, 20), moves });
+				        };
+
+				        // Helpers: move + ball follow.
+				        const mvTo = (who, anchor, opts = {}) => {
+				          if (!who || !anchor) return null;
+				          return { selector: who, x_pct: anchor.x_pct, y_pct: anchor.y_pct, ...opts };
+				        };
+				        const ballFollow = (who) => ({ selector: 'ball', x_pct: 0, y_pct: 0, target_selector: String(who || '').trim(), mode: 'follow' });
+
+				        if (macro.key === 'third_man') {
+				          // Esperado: A (poseedor) -> B (apoyo) -> C (3º hombre). Si faltan dorsales, usamos 6-10-8 por defecto.
+				          const a = dorsals[0] || '6';
+				          const b = dorsals[1] || '10';
+				          const c = dorsals[2] || '8';
+				          const bPos = resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
+				          const cPos = zone;
+				          pushStep(`Tercer hombre · apoyo (${b})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(b, bPos), ballFollow(b)].filter(Boolean));
+				          pushStep(`Tercer hombre · descarga (${b}→${c})`, baseDur, [mvTo(c, cPos), ballFollow(c)].filter(Boolean));
+				          pushStep(`Tercer hombre · atacar ventaja (${c})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(c, resolvePitchAnchorPct('a la espalda') || { x_pct: 86, y_pct: cPos.y_pct }), ballFollow(c)].filter(Boolean));
+				          // Nota: el balón ya sigue al receptor; la intención del pase A->B y B->C se entiende en la secuencia.
+				        } else if (macro.key === 'fix_release') {
+				          // Esperado: A fija (conduce) -> suelta a B -> C ataca espalda.
+				          const a = dorsals[0] || '6';
+				          const b = dorsals[1] || '10';
+				          const c = dorsals[2] || '9';
+				          const fixPos = resolvePitchAnchorPct('entre líneas') || { x_pct: 66, y_pct: 50 };
+				          const supportPos = zone;
+				          const runPos = resolvePitchAnchorPct('a la espalda') || { x_pct: 86, y_pct: supportPos.y_pct };
+				          pushStep(`Fijar y soltar · fijación (${a})`, baseDur, [mvTo(a, fixPos), ballFollow(a)].filter(Boolean));
+				          pushStep(`Fijar y soltar · soltar (${a}→${b})`, Math.max(2, Math.round(baseDur * 0.8)), [mvTo(b, supportPos), ballFollow(b)].filter(Boolean));
+				          pushStep(`Fijar y soltar · ruptura (${c})`, Math.max(2, Math.round(baseDur * 0.9)), [mvTo(c, runPos), ballFollow(c)].filter(Boolean));
+				        } else if (macro.key === 'switch') {
+				          // Cambio de orientación: del lado fuerte al débil.
+				          const leftAnchor = resolvePitchAnchorPct('tercio medio banda izquierda') || { x_pct: 52, y_pct: 12 };
+				          const rightAnchor = resolvePitchAnchorPct('tercio medio banda derecha') || { x_pct: 52, y_pct: 88 };
+				          // Si aporta dorsales, los usamos como receptores.
+				          const l = dorsals[0] || '';
+				          const r = dorsals[1] || '';
+				          const step1Moves = [];
+				          if (l) step1Moves.push(mvTo(l, leftAnchor));
+				          step1Moves.push({ selector: 'ball', x_pct: leftAnchor.x_pct, y_pct: leftAnchor.y_pct });
+				          pushStep('Cambio de orientación · atraer lado fuerte', baseDur, step1Moves.filter(Boolean));
+				          const step2Moves = [];
+				          if (r) step2Moves.push(mvTo(r, rightAnchor));
+				          step2Moves.push({ selector: 'ball', x_pct: rightAnchor.x_pct, y_pct: rightAnchor.y_pct });
+				          pushStep('Cambio de orientación · atacar lado débil', baseDur, step2Moves.filter(Boolean));
+				        } else if (macro.key === 'press_triggers') {
+				          // Triggers de presión: saltador + cierres. V1: acerca 2 jugadores al balón/objetivo y recoloca el balón como referencia.
+				          const presser = dorsals[0] || '9';
+				          const cover = dorsals[1] || '10';
+				          const lock = dorsals[2] || '6';
+				          const ballAnchor = resolvePitchAnchorPct('tercio medio carril central') || { x_pct: 52, y_pct: 50 };
+				          pushStep('Triggers presión · activar', Math.max(2, Math.round(baseDur * 0.8)), [
+				            { selector: 'ball', x_pct: ballAnchor.x_pct, y_pct: ballAnchor.y_pct },
+				            { selector: presser, x_pct: ballAnchor.x_pct - 6, y_pct: ballAnchor.y_pct, mode: 'follow_offset', target_selector: 'ball', offset_x_pct: -4 },
+				            { selector: cover, x_pct: ballAnchor.x_pct - 10, y_pct: ballAnchor.y_pct - 10 },
+				            { selector: lock, x_pct: ballAnchor.x_pct - 12, y_pct: ballAnchor.y_pct + 10 },
+				          ].filter(Boolean));
+				        }
+
+				        if (steps.length) return { steps, macro: true, title: titleBase };
+				      }
+
 				      // Si no parece el formato "selector@x,y", intentamos lenguaje natural (v1).
 				      if (!line.includes('@')) {
 				        const natural = buildMovesFromNatural(line);
@@ -8864,7 +9001,13 @@
 				      const steps = [];
 				      lines.forEach((line) => {
 				        const parsed = parseSimScriptLine(line);
-				        if (parsed) steps.push(parsed);
+				        if (!parsed) return;
+				        if (parsed && typeof parsed === 'object' && Array.isArray(parsed.steps) && parsed.steps.length) {
+				          // Expansión macro: una línea genera varios pasos.
+				          parsed.steps.forEach((s) => { if (s) steps.push(s); });
+				          return;
+				        }
+				        steps.push(parsed);
 				      });
 				      return steps;
 				    };
