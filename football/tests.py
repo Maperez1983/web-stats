@@ -6371,6 +6371,33 @@ class SessionsPlannerTaskAssignTests(TestCase):
         html = response.content.decode('utf-8', errors='ignore')
         self.assertIn(f'data-task-id=\"{copied.id}\"', html)
 
+    def test_assign_task_works_when_context_only_in_post(self):
+        self.client.force_login(self.user)
+        url = reverse('sessions')
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'copy_library_task_to_session',
+                'planner_tab': 'sessions',
+                'library_repo': 'traditional',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'selected_session_id': str(self.session.id),
+                'target_session_id': str(self.session.id),
+                'target_block': SessionTask.BLOCK_ACTIVATION,
+                'replace_existing': '1',
+                'source_task_id': str(self.source_task.id),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        copied = (
+            SessionTask.objects
+            .filter(session=self.session, deleted_at__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+        self.assertIsNotNone(copied)
+
 
 class SessionsPlannerCreateSessionTests(TestCase):
     def setUp(self):

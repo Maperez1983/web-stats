@@ -4248,7 +4248,9 @@ def _get_active_workspace(request):
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
         return None
     available_qs = _available_workspaces_for_user(request.user)
-    workspace_id = _parse_int(request.GET.get('workspace'))
+    # Importante en app/webview: algunos formularios POST no conservan la querystring.
+    # Aceptamos `workspace` también por POST para mantener el contexto.
+    workspace_id = _parse_int(request.GET.get('workspace') or request.POST.get('workspace'))
     if not workspace_id:
         workspace_id = _parse_int(request.session.get('active_workspace_id'))
     if workspace_id:
@@ -4391,7 +4393,8 @@ def _get_active_team_for_request(request):
     if workspace and workspace.kind == Workspace.KIND_CLUB:
         links = _workspace_team_links_for_user(workspace, request.user)
         team_lookup = {int(link.team_id): link.team for link in links if getattr(link, 'team_id', None)}
-        desired_team_id = _parse_int(request.GET.get('team'))
+        # Importante en app/webview: algunos POST pueden llegar sin querystring.
+        desired_team_id = _parse_int(request.GET.get('team') or request.POST.get('team'))
         mapping = request.session.get('active_team_by_workspace') if request and hasattr(request, 'session') else None
         if not desired_team_id and isinstance(mapping, dict):
             desired_team_id = _parse_int(mapping.get(str(workspace.id)) or mapping.get(workspace.id))

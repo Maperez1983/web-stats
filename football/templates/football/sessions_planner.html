@@ -1854,6 +1854,8 @@
 		            {% csrf_token %}
 		            <input type="hidden" name="planner_action" value="move_task_to_block" />
 		            <input type="hidden" name="planner_tab" value="sessions" />
+		            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+		            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
 		            <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		            <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
 		            <input type="hidden" name="task_id" value="" />
@@ -1863,6 +1865,8 @@
 		            {% csrf_token %}
 		            <input type="hidden" name="planner_action" value="delete_session_task" />
 		            <input type="hidden" name="planner_tab" value="sessions" />
+		            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+		            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
 		            <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		            <input type="hidden" name="task_id" value="" />
 		          </form>
@@ -1875,6 +1879,8 @@
 		                <input type="hidden" name="planner_action" value="copy_library_task_to_session" />
 		                <input type="hidden" name="planner_tab" value="sessions" />
 		                <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+		                <input type="hidden" name="team" value="{{ primary_team_id }}" />
+		                {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
 		                <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		                <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
 		                {% if section.block_keys|length == 1 %}
