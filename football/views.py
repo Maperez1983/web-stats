@@ -27119,6 +27119,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         except Exception:
             return HttpResponse('Equipo principal no configurado', status=400)
 
+    active_workspace = None
+    active_workspace_id = None
+    try:
+        active_workspace = _get_active_workspace(request)
+        active_workspace_id = int(getattr(active_workspace, 'id', 0) or 0) or None
+    except Exception:
+        active_workspace = None
+        active_workspace_id = None
+
     feedback = ''
     error = ''
     analysis = None
@@ -28135,65 +28144,129 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if _task_scope_for_item(source_task) != scope_key:
                     raise ValueError('La tarea origen no pertenece a este espacio.')
 
-                # UX: en la vista de sesión (cards por bloque) el usuario "asigna" una tarea al bloque.
-                # Para evitar duplicados (se ve como “aparecen las 2”), permitimos modo reemplazo:
-                # borra (soft-delete) las tareas existentes del mismo bloque antes de clonar.
-                if replace_existing and target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
-                    existing = list(
-                        SessionTask.objects
-                        .select_related('session__microcycle')
-                        .filter(session=target_session, block=target_block, deleted_at__isnull=True)
-                        .order_by('-id')[:40]
-                    )
-                    existing = [item for item in existing if _task_scope_for_item(item) == scope_key]
-                    if existing:
-                        for item in existing:
-                            try:
-                                write_task_backup(
-                                    item,
-                                    kind='session_task',
-                                    reason='replace',
-                                    actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
-                                )
-                            except Exception:
-                                pass
-                            item.deleted_at = timezone.localtime()
-                            item.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
-                            item.save(update_fields=['deleted_at', 'deleted_by'])
-                        _normalize_session_task_orders(target_session)
+                valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+                normalized_target_block = target_block if target_block and target_block in valid_blocks else ''
 
-                copied = _clone_session_task_to_session(
-                    source_task,
-                    target_session,
-                    note=f'Copiada desde biblioteca (tarea #{source_task.id})',
+                def _matches_source_task(existing_task):
+                    if not existing_task:
+                        return False
+                    try:
+                        layout = existing_task.tactical_layout if isinstance(getattr(existing_task, 'tactical_layout', None), dict) else {}
+                        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                        if _parse_int(meta.get('library_source_task_id')) == int(source_task.id):
+                            return True
+                    except Exception:
+                        pass
+                    notes = str(getattr(existing_task, 'notes', '') or '')
+                    if f'tarea #{int(source_task.id)}' in notes:
+                        return True
+                    # Fallback defensivo: si el usuario asigna la misma tarea varias veces, evitamos duplicados por título.
+                    try:
+                        if str(existing_task.title or '').strip().casefold() == str(source_task.title or '').strip().casefold():
+                            return True
+                    except Exception:
+                        pass
+                    return False
+
+                # Idempotencia: si esta tarea ya está asignada a la sesión (y al bloque si se indicó),
+                # no clonamos otra vez (evita “me duplica tareas” y mantiene el historial estable).
+                existing_qs = (
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(session=target_session, deleted_at__isnull=True)
+                    .order_by('-id')[:120]
                 )
-                if target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
-                    copied.block = target_block
-                    copied.save(update_fields=['block'])
-                # Importante: la vista de sesión filtra por "Clásicas/Interactivas" usando
-                # `meta.repository` (si existe). Si copiamos una tarea con meta de repo distinto,
-                # puede quedar oculta en la misma pantalla tras "Asignar".
-                # Forzamos el repo al tab actual para que el usuario la vea inmediatamente.
-                try:
-                    repo_for_copy = _normalize_library_repository(
-                        request.POST.get('library_repo') or library_repository,
-                        fallback=LIBRARY_REPOSITORY_TRADITIONAL,
+                if normalized_target_block:
+                    existing_qs = existing_qs.filter(block=normalized_target_block)
+                existing_items = [item for item in list(existing_qs) if _task_scope_for_item(item) == scope_key]
+                already_assigned = next((item for item in existing_items if _matches_source_task(item)), None)
+                if already_assigned:
+                    # Si se especificó un bloque, asegúrate de que queda donde el usuario lo esperaba.
+                    if normalized_target_block and already_assigned.block != normalized_target_block:
+                        already_assigned.block = normalized_target_block
+                        already_assigned.save(update_fields=['block'])
+                        _normalize_session_task_orders(target_session)
+                    # Mantener repo consistente con el tab actual (para que no “desaparezca” tras asignar).
+                    try:
+                        repo_for_copy = _normalize_library_repository(
+                            request.POST.get('library_repo') or library_repository,
+                            fallback=LIBRARY_REPOSITORY_TRADITIONAL,
+                        )
+                        layout = already_assigned.tactical_layout if isinstance(getattr(already_assigned, 'tactical_layout', None), dict) else {}
+                        layout = dict(layout)
+                        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                        meta = dict(meta)
+                        meta['repository'] = repo_for_copy
+                        meta['library_source_task_id'] = int(source_task.id)
+                        layout['meta'] = meta
+                        already_assigned.tactical_layout = layout
+                        already_assigned.save(update_fields=['tactical_layout'])
+                    except Exception:
+                        pass
+                    feedback = f'La tarea ya estaba asignada a esta sesión: {already_assigned.title}.'
+                    active_tab = 'sessions'
+                    auto_selected_session_id = int(getattr(target_session, 'id', 0) or 0) or None
+                else:
+                    # UX: en la vista de sesión (cards por bloque) el usuario "asigna" una tarea al bloque.
+                    # Para evitar duplicados (se ve como “aparecen las 2”), permitimos modo reemplazo:
+                    # borra (soft-delete) las tareas existentes del mismo bloque antes de clonar.
+                    if replace_existing and normalized_target_block:
+                        existing = list(
+                            SessionTask.objects
+                            .select_related('session__microcycle')
+                            .filter(session=target_session, block=normalized_target_block, deleted_at__isnull=True)
+                            .order_by('-id')[:40]
+                        )
+                        existing = [item for item in existing if _task_scope_for_item(item) == scope_key]
+                        if existing:
+                            for item in existing:
+                                try:
+                                    write_task_backup(
+                                        item,
+                                        kind='session_task',
+                                        reason='replace',
+                                        actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
+                                    )
+                                except Exception:
+                                    pass
+                                item.deleted_at = timezone.localtime()
+                                item.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                                item.save(update_fields=['deleted_at', 'deleted_by'])
+                            _normalize_session_task_orders(target_session)
+
+                    copied = _clone_session_task_to_session(
+                        source_task,
+                        target_session,
+                        note=f'Copiada desde biblioteca (tarea #{source_task.id})',
                     )
-                    layout = copied.tactical_layout if isinstance(getattr(copied, 'tactical_layout', None), dict) else {}
-                    layout = dict(layout)
-                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-                    meta = dict(meta)
-                    meta['repository'] = repo_for_copy
-                    layout['meta'] = meta
-                    copied.tactical_layout = layout
-                    copied.save(update_fields=['tactical_layout'])
-                except Exception:
-                    pass
-                feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
-                # Mantener la sesión seleccionada tras asignar (si no se envía `selected_session_id`
-                # el planner puede cambiar a "la próxima sesión" y parece que no se ha asignado).
-                active_tab = 'sessions'
-                auto_selected_session_id = int(getattr(target_session, 'id', 0) or 0) or None
+                    if normalized_target_block:
+                        copied.block = normalized_target_block
+                        copied.save(update_fields=['block'])
+                    # Importante: la vista de sesión filtra por "Clásicas/Interactivas" usando
+                    # `meta.repository` (si existe). Si copiamos una tarea con meta de repo distinto,
+                    # puede quedar oculta en la misma pantalla tras "Asignar".
+                    # Forzamos el repo al tab actual para que el usuario la vea inmediatamente.
+                    try:
+                        repo_for_copy = _normalize_library_repository(
+                            request.POST.get('library_repo') or library_repository,
+                            fallback=LIBRARY_REPOSITORY_TRADITIONAL,
+                        )
+                        layout = copied.tactical_layout if isinstance(getattr(copied, 'tactical_layout', None), dict) else {}
+                        layout = dict(layout)
+                        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                        meta = dict(meta)
+                        meta['repository'] = repo_for_copy
+                        meta['library_source_task_id'] = int(source_task.id)
+                        layout['meta'] = meta
+                        copied.tactical_layout = layout
+                        copied.save(update_fields=['tactical_layout'])
+                    except Exception:
+                        pass
+                    feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
+                    # Mantener la sesión seleccionada tras asignar (si no se envía `selected_session_id`
+                    # el planner puede cambiar a "la próxima sesión" y parece que no se ha asignado).
+                    active_tab = 'sessions'
+                    auto_selected_session_id = int(getattr(target_session, 'id', 0) or 0) or None
 
             elif planner_action == 'move_task_to_block':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -29557,6 +29630,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         {
             'team_name': primary_team.display_name,
             'primary_team_id': int(primary_team.id),
+            'active_workspace_id': active_workspace_id,
             'feedback': feedback,
             'error': error,
             'planner_tables_ready': planner_tables_ready,

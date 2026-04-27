@@ -1853,7 +1853,6 @@
 		                <input type="hidden" name="library_repo" value="{{ library_repository }}" />
 		                <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
 		                <input type="hidden" name="target_session_id" value="{{ selected_session.id }}" />
-		                <input type="hidden" name="replace_existing" value="1" />
 		                {% if section.block_keys|length == 1 %}
 		                <input type="hidden" name="target_block" value="{{ section.block_keys.0 }}" />
 		                {% else %}
@@ -1876,6 +1875,10 @@
 	                    <option value="{{ opt.id }}">{{ opt.title }} · {{ opt.block_label }} · {{ opt.minutes }}'</option>
 	                    {% endfor %}
 	                  </select>
+		                </label>
+		                <label class="ui-check" style="grid-column:1/-1; margin-top:-0.15rem;">
+		                  <input type="checkbox" name="replace_existing" value="1" />
+		                  Reemplazar tareas existentes del bloque
 		                </label>
 		                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
 		                  <button type="submit" class="secondary">Asignar</button>
