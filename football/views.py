@@ -16547,7 +16547,13 @@ def match_report_pdf(request):
                 )
                 for member in list(staff_qs)[:8]:
                     role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
-                    staff_lines.append({'role': role_title, 'name': str(member.name or '').strip()})
+                    staff_lines.append(
+                        {
+                            'role': role_title,
+                            'name': str(member.name or '').strip(),
+                            'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                        }
+                    )
         except Exception:
             staff_lines = []
 
@@ -16782,6 +16788,54 @@ def match_report_pdf(request):
             pdf_bytes = _read_storage_bytes(license_name)
             if pdf_bytes:
                 _append_pdf_bytes(pdf_bytes)
+
+        # Adjuntar licencias del staff (entrenadores/delegados) si existen.
+        staff_members = []
+        try:
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                staff_members = list(
+                    StaffMember.objects
+                    .filter(workspace=workspace, is_active=True)
+                    .filter(Q(team__isnull=True) | Q(team=primary_team))
+                    .order_by('role_title', 'name', 'id')[:8]
+                )
+        except Exception:
+            staff_members = []
+
+        for member in staff_members:
+            license_file = getattr(member, 'federation_license', None)
+            license_name = ''
+            try:
+                license_name = str(getattr(license_file, 'name', '') or '')
+            except Exception:
+                license_name = ''
+            if not license_name:
+                continue
+            license_ext = Path(license_name).suffix.lower()
+            is_pdf_license = license_ext == '.pdf'
+            license_image_uri = ''
+            if not is_pdf_license:
+                license_image_uri = _license_image_data_uri(license_name)
+
+            staff_page_html = render_to_string(
+                'football/staff_license_page_pdf.html',
+                {
+                    'team_name': primary_team.display_name,
+                    'staff_name': str(member.name or '').strip(),
+                    'staff_role': str(getattr(member, 'role_title', '') or '').strip() or 'Staff',
+                    'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                    'license_image_uri': license_image_uri,
+                    'license_is_pdf': bool(is_pdf_license),
+                    'license_missing': False,
+                },
+            )
+            staff_page_pdf, _staff_err = _render_pdf_bytes_with_error(request, staff_page_html)
+            if staff_page_pdf:
+                _append_pdf_bytes(staff_page_pdf)
+            if is_pdf_license:
+                pdf_bytes = _read_storage_bytes(license_name)
+                if pdf_bytes:
+                    _append_pdf_bytes(pdf_bytes)
 
         output = io.BytesIO()
         writer.write(output)
@@ -17067,6 +17121,28 @@ def match_staff_report_pdf(request):
     match_date_label = match.date.strftime('%d/%m/%Y') if match.date else ''
     location_label = (match.location or '').strip() or 'Campo por confirmar'
     round_label = (match.round or f'Partido {match.id}').strip()
+
+    staff_lines = []
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            staff_qs = (
+                StaffMember.objects
+                .filter(workspace=workspace, is_active=True)
+                .filter(Q(team__isnull=True) | Q(team=primary_team))
+                .order_by('role_title', 'name', 'id')
+            )
+            for member in list(staff_qs)[:6]:
+                role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
+                staff_lines.append(
+                    {
+                        'role': role_title,
+                        'name': str(member.name or '').strip(),
+                        'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                    }
+                )
+    except Exception:
+        staff_lines = []
     context = {
         'team_name': team_name,
         'opponent_name': opponent_name,
@@ -17076,6 +17152,7 @@ def match_staff_report_pdf(request):
         'match_date_label': match_date_label,
         'location_label': location_label,
         'round_label': round_label,
+        'staff_lines': staff_lines,
         'summary_cards': summary_cards,
         'top_event_types': top_event_types,
         'top_results': top_results,
@@ -18612,7 +18689,13 @@ def convocation_referee_pdf(request):
                 )
                 for member in list(staff_qs)[:8]:
                     role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
-                    staff_lines.append({'role': role_title, 'name': str(member.name or '').strip()})
+                    staff_lines.append(
+                        {
+                            'role': role_title,
+                            'name': str(member.name or '').strip(),
+                            'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                        }
+                    )
         except Exception:
             staff_lines = []
 
@@ -18691,9 +18774,32 @@ def convocation_referee_pdf(request):
             },
         )
         filename = slugify(f'licencias-arbitro-{primary_team.display_name}-{timezone.localdate().isoformat()}') or f'licencias-arbitro-{convocation_record.id}'
+
+        staff_license_members = []
+        try:
+            if workspace and workspace.kind == Workspace.KIND_CLUB:
+                staff_qs = (
+                    StaffMember.objects
+                    .filter(workspace=workspace, is_active=True)
+                    .filter(Q(team__isnull=True) | Q(team=primary_team))
+                    .order_by('role_title', 'name', 'id')
+                )
+                for member in list(staff_qs)[:8]:
+                    license_file = getattr(member, 'federation_license', None)
+                    license_name = ''
+                    try:
+                        license_name = str(getattr(license_file, 'name', '') or '')
+                    except Exception:
+                        license_name = ''
+                    if not license_name:
+                        continue
+                    staff_license_members.append({'member': member, 'license_name': license_name})
+        except Exception:
+            staff_license_members = []
+
         # Si hay licencias en PDF no renderizables como imagen, adjuntamos las páginas reales
         # (mejor multi-página correcto que “carnet mal dibujado”).
-        if pdf_fallback_players and PdfReader is not None and PdfWriter is not None:
+        if (pdf_fallback_players or staff_license_members) and PdfReader is not None and PdfWriter is not None:
             grid_pdf, grid_err = _render_pdf_bytes_with_error(request, pdf_html)
             if not grid_pdf:
                 debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -18710,6 +18816,38 @@ def convocation_referee_pdf(request):
 
             writer = PdfWriter()
             _append_pdf_bytes(writer, grid_pdf)
+
+            for item in staff_license_members[:8]:
+                member = item.get('member')
+                license_name = item.get('license_name') or ''
+                if not member or not license_name:
+                    continue
+                license_ext = Path(license_name).suffix.lower()
+                is_pdf_license = license_ext == '.pdf'
+                license_image_uri = ''
+                if license_name and not is_pdf_license:
+                    license_image_uri = _license_image_data_uri(license_name)
+
+                staff_label_html = render_to_string(
+                    'football/staff_license_page_pdf.html',
+                    {
+                        'team_name': primary_team.display_name,
+                        'staff_name': str(member.name or '').strip(),
+                        'staff_role': str(getattr(member, 'role_title', '') or '').strip() or 'Staff',
+                        'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                        'license_image_uri': license_image_uri,
+                        'license_is_pdf': bool(is_pdf_license),
+                        'license_missing': False,
+                    },
+                )
+                staff_label_pdf, _staff_label_err = _render_pdf_bytes_with_error(request, staff_label_html)
+                if staff_label_pdf:
+                    _append_pdf_bytes(writer, staff_label_pdf)
+                if is_pdf_license:
+                    pdf_bytes = _read_storage_bytes(license_name)
+                    if pdf_bytes:
+                        _append_pdf_bytes(writer, pdf_bytes)
+
             captain_id = int(convocation_record.captain_id) if convocation_record.captain_id else None
             goalkeeper_id = int(convocation_record.goalkeeper_id) if convocation_record.goalkeeper_id else None
             for item in pdf_fallback_players:
@@ -18771,6 +18909,28 @@ def convocation_referee_pdf(request):
         rival_label = opponent.name if opponent else ''
     rival_name = (rival_label or '').strip() or 'Rival por confirmar'
 
+    staff_lines = []
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            staff_qs = (
+                StaffMember.objects
+                .filter(workspace=workspace, is_active=True)
+                .filter(Q(team__isnull=True) | Q(team=primary_team))
+                .order_by('role_title', 'name', 'id')
+            )
+            for member in list(staff_qs)[:8]:
+                role_title = str(getattr(member, 'role_title', '') or '').strip() or 'Staff'
+                staff_lines.append(
+                    {
+                        'role': role_title,
+                        'name': str(member.name or '').strip(),
+                        'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                    }
+                )
+    except Exception:
+        staff_lines = []
+
     cover_players = []
     captain_id = int(convocation_record.captain_id) if convocation_record.captain_id else None
     goalkeeper_id = int(convocation_record.goalkeeper_id) if convocation_record.goalkeeper_id else None
@@ -18798,6 +18958,7 @@ def convocation_referee_pdf(request):
             'time_label': time_label,
             'location_label': location_label or 'Campo por confirmar',
             'players': cover_players,
+            'staff_lines': staff_lines,
             'generated_at': timezone.localtime(),
         },
     )
@@ -18810,6 +18971,56 @@ def convocation_referee_pdf(request):
 
     writer = PdfWriter()
     _append_pdf_bytes(writer, cover_pdf)
+
+    # Staff: licencias federativas (entrenadores, delegados, etc.).
+    staff_members = []
+    try:
+        workspace = _get_active_workspace(request)
+        if workspace and workspace.kind == Workspace.KIND_CLUB:
+            staff_members = list(
+                StaffMember.objects
+                .filter(workspace=workspace, is_active=True)
+                .filter(Q(team__isnull=True) | Q(team=primary_team))
+                .order_by('role_title', 'name', 'id')[:8]
+            )
+    except Exception:
+        staff_members = []
+
+    for member in staff_members:
+        license_file = getattr(member, 'federation_license', None)
+        license_name = ''
+        try:
+            license_name = str(getattr(license_file, 'name', '') or '')
+        except Exception:
+            license_name = ''
+        license_ext = Path(license_name).suffix.lower() if license_name else ''
+        is_pdf_license = license_ext == '.pdf'
+        license_image_uri = ''
+        if license_name and not is_pdf_license:
+            raw = _read_storage_bytes(license_name)
+            if raw:
+                mime = mimetypes.guess_type(license_name)[0] or 'image/jpeg'
+                license_image_uri = _image_bytes_as_small_data_uri(raw_bytes=raw, mime_type=mime, max_width=900, max_height=650, quality=74)
+
+        staff_page_html = render_to_string(
+            'football/staff_license_page_pdf.html',
+            {
+                'team_name': team_name,
+                'staff_name': str(member.name or '').strip(),
+                'staff_role': str(getattr(member, 'role_title', '') or '').strip() or 'Staff',
+                'license_number': str(getattr(member, 'federation_license_number', '') or '').strip(),
+                'license_image_uri': license_image_uri,
+                'license_is_pdf': bool(is_pdf_license),
+                'license_missing': bool(not license_name),
+            },
+        )
+        staff_page_pdf, _staff_err = _render_pdf_bytes_with_error(request, staff_page_html)
+        if staff_page_pdf:
+            _append_pdf_bytes(writer, staff_page_pdf)
+        if is_pdf_license:
+            pdf_bytes = _read_storage_bytes(license_name)
+            if pdf_bytes:
+                _append_pdf_bytes(writer, pdf_bytes)
 
     for player in ordered_players:
         license_name = _find_license_name(player)

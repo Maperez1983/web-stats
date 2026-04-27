@@ -235,7 +235,10 @@
       {% if staff_lines %}
       <div class="staff">
         {% for line in staff_lines %}
-        <div><strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}</div>
+        <div>
+          <strong>{{ line.role }}</strong> <span>·</span> {{ line.name }}
+          {% if line.license_number %}<span>·</span> Lic. {{ line.license_number }}{% endif %}
+        </div>
         {% endfor %}
       </div>
       {% endif %}

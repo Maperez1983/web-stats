@@ -19,6 +19,9 @@
       th { background: #f1f5f9; text-align: left; }
       .center { text-align: center; }
       .muted { color: #475569; font-size: 11px; margin-top: 10px; }
+      .staff { margin: 8px 0 12px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; }
+      .staff .row { font-size: 11px; color: #0f172a; padding: 2px 0; }
+      .staff strong { font-weight: 800; }
       .box { display:inline-block; width: 14px; height: 14px; border: 1px solid #334155; border-radius: 3px; vertical-align: -2px; }
       .checked { background: #0f172a; position: relative; }
       .checked:after { content: ""; position:absolute; inset: 3px 3px 3px 3px; background: #f8fafc; border-radius: 1px; opacity: 0.08; }
@@ -40,6 +43,16 @@
         <div><span class="badge">Lugar:</span> {{ location_label }}</div>
       </div>
     </div>
+
+    {% if staff_lines %}
+    <div class="staff">
+      {% for line in staff_lines %}
+      <div class="row">
+        <strong>{{ line.role }}</strong> · {{ line.name }}{% if line.license_number %} · Lic. {{ line.license_number }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <table>
       <thead>
