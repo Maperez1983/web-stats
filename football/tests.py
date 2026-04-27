@@ -6268,3 +6268,105 @@ class SessionPlanFieldsSerializationTests(TestCase):
         self.assertEqual(parsed.get('materials'), 'Conos, petos')
         self.assertEqual(parsed.get('absences'), 'Juan (tobillo)')
         self.assertEqual(parsed.get('notes'), 'Notas generales')
+
+
+class SessionsPlannerTaskAssignTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo pruebas',
+            slug='equipo-pruebas',
+            short_name='Pruebas',
+            category='senior',
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-sessions',
+            email='coach-sessions@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+
+        self.workspace = Workspace.objects.create(
+            name='CLUB PRUEBAS',
+            slug='club-pruebas',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+
+        today = timezone.localdate()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            week_start=week_start,
+            week_end=week_end,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+        self.session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=today,
+            focus='Sesión normal',
+            status=TrainingSession.STATUS_PLANNED,
+            order=1,
+        )
+
+        source_microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo fuente',
+            week_start=week_start - timedelta(days=7),
+            week_end=week_end - timedelta(days=7),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
+        source_session = TrainingSession.objects.create(
+            microcycle=source_microcycle,
+            session_date=today - timedelta(days=7),
+            focus='Biblioteca interactiva · Entrenador',
+            status=TrainingSession.STATUS_PLANNED,
+            order=1,
+        )
+        self.source_task = SessionTask.objects.create(
+            session=source_session,
+            title='Tarea interactiva',
+            block=SessionTask.BLOCK_ACTIVATION,
+            duration_minutes=12,
+            tactical_layout={'meta': {'repository': 'interactive'}},
+            status=SessionTask.STATUS_PLANNED,
+            order=1,
+        )
+
+    def test_assign_task_shows_in_selected_block_after_post(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?workspace={self.workspace.id}&team={self.team.id}"
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'copy_library_task_to_session',
+                'planner_tab': 'sessions',
+                'library_repo': 'traditional',
+                'selected_session_id': str(self.session.id),
+                'target_session_id': str(self.session.id),
+                'target_block': SessionTask.BLOCK_ACTIVATION,
+                'replace_existing': '1',
+                'source_task_id': str(self.source_task.id),
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        copied = (
+            SessionTask.objects
+            .filter(session=self.session, title='Tarea interactiva', deleted_at__isnull=True)
+            .order_by('-id')
+            .first()
+        )
+        self.assertIsNotNone(copied)
+        html = response.content.decode('utf-8', errors='ignore')
+        self.assertIn(f'data-task-id=\"{copied.id}\"', html)

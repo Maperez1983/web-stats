@@ -28170,6 +28170,25 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if target_block and target_block in {choice[0] for choice in SessionTask.BLOCK_CHOICES}:
                     copied.block = target_block
                     copied.save(update_fields=['block'])
+                # Importante: la vista de sesión filtra por "Clásicas/Interactivas" usando
+                # `meta.repository` (si existe). Si copiamos una tarea con meta de repo distinto,
+                # puede quedar oculta en la misma pantalla tras "Asignar".
+                # Forzamos el repo al tab actual para que el usuario la vea inmediatamente.
+                try:
+                    repo_for_copy = _normalize_library_repository(
+                        request.POST.get('library_repo') or library_repository,
+                        fallback=LIBRARY_REPOSITORY_TRADITIONAL,
+                    )
+                    layout = copied.tactical_layout if isinstance(getattr(copied, 'tactical_layout', None), dict) else {}
+                    layout = dict(layout)
+                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                    meta = dict(meta)
+                    meta['repository'] = repo_for_copy
+                    layout['meta'] = meta
+                    copied.tactical_layout = layout
+                    copied.save(update_fields=['tactical_layout'])
+                except Exception:
+                    pass
                 feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
                 # Mantener la sesión seleccionada tras asignar (si no se envía `selected_session_id`
                 # el planner puede cambiar a "la próxima sesión" y parece que no se ha asignado).
@@ -29461,6 +29480,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         )
         for task_item in source_task_candidates:
             if _task_scope_for_item(task_item) != scope_key:
+                continue
+            try:
+                if _library_repository_for_task(task_item) != library_repository:
+                    continue
+            except Exception:
                 continue
             session_focus = str(getattr(getattr(task_item, 'session', None), 'focus', '') or '').strip()
             if session_focus.lower().startswith('biblioteca pdf'):
