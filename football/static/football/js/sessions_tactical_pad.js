@@ -757,6 +757,13 @@
 				    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
 				    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
 				    const simClipImportBtn = document.getElementById('task-sim-clip-import');
+				    const simScriptOpenBtn = document.getElementById('task-sim-script-open');
+				    const simScriptModal = document.getElementById('task-sim-script-modal');
+				    const simScriptCloseBtn = document.getElementById('task-sim-script-close');
+				    const simScriptCancelBtn = document.getElementById('task-sim-script-cancel');
+				    const simScriptApplyBtn = document.getElementById('task-sim-script-apply');
+				    const simScriptText = document.getElementById('task-sim-script-text');
+				    const simScriptStatus = document.getElementById('task-sim-script-status');
 				    const simVideoImportBtn = document.getElementById('task-sim-video-import');
 				    const simClipDestWrap = document.getElementById('task-sim-clip-dest-wrap');
 				    const simClipDestSelect = document.getElementById('task-sim-clip-dest');
@@ -3523,6 +3530,74 @@
 	      syncInspector();
 	      setStatus(allLocked ? 'Elementos desbloqueados.' : 'Elementos bloqueados.');
 	    };
+	    const collectShadowLeaves = (root) => {
+	      if (!root) return [];
+	      if (Array.isArray(root._objects) && root._objects.length) return root._objects.flatMap((child) => collectShadowLeaves(child));
+	      return [root];
+	    };
+	    const setLeafShadowMode = (leaf, enabled) => {
+	      if (!leaf || leaf?.data?.locked) return;
+	      leaf.data = leaf.data || {};
+	      if (enabled) {
+	        if (!leaf.data.shadow_prev) {
+	          leaf.data.shadow_prev = {
+	            fill: leaf.fill,
+	            stroke: leaf.stroke,
+	            shadow: leaf.shadow,
+	            opacity: leaf.opacity,
+	            strokeWidth: leaf.strokeWidth,
+	            strokeDashArray: leaf.strokeDashArray,
+	            strokeLineCap: leaf.strokeLineCap,
+	            strokeLineJoin: leaf.strokeLineJoin,
+	          };
+	        }
+	        leaf.data.shadow_mode = true;
+	        const isText = leaf.type === 'text' || leaf.type === 'i-text';
+	        const next = {
+	          shadow: isText ? 'rgba(0,0,0,0.55) 0 0 12px' : 'rgba(0,0,0,0.55) 0 0 22px',
+	        };
+	        if ('stroke' in leaf && leaf.stroke) next.stroke = 'rgba(0,0,0,0.35)';
+	        if ('fill' in leaf && leaf.fill !== undefined && leaf.fill !== null && leaf.fill !== '') {
+	          next.fill = isText ? 'rgba(0,0,0,0.40)' : 'rgba(0,0,0,0.12)';
+	        }
+	        leaf.set(next);
+	        leaf.dirty = true;
+	        return;
+	      }
+	      if (!leaf.data.shadow_mode) return;
+	      const prev = leaf.data.shadow_prev || {};
+	      const restore = {};
+	      if ('fill' in prev) restore.fill = prev.fill;
+	      if ('stroke' in prev) restore.stroke = prev.stroke;
+	      if ('opacity' in prev) restore.opacity = prev.opacity;
+	      if ('strokeWidth' in prev) restore.strokeWidth = prev.strokeWidth;
+	      if ('strokeDashArray' in prev) restore.strokeDashArray = prev.strokeDashArray;
+	      if ('strokeLineCap' in prev) restore.strokeLineCap = prev.strokeLineCap;
+	      if ('strokeLineJoin' in prev) restore.strokeLineJoin = prev.strokeLineJoin;
+	      restore.shadow = prev.shadow == null ? null : prev.shadow;
+	      leaf.set(restore);
+	      delete leaf.data.shadow_mode;
+	      delete leaf.data.shadow_prev;
+	      leaf.dirty = true;
+	    };
+	    const toggleShadowSelection = () => {
+	      const roots = getSelectionObjects();
+	      if (!roots.length) {
+	        setStatus('Selecciona un elemento para aplicar sombra.', true);
+	        return;
+	      }
+	      const leaves = roots.flatMap((root) => collectShadowLeaves(root)).filter((leaf) => leaf && !leaf?.data?.locked);
+	      if (!leaves.length) return;
+	      const allShadow = leaves.every((leaf) => !!leaf?.data?.shadow_mode);
+	      const nextEnabled = !allShadow;
+	      roots.forEach((root) => {
+	        if (!root) return;
+	        root.data = root.data || {};
+	        root.data.shadow_mode = nextEnabled;
+	      });
+	      leaves.forEach((leaf) => setLeafShadowMode(leaf, nextEnabled));
+	      commitObjectChange(nextEnabled ? 'Sombra activada.' : 'Sombra desactivada.');
+	    };
 	    const groupSelection = () => {
 	      const active = canvas.getActiveObject();
 	      if (!active || active.type !== 'activeSelection' || typeof active.toGroup !== 'function') {
@@ -3886,6 +3961,7 @@
 		      else if (command === 'front') setSelectionLayer('front');
 		      else if (command === 'back') setSelectionLayer('back');
 		      else if (command === 'lock') toggleLockSelection();
+		      else if (command === 'shadow') toggleShadowSelection();
 			      else if (command === 'grid_toggle') toggleGridVisible();
 			      else if (command === 'grid_snap') toggleGridSnap();
 			      else if (command === 'grid_size') cycleGridSize();
@@ -4090,6 +4166,7 @@
 						      if (simVideoStudioBtn) simVideoStudioBtn.hidden = !isSimulating;
 							      if (simClipSaveBtn) simClipSaveBtn.hidden = !isSimulating;
 							      if (simClipImportBtn) simClipImportBtn.hidden = !isSimulating;
+							      if (simScriptOpenBtn) simScriptOpenBtn.hidden = !isSimulating;
 							      if (simVideoImportBtn) simVideoImportBtn.hidden = !isSimulating;
 							      if (simClipDestWrap) simClipDestWrap.hidden = !isSimulating;
 						      if (simPackBtn) simPackBtn.hidden = !isSimulating;
@@ -4106,6 +4183,7 @@
 						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
 						      if (simPlayBtn) simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
+						      if (!isSimulating && simScriptModal) simScriptModal.hidden = true;
 					    };
 
 					    // Video Studio (telestración): carga un vídeo y dibuja encima con keyframes.
@@ -8451,6 +8529,108 @@
 				      simulationActiveIndex = simulationSteps.length - 1;
 				      renderSimulationSteps();
 				      setStatus('Paso capturado.');
+				    };
+				    const appendSimulationStepFromCanvas = (meta = {}) => {
+				      if (!isSimulating) return false;
+				      stopSimulationPlayback();
+				      const { w, h } = worldSize();
+				      ensureLayerUidsOnCanvas();
+				      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
+				      const prevState = prev?.canvas_state || null;
+				      const nextState = serializeCanvasOnly();
+				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
+				      simulationSteps.push({
+				        title: safeText(meta.title, `Paso ${simulationSteps.length + 1}`),
+				        duration: clamp(Number(meta.duration) || 3, 1, 20),
+				        canvas_state: nextState,
+				        canvas_width: Math.round(w || 0),
+				        canvas_height: Math.round(h || 0),
+				        moves,
+				        routes: {},
+				        ball_follow_uid: '',
+				      });
+				      simulationProCaches = new Map();
+				      simulationActiveIndex = simulationSteps.length - 1;
+				      return true;
+				    };
+				    const normalizeDigits = (value) => safeText(value).replace(/[^\d]/g, '');
+				    const findTokenByDorsal = (dorsal) => {
+				      const needle = normalizeDigits(dorsal);
+				      if (!needle) return null;
+				      const objects = (canvas.getObjects?.() || []).filter((obj) => obj && !obj?.data?.base);
+				      return objects.find((obj) => safeText(obj?.data?.kind) === 'token' && normalizeDigits(obj?.data?.playerNumber) === needle) || null;
+				    };
+				    const findBallObject = () => {
+				      const objects = (canvas.getObjects?.() || []).filter((obj) => obj && !obj?.data?.base);
+				      return objects.find((obj) => safeText(obj?.data?.kind) === 'ball') || null;
+				    };
+				    const applyScriptMovesToCanvas = (moves) => {
+				      if (!Array.isArray(moves) || !moves.length) return { moved: 0, missing: 0 };
+				      const { w, h } = worldSize();
+				      const width = Number(w) || 0;
+				      const height = Number(h) || 0;
+				      if (!width || !height) return { moved: 0, missing: moves.length };
+				      let moved = 0;
+				      let missing = 0;
+				      moves.forEach((move) => {
+				        const selector = safeText(move?.selector);
+				        const xPct = clamp(Number(move?.x_pct) || 0, 0, 100);
+				        const yPct = clamp(Number(move?.y_pct) || 0, 0, 100);
+				        const x = (width * xPct) / 100;
+				        const y = (height * yPct) / 100;
+				        const target = selector.toLowerCase() === 'ball' ? findBallObject() : findTokenByDorsal(selector);
+				        if (!target || target?.data?.locked) {
+				          missing += 1;
+				          return;
+				        }
+				        try {
+				          target.set({ left: x, top: y });
+				          target.setCoords();
+				          moved += 1;
+				        } catch (error) { missing += 1; }
+				      });
+				      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				      return { moved, missing };
+				    };
+				    const parseSimScriptLine = (raw) => {
+				      const line = safeText(raw).trim();
+				      if (!line) return null;
+				      if (line.startsWith('#') || line.startsWith('//')) return null;
+				      const parts = line.split('|').map((p) => safeText(p).trim()).filter(Boolean);
+				      const title = safeText(parts[0], 'Paso');
+				      let duration = 3;
+				      const moves = [];
+				      parts.slice(1).forEach((chunk) => {
+				        const tokens = safeText(chunk).split(/\s+/).map((t) => safeText(t).trim()).filter(Boolean);
+				        tokens.forEach((token) => {
+				          const durMatch = token.match(/^dur\s*=\s*(\d+)$/i);
+				          if (durMatch) {
+				            duration = clamp(Number.parseInt(durMatch[1], 10) || 3, 1, 20);
+				            return;
+				          }
+				          if (!token.includes('@')) return;
+				          const [selectorRaw, coordsRaw] = token.split('@');
+				          const selector = safeText(selectorRaw).trim();
+				          const coords = safeText(coordsRaw).trim();
+				          if (!selector || !coords) return;
+				          const [xRaw, yRaw] = coords.split(',');
+				          const xPct = Number.parseFloat(String(xRaw || '').trim());
+				          const yPct = Number.parseFloat(String(yRaw || '').trim());
+				          if (!Number.isFinite(xPct) || !Number.isFinite(yPct)) return;
+				          moves.push({ selector, x_pct: xPct, y_pct: yPct });
+				        });
+				      });
+				      return { title, duration, moves };
+				    };
+				    const parseSimScript = (rawText) => {
+				      const raw = safeText(rawText);
+				      const lines = raw.split(/\r?\n/);
+				      const steps = [];
+				      lines.forEach((line) => {
+				        const parsed = parseSimScriptLine(line);
+				        if (parsed) steps.push(parsed);
+				      });
+				      return steps;
 				    };
 				    const removeSimulationStep = () => {
 				      if (!isSimulating) return;
@@ -14564,6 +14744,11 @@
 				        toggleGridVisible();
 				        return;
 				      }
+				      if (!isMod && key === 'h') {
+				        event.preventDefault();
+				        toggleShadowSelection();
+				        return;
+				      }
 				      if (isMod && key === 'g') {
 				        event.preventDefault();
 				        if (isShift) ungroupSelection();
@@ -15253,6 +15438,63 @@
 				      if (!simVideoFileInput) return;
 				      try { simVideoFileInput.value = ''; } catch (e) {}
 				      simVideoFileInput.click();
+				    });
+				    const setSimScriptModalOpen = (open) => {
+				      if (!simScriptModal) return;
+				      simScriptModal.hidden = !open;
+				      if (open) {
+				        try { if (simScriptStatus) simScriptStatus.textContent = 'Cada línea crea un paso. Usa porcentajes 0–100.'; } catch (e) { /* ignore */ }
+				        window.setTimeout(() => {
+				          try { simScriptText?.focus?.(); } catch (e) { /* ignore */ }
+				        }, 0);
+				      }
+				    };
+				    simScriptOpenBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (!isSimulating) return;
+				      setSimScriptModalOpen(true);
+				    });
+				    simScriptCloseBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      setSimScriptModalOpen(false);
+				    });
+				    simScriptCancelBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      setSimScriptModalOpen(false);
+				    });
+				    simScriptModal?.addEventListener('pointerdown', (event) => {
+				      if (event.target === simScriptModal) setSimScriptModalOpen(false);
+				    });
+				    simScriptModal?.addEventListener('keydown', (event) => {
+				      const key = String(event.key || '').toLowerCase();
+				      if (key === 'escape') {
+				        event.preventDefault();
+				        setSimScriptModalOpen(false);
+				      }
+				    });
+				    simScriptApplyBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (!isSimulating) return;
+				      const script = safeText(simScriptText?.value);
+				      const steps = parseSimScript(script);
+				      if (!steps.length) {
+				        setStatus('El guion está vacío.', true);
+				        try { if (simScriptStatus) simScriptStatus.textContent = 'No se han encontrado líneas válidas.'; } catch (e) { /* ignore */ }
+				        return;
+				      }
+				      seedSimulationStepsFromCurrent();
+				      let totalMoved = 0;
+				      let totalMissing = 0;
+				      steps.forEach((step) => {
+				        const res = applyScriptMovesToCanvas(step.moves);
+				        totalMoved += Number(res?.moved) || 0;
+				        totalMissing += Number(res?.missing) || 0;
+				        appendSimulationStepFromCanvas({ title: step.title, duration: step.duration });
+				      });
+				      renderSimulationSteps();
+				      void selectSimulationStep(simulationActiveIndex);
+				      setSimScriptModalOpen(false);
+				      setStatus(`Guion aplicado: ${steps.length} pasos (${totalMoved} movidos${totalMissing ? `, ${totalMissing} sin match` : ''}).`);
 				    });
 				    simClipFileInput?.addEventListener('change', async () => {
 				      if (!isSimulating) return;

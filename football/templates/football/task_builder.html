@@ -3243,6 +3243,7 @@
 			                      <button type="button" data-command="front">Traer al frente <span class="shortcut">⌘]</span></button>
 			                      <button type="button" data-command="back">Enviar atrás <span class="shortcut">⌘[</span></button>
 			                      <button type="button" data-command="lock">Bloquear/Desbloquear <span class="shortcut">⌘L</span></button>
+			                      <button type="button" data-command="shadow">Sombra / normal <span class="shortcut">H</span></button>
 			                      <button type="button" data-command="grid_toggle">Mostrar/Ocultar rejilla <span class="shortcut">G</span></button>
 			                      <button type="button" data-command="grid_snap">Snap a rejilla <span class="shortcut">Alt</span></button>
 			                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
@@ -3318,6 +3319,7 @@
 						                            <button type="button" class="button" id="task-sim-view-3d" hidden>Vista 3D</button>
 						                            <button type="button" class="button" id="task-sim-video-studio" hidden>Video Studio</button>
 						                            <button type="button" class="button" id="task-sim-clip-import" hidden>Importar clip</button>
+						                            <button type="button" class="button" id="task-sim-script-open" hidden>Guion (texto)</button>
 						                            <button type="button" class="button" id="task-sim-video-import" hidden>Importar vídeo</button>
 						                            <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
 						                              Destino
@@ -3438,6 +3440,28 @@
 				                          </label>
 					                      </div>
 					                    </div>
+
+				                    <div class="sim-3d-modal" id="task-sim-script-modal" hidden>
+				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Guion de jugada" style="width:min(780px, 96vw); height:min(620px, 92vh);">
+				                        <div class="sim-3d-head">
+				                          <div style="display:flex; flex-direction:column; gap:0.1rem;">
+				                            <strong>Guion (texto) · Generar pasos</strong>
+				                            <span class="meta" style="opacity:0.9;">Cada línea crea un paso. Formato: <code>Título | dur=3 | 10@60,40 6@30,55 ball@50,50</code></span>
+				                          </div>
+				                          <button type="button" class="sim-3d-close" id="task-sim-script-close">Cerrar</button>
+				                        </div>
+				                        <div class="sim-3d-body" style="padding:0.9rem; background: rgba(15, 23, 42, 0.92);">
+				                          <textarea id="task-sim-script-text" style="width:100%; height:100%; resize:none; border-radius:14px; border:1px solid rgba(255,255,255,0.14); background: rgba(2,6,23,0.55); color: rgba(248,250,252,0.92); padding: 0.75rem 0.85rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.92rem; line-height: 1.35;" placeholder="Ejemplo:\nSalida | dur=3 | 5@25,60 6@35,55 ball@30,50\nProgresión | dur=4 | 10@55,45 9@68,40\nFinalización | dur=2 | 9@78,42 ball@78,42"></textarea>
+				                        </div>
+				                        <div class="sim-3d-foot" style="justify-content: space-between;">
+				                          <div class="meta" id="task-sim-script-status" style="opacity:0.9;">Tip: usa porcentajes (0–100) y el número de dorsal (data playerNumber).</div>
+				                          <div style="display:flex; gap:0.5rem;">
+				                            <button type="button" class="sim-3d-close" id="task-sim-script-cancel">Cancelar</button>
+				                            <button type="button" class="button primary" id="task-sim-script-apply">Generar pasos</button>
+				                          </div>
+				                        </div>
+				                      </div>
+				                    </div>
 
 				                    <div class="sim-3d-modal" id="task-sim-3d-modal" hidden>
 				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D de la tarea">
