@@ -1644,11 +1644,86 @@
 	        align-items: center;
 	        gap: 0.45rem;
 	      }
-	      .pitch-size {
-	        display: flex;
-	        align-items: center;
-	        gap: 0.45rem;
-	      }
+      .pitch-size {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      body.focus-mode .builder {
+        grid-template-columns: 1fr;
+      }
+      body.focus-mode aside.panel {
+        display: none !important;
+      }
+      body.focus-mode .pitch-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas: "main";
+      }
+      body.focus-mode .pitch-side {
+        display: none !important;
+      }
+      body.focus-mode .panel-head,
+      body.focus-mode .pitch-toolbar,
+      body.focus-mode #tpad-hint,
+      body.focus-mode .pitch-status,
+      body.focus-mode .pitch-drills-strip,
+      body.focus-mode .pitch-main .section {
+        display: none !important;
+      }
+      .focus-exit {
+        position: fixed;
+        right: calc(14px + env(safe-area-inset-right));
+        top: calc(14px + env(safe-area-inset-top));
+        z-index: 1600;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.66);
+        border-radius: 999px;
+        padding: 0.55rem 0.9rem;
+        color: rgba(226,232,240,0.92);
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        display: none;
+        box-shadow: 0 16px 44px rgba(2,6,23,0.55);
+        backdrop-filter: blur(10px);
+      }
+      body.focus-mode .focus-exit {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .token-global-style {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: 0.55rem 0 0.3rem;
+      }
+      .token-global-style .label {
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.72);
+        font-weight: 900;
+        margin-right: 0.2rem;
+        align-self: center;
+      }
+      .token-global-style button {
+        border-radius: 999px;
+        padding: 0.42rem 0.7rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.92);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        cursor: pointer;
+      }
+      .token-global-style button.is-active {
+        border-color: rgba(244,180,0,0.52);
+        background: rgba(244,180,0,0.16);
+      }
 	      .pitch-zoom button,
 	      .pitch-size button {
 	        border-radius: 10px;
@@ -1664,22 +1739,6 @@
 	        text-align: center;
 	        font-weight: 700;
 	        color: rgba(226,232,240,0.8);
-	      }
-	      .pitch-quick {
-	        display: flex;
-	        align-items: center;
-	        gap: 0.35rem;
-	      }
-	      .pitch-quick .surface-trigger {
-	        border-radius: 10px;
-	        padding: 8px 10px;
-	        min-width: 38px;
-	        justify-content: center;
-	      }
-	      .pitch-quick .surface-trigger.danger {
-	        border-color: rgba(248,113,113,0.45);
-	        background: rgba(127,29,29,0.22);
-	        color: #fecaca;
 	      }
       .resource-section {
         display: flex;
@@ -1849,6 +1908,31 @@
         gap: 0.45rem;
         flex-wrap: wrap;
         margin-bottom: 0.65rem;
+      }
+      .side-tab-more {
+        position: relative;
+      }
+      .side-tab-more summary.side-tab {
+        list-style: none;
+      }
+      .side-tab-more summary.side-tab::-webkit-details-marker { display: none; }
+      .side-more-menu {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 200;
+        width: min(320px, 86vw);
+        padding: 0.65rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.48);
+        display: grid;
+        gap: 0.45rem;
+      }
+      .side-more-menu .side-tab {
+        width: 100%;
+        text-align: left;
       }
       .side-tab {
         border-radius: 999px;
@@ -3015,10 +3099,18 @@
         <div class="builder">
           <section class="panel">
             <div class="panel-body">
-              <div class="panel-head">
-                <div>
+                <div class="panel-head">
+                  <div>
                   <h2>Pizarra</h2>
                   <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
+                </div>
+                <div class="alert warn" id="tpad-hint" hidden>
+                  <div style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+                    <div style="min-width:240px;">
+                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en la derecha · 3) Usa “Presentación” para enseñar al jugador · 4) Guarda y exporta.
+                    </div>
+                    <button type="button" class="button" id="tpad-hint-close">Entendido</button>
+                  </div>
                 </div>
                 <div class="pitch-toolbar">
                   {% if tactics_mode %}
@@ -3118,18 +3210,7 @@
 	                    </div>
                     </div>
                   </details>
-	                  <div class="pitch-quick" id="task-pitch-quick-tools" aria-label="Acciones rápidas">
-	                    <button type="button" class="surface-trigger" data-action="undo" title="Deshacer">↶</button>
-	                    <button type="button" class="surface-trigger" data-action="redo" title="Rehacer">↷</button>
-	                    <button type="button" class="surface-trigger" data-action="draw_free" title="Dibujo libre (toca para activar/desactivar)">✎</button>
-	                    <button type="button" class="surface-trigger" data-action="duplicate" title="Duplicar seleccionado">⧉</button>
-	                    <button type="button" class="surface-trigger danger" data-action="delete" title="Borrar seleccionado">⌫</button>
-	                  </div>
-	                  <div class="pitch-quick" id="task-token-style-global" aria-label="Estilo de ficha">
-	                    <button type="button" class="surface-trigger" data-global-token-style="disk" title="Chapa">Chapa</button>
-	                    <button type="button" class="surface-trigger" data-global-token-style="jersey" title="Camiseta">Camiseta</button>
-	                    <button type="button" class="surface-trigger" data-global-token-style="photo" title="Foto">Foto</button>
-	                  </div>
+                  <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
 	                </div>
 	              </div>
 
@@ -3183,6 +3264,12 @@
 	                    </button>
 	                    <button type="button" class="icon-btn" data-action="redo" title="Rehacer" aria-label="Rehacer">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7h-7a6 6 0 1 0 0 12h5v-2H10a4 4 0 1 1 0-8h7v3l5-5-5-5v3Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="draw_free" title="Dibujo libre (pulsa para activar/desactivar)" aria-label="Dibujo libre">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l10.06-10.06.92.92L5.92 20.08ZM21 6.34a1 1 0 0 0 0-1.41l-1.93-1.93a1 1 0 0 0-1.41 0l-1.5 1.5 3.75 3.75L21 6.34Z"/></svg>
+	                    </button>
+	                    <button type="button" class="icon-btn" data-action="pencil_pro" title="Pencil Pro (Apple Pencil: dibuja en vacío, arrastra si empiezas sobre una ficha)" aria-label="Pencil Pro">
+	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25Zm2.92 2.83H5v-.92l10.06-10.06.92.92L5.92 20.08ZM20.71 5.63a1 1 0 0 0 0-1.41L19.78 3.3a1 1 0 0 0-1.41 0l-1.16 1.16 3.75 3.75 1.75-1.58Z"/></svg>
 	                    </button>
 	                    <button type="button" class="icon-btn" data-action="duplicate" title="Duplicar seleccionado" aria-label="Duplicar seleccionado">
 	                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h12v12H8V8Zm-2 8H4V4h12v2H6v10Z"/></svg>
@@ -4066,12 +4153,20 @@
 	                    <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
 	                  </div>
 	                </div>
+                  <div class="token-global-style" id="task-token-style-global" aria-label="Estilo global de fichas">
+                    <span class="label">Estilo</span>
+                    <button type="button" data-global-token-style="disk" title="Chapa" aria-label="Chapa">Chapa</button>
+                    <button type="button" data-global-token-style="jersey" title="Camiseta" aria-label="Camiseta">Camiseta</button>
+                    <button type="button" data-global-token-style="photo" title="Foto" aria-label="Foto">Foto</button>
+                  </div>
                 <div class="player-bank" id="task-player-bank"></div>
               </div>
               </div>
               </div>
             </div>
           </section>
+
+          <button type="button" class="focus-exit" id="task-focus-exit" aria-label="Salir de presentación">Salir</button>
 
           <aside class="panel">
             <div class="panel-body stack">
@@ -4083,8 +4178,13 @@
 				                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
                         {% else %}
 				                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
-				                <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false">Asistente</button>
-				                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
+                        <details class="side-tab-more" id="task-side-more">
+                          <summary class="side-tab" role="button" aria-label="Más opciones">Más</summary>
+                          <div class="side-more-menu" aria-label="Opciones avanzadas">
+                            <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false">Asistente</button>
+                            <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
+                          </div>
+                        </details>
 				                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
 				                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
 				                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
@@ -4962,7 +5062,7 @@
 		            {
 		              anchor: '#task-side-tabs',
 		              title: '4) Panel lateral',
-		              body: 'Aquí están Ficha, Asistente, Escenarios, Biblioteca, Capas, Exportar y Vista previa.',
+		              body: 'Aquí están Ficha, Escenarios, Biblioteca, Capas, Exportar y Vista previa. En “Más” se agrupan Asistente y Avanzado.',
 		            },
 		            {
 		              anchor: 'button.side-tab[data-pane=\"preview\"]',

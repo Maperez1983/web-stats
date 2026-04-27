@@ -755,6 +755,8 @@
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
 				    const commandMenu = document.getElementById('task-command-menu');
+				    const focusToggleBtn = document.getElementById('task-focus-toggle');
+				    const focusExitBtn = document.getElementById('task-focus-exit');
 			    const simBtn = document.getElementById('task-sim-btn');
 			    const simPopover = document.getElementById('task-sim-popover');
 			    const simCloseBtn = document.getElementById('task-sim-close');
@@ -821,6 +823,46 @@
 			      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
 			      try { setTacticsToolsOpen(safeText(window.localStorage.getItem('tpad_tactics_tools_open_v1')) === '1'); } catch (e) { setTacticsToolsOpen(false); }
 			    };
+
+			    const FOCUS_STORAGE_KEY = 'webstats:tpad:focus-mode-v1';
+			    const syncFocusUi = (enabled) => {
+			      if (focusToggleBtn) {
+			        focusToggleBtn.textContent = enabled ? 'Editar' : 'Presentación';
+			        try { focusToggleBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false'); } catch (e) { /* ignore */ }
+			      }
+			    };
+			    const setFocusMode = (enabled) => {
+			      const isOn = !!enabled;
+			      document.body.classList.toggle('focus-mode', isOn);
+			      syncFocusUi(isOn);
+			      try { window.localStorage.setItem(FOCUS_STORAGE_KEY, isOn ? '1' : '0'); } catch (e) { /* ignore */ }
+			      if (isOn) {
+			        setStatus('Modo presentación: ocultando paneles para mostrar la pizarra.', false);
+			      } else {
+			        setStatus('Modo edición: paneles visibles.', false);
+			      }
+			    };
+			    (() => {
+			      let initialFocus = false;
+			      try { initialFocus = safeText(window.localStorage.getItem(FOCUS_STORAGE_KEY)) === '1'; } catch (e) { initialFocus = false; }
+			      setFocusMode(initialFocus);
+			    })();
+			    focusToggleBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      setFocusMode(!document.body.classList.contains('focus-mode'));
+			    });
+			    focusExitBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      setFocusMode(false);
+			    });
+			    try {
+			      window.addEventListener('keydown', (event) => {
+			        if (!document.body.classList.contains('focus-mode')) return;
+			        if (event.key !== 'Escape') return;
+			        event.preventDefault();
+			        setFocusMode(false);
+			      });
+			    } catch (e) { /* ignore */ }
 
 			    const ensurePlaybookDock = () => {
 			      if (!playbookPaneEl) return null;
@@ -1181,6 +1223,7 @@
         .filter(([key]) => !!key),
     );
     const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .side-tab'));
+    const sideMore = document.getElementById('task-side-more');
     const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
 	    const assignedHidden = document.getElementById('assigned-players-hidden');
 	    const assignedSummary = document.getElementById('task-assigned-summary');
@@ -1215,6 +1258,31 @@
 	        return false;
 	      }
 	    })();
+
+	    // Hint inicial (cerrable) para facilitar el flujo en tablets/clientes.
+	    const hintEl = document.getElementById('tpad-hint');
+	    const hintCloseBtn = document.getElementById('tpad-hint-close');
+	    const HINT_STORAGE_KEY = 'webstats:tpad:hint-dismissed-v1';
+	    const setHintVisible = (visible) => {
+	      if (!hintEl) return;
+	      hintEl.hidden = !visible;
+	    };
+	    (() => {
+	      if (!hintEl) return;
+	      let dismissed = false;
+	      if (canUseStorage) {
+	        try { dismissed = safeText(window.localStorage.getItem(HINT_STORAGE_KEY)) === '1'; } catch (e) { dismissed = false; }
+	      }
+	      setHintVisible(!dismissed);
+	      hintCloseBtn?.addEventListener('click', (event) => {
+	        event.preventDefault();
+	        setHintVisible(false);
+	        if (canUseStorage) {
+	          try { window.localStorage.setItem(HINT_STORAGE_KEY, '1'); } catch (e) { /* ignore */ }
+	        }
+	      });
+	    })();
+
 		    const simStorageKey = (() => {
 		      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
 		      return `${base}:simsteps_v1`;
@@ -11347,17 +11415,6 @@
       }, { passive: true });
     };
 
-		    // Acciones rápidas (ideal iPad): deshacer/rehacer/duplicar/borrar siempre arriba.
-		    const quickTools = document.getElementById('task-pitch-quick-tools');
-			    quickTools?.addEventListener('click', (event) => {
-			      const btn = event.target.closest('button[data-action]');
-			      if (!btn) return;
-			      const action = safeText(btn.dataset.action);
-			      if (!action) return;
-			      event.preventDefault();
-			      try { handleCanvasAction(action); } catch (e) { /* ignore */ }
-			    });
-
 			    const resolvePlayerPhotoUrl = (candidate) => {
 			      const url = safeText(candidate);
 			      if (!url) return '';
@@ -12988,6 +13045,9 @@
       tab.addEventListener('click', () => {
         const key = safeText(tab.dataset.pane);
         if (key) activateSidePane(key);
+        if (sideMore && sideMore.open) {
+          try { sideMore.open = false; } catch (e) { /* ignore */ }
+        }
       });
     });
 

@@ -1850,6 +1850,12 @@
 		        {% if selected_session %}
 			        <section class="panel" id="planner-blocks">
 			          <h2>Tareas por bloque</h2>
+                <div class="alert ok" id="session-tasks-hint" hidden>
+                  <strong>Tip:</strong> arrastra una tarea para moverla de bloque · pulsa la papelera para quitarla · entra en una tarea para editar su pizarra y exportar.
+                  <div style="margin-top:0.45rem;">
+                    <button type="button" class="secondary" id="session-tasks-hint-close">Entendido</button>
+                  </div>
+                </div>
 		          <form id="drag-move-task-form" method="post" style="display:none;">
 		            {% csrf_token %}
 		            <input type="hidden" name="planner_action" value="move_task_to_block" />
@@ -1946,6 +1952,20 @@
 		        </section>
 		        <script>
 		          (function () {
+                const hint = document.getElementById('session-tasks-hint');
+                const hintClose = document.getElementById('session-tasks-hint-close');
+                const HINT_KEY = 'webstats:sessions:tasks-hint-dismissed-v1';
+                if (hint) {
+                  let dismissed = false;
+                  try { dismissed = String(window.localStorage.getItem(HINT_KEY) || '') === '1'; } catch (e) { dismissed = false; }
+                  hint.hidden = dismissed;
+                  hintClose?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    hint.hidden = true;
+                    try { window.localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* ignore */ }
+                  });
+                }
+
 		            const form = document.getElementById('drag-move-task-form');
 		            const deleteForm = document.getElementById('session-delete-task-form');
 		            const deleteTaskIdInput = deleteForm?.querySelector('input[name="task_id"]');
