@@ -2646,8 +2646,11 @@
                 <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
                 <article class="live-stats-chip"><span>Posesión aprox</span><strong id="live-stat-possession">50%</strong></article>
                 <article class="live-stats-chip"><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
+                <article class="live-stats-chip"><span>Últ. 5'</span><strong id="live-stat-pace5">0.0/min</strong></article>
                 <article class="live-stats-chip"><span>Tiros</span><strong id="live-stat-shots">0</strong></article>
+                <article class="live-stats-chip"><span>A puerta</span><strong id="live-stat-shots-target">0</strong></article>
                 <article class="live-stats-chip"><span>Pases</span><strong id="live-stat-passes">0</strong></article>
+                <article class="live-stats-chip"><span>Pérd/Robo</span><strong id="live-stat-turnovers">0/0</strong></article>
                 <article class="live-stats-chip"><span>Tarjetas</span><strong id="live-stat-cards">0</strong></article>
                 <article class="live-stats-chip"><span>Duelos G/T</span><strong id="live-stat-duels">0/0</strong></article>
                 <article class="live-stats-chip"><span>Acierto duelo</span><strong id="live-stat-duel-rate">0%</strong></article>
@@ -2655,6 +2658,8 @@
               <div class="live-stats-details">
                 <span>Sustituciones: <strong id="live-stat-subs">0</strong></span>
                 <span>Atajo teclado: <strong>S</strong> para mostrar/ocultar</span>
+                <span>Territorios: <strong id="live-stat-tercios">D 0 · M 0 · A 0</strong></span>
+                <span>Alertas: <strong id="live-stat-alerts">—</strong></span>
               </div>
             </div>
           </section>
@@ -3389,12 +3394,17 @@
         actions: document.getElementById('live-stat-actions'),
         possession: document.getElementById('live-stat-possession'),
         pace: document.getElementById('live-stat-pace'),
+        pace5: document.getElementById('live-stat-pace5'),
         shots: document.getElementById('live-stat-shots'),
+        shotsTarget: document.getElementById('live-stat-shots-target'),
         passes: document.getElementById('live-stat-passes'),
+        turnovers: document.getElementById('live-stat-turnovers'),
         cards: document.getElementById('live-stat-cards'),
         subs: document.getElementById('live-stat-subs'),
         duels: document.getElementById('live-stat-duels'),
         duelRate: document.getElementById('live-stat-duel-rate'),
+        tercios: document.getElementById('live-stat-tercios'),
+        alerts: document.getElementById('live-stat-alerts'),
       };
       const liveEventStore = new Map();
       let showPageStatus;
@@ -3414,9 +3424,22 @@
         const shot =
           containsText(action, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']) ||
           containsText(result, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']);
+        const shotOnTarget =
+          shot && (
+            containsText(result, ['a puerta', 'apuerta', 'ap', 'a/p'])
+            || containsText(result, ['ok', 'ganad', 'ganó'])
+            || containsText(action, ['gol'])
+            || containsText(result, ['gol'])
+          );
         const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
         const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
         const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
+        const loss =
+          containsText(action, ['perdida', 'pérdida', 'perd']) ||
+          containsText(result, ['perdid', 'error', 'fall']);
+        const steal =
+          containsText(action, ['robo', 'recuper', 'intercep', 'entrada']) ||
+          containsText(result, ['robo', 'recuper', 'intercep']);
         const offensiveDuel =
           containsText(action, ['regate', 'dribbl', 'conduccion', 'conducción', 'encare', '1v1', '1x1']) ||
           containsText(result, ['regate', 'dribbl']);
@@ -3433,25 +3456,48 @@
           (offensiveDuel && offensiveSuccess && !offensiveFail) ||
           (defensiveDuel && defensiveSuccess && !defensiveFail)
         );
-        return { shot, pass, card, sub, duel, duelWon };
+        const zoneText = String(zone || '').toLowerCase();
+        const tercio =
+          zoneText.includes('porter') || zoneText.includes('defensa') ? 'def'
+          : zoneText.includes('medio') ? 'mid'
+          : zoneText.includes('ataque') ? 'att'
+          : '';
+        return { shot, shotOnTarget, pass, card, sub, loss, steal, duel, duelWon, tercio };
       };
       const refreshLiveStatsHud = () => {
         const totals = {
           actions: liveEventStore.size,
           shots: 0,
+          shotsTarget: 0,
           passes: 0,
           cards: 0,
           subs: 0,
           duels: 0,
           duelsWon: 0,
+          losses: 0,
+          steals: 0,
+          tercio_def: 0,
+          tercio_mid: 0,
+          tercio_att: 0,
+        };
+        const currentMinute = Math.max(0, Math.floor(elapsedRef.value / 60));
+        const windowStart = Math.max(0, currentMinute - 5);
+        const last5 = {
+          actions: 0,
+          shots: 0,
+          shotsTarget: 0,
+          lossesDef: 0,
         };
         let subEntries = 0;
         let subExits = 0;
         liveEventStore.forEach((eventData) => {
           const summary = summarizeLiveEvent(eventData);
           if (summary.shot) totals.shots += 1;
+          if (summary.shotOnTarget) totals.shotsTarget += 1;
           if (summary.pass) totals.passes += 1;
           if (summary.card) totals.cards += 1;
+          if (summary.loss) totals.losses += 1;
+          if (summary.steal) totals.steals += 1;
           if (summary.sub) {
             const resultText = String(eventData?.result || '').toLowerCase();
             if (resultText.includes('salida')) subExits += 1;
@@ -3460,29 +3506,54 @@
           }
           if (summary.duel) totals.duels += 1;
           if (summary.duelWon) totals.duelsWon += 1;
+          if (summary.tercio === 'def') totals.tercio_def += 1;
+          else if (summary.tercio === 'mid') totals.tercio_mid += 1;
+          else if (summary.tercio === 'att') totals.tercio_att += 1;
+
+          const minute = Number(eventData?.minute);
+          if (Number.isFinite(minute) && minute >= windowStart && minute <= currentMinute) {
+            last5.actions += 1;
+            if (summary.shot) last5.shots += 1;
+            if (summary.shotOnTarget) last5.shotsTarget += 1;
+            if (summary.loss && summary.tercio === 'def') last5.lossesDef += 1;
+          }
         });
         totals.subs = Math.max(subEntries, subExits);
         const minutes = Math.max(1, elapsedRef.value / 60);
         const pace = totals.actions / minutes;
+        const pace5 = last5.actions / 5;
         const possessionApprox = totals.actions
           ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
           : 50;
         const duelRate = totals.duels ? Math.round((totals.duelsWon / totals.duels) * 100) : 0;
+        const alerts = (() => {
+          const parts = [];
+          if (last5.lossesDef >= 3) parts.push('PÉRDIDAS EN SALIDA');
+          if (totals.shotsTarget >= 3 && totals.shots >= 5) parts.push('MUCHO TIRO A PUERTA');
+          if (!parts.length) return '—';
+          return parts.slice(0, 2).join(' · ');
+        })();
         if (liveStatEls.actions) liveStatEls.actions.textContent = String(totals.actions);
         if (liveStatEls.shots) liveStatEls.shots.textContent = String(totals.shots);
+        if (liveStatEls.shotsTarget) liveStatEls.shotsTarget.textContent = String(totals.shotsTarget);
         if (liveStatEls.passes) liveStatEls.passes.textContent = String(totals.passes);
+        if (liveStatEls.turnovers) liveStatEls.turnovers.textContent = `${totals.losses}/${totals.steals}`;
         if (liveStatEls.cards) liveStatEls.cards.textContent = String(totals.cards);
         if (liveStatEls.subs) liveStatEls.subs.textContent = String(totals.subs);
         if (liveStatEls.duels) liveStatEls.duels.textContent = `${totals.duelsWon}/${totals.duels}`;
         if (liveStatEls.duelRate) liveStatEls.duelRate.textContent = `${duelRate}%`;
         if (liveStatEls.possession) liveStatEls.possession.textContent = `${possessionApprox}%`;
         if (liveStatEls.pace) liveStatEls.pace.textContent = `${pace.toFixed(1)}/min`;
+        if (liveStatEls.pace5) liveStatEls.pace5.textContent = `${pace5.toFixed(1)}/min`;
+        if (liveStatEls.tercios) liveStatEls.tercios.textContent = `D ${totals.tercio_def} · M ${totals.tercio_mid} · A ${totals.tercio_att}`;
+        if (liveStatEls.alerts) liveStatEls.alerts.textContent = alerts;
         if (persistentActionsEl) persistentActionsEl.textContent = String(totals.actions);
         if (persistentPossessionEl) persistentPossessionEl.textContent = `${possessionApprox}%`;
       };
-      const registerLiveEvent = ({ id = null, action = '', zone = '', result = '' }) => {
+      const registerLiveEvent = ({ id = null, action = '', zone = '', result = '', minute = null }) => {
         const key = id ? `id:${id}` : `tmp:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-        liveEventStore.set(key, { action, zone, result });
+        const minuteNum = Number(minute);
+        liveEventStore.set(key, { action, zone, result, minute: Number.isFinite(minuteNum) ? minuteNum : null });
         refreshLiveStatsHud();
       };
       const removeLiveEvent = (eventId) => {

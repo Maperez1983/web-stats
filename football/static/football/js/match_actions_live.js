@@ -265,7 +265,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       let action = '';
       let zone = '';
       let result = '';
+      let minute = null;
       if (article) {
+        const minuteText = article.querySelector('.hist-minute')?.textContent || '';
+        const minuteParsed = parseInt(String(minuteText || '').replace(/[^\d]/g, ''), 10);
+        if (Number.isFinite(minuteParsed)) minute = minuteParsed;
         const text = article.querySelector('.hist-text')?.textContent || '';
         const parts = text.split('·').map((part) => part.trim());
         action = parts[0] || '';
@@ -273,7 +277,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         result = parts[2] || '';
       }
       removeLiveEvent(oldId);
-      registerLiveEvent({ id: newId, action, zone, result });
+      registerLiveEvent({ id: newId, action, zone, result, minute });
     } catch (error) {
       // ignore
     }
@@ -882,14 +886,22 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (event_id) item.dataset.eventId = event_id;
     historyList.prepend(item);
     if (historyList.children.length > 24) historyList.removeChild(historyList.lastChild);
-    registerLiveEvent({ id: event_id, action, zone, result });
+    registerLiveEvent({ id: event_id, action, zone, result, minute: numericMinute });
     return true;
   };
 
   historyList.querySelectorAll('.history-item').forEach((item) => {
+    const minuteText = item.querySelector('.hist-minute')?.textContent || '';
+    const minute = parseInt(String(minuteText || '').replace(/[^\d]/g, ''), 10);
     const text = item.querySelector('.hist-text')?.textContent || '';
     const [action = '', zone = '', result = ''] = text.split('·').map((part) => part.trim());
-    registerLiveEvent({ id: item.dataset.eventId || null, action, zone, result });
+    registerLiveEvent({
+      id: item.dataset.eventId || null,
+      action,
+      zone,
+      result,
+      minute: Number.isFinite(minute) ? minute : null,
+    });
   });
 
   historyList.addEventListener('click', async (event) => {
