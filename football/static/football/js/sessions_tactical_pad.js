@@ -1574,17 +1574,45 @@
 	    } catch (error) {
 	      // ignore
 	    }
-	    // Apple Pencil: palm rejection en “Pencil Pro” (bloquea touch hacia Fabric cuando está dibujando).
-	    // Además, “Ruta animada” captura el trazo y lo convierte en Timeline Pro.
-	    try {
-	      const upper = canvas.upperCanvasEl;
-	      const isTouch = (ev) => safeText(ev?.pointerType) === 'touch';
-	      const isPen = (ev) => safeText(ev?.pointerType) === 'pen';
-	      const stopEv = (ev) => {
-	        try { ev.preventDefault(); } catch (e) { /* ignore */ }
-	        try { ev.stopPropagation(); } catch (e) { /* ignore */ }
-	        try { ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
-	      };
+		    // Apple Pencil: palm rejection en “Pencil Pro” (bloquea touch hacia Fabric cuando está dibujando).
+		    // Además, “Ruta animada” captura el trazo y lo convierte en Timeline Pro.
+		    try {
+		      const upper = canvas.upperCanvasEl;
+		      const isTouch = (ev) => safeText(ev?.pointerType) === 'touch';
+		      const isPen = (ev) => safeText(ev?.pointerType) === 'pen';
+		      // Pencil Pro híbrido: con lápiz permite dibujar en espacio vacío, pero si empiezas
+		      // el gesto sobre una ficha/objeto, se interpreta como arrastre (y no como trazo).
+		      let pencilHybridDragPointerId = null;
+		      const isHybridDragTarget = (obj) => {
+		        if (!obj) return false;
+		        try {
+		          if (obj?.data?.base) return false;
+		        } catch (e) { /* ignore */ }
+		        try {
+		          if (typeof isBackgroundShape === 'function' && isBackgroundShape(obj)) return false;
+		        } catch (e) { /* ignore */ }
+		        try {
+		          if (obj.evented === false) return false;
+		          if (obj.selectable === false) return false;
+		        } catch (e) { /* ignore */ }
+		        return true;
+		      };
+		      const endPencilHybridDrag = (ev) => {
+		        if (pencilHybridDragPointerId == null) return;
+		        if (ev && ev.pointerId !== pencilHybridDragPointerId) return;
+		        pencilHybridDragPointerId = null;
+		        try {
+		          if (pencilProMode && freeDrawMode && penOnlyDraw) {
+		            canvas.isDrawingMode = true;
+		            canvas.selection = false;
+		          }
+		        } catch (e) { /* ignore */ }
+		      };
+		      const stopEv = (ev) => {
+		        try { ev.preventDefault(); } catch (e) { /* ignore */ }
+		        try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+		        try { ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
+		      };
 	      const dist = (a, b) => Math.hypot((Number(a?.x) || 0) - (Number(b?.x) || 0), (Number(a?.y) || 0) - (Number(b?.y) || 0));
 	      const clearAnimPathOverlay = () => {
 	        if (!animPathOverlay) return;
@@ -1686,17 +1714,31 @@
 	        return true;
 	      };
 
-	      upper?.addEventListener('pointerdown', (ev) => {
-	        if (!ev) return;
-	        if (penOnlyDraw && freeDrawMode && isTouch(ev)) {
-	          stopEv(ev);
-	          return;
-	        }
-	        if (!animPathMode) return;
-	        if (!isPen(ev) && safeText(ev?.pointerType) !== 'mouse') return;
-	        const active = canvas.getActiveObject();
-	        if (!active || active?.data?.base || isBackgroundShape(active)) {
-	          setStatus('Selecciona una ficha para dibujar su ruta animada.', true);
+		      upper?.addEventListener('pointerdown', (ev) => {
+		        if (!ev) return;
+		        if (penOnlyDraw && freeDrawMode && isTouch(ev)) {
+		          stopEv(ev);
+		          return;
+		        }
+		        // Pencil Pro híbrido: si el gesto comienza sobre un objeto, desactivamos temporalmente
+		        // el modo dibujo para permitir seleccionar/arrastrar con el lápiz.
+		        if (pencilProMode && freeDrawMode && penOnlyDraw && isPen(ev) && !animPathMode) {
+		          try {
+		            if (canvas.isDrawingMode) {
+		              const target = typeof canvas.findTarget === 'function' ? canvas.findTarget(ev) : null;
+		              if (isHybridDragTarget(target)) {
+		                pencilHybridDragPointerId = ev.pointerId;
+		                canvas.isDrawingMode = false;
+		                canvas.selection = true;
+		              }
+		            }
+		          } catch (e) { /* ignore */ }
+		        }
+		        if (!animPathMode) return;
+		        if (!isPen(ev) && safeText(ev?.pointerType) !== 'mouse') return;
+		        const active = canvas.getActiveObject();
+		        if (!active || active?.data?.base || isBackgroundShape(active)) {
+		          setStatus('Selecciona una ficha para dibujar su ruta animada.', true);
 	          stopEv(ev);
 	          return;
 	        }
@@ -1721,12 +1763,16 @@
 	          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 	        }
 	        stopEv(ev);
-	      }, { capture: true, passive: false });
+		      }, { capture: true, passive: false });
 
-	      upper?.addEventListener('pointermove', (ev) => {
-	        if (!animPathCapturing) return;
-	        if (animPathPointerId != null && ev.pointerId !== animPathPointerId) return;
-	        const raw = canvas.getPointer(ev);
+		      upper?.addEventListener('pointerup', endPencilHybridDrag, { capture: true, passive: true });
+		      upper?.addEventListener('pointercancel', endPencilHybridDrag, { capture: true, passive: true });
+		      upper?.addEventListener('lostpointercapture', endPencilHybridDrag, { capture: true, passive: true });
+
+		      upper?.addEventListener('pointermove', (ev) => {
+		        if (!animPathCapturing) return;
+		        if (animPathPointerId != null && ev.pointerId !== animPathPointerId) return;
+		        const raw = canvas.getPointer(ev);
 	        const p = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
 	        const last = animPathPoints[animPathPoints.length - 1];
 	        if (last && dist(last, p) < 9) {
@@ -1755,12 +1801,12 @@
 	        setStatus(ok ? 'Ruta aplicada a Timeline Pro.' : 'No se pudo aplicar la ruta.', !ok);
 	        if (ev) stopEv(ev);
 	      };
-	      upper?.addEventListener('pointerup', endAnim, { capture: true, passive: false });
-	      upper?.addEventListener('pointercancel', endAnim, { capture: true, passive: false });
-	      upper?.addEventListener('lostpointercapture', endAnim, { capture: true, passive: false });
-	    } catch (e) {
-	      // ignore
-	    }
+		      upper?.addEventListener('pointerup', endAnim, { capture: true, passive: false });
+		      upper?.addEventListener('pointercancel', endAnim, { capture: true, passive: false });
+		      upper?.addEventListener('lostpointercapture', endAnim, { capture: true, passive: false });
+		    } catch (e) {
+		      // ignore
+		    }
 	    // Si el viewport es scrollable (zoom/orientación), el offset del canvas cambia y Fabric
 	    // necesita recalcularlo para que clicks/drag coincidan con la posición real.
 	    const scheduleCanvasOffset = () => {
@@ -14230,7 +14276,7 @@
 	          } catch (e) { /* ignore */ }
 	          if (strokeWidthRow) strokeWidthRow.hidden = false;
 	          if (strokePresetsRow) strokePresetsRow.hidden = false;
-	          setStatus(penOnlyDraw ? 'Pencil Pro activo: dibuja solo con Apple Pencil (el dedo sirve para pan/zoom).' : 'Dibujo libre activado. Dibuja sobre el campo (pulsa “Dibujo libre” o Esc para salir).');
+		          setStatus(penOnlyDraw ? 'Pencil Pro activo: dibuja con Apple Pencil. Si empiezas el gesto sobre una ficha/objeto, lo arrastras (no dibuja). El dedo sirve para pan/zoom.' : 'Dibujo libre activado. Dibuja sobre el campo (pulsa “Dibujo libre” o Esc para salir).');
 	        } else {
 	          try { syncInspector(); } catch (e) { /* ignore */ }
 	          setStatus('Dibujo libre desactivado.');
