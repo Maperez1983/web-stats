@@ -626,12 +626,68 @@
           linear-gradient(180deg, rgba(16, 185, 129, 0.18), rgba(34, 197, 94, 0.12));
         display: grid;
         place-items: center;
+        position: relative;
       }
-      .create-hero-pitch svg {
-        width: min(980px, 96%);
-        height: auto;
-        opacity: 0.92;
-        filter: drop-shadow(0 16px 20px rgba(2, 6, 23, 0.25));
+      /* Campo sin SVG (evita artefactos en iPad): líneas por CSS. */
+      .create-hero-pitch::before {
+        content: "";
+        position: absolute;
+        inset: 10% 5%;
+        border: 2px solid rgba(248,250,252,0.86);
+        border-radius: 2px;
+        pointer-events: none;
+      }
+      .create-hero-pitch::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22%;
+        height: 42%;
+        transform: translate(-50%, -50%);
+        border: 2px solid rgba(248,250,252,0.62);
+        border-radius: 999px;
+        pointer-events: none;
+      }
+      .create-hero-midline {
+        position: absolute;
+        left: 50%;
+        top: 10%;
+        bottom: 10%;
+        width: 2px;
+        transform: translateX(-50%);
+        background: rgba(248,250,252,0.62);
+        pointer-events: none;
+      }
+      .create-hero-demo {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .create-hero-dot {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(248,250,252,0.92);
+        position: absolute;
+        box-shadow: 0 12px 20px rgba(2,6,23,0.28);
+      }
+      .create-hero-dot.d1 { left: 20%; top: 55%; opacity: 0.88; }
+      .create-hero-dot.d2 { left: 30%; top: 25%; opacity: 0.88; }
+      .create-hero-dot.d3 { left: 32%; top: 72%; opacity: 0.88; }
+      .create-hero-curve {
+        position: absolute;
+        left: 20%;
+        top: 30%;
+        width: 34%;
+        height: 40%;
+        border: 0;
+      }
+      .create-hero-curve path {
+        stroke: rgba(248,250,252,0.72);
+        stroke-width: 6;
+        fill: none;
+        stroke-linecap: round;
       }
       .create-hero-guide {
         padding: 0.85rem 0.9rem 0.95rem;
@@ -690,14 +746,13 @@
       }
       .create-module-view[hidden] { display: none !important; }
       .create-actions-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        align-items: center;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 0.5rem;
+        align-items: stretch;
         margin: 0.35rem 0 0.65rem;
       }
       .create-action-btn {
-        flex: 1 1 190px;
         display: inline-flex;
         align-items: center;
         justify-content: space-between;
@@ -728,6 +783,29 @@
         font-size: 1.15rem;
         line-height: 1;
       }
+      .create-actions-panel {
+        margin-top: 0.8rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 16px;
+        background: rgba(2, 10, 22, 0.36);
+        padding: 0.8rem;
+      }
+      .create-actions-panel h3 {
+        margin: 0 0 0.45rem;
+        font-size: 0.86rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .create-actions-panel .meta { margin: 0 0 0.55rem; }
+      .create-subpanel {
+        margin-top: 0.7rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.28);
+        padding: 0.75rem;
+      }
+      .create-subpanel[hidden] { display:none !important; }
+      .create-subpanel .meta { margin-top: -0.25rem; }
       .badge {
         display: inline-flex;
         align-items: center;
@@ -1515,16 +1593,15 @@
 				                <p class="meta">Ejemplos de flujo real para no perder tiempo.</p>
 				              </div>
 				              <div class="create-hero-pitch" aria-hidden="true">
-				                <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
-				                  <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.1"/>
-				                  <line x1="52.5" y1="1" x2="52.5" y2="67" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
-				                  <circle cx="52.5" cy="34" r="8.5" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
-				                  <circle cx="52.5" cy="34" r="0.9" fill="rgba(248,250,252,0.82)"/>
-				                  <path d="M26 34 C 36 34, 44 26, 52 22" stroke="rgba(248,250,252,0.75)" stroke-width="0.9" fill="none"/>
-				                  <circle cx="26" cy="34" r="1.7" fill="rgba(248,250,252,0.92)"/>
-				                  <circle cx="36" cy="24" r="1.7" fill="rgba(248,250,252,0.92)"/>
-				                  <circle cx="36" cy="44" r="1.7" fill="rgba(248,250,252,0.92)"/>
-				                </svg>
+                        <div class="create-hero-midline"></div>
+                        <div class="create-hero-demo">
+                          <div class="create-hero-dot d1"></div>
+                          <div class="create-hero-dot d2"></div>
+                          <div class="create-hero-dot d3"></div>
+                          <svg class="create-hero-curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                            <path d="M5 60 C 30 62, 48 40, 88 28" />
+                          </svg>
+                        </div>
 				              </div>
 				              <div class="create-hero-guide">
 				                <div class="example"><strong>Ejemplo 1:</strong> “Quiero una tarea de finalización desde banda” → <em>Tarea</em> → <em>Recomendador</em> → aplica y ajusta.</div>
@@ -1543,155 +1620,175 @@
 				            </aside>
 				          </div>
 				          <div class="create-module-view" id="create-mod-task">
-				            <div class="create-actions-row">
-				              <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1">Crear clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
-				              <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive&landing=1">Crear interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
-				              <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1&pane=assistant">Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
-				              <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
-				            </div>
+                    <div class="create-actions-panel">
+                      <h3>Tarea</h3>
+                      <p class="meta">Crea, recomienda o importa tareas en el formato del sistema.</p>
+                      <div class="create-actions-row">
+                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1">Crear clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
+                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive&landing=1">Crear interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
+                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1&pane=assistant">Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
+                        <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
+                      </div>
+                    </div>
 				          </div>
 				          <div class="create-module-view" id="create-mod-session" hidden>
-				            <div class="create-actions-row">
-				              <a class="create-action-btn" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar sesiones <small>Tareas por bloque</small> <span class="chev" aria-hidden="true">›</span></a>
-				              <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
-				            </div>
+                    <div class="create-actions-panel">
+                      <h3>Sesión</h3>
+                      <p class="meta">Crea la sesión (día), o importa PDF tal cual. La asignación por bloques se hace en Biblioteca.</p>
+                      <div class="create-actions-row">
+                        <button class="create-action-btn" type="button" data-create-toggle="session-form">Crear sesión <small>Sesión suelta o en microciclo</small> <span class="chev" aria-hidden="true">›</span></button>
+                        <a class="create-action-btn" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar sesiones <small>Tareas por bloque</small> <span class="chev" aria-hidden="true">›</span></a>
+                        <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
+                      </div>
+                      <div class="create-subpanel" id="create-session-form" hidden>
+                        <h3 style="margin:0 0 0.35rem;">Crear sesión</h3>
+                        <p class="meta" style="margin-top:0;">
+                          Al guardar, el sistema te lleva a <strong>Biblioteca → Sesiones</strong> para asignar tareas por bloque.
+                        </p>
+                        <div class="editor-box" style="margin-top:0;">
+                          <form method="post" class="grid">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="create_session_plan" />
+                            <input type="hidden" name="planner_tab" value="create" />
+                            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                            <label>
+                              Microciclo
+                              <select name="plan_microcycle_id">
+                                <option value="">Sin microciclo (sesión suelta)</option>
+                                {% for item in planning_microcycles %}
+                                <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+                                {% endfor %}
+                              </select>
+                            </label>
+                            <label>
+                              Fecha
+                              <input type="date" name="plan_session_date" required />
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Nombre de la sesión
+                              <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
+                            </label>
+                            <label>
+                              Duración (min)
+                              <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
+                            </label>
+                            <label>
+                              Intensidad
+                              <select name="plan_session_intensity">
+                                {% for value, label in session_intensity_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                              </select>
+                            </label>
+                            <label>
+                              Estado
+                              <select name="plan_session_status">
+                                {% for value, label in session_status_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                              </select>
+                            </label>
+                            <label>
+                              N jugadores
+                              <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Materiales
+                              <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Lesionados / ausencias
+                              <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Notas (opcional)
+                              <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+                            </label>
+                            <div><button type="submit" class="primary">Crear sesión</button></div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
 				          </div>
 				          <div class="create-module-view" id="create-mod-microcycle" hidden>
-				            <div class="create-actions-row">
-				              <a class="create-action-btn" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar microciclos <small>Semana completa</small> <span class="chev" aria-hidden="true">›</span></a>
-				            </div>
+                    <div class="create-actions-panel">
+                      <h3>Microciclo</h3>
+                      <p class="meta">Define la semana (MD-4…MD+1) y luego ordénala en Biblioteca.</p>
+                      <div class="create-actions-row">
+                        <button class="create-action-btn" type="button" data-create-toggle="microcycle-form">Crear microciclo <small>Semana completa</small> <span class="chev" aria-hidden="true">›</span></button>
+                        <a class="create-action-btn" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar microciclos <small>Ver y editar</small> <span class="chev" aria-hidden="true">›</span></a>
+                      </div>
+                      <div class="create-subpanel" id="create-microcycle-form" hidden>
+                        <h3 style="margin:0 0 0.35rem;">Crear microciclo</h3>
+                        <p class="meta" style="margin-top:0;">
+                          Luego entra en <strong>Biblioteca → Microciclos</strong> para ver el mapa y sus sesiones.
+                        </p>
+                        <div class="editor-box" style="margin-top:0;">
+                          <form method="post" class="grid">
+                            {% csrf_token %}
+                            <input type="hidden" name="planner_action" value="create_microcycle_plan" />
+                            <input type="hidden" name="planner_tab" value="create" />
+                            <label>
+                              Título
+                              <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
+                            </label>
+                            <label>
+                              Objetivo
+                              <input type="text" name="plan_microcycle_objective" maxlength="200" placeholder="Objetivo semanal" />
+                            </label>
+                            <label>
+                              Inicio
+                              <input type="date" name="plan_week_start" required />
+                            </label>
+                            <label>
+                              Fin
+                              <input type="date" name="plan_week_end" required />
+                            </label>
+                            <label>
+                              Estado
+                              <select name="plan_microcycle_status">
+                                {% for value, label in microcycle_status_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                              </select>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Objetivos ataque
+                              <textarea name="plan_microcycle_attack" placeholder="Principios, subprincipios y focos ofensivos"></textarea>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Objetivos defensa
+                              <textarea name="plan_microcycle_defense" placeholder="Principios defensivos y ajustes de comportamiento"></textarea>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Objetivos ABP
+                              <textarea name="plan_microcycle_set_pieces" placeholder="ABP ofensiva/defensiva a reforzar en la semana"></textarea>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Observaciones rival
+                              <textarea name="plan_microcycle_rival_notes" placeholder="Patrones del rival, alertas y contexto competitivo"></textarea>
+                            </label>
+                            <label style="grid-column:1/-1;">
+                              Notas generales
+                              <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
+                            </label>
+                            <div><button type="submit" class="primary">Guardar microciclo</button></div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
 				          </div>
 				          <div class="create-module-view" id="create-mod-tactics" hidden>
-				            <div class="create-actions-row">
-				              <a class="create-action-btn" href="{% url 'coach-tactics' %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
-				              <a class="create-action-btn" href="{% url 'coach-abp-board' %}">ABP <small>Balón parado</small> <span class="chev" aria-hidden="true">›</span></a>
-				            </div>
+                    <div class="create-actions-panel">
+                      <h3>Táctica</h3>
+                      <p class="meta">Pizarra táctica y ABP con recursos listos.</p>
+                      <div class="create-actions-row">
+                        <a class="create-action-btn" href="{% url 'coach-tactics' %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
+                        <a class="create-action-btn" href="{% url 'coach-abp-board' %}">ABP <small>Balón parado</small> <span class="chev" aria-hidden="true">›</span></a>
+                      </div>
+                    </div>
 				          </div>
-				          <div class="grid" style="margin-top:0.85rem;">
-			            <div class="editor-box" id="create-session-box">
-			              <h3>Crear sesión</h3>
-			              <p class="meta" style="margin-top:-0.35rem;">
-		                Crea la sesión (día). Al guardar, el sistema te lleva a <strong>Biblioteca → Sesiones</strong> para asignar tareas por bloque.
-		              </p>
-		              <form method="post" class="grid">
-		                {% csrf_token %}
-		                <input type="hidden" name="planner_action" value="create_session_plan" />
-		                <input type="hidden" name="planner_tab" value="create" />
-		                <input type="hidden" name="team" value="{{ primary_team_id }}" />
-		                {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-		                <label>
-		                  Microciclo
-		                  <select name="plan_microcycle_id">
-		                    <option value="">Sin microciclo (sesión suelta)</option>
-		                    {% for item in planning_microcycles %}
-		                    <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
-		                    {% endfor %}
-		                  </select>
-		                </label>
-		                <label>
-		                  Fecha
-		                  <input type="date" name="plan_session_date" required />
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Nombre de la sesión
-		                  <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
-		                </label>
-		                <label>
-		                  Duración (min)
-		                  <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
-		                </label>
-		                <label>
-		                  Intensidad
-		                  <select name="plan_session_intensity">
-		                    {% for value, label in session_intensity_choices %}
-		                    <option value="{{ value }}">{{ label }}</option>
-		                    {% endfor %}
-		                  </select>
-		                </label>
-		                <label>
-		                  Estado
-		                  <select name="plan_session_status">
-		                    {% for value, label in session_status_choices %}
-		                    <option value="{{ value }}">{{ label }}</option>
-		                    {% endfor %}
-		                  </select>
-		                </label>
-		                <label>
-		                  N jugadores
-		                  <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Materiales
-		                  <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Lesionados / ausencias
-		                  <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Notas (opcional)
-		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
-		                </label>
-		                <div><button type="submit" class="primary">Crear sesión</button></div>
-			              </form>
-			            </div>
-			            <div class="editor-box" id="create-microcycle-box">
-			              <h3>Crear microciclo</h3>
-		              <p class="meta" style="margin-top:-0.35rem;">
-		                Crea la semana (microciclo). Luego entra en <strong>Biblioteca → Microciclos</strong> para ver el mapa y sus sesiones.
-		              </p>
-		              <form method="post" class="grid">
-		                {% csrf_token %}
-		                <input type="hidden" name="planner_action" value="create_microcycle_plan" />
-		                <input type="hidden" name="planner_tab" value="create" />
-		                <label>
-		                  Título
-		                  <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
-		                </label>
-		                <label>
-		                  Objetivo
-		                  <input type="text" name="plan_microcycle_objective" maxlength="200" placeholder="Objetivo semanal" />
-		                </label>
-		                <label>
-		                  Inicio
-		                  <input type="date" name="plan_week_start" required />
-		                </label>
-		                <label>
-		                  Fin
-		                  <input type="date" name="plan_week_end" required />
-		                </label>
-		                <label>
-		                  Estado
-		                  <select name="plan_microcycle_status">
-		                    {% for value, label in microcycle_status_choices %}
-		                    <option value="{{ value }}">{{ label }}</option>
-		                    {% endfor %}
-		                  </select>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Objetivos ataque
-		                  <textarea name="plan_microcycle_attack" placeholder="Principios, subprincipios y focos ofensivos"></textarea>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Objetivos defensa
-		                  <textarea name="plan_microcycle_defense" placeholder="Principios defensivos y ajustes de comportamiento"></textarea>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Objetivos ABP
-		                  <textarea name="plan_microcycle_set_pieces" placeholder="ABP ofensiva/defensiva a reforzar en la semana"></textarea>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Observaciones rival
-		                  <textarea name="plan_microcycle_rival_notes" placeholder="Patrones del rival, alertas y contexto competitivo"></textarea>
-		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Notas generales
-		                  <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
-		                </label>
-		                <div><button type="submit" class="primary">Guardar microciclo</button></div>
-			              </form>
-			            </div>
-			          </div>
 			          <script>
 			            (function () {
 			              const root = document.getElementById('coach-create-landing');
@@ -1717,6 +1814,18 @@
 			                try { window.localStorage.setItem('webstats:create:active_mod_v1', k); } catch (e) {}
 			              };
 			              buttons.forEach((btn) => btn.addEventListener('click', () => setActive(btn.getAttribute('data-create-mod'))));
+			              // Toggle sub-formularios (crear sesión / microciclo) sin ensuciar la vista de presentación.
+			              const toggles = Array.from(document.querySelectorAll('[data-create-toggle]'));
+			              const togglePanel = (key) => {
+			                const id = `create-${String(key || '').trim()}`;
+			                const panel = document.getElementById(id);
+			                if (!panel) return;
+			                panel.hidden = !panel.hidden;
+			                if (!panel.hidden) {
+			                  try { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
+			                }
+			              };
+			              toggles.forEach((btn) => btn.addEventListener('click', () => togglePanel(btn.getAttribute('data-create-toggle'))));
 			              let initial = 'task';
 			              try { initial = (window.localStorage.getItem('webstats:create:active_mod_v1') || 'task').trim() || 'task'; } catch (e) {}
 			              setActive(initial);
