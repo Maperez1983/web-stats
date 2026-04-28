@@ -5387,8 +5387,13 @@
 	            if (guideBtn) guideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
 	            if (guideHint) guideHint.hidden = !on;
 	          };
-	          let guideOn = false;
-	          try { guideOn = window.localStorage?.getItem(guideKey) === '1'; } catch (e) { guideOn = false; }
+	          let guideOn = true;
+	          try {
+	            const raw = window.localStorage?.getItem(guideKey);
+	            guideOn = raw == null ? true : raw === '1';
+	          } catch (e) {
+	            guideOn = true;
+	          }
 	          applyGuide(guideOn);
 	          if (guideBtn) {
 	            guideBtn.addEventListener('click', () => {
