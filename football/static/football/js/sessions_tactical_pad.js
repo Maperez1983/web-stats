@@ -805,27 +805,74 @@
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
 				    const simProPanel = document.getElementById('task-sim-pro-panel');
-			    const simAdvancedDetails = document.getElementById('task-sim-advanced');
-			    const isTacticsMode = document.body.classList.contains('tactics-mode');
-			    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
-			    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
-			    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
+				    const simAdvancedDetails = document.getElementById('task-sim-advanced');
+				    const isTacticsMode = document.body.classList.contains('tactics-mode');
+				    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
+				    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
+				    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
 
-			    const setTacticsPanelOpen = (open) => {
-			      if (!isTacticsMode) return;
-			      document.body.classList.toggle('tactics-panel-open', !!open);
-			      try { window.localStorage.setItem('tpad_tactics_panel_open_v1', open ? '1' : '0'); } catch (e) { /* ignore */ }
-			    };
-			    const setTacticsToolsOpen = (open) => {
-			      if (!isTacticsMode) return;
-			      document.body.classList.toggle('tactics-tools-open', !!open);
-			      try { window.localStorage.setItem('tpad_tactics_tools_open_v1', open ? '1' : '0'); } catch (e) { /* ignore */ }
-			    };
-			    const restoreTacticsUi = () => {
-			      if (!isTacticsMode) return;
-			      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
-			      try { setTacticsToolsOpen(safeText(window.localStorage.getItem('tpad_tactics_tools_open_v1')) === '1'); } catch (e) { setTacticsToolsOpen(false); }
-			    };
+				    const setTacticsPanelOpen = (open) => {
+				      if (!isTacticsMode) return;
+				      const enabled = !!open;
+				      document.body.classList.toggle('tactics-panel-open', enabled);
+				      try { window.localStorage.setItem('tpad_tactics_panel_open_v1', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+				      if (!enabled) {
+				        try { if (simPopover) simPopover.hidden = true; } catch (e) { /* ignore */ }
+				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				      }
+				    };
+				    const setTacticsToolsOpen = (open) => {
+				      if (!isTacticsMode) return;
+				      const enabled = !!open;
+				      document.body.classList.toggle('tactics-tools-open', enabled);
+				      try { window.localStorage.setItem('tpad_tactics_tools_open_v1', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+				      if (!enabled) {
+				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				      }
+				    };
+				    const restoreTacticsUi = () => {
+				      if (!isTacticsMode) return;
+				      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
+				      try { setTacticsToolsOpen(safeText(window.localStorage.getItem('tpad_tactics_tools_open_v1')) === '1'); } catch (e) { setTacticsToolsOpen(false); }
+				    };
+
+				    // Backdrop global (evita “superposición” visual de popovers/modales).
+				    const __overlayDetailsIds = ['task-builder-actions-menu', 'pitch-view-menu', 'task-side-more', 'task-resource-details'];
+				    const __overlayFloatingIds = [
+				      'task-command-menu',
+				      'task-pattern-popover',
+				      'task-formation-popover',
+				      'task-overlays-popover',
+				      'task-layers-popover',
+				      'task-scenarios-popover',
+				      'task-sim-popover',
+				    ];
+				    let __backdropRaf = 0;
+				    const __syncBackdropNow = () => {
+				      const backdrop = document.getElementById('tpad-overlay-backdrop');
+				      if (!backdrop) return;
+				      let anyOpen = false;
+				      try {
+				        anyOpen = __overlayDetailsIds.some((id) => {
+				          const el = document.getElementById(id);
+				          return !!(el && el.tagName === 'DETAILS' && el.open);
+				        });
+				      } catch (e) { /* ignore */ }
+				      if (!anyOpen) {
+				        try {
+				          anyOpen = __overlayFloatingIds.some((id) => {
+				            const el = document.getElementById(id);
+				            return !!(el && el.hidden === false);
+				          });
+				        } catch (e) { /* ignore */ }
+				      }
+				      backdrop.hidden = !anyOpen;
+				      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
+				    };
+				    const __scheduleBackdropSync = () => {
+				      try { if (__backdropRaf) cancelAnimationFrame(__backdropRaf); } catch (e) { /* ignore */ }
+				      try { __backdropRaf = requestAnimationFrame(() => { __backdropRaf = 0; __syncBackdropNow(); }); } catch (e) { __backdropRaf = 0; }
+				    };
 
 			    const FOCUS_STORAGE_KEY = 'webstats:tpad:focus-mode-v1';
 			    const syncFocusUi = (enabled) => {
@@ -917,24 +964,31 @@
 			    try { dockSimPopoverIfNeeded(); } catch (e) { /* ignore */ }
 			    try { restoreTacticsUi(); } catch (e) { /* ignore */ }
 
-			    try {
-			      tacticsPanelToggle?.addEventListener('click', (event) => {
-			        event.preventDefault();
-			        const next = !document.body.classList.contains('tactics-panel-open');
-			        setTacticsPanelOpen(next);
-			      });
-			      tacticsToolsToggle?.addEventListener('click', (event) => {
-			        event.preventDefault();
-			        const next = !document.body.classList.contains('tactics-tools-open');
-			        setTacticsToolsOpen(next);
-			      });
-			      tacticsSimOpen?.addEventListener('click', (event) => {
-			        event.preventDefault();
-			        // abre panel lateral y muestra simulador
-			        setTacticsPanelOpen(true);
-			        try { simPopover.hidden = false; } catch (e) { /* ignore */ }
-			        try { simToggleBtn?.focus?.(); } catch (e) { /* ignore */ }
-			      });
+				    try {
+				      tacticsPanelToggle?.addEventListener('click', (event) => {
+				        event.preventDefault();
+				        const next = !document.body.classList.contains('tactics-panel-open');
+				        if (next) setTacticsToolsOpen(false);
+				        setTacticsPanelOpen(next);
+				      });
+				      tacticsToolsToggle?.addEventListener('click', (event) => {
+				        event.preventDefault();
+				        const next = !document.body.classList.contains('tactics-tools-open');
+				        if (next) {
+				          setTacticsPanelOpen(false);
+				          try { if (simPopover) simPopover.hidden = true; } catch (e) { /* ignore */ }
+				        }
+				        setTacticsToolsOpen(next);
+				      });
+				      tacticsSimOpen?.addEventListener('click', (event) => {
+				        event.preventDefault();
+				        // abre panel lateral y muestra simulador
+				        setTacticsToolsOpen(false);
+				        setTacticsPanelOpen(true);
+				        try { simPopover.hidden = false; } catch (e) { /* ignore */ }
+				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				        try { simToggleBtn?.focus?.(); } catch (e) { /* ignore */ }
+				      });
 			      // ESC cierra el panel lateral en tácticas.
 			      document.addEventListener('keydown', (event) => {
 			        if (!isTacticsMode) return;
@@ -3721,28 +3775,32 @@
 	      setStatus('Grupo deshecho.');
 	    };
 
-		    const setCommandMenuOpen = (open) => {
-		      if (!commandMenu) return;
-		      commandMenu.hidden = !open;
-		    };
+			    const setCommandMenuOpen = (open) => {
+			      if (!commandMenu) return;
+			      commandMenu.hidden = !open;
+			      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+			    };
 		    let patternMode = 'line';
 		    let patternAxis = 'x';
-			    const setPatternPopoverOpen = (open) => {
-			      if (!patternPopover) return;
-			      patternPopover.hidden = !open;
-			    };
+				    const setPatternPopoverOpen = (open) => {
+				      if (!patternPopover) return;
+				      patternPopover.hidden = !open;
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				    };
 			    const closePatternPopover = () => setPatternPopoverOpen(false);
 
-			    const setFormationPopoverOpen = (open) => {
-			      if (!formationPopover) return;
-			      formationPopover.hidden = !open;
-			    };
+				    const setFormationPopoverOpen = (open) => {
+				      if (!formationPopover) return;
+				      formationPopover.hidden = !open;
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				    };
 			    const closeFormationPopover = () => setFormationPopoverOpen(false);
 
-			    const setOverlaysPopoverOpen = (open) => {
-			      if (!overlaysPopover) return;
-			      overlaysPopover.hidden = !open;
-			    };
+				    const setOverlaysPopoverOpen = (open) => {
+				      if (!overlaysPopover) return;
+				      overlaysPopover.hidden = !open;
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				    };
 			    const closeOverlaysPopover = () => setOverlaysPopoverOpen(false);
 
 			    const FORMATION_PRESETS = {
@@ -4217,22 +4275,24 @@
 		      if (!element || typeof element.closest !== 'function') return null;
 		      return element.closest(selector);
 		    };
-		    const setLayersPopoverOpen = (open) => {
-		      if (!layersPopover) return;
-		      layersPopover.hidden = !open;
-		      if (open) {
-		        // Asegura que el contenido está actualizado al abrir.
-		        try { renderLayers(); } catch (error) { /* ignore */ }
-		      }
-		    };
-			    const setScenariosPopoverOpen = (open) => {
-			      if (!scenariosPopover) return;
-			      scenariosPopover.hidden = !open;
+			    const setLayersPopoverOpen = (open) => {
+			      if (!layersPopover) return;
+			      layersPopover.hidden = !open;
 			      if (open) {
-			        try { renderTimeline(); } catch (error) { /* ignore */ }
-			        try { syncStepInputs(); } catch (error) { /* ignore */ }
+			        // Asegura que el contenido está actualizado al abrir.
+			        try { renderLayers(); } catch (error) { /* ignore */ }
 			      }
+			      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 			    };
+				    const setScenariosPopoverOpen = (open) => {
+				      if (!scenariosPopover) return;
+				      scenariosPopover.hidden = !open;
+				      if (open) {
+				        try { renderTimeline(); } catch (error) { /* ignore */ }
+				        try { syncStepInputs(); } catch (error) { /* ignore */ }
+				      }
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				    };
 					    const syncSimUi = () => {
 					      document.body.classList.toggle('is-simulating', !!isSimulating);
 					      simBtn?.classList.toggle('is-simulating', !!isSimulating);
@@ -6359,6 +6419,7 @@
 				      if (!simPopover) return;
 				      simPopover.hidden = !open;
 				      if (open) syncSimUi();
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 				    };
 
 				    // Accesos directos desde la pestaña Playbook (modo táctica).
@@ -9467,22 +9528,49 @@
 			        if (!inside) setSimPopoverOpen(false);
 			      }
 			    };
-		    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
-		    // Usamos eventos en fase de captura para que no se queden "pegados" tapando el campo (Safari/iPad incluido).
-		    window.addEventListener('pointerdown', handleOutsideFloatingMenus, true);
-		    window.addEventListener('mousedown', handleOutsideFloatingMenus, true);
-		    window.addEventListener('touchstart', handleOutsideFloatingMenus, true);
-			    window.addEventListener('keydown', (event) => {
-			      const key = String(event?.key || '').toLowerCase();
-			      if (key !== 'escape') return;
-			      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
-			      if (patternPopover && !patternPopover.hidden) closePatternPopover();
-			      if (formationPopover && !formationPopover.hidden) closeFormationPopover();
-			      if (overlaysPopover && !overlaysPopover.hidden) closeOverlaysPopover();
-			      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
-			      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
-			      if (simPopover && !simPopover.hidden) setSimPopoverOpen(false);
-			    }, true);
+			    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
+			    // Usamos eventos en fase de captura para que no se queden "pegados" tapando el campo (Safari/iPad incluido).
+			    window.addEventListener('pointerdown', handleOutsideFloatingMenus, true);
+			    window.addEventListener('mousedown', handleOutsideFloatingMenus, true);
+			    window.addEventListener('touchstart', handleOutsideFloatingMenus, true);
+			    // Backdrop: sincroniza al abrir/cerrar details y permite cerrar todo con un click “fuera”.
+			    try {
+			      __overlayDetailsIds.forEach((id) => {
+			        const el = document.getElementById(id);
+			        if (el && el.tagName === 'DETAILS') el.addEventListener('toggle', () => { try { __scheduleBackdropSync(); } catch (e) { /* ignore */ } });
+			      });
+			      const backdrop = document.getElementById('tpad-overlay-backdrop');
+			      backdrop?.addEventListener('click', (event) => {
+			        event.preventDefault();
+			        __overlayDetailsIds.forEach((id) => {
+			          const el = document.getElementById(id);
+			          if (el && el.tagName === 'DETAILS') {
+			            try { el.open = false; } catch (e) { /* ignore */ }
+			          }
+			        });
+			        try { setCommandMenuOpen(false); } catch (e) { /* ignore */ }
+			        try { closePatternPopover(); } catch (e) { /* ignore */ }
+			        try { closeFormationPopover(); } catch (e) { /* ignore */ }
+			        try { closeOverlaysPopover(); } catch (e) { /* ignore */ }
+			        try { setLayersPopoverOpen(false); } catch (e) { /* ignore */ }
+			        try { setScenariosPopoverOpen(false); } catch (e) { /* ignore */ }
+			        try { setSimPopoverOpen(false); } catch (e) { /* ignore */ }
+			        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+			      });
+			      __syncBackdropNow();
+			    } catch (e) { /* ignore */ }
+				    window.addEventListener('keydown', (event) => {
+				      const key = String(event?.key || '').toLowerCase();
+				      if (key !== 'escape') return;
+				      if (commandMenu && !commandMenu.hidden) setCommandMenuOpen(false);
+				      if (patternPopover && !patternPopover.hidden) closePatternPopover();
+				      if (formationPopover && !formationPopover.hidden) closeFormationPopover();
+				      if (overlaysPopover && !overlaysPopover.hidden) closeOverlaysPopover();
+				      if (layersPopover && !layersPopover.hidden) setLayersPopoverOpen(false);
+				      if (scenariosPopover && !scenariosPopover.hidden) setScenariosPopoverOpen(false);
+				      if (simPopover && !simPopover.hidden) setSimPopoverOpen(false);
+				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+				    }, true);
 
 		    layersBtn?.addEventListener('click', (event) => {
 		      event.preventDefault();

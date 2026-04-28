@@ -27,11 +27,24 @@
 	        color: var(--ink);
 	        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
 	      }
+      /* overlay-backdrop: evita sensación de superposición en popovers/modales */
+      .overlay-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgba(2, 6, 23, 0.32);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
       .page {
         max-width: 1560px;
         margin: 0 auto;
         padding: 1.15rem;
       }
+      body.tactics-mode #task-layers-btn,
+      body.tactics-mode #task-scenarios-btn,
+      body.tactics-mode #task-sim-btn,
+      body.tactics-mode #task-command-more { display: none !important; }
       .topbar {
         display: flex;
         justify-content: space-between;
@@ -2989,6 +3002,7 @@
 	    </style>
   </head>
   <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
+    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
     <main class="page">
       {% if show_dragon_nav|default:True %}
       {% include 'football/includes/dragon_nav.html' %}
