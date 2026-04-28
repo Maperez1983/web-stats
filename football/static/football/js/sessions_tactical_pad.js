@@ -16383,17 +16383,18 @@
       setSurfaceMenuOpen(false);
     });
 
-		    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
-		    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
-		    const resourceDetails = document.getElementById('task-resource-details');
-		    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
-		    const resourceSelect = document.getElementById('task-resource-select');
-		    const resourceHelper = document.querySelector('.resource-helper');
-		    const getDeviceMode = () => {
-		      const raw = safeText(document.body?.dataset?.deviceMode);
-		      if (raw === 'desktop' || raw === 'tablet') return raw;
-		      return 'auto';
-		    };
+			    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+			    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+			    const resourceDetails = document.getElementById('task-resource-details');
+			    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+			    const resourceSelect = document.getElementById('task-resource-select');
+			    const resourceHelper = document.querySelector('.resource-helper');
+			    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
+			    const getDeviceMode = () => {
+			      const raw = safeText(document.body?.dataset?.deviceMode);
+			      if (raw === 'desktop' || raw === 'tablet') return raw;
+			      return 'auto';
+			    };
 		    const isDesktopUi = () => {
 		      if (getDeviceMode() === 'desktop') return true;
 		      if (getDeviceMode() === 'tablet') return false;
@@ -16404,18 +16405,19 @@
 		      if (getDeviceMode() === 'tablet') return false;
 		      try { return !!(window.matchMedia && window.matchMedia('(min-width: 761px)').matches); } catch (error) { return true; }
 		    };
-		    const isSmallUi = () => {
-		      if (getDeviceMode() === 'tablet') return true;
-		      if (getDeviceMode() === 'desktop') return false;
-		      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
-		    };
-		    // Siempre mostramos recursos en una sola vista (sin desplegable flotante).
-		    try { if (resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
-		    let activeResourceKey = '';
-    const resourceLabelForKey = (key) => {
-      const normalized = safeText(key);
-      const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
-      return safeText(match?.textContent, normalized);
+			    const isSmallUi = () => {
+			      if (getDeviceMode() === 'tablet') return true;
+			      if (getDeviceMode() === 'desktop') return false;
+			      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
+			    };
+			    // Siempre mostramos recursos en una sola vista (sin desplegable flotante).
+			    // Importante: mantener <details> cerrado evita que el backdrop bloquee clics en la barra superior.
+			    try { if (resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
+			    let activeResourceKey = '';
+	    const resourceLabelForKey = (key) => {
+	      const normalized = safeText(key);
+	      const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
+	      return safeText(match?.textContent, normalized);
     };
 	    const activateResourcePanel = (key) => {
 	      const normalized = safeText(key);
@@ -16447,18 +16449,17 @@
 	      const key = safeText(resourceSelect.value);
 	      activateResourcePanel(key);
 	    });
-		    if (resourceTabs.length && resourcePanels.length) {
-          // Por defecto: si hay recursos importados (PDF/PPT), los mostramos.
-          // Si no, arrancamos en “Recursos base”. En pantallas pequeñas no dejamos esto “cerrado”
-          // para evitar la sensación de que “desapareció”.
-          let initialResource = 'base';
-          try {
-            const importedPanel = document.querySelector('.resource-panel[data-panel="importados"]');
-            const hasImportedAssets = Boolean(importedPanel && importedPanel.querySelector('.pdf-asset-btn img'));
-            initialResource = hasImportedAssets ? 'importados' : 'base';
-          } catch (error) { /* ignore */ }
-		      activateResourcePanel(initialResource);
-		    }
+			    if (resourceTabs.length && resourcePanels.length) {
+	          // Por defecto: si hay recursos importados (PDF/PPT), arrancamos ahí para reutilizar assets.
+	          // Si no, arrancamos en “Recursos base”.
+	          let initialResource = 'base';
+	          try {
+	            const importedPanel = document.querySelector('.resource-panel[data-panel="importados"]');
+	            const hasImportedAssets = Boolean(importedPanel && importedPanel.querySelector('.pdf-asset-btn img'));
+	            initialResource = hasImportedAssets ? 'importados' : 'base';
+	          } catch (error) { /* ignore */ }
+			      activateResourcePanel(initialResource);
+			    }
 		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
 		    try {
 		      window.addEventListener('webstats:tpad:device-change', () => {
