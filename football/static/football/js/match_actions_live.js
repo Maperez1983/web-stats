@@ -128,6 +128,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return mid ? `webstats:live:state:v1:${mid}` : '';
   })();
   const recentActionsKey = 'webstats:live:recent_actions:v1';
+  const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
   const safeParseJson = (raw, fallback) => {
     try {
       return JSON.parse(String(raw || ''));
@@ -218,6 +219,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       // ignore
     }
     return `evt:${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+  const isProModeEnabled = () => document.body.classList.contains('pro-mode');
+  const isProAutoSendEnabled = () => {
+    if (!isProModeEnabled()) return false;
+    if (!canUseStorage) return false;
+    try {
+      return String(window.localStorage.getItem(proAutoSendStorageKey) || '') === '1';
+    } catch (error) {
+      return false;
+    }
   };
   const serializeFormData = (formData) => {
     const out = {};
@@ -1136,6 +1147,29 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         }
       } catch (e) {}
       showZoneLabel(zoneMatch, fieldX, fieldY);
+      if (isProAutoSendEnabled()) {
+        const currentAction = String(actionInput?.value || '').trim();
+        if (!currentAction) {
+          showPopup(fieldX, fieldY);
+          showPageStatus('Selecciona una acción (botón “Acción”).', 'warning', 2400);
+          return;
+        }
+        const isTeamOnlyAction = isTeamOnlyActionValue(currentAction);
+        if (!isTeamOnlyAction && !playerInput.value) {
+          showPopup(fieldX, fieldY);
+          showPageStatus('Selecciona un jugador.', 'warning', 2400);
+          return;
+        }
+        if (!resultSelect?.value) {
+          showPopup(fieldX, fieldY);
+          showPageStatus('Selecciona un resultado.', 'warning', 2400);
+          return;
+        }
+        // En PRO, si hay acción+resultado+jugador, registramos sin abrir popup.
+        const payload = new FormData(popupForm);
+        void submitPopupAction(payload, { isTeamOnlyAction, source: 'pro_autosend' });
+        return;
+      }
       showPopup(fieldX, fieldY);
     } else {
       zoneInput.value = '';
@@ -1162,36 +1196,51 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   });
 
   let actionSubmitInFlight = false;
-  popupForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (actionSubmitInFlight) return;
-    const teamOnlyActions = ['saque de esquina a favor', 'saque de esquina en contra', 'corner a favor', 'corner en contra'];
-    const currentAction = String(actionInput?.value || '').trim().toLowerCase();
-    const isTeamOnlyAction = teamOnlyActions.includes(currentAction);
-    if (!isTeamOnlyAction && !playerInput.value) {
-      showPageStatus('Selecciona primero un jugador convocado.', 'warning', 3600);
-      return;
+  const teamOnlyActions = ['saque de esquina a favor', 'saque de esquina en contra', 'corner a favor', 'corner en contra'];
+  const isTeamOnlyActionValue = (actionValue) =>
+    teamOnlyActions.includes(String(actionValue || '').trim().toLowerCase());
+  const resultSelect = popupForm?.querySelector('select[name="result"]') || null;
+  const resetPopupForm = ({ preserveFields = false } = {}) => {
+    if (!popupForm) return;
+    const preserved = {
+      player: String(playerInput?.value || ''),
+      action: String(actionInput?.value || ''),
+      result: String(resultSelect?.value || ''),
+    };
+    popupForm.reset();
+    const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
+    if (csrfInput) csrfInput.value = csrfToken;
+    if (preserveFields) {
+      if (playerInput && preserved.player) playerInput.value = preserved.player;
+      if (actionInput && preserved.action) actionInput.value = preserved.action;
+      if (resultSelect && preserved.result) resultSelect.value = preserved.result;
+    } else {
+      if (playerInput && preserved.player) playerInput.value = preserved.player;
     }
     syncAutoFields();
-    const payload = new FormData(popupForm);
-    // UID por envío para poder deduplicar reintentos de red sin bloquear acciones reales consecutivas.
-    if (!payload.get('client_event_uid')) payload.set('client_event_uid', makeClientEventUid());
-    if (currentMatchId && !payload.get('match_id')) payload.set('match_id', currentMatchId);
-    if (isTeamOnlyAction) payload.delete('player');
+  };
+
+  const submitPopupAction = async (payload, { isTeamOnlyAction = false, source = 'popup' } = {}) => {
+    if (!payload || actionSubmitInFlight) return null;
     try {
       actionSubmitInFlight = true;
+      // UID por envío para poder deduplicar reintentos de red sin bloquear acciones reales consecutivas.
+      if (!payload.get('client_event_uid')) payload.set('client_event_uid', makeClientEventUid());
+      if (currentMatchId && !payload.get('match_id')) payload.set('match_id', currentMatchId);
+      if (isTeamOnlyAction) payload.delete('player');
+
       if (!navigator.onLine) throw new Error('offline');
       const response = await fetch(submitUrl, {
-	      method: 'POST',
-	      credentials: 'same-origin',
-	      headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
-	      body: payload,
-	    });
-	    const data = await response.json().catch(() => ({}));
-	    if (!response.ok) {
-	      showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
-	      return;
-	    }
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+        body: payload,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
+        return null;
+      }
       const inserted = appendHistoryEntry({
         minute: data.minute || 'Ahora',
         player: data.player,
@@ -1200,23 +1249,32 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         result: data.result,
         event_id: data.id,
       });
-      if (!inserted) return;
+      if (!inserted) return data;
+
       const derivedDropKey = classifyCounterDropKey({ action: data.action, result: data.result });
       if (derivedDropKey) {
         incrementQuickCounter(derivedDropKey);
-        appendQuickHistory(derivedDropKey, data.player?.name || 'Jugador', data.minute || getCurrentMatchMinute(), data.result || data.action);
+        appendQuickHistory(
+          derivedDropKey,
+          data.player?.name || (isTeamOnlyAction ? 'Equipo' : 'Jugador'),
+          data.minute || getCurrentMatchMinute(),
+          data.result || data.action
+        );
       }
+
+      // UX: en Modo PRO, evita limpiar acción/resultado para ir más rápido.
+      const preserveFields = isProModeEnabled();
       hidePopup();
       zoneLabel.style.display = 'none';
       quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
-      const lastPlayerId = playerInput.value;
-      popupForm.reset();
-      const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
-      if (csrfInput) csrfInput.value = csrfToken;
-      if (lastPlayerId) playerInput.value = lastPlayerId;
-      syncAutoFields();
+      resetPopupForm({ preserveFields });
       emitSummaryChange();
-      showPageStatus(`Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
+      showPageStatus(
+        `${source === 'pro_autosend' ? 'Auto-enviar:' : ''} Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`.trim(),
+        data.duplicate ? 'warning' : 'success',
+        2000
+      );
+      return data;
     } catch (err) {
       if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
         const offlineId = makeOfflineId();
@@ -1224,24 +1282,45 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         enqueueOfflineAction({ offlineId, fields });
         appendHistoryEntry({
           minute: payload.get('minute') || Math.floor(elapsedRef.value / 60),
-          player: isTeamOnlyAction ? null : { id: playerInput.value, name: (playerInput.selectedOptions?.[0]?.textContent || 'Jugador'), number: '' },
-          action: payload.get('action_type') || currentAction || 'Acción',
+          player: isTeamOnlyAction
+            ? null
+            : { id: playerInput.value, name: (playerInput.selectedOptions?.[0]?.textContent || 'Jugador'), number: '' },
+          action: payload.get('action_type') || String(actionInput?.value || '').trim() || 'Acción',
           zone: payload.get('zone') || zoneInput.value || '',
           result: payload.get('result') || '',
           event_id: offlineId,
           pending: true,
         });
         hidePopup();
-        showPageStatus('Sin conexión: acción guardada en el dispositivo. Se sincronizará al volver la red.', 'warning', 5200);
         emitSummaryChange();
         updateOfflineQueueUi();
-        return;
+        showPageStatus('Sin conexión: acción guardada en el dispositivo. Se sincronizará al volver la red.', 'warning', 5200);
+        return { offline: true, id: offlineId };
       }
       console.error(err);
       showPageStatus('Error al guardar la acción en el servidor.', 'danger', 5200);
+      return null;
     } finally {
       actionSubmitInFlight = false;
     }
+  };
+
+  popupForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (actionSubmitInFlight) return;
+    const currentAction = String(actionInput?.value || '').trim();
+    const isTeamOnlyAction = isTeamOnlyActionValue(currentAction);
+    if (!isTeamOnlyAction && !playerInput.value) {
+      showPageStatus('Selecciona primero un jugador convocado.', 'warning', 3600);
+      return;
+    }
+    if (!resultSelect?.value) {
+      showPageStatus('Selecciona un resultado.', 'warning', 3200);
+      return;
+    }
+    syncAutoFields();
+    const payload = new FormData(popupForm);
+    await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
   });
 
   const postQuickDropAction = async ({ player = null, eventType, zoneLabel, result, dropKey, teamOnly = false, minuteOverride = null }) => {

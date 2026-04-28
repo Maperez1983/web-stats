@@ -2504,6 +2504,7 @@
 	            </details>
 	            <div class="pro-actions-row">
 	              <button type="button" class="toolbar-pill" id="pro-open-action-picker">Acción</button>
+	              <button type="button" class="toolbar-pill" id="pro-autosend-toggle" title="Si está activo, al tocar una zona se registra la acción automáticamente">Auto-enviar: OFF</button>
 	              <button type="button" class="toolbar-pill" id="pro-clear-player">Quitar jugador</button>
 	              <button type="button" class="toolbar-pill" id="pro-undo" title="Deshacer la última acción registrada">Deshacer</button>
 	            </div>
@@ -3067,6 +3068,7 @@
 	      const proOnfieldChips = document.getElementById('pro-onfield-chips');
 	      const proBenchChips = document.getElementById('pro-bench-chips');
 	      const proOpenActionPickerBtn = document.getElementById('pro-open-action-picker');
+	      const proAutoSendToggleBtn = document.getElementById('pro-autosend-toggle');
 	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
 	      const proUndoBtn = document.getElementById('pro-undo');
 	      const popupForm = document.getElementById('field-popup-form');
@@ -3077,6 +3079,7 @@
 
 	      // --- Modo Partido PRO ---
 	      const proModeStorageKey = 'webstats:match_actions:pro_mode:v1';
+	      const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
 	      const loadProMode = () => {
 	        try {
 	          const url = new URL(window.location.href);
@@ -3108,6 +3111,31 @@
 	          try { localStorage.setItem(proModeStorageKey, on ? '1' : '0'); } catch (e) {}
 	        }
 	      };
+	      const getProAutoSend = () => {
+	        try {
+	          const raw = localStorage.getItem(proAutoSendStorageKey);
+	          if (raw === null || raw === undefined || raw === '') return false;
+	          return String(raw) === '1';
+	        } catch (e) {
+	          return false;
+	        }
+	      };
+	      const setProAutoSendUi = (enabled) => {
+	        if (!proAutoSendToggleBtn) return;
+	        const on = Boolean(enabled);
+	        proAutoSendToggleBtn.textContent = on ? 'Auto-enviar: ON' : 'Auto-enviar: OFF';
+	        proAutoSendToggleBtn.classList.toggle('is-selected', on);
+	        proAutoSendToggleBtn.style.borderColor = on ? 'rgba(34, 211, 238, 0.55)' : '';
+	        proAutoSendToggleBtn.style.background = on ? 'rgba(34, 211, 238, 0.12)' : '';
+	        proAutoSendToggleBtn.style.color = on ? 'rgba(224, 242, 254, 0.95)' : '';
+	      };
+	      const setProAutoSend = (enabled, { persist = true } = {}) => {
+	        const on = Boolean(enabled);
+	        if (persist) {
+	          try { localStorage.setItem(proAutoSendStorageKey, on ? '1' : '0'); } catch (e) {}
+	        }
+	        setProAutoSendUi(on);
+	      };
 	      const toggleProSidebar = () => {
 	        const on = document.body.classList.toggle('pro-sidebar-open');
 	        if (proSidebarToggleBtn) {
@@ -3116,6 +3144,7 @@
 	      };
 	      // Aplica estado inicial cuanto antes (para no "reflow" visual).
 	      setProMode(loadProMode(), { persist: false });
+	      setProAutoSend(getProAutoSend(), { persist: false });
 	      if (proModeToggleBtn) {
 	        proModeToggleBtn.addEventListener('click', () => {
 	          const next = !document.body.classList.contains('pro-mode');
@@ -3124,6 +3153,14 @@
 	      }
 	      if (proSidebarToggleBtn) {
 	        proSidebarToggleBtn.addEventListener('click', toggleProSidebar);
+	      }
+	      if (proAutoSendToggleBtn) {
+	        proAutoSendToggleBtn.addEventListener('click', () => {
+	          setProAutoSend(!getProAutoSend());
+	          try {
+	            showPageStatus(getProAutoSend() ? 'Auto-enviar activado.' : 'Auto-enviar desactivado.', 'info', 1600);
+	          } catch (e) {}
+	        });
 	      }
 	      const matchFinalizeBtn = [
 	        document.getElementById('match-finalize-btn'),
