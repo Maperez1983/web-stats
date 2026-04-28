@@ -13153,27 +13153,36 @@
 		      }, 950);
 	    };
 
-    const activateSidePane = (key) => {
-      sideTabs.forEach((tab) => {
-        const active = safeText(tab.dataset.pane) === key;
-        tab.classList.toggle('is-active', active);
-        tab.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      sidePanes.forEach((pane) => pane.classList.toggle('is-active', safeText(pane.dataset.pane) === key));
-    };
-    sideTabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const key = safeText(tab.dataset.pane);
-        if (key) activateSidePane(key);
-        if (sideMore && sideMore.open) {
-          try { sideMore.open = false; } catch (e) { /* ignore */ }
-        }
-      });
-    });
+	    const activateSidePane = (key) => {
+	      sideTabs.forEach((tab) => {
+	        const active = safeText(tab.dataset.pane) === key;
+	        tab.classList.toggle('is-active', active);
+	        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+	      });
+	      sidePanes.forEach((pane) => pane.classList.toggle('is-active', safeText(pane.dataset.pane) === key));
+	    };
+	    sideTabs.forEach((tab) => {
+	      tab.addEventListener('click', () => {
+	        const key = safeText(tab.dataset.pane);
+	        if (key) activateSidePane(key);
+	        if (sideMore && sideMore.open) {
+	          try { sideMore.open = false; } catch (e) { /* ignore */ }
+	        }
+	      });
+	    });
+	    // Deep link: permite abrir el editor directamente en una pestaña (ej. desde Sesiones → “Crear tarea”).
+	    // Soporta `?pane=assistant|ficha|biblioteca|animacion|capas|exportar|preview`.
+	    try {
+	      const requestedPane = safeText(urlParams.get('pane'));
+	      if (requestedPane) {
+	        const exists = sidePanes.some((pane) => safeText(pane.dataset.pane) === requestedPane);
+	        if (exists) activateSidePane(requestedPane);
+	      }
+	    } catch (e) { /* ignore */ }
 
-    const extractAssignedPlayerIdsFromState = (state) => {
-      const ids = new Set();
-      const collectFromCanvasState = (canvasState) => {
+	    const extractAssignedPlayerIdsFromState = (state) => {
+	      const ids = new Set();
+	      const collectFromCanvasState = (canvasState) => {
         if (!canvasState || typeof canvasState !== 'object') return;
         const objects = Array.isArray(canvasState.objects) ? canvasState.objects : [];
         objects.forEach((obj) => {
