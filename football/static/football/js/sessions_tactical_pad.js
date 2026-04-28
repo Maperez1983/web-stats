@@ -13680,12 +13680,72 @@
         apply(readMode(), { silent: true });
       }, { passive: true });
     };
-    initTaskModeTabs();
+	    initTaskModeTabs();
 
-    let pingKeepalive = null;
-    if (keepaliveUrl) {
-      pingKeepalive = async () => {
-        try {
+	    // Pantalla de entrada: campo + tarjetas con accesos rápidos.
+	    // Se activa con `?landing=1` (por ejemplo desde Sesiones).
+	    try {
+	      const isTacticsMode = (() => {
+	        try { return safeText(form?.dataset?.tacticsMode) === '1'; } catch (e) { return false; }
+	      })();
+	      if (!isTacticsMode) {
+	        const landingEl = document.getElementById('task-landing');
+	        const hideToggle = document.getElementById('task-landing-hide');
+	        const hideKey = 'webstats:tpad:landing_dismissed_v1';
+	        const shouldShow = safeText(urlParams.get('landing')) === '1';
+	        let dismissed = false;
+	        if (canUseStorage) {
+	          try { dismissed = safeText(window.localStorage.getItem(hideKey)) === '1'; } catch (e) { dismissed = false; }
+	        }
+	        if (landingEl && shouldShow && !dismissed) {
+	          landingEl.hidden = false;
+	          const closeLanding = (persist = false) => {
+	            try { landingEl.hidden = true; } catch (e) { /* ignore */ }
+	            if (persist && canUseStorage) {
+	              try { window.localStorage.setItem(hideKey, '1'); } catch (e) { /* ignore */ }
+	            }
+	            // Limpia `landing=1` para que "atrás" no vuelva a mostrarlo.
+	            try {
+	              const url = new URL(window.location.href);
+	              url.searchParams.delete('landing');
+	              window.history.replaceState({}, '', url.toString());
+	            } catch (e) { /* ignore */ }
+	          };
+	          landingEl.addEventListener('click', (ev) => {
+	            const btn = ev.target && ev.target.closest ? ev.target.closest('[data-landing-go]') : null;
+	            if (!btn) return;
+	            ev.preventDefault();
+	            const go = safeText(btn.getAttribute('data-landing-go'));
+	            const persist = !!hideToggle?.checked;
+	            closeLanding(persist);
+	            if (go === 'assistant') {
+	              try { activateSidePane('assistant'); } catch (e) { /* ignore */ }
+	              return;
+	            }
+	            if (go === 'exportar') {
+	              try { activateSidePane('exportar'); } catch (e) { /* ignore */ }
+	              return;
+	            }
+	            if (go === 'text') {
+	              const textBtn = document.querySelector('#task-mode-tabs button[data-task-mode="text"]');
+	              try { textBtn?.click?.(); } catch (e) { /* ignore */ }
+	              try { activateSidePane('ficha'); } catch (e) { /* ignore */ }
+	              return;
+	            }
+	            if (go === 'board') {
+	              const boardBtn = document.querySelector('#task-mode-tabs button[data-task-mode="board"]');
+	              try { boardBtn?.click?.(); } catch (e) { /* ignore */ }
+	              return;
+	            }
+	          });
+	        }
+	      }
+	    } catch (e) { /* ignore */ }
+
+	    let pingKeepalive = null;
+	    if (keepaliveUrl) {
+	      pingKeepalive = async () => {
+	        try {
           const response = await fetch(keepaliveUrl, { credentials: 'same-origin' });
           const redirectedToLogin = response.redirected && /\/login\/?$/.test(new URL(response.url).pathname);
           if (redirectedToLogin || response.status === 401 || response.status === 403) {

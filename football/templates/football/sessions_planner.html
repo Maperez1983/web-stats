@@ -1381,11 +1381,11 @@
 		            </ol>
 		          </div>
 			          <div class="folder-grid" style="margin-top:0.75rem;">
-			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional&pane=assistant">
+			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional&landing=1">
 			              <strong>Crear tarea (Clásica)</strong>
 			              <span>Se guarda en Biblioteca</span>
 			            </a>
-			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive&pane=assistant">
+			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive&landing=1">
 			              <strong>Crear tarea (Interactiva)</strong>
 			              <span>Se guarda en Biblioteca</span>
 			            </a>
@@ -1931,7 +1931,7 @@
 		                </label>
 			                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
 			                  <button type="submit" class="secondary">Asignar</button>
-			                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&pane=assistant">Crear tarea</a>
+			                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&landing=1">Crear tarea</a>
 			                </div>
 			              </form>
 

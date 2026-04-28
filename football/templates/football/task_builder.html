@@ -28,14 +28,117 @@
 	        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
 	      }
       /* overlay-backdrop: evita sensación de superposición en popovers/modales */
-      .overlay-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 80;
-        background: rgba(2, 6, 23, 0.32);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-      }
+	      .overlay-backdrop {
+	        position: fixed;
+	        inset: 0;
+	        z-index: 80;
+	        background: rgba(2, 6, 23, 0.32);
+	        backdrop-filter: blur(6px);
+	        -webkit-backdrop-filter: blur(6px);
+	      }
+	      /* Pantalla de entrada (comercial): vista del campo + tarjetas de acciones. */
+	      .task-landing {
+	        position: fixed;
+	        inset: 0;
+	        z-index: 2000;
+	        background: rgba(2, 6, 23, 0.58);
+	        backdrop-filter: blur(10px);
+	        -webkit-backdrop-filter: blur(10px);
+	        display: grid;
+	        place-items: center;
+	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+	      }
+	      .task-landing-card {
+	        width: min(1320px, 96vw);
+	        border-radius: 26px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(10, 22, 38, 0.86);
+	        box-shadow: 0 28px 80px rgba(2, 6, 23, 0.55);
+	        overflow: hidden;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+	        gap: 0;
+	      }
+	      @media (max-width: 980px) {
+	        .task-landing-card { grid-template-columns: 1fr; }
+	      }
+	      .task-landing-pitch {
+	        position: relative;
+	        min-height: 420px;
+	        background:
+	          repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.16) 0 60px, rgba(34, 197, 94, 0.08) 60px 120px),
+	          linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(34, 197, 94, 0.18));
+	        border-right: 1px solid rgba(255,255,255,0.10);
+	        display: grid;
+	        place-items: center;
+	      }
+	      @media (max-width: 980px) {
+	        .task-landing-pitch { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.10); min-height: 320px; }
+	      }
+	      .task-landing-pitch img {
+	        width: 100%;
+	        height: 100%;
+	        object-fit: contain;
+	        display: block;
+	      }
+	      .task-landing-pitch svg {
+	        width: min(880px, 92%);
+	        height: auto;
+	        opacity: 0.92;
+	        filter: drop-shadow(0 18px 24px rgba(2, 6, 23, 0.22));
+	      }
+	      .task-landing-actions {
+	        padding: 1.05rem 1.05rem 1.15rem;
+	        display: grid;
+	        gap: 0.75rem;
+	        align-content: start;
+	      }
+	      .task-landing-actions h2 {
+	        margin: 0;
+	        font-size: 0.82rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	      }
+	      .task-landing-actions .meta {
+	        margin: 0;
+	        opacity: 0.88;
+	      }
+	      .task-landing-action {
+	        display: grid;
+	        gap: 0.2rem;
+	        text-align: left;
+	        border-radius: 18px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.96);
+	        padding: 0.85rem 0.95rem;
+	        font: inherit;
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
+	      .task-landing-action small { opacity: 0.85; font-weight: 700; }
+	      .task-landing-action.primary {
+	        background: rgba(34, 211, 238, 0.14);
+	        border-color: rgba(34, 211, 238, 0.38);
+	      }
+	      .task-landing-foot {
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.75rem;
+	        align-items: center;
+	        flex-wrap: wrap;
+	        margin-top: 0.15rem;
+	      }
+	      .task-landing-foot .ui-check { margin: 0; }
+	      .task-landing-close {
+	        border-radius: 999px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.06);
+	        color: rgba(248,250,252,0.92);
+	        padding: 0.55rem 0.85rem;
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
       .page {
         max-width: 1560px;
         margin: 0 auto;
@@ -53,18 +156,53 @@
         font-size: 0.88rem;
         line-height: 1.35;
       }
-      body.is-simple #task-command-bar [data-action="duplicate"],
-      body.is-simple #task-command-bar [data-action="edit_bg"],
-      body.is-simple #task-command-bar #task-layers-btn,
-      body.is-simple #task-command-bar #task-scenarios-btn,
-      body.is-simple #task-command-bar #task-sim-btn {
-        display: none !important;
+      .quick-start {
+        margin-top: 0.75rem;
+        display: grid;
+        gap: 0.6rem;
       }
-      body.is-simple .resource-tab[data-resource="trazos"],
-      body.is-simple .resource-tab[data-resource="figuras"],
-      body.is-simple .resource-tab[data-resource="emoji"] {
-        display: none !important;
+      .quick-start h4 {
+        margin: 0;
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.78);
       }
+      .quick-start-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .quick-start-actions .button {
+        border-radius: 14px;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: none;
+      }
+      .mode-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 999px;
+        padding: 0.42rem 0.7rem;
+        background: rgba(255,255,255,0.05);
+        color: rgba(248,250,252,0.92);
+        font-weight: 850;
+        font-size: 0.76rem;
+      }
+      .mode-pill .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.9);
+      }
+      body.mode-insert .mode-pill .dot { background: rgba(34, 211, 238, 0.95); }
+      body.mode-draw .mode-pill .dot { background: rgba(56, 189, 248, 0.95); }
+      body.mode-move .mode-pill .dot { background: rgba(74, 222, 128, 0.95); }
       /* En modo táctica mantenemos accesos rápidos (capas/escenarios/simulador) para no perder operatividad. */
       .topbar {
         display: flex;
@@ -3045,7 +3183,7 @@
               {% endif %}
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
 			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
-			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="true" title="Simplifica la pantalla para uso diario">Modo simple</button>
+			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="false" title="Muestra una guía rápida en pantalla">Guía</button>
 		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
 	            <details class="action-menu" id="task-builder-actions-menu">
               <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
@@ -3133,14 +3271,61 @@
           <button type="button" data-task-mode="text" role="tab" aria-selected="false">Contenido</button>
           <span class="hint">Alterna para editar sin scroll.</span>
         </div>
-        {% endif %}
+	        {% endif %}
 
-        <div class="builder">
-          <section class="panel">
-            <div class="panel-body">
-                <div class="panel-head">
-                  <div>
-                  <h2>Pizarra</h2>
+	        <div class="builder">
+	          <div class="task-landing" id="task-landing" hidden aria-label="Inicio de tarea" role="dialog">
+	            <div class="task-landing-card">
+	              <div class="task-landing-pitch" aria-hidden="true">
+	                {% if task_preview_url %}
+	                  <img src="{{ task_preview_url }}" alt="Vista previa de la tarea" loading="lazy" />
+	                {% else %}
+	                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+	                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.2"/>
+	                    <line x1="52.5" y1="1" x2="52.5" y2="67" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                    <circle cx="52.5" cy="34" r="8.5" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                    <circle cx="52.5" cy="34" r="0.9" fill="rgba(248,250,252,0.82)"/>
+	                    <rect x="1" y="18" width="16" height="32" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                    <rect x="88" y="18" width="16" height="32" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                    <rect x="1" y="26" width="6" height="16" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                    <rect x="98" y="26" width="6" height="16" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
+	                  </svg>
+	                {% endif %}
+	              </div>
+	              <div class="task-landing-actions">
+	                <h2>¿Qué quieres hacer?</h2>
+	                <p class="meta">Entra por la opción más rápida. Puedes cambiar luego sin perder nada.</p>
+	                <button type="button" class="task-landing-action primary" data-landing-go="assistant">
+	                  Recomendar tarea
+	                  <small>Asistente · “Sugerir tareas”</small>
+	                </button>
+	                <button type="button" class="task-landing-action" data-landing-go="board">
+	                  Abrir pizarra
+	                  <small>Colocar fichas, dibujar y simular</small>
+	                </button>
+	                <button type="button" class="task-landing-action" data-landing-go="text">
+	                  Editar contenido
+	                  <small>Descripción, reglas, objetivos…</small>
+	                </button>
+	                <button type="button" class="task-landing-action" data-landing-go="exportar">
+	                  Exportar / imprimir
+	                  <small>PDF, PNG, compartir…</small>
+	                </button>
+	                <div class="task-landing-foot">
+	                  <label class="ui-check">
+	                    <input type="checkbox" id="task-landing-hide" />
+	                    No mostrar de nuevo
+	                  </label>
+	                  <button type="button" class="task-landing-close" data-landing-go="close">Entrar</button>
+	                </div>
+	              </div>
+	            </div>
+	          </div>
+	          <section class="panel">
+	            <div class="panel-body">
+	                <div class="panel-head">
+	                  <div>
+	                  <h2>Pizarra</h2>
                   <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
                 </div>
                 <div class="alert warn" id="tpad-hint" hidden>
@@ -4179,12 +4364,22 @@
 		              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
 		              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
 		              <div class="simple-hint" id="task-simple-hint" hidden>
-		                <strong>Modo simple:</strong>
+		                <strong>Guía rápida:</strong>
 		                {% if tactics_mode %}
 		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Usa Playbook para guardar clips y compartir.
 		                {% else %}
 		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Completa la ficha lateral y pulsa “Guardar/Crear tarea”.
 		                {% endif %}
+		                <div class="quick-start" aria-label="Acciones rápidas">
+		                  <h4>Acciones rápidas</h4>
+		                  <div class="quick-start-actions">
+		                    <span class="mode-pill" id="task-mode-pill"><span class="dot"></span><span id="task-mode-label">Mover</span></span>
+		                    <button type="button" class="button" id="task-quick-insert">Insertar fichas</button>
+		                    <button type="button" class="button" id="task-quick-move">Mover</button>
+		                    <button type="button" class="button" id="task-quick-draw">Dibujar</button>
+		                    <button type="button" class="button" id="task-quick-clips">{% if tactics_mode %}Clips/Playbook{% else %}Escenarios{% endif %}</button>
+		                  </div>
+		                </div>
 		              </div>
 
 	              <div class="section" style="margin-top:0.9rem;">
@@ -5152,9 +5347,14 @@
 
 			        const compactKey = 'webstats:tpad:compact';
 			        const toggleBtn = document.getElementById('task-builder-compact-toggle');
-              const simpleKey = 'webstats:tpad:simple';
-              const simpleBtn = document.getElementById('task-builder-simple-toggle');
-              const simpleHint = document.getElementById('task-simple-hint');
+	              const guideKey = 'webstats:tpad:guide';
+	              const guideBtn = document.getElementById('task-builder-simple-toggle');
+	              const guideHint = document.getElementById('task-simple-hint');
+                const modeLabel = document.getElementById('task-mode-label');
+                const quickInsertBtn = document.getElementById('task-quick-insert');
+                const quickMoveBtn = document.getElementById('task-quick-move');
+                const quickDrawBtn = document.getElementById('task-quick-draw');
+                const quickClipsBtn = document.getElementById('task-quick-clips');
 			        const playerBank = document.getElementById('task-player-bank');
 		        const playerPrev = document.getElementById('player-bank-prev');
 		        const playerNext = document.getElementById('player-bank-next');
@@ -5182,46 +5382,87 @@
 	          });
 	        }
 
-          const applySimple = (enabled) => {
-            const on = !!enabled;
-            document.body.classList.toggle('is-simple', on);
-            if (simpleBtn) {
-              simpleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-              simpleBtn.textContent = on ? 'Modo pro' : 'Modo simple';
-              simpleBtn.title = on ? 'Mostrar todas las herramientas avanzadas' : 'Simplificar la pantalla para uso diario';
-            }
-            if (simpleHint) simpleHint.hidden = !on;
-            // En modo simple ocultamos opciones “pro” del selector rápido (pero se pueden volver a activar con Modo pro).
-            try {
-              const select = document.getElementById('task-resource-select');
-              if (select) {
-                Array.from(select.options || []).forEach((opt) => {
-                  const v = String(opt.value || '');
-                  if (!v) return;
-                  const isAdvanced = (v === 'trazos' || v === 'figuras' || v === 'emoji');
-                  opt.disabled = on && isAdvanced;
-                });
-              }
-            } catch (e) { /* ignore */ }
-          };
-          let isSimple = true;
-          try {
-            const saved = window.localStorage?.getItem(simpleKey);
-            if (saved === '0') isSimple = false;
-            else if (saved === '1') isSimple = true;
-            else {
-              // Primer arranque: en tablet/iPad activamos simple por defecto.
-              isSimple = true;
-            }
-          } catch (e) { isSimple = true; }
-          applySimple(isSimple);
-          if (simpleBtn) {
-            simpleBtn.addEventListener('click', () => {
-              isSimple = !isSimple;
-              try { window.localStorage?.setItem(simpleKey, isSimple ? '1' : '0'); } catch (e) {}
-              applySimple(isSimple);
-            });
-          }
+	          const applyGuide = (enabled) => {
+	            const on = !!enabled;
+	            if (guideBtn) guideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+	            if (guideHint) guideHint.hidden = !on;
+	          };
+	          let guideOn = false;
+	          try { guideOn = window.localStorage?.getItem(guideKey) === '1'; } catch (e) { guideOn = false; }
+	          applyGuide(guideOn);
+	          if (guideBtn) {
+	            guideBtn.addEventListener('click', () => {
+	              guideOn = !guideOn;
+	              try { window.localStorage?.setItem(guideKey, guideOn ? '1' : '0'); } catch (e) {}
+	              applyGuide(guideOn);
+	            });
+	          }
+
+                const setMode = (mode) => {
+                  const next = String(mode || 'move');
+                  document.body.classList.toggle('mode-insert', next === 'insert');
+                  document.body.classList.toggle('mode-draw', next === 'draw');
+                  document.body.classList.toggle('mode-move', next === 'move');
+                  if (modeLabel) modeLabel.textContent = next === 'insert' ? 'Insertar' : next === 'draw' ? 'Dibujar' : 'Mover';
+                };
+                const isBtnActive = (selector) => {
+                  try { return !!document.querySelector(selector)?.classList?.contains('is-active'); } catch (e) { return false; }
+                };
+                const ensureToolOff = (selector) => {
+                  try {
+                    const btn = document.querySelector(selector);
+                    if (btn && btn.classList.contains('is-active')) btn.click();
+                  } catch (e) { /* ignore */ }
+                };
+                const ensureToolOn = (selector) => {
+                  try {
+                    const btn = document.querySelector(selector);
+                    if (btn && !btn.classList.contains('is-active')) btn.click();
+                  } catch (e) { /* ignore */ }
+                };
+                const enterMoveMode = () => {
+                  ensureToolOff('button[data-action=\"pencil_pro\"]');
+                  ensureToolOff('button[data-action=\"draw_free\"]');
+                  setMode('move');
+                  try { const s = document.getElementById('task-builder-status'); if (s) s.textContent = 'Modo mover: arrastra fichas, pellizca para zoom.'; } catch (e) {}
+                };
+                const enterDrawMode = () => {
+                  ensureToolOn('button[data-action=\"pencil_pro\"]');
+                  setMode('draw');
+                  try { const s = document.getElementById('task-builder-status'); if (s) s.textContent = 'Modo dibujar: usa Apple Pencil para dibujar (el dedo navega).'; } catch (e) {}
+                };
+                const enterInsertMode = () => {
+                  setMode('insert');
+                  try {
+                    const details = document.getElementById('task-resource-details');
+                    if (details) details.open = true;
+                    document.getElementById('task-resource-select')?.focus?.();
+                    document.getElementById('task-resource-details')?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+                  } catch (e) {}
+                  try { const s = document.getElementById('task-builder-status'); if (s) s.textContent = 'Modo insertar: elige un recurso y toca el campo para colocarlo.'; } catch (e) {}
+                };
+                const openClipsOrScenarios = () => {
+                  try {
+                    const tacticsToggle = document.getElementById('task-tactics-panel-toggle');
+                    const toolsToggle = document.getElementById('task-tactics-tools-toggle');
+                    if (tacticsToggle) {
+                      try { if (toolsToggle && toolsToggle.getAttribute('aria-pressed') === 'true') toolsToggle.click(); } catch (e) {}
+                      tacticsToggle.click();
+                      return;
+                    }
+                  } catch (e) { /* ignore */ }
+                  try {
+                    const btn = document.getElementById('task-scenarios-btn');
+                    if (btn) btn.click();
+                  } catch (e) { /* ignore */ }
+                };
+                quickInsertBtn?.addEventListener('click', (e) => { e.preventDefault(); enterInsertMode(); });
+                quickMoveBtn?.addEventListener('click', (e) => { e.preventDefault(); enterMoveMode(); });
+                quickDrawBtn?.addEventListener('click', (e) => { e.preventDefault(); enterDrawMode(); });
+                quickClipsBtn?.addEventListener('click', (e) => { e.preventDefault(); openClipsOrScenarios(); });
+                // Estado inicial del pill
+                if (isBtnActive('button[data-action=\"pencil_pro\"]') || isBtnActive('button[data-action=\"draw_free\"]')) setMode('draw');
+                else setMode('move');
 
 	        const scrollPlayerBank = (dir) => {
 	          if (!playerBank) return;
