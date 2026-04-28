@@ -1547,12 +1547,12 @@
           </section>
           {% endif %}
 
-          {% if coach_selected_match and coach_match_view %}
-            <section class="summary-layout">
-              <section class="summary-card">
-                <h3>{{ coach_match_view.title }}</h3>
-              <p class="summary-meta">{{ coach_match_view.meta }}</p>
-              <div class="summary-mini-grid">
+	          {% if coach_selected_match and coach_match_view %}
+	            <section class="summary-layout">
+	              <section class="summary-card">
+	                <h3>{{ coach_match_view.title }}</h3>
+	              <p class="summary-meta">{{ coach_match_view.meta }}</p>
+	              <div class="summary-mini-grid">
                 {% for item in coach_match_view.summary %}
                 <article class="summary-mini-item">
                   <div class="label">{{ item.label }}</div>
@@ -1569,10 +1569,25 @@
                 {% empty %}
                 <span class="coach-tag">Sin acciones registradas</span>
                 {% endfor %}
-              </div>
-            </aside>
-          </section>
-          {% endif %}
+	              </div>
+	            </aside>
+	          </section>
+	          {% if coach_match_view.player_cards %}
+	          <section class="summary-card">
+	            <h3>Jugadores del partido</h3>
+	            <p class="summary-meta">Acciones y tasa de éxito por jugador (solo sobre acciones medidas).</p>
+	            <div class="coach-player-card-grid">
+	              {% for player in coach_match_view.player_cards %}
+	              <article class="coach-player-card">
+	                <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+	                <span class="meta">Acciones {{ player.actions }} · Éxitos {{ player.successes }}</span>
+	                <span class="meta">Tasa de éxito {{ player.success_rate|floatformat:-1 }}%</span>
+	              </article>
+	              {% endfor %}
+	            </div>
+	          </section>
+	          {% endif %}
+	          {% endif %}
 
           {% if coach_total_field_zones %}
           <section class="summary-card">
@@ -1626,15 +1641,15 @@
             <label for="individual-player-search">Buscar jugador</label>
             <input id="individual-player-search" type="search" placeholder="Escribe nombre o dorsal" />
           </div>
-          <div class="individual-grid" id="individual-player-grid">
-            {% for item in coach_player_cards_all %}
-            <a
-              class="individual-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}"
-              href="{% url 'player-detail' item.id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}"
-              data-player-card
-              data-player-name="{{ item.name|lower }}"
-              data-player-number="{{ item.number|default:'' }}"
-              {% if forloop.counter > 6 %}hidden{% endif %}
+	          <div class="individual-grid" id="individual-player-grid">
+	            {% for item in coach_player_cards_all %}
+	            <a
+	              class="individual-card{% if coach_selected_player_id == item.id %} is-selected{% endif %}"
+	              href="{% url 'coach-role-trainer' %}?player={{ item.id }}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% if coach_selected_match %}&match={{ coach_selected_match.match_id }}{% endif %}"
+	              data-player-card
+	              data-player-name="{{ item.name|lower }}"
+	              data-player-number="{{ item.number|default:'' }}"
+	              {% if forloop.counter > 6 %}hidden{% endif %}
             >
               <div class="individual-head">
                 <img class="individual-avatar" src="{{ item.photo_url|default:'' }}" alt="{{ item.name }}" />
@@ -1704,17 +1719,40 @@
                 </div>
                 <a class="pill-button" style="text-decoration:none;" href="{% url 'player-detail' coach_selected_player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha completa</a>
               </div>
-              <div class="overview-rings">
-                {% for item in coach_player_view.rings %}
-                <article class="overview-ring">
-                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
-                    <span class="overview-ring-value">{{ item.value }}</span>
-                  </div>
-                  <div class="overview-ring-label">{{ item.label }}</div>
-                </article>
-                {% endfor %}
-              </div>
-            </div>
+	              <div class="overview-rings">
+	                {% for item in coach_player_view.rings %}
+	                <article class="overview-ring">
+	                  <div class="overview-ring-chart" style="--pct: {{ item.pct|default:0 }};">
+	                    <span class="overview-ring-value">{{ item.value }}</span>
+	                  </div>
+	                  <div class="overview-ring-label">{{ item.label }}</div>
+	                </article>
+	                {% endfor %}
+	              </div>
+	              <div class="overview-summary is-compact" style="margin-top:0.75rem;">
+	                {% for item in coach_player_view.summary|slice:":8" %}
+	                <article class="overview-item">
+	                  <div class="label">{{ item.label }}</div>
+	                  <div class="value">{{ item.value }}</div>
+	                </article>
+	                {% endfor %}
+	              </div>
+	              {% if coach_player_view.summary|length > 8 %}
+	              <details class="fold-card is-light">
+	                <summary>Ver datos avanzados del jugador</summary>
+	                <div class="fold-card-body">
+	                  <div class="overview-summary is-compact">
+	                    {% for item in coach_player_view.summary|slice:"8:" %}
+	                    <article class="overview-item">
+	                      <div class="label">{{ item.label }}</div>
+	                      <div class="value">{{ item.value }}</div>
+	                    </article>
+	                    {% endfor %}
+	                  </div>
+	                </div>
+	              </details>
+	              {% endif %}
+	            </div>
             <div class="analysis-stack">
               {% if coach_player_view.fines_summary %}
               <div class="overview-summary is-compact">
