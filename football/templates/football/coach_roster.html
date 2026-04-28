@@ -248,6 +248,40 @@
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.9);
       }
+      .broadcast-kpis {
+        margin-top: 0.55rem;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      .broadcast-kpi {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(2, 6, 23, 0.4);
+        padding: 0.45rem 0.55rem;
+        display: grid;
+        gap: 0.1rem;
+      }
+      .broadcast-kpi .k {
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.92);
+      }
+      .broadcast-kpi .v {
+        font-weight: 950;
+        font-size: 0.92rem;
+        letter-spacing: 0.02em;
+        color: rgba(248, 250, 252, 0.96);
+      }
+      .broadcast-kpi.is-accent {
+        border-color: rgba(244, 180, 0, 0.32);
+        background: rgba(244, 180, 0, 0.08);
+      }
+      .broadcast-kpi.is-cool {
+        border-color: rgba(56, 189, 248, 0.32);
+        background: rgba(56, 189, 248, 0.08);
+      }
       .scope-row {
         display: flex;
         align-items: center;
@@ -341,12 +375,23 @@
                       {% if card.is_apercibido %}<span class="status-icon warn" title="Apercibido">•</span>{% endif %}
                     </span>
                   </p>
+                  <div class="broadcast-kpis" aria-label="KPIs clave">
+                    <div class="broadcast-kpi is-cool"><div class="k">Influencia</div><div class="v">{{ card.influence_score|default:0|floatformat:0 }}</div></div>
+                    <div class="broadcast-kpi is-accent"><div class="k">Importancia</div><div class="v">{{ card.importance_score|default:0|floatformat:0 }}</div></div>
+                    <div class="broadcast-kpi"><div class="k">% Part.</div><div class="v">{{ card.participation_pct|default:0|floatformat:0 }}</div></div>
+                    <div class="broadcast-kpi"><div class="k">% Disp.</div><div class="v">{{ card.availability_pct|default:0|floatformat:0 }}</div></div>
+                  </div>
                   <div class="mini-kpis">
                     <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
                     <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
-                    <span class="mini-kpi">G {{ card.goals|default:0 }}</span>
-                    <span class="mini-kpi">A {{ card.assists|default:0 }}</span>
+                    <span class="mini-kpi">G+A {{ card.goal_contrib|default:0 }}</span>
+                    {% if card.shot_attempts or card.shots_on_target %}<span class="mini-kpi">TAP {{ card.shots_on_target|default:0 }}/{{ card.shot_attempts|default:0 }}</span>{% endif %}
+                    {% if card.duels_total %}<span class="mini-kpi">Duel {{ card.duels_won|default:0 }}/{{ card.duels_total|default:0 }}</span>{% endif %}
+                    {% if card.aerial_duels_total %}<span class="mini-kpi">Aéreo {{ card.aerial_duels_won|default:0 }}/{{ card.aerial_duels_total|default:0 }}</span>{% endif %}
+                    {% if card.key_passes_completed %}<span class="mini-kpi">KP {{ card.key_passes_completed|default:0 }}</span>{% endif %}
+                    {% if card.goalkeeper_saves %}<span class="mini-kpi">Par {{ card.goalkeeper_saves|default:0 }}</span>{% endif %}
                     <span class="mini-kpi">% {{ card.success_rate|default:0 }}</span>
+                    {% if card.actions_per90 %}<span class="mini-kpi">A/90 {{ card.actions_per90|default:0 }}</span>{% endif %}
                   </div>
                 </div>
               </a>
