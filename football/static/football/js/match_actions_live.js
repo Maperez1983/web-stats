@@ -1153,6 +1153,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     zoneLabel.style.top = `${Math.max(16, y - 10)}px`;
     zoneLabel.style.display = 'block';
   };
+  let lastZoneLabel = '';
   interactiveSurface.addEventListener('click', (event) => {
     if (fieldPopup.contains(event.target) || popupForm.contains(event.target)) return;
     const rect = interactiveSurface.getBoundingClientRect();
@@ -1166,6 +1167,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const yPct = (fieldY / rect.height) * 100;
     const zoneMatch = findClosestZone(xPct, yPct);
     if (zoneMatch) {
+      lastZoneLabel = String(zoneMatch.label || '').trim();
       zoneInput.value = zoneMatch.label;
       syncAutoFields({ zone: zoneMatch.label });
       try {
@@ -1333,6 +1335,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
       resetPopupForm({ preserveFields });
       emitSummaryChange();
+      try {
+        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone } }));
+      } catch (e) {}
       showPageStatus(
         `${source === 'pro_autosend' ? 'Auto-enviar:' : ''} Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`.trim(),
         data.duplicate ? 'warning' : 'success',
@@ -1481,6 +1486,32 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return Boolean(data);
   };
 
+  const repeatLastAtLastZone = async () => {
+    if (!lastZoneLabel) {
+      showPageStatus('Primero toca una zona del campo.', 'warning', 2200);
+      return false;
+    }
+    const currentAction = String(actionInput?.value || '').trim();
+    if (!currentAction) {
+      showPageStatus('Selecciona una acción.', 'warning', 2200);
+      return false;
+    }
+    const isTeamOnlyAction = isTeamOnlyActionValue(currentAction);
+    if (!isTeamOnlyAction && !playerInput.value) {
+      showPageStatus('Selecciona un jugador.', 'warning', 2200);
+      return false;
+    }
+    if (!resultSelect?.value) {
+      showPageStatus('Selecciona un resultado.', 'warning', 2200);
+      return false;
+    }
+    zoneInput.value = lastZoneLabel;
+    syncAutoFields({ zone: lastZoneLabel });
+    const payload = new FormData(popupForm);
+    const data = await submitPopupAction(payload, { isTeamOnlyAction, source: 'repeat' });
+    return Boolean(data);
+  };
+
   // Mantén la sesión viva en iPad (evita saltos a login en mitad del partido).
   const pingKeepalive = async () => {
     if (!keepaliveUrl) return;
@@ -1542,6 +1573,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           incrementQuickCounter(derivedDropKey);
           appendQuickHistory(derivedDropKey, ev.player?.name || 'Equipo', ev.minute || getCurrentMatchMinute(), ev.result || ev.action);
         }
+        try {
+          document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: ev.id, action: ev.action, result: ev.result, zone: ev.zone } }));
+        } catch (e) {}
       });
       emitSummaryChange();
     } catch (e) {
@@ -1603,6 +1637,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       appendQuickHistory(dropKey, data.player?.name || 'Equipo', data.minute || minute, result || data.result || data.action);
       if (!isTeamOnly && player?.id) selectPlayer(player.id);
       emitSummaryChange();
+      try {
+        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone } }));
+      } catch (e) {}
       return data;
     } catch (err) {
       if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
@@ -1696,6 +1733,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     resetClock,
     editLastAction,
     redoLastUndo,
+    repeatLastAtLastZone,
     registerQuickDropAction: postQuickDropAction,
     registerSubstitutionPair: async ({ outPlayer = null, inPlayer = null, minute = null } = {}) => {
       if (!outPlayer?.id || !inPlayer?.id) return false;

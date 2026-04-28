@@ -767,6 +767,7 @@
 			    const simResetBtn = document.getElementById('task-sim-reset');
 			    const simCaptureBtn = document.getElementById('task-sim-capture');
 			    const simPlayBtn = document.getElementById('task-sim-play');
+			    const simRecordQuickBtn = document.getElementById('task-sim-record-quick');
 			    const simRemoveBtn = document.getElementById('task-sim-remove');
 			    const simPrevBtn = document.getElementById('task-sim-prev');
 			    const simNextBtn = document.getElementById('task-sim-next');
@@ -4308,6 +4309,7 @@
 					      if (simResetBtn) simResetBtn.hidden = !isSimulating;
 					      if (simCaptureBtn) simCaptureBtn.hidden = !isSimulating;
 					      if (simPlayBtn) simPlayBtn.hidden = !isSimulating;
+					      if (simRecordQuickBtn) simRecordQuickBtn.hidden = !isSimulating;
 					      if (simRemoveBtn) simRemoveBtn.hidden = !isSimulating;
 					      if (simStepsList) simStepsList.hidden = !isSimulating;
 						      if (simPrevBtn) simPrevBtn.hidden = !isSimulating;
@@ -4338,9 +4340,17 @@
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
 						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
 						      if (simPlayBtn) simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
-						      if (simRecordBtn) simRecordBtn.disabled = !canRecord2d();
+						      const canRecord = canRecord2d();
+						      if (simRecordBtn) simRecordBtn.disabled = !canRecord;
+						      if (simRecordQuickBtn) simRecordQuickBtn.disabled = !canRecord;
 						      if (!isSimulating && simScriptModal) simScriptModal.hidden = true;
 					    };
+					    if (simRecordQuickBtn && simRecordBtn) {
+					      simRecordQuickBtn.addEventListener('click', (ev) => {
+					        ev.preventDefault();
+					        try { simRecordBtn.click(); } catch (e) { /* ignore */ }
+					      });
+					    }
 
 					    // Video Studio (telestración): carga un vídeo y dibuja encima con keyframes.
 					    const canRecordVideoStudio = () => {

@@ -2512,6 +2512,7 @@
 	              <button type="button" class="toolbar-pill" id="pro-undo" title="Deshacer la última acción registrada">Deshacer</button>
 	            </div>
 	            <div class="pro-actions-row" style="margin-top:0.55rem;">
+	              <div class="pro-chips" id="pro-action-favorites" style="flex:1 1 100%;"></div>
 	              <button type="button" class="toolbar-pill" id="pro-preset-1" title="Tap: aplicar · Pulsación larga: guardar">Preset 1</button>
 	              <button type="button" class="toolbar-pill" id="pro-preset-2" title="Tap: aplicar · Pulsación larga: guardar">Preset 2</button>
 	              <button type="button" class="toolbar-pill" id="pro-preset-3" title="Tap: aplicar · Pulsación larga: guardar">Preset 3</button>
@@ -3091,6 +3092,7 @@
 	        document.getElementById('pro-preset-5'),
 	        document.getElementById('pro-preset-6'),
 	      ].filter(Boolean);
+	      const proActionFavoritesEl = document.getElementById('pro-action-favorites');
 	      const proEditLastBtn = document.getElementById('pro-edit-last');
 	      const proRedoBtn = document.getElementById('pro-redo');
 	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
@@ -3442,6 +3444,31 @@
         });
         return out.slice(0, 12);
       };
+      const renderProActionFavorites = () => {
+        if (!proActionFavoritesEl) return;
+        if (!document.body.classList.contains('pro-mode')) {
+          proActionFavoritesEl.innerHTML = '';
+          return;
+        }
+        const { favorites } = computeFavorites();
+        const list = (favorites && favorites.length ? favorites : loadFallbackFavorites()).slice(0, 6);
+        proActionFavoritesEl.innerHTML = '';
+        if (!list.length) return;
+        list.forEach((label) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pro-chip';
+          btn.textContent = label;
+          btn.title = 'Seleccionar acción';
+          btn.addEventListener('click', () => {
+            if (actionInput) actionInput.value = label;
+            try { syncResultOptionsForAction(label); } catch (e) {}
+            try { pushRecentAction(label); } catch (e) {}
+            try { actionInput?.dispatchEvent?.(new Event('input', { bubbles: true })); } catch (e) {}
+          });
+          proActionFavoritesEl.appendChild(btn);
+        });
+      };
       const filterCatalog = (query) => {
         const q = normalizeActionKey(query);
         if (!q) return actionCatalog.slice(0, 60);
@@ -3512,6 +3539,14 @@
           } catch (e) {}
         });
       }
+      // Favoritos rápidos (Modo PRO).
+      try { renderProActionFavorites(); } catch (e) {}
+      document.addEventListener('webstats:match-actions:recorded', () => {
+        try { renderProActionFavorites(); } catch (e) {}
+      });
+      document.addEventListener('webstats:match-actions:lineup-changed', () => {
+        try { renderProActionFavorites(); } catch (e) {}
+      });
       if (actionPickerCloseBtn) {
         actionPickerCloseBtn.addEventListener('click', () => closeActionPicker());
       }
@@ -4419,7 +4454,25 @@
 	        proPresetBtns.forEach(bindPresetButton);
 	      }
 	      if (proRepeatLastBtn) {
-	        proRepeatLastBtn.addEventListener('click', () => {
+	        // Tap: aplica última acción+resultado. Pulsación larga: registra directamente en la última zona tocada.
+	        let pressTimer = null;
+	        let longPressFired = false;
+	        const clear = () => {
+	          if (pressTimer) window.clearTimeout(pressTimer);
+	          pressTimer = null;
+	        };
+	        proRepeatLastBtn.addEventListener('pointerdown', (ev) => {
+	          longPressFired = false;
+	          clear();
+	          pressTimer = window.setTimeout(() => {
+	            longPressFired = true;
+	            try { liveController?.repeatLastAtLastZone?.(); } catch (e) {}
+	          }, 650);
+	          try { ev.preventDefault(); } catch (e) {}
+	        });
+	        proRepeatLastBtn.addEventListener('pointerup', (ev) => {
+	          clear();
+	          if (longPressFired) return;
 	          const st = readProState() || {};
 	          const action = String(st.action || '').trim();
 	          const result = String(st.result || '').trim();
@@ -4428,7 +4481,9 @@
 	            return;
 	          }
 	          applyPreset({ action, result });
+	          try { ev.preventDefault(); } catch (e) {}
 	        });
+	        proRepeatLastBtn.addEventListener('pointercancel', clear);
 	      }
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
