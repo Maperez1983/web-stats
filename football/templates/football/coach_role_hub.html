@@ -1058,6 +1058,14 @@
           <summary>Personalizar KPIs</summary>
           <div class="kpi-customizer-body"></div>
         </details>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.65rem 0 0.15rem;">
+          <a
+            class="pill-button"
+            style="text-decoration:none;"
+            href="{% url 'kpi-explorer' %}?scope=team&preset=summary{% if active_team %}&team={{ active_team.id }}{% endif %}"
+            title="Explorar cualquier KPI calculado a partir de acciones (equipo/partido/jugador)"
+          >KPIs avanzados</a>
+        </div>
         {% for kpi in kpis %}
         <article class="kpi" data-kpi-key="{{ kpi.key|default:'' }}" data-kpi-label="{{ kpi.label|default:'' }}">
           <div class="kpi-ring" style="--pct: {{ kpi.pct|default:0 }};">

@@ -782,6 +782,13 @@
               <summary>Personalizar KPIs</summary>
               <div class="kpi-customizer-body"></div>
             </details>
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.65rem 0 0.15rem;">
+              <a
+                class="btn"
+                href="{% url 'kpi-explorer' %}?scope=player&player_id={{ player.id }}&preset=summary{% if player.team_id %}&team={{ player.team_id }}{% endif %}"
+                title="Explorar cualquier KPI calculado a partir de acciones"
+              >KPIs avanzados</a>
+            </div>
             <div class="performance-rings">
               <article class="kpi-ring" data-kpi-key="success_rate" data-kpi-label="Tasa de éxito">
                 <div class="kpi-ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">

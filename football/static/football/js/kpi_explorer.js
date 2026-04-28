@@ -89,6 +89,7 @@
     const matchItems = Array.isArray(jsonFromScript('kpi-match-items')) ? jsonFromScript('kpi-match-items') : [];
     const playerItems = Array.isArray(jsonFromScript('kpi-player-items')) ? jsonFromScript('kpi-player-items') : [];
     const derivedMetrics = Array.isArray(jsonFromScript('kpi-derived-metrics')) ? jsonFromScript('kpi-derived-metrics') : [];
+    const derivedByKey = new Map((derivedMetrics || []).map((m) => [safeText(m?.key), m]).filter((x) => x[0]));
 
     const storageKey = 'kpi_explorer:selected';
     const stored = (() => {
@@ -236,6 +237,102 @@
 
     let lastDimensions = { event_types: [], results: [], zones: [], tercios: [] };
 
+    const applyPreset = (preset) => {
+      const p = safeText(preset).toLowerCase();
+      const keys = {
+        summary: [
+          'total_actions', 'success_rate',
+          'duels_total', 'duel_rate',
+          'aerial_duels_total', 'aerial_duel_rate',
+          'pass_attempts', 'passes_accuracy',
+          'shot_attempts', 'shots_accuracy',
+          'goals', 'assists',
+          'yellow_cards', 'red_cards',
+        ],
+        attack: [
+          'shot_attempts', 'shots_on_target', 'shots_accuracy',
+          'goals', 'assists',
+          'key_passes_completed',
+          'pass_attempts', 'passes_accuracy',
+        ],
+        defense: [
+          'duels_total', 'duels_won', 'duel_rate',
+          'aerial_duels_total', 'aerial_duels_won', 'aerial_duel_rate',
+          'yellow_cards', 'red_cards',
+        ],
+        gk: ['goalkeeper_saves', 'shot_attempts', 'shots_on_target', 'shots_accuracy'],
+      }[p] || [];
+      if (!keys.length) return;
+      const next = [];
+      keys.forEach((key) => {
+        const m = derivedByKey.get(key);
+        if (m) next.push({ ...m, kind: 'derived' });
+      });
+      if (!next.length) return;
+      selected = next.slice(0, 80);
+      persistSelected();
+      renderSelected();
+      setStatus(`Preset aplicado: ${p}.`);
+    };
+
+    // Presets UI
+    Array.from(document.querySelectorAll('[data-kpi-preset]')).forEach((btn) => {
+      btn.addEventListener('click', () => applyPreset(btn.getAttribute('data-kpi-preset') || ''));
+    });
+
+    // Deep-link: preselección por query string (?scope=player&player_id=...&match_id=...&context=...&preset=summary)
+    (() => {
+      let params = null;
+      try { params = new URLSearchParams(window.location.search || ''); } catch (e) { params = null; }
+      if (!params) return;
+      const qsScope = safeText(params.get('scope') || '');
+      const qsContext = safeText(params.get('context') || '');
+      const qsMatch = Number(params.get('match_id') || 0) || 0;
+      const qsPlayer = Number(params.get('player_id') || 0) || 0;
+      const qsPreset = safeText(params.get('preset') || '');
+
+      if (contextSelect && qsContext) {
+        const opt = Array.from(contextSelect.options || []).find((o) => safeText(o.value) === qsContext);
+        if (opt) contextSelect.value = qsContext;
+      }
+      if (scopeSelect && (qsScope || qsPlayer || qsMatch)) {
+        const inferred = qsPlayer ? 'player' : (qsMatch ? 'match' : qsScope);
+        if (inferred) {
+          const opt = Array.from(scopeSelect.options || []).find((o) => safeText(o.value) === inferred);
+          if (opt) scopeSelect.value = inferred;
+        }
+      }
+      // Render dependent UI now (listener puede no estar aún).
+      try { setScopeUi(); } catch (e) { /* ignore */ }
+      if (matchSelect && qsMatch) {
+        // options are populated later from JSON; set after population.
+        matchSelect.dataset.preselect = String(qsMatch);
+      }
+      if (playerSelect && qsPlayer) {
+        playerSelect.dataset.preselect = String(qsPlayer);
+      }
+      if (qsPreset) applyPreset(qsPreset);
+    })();
+
+    const applyPreselects = () => {
+      try {
+        if (matchSelect?.dataset?.preselect) {
+          const id = safeText(matchSelect.dataset.preselect);
+          const opt = Array.from(matchSelect.options || []).find((o) => safeText(o.value) === id);
+          if (opt) matchSelect.value = id;
+          delete matchSelect.dataset.preselect;
+        }
+      } catch (e) { /* ignore */ }
+      try {
+        if (playerSelect?.dataset?.preselect) {
+          const id = safeText(playerSelect.dataset.preselect);
+          const opt = Array.from(playerSelect.options || []).find((o) => safeText(o.value) === id);
+          if (opt) playerSelect.value = id;
+          delete playerSelect.dataset.preselect;
+        }
+      } catch (e) { /* ignore */ }
+    };
+
     const renderAllOptions = () => {
       const q = safeText(searchInput?.value, '');
       const derived = filterList(derivedMetrics, q, (x) => x?.label || x?.key);
@@ -265,6 +362,9 @@
         return `<div class="row"><div style="min-width:0;"><strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(metric.label)}</strong><small>${escHtml(d?.count)} · ocurrencias</small></div><button type="button" class="button" data-add='${escHtml(JSON.stringify(metric))}'>Añadir</button></div>`;
       });
     };
+
+    // Ensure preselects are applied once options are rendered the first time.
+    try { applyPreselects(); } catch (e) { /* ignore */ }
 
     const loadOptions = async () => {
       if (!optionsUrl) return;
@@ -362,4 +462,3 @@
     init();
   }
 })();
-
