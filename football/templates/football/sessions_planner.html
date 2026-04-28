@@ -590,6 +590,74 @@
         font-size: 0.74rem;
         color: rgba(225, 236, 255, 0.82);
       }
+      /* Crear (comercial): tarjetas por módulo + acciones dentro */
+      .module-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+      }
+      .module-card {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+      }
+      .module-card summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+        padding: 0.85rem 0.9rem;
+        display: grid;
+        gap: 0.35rem;
+        position: relative;
+      }
+      .module-card summary::-webkit-details-marker { display:none; }
+      .module-card summary::after {
+        content: "›";
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        font-size: 1.4rem;
+        opacity: 0.7;
+        transform: rotate(90deg);
+        transition: transform 180ms ease;
+      }
+      .module-card[open] summary::after { transform: rotate(-90deg); }
+      .module-card .module-title {
+        font-weight: 950;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+      }
+      .module-card .module-sub {
+        font-size: 0.78rem;
+        color: rgba(225, 236, 255, 0.78);
+      }
+      .module-card .module-pitch {
+        margin-top: 0.45rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        background:
+          repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.12) 0 44px, rgba(34, 197, 94, 0.06) 44px 88px),
+          linear-gradient(180deg, rgba(16, 185, 129, 0.18), rgba(34, 197, 94, 0.12));
+        height: 96px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .module-card .module-pitch svg { width: 92%; height: auto; opacity: 0.92; }
+      .module-card .module-body {
+        padding: 0.85rem 0.9rem 0.95rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        display: grid;
+        gap: 0.55rem;
+      }
+      .module-actions {
+        display: grid;
+        gap: 0.45rem;
+      }
+      .module-actions a.folder-card { border-color: rgba(244, 180, 0, 0.16); }
       .badge {
         display: inline-flex;
         align-items: center;
@@ -1367,38 +1435,92 @@
 			      {% endif %}
 
 		      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
-		        <section class="panel">
-		          <h2>Crear</h2>
-		          <p class="meta" style="margin-top:0;">
-		            Aquí solo eliges “qué quieres crear”. El trabajo diario se hace en <strong>Biblioteca → Sesiones</strong> (para asignar tareas por bloque) y en <strong>Biblioteca → Tareas</strong> (para reutilizar).
-		          </p>
-		          <div class="alert" style="margin-top:0.65rem;">
-		            <strong>Flujo recomendado</strong>
-		            <ol style="margin:0.5rem 0 0; padding-left:1.15rem; display:grid; gap:0.25rem;">
-		              <li><strong>Crear tarea</strong> (Clásica o Interactiva) → se guarda en Biblioteca.</li>
-		              <li><strong>Crear sesión</strong> (día) o <strong>microciclo</strong> (semana).</li>
-		              <li>En <strong>Biblioteca → Sesiones</strong> usa “Añadir desde biblioteca” para asignar tareas al bloque.</li>
-		            </ol>
-		          </div>
-			          <div class="folder-grid" style="margin-top:0.75rem;">
-			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional&landing=1">
-			              <strong>Crear tarea (Clásica)</strong>
-			              <span>Se guarda en Biblioteca</span>
-			            </a>
-			            <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive&landing=1">
-			              <strong>Crear tarea (Interactiva)</strong>
-			              <span>Se guarda en Biblioteca</span>
-			            </a>
-		            <a class="folder-card" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
-		              <strong>Planificar sesiones</strong>
-		              <span>Añadir tareas por bloque</span>
-		            </a>
-		            <a class="folder-card" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
-		              <strong>Planificar microciclos</strong>
-		              <span>Semana completa</span>
-		            </a>
-		          </div>
-		          <div class="grid" style="margin-top:0.85rem;">
+			        <section class="panel">
+			          <h2>Crear</h2>
+			          <p class="meta" style="margin-top:0;">Empieza por el módulo. Dentro tienes crear / importar / interactivo / recomendador.</p>
+			          <div class="module-grid" aria-label="Accesos por módulo">
+			            <details class="module-card" open>
+			              <summary>
+			                <div class="module-title">Tarea</div>
+			                <div class="module-sub">Clásica · Interactiva · Recomendador · Importar</div>
+			                <div class="module-pitch" aria-hidden="true">
+			                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+			                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.1"/>
+			                    <line x1="52.5" y1="1" x2="52.5" y2="67" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
+			                    <circle cx="52.5" cy="34" r="8.5" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
+			                  </svg>
+			                </div>
+			              </summary>
+			              <div class="module-body">
+			                <div class="module-actions">
+			                  <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional&landing=1"><strong>Crear tarea clásica</strong><span>Editor + pizarra (se guarda en Biblioteca)</span></a>
+			                  <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive&landing=1"><strong>Crear tarea interactiva</strong><span>Editor + escenarios</span></a>
+			                  <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional&landing=1"><strong>Recomendador</strong><span>Asistente → “Sugerir tareas”</span></a>
+			                  <a class="folder-card" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas"><strong>Importar tareas</strong><span>PDF (clásicas) o vídeo (interactivas)</span></a>
+			                </div>
+			              </div>
+			            </details>
+			            <details class="module-card">
+			              <summary>
+			                <div class="module-title">Sesión</div>
+			                <div class="module-sub">Crear · Importar PDF · Tareas por bloque</div>
+			                <div class="module-pitch" aria-hidden="true">
+			                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+			                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.1"/>
+			                    <rect x="1" y="18" width="16" height="32" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
+			                    <rect x="88" y="18" width="16" height="32" stroke="rgba(248,250,252,0.72)" stroke-width="0.85"/>
+			                  </svg>
+			                </div>
+			              </summary>
+			              <div class="module-body">
+			                <div class="module-actions">
+			                  <a class="folder-card" href="#create-session-box"><strong>Crear sesión</strong><span>Fecha, materiales y notas</span></a>
+			                  <a class="folder-card" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>Planificar sesión</strong><span>Tareas por bloque</span></a>
+			                  <a class="folder-card" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones"><strong>Importar sesión (PDF)</strong><span>Se guarda tal cual</span></a>
+			                </div>
+			              </div>
+			            </details>
+			            <details class="module-card">
+			              <summary>
+			                <div class="module-title">Microciclo</div>
+			                <div class="module-sub">Crear · Planificar semana · Sesiones</div>
+			                <div class="module-pitch" aria-hidden="true">
+			                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+			                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.1"/>
+			                    <line x1="1" y1="34" x2="104" y2="34" stroke="rgba(248,250,252,0.64)" stroke-width="0.85" stroke-dasharray="3 3"/>
+			                  </svg>
+			                </div>
+			              </summary>
+			              <div class="module-body">
+			                <div class="module-actions">
+			                  <a class="folder-card" href="#create-microcycle-box"><strong>Crear microciclo</strong><span>Objetivos semanales</span></a>
+			                  <a class="folder-card" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><strong>Planificar microciclos</strong><span>Semana completa + sesiones</span></a>
+			                </div>
+			              </div>
+			            </details>
+			            <details class="module-card">
+			              <summary>
+			                <div class="module-title">Táctica</div>
+			                <div class="module-sub">Pizarra táctica · Playbook · ABP</div>
+			                <div class="module-pitch" aria-hidden="true">
+			                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+			                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.1"/>
+			                    <circle cx="26" cy="34" r="1.6" fill="rgba(248,250,252,0.92)"/>
+			                    <circle cx="36" cy="24" r="1.6" fill="rgba(248,250,252,0.92)"/>
+			                    <circle cx="36" cy="44" r="1.6" fill="rgba(248,250,252,0.92)"/>
+			                    <path d="M26 34 C 36 34, 44 26, 52 22" stroke="rgba(248,250,252,0.7)" stroke-width="0.9" fill="none"/>
+			                  </svg>
+			                </div>
+			              </summary>
+			              <div class="module-body">
+			                <div class="module-actions">
+			                  <a class="folder-card" href="{% url 'coach-tactics' %}"><strong>Abrir táctica</strong><span>Pizarra + Playbook</span></a>
+			                  <a class="folder-card" href="{% url 'coach-abp-board' %}"><strong>ABP (pizarra)</strong><span>Balón parado</span></a>
+			                </div>
+			              </div>
+			            </details>
+			          </div>
+			          <div class="grid" style="margin-top:0.85rem;">
 		            <div class="editor-box" id="create-session-box">
 		              <h3>Crear sesión</h3>
 		              <p class="meta" style="margin-top:-0.35rem;">
