@@ -1591,11 +1591,20 @@
 			      </div>
 			      {% endif %}
 
-			      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
-				        <section class="panel">
-				          <h2>Crear</h2>
-				          <p class="meta" style="margin-top:0;">Primero elige el módulo en la derecha. La pantalla te guía con ejemplos.</p>
-				          <div class="create-landing" id="coach-create-landing">
+				      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
+	              {% with create_page=request.GET.create_page|default:'' %}
+					        <section class="panel">
+					          <h2>
+                      {% if create_page == 'task' %}Tarea
+                      {% elif create_page == 'session' %}Sesión
+                      {% elif create_page == 'microcycle' %}Microciclo
+                      {% elif create_page == 'tactics' %}Táctica
+                      {% else %}Crear
+                      {% endif %}
+                    </h2>
+					          {% if not create_page %}
+					          <p class="meta" style="margin-top:0;">Pantalla de presentación. Elige un módulo para ir a su página.</p>
+					          <div class="create-landing" id="coach-create-landing">
 				            <div class="create-hero">
 				              <div class="create-hero-top">
 				                <strong>Pizarra · Guía rápida</strong>
@@ -1617,223 +1626,18 @@
                         </div>
 				              </div>
 				            </div>
-				            <aside class="create-side">
-				              <div class="create-side-head">Módulos</div>
-				              <div class="create-modules" role="tablist" aria-label="Módulos">
-				                <button type="button" class="create-mod-btn is-active" data-create-mod="task" role="tab" aria-selected="true">Tarea <small>Crear · interactiva · importar · recomendador</small></button>
-				                <button type="button" class="create-mod-btn" data-create-mod="session" role="tab" aria-selected="false">Sesión <small>Crear · importar PDF · tareas por bloque</small></button>
-				                <button type="button" class="create-mod-btn" data-create-mod="microcycle" role="tab" aria-selected="false">Microciclo <small>Crear · planificar semana</small></button>
-				                <button type="button" class="create-mod-btn" data-create-mod="tactics" role="tab" aria-selected="false">Táctica <small>Pizarra · playbook · ABP</small></button>
-				              </div>
-				            </aside>
-				          </div>
-				          <div class="create-module-view" id="create-mod-task">
-                    <div class="create-actions-panel">
-                      <h3>Tarea</h3>
-                      <p class="meta">Crea, recomienda o importa tareas en el formato del sistema.</p>
-                      <div class="create-actions-row">
-                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1">Crear clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
-                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive&landing=1">Crear interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
-                        <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1&pane=assistant">Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
-                        <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
-                      </div>
-                    </div>
-				          </div>
-				          <div class="create-module-view" id="create-mod-session" hidden>
-                    <div class="create-actions-panel">
-                      <h3>Sesión</h3>
-                      <p class="meta">Crea la sesión (día), o importa PDF tal cual. La asignación por bloques se hace en Biblioteca.</p>
-                      <div class="create-actions-row">
-                        <button class="create-action-btn" type="button" data-create-toggle="session-form">Crear sesión <small>Sesión suelta o en microciclo</small> <span class="chev" aria-hidden="true">›</span></button>
-                        <a class="create-action-btn" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar sesiones <small>Tareas por bloque</small> <span class="chev" aria-hidden="true">›</span></a>
-                        <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
-                      </div>
-                      <div class="create-subpanel" id="create-session-form" hidden>
-                        <h3 style="margin:0 0 0.35rem;">Crear sesión</h3>
-                        <p class="meta" style="margin-top:0;">
-                          Al guardar, el sistema te lleva a <strong>Biblioteca → Sesiones</strong> para asignar tareas por bloque.
-                        </p>
-                        <div class="editor-box" style="margin-top:0;">
-                          <form method="post" class="grid">
-                            {% csrf_token %}
-                            <input type="hidden" name="planner_action" value="create_session_plan" />
-                            <input type="hidden" name="planner_tab" value="create" />
-                            <input type="hidden" name="team" value="{{ primary_team_id }}" />
-                            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-                            <label>
-                              Microciclo
-                              <select name="plan_microcycle_id">
-                                <option value="">Sin microciclo (sesión suelta)</option>
-                                {% for item in planning_microcycles %}
-                                <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
-                                {% endfor %}
-                              </select>
-                            </label>
-                            <label>
-                              Fecha
-                              <input type="date" name="plan_session_date" required />
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Nombre de la sesión
-                              <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
-                            </label>
-                            <label>
-                              Duración (min)
-                              <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
-                            </label>
-                            <label>
-                              Intensidad
-                              <select name="plan_session_intensity">
-                                {% for value, label in session_intensity_choices %}
-                                <option value="{{ value }}">{{ label }}</option>
-                                {% endfor %}
-                              </select>
-                            </label>
-                            <label>
-                              Estado
-                              <select name="plan_session_status">
-                                {% for value, label in session_status_choices %}
-                                <option value="{{ value }}">{{ label }}</option>
-                                {% endfor %}
-                              </select>
-                            </label>
-                            <label>
-                              N jugadores
-                              <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Materiales
-                              <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Lesionados / ausencias
-                              <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Notas (opcional)
-                              <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
-                            </label>
-                            <div><button type="submit" class="primary">Crear sesión</button></div>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-				          </div>
-				          <div class="create-module-view" id="create-mod-microcycle" hidden>
-                    <div class="create-actions-panel">
-                      <h3>Microciclo</h3>
-                      <p class="meta">Define la semana (MD-4…MD+1) y luego ordénala en Biblioteca.</p>
-                      <div class="create-actions-row">
-                        <button class="create-action-btn" type="button" data-create-toggle="microcycle-form">Crear microciclo <small>Semana completa</small> <span class="chev" aria-hidden="true">›</span></button>
-                        <a class="create-action-btn" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Planificar microciclos <small>Ver y editar</small> <span class="chev" aria-hidden="true">›</span></a>
-                      </div>
-                      <div class="create-subpanel" id="create-microcycle-form" hidden>
-                        <h3 style="margin:0 0 0.35rem;">Crear microciclo</h3>
-                        <p class="meta" style="margin-top:0;">
-                          Luego entra en <strong>Biblioteca → Microciclos</strong> para ver el mapa y sus sesiones.
-                        </p>
-                        <div class="editor-box" style="margin-top:0;">
-                          <form method="post" class="grid">
-                            {% csrf_token %}
-                            <input type="hidden" name="planner_action" value="create_microcycle_plan" />
-                            <input type="hidden" name="planner_tab" value="create" />
-                            <label>
-                              Título
-                              <input type="text" name="plan_microcycle_title" maxlength="140" placeholder="Ej: MD-4 a MD+1" required />
-                            </label>
-                            <label>
-                              Objetivo
-                              <input type="text" name="plan_microcycle_objective" maxlength="200" placeholder="Objetivo semanal" />
-                            </label>
-                            <label>
-                              Inicio
-                              <input type="date" name="plan_week_start" required />
-                            </label>
-                            <label>
-                              Fin
-                              <input type="date" name="plan_week_end" required />
-                            </label>
-                            <label>
-                              Estado
-                              <select name="plan_microcycle_status">
-                                {% for value, label in microcycle_status_choices %}
-                                <option value="{{ value }}">{{ label }}</option>
-                                {% endfor %}
-                              </select>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Objetivos ataque
-                              <textarea name="plan_microcycle_attack" placeholder="Principios, subprincipios y focos ofensivos"></textarea>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Objetivos defensa
-                              <textarea name="plan_microcycle_defense" placeholder="Principios defensivos y ajustes de comportamiento"></textarea>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Objetivos ABP
-                              <textarea name="plan_microcycle_set_pieces" placeholder="ABP ofensiva/defensiva a reforzar en la semana"></textarea>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Observaciones rival
-                              <textarea name="plan_microcycle_rival_notes" placeholder="Patrones del rival, alertas y contexto competitivo"></textarea>
-                            </label>
-                            <label style="grid-column:1/-1;">
-                              Notas generales
-                              <textarea name="plan_microcycle_notes" placeholder="Observaciones internas, carga y mensajes para el staff"></textarea>
-                            </label>
-                            <div><button type="submit" class="primary">Guardar microciclo</button></div>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-				          </div>
-				          <div class="create-module-view" id="create-mod-tactics" hidden>
-                    <div class="create-actions-panel">
-                      <h3>Táctica</h3>
-                      <p class="meta">Pizarra táctica y ABP con recursos listos.</p>
-                      <div class="create-actions-row">
-                        <a class="create-action-btn" href="{% url 'coach-tactics' %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
-                        <a class="create-action-btn" href="{% url 'coach-abp-board' %}">ABP <small>Balón parado</small> <span class="chev" aria-hidden="true">›</span></a>
-                      </div>
-                    </div>
-				          </div>
-				          <script>
-				            (function () {
-			              const root = document.getElementById('coach-create-landing');
-			              if (!root) return;
-			              const buttons = Array.from(root.querySelectorAll('[data-create-mod]'));
-			              const views = {
-			                task: document.getElementById('create-mod-task'),
-			                session: document.getElementById('create-mod-session'),
-			                microcycle: document.getElementById('create-mod-microcycle'),
-			                tactics: document.getElementById('create-mod-tactics'),
-			              };
-			              const setActive = (key) => {
-			                const k = String(key || 'task');
-			                buttons.forEach((btn) => {
-			                  const active = String(btn.getAttribute('data-create-mod')) === k;
-			                  btn.classList.toggle('is-active', active);
-			                  btn.setAttribute('aria-selected', active ? 'true' : 'false');
-			                });
-			                Object.entries(views).forEach(([name, el]) => {
-			                  if (!el) return;
-			                  el.hidden = name !== k;
-			                });
-			                try { window.localStorage.setItem('webstats:create:active_mod_v1', k); } catch (e) {}
-			              };
-				              buttons.forEach((btn) => btn.addEventListener('click', () => setActive(btn.getAttribute('data-create-mod'))));
-			              // Toggle sub-formularios (crear sesión / microciclo) sin ensuciar la vista de presentación.
-			              const toggles = Array.from(document.querySelectorAll('[data-create-toggle]'));
-			              const togglePanel = (key) => {
-			                const id = `create-${String(key || '').trim()}`;
-			                const panel = document.getElementById(id);
-			                if (!panel) return;
-			                panel.hidden = !panel.hidden;
-			                if (!panel.hidden) {
-			                  try { panel.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
-			                }
-			              };
-				              toggles.forEach((btn) => btn.addEventListener('click', () => togglePanel(btn.getAttribute('data-create-toggle'))));
+					            <aside class="create-side">
+					              <div class="create-side-head">Módulos</div>
+					              <div class="create-modules" aria-label="Módulos">
+	                        <a class="create-mod-btn" href="?tab=create&create_page=task&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tarea <small>Crear · interactiva · importar · recomendador</small></a>
+	                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesión <small>Crear · importar PDF · tareas por bloque</small></a>
+	                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclo <small>Crear · planificar semana</small></a>
+	                        <a class="create-mod-btn" href="?tab=create&create_page=tactics&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Táctica <small>Pizarra · playbook · ABP</small></a>
+					              </div>
+					            </aside>
+					          </div>
+                  <script>
+                    (function () {
                       // Preview (rápido): renderiza el mismo campo que usa la pizarra real, sin cargar el motor completo.
                       try {
                         const previewHost = document.getElementById('coach-create-hero-preview');
@@ -1846,50 +1650,85 @@
                       // Demo (bajo demanda): carga el editor real dentro de un modal con iframe.
                       try {
                         const openBtn = document.getElementById('coach-create-demo-open');
-                        if (openBtn) {
-                          const modal = document.createElement('div');
-                          modal.className = 'create-demo-modal';
-                          modal.hidden = true;
-                          modal.innerHTML = `
-                            <div class="create-demo-sheet" role="dialog" aria-modal="true" aria-label="Demo pizarra">
-                              <div class="create-demo-head">
-                                <strong>Demo · Pizarra</strong>
-                                <button type="button" class="create-demo-close" data-close="1">Cerrar</button>
-                              </div>
-                              <iframe class="create-demo-iframe" title="Demo pizarra" loading="lazy"></iframe>
+                        if (!openBtn) return;
+                        const modal = document.createElement('div');
+                        modal.className = 'create-demo-modal';
+                        modal.hidden = true;
+                        modal.innerHTML = `
+                          <div class="create-demo-sheet" role="dialog" aria-modal="true" aria-label="Demo pizarra">
+                            <div class="create-demo-head">
+                              <strong>Demo · Pizarra</strong>
+                              <button type="button" class="create-demo-close" data-close="1">Cerrar</button>
                             </div>
-                          `;
-                          document.body.appendChild(modal);
-                          const iframe = modal.querySelector('iframe');
-                          const closeBtn = modal.querySelector('[data-close="1"]');
-                          const close = () => {
-                            try { modal.hidden = true; } catch (e) { /* ignore */ }
-                          };
-                          const open = () => {
-                            try {
-                              const url = String(openBtn.getAttribute('data-demo-url') || '').trim();
-                              if (iframe && url && !iframe.getAttribute('src')) iframe.setAttribute('src', url);
-                              modal.hidden = false;
-                            } catch (e) { /* ignore */ }
-                          };
-                          openBtn.addEventListener('click', (ev) => { ev.preventDefault(); open(); });
-                          if (closeBtn) closeBtn.addEventListener('click', (ev) => { ev.preventDefault(); close(); });
-                          modal.addEventListener('click', (ev) => {
-                            const sheet = ev.target && ev.target.closest ? ev.target.closest('.create-demo-sheet') : null;
-                            if (!sheet) close();
-                          });
-                          document.addEventListener('keydown', (ev) => {
-                            if (ev.key === 'Escape' && !modal.hidden) close();
-                          });
-                        }
+                            <iframe class="create-demo-iframe" title="Demo pizarra" loading="lazy"></iframe>
+                          </div>
+                        `;
+                        document.body.appendChild(modal);
+                        const iframe = modal.querySelector('iframe');
+                        const closeBtn = modal.querySelector('[data-close="1"]');
+                        const close = () => { try { modal.hidden = true; } catch (e) {} };
+                        const open = () => {
+                          try {
+                            const url = String(openBtn.getAttribute('data-demo-url') || '').trim();
+                            if (iframe && url && !iframe.getAttribute('src')) iframe.setAttribute('src', url);
+                            modal.hidden = false;
+                          } catch (e) { /* ignore */ }
+                        };
+                        openBtn.addEventListener('click', (ev) => { ev.preventDefault(); open(); });
+                        if (closeBtn) closeBtn.addEventListener('click', (ev) => { ev.preventDefault(); close(); });
+                        modal.addEventListener('click', (ev) => {
+                          const sheet = ev.target && ev.target.closest ? ev.target.closest('.create-demo-sheet') : null;
+                          if (!sheet) close();
+                        });
+                        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) close(); });
                       } catch (e) { /* ignore */ }
-				              let initial = 'task';
-				              try { initial = (window.localStorage.getItem('webstats:create:active_mod_v1') || 'task').trim() || 'task'; } catch (e) {}
-				              setActive(initial);
-				            })();
-				          </script>
-			        </section>
-			      </div>
+                    })();
+                  </script>
+                  {% else %}
+                  <p class="meta" style="margin-top:0;"><a class="button" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Volver a presentación</a></p>
+                  {% if create_page == 'task' %}
+                  <div class="create-actions-panel">
+                    <h3>Tarea</h3>
+                    <p class="meta">Crear y gestionar tareas (clásicas e interactivas).</p>
+                    <div class="create-actions-row">
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1">Crear clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive&landing=1">Crear interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&landing=1&pane=assistant">Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca <small>Ver repositorio</small> <span class="chev" aria-hidden="true">›</span></a>
+                    </div>
+                  </div>
+                  {% elif create_page == 'session' %}
+                  <div class="create-actions-panel">
+                    <h3>Sesión</h3>
+                    <p class="meta">Crear sesiones y asignar tareas por bloque.</p>
+                    <div class="create-actions-row">
+                      <a class="create-action-btn" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ir a Sesiones <small>Crear y editar</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
+                    </div>
+                  </div>
+                  {% elif create_page == 'microcycle' %}
+                  <div class="create-actions-panel">
+                    <h3>Microciclo</h3>
+                    <p class="meta">Planifica semana y organiza sesiones MD-4…</p>
+                    <div class="create-actions-row">
+                      <a class="create-action-btn" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ir a Microciclos <small>Crear y planificar</small> <span class="chev" aria-hidden="true">›</span></a>
+                    </div>
+                  </div>
+                  {% elif create_page == 'tactics' %}
+	                  <div class="create-actions-panel">
+	                    <h3>Táctica</h3>
+	                    <p class="meta">Pizarra táctica y ABP.</p>
+	                    <div class="create-actions-row">
+	                      <a class="create-action-btn" href="{% url 'coach-tactics' %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
+	                      <a class="create-action-btn" href="{% url 'coach-abp-board' %}">ABP <small>Balón parado</small> <span class="chev" aria-hidden="true">›</span></a>
+	                    </div>
+	                  </div>
+	                  {% endif %}
+	                  {% endif %}
+					        </section>
+	                {% endwith %}
+				      </div>
 
 		      <div class="tab-panel {% if main_tab == 'import' %}is-active{% endif %}" data-tab="import">
 		        <section class="panel">

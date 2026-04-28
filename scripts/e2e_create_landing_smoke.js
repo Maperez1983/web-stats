@@ -37,19 +37,18 @@ async function main() {
     await page.waitForSelector('.create-hero-pitch', { timeout: 35_000 });
     await page.waitForSelector('.create-mod-btn', { timeout: 35_000 });
 
-    // Acciones como "pills" (no tarjetas folder-card dentro del bloque de acciones).
-    const actionButtons = await page.locator('#create-mod-task .create-action-btn').count();
-    if (actionButtons < 3) throw new Error(`Expected >=3 action buttons, got ${actionButtons}`);
-    const folderCardsInTask = await page.locator('#create-mod-task .folder-card').count();
-    if (folderCardsInTask !== 0) throw new Error('Unexpected .folder-card found inside task actions');
+    // Landing no debe mostrar acciones del módulo: solo hero + módulos (links).
+    const actionPanels = await page.locator('.create-actions-panel').count();
+    if (actionPanels !== 0) throw new Error(`Expected 0 action panels on landing, got ${actionPanels}`);
 
-    // Toggle de módulos.
-    const sessionBtn = page.locator('.create-mod-btn').filter({ hasText: 'Sesión' }).first();
-    await sessionBtn.click();
-    await page.waitForSelector('#create-mod-session:not([hidden])', { timeout: 10_000 });
-    // Asegura que el panel anterior se ocultó (propiedad hidden=true).
-    const taskHidden = await page.locator('#create-mod-task').evaluate((el) => Boolean(el && el.hidden));
-    if (!taskHidden) throw new Error('Expected task view to be hidden after switching to Sesión');
+    // Módulos deben navegar a otra "página" (create_page=...).
+    const sessionLink = page.locator('a.create-mod-btn').filter({ hasText: 'Sesión' }).first();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      sessionLink.click(),
+    ]);
+    if (!page.url().includes('create_page=session')) throw new Error(`Unexpected URL after clicking Sesión: ${page.url()}`);
+    await page.waitForSelector('.create-actions-panel', { timeout: 10_000 });
 
     console.log('[e2e] OK');
   } catch (err) {
