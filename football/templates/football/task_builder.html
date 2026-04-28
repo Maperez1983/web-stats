@@ -41,6 +41,30 @@
         margin: 0 auto;
         padding: 1.15rem;
       }
+      .simple-hint {
+        margin: 0.65rem 0 0;
+        padding: 0.7rem 0.85rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.55);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        color: rgba(248,250,252,0.92);
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+      body.is-simple #task-command-bar [data-action="duplicate"],
+      body.is-simple #task-command-bar [data-action="edit_bg"],
+      body.is-simple #task-command-bar #task-layers-btn,
+      body.is-simple #task-command-bar #task-scenarios-btn,
+      body.is-simple #task-command-bar #task-sim-btn {
+        display: none !important;
+      }
+      body.is-simple .resource-tab[data-resource="trazos"],
+      body.is-simple .resource-tab[data-resource="figuras"],
+      body.is-simple .resource-tab[data-resource="emoji"] {
+        display: none !important;
+      }
       /* En modo táctica mantenemos accesos rápidos (capas/escenarios/simulador) para no perder operatividad. */
       .topbar {
         display: flex;
@@ -3020,9 +3044,10 @@
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
 		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
-		          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
-	          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
-            <details class="action-menu" id="task-builder-actions-menu">
+			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
+			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="true" title="Simplifica la pantalla para uso diario">Modo simple</button>
+		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
+	            <details class="action-menu" id="task-builder-actions-menu">
               <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
               <div class="action-menu-body" role="menu">
                 {% if not tactics_mode %}
@@ -4152,7 +4177,15 @@
 		                </div>
 		              </div>
 		              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
-	              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+		              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+		              <div class="simple-hint" id="task-simple-hint" hidden>
+		                <strong>Modo simple:</strong>
+		                {% if tactics_mode %}
+		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Usa Playbook para guardar clips y compartir.
+		                {% else %}
+		                  1) Inserta fichas desde “Recursos” o “Plantilla”, 2) Dibuja/mueve con “Pencil Pro”, 3) Completa la ficha lateral y pulsa “Guardar/Crear tarea”.
+		                {% endif %}
+		              </div>
 
 	              <div class="section" style="margin-top:0.9rem;">
 	                <div class="player-bank-head">
@@ -4183,30 +4216,30 @@
 
           <button type="button" class="focus-exit" id="task-focus-exit" aria-label="Salir de presentación">Salir</button>
 
-          <aside class="panel">
-            <div class="panel-body stack">
-				              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel lateral">
-                        {% if tactics_mode %}
-				                <button type="button" class="side-tab is-active" data-pane="playbook" role="tab" aria-selected="true">Playbook</button>
-				                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
-				                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
-				                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
-                        {% else %}
-				                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
-                        <details class="side-tab-more" id="task-side-more">
-                          <summary class="side-tab" role="button" aria-label="Más opciones">Más</summary>
-                          <div class="side-more-menu" aria-label="Opciones avanzadas">
+	          <aside class="panel">
+	            <div class="panel-body stack">
+					              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel lateral">
+	                        {% if tactics_mode %}
+					                <button type="button" class="side-tab is-active" data-pane="playbook" role="tab" aria-selected="true">Playbook</button>
+					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
+					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
+					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
+	                        {% else %}
+					                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
                             <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false">Asistente</button>
-                            <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
-                          </div>
-                        </details>
-				                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
-				                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
-				                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
-				                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
-				                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
-                        {% endif %}
-				              </div>
+	                        <details class="side-tab-more" id="task-side-more">
+	                          <summary class="side-tab" role="button" aria-label="Más opciones">Más</summary>
+	                          <div class="side-more-menu" aria-label="Opciones avanzadas">
+	                            <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
+	                          </div>
+	                        </details>
+					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
+					                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
+					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
+					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
+					                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
+	                        {% endif %}
+					              </div>
 
               {% if not tactics_mode %}
               <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
@@ -5117,11 +5150,14 @@
 		          }
 		        } catch (e) { /* ignore */ }
 
-		        const compactKey = 'webstats:tpad:compact';
-		        const toggleBtn = document.getElementById('task-builder-compact-toggle');
-		        const playerBank = document.getElementById('task-player-bank');
-	        const playerPrev = document.getElementById('player-bank-prev');
-	        const playerNext = document.getElementById('player-bank-next');
+			        const compactKey = 'webstats:tpad:compact';
+			        const toggleBtn = document.getElementById('task-builder-compact-toggle');
+              const simpleKey = 'webstats:tpad:simple';
+              const simpleBtn = document.getElementById('task-builder-simple-toggle');
+              const simpleHint = document.getElementById('task-simple-hint');
+			        const playerBank = document.getElementById('task-player-bank');
+		        const playerPrev = document.getElementById('player-bank-prev');
+		        const playerNext = document.getElementById('player-bank-next');
         const applyCompact = (enabled) => {
           document.body.classList.toggle('is-compact', !!enabled);
           if (toggleBtn) {
@@ -5135,21 +5171,63 @@
         } catch (error) {
           isCompact = false;
         }
-        applyCompact(isCompact);
-        if (toggleBtn) {
-          toggleBtn.addEventListener('click', () => {
-            isCompact = !isCompact;
+	        applyCompact(isCompact);
+	        if (toggleBtn) {
+	          toggleBtn.addEventListener('click', () => {
+	            isCompact = !isCompact;
             try {
               window.localStorage?.setItem(compactKey, isCompact ? '1' : '0');
             } catch (error) {}
             applyCompact(isCompact);
-          });
-        }
-        const scrollPlayerBank = (dir) => {
-          if (!playerBank) return;
-          const amount = Math.max(240, Math.round((playerBank.clientWidth || 480) * 0.85));
-          playerBank.scrollBy({ left: dir * amount, top: 0, behavior: 'smooth' });
-        };
+	          });
+	        }
+
+          const applySimple = (enabled) => {
+            const on = !!enabled;
+            document.body.classList.toggle('is-simple', on);
+            if (simpleBtn) {
+              simpleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+              simpleBtn.textContent = on ? 'Modo pro' : 'Modo simple';
+              simpleBtn.title = on ? 'Mostrar todas las herramientas avanzadas' : 'Simplificar la pantalla para uso diario';
+            }
+            if (simpleHint) simpleHint.hidden = !on;
+            // En modo simple ocultamos opciones “pro” del selector rápido (pero se pueden volver a activar con Modo pro).
+            try {
+              const select = document.getElementById('task-resource-select');
+              if (select) {
+                Array.from(select.options || []).forEach((opt) => {
+                  const v = String(opt.value || '');
+                  if (!v) return;
+                  const isAdvanced = (v === 'trazos' || v === 'figuras' || v === 'emoji');
+                  opt.disabled = on && isAdvanced;
+                });
+              }
+            } catch (e) { /* ignore */ }
+          };
+          let isSimple = true;
+          try {
+            const saved = window.localStorage?.getItem(simpleKey);
+            if (saved === '0') isSimple = false;
+            else if (saved === '1') isSimple = true;
+            else {
+              // Primer arranque: en tablet/iPad activamos simple por defecto.
+              isSimple = true;
+            }
+          } catch (e) { isSimple = true; }
+          applySimple(isSimple);
+          if (simpleBtn) {
+            simpleBtn.addEventListener('click', () => {
+              isSimple = !isSimple;
+              try { window.localStorage?.setItem(simpleKey, isSimple ? '1' : '0'); } catch (e) {}
+              applySimple(isSimple);
+            });
+          }
+
+	        const scrollPlayerBank = (dir) => {
+	          if (!playerBank) return;
+	          const amount = Math.max(240, Math.round((playerBank.clientWidth || 480) * 0.85));
+	          playerBank.scrollBy({ left: dir * amount, top: 0, behavior: 'smooth' });
+	        };
         playerPrev?.addEventListener('click', () => scrollPlayerBank(-1));
         playerNext?.addEventListener('click', () => scrollPlayerBank(1));
         // En modo compacto, permite rueda vertical para scroll horizontal (trackpad/mouse).
