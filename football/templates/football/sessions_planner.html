@@ -1692,7 +1692,15 @@
               <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
               <div class="task-list" style="margin-bottom:0.8rem;">
                 {% for doc in imported_session_docs %}
-                <article class="task task-clickable" data-detail-url="{% url 'imported-session-file' doc.id %}" tabindex="0" role="link" aria-label="Abrir sesión importada {{ doc.title }}">
+	                <article
+	                  class="task task-clickable"
+	                  data-detail-url="{% url 'imported-session-file' doc.id %}"
+	                  data-pdf-viewer="1"
+	                  data-pdf-title="Sesión importada · {{ doc.title }}"
+	                  tabindex="0"
+	                  role="link"
+	                  aria-label="Abrir sesión importada {{ doc.title }}"
+	                >
                   <div class="task-media">
                     <img src="{% url 'imported-session-preview-file' doc.id %}{% if doc.preview_image %}?v={{ doc.preview_image.name|urlencode }}{% endif %}" alt="Sesión importada {{ doc.title }}" loading="lazy" />
                   </div>
@@ -1700,7 +1708,7 @@
                     <h3 class="task-title">{{ doc.title }}</h3>
                     <p class="meta">{% if doc.session_date %}<strong>{{ doc.session_date|date:"d/m/Y" }}</strong>{% else %}<strong>Sin fecha</strong>{% endif %} · PDF original</p>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-                      <a class="button" href="{% url 'imported-session-file' doc.id %}" target="_blank" rel="noopener">Abrir PDF</a>
+	                      <a class="button" href="{% url 'imported-session-file' doc.id %}" data-pdf-viewer="1" data-pdf-title="Sesión importada · {{ doc.title }}">Abrir PDF</a>
                     </div>
                   </div>
                 </article>
@@ -2604,28 +2612,28 @@
 		      <section class="panel">
 		        <h2>Biblioteca de tareas</h2>
 		        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
-        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
-          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
-          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
-        </div>
-        <details style="margin:0 0 0.6rem;">
-          <summary class="button secondary" style="display:inline-flex; width:max-content;">
-            Vistas
-            <span style="opacity:0.75; font-weight:700;">
-              · {% if library_view == 'overview' %}Todas{% elif library_view == 'favorites' %}Favoritas{% elif library_view == 'phase' %}Por fase{% elif library_view == 'type' %}Por tipo{% elif library_view == 'players' %}Por jugadores{% elif library_view == 'duration' %}Por duración{% elif library_view == 'date' %}Por fecha{% elif library_view == 'quality' %}Por calidad{% else %}Todas{% endif %}
-            </span>
-          </summary>
-          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
-            <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
-            <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites">Favoritas</a>
-            <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
-            <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
-            <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
-            <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
-            <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
-            <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
-          </div>
-        </details>
+	        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
+	          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
+	          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
+	        </div>
+	        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
+	          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
+	          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites">Favoritas</a>
+	          <a class="tab-link {% if library_view == 'source' and library_key == 'imported' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=imported">Importadas</a>
+	          <a class="tab-link {% if library_view == 'source' and library_key == 'created' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=created">Creadas</a>
+	          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=drawn">Dibujadas</a>
+	          <details style="margin:0;">
+	            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
+	            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
+	              <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
+	              <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
+	              <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
+	              <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
+	              <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
+	              <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
+	            </div>
+	          </details>
+	        </div>
         <details style="margin:0 0 0.6rem;" {% if library_filters_active %}open{% endif %}>
           <summary class="button secondary" style="display:inline-flex; width:max-content;">
             Filtros
@@ -2919,13 +2927,14 @@
         {% elif task_library_filtered %}
         <div class="task-list">
           {% for t in task_library_filtered %}
-		          <article
-		            class="task task-clickable"
-		            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
-		            tabindex="0"
-		            role="link"
-		            aria-label="Abrir tarea {{ t.title }}"
-		          >
+			          <article
+			            class="task task-clickable"
+			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
+			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
+			            tabindex="0"
+			            role="link"
+			            aria-label="Abrir tarea {{ t.title }}"
+			          >
               <div class="task-media">
                 {% if t.task_preview_image or t.task_pdf %}
               <img src="{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
@@ -2975,8 +2984,8 @@
                     data-related-url="{% url 'session-task-related' t.id %}"
                   >Vista previa</button>
 	                {% if t.task_pdf %}
-	                <a class="button" href="{% url 'session-task-file' t.id %}" target="_blank" rel="noopener">Abrir PDF</a>
-	                {% endif %}
+		                <a class="button" href="{% url 'session-task-file' t.id %}" data-pdf-viewer="1" data-pdf-title="Tarea · {{ t.title }}">Abrir PDF</a>
+		                {% endif %}
 	                {% if t.is_imported %}
 	                <a class="button" href="{% url 'session-task-detail' t.id %}">Ver ficha</a>
 	                {% else %}
@@ -3165,27 +3174,51 @@
         </div>
       </div>
     </dialog>
-	    <script>
-	      (() => {
-	        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
-	        const isInteractiveTarget = (node) =>
-	          !!node.closest('a, button, input, select, textarea, form');
-	        if (cards.length) {
-	          cards.forEach((card) => {
-	            const detailUrl = card.getAttribute('data-detail-url');
-	            if (!detailUrl) return;
-	            card.addEventListener('click', (event) => {
-	              if (isInteractiveTarget(event.target)) return;
-	              window.location.href = detailUrl;
-	            });
-	            card.addEventListener('keydown', (event) => {
-	              if (event.key !== 'Enter' && event.key !== ' ') return;
-	              event.preventDefault();
-	              window.location.href = detailUrl;
-	            });
-	          });
-	        }
-	      })();
+		    <script>
+		      (() => {
+		        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
+		        const isInteractiveTarget = (node) =>
+		          !!node.closest('a, button, input, select, textarea, form');
+		        const buildPdfViewerUrl = (pdfUrl, title) => {
+		          const params = new URLSearchParams();
+		          let u = String(pdfUrl || '').trim() || '/';
+		          try {
+		            const target = new URL(u, window.location.href);
+		            u = `${target.pathname || '/'}${target.search || ''}${target.hash || ''}`;
+		          } catch (e) {
+		            // ignore
+		          }
+		          const back = `${window.location.pathname || '/'}${window.location.search || ''}${window.location.hash || ''}`;
+		          params.set('u', u);
+		          params.set('back', back);
+		          params.set('title', String(title || 'PDF').trim().slice(0, 140) || 'PDF');
+		          return `/pdf/viewer/?${params.toString()}`;
+		        };
+		        const openCard = (card, detailUrl) => {
+		          if (!detailUrl) return;
+		          if (card && card.hasAttribute && card.hasAttribute('data-pdf-viewer')) {
+		            const title = (card.getAttribute('data-pdf-title') || '').trim() || 'PDF';
+		            window.location.href = buildPdfViewerUrl(detailUrl, title);
+		            return;
+		          }
+		          window.location.href = detailUrl;
+		        };
+		        if (cards.length) {
+		          cards.forEach((card) => {
+		            const detailUrl = card.getAttribute('data-detail-url');
+		            if (!detailUrl) return;
+		            card.addEventListener('click', (event) => {
+		              if (isInteractiveTarget(event.target)) return;
+		              openCard(card, detailUrl);
+		            });
+		            card.addEventListener('keydown', (event) => {
+		              if (event.key !== 'Enter' && event.key !== ' ') return;
+		              event.preventDefault();
+		              openCard(card, detailUrl);
+		            });
+		          });
+		        }
+		      })();
 
         (() => {
           const dialog = document.getElementById('task-preview-dialog');

@@ -25,6 +25,17 @@ def prepare_task_library(
     coerce_reference_date,
     is_imported_task,
 ):
+    def _has_canvas_objects(task):
+        try:
+            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
+            objects = state.get('objects') if isinstance(state.get('objects'), list) else []
+            return bool(objects)
+        except Exception:
+            return False
+
     context_groups = defaultdict(list)
     objective_groups = defaultdict(list)
     type_groups = defaultdict(list)
@@ -42,6 +53,7 @@ def prepare_task_library(
         task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
         task.task_sheet = task_sheet
         task.is_imported = is_imported_task(task)
+        task.is_drawn = bool(_has_canvas_objects(task)) if not task.is_imported else False
         task.analysis_summary = sanitize_text(
             str(analysis_meta.get('summary') or '').strip(),
             multiline=True,
@@ -229,7 +241,25 @@ def prepare_task_library(
 
 def filter_task_library(tasks, *, library_view, library_key):
     filtered = list(tasks)
-    if library_view == 'phase' and library_key:
+    if library_view == 'source':
+        key = str(library_key or '').strip().lower()
+        if key == 'imported':
+            filtered = [item for item in filtered if bool(getattr(item, 'is_imported', False))]
+        elif key == 'drawn':
+            filtered = [
+                item
+                for item in filtered
+                if (not bool(getattr(item, 'is_imported', False))) and bool(getattr(item, 'is_drawn', False))
+            ]
+        elif key == 'created':
+            filtered = [
+                item
+                for item in filtered
+                if (not bool(getattr(item, 'is_imported', False))) and (not bool(getattr(item, 'is_drawn', False)))
+            ]
+        elif key:
+            filtered = []
+    elif library_view == 'phase' and library_key:
         filtered = [item for item in filtered if str(getattr(item, 'phase_folder_key', '') or '') == library_key]
     elif library_view == 'phase' and not library_key:
         filtered = []

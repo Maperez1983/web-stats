@@ -27168,7 +27168,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     active_tab = 'library'  # library (tareas) / sessions / microcycles
     allowed_subtabs = {'sessions', 'microcycles', 'library'}
     allowed_main_tabs = {'create', 'library', 'import'}
-    allowed_library_views = {'overview', 'phase', 'type', 'players', 'duration', 'quality', 'date', 'favorites'}
+    allowed_library_views = {'overview', 'source', 'phase', 'type', 'players', 'duration', 'quality', 'date', 'favorites'}
     library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
     if library_view not in allowed_library_views:
         library_view = 'overview'
