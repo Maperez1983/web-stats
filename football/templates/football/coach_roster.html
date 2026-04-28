@@ -150,29 +150,53 @@
       }
       .player-card {
         display: grid;
-        grid-template-columns: 64px 1fr;
+        grid-template-columns: 72px 1fr;
         gap: 0.85rem;
         align-items: center;
         padding: 0.9rem;
         border-radius: 16px;
         border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(2, 6, 23, 0.35);
+        background: linear-gradient(165deg, rgba(2, 6, 23, 0.46), rgba(56, 189, 248, 0.06));
         text-decoration: none;
         color: inherit;
         transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        position: relative;
       }
       .player-card:hover {
         transform: translateY(-2px);
         border-color: rgba(56, 189, 248, 0.45);
         background: rgba(56, 189, 248, 0.08);
       }
+      .avatar-wrap {
+        position: relative;
+        width: 72px;
+        height: 72px;
+      }
       .player-card img {
-        width: 64px;
-        height: 64px;
+        width: 72px;
+        height: 72px;
         border-radius: 16px;
         object-fit: cover;
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(2, 6, 23, 0.8);
+      }
+      .dorsal-badge {
+        position: absolute;
+        right: -8px;
+        bottom: -8px;
+        min-width: 30px;
+        height: 26px;
+        padding: 0 0.5rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.04em;
+        border: 1px solid rgba(244, 180, 0, 0.46);
+        background: rgba(244, 180, 0, 0.14);
+        color: rgba(255, 242, 199, 0.96);
       }
       .player-card h3 {
         margin: 0;
@@ -184,6 +208,33 @@
         color: rgba(148, 163, 184, 0.95);
         font-size: 0.78rem;
       }
+      .player-sub {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+      }
+      .status-icons {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.28rem;
+        margin-left: 0.15rem;
+      }
+      .status-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        line-height: 1;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2,6,23,0.55);
+      }
+      .status-icon.injury { border-color: rgba(248,113,113,0.55); color: #fecaca; background: rgba(127,29,29,0.55); }
+      .status-icon.sanction { border-color: rgba(251,191,36,0.55); color: #fde68a; background: rgba(120,53,15,0.55); }
+      .status-icon.warn { border-color: rgba(56,189,248,0.55); color: rgba(186,230,253,0.95); background: rgba(30,58,138,0.35); }
       .mini-kpis {
         margin-top: 0.5rem;
         display: flex;
@@ -274,10 +325,22 @@
           <div class="card-grid">
             {% for card in player_cards %}
               <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
-                <img src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="Foto {{ card.name }}" loading="lazy" />
+                <div class="avatar-wrap" aria-hidden="true">
+                  <img src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" />
+                  {% if card.number %}<span class="dorsal-badge">{{ card.number }}</span>{% endif %}
+                </div>
                 <div>
                   <h3>{{ card.name }}</h3>
-                  <p>{{ card.position|default:"-" }}</p>
+                  <p class="player-sub">
+                    <span>{{ card.position|default:"-" }}</span>
+                    <span class="mini-kpi">INF {{ card.influence_score|default:0|floatformat:0 }}</span>
+                    <span class="mini-kpi">IMP {{ card.importance_score|default:0|floatformat:0 }}</span>
+                    <span class="status-icons" aria-label="Estado">
+                      {% if card.has_active_injury %}<span class="status-icon injury" title="Lesión activa">✚</span>{% endif %}
+                      {% if card.is_sanctioned %}<span class="status-icon sanction" title="Sancionado">!</span>{% endif %}
+                      {% if card.is_apercibido %}<span class="status-icon warn" title="Apercibido">•</span>{% endif %}
+                    </span>
+                  </p>
                   <div class="mini-kpis">
                     <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
                     <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>

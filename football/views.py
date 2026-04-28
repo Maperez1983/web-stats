@@ -38981,6 +38981,7 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
             {
                 'player_id': row.get('player_id'),
                 'name': row.get('name'),
+                'number': row.get('number'),
                 'photo_url': row.get('photo_url', ''),
                 'pj': int(row.get('pj', 0) or 0),
                 'minutes': int(row.get('minutes', 0) or 0),
@@ -38995,6 +38996,9 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
                 'duels_total': int(row.get('duels_total', 0) or 0),
                 'duels_won': int(row.get('duels_won', 0) or 0),
                 'success_rate': float(row.get('success_rate', 0) or 0),
+                'participation_pct': float(row.get('participation_pct', 0) or 0),
+                'importance_score': float(row.get('importance_score', 0) or 0),
+                'influence_score': float(row.get('influence_score', 0) or 0),
                 'has_active_injury': bool(row.get('has_active_injury')),
                 'is_sanctioned': bool(row.get('is_sanctioned')),
                 'is_apercibido': bool(row.get('is_apercibido')),
