@@ -1154,6 +1154,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     zoneLabel.style.display = 'block';
   };
   let lastZoneLabel = '';
+  let lastTapAt = 0;
+  let lastTapPoint = null;
+  let swipeStart = null;
   interactiveSurface.addEventListener('click', (event) => {
     if (fieldPopup.contains(event.target) || popupForm.contains(event.target)) return;
     const rect = interactiveSurface.getBoundingClientRect();
@@ -1168,6 +1171,23 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const zoneMatch = findClosestZone(xPct, yPct);
     if (zoneMatch) {
       lastZoneLabel = String(zoneMatch.label || '').trim();
+      // Doble toque: repetir última acción en esta zona (Modo PRO).
+      try {
+        const now = Date.now();
+        const withinMs = now - (lastTapAt || 0) <= 320;
+        const withinPx = (() => {
+          if (!lastTapPoint) return false;
+          const dx = (fieldX - lastTapPoint.x);
+          const dy = (fieldY - lastTapPoint.y);
+          return (dx * dx + dy * dy) <= (18 * 18);
+        })();
+        lastTapAt = now;
+        lastTapPoint = { x: fieldX, y: fieldY };
+        if (withinMs && withinPx && isProModeEnabled()) {
+          void repeatLastAtLastZone();
+          return;
+        }
+      } catch (e) { /* ignore */ }
       zoneInput.value = zoneMatch.label;
       syncAutoFields({ zone: zoneMatch.label });
       try {
@@ -1207,6 +1227,31 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       hidePopup();
     }
   });
+
+  // Gestos pro: swipe izq = deshacer, swipe der = rehacer.
+  interactiveSurface.addEventListener('pointerdown', (event) => {
+    if (!isProModeEnabled()) return;
+    if (!event.isPrimary) return;
+    if (fieldPopup.contains(event.target) || popupForm.contains(event.target)) return;
+    swipeStart = { x: event.clientX, y: event.clientY, t: Date.now() };
+  });
+  interactiveSurface.addEventListener('pointerup', (event) => {
+    if (!swipeStart) return;
+    const start = swipeStart;
+    swipeStart = null;
+    if (!isProModeEnabled()) return;
+    const dt = Date.now() - (start.t || 0);
+    if (dt > 650) return;
+    const dx = (event.clientX - start.x);
+    const dy = (event.clientY - start.y);
+    if (Math.abs(dx) < 70) return;
+    if (Math.abs(dy) > 45) return;
+    try {
+      if (dx < 0) document.getElementById('undo-last-action-btn')?.click?.();
+      else redoLastUndo();
+    } catch (e) { /* ignore */ }
+  });
+  interactiveSurface.addEventListener('pointercancel', () => { swipeStart = null; });
   fieldPopup.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') hidePopup();
   });

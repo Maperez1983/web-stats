@@ -137,6 +137,41 @@
         padding: 0.75rem 0.95rem;
         font-size: 0.8rem;
       }
+      .pro-result-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        margin-top: 0.6rem;
+      }
+      .pro-result-row strong {
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        opacity: 0.9;
+      }
+      .pro-result-btn {
+        appearance: none;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 999px;
+        padding: 0.6rem 0.8rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(245, 247, 250, 0.95);
+        font-family: var(--prod-font-ui);
+        font-weight: 950;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .pro-result-btn.is-selected {
+        border-color: rgba(34, 211, 238, 0.55);
+        background: rgba(34, 211, 238, 0.12);
+        color: rgba(224, 242, 254, 0.98);
+      }
+      body.pro-mode .field-popup label:has(select[name="result"]) {
+        display: none;
+      }
       .field-column {
         background: linear-gradient(180deg, rgba(4, 8, 20, 0.95), rgba(8, 17, 29, 0.98));
         padding: 2rem;
@@ -526,6 +561,66 @@
 	        letter-spacing: 0.12em;
 	        cursor: pointer;
 	      }
+      .live-stats-hud-settings {
+        border: 1px solid rgba(245, 247, 250, 0.3);
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(245, 247, 250, 0.92);
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        cursor: pointer;
+      }
+      .live-stats-primary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.45rem;
+        margin-bottom: 0.55rem;
+      }
+      .live-primary-card {
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        background: rgba(2, 6, 23, 0.35);
+        border-radius: 14px;
+        padding: 0.55rem 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+      .live-primary-card span {
+        font-size: 0.58rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        opacity: 0.72;
+      }
+      .live-primary-card strong {
+        font-size: 0.95rem;
+        letter-spacing: 0.02em;
+      }
+      .live-kpi-config {
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+        padding-top: 0.55rem;
+        margin-top: 0.55rem;
+      }
+      .live-kpi-config[hidden] { display: none; }
+      .live-kpi-config-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.45rem;
+      }
+      .live-kpi-config label {
+        font-size: 0.72rem;
+        opacity: 0.92;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .live-kpi-config select {
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(248, 250, 252, 0.92);
+        padding: 0.4rem 0.5rem;
+      }
       .live-stats-hud-body {
         padding: 0.5rem 0.6rem 0.65rem;
         display: grid;
@@ -2502,6 +2597,13 @@
 	              <summary class="button secondary" style="display:inline-flex; width:max-content;">Banquillo</summary>
 	              <div class="pro-chips" id="pro-bench-chips" style="margin-top:0.55rem;"></div>
 	            </details>
+	            <div class="pro-result-row" aria-label="Resultado rápido">
+	              <strong>Resultado</strong>
+	              <button type="button" class="pro-result-btn" data-pro-result="OK">OK</button>
+	              <button type="button" class="pro-result-btn" data-pro-result="FALLO">Fallo</button>
+	              <button type="button" class="pro-result-btn" data-pro-result="A puerta">A puerta</button>
+	              <button type="button" class="pro-result-btn" data-pro-result="Fuera">Fuera</button>
+	            </div>
 	            <div class="pro-actions-row">
 	              <button type="button" class="toolbar-pill" id="pro-open-action-picker">Acción</button>
 	              <button type="button" class="toolbar-pill" id="pro-autosend-toggle" title="Si está activo, al tocar una zona se registra la acción automáticamente">Auto-enviar: OFF</button>
@@ -2772,9 +2874,26 @@
           <section class="live-stats-hud is-collapsed" id="live-stats-hud" aria-live="polite">
             <header class="live-stats-hud-header">
               <h4 class="live-stats-hud-title" title="Indicadores aproximados basados en acciones registradas (no es tracking ni posesión real).">Stats en vivo</h4>
-              <button type="button" class="live-stats-hud-toggle" id="live-stats-toggle">Mostrar</button>
+              <div style="display:flex; gap:0.4rem; align-items:center;">
+                <button type="button" class="live-stats-hud-settings" id="live-kpi-settings" title="Configurar KPIs">KPIs</button>
+                <button type="button" class="live-stats-hud-toggle" id="live-stats-toggle">Mostrar</button>
+              </div>
             </header>
             <div class="live-stats-hud-body">
+              <div class="live-stats-primary" id="live-kpi-primary">
+                <article class="live-primary-card"><span id="live-kpi-l1">KPI 1</span><strong id="live-kpi-v1">—</strong></article>
+                <article class="live-primary-card"><span id="live-kpi-l2">KPI 2</span><strong id="live-kpi-v2">—</strong></article>
+                <article class="live-primary-card"><span id="live-kpi-l3">KPI 3</span><strong id="live-kpi-v3">—</strong></article>
+                <article class="live-primary-card"><span id="live-kpi-l4">KPI 4</span><strong id="live-kpi-v4">—</strong></article>
+              </div>
+              <div class="live-kpi-config" id="live-kpi-config" hidden>
+                <div class="live-kpi-config-grid">
+                  <label>Slot 1 <select id="live-kpi-s1"></select></label>
+                  <label>Slot 2 <select id="live-kpi-s2"></select></label>
+                  <label>Slot 3 <select id="live-kpi-s3"></select></label>
+                  <label>Slot 4 <select id="live-kpi-s4"></select></label>
+                </div>
+              </div>
               <div class="live-stats-chips">
                 <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
                 <article class="live-stats-chip" title="Acciones registradas / minuto (según cronómetro del registro)."><span>Ritmo</span><strong id="live-stat-pace">0.0/min</strong></article>
@@ -3203,6 +3322,7 @@
       const tercioDisplay = popupForm.querySelector('[data-tercio-display]');
       const observationInput = popupForm.querySelector('textarea[name="observation"]');
       const resultSelect = popupForm.querySelector('select[name="result"]');
+      const proResultButtons = Array.from(document.querySelectorAll('.pro-result-btn[data-pro-result]') || []);
       const autoPlayerRow = document.getElementById('auto-player-row');
       const autoPlayerChips = document.getElementById('auto-player-chips');
       const autoPlayerToggleBtn = document.getElementById('auto-player-toggle');
@@ -3236,6 +3356,39 @@
       setPopupEditMode(false);
       // Resultado: si ya venimos con acción preseleccionada, ajusta opciones (Disparo => A puerta/Fuera).
       try { syncResultOptionsForAction(actionInput?.value || ''); } catch (e) {}
+      const setResultValue = (value, { silent = false } = {}) => {
+        const v = String(value || '').trim();
+        if (!resultSelect) return false;
+        if (!v) return false;
+        // Asegura que el select tenga esa opción (por si no está en el catálogo actual).
+        try {
+          const exists = Array.from(resultSelect.options || []).some((opt) => String(opt.value || '') === v);
+          if (!exists) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            resultSelect.appendChild(opt);
+          }
+        } catch (e) {}
+        resultSelect.value = v;
+        // Actualiza chips.
+        try {
+          proResultButtons.forEach((btn) => {
+            btn.classList.toggle('is-selected', String(btn.dataset.proResult || '') === v);
+          });
+        } catch (e) {}
+        if (!silent) {
+          try { resultSelect.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) {}
+        }
+        return true;
+      };
+      if (proResultButtons.length) {
+        proResultButtons.forEach((btn) => {
+          btn.addEventListener('click', () => {
+            setResultValue(btn.dataset.proResult || '');
+          });
+        });
+      }
       const playerInput = document.getElementById('selected-player');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
@@ -3780,6 +3933,43 @@
         return { shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, loss, lossDef, steal, stealHigh, duel, duelWon, tercio };
       };
       const refreshLiveStatsHud = () => {
+        // KPIs primarios (configurables)
+        const kpiPrimaryEls = {
+          l1: document.getElementById('live-kpi-l1'),
+          v1: document.getElementById('live-kpi-v1'),
+          l2: document.getElementById('live-kpi-l2'),
+          v2: document.getElementById('live-kpi-v2'),
+          l3: document.getElementById('live-kpi-l3'),
+          v3: document.getElementById('live-kpi-v3'),
+          l4: document.getElementById('live-kpi-l4'),
+          v4: document.getElementById('live-kpi-v4'),
+        };
+        const primaryKey = currentMatchId ? `webstats:live:kpi_primary:v1:${currentMatchId}` : 'webstats:live:kpi_primary:v1';
+        const readPrimarySlots = () => {
+          try {
+            const raw = localStorage.getItem(primaryKey) || '';
+            const parsed = raw ? JSON.parse(raw) : null;
+            if (Array.isArray(parsed) && parsed.length === 4) return parsed.map((x) => String(x || '').trim());
+          } catch (e) {}
+          return ['shots_target', 'shots', 'duels_rate', 'losses_def'];
+        };
+        const writePrimarySlots = (slots) => {
+          try { localStorage.setItem(primaryKey, JSON.stringify(slots)); } catch (e) {}
+        };
+        const kpiCatalog = {
+          shots_target: { label: 'A puerta', value: (t) => String(t.shotsTarget) },
+          shots: { label: 'Tiros', value: (t) => String(t.shots) },
+          shots_ratio: { label: 'A puerta %', value: (t, extra) => `${extra.shotAcc}%` },
+          duels_rate: { label: 'Duelos %', value: (t, extra) => `${extra.duelRate}%` },
+          duels: { label: 'Duelos', value: (t) => `${t.duelsWon}/${t.duels}` },
+          passes_acc: { label: 'Pase %', value: (t, extra) => `${extra.passAcc}%` },
+          pace5: { label: "Últ. 5'", value: (t, extra) => `${extra.pace5.toFixed(1)}/min` },
+          losses_def: { label: 'Pérd salida', value: (t) => String(t.lossesDef) },
+          steals_high: { label: 'Recup altas', value: (t) => String(t.stealsHigh) },
+          abp: { label: 'ABP', value: (t) => String(t.abp) },
+          attack: { label: 'Ataque', value: (t) => String(t.tercio_att) },
+          possession: { label: 'Posesión', value: (t, extra) => `${extra.possessionApprox}%` },
+        };
         const totals = {
           actions: liveEventStore.size,
           shots: 0,
@@ -3852,6 +4042,7 @@
           ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
           : 50;
         const duelRate = totals.duels ? Math.round((totals.duelsWon / totals.duels) * 100) : 0;
+        const shotAcc = totals.shots ? Math.round((totals.shotsTarget / totals.shots) * 100) : 0;
         const alerts = (() => {
           const parts = [];
           if (last5.lossesDef >= 3) parts.push('PÉRDIDAS EN SALIDA');
@@ -3883,6 +4074,55 @@
         if (liveStatEls.alerts) liveStatEls.alerts.textContent = alerts;
         if (persistentActionsEl) persistentActionsEl.textContent = String(totals.actions);
         if (persistentPossessionEl) persistentPossessionEl.textContent = `${possessionApprox}%`;
+
+        // Render KPIs primarios
+        try {
+          const slots = readPrimarySlots();
+          const extra = { passAcc, duelRate, shotAcc, possessionApprox, pace5 };
+          const rows = [
+            { l: kpiPrimaryEls.l1, v: kpiPrimaryEls.v1, key: slots[0] },
+            { l: kpiPrimaryEls.l2, v: kpiPrimaryEls.v2, key: slots[1] },
+            { l: kpiPrimaryEls.l3, v: kpiPrimaryEls.v3, key: slots[2] },
+            { l: kpiPrimaryEls.l4, v: kpiPrimaryEls.v4, key: slots[3] },
+          ];
+          rows.forEach((row) => {
+            const def = kpiCatalog[row.key] || null;
+            if (row.l) row.l.textContent = def?.label || 'KPI';
+            if (row.v) row.v.textContent = def ? String(def.value(totals, extra)) : '—';
+          });
+          // Config UI
+          const configBtn = document.getElementById('live-kpi-settings');
+          const configWrap = document.getElementById('live-kpi-config');
+          const selects = [
+            document.getElementById('live-kpi-s1'),
+            document.getElementById('live-kpi-s2'),
+            document.getElementById('live-kpi-s3'),
+            document.getElementById('live-kpi-s4'),
+          ];
+          const ensureOptions = () => {
+            const options = Object.entries(kpiCatalog).map(([key, def]) => ({ key, label: def.label }));
+            selects.forEach((sel, idx) => {
+              if (!sel || sel.dataset.bound === '1') return;
+              sel.innerHTML = options.map((o) => `<option value="${o.key}">${o.label}</option>`).join('');
+              sel.value = slots[idx] || options[0]?.key || '';
+              sel.addEventListener('change', () => {
+                const next = selects.map((s) => String(s?.value || '').trim());
+                writePrimarySlots(next);
+                refreshLiveStatsHud();
+              });
+              sel.dataset.bound = '1';
+            });
+          };
+          ensureOptions();
+          if (configBtn && configWrap && configBtn.dataset.bound !== '1') {
+            configBtn.addEventListener('click', () => {
+              const open = !configWrap.hidden;
+              configWrap.hidden = open;
+            });
+            configBtn.dataset.bound = '1';
+          }
+          // Mantén el estado abierto/cerrado según lo que el usuario haya tocado.
+        } catch (e) { /* ignore */ }
       };
       const registerLiveEvent = ({ id = null, action = '', zone = '', result = '', minute = null }) => {
         const key = id ? `id:${id}` : `tmp:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -4348,7 +4588,7 @@
 		        try {
 		          const r = String(st.result || '').trim();
 		          if (r && resultSelect) {
-		            resultSelect.value = r;
+		            setResultValue(r, { silent: true });
 		          }
 		        } catch (e) {}
 		      };
