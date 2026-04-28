@@ -115,6 +115,14 @@
     {% endif %}
   </div>
   {% endif %}
+  <button
+    type="button"
+    class="nav-command-btn"
+    id="webstats-nav-back"
+    title="Volver atrás"
+    style="padding:0.38rem 0.6rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:rgba(2,6,23,0.55); color:#e5e7eb;"
+    hidden
+  >← Volver</button>
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {% if workspace_module_access.dashboard|default:True %}
   <a href="{% if cdurl %}{{ cdurl }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
@@ -231,6 +239,38 @@
   </details>
   {% endwith %}
 </nav>
+<script>
+(() => {
+  const btn = document.getElementById('webstats-nav-back');
+  if (!btn) return;
+  const isNativeLike = () => {
+    try {
+      if (window.Capacitor && typeof window.Capacitor.getPlatform === 'function') {
+        return String(window.Capacitor.getPlatform() || '').toLowerCase() !== 'web';
+      }
+    } catch (e) {}
+    const ua = String(navigator.userAgent || '').toLowerCase();
+    return ua.includes('capacitor') || ua.includes('wkwebview') || (ua.includes('webview') && !ua.includes('safari'));
+  };
+  const canGoBack = () => {
+    try {
+      if (window.history && typeof window.history.length === 'number' && window.history.length > 1) return true;
+    } catch (e) {}
+    return false;
+  };
+  btn.hidden = !(isNativeLike() || canGoBack());
+  btn.addEventListener('click', () => {
+    const before = String(window.location.href || '');
+    try { window.history.back(); } catch (e) {}
+    window.setTimeout(() => {
+      const after = String(window.location.href || '');
+      if (after === before) {
+        try { window.location.href = '/'; } catch (e) {}
+      }
+    }, 280);
+  });
+})();
+</script>
 {% endif %}
 
 {# Guía/tours (carga ligera y sin dependencias externas) #}
