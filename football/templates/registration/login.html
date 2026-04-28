@@ -223,6 +223,19 @@
       <p style="margin-top:0.9rem;color:rgba(145,161,185,0.8);font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;">
         Build: {{ static_build_id|default:"local" }}
       </p>
+      <div style="margin-top:0.65rem;display:flex;flex-direction:column;gap:0.45rem;">
+        <button
+          type="button"
+          class="ghost-link"
+          style="margin-top:0;width:100%;"
+          data-copy-login-url
+        >
+          Copiar URL de login
+        </button>
+        <p style="margin:0;color:rgba(145,161,185,0.75);font-size:0.7rem;">
+          (Solo para soporte) URL actual: <span data-login-url style="color:rgba(226,232,240,0.9);"></span>
+        </p>
+      </div>
     </main>
 
     <script>
@@ -286,6 +299,28 @@
             } catch (_) {}
           });
         }
+      })();
+
+      // Soporte: copiar la URL exacta de login desde WKWebView (en iOS la app no muestra barra de dirección).
+      (function () {
+        const urlLabel = document.querySelector("[data-login-url]");
+        const copyBtn = document.querySelector("[data-copy-login-url]");
+        const href = String(window.location && window.location.href ? window.location.href : "");
+        if (urlLabel) urlLabel.textContent = href;
+        if (!copyBtn) return;
+        copyBtn.addEventListener("click", async () => {
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(href);
+              copyBtn.textContent = "URL copiada";
+              setTimeout(() => (copyBtn.textContent = "Copiar URL de login"), 1400);
+            } else {
+              alert("No se pudo copiar automáticamente. Mantén pulsado el texto de URL para copiarlo.");
+            }
+          } catch (_) {
+            alert("iOS bloqueó el copiado. Revisa Ajustes > Privacidad y seguridad > Pegar desde otras apps.");
+          }
+        });
       })();
     </script>
   </body>
