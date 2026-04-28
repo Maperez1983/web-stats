@@ -39,6 +39,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     convocationCards,
     playerInput,
     submitUrl,
+    updateUrl,
+    eventsUrl,
+    keepaliveUrl,
     csrfToken,
     currentMatchId,
     deleteUrl,
@@ -109,6 +112,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const offlineQueueBadge = document.getElementById('offline-queue-badge');
   const offlineQueueSyncBtn = document.getElementById('offline-queue-sync');
   const OFFLINE_ID_PREFIX = 'offline:';
+  const redoStack = [];
   const offlineQueueKey = (() => {
     const mid = String(currentMatchId || '').trim() || 'unknown';
     return `webstats:live:queue:v1:${mid}`;
@@ -229,6 +233,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     } catch (error) {
       return false;
     }
+  };
+  const eventIdInput = popupForm?.querySelector('input[name="event_id"]') || null;
+  const setEditingEventId = (value) => {
+    if (!eventIdInput) return;
+    eventIdInput.value = value ? String(value) : '';
+  };
+  const getEditingEventId = () => {
+    const raw = String(eventIdInput?.value || '').trim();
+    const parsed = parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   };
   const serializeFormData = (formData) => {
     const out = {};
@@ -841,7 +855,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
     return closest;
   };
-  const showPopup = (x, y) => {
+  const showPopup = (x, y, { preserveEditing = false } = {}) => {
+    // Abriendo el popup desde el campo => modo creación, no edición (salvo que se indique lo contrario).
+    if (!preserveEditing) setEditingEventId('');
     const rect = interactiveSurface.getBoundingClientRect();
     const width = fieldPopup.offsetWidth;
     const height = fieldPopup.offsetHeight;
@@ -954,10 +970,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const deleteHistoryArticle = async (article, successMessage = 'Última acción deshecha.') => {
     const eventId = article?.dataset?.eventId;
     if (!eventId) return false;
+    const parsedForRedo = parseHistoryArticle(article);
     if (isOfflineId(eventId)) {
       article.remove();
       removeLiveEvent(eventId);
       removeOfflineQueuedById(eventId);
+      if (parsedForRedo) {
+        redoStack.push(parsedForRedo);
+        if (redoStack.length > 12) redoStack.shift();
+        updateRedoUi();
+      }
       showPageStatus(successMessage, 'success', 2600);
       emitSummaryChange();
       return true;
@@ -976,6 +998,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       }
       article.remove();
       removeLiveEvent(eventId);
+      if (parsedForRedo) {
+        redoStack.push(parsedForRedo);
+        if (redoStack.length > 12) redoStack.shift();
+        updateRedoUi();
+      }
       emitSummaryChange();
       showPageStatus(successMessage, 'success', 2400);
       return true;
@@ -1229,8 +1256,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (currentMatchId && !payload.get('match_id')) payload.set('match_id', currentMatchId);
       if (isTeamOnlyAction) payload.delete('player');
 
+      const editingId = getEditingEventId();
+      const isEdit = Boolean(editingId && updateUrl);
       if (!navigator.onLine) throw new Error('offline');
-      const response = await fetch(submitUrl, {
+      const response = await fetch(isEdit ? updateUrl : submitUrl, {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
@@ -1241,6 +1270,41 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
         return null;
       }
+      if (isEdit) {
+        const article = historyList?.querySelector(`[data-event-id="${CSS.escape(String(data.id))}"]`);
+        if (article) {
+          if (data?.player?.id) article.dataset.playerId = String(data.player.id);
+          else delete article.dataset.playerId;
+          const minuteEl = article.querySelector('.hist-minute');
+          if (minuteEl) {
+            const numericMinute = Number(data.minute);
+            minuteEl.textContent = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
+          }
+          const strong = article.querySelector('strong');
+          if (strong) {
+            const num = data.player?.number || '--';
+            const nm = String(data.player?.name || 'EQUIPO').toUpperCase();
+            strong.textContent = `#${num} ${nm}`;
+          }
+          const textEl = article.querySelector('.hist-text');
+          if (textEl) textEl.textContent = `${data.action} · ${data.zone || '-'} · ${data.result || ''}`;
+        }
+        try {
+          removeLiveEvent(String(data.id));
+          registerLiveEvent({ id: String(data.id), action: data.action, zone: data.zone, result: data.result, minute: data.minute });
+        } catch (e) {}
+        try {
+          // Recalcula contadores desde el historial para no dejar estados inconsistentes tras editar.
+          bootstrapQuickHudFromExistingHistory();
+        } catch (e) {}
+        setEditingEventId('');
+        hidePopup();
+        zoneLabel.style.display = 'none';
+        emitSummaryChange();
+        showPageStatus('Acción actualizada.', 'success', 1800);
+        return data;
+      }
+
       const inserted = appendHistoryEntry({
         minute: data.minute || 'Ahora',
         player: data.player,
@@ -1322,6 +1386,174 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const payload = new FormData(popupForm);
     await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
   });
+
+  function parseHistoryArticle(article) {
+    if (!article) return null;
+    const eventId = String(article.dataset.eventId || '').trim();
+    const minuteText = article.querySelector('.hist-minute')?.textContent || '';
+    const minute = parseInt(String(minuteText || '').replace(/[^\d]/g, ''), 10);
+    const text = article.querySelector('.hist-text')?.textContent || '';
+    const parts = text.split('·').map((p) => p.trim());
+    const action = parts[0] || '';
+    const zone = parts[1] || '';
+    const result = parts[2] || '';
+    const playerId = String(article.dataset.playerId || '').trim();
+    return {
+      eventId,
+      playerId: playerId || '',
+      action,
+      zone: zone === '-' ? '' : zone,
+      result,
+      minute: Number.isFinite(minute) ? minute : Math.floor(elapsedRef.value / 60),
+    };
+  }
+
+  const updateRedoUi = () => {
+    const btn = document.getElementById('pro-redo');
+    if (!btn) return;
+    btn.disabled = redoStack.length <= 0;
+    btn.textContent = redoStack.length > 0 ? `Rehacer (${redoStack.length})` : 'Rehacer';
+  };
+  updateRedoUi();
+
+  const editLastAction = () => {
+    const latestArticle = historyList?.querySelector('[data-event-id]');
+    if (!latestArticle) {
+      showPageStatus('No hay acciones para editar.', 'warning', 2200);
+      return false;
+    }
+    const parsed = parseHistoryArticle(latestArticle);
+    if (!parsed?.eventId) {
+      showPageStatus('No se pudo abrir la edición.', 'warning', 2200);
+      return false;
+    }
+    if (isOfflineId(parsed.eventId)) {
+      showPageStatus('Esta acción está offline. Sincroniza antes de editar.', 'warning', 3600);
+      return false;
+    }
+    if (!updateUrl) {
+      showPageStatus('Edición no disponible en este entorno.', 'warning', 2600);
+      return false;
+    }
+    // Carga campos en el popup y marca event_id para que el submit vaya a updateUrl.
+    setEditingEventId(parsed.eventId);
+    if (playerInput && parsed.playerId) playerInput.value = parsed.playerId;
+    if (actionInput) actionInput.value = parsed.action || '';
+    if (zoneInput) zoneInput.value = parsed.zone || '';
+    if (resultSelect) resultSelect.value = parsed.result || '';
+    try {
+      const minuteHidden = popupForm.querySelector('input[name="minute"]');
+      if (minuteHidden) minuteHidden.value = String(parsed.minute ?? Math.floor(elapsedRef.value / 60));
+    } catch (e) {}
+    syncAutoFields();
+    // Abre popup centrado.
+    const rect = interactiveSurface.getBoundingClientRect();
+    showPopup(rect.width * 0.5, rect.height * 0.5, { preserveEditing: true });
+    try {
+      showPageStatus('Editando última acción. Pulsa Guardar para actualizar.', 'info', 2000);
+    } catch (e) {}
+    return true;
+  };
+
+  const redoLastUndo = async () => {
+    if (!redoStack.length) {
+      showPageStatus('No hay nada que rehacer.', 'warning', 2200);
+      updateRedoUi();
+      return false;
+    }
+    const item = redoStack.pop();
+    updateRedoUi();
+    if (!item) return false;
+    // Rehacer crea una nueva acción (mismo contenido). No reutiliza event_id.
+    setEditingEventId('');
+    if (playerInput && item.playerId) playerInput.value = item.playerId;
+    if (actionInput) actionInput.value = item.action || '';
+    if (zoneInput) zoneInput.value = item.zone || '';
+    if (resultSelect) resultSelect.value = item.result || '';
+    try {
+      const minuteHidden = popupForm.querySelector('input[name="minute"]');
+      if (minuteHidden) minuteHidden.value = String(item.minute ?? Math.floor(elapsedRef.value / 60));
+    } catch (e) {}
+    syncAutoFields();
+    const payload = new FormData(popupForm);
+    const isTeamOnlyAction = isTeamOnlyActionValue(String(actionInput?.value || '').trim());
+    const data = await submitPopupAction(payload, { isTeamOnlyAction, source: 'redo' });
+    return Boolean(data);
+  };
+
+  // Mantén la sesión viva en iPad (evita saltos a login en mitad del partido).
+  const pingKeepalive = async () => {
+    if (!keepaliveUrl) return;
+    try {
+      await fetch(keepaliveUrl, { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    } catch (e) {
+      // ignore: si falla, el usuario verá el 401/403 al guardar y podrá recargar.
+    }
+  };
+  if (keepaliveUrl) {
+    try { window.setInterval(() => void pingKeepalive(), 90_000); } catch (e) {}
+    // Primer ping a los pocos segundos para detectar sesión caducada pronto.
+    try { window.setTimeout(() => void pingKeepalive(), 6_000); } catch (e) {}
+  }
+
+  // Sync básico multi-dispositivo: trae eventos nuevos creados desde otro iPad/PC.
+  const parseServerEventId = (value) => {
+    const n = parseInt(String(value || '').replace(/[^\d]/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  let maxServerEventId = 0;
+  try {
+    historyList?.querySelectorAll('[data-event-id]').forEach((item) => {
+      const idValue = String(item.dataset.eventId || '');
+      const n = parseServerEventId(idValue);
+      if (n && n > maxServerEventId) maxServerEventId = n;
+    });
+  } catch (e) {}
+
+  let pollInFlight = false;
+  const pollRemoteEvents = async () => {
+    if (!eventsUrl || pollInFlight) return;
+    if (document.visibilityState !== 'visible') return;
+    if (!navigator.onLine) return;
+    pollInFlight = true;
+    try {
+      const url = new URL(eventsUrl, window.location.origin);
+      if (maxServerEventId) url.searchParams.set('since_id', String(maxServerEventId));
+      url.searchParams.set('limit', '80');
+      const response = await fetch(url.toString(), { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.ok) return;
+      const events = Array.isArray(data.events) ? data.events : [];
+      if (!events.length) return;
+      events.forEach((ev) => {
+        const evId = parseServerEventId(ev?.id);
+        if (evId && evId > maxServerEventId) maxServerEventId = evId;
+        const inserted = appendHistoryEntry({
+          minute: ev.minute || 'Ahora',
+          player: ev.player,
+          action: ev.action,
+          zone: ev.zone,
+          result: ev.result,
+          event_id: String(ev.id || ''),
+        });
+        if (!inserted) return;
+        const derivedDropKey = classifyCounterDropKey({ action: ev.action, result: ev.result });
+        if (derivedDropKey) {
+          incrementQuickCounter(derivedDropKey);
+          appendQuickHistory(derivedDropKey, ev.player?.name || 'Equipo', ev.minute || getCurrentMatchMinute(), ev.result || ev.action);
+        }
+      });
+      emitSummaryChange();
+    } catch (e) {
+      // ignore
+    } finally {
+      pollInFlight = false;
+    }
+  };
+  if (eventsUrl) {
+    try { window.setInterval(() => void pollRemoteEvents(), 3_500); } catch (e) {}
+    window.addEventListener('online', () => void pollRemoteEvents());
+  }
 
   const postQuickDropAction = async ({ player = null, eventType, zoneLabel, result, dropKey, teamOnly = false, minuteOverride = null }) => {
     const isTeamOnly = Boolean(teamOnly);
@@ -1462,6 +1694,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     clearRegisterHistoryUI,
     resetRegisterHudState,
     resetClock,
+    editLastAction,
+    redoLastUndo,
     registerQuickDropAction: postQuickDropAction,
     registerSubstitutionPair: async ({ outPlayer = null, inPlayer = null, minute = null } = {}) => {
       if (!outPlayer?.id || !inPlayer?.id) return false;

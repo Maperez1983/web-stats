@@ -15898,6 +15898,149 @@ def delete_match_action(request):
 
 @authenticated_write
 @require_POST
+def update_match_action(request):
+    """
+    Actualiza una acción del registro en vivo (touch-field) sin crear un nuevo evento.
+
+    Caso de uso: corregir rápidamente la última acción durante el partido.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    event_id = _parse_int(request.POST.get('event_id'))
+    if not event_id:
+        return JsonResponse({'error': 'Evento no válido'}, status=400)
+
+    requested_match = get_requested_match(request, primary_team)
+    match = requested_match or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'error': 'No hay partido disponible para actualizar acciones'}, status=400)
+
+    convocation_record = get_current_convocation_record(
+        primary_team,
+        match=match,
+        fallback_to_latest=True,
+    )
+    if not convocation_record:
+        return JsonResponse({'error': 'No hay convocatoria activa guardada para este partido'}, status=400)
+
+    event = (
+        MatchEvent.objects
+        .filter(id=int(event_id), match=match)
+        .filter(source_file='registro-acciones')
+        .filter(system__in=['touch-field', 'touch-field-final'])
+        .select_related('player')
+        .first()
+    )
+    if not event:
+        return JsonResponse({'error': 'Evento no encontrado'}, status=404)
+    # Asegura que el evento pertenece al equipo (o sea "team-only").
+    if event.player_id and getattr(event.player, 'team_id', None) != primary_team.id:
+        return JsonResponse({'error': 'No puedes editar eventos de otro equipo.'}, status=403)
+
+    action_type = (request.POST.get('action_type') or '').strip()
+    action_type_key = action_type.lower()
+    if not action_type:
+        return JsonResponse({'error': 'Especifica el tipo de acción'}, status=400)
+    result = (request.POST.get('result') or '').strip()
+    if result == '':
+        return JsonResponse({'error': 'Especifica un resultado'}, status=400)
+    zone = (request.POST.get('zone') or '').strip()
+    observation = (request.POST.get('observation') or '').strip()
+    minute = _parse_int(request.POST.get('minute'))
+    if minute is not None:
+        minute = max(0, min(minute, 120))
+    period = _parse_int(request.POST.get('period'))
+
+    # Player: solo si no es acción de equipo.
+    player = None
+    if not _is_team_only_action(action_type_key):
+        player_id = request.POST.get('player')
+        player = convocation_record.players.filter(id=player_id).first()
+        if not player:
+            return JsonResponse({'error': 'Selecciona un jugador convocado válido'}, status=400)
+
+    changed = []
+    if (event.event_type or '') != action_type:
+        event.event_type = action_type
+        changed.append('event_type')
+    if (event.result or '') != result:
+        event.result = result
+        changed.append('result')
+    if (event.zone or '') != zone:
+        event.zone = zone
+        changed.append('zone')
+    desired_tercio = zone_to_tercio(zone)
+    if (event.tercio or '') != desired_tercio:
+        event.tercio = desired_tercio
+        changed.append('tercio')
+    if (event.observation or '') != observation:
+        event.observation = observation
+        changed.append('observation')
+    if minute is not None and minute != event.minute:
+        event.minute = minute
+        changed.append('minute')
+    if period is not None and period != event.period:
+        event.period = period
+        changed.append('period')
+    if player is None:
+        if event.player_id is not None:
+            event.player = None
+            changed.append('player')
+    else:
+        if int(player.id) != int(event.player_id or 0):
+            event.player = player
+            changed.append('player')
+
+    if changed:
+        event.save(update_fields=list(dict.fromkeys(changed)))
+        _invalidate_team_dashboard_caches(primary_team)
+    return JsonResponse({**_serialize_match_event(event, duplicate=False), 'updated': True})
+
+
+@login_required
+def match_actions_events_api(request):
+    """
+    API de lectura para sincronizar acciones entre dispositivos durante el partido.
+
+    Devuelve eventos del match actual (touch-field / touch-field-final) con id > since_id.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede acceder al registro.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+
+    requested_match = get_requested_match(request, primary_team)
+    match = requested_match or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'error': 'No hay partido disponible'}, status=400)
+
+    since_id = _parse_int(request.GET.get('since_id')) or 0
+    limit = _parse_int(request.GET.get('limit')) or 50
+    limit = max(1, min(limit, 150))
+
+    qs = (
+        MatchEvent.objects
+        .filter(match=match, source_file='registro-acciones', system__in=['touch-field', 'touch-field-final'])
+        .filter(id__gt=int(since_id))
+        .select_related('player')
+        .order_by('id')[:limit]
+    )
+    rows = [_serialize_match_event(ev, duplicate=False) for ev in qs]
+    return JsonResponse({'ok': True, 'match_id': int(match.id), 'events': rows})
+
+
+@authenticated_write
+@require_POST
 def finalize_match_actions(request):
     if not _can_edit_match_actions(request.user):
         return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)

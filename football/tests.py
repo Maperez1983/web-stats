@@ -4103,6 +4103,87 @@ class MatchActionWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertTrue(MatchEvent.objects.filter(id=final_event.id).exists())
 
+    def test_update_match_action_allows_fast_correction(self):
+        create = self.client.post(
+            reverse('match-action-record'),
+            {
+                'match_id': self.match.id,
+                'player': self.player.id,
+                'action_type': 'Pase',
+                'result': 'OK',
+                'zone': 'Ataque Centro',
+                'minute': 11,
+                'period': 1,
+                'client_event_uid': 'evt-create-1',
+            },
+        )
+        self.assertEqual(create.status_code, 200)
+        event_id = create.json().get('id')
+        self.assertTrue(event_id)
+
+        update = self.client.post(
+            reverse('match-action-update'),
+            {
+                'match_id': self.match.id,
+                'event_id': event_id,
+                'player': self.player.id,
+                'action_type': 'Pase',
+                'result': 'FALLO',
+                'zone': 'Ataque Izquierda',
+                'minute': 12,
+                'period': 1,
+            },
+        )
+        self.assertEqual(update.status_code, 200)
+        payload = update.json()
+        self.assertTrue(payload.get('updated'))
+        self.assertEqual(payload.get('id'), event_id)
+        self.assertEqual(payload.get('result'), 'FALLO')
+        self.assertEqual(payload.get('zone'), 'Ataque Izquierda')
+        obj = MatchEvent.objects.filter(id=event_id).first()
+        self.assertEqual(obj.result, 'FALLO')
+        self.assertEqual(obj.zone, 'Ataque Izquierda')
+
+    def test_match_actions_events_api_supports_incremental_polling(self):
+        r1 = self.client.post(
+            reverse('match-action-record'),
+            {
+                'match_id': self.match.id,
+                'player': self.player.id,
+                'action_type': 'DUELO',
+                'result': 'GANADO',
+                'zone': 'Medio Centro',
+                'minute': 5,
+                'period': 1,
+                'client_event_uid': 'evt-poll-1',
+            },
+        )
+        self.assertEqual(r1.status_code, 200)
+        first_id = r1.json().get('id')
+        self.assertTrue(first_id)
+
+        self.client.post(
+            reverse('match-action-record'),
+            {
+                'match_id': self.match.id,
+                'player': self.player.id,
+                'action_type': 'DUELO',
+                'result': 'PERDIDO',
+                'zone': 'Medio Centro',
+                'minute': 6,
+                'period': 1,
+                'client_event_uid': 'evt-poll-2',
+            },
+        )
+
+        poll = self.client.get(reverse('match-actions-events-api'), {'match_id': self.match.id, 'since_id': first_id})
+        self.assertEqual(poll.status_code, 200)
+        data = poll.json()
+        self.assertTrue(data.get('ok'))
+        events = data.get('events') or []
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].get('result'), 'PERDIDO')
+
     def test_finalize_keeps_distinct_same_minute_actions(self):
         MatchEvent.objects.create(
             match=self.match,

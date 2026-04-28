@@ -2505,6 +2505,8 @@
 	            <div class="pro-actions-row">
 	              <button type="button" class="toolbar-pill" id="pro-open-action-picker">Acción</button>
 	              <button type="button" class="toolbar-pill" id="pro-autosend-toggle" title="Si está activo, al tocar una zona se registra la acción automáticamente">Auto-enviar: OFF</button>
+	              <button type="button" class="toolbar-pill" id="pro-edit-last" title="Editar rápidamente la última acción registrada">Editar última</button>
+	              <button type="button" class="toolbar-pill" id="pro-redo" title="Rehacer la última acción deshecha" disabled>Rehacer</button>
 	              <button type="button" class="toolbar-pill" id="pro-clear-player">Quitar jugador</button>
 	              <button type="button" class="toolbar-pill" id="pro-undo" title="Deshacer la última acción registrada">Deshacer</button>
 	            </div>
@@ -2666,8 +2668,10 @@
                 class="popup-form"
                 method="post"
                 data-submit-url="{% url 'match-action-record' %}"
+                data-update-url="{% url 'match-action-update' %}"
               >
                 {% csrf_token %}
+                <input type="hidden" name="event_id" value="" />
                 <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
@@ -3069,6 +3073,8 @@
 	      const proBenchChips = document.getElementById('pro-bench-chips');
 	      const proOpenActionPickerBtn = document.getElementById('pro-open-action-picker');
 	      const proAutoSendToggleBtn = document.getElementById('pro-autosend-toggle');
+	      const proEditLastBtn = document.getElementById('pro-edit-last');
+	      const proRedoBtn = document.getElementById('pro-redo');
 	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
 	      const proUndoBtn = document.getElementById('pro-undo');
 	      const popupForm = document.getElementById('field-popup-form');
@@ -3555,6 +3561,7 @@
       const csrfInput = popupForm.querySelector('input[name="csrfmiddlewaretoken"]');
       const csrfToken = csrfInput?.value || '';
       const submitUrl = popupForm.dataset.submitUrl;
+      const updateUrl = popupForm.dataset.updateUrl;
       const initialMatchDbIdEl = document.getElementById('match-db-id');
       const pageStatus = document.getElementById('match-page-status');
       const currentMatchId = String(initialMatchDbIdEl?.textContent || '').trim();
@@ -3578,6 +3585,8 @@
       const matchInfoSaveUrl = urlWithMatchId('{% url "match-info-save" %}');
       const finalizeUrl = urlWithMatchId('{% url "match-action-finalize" %}');
 	      const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
+      const eventsUrl = urlWithMatchId('{% url "match-actions-events-api" %}');
+      const keepaliveUrl = '{% url "session-keepalive" %}';
 	      const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
 	      const lineupGetUrl = urlWithMatchId('{% url "match-lineup-get" %}');
 	      const lineupStorageKey = initialMatchDbIdEl?.textContent
@@ -5247,6 +5256,9 @@
         convocationCards,
         playerInput,
         submitUrl,
+        updateUrl,
+        eventsUrl,
+        keepaliveUrl,
         csrfToken,
         currentMatchId,
         deleteUrl,
@@ -5264,6 +5276,16 @@
         onFieldTap: handleAutoPlayerForTap,
 	        onSummaryChange: updateCloseSummary,
 	      });
+	      if (proEditLastBtn) {
+	        proEditLastBtn.addEventListener('click', () => {
+	          try { liveController?.editLastAction?.(); } catch (e) {}
+	        });
+	      }
+	      if (proRedoBtn) {
+	        proRedoBtn.addEventListener('click', () => {
+	          try { liveController?.redoLastUndo?.(); } catch (e) {}
+	        });
+	      }
 		      playerQuickButtons.forEach((btn) => {
 		        btn.addEventListener('click', async () => {
 	          if (activeStage !== 'live') {
