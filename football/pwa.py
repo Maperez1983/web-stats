@@ -114,15 +114,11 @@ self.addEventListener('fetch', (event) => {{
   if (req.mode === 'navigate') {{
     event.respondWith((async () => {{
       try {{
-        const resp = await fetch(req);
-        // No cacheamos redirecciones a login.
-        if (!resp || resp.redirected) return resp;
-        const cache = await caches.open(RUNTIME_CACHE);
-        cache.put(req, resp.clone()).catch(() => {{}});
-        return resp;
+        // Importante: NO cachear HTML autenticado en runtime.
+        // En iOS/PWA puede quedarse "pegado" a una versión vieja tras deploys.
+        return await fetch(req, {{ cache: 'no-store' }});
       }} catch (e) {{
-        const cached = await caches.match(req);
-        return cached || caches.match(OFFLINE_URL);
+        return caches.match(OFFLINE_URL);
       }}
     }})());
     return;
