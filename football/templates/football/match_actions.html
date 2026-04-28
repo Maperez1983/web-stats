@@ -2505,10 +2505,19 @@
 	            <div class="pro-actions-row">
 	              <button type="button" class="toolbar-pill" id="pro-open-action-picker">Acción</button>
 	              <button type="button" class="toolbar-pill" id="pro-autosend-toggle" title="Si está activo, al tocar una zona se registra la acción automáticamente">Auto-enviar: OFF</button>
+	              <button type="button" class="toolbar-pill" id="pro-repeat-last" title="Repite la última combinación Acción+Resultado">Repetir</button>
 	              <button type="button" class="toolbar-pill" id="pro-edit-last" title="Editar rápidamente la última acción registrada">Editar última</button>
 	              <button type="button" class="toolbar-pill" id="pro-redo" title="Rehacer la última acción deshecha" disabled>Rehacer</button>
 	              <button type="button" class="toolbar-pill" id="pro-clear-player">Quitar jugador</button>
 	              <button type="button" class="toolbar-pill" id="pro-undo" title="Deshacer la última acción registrada">Deshacer</button>
+	            </div>
+	            <div class="pro-actions-row" style="margin-top:0.55rem;">
+	              <button type="button" class="toolbar-pill" id="pro-preset-1" title="Tap: aplicar · Pulsación larga: guardar">Preset 1</button>
+	              <button type="button" class="toolbar-pill" id="pro-preset-2" title="Tap: aplicar · Pulsación larga: guardar">Preset 2</button>
+	              <button type="button" class="toolbar-pill" id="pro-preset-3" title="Tap: aplicar · Pulsación larga: guardar">Preset 3</button>
+	              <button type="button" class="toolbar-pill" id="pro-preset-4" title="Tap: aplicar · Pulsación larga: guardar">Preset 4</button>
+	              <button type="button" class="toolbar-pill" id="pro-preset-5" title="Tap: aplicar · Pulsación larga: guardar">Preset 5</button>
+	              <button type="button" class="toolbar-pill" id="pro-preset-6" title="Tap: aplicar · Pulsación larga: guardar">Preset 6</button>
 	            </div>
 	          </div>
 	          <div class="match-status-panels">
@@ -3073,6 +3082,15 @@
 	      const proBenchChips = document.getElementById('pro-bench-chips');
 	      const proOpenActionPickerBtn = document.getElementById('pro-open-action-picker');
 	      const proAutoSendToggleBtn = document.getElementById('pro-autosend-toggle');
+	      const proRepeatLastBtn = document.getElementById('pro-repeat-last');
+	      const proPresetBtns = [
+	        document.getElementById('pro-preset-1'),
+	        document.getElementById('pro-preset-2'),
+	        document.getElementById('pro-preset-3'),
+	        document.getElementById('pro-preset-4'),
+	        document.getElementById('pro-preset-5'),
+	        document.getElementById('pro-preset-6'),
+	      ].filter(Boolean);
 	      const proEditLastBtn = document.getElementById('pro-edit-last');
 	      const proRedoBtn = document.getElementById('pro-redo');
 	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
@@ -3471,6 +3489,7 @@
 	            writeProState({
 	              action: String(actionInput.value || '').trim(),
 	              player_id: String(selectedPlayerId || '').trim(),
+	              result: String(resultSelect?.value || '').trim(),
 	            });
 	          } catch (e) {}
 	        };
@@ -3482,6 +3501,17 @@
 	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
 	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
 	      }
+      if (resultSelect) {
+        resultSelect.addEventListener('change', () => {
+          try {
+            writeProState({
+              action: String(actionInput?.value || '').trim(),
+              player_id: String(selectedPlayerId || '').trim(),
+              result: String(resultSelect.value || '').trim(),
+            });
+          } catch (e) {}
+        });
+      }
       if (actionPickerCloseBtn) {
         actionPickerCloseBtn.addEventListener('click', () => closeActionPicker());
       }
@@ -4238,7 +4268,8 @@
 		          else proQuickMeta.textContent = 'Jugador seleccionado · toca Acción y luego una zona en el campo';
 		        }
 		      }
-		      const proStateKey = currentMatchId ? `webstats:match_actions:pro_state:v1:${currentMatchId}` : '';
+	      const proStateKey = currentMatchId ? `webstats:match_actions:pro_state:v1:${currentMatchId}` : '';
+	      const proPresetsKey = currentMatchId ? `webstats:match_actions:pro_presets:v1:${currentMatchId}` : '';
 		      const readProState = () => {
 		        if (!proStateKey) return null;
 		        try {
@@ -4279,7 +4310,126 @@
 		            actionInput.value = a;
 		          }
 		        } catch (e) {}
+		        try {
+		          const r = String(st.result || '').trim();
+		          if (r && resultSelect) {
+		            resultSelect.value = r;
+		          }
+		        } catch (e) {}
 		      };
+	      const readProPresets = () => {
+	        if (!proPresetsKey) return [];
+	        try {
+	          const raw = localStorage.getItem(proPresetsKey) || '';
+	          const parsed = raw ? JSON.parse(raw) : null;
+	          return Array.isArray(parsed) ? parsed : [];
+	        } catch (e) {
+	          return [];
+	        }
+	      };
+	      const writeProPresets = (list) => {
+	        if (!proPresetsKey) return;
+	        try {
+	          localStorage.setItem(proPresetsKey, JSON.stringify(Array.isArray(list) ? list : []));
+	        } catch (e) {}
+	      };
+	      const normalizePreset = (preset) => {
+	        if (!preset || typeof preset !== 'object') return null;
+	        const action = String(preset.action || '').trim();
+	        const result = String(preset.result || '').trim();
+	        if (!action || !result) return null;
+	        return { action, result };
+	      };
+	      const applyPreset = (preset) => {
+	        const p = normalizePreset(preset);
+	        if (!p) return false;
+	        if (actionInput) actionInput.value = p.action;
+	        try { syncResultOptionsForAction(p.action); } catch (e) {}
+	        if (resultSelect) resultSelect.value = p.result;
+	        try { writeProState({ action: p.action, result: p.result, player_id: String(selectedPlayerId || '').trim() }); } catch (e) {}
+	        try { showPageStatus(`Preset: ${p.action} · ${p.result}`, 'info', 1200); } catch (e) {}
+	        return true;
+	      };
+	      const renderPresetButtons = () => {
+	        const list = readProPresets();
+	        proPresetBtns.forEach((btn, idx) => {
+	          const p = normalizePreset(list[idx]);
+	          const label = p ? `${p.action} · ${p.result}` : `Preset ${idx + 1}`;
+	          btn.textContent = label.length > 22 ? `${label.slice(0, 21)}…` : label;
+	          btn.dataset.presetIndex = String(idx);
+	          btn.classList.toggle('is-selected', !!p);
+	        });
+	      };
+	      const savePresetAt = (index) => {
+	        const idx = Number(index);
+	        if (!Number.isFinite(idx) || idx < 0 || idx >= proPresetBtns.length) return false;
+	        const action = String(actionInput?.value || '').trim();
+	        const result = String(resultSelect?.value || '').trim();
+	        if (!action || !result) {
+	          showPageStatus('Para guardar preset: selecciona Acción y Resultado.', 'warning', 2400);
+	          return false;
+	        }
+	        const list = readProPresets();
+	        while (list.length < proPresetBtns.length) list.push(null);
+	        list[idx] = { action, result };
+	        writeProPresets(list);
+	        renderPresetButtons();
+	        showPageStatus(`Guardado en Preset ${idx + 1}.`, 'success', 1600);
+	        return true;
+	      };
+	      const bindPresetButton = (btn) => {
+	        if (!btn) return;
+	        const idx = Number(btn.dataset.presetIndex || '');
+	        let pressTimer = null;
+	        let longPressFired = false;
+	        const clear = () => {
+	          if (pressTimer) window.clearTimeout(pressTimer);
+	          pressTimer = null;
+	        };
+	        const start = (ev) => {
+	          longPressFired = false;
+	          clear();
+	          pressTimer = window.setTimeout(() => {
+	            longPressFired = true;
+	            savePresetAt(idx);
+	          }, 650);
+	          try { ev.preventDefault(); } catch (e) {}
+	        };
+	        const end = (ev) => {
+	          clear();
+	          if (longPressFired) return;
+	          const list = readProPresets();
+	          const p = normalizePreset(list[idx]);
+	          if (!p) {
+	            showPageStatus('Preset vacío. Mantén pulsado para guardar.', 'warning', 2000);
+	            return;
+	          }
+	          applyPreset(p);
+	          try { ev.preventDefault(); } catch (e) {}
+	        };
+	        btn.addEventListener('pointerdown', start);
+	        btn.addEventListener('pointerup', end);
+	        btn.addEventListener('pointercancel', clear);
+	        btn.addEventListener('contextmenu', (ev) => { try { ev.preventDefault(); } catch (e) {} });
+	      };
+	      if (proPresetBtns.length) {
+	        // set dataset indices now
+	        proPresetBtns.forEach((btn, idx) => { btn.dataset.presetIndex = String(idx); });
+	        renderPresetButtons();
+	        proPresetBtns.forEach(bindPresetButton);
+	      }
+	      if (proRepeatLastBtn) {
+	        proRepeatLastBtn.addEventListener('click', () => {
+	          const st = readProState() || {};
+	          const action = String(st.action || '').trim();
+	          const result = String(st.result || '').trim();
+	          if (!action || !result) {
+	            showPageStatus('Aún no hay “última” acción+resultado.', 'warning', 2000);
+	            return;
+	          }
+	          applyPreset({ action, result });
+	        });
+	      }
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
         span.className = 'lineup-name lineup-chip';
