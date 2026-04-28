@@ -15158,6 +15158,7 @@ def coach_overview_page(request):
             'hero_image_url': hero_image_url,
             'team_display_name': team_display_name,
             'team_crest_url': team_crest_url,
+            'primary_team_id': int(getattr(primary_team, 'id', 0) or 0) or None,
             'competition_label': competition_label,
             'next_match': next_match,
             'next_match_opponent': next_match_opponent,

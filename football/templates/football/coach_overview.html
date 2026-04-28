@@ -225,6 +225,39 @@
         display: grid;
         gap: 1rem;
       }
+      .hub-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+        margin-top: 0.85rem;
+      }
+      .hub-link {
+        display: grid;
+        gap: 0.2rem;
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--ink);
+        text-decoration: none;
+        transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+      }
+      .hub-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(244, 180, 0, 0.22);
+        background: rgba(244, 180, 0, 0.06);
+      }
+      .hub-link strong {
+        font-size: 0.86rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .hub-link span {
+        color: var(--muted);
+        font-size: 0.84rem;
+        letter-spacing: 0;
+        text-transform: none;
+      }
       .hero-kicker {
         display: inline-flex;
         gap: 0.55rem;
@@ -269,6 +302,9 @@
         .secondary-grid {
           grid-template-columns: 1fr;
         }
+        .hub-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
       }
       @media (max-width: 760px) {
         .page {
@@ -287,6 +323,9 @@
         }
         .primary-grid,
         .secondary-grid {
+          grid-template-columns: 1fr;
+        }
+        .hub-grid {
           grid-template-columns: 1fr;
         }
         .headline {
@@ -317,19 +356,32 @@
       </header>
 
       <article class="hero">
-        <div class="club-row">
-          {% if team_crest_url %}
-          <img src="{{ team_crest_url }}" alt="Escudo {{ team_display_name }}" />
-          {% else %}
-          <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" />
-          {% endif %}
-          <span>2J Club · {{ team_display_name }}</span>
-        </div>
+	        <div class="club-row">
+	          {% if team_crest_url %}
+	          <img src="{{ team_crest_url }}" alt="Escudo {{ team_display_name }}" />
+	          {% else %}
+	          <img src="{% static 'football/images/cdb-logo.png' %}" alt="Escudo {{ team_display_name }}" />
+	          {% endif %}
+	          <span>2J Club · {{ team_display_name }}</span>
+	        </div>
 
-        <section class="primary-grid">
-          <div class="card team-hero-card">
-            <div class="team-hero-media">
-              <div class="team-hero-copy">
+          <section class="card compact" aria-label="Áreas principales">
+            <h3>Áreas</h3>
+            <p class="muted" style="margin:0;">Entra por módulos (partido, entrenamiento, análisis…).</p>
+            <div class="hub-grid">
+              {% for item in module_hub %}
+              <a class="hub-link" href="{{ item.url }}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.description }}</span>
+              </a>
+              {% endfor %}
+            </div>
+          </section>
+
+	        <section class="primary-grid">
+	          <div class="card team-hero-card">
+	            <div class="team-hero-media">
+	              <div class="team-hero-copy">
                 <div class="hero-kicker">
                   <span>{{ competition_label|default:"Competición por definir" }}</span>
                   <span>Puesto {{ highlighted_standing.rank|default:"-" }}</span>
