@@ -37,6 +37,106 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
       }
+      /* --- Modo Partido PRO (enfoque: 2-3 toques, menos ruido, más campo) --- */
+      body.pro-mode .action-screen {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 0);
+      }
+      body.pro-mode.pro-sidebar-open .action-screen {
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+      }
+      body.pro-mode .actions-sidebar {
+        display: none;
+      }
+      body.pro-mode.pro-sidebar-open .actions-sidebar {
+        display: block;
+      }
+      body.pro-mode .field-column {
+        padding: 1.25rem;
+        border-radius: 28px;
+      }
+      body.pro-mode .match-status-panels {
+        display: none;
+      }
+      body.pro-mode .quick-action-columns {
+        display: none;
+      }
+      body.pro-mode .match-stage-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 8;
+        background: linear-gradient(180deg, rgba(4, 8, 20, 0.98), rgba(4, 8, 20, 0.86));
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+        border-radius: 18px;
+      }
+      body.pro-mode .match-stage-tab {
+        font-size: 0.86rem;
+        padding: 0.7rem 0.9rem;
+      }
+      .pro-quick-panel {
+        display: none;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        background: rgba(2, 6, 23, 0.35);
+        padding: 0.85rem;
+      }
+      body.pro-mode .pro-quick-panel {
+        display: block;
+      }
+      .pro-quick-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.65rem;
+      }
+      .pro-quick-head strong {
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: rgba(254, 243, 199, 0.95);
+      }
+      .pro-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .pro-chip {
+        appearance: none;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 999px;
+        padding: 0.55rem 0.75rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(245, 247, 250, 0.95);
+        font-family: var(--prod-font-ui);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .pro-chip.is-selected {
+        border-color: rgba(244, 180, 0, 0.55);
+        background: rgba(244, 180, 0, 0.14);
+        color: rgba(255, 242, 199, 0.98);
+      }
+      .pro-chip small {
+        opacity: 0.75;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: none;
+      }
+      .pro-actions-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      .pro-actions-row .toolbar-pill {
+        padding: 0.75rem 0.95rem;
+        font-size: 0.8rem;
+      }
       .field-column {
         background: linear-gradient(180deg, rgba(4, 8, 20, 0.95), rgba(8, 17, 29, 0.98));
         padding: 2rem;
@@ -2189,10 +2289,12 @@
                 <span>{{ team_name }} · Registro táctil de partido</span>
               </div>
             </div>
-	            <div class="field-header-actions">
-	              <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
-	              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top">Guardar partido</button>
-	            </div>
+		          <div class="field-header-actions">
+		              <button type="button" id="zone-overlay-toggle" class="zone-overlay-toggle">Ver zonas</button>
+		              <button type="button" id="pro-mode-toggle" class="zone-overlay-toggle" title="Modo Partido PRO (menos ruido, más velocidad)">Modo PRO</button>
+		              <button type="button" id="pro-sidebar-toggle" class="zone-overlay-toggle" title="Mostrar/ocultar convocados" hidden>Convocados</button>
+		              <button type="button" id="match-finalize-btn-top" class="zone-overlay-toggle finalize-top">Guardar partido</button>
+		            </div>
 	          </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
             <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
@@ -2389,10 +2491,26 @@
             </div>
           {% endif %}
           </section>
-          <section class="match-stage-panel {% if default_stage == 'live' %}is-active{% endif %}" data-stage-panel="live">
-          <div class="match-status-panels">
-            <article class="status-card">
-              <h5>Tarjetas</h5>
+	          <section class="match-stage-panel {% if default_stage == 'live' %}is-active{% endif %}" data-stage-panel="live">
+	          <div class="pro-quick-panel" id="pro-quick-panel" hidden>
+	            <div class="pro-quick-head">
+	              <strong>En campo</strong>
+	              <span class="meta" id="pro-quick-meta" style="margin:0;">Pulsa un jugador para seleccionar</span>
+	            </div>
+	            <div class="pro-chips" id="pro-onfield-chips"></div>
+	            <details style="margin-top:0.65rem;">
+	              <summary class="button secondary" style="display:inline-flex; width:max-content;">Banquillo</summary>
+	              <div class="pro-chips" id="pro-bench-chips" style="margin-top:0.55rem;"></div>
+	            </details>
+	            <div class="pro-actions-row">
+	              <button type="button" class="toolbar-pill" id="pro-open-action-picker">Acción</button>
+	              <button type="button" class="toolbar-pill" id="pro-clear-player">Quitar jugador</button>
+	              <button type="button" class="toolbar-pill" id="pro-undo" title="Deshacer la última acción registrada">Deshacer</button>
+	            </div>
+	          </div>
+	          <div class="match-status-panels">
+	            <article class="status-card">
+	              <h5>Tarjetas</h5>
                 <p>Amarillas · <span class="status-value" id="status-yellow-count">0</span></p>
                 <p>Rojas · <span class="status-value" id="status-red-count">0</span></p>
               </article>
@@ -2930,23 +3048,83 @@
         return (words[0][0] + words[1][0]).toUpperCase();
       };
       const playerAvatarFallback = '{{ avatar_url|escapejs }}';
-      const fieldZoneDefs = JSON.parse(
-        document.getElementById('field-zone-defs')?.textContent || '[]',
-      );
+	      const fieldZoneDefs = JSON.parse(
+	        document.getElementById('field-zone-defs')?.textContent || '[]',
+	      );
       const touchField = document.getElementById('touch-field');
       const fieldSurface = document.getElementById('field-surface');
       const interactiveSurface = fieldSurface || touchField;
       const fieldPopup = document.getElementById('field-popup');
       const quickHistoryModal = document.getElementById('quick-history-modal');
       const quickHistoryModalList = document.getElementById('quick-history-list');
-      const quickHistoryModalTitle = document.getElementById('quick-history-title');
-      const quickHistoryModalCloseBtn = document.getElementById('quick-history-close');
-      const subsHistoryCard = document.getElementById('subs-history-card');
-      const popupForm = document.getElementById('field-popup-form');
+	      const quickHistoryModalTitle = document.getElementById('quick-history-title');
+	      const quickHistoryModalCloseBtn = document.getElementById('quick-history-close');
+	      const subsHistoryCard = document.getElementById('subs-history-card');
+	      const proModeToggleBtn = document.getElementById('pro-mode-toggle');
+	      const proSidebarToggleBtn = document.getElementById('pro-sidebar-toggle');
+	      const proQuickPanel = document.getElementById('pro-quick-panel');
+	      const proQuickMeta = document.getElementById('pro-quick-meta');
+	      const proOnfieldChips = document.getElementById('pro-onfield-chips');
+	      const proBenchChips = document.getElementById('pro-bench-chips');
+	      const proOpenActionPickerBtn = document.getElementById('pro-open-action-picker');
+	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
+	      const proUndoBtn = document.getElementById('pro-undo');
+	      const popupForm = document.getElementById('field-popup-form');
       const matchInfoCard = document.getElementById('match-info-card');
       const matchInfoEditBtn = document.getElementById('match-info-edit-btn');
       const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
-      const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
+	      const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
+
+	      // --- Modo Partido PRO ---
+	      const proModeStorageKey = 'webstats:match_actions:pro_mode:v1';
+	      const loadProMode = () => {
+	        try {
+	          const url = new URL(window.location.href);
+	          const qp = url.searchParams.get('pro');
+	          if (qp === '1' || qp === 'true' || qp === 'on') return true;
+	          if (qp === '0' || qp === 'false' || qp === 'off') return false;
+	        } catch (e) {}
+	        try {
+	          const raw = localStorage.getItem(proModeStorageKey);
+	          if (raw === null || raw === undefined || raw === '') return false;
+	          return String(raw) === '1';
+	        } catch (e) {
+	          return false;
+	        }
+	      };
+	      const setProMode = (enabled, { persist = true } = {}) => {
+	        const on = Boolean(enabled);
+	        document.body.classList.toggle('pro-mode', on);
+	        if (proQuickPanel) proQuickPanel.hidden = !on;
+	        if (proSidebarToggleBtn) proSidebarToggleBtn.hidden = !on;
+	        if (!on) document.body.classList.remove('pro-sidebar-open');
+	        if (proModeToggleBtn) {
+	          proModeToggleBtn.textContent = on ? 'Modo PRO: ON' : 'Modo PRO';
+	          proModeToggleBtn.style.borderColor = on ? 'rgba(244, 180, 0, 0.48)' : '';
+	          proModeToggleBtn.style.background = on ? 'rgba(244, 180, 0, 0.12)' : '';
+	          proModeToggleBtn.style.color = on ? 'rgba(255, 242, 199, 0.98)' : '';
+	        }
+	        if (persist) {
+	          try { localStorage.setItem(proModeStorageKey, on ? '1' : '0'); } catch (e) {}
+	        }
+	      };
+	      const toggleProSidebar = () => {
+	        const on = document.body.classList.toggle('pro-sidebar-open');
+	        if (proSidebarToggleBtn) {
+	          proSidebarToggleBtn.textContent = on ? 'Ocultar' : 'Convocados';
+	        }
+	      };
+	      // Aplica estado inicial cuanto antes (para no "reflow" visual).
+	      setProMode(loadProMode(), { persist: false });
+	      if (proModeToggleBtn) {
+	        proModeToggleBtn.addEventListener('click', () => {
+	          const next = !document.body.classList.contains('pro-mode');
+	          setProMode(next);
+	        });
+	      }
+	      if (proSidebarToggleBtn) {
+	        proSidebarToggleBtn.addEventListener('click', toggleProSidebar);
+	      }
 	      const matchFinalizeBtn = [
 	        document.getElementById('match-finalize-btn'),
 	        document.getElementById('match-finalize-btn-top'),
@@ -3238,18 +3416,29 @@
         actionPickerOverlay.classList.remove('is-open');
         actionPickerOverlay.setAttribute('aria-hidden', 'true');
       };
-      if (actionPickerOpenBtn) {
-        actionPickerOpenBtn.addEventListener('click', () => openActionPicker());
-      }
-      if (actionInput) {
-        actionInput.addEventListener('click', (event) => {
-          if (!actionInput.readOnly) return;
-          event.preventDefault();
-          openActionPicker();
-        });
-        actionInput.addEventListener('input', () => syncResultOptionsForAction(actionInput.value));
-        actionInput.addEventListener('change', () => syncResultOptionsForAction(actionInput.value));
-      }
+	      if (actionPickerOpenBtn) {
+	        actionPickerOpenBtn.addEventListener('click', () => openActionPicker());
+	      }
+	      if (proOpenActionPickerBtn) {
+	        proOpenActionPickerBtn.addEventListener('click', () => openActionPicker());
+	      }
+	      if (actionInput) {
+	        const persistActionPick = () => {
+	          try {
+	            writeProState({
+	              action: String(actionInput.value || '').trim(),
+	              player_id: String(selectedPlayerId || '').trim(),
+	            });
+	          } catch (e) {}
+	        };
+	        actionInput.addEventListener('click', (event) => {
+	          if (!actionInput.readOnly) return;
+	          event.preventDefault();
+	          openActionPicker();
+	        });
+	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
+	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
+	      }
       if (actionPickerCloseBtn) {
         actionPickerCloseBtn.addEventListener('click', () => closeActionPicker());
       }
@@ -3913,8 +4102,8 @@
 	          showPageStatus(autoPlayerEnabled ? 'Auto-jugador activado.' : 'Auto-jugador desactivado.', 'info', 1800);
 	        });
 	      }
-	      const clearPlayerSelection = () => {
-	        selectedPlayerId = null;
+		      const clearPlayerSelection = () => {
+		        selectedPlayerId = null;
 	        lastPlayerPickAt = Date.now();
 	        lastPlayerPickSource = 'manual';
 	        if (playerInput) {
@@ -3925,12 +4114,13 @@
 	        if (playerQuickBlock) {
 	          playerQuickBlock.classList.remove('is-visible');
 	        }
-	        if (typeof setSubTapMode === 'function') {
-	          setSubTapMode(false);
-	        }
-	      };
-	      const selectPlayer = (playerId) => {
-	        selectedPlayerId = playerId;
+		        if (typeof setSubTapMode === 'function') {
+		          setSubTapMode(false);
+		        }
+		        try { writeProState({ player_id: '' }); } catch (e) {}
+		      };
+		      const selectPlayer = (playerId) => {
+		        selectedPlayerId = playerId;
 	        lastPlayerPickAt = Date.now();
 	        lastPlayerPickSource = nextPlayerPickSource || 'manual';
 	        nextPlayerPickSource = 'manual';
@@ -3940,16 +4130,110 @@
 	        document.querySelectorAll('.lineup-chip').forEach((chip) => {
 	          chip.classList.toggle('selected', chip.dataset.playerId === playerId);
 	        });
-	        convocationCards.forEach((card) => {
-	          card.classList.toggle('selected', card.dataset.playerId === playerId);
-	        });
-	        updatePlayerQuickPanel();
-	        try {
-	          maybeHandleTapSubstitution(playerId);
-	        } catch (err) {
-	          // ignore
-	        }
-	      };
+		        convocationCards.forEach((card) => {
+		          card.classList.toggle('selected', card.dataset.playerId === playerId);
+		        });
+		        try { writeProState({ player_id: String(playerId || '').trim(), action: String(actionInput?.value || '').trim() }); } catch (e) {}
+		        updatePlayerQuickPanel();
+		        try { renderProQuickPlayers(); } catch (e) {}
+		        try {
+		          maybeHandleTapSubstitution(playerId);
+		        } catch (err) {
+		          // ignore
+		        }
+		      };
+		      if (proClearPlayerBtn) {
+		        proClearPlayerBtn.addEventListener('click', () => {
+		          try { clearPlayerSelection(); } catch (e) {}
+		        });
+		      }
+		      if (proUndoBtn) {
+		        proUndoBtn.addEventListener('click', () => {
+		          try { document.getElementById('undo-last-action-btn')?.click?.(); } catch (e) {}
+		        });
+		      }
+		      function renderProQuickPlayers() {
+		        if (!document.body.classList.contains('pro-mode')) return;
+		        if (!proQuickPanel || !proOnfieldChips || !proBenchChips) return;
+		        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+		        const bench = Array.isArray(lineupState?.bench) ? lineupState.bench : [];
+		        const build = (wrap, list, labelEmpty) => {
+		          wrap.innerHTML = '';
+		          if (!list.length) {
+		            const span = document.createElement('span');
+		            span.className = 'meta';
+		            span.style.opacity = '0.8';
+		            span.textContent = labelEmpty;
+		            wrap.appendChild(span);
+		            return;
+		          }
+		          list.slice(0, 30).forEach((player) => {
+		            const id = String(player?.id || '').trim();
+		            if (!id) return;
+		            const btn = document.createElement('button');
+		            btn.type = 'button';
+		            btn.className = 'pro-chip';
+		            const num = String(player?.number || '').trim();
+		            const name = String(player?.name || 'JUGADOR').trim().toUpperCase();
+		            btn.innerHTML = `${num ? `#${num}` : '#--'} <small>${name}</small>`;
+		            btn.classList.toggle('is-selected', String(selectedPlayerId || '') === id);
+		            btn.addEventListener('click', () => {
+		              nextPlayerPickSource = 'pro';
+		              selectPlayer(id);
+		            });
+		            wrap.appendChild(btn);
+		          });
+		        };
+		        build(proOnfieldChips, starters, 'Define el 11 inicial para tener chips aquí.');
+		        build(proBenchChips, bench, 'Sin suplentes.');
+		        if (proQuickMeta) {
+		          const selected = String(selectedPlayerId || '').trim();
+		          if (!selected) proQuickMeta.textContent = 'Pulsa un jugador para seleccionar';
+		          else proQuickMeta.textContent = 'Jugador seleccionado · toca Acción y luego una zona en el campo';
+		        }
+		      }
+		      const proStateKey = currentMatchId ? `webstats:match_actions:pro_state:v1:${currentMatchId}` : '';
+		      const readProState = () => {
+		        if (!proStateKey) return null;
+		        try {
+		          const raw = localStorage.getItem(proStateKey) || '';
+		          const parsed = raw ? JSON.parse(raw) : null;
+		          return parsed && typeof parsed === 'object' ? parsed : null;
+		        } catch (e) {
+		          return null;
+		        }
+		      };
+		      const writeProState = (patch) => {
+		        if (!proStateKey) return;
+		        try {
+		          const current = readProState() || {};
+		          const next = { ...current, ...(patch && typeof patch === 'object' ? patch : {}) };
+		          next._ts = Date.now();
+		          localStorage.setItem(proStateKey, JSON.stringify(next));
+		        } catch (e) {}
+		      };
+		      const restoreProState = () => {
+		        const st = readProState();
+		        if (!st) return;
+		        // Ignora estados viejos (evita "arrastrar" selección a otro partido/otro día).
+		        try {
+		          const ts = Number(st._ts || 0);
+		          if (ts && Date.now() - ts > 8 * 60 * 60 * 1000) return;
+		        } catch (e) {}
+		        try {
+		          const pid = String(st.player_id || '').trim();
+		          if (pid) {
+		            nextPlayerPickSource = 'restore';
+		            selectPlayer(pid);
+		          }
+		        } catch (e) {}
+		        try {
+		          const a = String(st.action || '').trim();
+		          if (a && actionInput) {
+		            actionInput.value = a;
+		          }
+		        } catch (e) {}
+		      };
       const createLineupChip = (player, sectionKey) => {
         const span = document.createElement('span');
         span.className = 'lineup-name lineup-chip';
@@ -4065,9 +4349,9 @@
           preLineupChipsEl.appendChild(chip);
         });
       };
-      const renderLineup = () => {
-        Object.keys(lineupSections).forEach(renderLineupSection);
-        refreshLineupCounts();
+	      const renderLineup = () => {
+	        Object.keys(lineupSections).forEach(renderLineupSection);
+	        refreshLineupCounts();
         const startersCount = lineupState.starters?.length || 0;
         const startersWrapper = lineupSections.starters?.wrapper;
         if (startersWrapper) {
@@ -4085,13 +4369,14 @@
             lineupStatusMsg.textContent = `Faltan ${Math.max(0, 11 - startersCount)} titulares para completar el once.`;
           }
         }
-        updateLineupInput();
-        refreshCardAssignments();
-        renderPreLineupSummary();
-        if (typeof updateCloseSummary === 'function') {
-          updateCloseSummary();
-        }
-      };
+	        updateLineupInput();
+	        refreshCardAssignments();
+	        renderPreLineupSummary();
+	        try { renderProQuickPlayers(); } catch (e) {}
+	        if (typeof updateCloseSummary === 'function') {
+	          updateCloseSummary();
+	        }
+	      };
       const quickHistoryState = {
         amarilla: [],
         roja: [],
@@ -4609,8 +4894,9 @@
         clearPlayerSelection();
         renderLineup();
       };
-	      hydrateLineupState();
-	      renderLineup();
+		      hydrateLineupState();
+		      renderLineup();
+		      try { restoreProState(); } catch (e) {}
 	      // Mantiene registro de acciones sincronizado con el 11 inicial (si se edita desde otra pantalla).
 	      try {
 	        window.addEventListener('focus', () => { void refreshLineupFromServer({ quiet: true }); });
