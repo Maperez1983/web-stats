@@ -670,6 +670,8 @@
     try {
     const form = document.getElementById('task-builder-form');
     if (!form) return;
+    // Limpia el marcador del último error para evitar mensajes “fantasma” tras una recarga.
+    try { window.localStorage.removeItem('webstats:tpad:last_error'); } catch (e) { /* ignore */ }
     const coachDictionaryUrl = String(form?.dataset?.coachDictionaryUrl || '').trim()
       || '/static/football/data/coach_dictionary_es_v1.json';
     let coachDictionary = null;
@@ -1428,11 +1430,11 @@
       });
     }
 
-	    const setStatus = (message, isError = false) => {
-	      if (!statusEl) return;
-	      statusEl.textContent = message;
-	      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
-	    };
+		    function setStatus(message, isError = false) {
+		      if (!statusEl) return;
+		      statusEl.textContent = message;
+		      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
+		    }
 
 			    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {
