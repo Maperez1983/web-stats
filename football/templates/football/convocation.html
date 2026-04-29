@@ -464,25 +464,39 @@
             <span id="match-rival-name">{{ match_info.rival_full_name|default:match_info.opponent|default:"Rival por confirmar" }}</span>
           </div>
         </div>
-        <div class="match-grid">
-          <label class="full">Rival
-            <select id="match-opponent-select"></select>
-            <input id="match-opponent-manual" type="text" placeholder="Escribe rival manual..." style="display:none;margin-top:0.35rem;" />
-          </label>
-          <label>Jornada
-            <input id="match-round" type="text" value="{{ match_info.round|default:''|escape }}" />
-          </label>
-          <label>Día
-            <input id="match-date" type="date" value="{{ match_info.date|default:''|escape }}" />
-          </label>
-          <label>Hora
-            <input id="match-time" type="time" value="{{ match_info.time|default:''|escape }}" />
-          </label>
-          <label class="full">Lugar
-            <select id="match-location-select"></select>
-            <input id="match-location-manual" type="text" placeholder="Escribe campo manual..." style="display:none;margin-top:0.35rem;" />
-          </label>
-        </div>
+	        <div class="match-grid">
+	          <label class="full">Rival
+	            <select id="match-opponent-select"></select>
+	            <input id="match-opponent-manual" type="text" placeholder="Escribe rival manual..." style="display:none;margin-top:0.35rem;" />
+	          </label>
+	          <label>Tipo
+	            <select id="match-context">
+	              {% for item in match_context_options %}
+	              <option value="{{ item.value }}" {% if match_info.context == item.value %}selected{% endif %}>{{ item.label }}</option>
+	              {% endfor %}
+	            </select>
+	          </label>
+	          <label>Jornada
+	            <input id="match-round" type="text" value="{{ match_info.round|default:''|escape }}" />
+	          </label>
+	          <label>Día
+	            <input id="match-date" type="date" value="{{ match_info.date|default:''|escape }}" />
+	          </label>
+	          <label>Hora
+	            <input id="match-time" type="time" value="{{ match_info.time|default:''|escape }}" />
+	          </label>
+	          <label class="full" id="match-tournament-row" style="display:none;">
+	            Torneo / fase
+	            <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:0.45rem; margin-top:0.35rem;">
+	              <input id="match-tournament-name" type="text" placeholder="Nombre del torneo" value="{{ match_info.tournament_name|default:''|escape }}" />
+	              <input id="match-tournament-stage" type="text" placeholder="Fase (grupo, cuartos...)" value="{{ match_info.tournament_stage|default:''|escape }}" />
+	            </div>
+	          </label>
+	          <label class="full">Lugar
+	            <select id="match-location-select"></select>
+	            <input id="match-location-manual" type="text" placeholder="Escribe campo manual..." style="display:none;margin-top:0.35rem;" />
+	          </label>
+	        </div>
         <div class="actions">
           <button id="save-convocation" class="button primary" type="button">Guardar convocatoria</button>
           <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
@@ -570,15 +584,29 @@
       const parsedCurrentOpponent = "{{ match_info.opponent|default:''|escapejs }}";
       const parsedCurrentLocation = "{{ match_info.location|default:''|escapejs }}";
 
-      const matchOpponentSelect = document.querySelector('#match-opponent-select');
-      const matchOpponentManual = document.querySelector('#match-opponent-manual');
-      const matchRivalCrest = document.querySelector('#match-rival-crest');
-      const matchRivalName = document.querySelector('#match-rival-name');
-      const matchRound = document.querySelector('#match-round');
-      const matchDate = document.querySelector('#match-date');
-      const matchTime = document.querySelector('#match-time');
-      const matchLocationSelect = document.querySelector('#match-location-select');
-      const matchLocationManual = document.querySelector('#match-location-manual');
+	      const matchOpponentSelect = document.querySelector('#match-opponent-select');
+	      const matchOpponentManual = document.querySelector('#match-opponent-manual');
+	      const matchRivalCrest = document.querySelector('#match-rival-crest');
+	      const matchRivalName = document.querySelector('#match-rival-name');
+	      const matchContext = document.querySelector('#match-context');
+	      const matchTournamentRow = document.querySelector('#match-tournament-row');
+	      const matchTournamentName = document.querySelector('#match-tournament-name');
+	      const matchTournamentStage = document.querySelector('#match-tournament-stage');
+	      const matchRound = document.querySelector('#match-round');
+	      const matchDate = document.querySelector('#match-date');
+	      const matchTime = document.querySelector('#match-time');
+	      const matchLocationSelect = document.querySelector('#match-location-select');
+	      const matchLocationManual = document.querySelector('#match-location-manual');
+
+	      const syncContextVisibility = () => {
+	        const contextValue = String(matchContext?.value || '').trim();
+	        const isTournament = contextValue === 'tournament';
+	        if (matchTournamentRow) matchTournamentRow.style.display = isTournament ? 'block' : 'none';
+	        if (!isTournament) {
+	          if (matchTournamentName) matchTournamentName.value = '';
+	          if (matchTournamentStage) matchTournamentStage.value = '';
+	        }
+	      };
 
       const selectedSet = new Set(({{ selected_player_ids_json|safe }} || []).map((item) => String(item)));
       const initialCaptainId = {{ captain_id_json|safe }};
@@ -936,14 +964,17 @@
           players: Array.from(selectedSet),
           captain_id: Number.isFinite(captainInt) ? captainInt : null,
           goalkeeper_id: Number.isFinite(goalkeeperInt) ? goalkeeperInt : null,
-          match_info: {
-            opponent: getOpponentValue(),
-            round: matchRound?.value || '',
-            date: matchDate?.value || '',
-            time: matchTime?.value || '',
-            location: getLocationValue(),
-          },
-        };
+	          match_info: {
+	            opponent: getOpponentValue(),
+	            round: matchRound?.value || '',
+	            date: matchDate?.value || '',
+	            time: matchTime?.value || '',
+	            location: getLocationValue(),
+	            context: String(matchContext?.value || '').trim() || 'league',
+	            tournament_name: String(matchTournamentName?.value || '').trim(),
+	            tournament_stage: String(matchTournamentStage?.value || '').trim(),
+	          },
+	        };
         const response = await fetch('{% url "convocation-save" %}', {
           method: 'POST',
           headers: {
@@ -1008,6 +1039,7 @@
       });
       matchOpponentManual?.addEventListener('input', refreshRivalIdentity);
       matchLocationSelect?.addEventListener('change', setManualVisibility);
+      matchContext?.addEventListener('change', syncContextVisibility);
 
       selectVisibleBtn?.addEventListener('click', () => {
         cards.forEach((card) => {
@@ -1069,6 +1101,7 @@
       hydrateOpponentSelect();
       updateLocationOptions();
       setManualVisibility();
+      syncContextVisibility();
       applyFilters();
       syncCardStates();
       renderSelected();

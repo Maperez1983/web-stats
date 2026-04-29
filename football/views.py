@@ -17929,9 +17929,14 @@ def convocation_page(request):
     all_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('name'))
     for player in all_players:
         player.photo_url = resolve_player_photo_url(request, player)
-    # Convocatoria trabaja sobre el flujo de partido principal (Liga por defecto).
-    # Evitamos depender de un selector de ámbito aquí para no romper la pantalla.
-    scope_value = Match.CONTEXT_LEAGUE
+    active_match = _resolve_active_match_for_flow(request, primary_team)
+    requested_context = str(request.GET.get('context') or '').strip().lower()
+    active_match_context = str(getattr(active_match, 'context', '') or '').strip().lower()
+    allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
+    scope_value = requested_context or active_match_context or Match.CONTEXT_LEAGUE
+    if scope_value not in allowed_contexts:
+        scope_value = Match.CONTEXT_LEAGUE
+
     # Stats base (Universo/LaPreferente) solo son fiables para Liga.
     if scope_value == Match.CONTEXT_LEAGUE:
         # La caché de La Preferente es legacy y solo aplica al equipo principal.
@@ -17992,7 +17997,6 @@ def convocation_page(request):
                 return entry
         return {}
     active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
-    active_match = _resolve_active_match_for_flow(request, primary_team)
     sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
         primary_team,
         reference_match=active_match,
@@ -18061,6 +18065,9 @@ def convocation_page(request):
         'time': str(default_match_info.get('time') or '').strip() if isinstance(default_match_info, dict) else '',
         'location': str(default_match_info.get('location') or '').strip() if isinstance(default_match_info, dict) else '',
         'opponent': opponent_name,
+        'context': scope_value,
+        'tournament_name': '',
+        'tournament_stage': '',
     }
     # Si el usuario seleccionó un partido (match_id / sesión), la UI de convocatoria debe reflejarlo.
     if active_match:
@@ -18083,6 +18090,11 @@ def convocation_page(request):
             match_info['time'] = active_match.kickoff_time.strftime('%H:%M')
         if active_match.location:
             match_info['location'] = str(active_match.location or '').strip()
+        if getattr(active_match, 'context', None):
+            match_info['context'] = str(active_match.context or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+        if match_info.get('context') == Match.CONTEXT_TOURNAMENT:
+            match_info['tournament_name'] = str(getattr(active_match, 'tournament_name', '') or '').strip()
+            match_info['tournament_stage'] = str(getattr(active_match, 'tournament_stage', '') or '').strip()
     if convocation_record:
         if convocation_record.round:
             match_info['round'] = convocation_record.round
@@ -18094,6 +18106,14 @@ def convocation_page(request):
             match_info['location'] = convocation_record.location
         if convocation_record.opponent_name:
             match_info['opponent'] = convocation_record.opponent_name
+        try:
+            if convocation_record.match and getattr(convocation_record.match, 'context', None):
+                match_info['context'] = str(convocation_record.match.context or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+            if match_info.get('context') == Match.CONTEXT_TOURNAMENT and convocation_record.match:
+                match_info['tournament_name'] = str(getattr(convocation_record.match, 'tournament_name', '') or '').strip()
+                match_info['tournament_stage'] = str(getattr(convocation_record.match, 'tournament_stage', '') or '').strip()
+        except Exception:
+            pass
     rival_full_name, rival_crest_url = _resolve_rival_identity(
         match_info.get('opponent') or 'Rival por confirmar',
         preferred_opponent=(default_match_info.get('opponent') if isinstance(default_match_info, dict) else None),
@@ -18170,6 +18190,11 @@ def convocation_page(request):
                 [p.id for p in all_players if getattr(p, 'has_active_injury', False)]
             ),
             'match_info': match_info,
+            'match_context_options': [
+                {'value': Match.CONTEXT_LEAGUE, 'label': 'Liga'},
+                {'value': Match.CONTEXT_TOURNAMENT, 'label': 'Torneo'},
+                {'value': Match.CONTEXT_FRIENDLY, 'label': 'Amistoso'},
+            ],
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
             'has_pending_convocation': bool(convocation_record and not selected_player_ids),
             'can_generate_convocation_pdf': bool(convocation_record and selected_player_ids),
@@ -18213,6 +18238,12 @@ def save_convocation(request):
     opponent_value = str(match_info.get('opponent') or '').strip()
     date_value_raw = str(match_info.get('date') or '').strip()
     time_value_raw = str(match_info.get('time') or '').strip()
+    context_value = str(match_info.get('context') or '').strip().lower()
+    tournament_name_value = str(match_info.get('tournament_name') or '').strip()
+    tournament_stage_value = str(match_info.get('tournament_stage') or '').strip()
+    allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
+    if context_value not in allowed_contexts:
+        context_value = Match.CONTEXT_LEAGUE
 
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
     blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
@@ -18246,6 +18277,8 @@ def save_convocation(request):
         if parsed_match_date:
             try:
                 qs = _team_match_queryset(primary_team).filter(date=parsed_match_date)
+                if context_value:
+                    qs = qs.filter(context=context_value)
                 if round_value:
                     qs = qs.filter(round=round_value)
                 if opponent_value:
@@ -18255,6 +18288,8 @@ def save_convocation(request):
                         | Q(home_team__short_name__iexact=opponent_value)
                         | Q(away_team__short_name__iexact=opponent_value)
                     )
+                if context_value == Match.CONTEXT_TOURNAMENT and tournament_name_value:
+                    qs = qs.filter(tournament_name=tournament_name_value)
                 target_match = qs.order_by('-id').first()
             except Exception:
                 target_match = None
@@ -18272,6 +18307,9 @@ def save_convocation(request):
                 location=location_value,
                 home_team=primary_team,
                 away_team=None,
+                context=context_value,
+                tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+                tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
             )
 
     if target_match:
@@ -18286,6 +18324,9 @@ def save_convocation(request):
                 'location': location_value,
                 'datetime': datetime_label,
                 'opponent': opponent_value,
+                'context': context_value,
+                'tournament_name': tournament_name_value,
+                'tournament_stage': tournament_stage_value,
             },
         )
 
