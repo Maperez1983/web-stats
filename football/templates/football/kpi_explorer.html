@@ -35,9 +35,12 @@
       .pill { display:inline-flex; align-items:center; justify-content:center; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
       .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.9rem; }
       .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:0.6rem; margin-top:0.6rem; }
-      .kpi { border-radius: 18px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); padding: 0.85rem; }
+      .kpi { border-radius: 18px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); padding: 0.85rem; cursor:pointer; }
+      .kpi:hover { border-color: rgba(103,232,249,0.34); background: rgba(255,255,255,0.05); }
       .kpi .k { font-size: 0.72rem; letter-spacing:0.08em; text-transform:uppercase; font-weight:900; color: rgba(226,232,240,0.78); }
       .kpi .v { margin-top:0.35rem; font-size: 1.4rem; font-weight: 900; }
+      .modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; padding: 1.25rem; background: rgba(0,0,0,0.52); z-index: 60; }
+      .modal[hidden] { display:none !important; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -93,7 +96,7 @@
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
               <button type="button" class="button" id="kpi-load">Cargar acciones</button>
               <button type="button" class="button primary" id="kpi-run">Calcular</button>
-              <button type="button" class="button" id="kpi-pdf">PDF</button>
+	              <button type="button" class="button" id="kpi-pdf">PDF (presentación)</button>
               <button type="button" class="button danger" id="kpi-clear">Limpiar</button>
             </div>
             <div class="meta" id="kpi-status">Listo.</div>
@@ -127,21 +130,37 @@
           </details>
         </section>
 
-        <aside class="card">
+	        <aside class="card">
           <div class="hint">Selección</div>
           <div class="list" id="kpi-selected"></div>
           <div class="hint" style="margin-top:0.95rem;">Resultado</div>
+          <div class="meta">Tip: toca un KPI para ver sus acciones.</div>
           <div class="kpi-grid" id="kpi-output"></div>
         </aside>
-      </div>
-    </main>
+	      </div>
+	    </main>
+
+	    <div class="modal" id="kpi-sources-modal" hidden>
+	      <div class="card" role="dialog" aria-modal="true" aria-label="Acciones del KPI" style="max-width: 980px; margin: 0 auto;">
+	        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+	          <div style="min-width:0;">
+	            <div class="meta" id="kpi-sources-subtitle">Acciones</div>
+	            <h3 style="margin:0.15rem 0 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="kpi-sources-title">—</h3>
+	          </div>
+	          <button type="button" class="button" id="kpi-sources-close">Cerrar</button>
+	        </div>
+	        <div class="hint" style="margin-top:0.65rem;">Acciones que componen el KPI (máx. 220).</div>
+	        <div class="list" id="kpi-sources-list" style="margin-top:0.55rem; max-height: 52vh; overflow:auto;"></div>
+	      </div>
+	    </div>
 
     {{ match_items|json_script:"kpi-match-items" }}
     {{ player_items|json_script:"kpi-player-items" }}
     {{ derived_metrics|json_script:"kpi-derived-metrics" }}
-    <input type="hidden" id="kpi-options-url" value="{% url 'kpi-explorer-options-api' %}" />
-    <input type="hidden" id="kpi-query-url" value="{% url 'kpi-explorer-query-api' %}" />
-    <input type="hidden" id="kpi-pdf-url" value="{% url 'kpi-explorer-pdf-api' %}" />
+	    <input type="hidden" id="kpi-options-url" value="{% url 'kpi-explorer-options-api' %}" />
+	    <input type="hidden" id="kpi-query-url" value="{% url 'kpi-explorer-query-api' %}" />
+	    <input type="hidden" id="kpi-sources-url" value="{% url 'kpi-explorer-sources-api' %}" />
+	    <input type="hidden" id="kpi-pdf-url" value="{% url 'kpi-explorer-pdf-api' %}" />
     <form id="kpi-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'football/js/kpi_explorer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

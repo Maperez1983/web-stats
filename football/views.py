@@ -111,13 +111,14 @@ from football.models import (
     Team,
     TeamStatistic,
     TeamStanding,
-    Workspace,
-    WorkspaceTeam,
-    WorkspaceTeamAccess,
-    WorkspaceMembership,
-    TrainingMicrocycle,
-    TrainingSession,
-    ConvocationRecord,
+	    Workspace,
+	    WorkspaceTeam,
+	    WorkspaceTeamAccess,
+	    WorkspaceMembership,
+	    WorkspacePreference,
+	    TrainingMicrocycle,
+	    TrainingSession,
+	    ConvocationRecord,
     RivalConvocationRecord,
     HomeCarouselImage,
     AnalystVideoFolder,
@@ -6372,6 +6373,60 @@ def _can_view_workspace(user, workspace):
             pass
     membership = _workspace_membership_for_user(workspace, user)
     return bool(membership)
+
+
+def _workspace_pref_key(raw_key: str) -> str:
+    key = str(raw_key or '').strip()
+    key = re.sub(r'[^a-zA-Z0-9_\-:\.]+', '', key)
+    return key[:80]
+
+
+@login_required
+def workspace_preference_get_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    key = _workspace_pref_key(request.GET.get('key') or '')
+    if not key:
+        return JsonResponse({'ok': False, 'error': 'key requerido.'}, status=400)
+    pref = WorkspacePreference.objects.filter(workspace=workspace, key=key).first()
+    return JsonResponse({'ok': True, 'key': key, 'value': pref.value if pref else None, 'updated_at': pref.updated_at if pref else None})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def workspace_preference_set_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    key = _workspace_pref_key(data.get('key') or '')
+    if not key:
+        return JsonResponse({'ok': False, 'error': 'key requerido.'}, status=400)
+    value = data.get('value')
+    if value is None:
+        value = {}
+    # Guardrail tamaño.
+    try:
+        raw_size = len(json.dumps(value, ensure_ascii=False).encode('utf-8'))
+    except Exception:
+        raw_size = 0
+    if raw_size > 150_000:
+        return JsonResponse({'ok': False, 'error': 'Preferencia demasiado grande.'}, status=400)
+    obj, _ = WorkspacePreference.objects.update_or_create(
+        workspace=workspace,
+        key=key,
+        defaults={'value': value},
+    )
+    return JsonResponse({'ok': True, 'key': key, 'updated_at': obj.updated_at})
 
 
 def _can_manage_workspace(user, workspace):
@@ -17698,6 +17753,135 @@ def kpi_explorer_query_api(request):
             out.append({'kind': 'tercio', 'key': value, 'label': f'Tercio: {value}', 'value': int(tercio_counts.get(value, 0))})
 
     return JsonResponse({'ok': True, 'stats': stats, 'dimensions': dims, 'results': out})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def kpi_explorer_sources_api(request):
+    """
+    Devuelve acciones "fuente" para un KPI (drill-down).
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo no disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    scope = str(data.get('scope') or 'team').strip().lower()
+    match_id = _parse_int(data.get('match_id')) or 0
+    player_id = _parse_int(data.get('player_id')) or 0
+    context = str(data.get('context') or 'all').strip().lower()
+    metric = data.get('metric') if isinstance(data.get('metric'), dict) else {}
+    kind = str(metric.get('kind') or '').strip().lower()
+    key = str(metric.get('key') or metric.get('value') or '').strip()
+    if not kind or not key:
+        return JsonResponse({'ok': False, 'error': 'metric.kind y metric.key requeridos.'}, status=400)
+
+    events = _kpi_explorer_load_events(request, primary_team=primary_team, scope=scope, match_id=match_id, player_id=player_id, context=context)
+
+    def _event_pass_info(ev):
+        is_pass_event = (
+            contains_keyword(ev.event_type, PASS_KEYWORDS)
+            or contains_keyword(ev.observation, PASS_KEYWORDS)
+            or is_assist_event(ev.event_type, ev.result, ev.observation)
+        )
+        completed = result_is_success(ev.result) or is_assist_event(ev.event_type, ev.result, ev.observation)
+        is_key = is_key_pass_event(ev.event_type, ev.result, ev.observation) and completed
+        return {'is_pass': bool(is_pass_event), 'completed': bool(completed), 'is_key': bool(is_key)}
+
+    def _matches(ev) -> bool:
+        if kind == 'event_type':
+            return str(getattr(ev, 'event_type', '') or '').strip() == key
+        if kind == 'result':
+            value = str(getattr(ev, 'result', '') or '').strip() or '—'
+            return value == key
+        if kind == 'zone':
+            zone_label = map_zone_label((getattr(ev, 'zone', '') or '').strip()) or ''
+            return zone_label == key
+        if kind == 'tercio':
+            zone_label = map_zone_label((getattr(ev, 'zone', '') or '').strip()) or ''
+            tercio_label = map_tercio((getattr(ev, 'tercio', '') or '').strip()) or ''
+            if not tercio_label and zone_label:
+                tercio_label = zone_to_tercio(zone_label)
+            return tercio_label == key
+        if kind != 'derived':
+            return False
+
+        derived_key = key
+        if derived_key == 'total_actions':
+            return True
+        if derived_key == 'successes':
+            return result_is_success(getattr(ev, 'result', None))
+        if derived_key == 'goals':
+            return is_goal_event(ev.event_type, ev.result, ev.observation)
+        if derived_key == 'assists':
+            return is_assist_event(ev.event_type, ev.result, ev.observation)
+        if derived_key == 'yellow_cards':
+            return is_yellow_card_event(ev.event_type, ev.result, ev.zone)
+        if derived_key == 'red_cards':
+            return is_red_card_event(ev.event_type, ev.result, ev.zone)
+        if derived_key in {'duels_total', 'duels_won', 'duel_rate'}:
+            duel_event = classify_duel_event(ev.event_type, ev.result, ev.observation, ev.zone)
+            if not duel_event.get('is_duel'):
+                return False
+            if derived_key == 'duels_won':
+                return bool(duel_event.get('won'))
+            return True
+        if derived_key in {'aerial_duels_total', 'aerial_duels_won', 'aerial_duel_rate'}:
+            duel_event = classify_duel_event(ev.event_type, ev.result, ev.observation, ev.zone)
+            if not duel_event.get('is_duel') or not duel_event.get('aerial'):
+                return False
+            if derived_key == 'aerial_duels_won':
+                return bool(duel_event.get('won'))
+            return True
+        if derived_key in {'shot_attempts', 'shots_on_target', 'shots_accuracy'}:
+            if not is_shot_attempt_event(ev.event_type, ev.result, ev.observation):
+                return False
+            if derived_key == 'shots_on_target':
+                return is_shot_on_target_event(ev.event_type, ev.result, ev.observation)
+            return True
+        if derived_key in {'pass_attempts', 'passes_completed', 'passes_accuracy', 'key_passes_completed'}:
+            info = _event_pass_info(ev)
+            if not info.get('is_pass'):
+                return False
+            if derived_key == 'passes_completed':
+                return bool(info.get('completed'))
+            if derived_key == 'key_passes_completed':
+                return bool(info.get('is_key'))
+            return True
+        if derived_key == 'goalkeeper_saves':
+            return is_goalkeeper_save_event(ev.event_type, ev.result, ev.observation)
+        return False
+
+    rows = []
+    for ev in events:
+        if not _matches(ev):
+            continue
+        player = getattr(ev, 'player', None)
+        zone_label = map_zone_label((getattr(ev, 'zone', '') or '').strip()) or (str(getattr(ev, 'zone', '') or '').strip())
+        rows.append(
+            {
+                'id': int(getattr(ev, 'id', 0) or 0),
+                'minute': getattr(ev, 'minute', None),
+                'player': (player.name if player else 'EQUIPO'),
+                'event_type': str(getattr(ev, 'event_type', '') or '').strip(),
+                'result': str(getattr(ev, 'result', '') or '').strip(),
+                'zone': zone_label,
+                'observation': str(getattr(ev, 'observation', '') or '').strip(),
+            }
+        )
+        if len(rows) >= 220:
+            break
+
+    return JsonResponse({'ok': True, 'kind': kind, 'key': key, 'count': len(rows), 'events': rows})
 
 
 @csrf_exempt

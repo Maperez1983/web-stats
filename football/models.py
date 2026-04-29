@@ -229,6 +229,30 @@ class WorkspaceTeamAccess(models.Model):
         return f'{self.workspace.name} · {self.team.display_name} · {self.user.username}'
 
 
+class WorkspacePreference(models.Model):
+    """
+    Preferencias UI compartibles a nivel de club (workspace).
+
+    Ejemplos:
+    - Visibilidad de KPIs por pantalla/rol.
+    - Configuración de keypad PRO para registro de acciones.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='preferences')
+    key = models.CharField(max_length=80, db_index=True)
+    value = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['key', '-updated_at', '-id']
+        unique_together = ('workspace', 'key')
+        verbose_name = 'Preferencia del workspace'
+        verbose_name_plural = 'Preferencias del workspace'
+
+    def __str__(self):
+        return f'{self.workspace_id}:{self.key}'
+
+
 class WorkspaceCompetitionContext(models.Model):
     PROVIDER_MANUAL = 'manual'
     PROVIDER_RFAF = 'rfaf'

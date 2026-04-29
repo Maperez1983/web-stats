@@ -83,8 +83,15 @@
 
     const optionsUrl = safeText(document.getElementById('kpi-options-url')?.value);
     const queryUrl = safeText(document.getElementById('kpi-query-url')?.value);
+    const sourcesUrl = safeText(document.getElementById('kpi-sources-url')?.value);
     const pdfUrl = safeText(document.getElementById('kpi-pdf-url')?.value);
     const csrf = document.querySelector('#kpi-csrf input[name="csrfmiddlewaretoken"]')?.value || '';
+
+    const sourcesModal = document.getElementById('kpi-sources-modal');
+    const sourcesClose = document.getElementById('kpi-sources-close');
+    const sourcesTitle = document.getElementById('kpi-sources-title');
+    const sourcesSubtitle = document.getElementById('kpi-sources-subtitle');
+    const sourcesList = document.getElementById('kpi-sources-list');
 
     const matchItems = Array.isArray(jsonFromScript('kpi-match-items')) ? jsonFromScript('kpi-match-items') : [];
     const playerItems = Array.isArray(jsonFromScript('kpi-player-items')) ? jsonFromScript('kpi-player-items') : [];
@@ -409,12 +416,67 @@
         outputWrap.innerHTML = rows.map((r) => {
           const label = safeText(r?.label, '—');
           const value = safeText(r?.value, '0');
-          return `<article class="kpi"><div class="k">${escHtml(label)}</div><div class="v">${escHtml(value)}</div></article>`;
+          const metric = { kind: safeText(r?.kind), key: safeText(r?.key), label };
+          return `<article class="kpi" data-metric='${escHtml(JSON.stringify(metric))}' title="Ver acciones"><div class="k">${escHtml(label)}</div><div class="v">${escHtml(value)}</div></article>`;
         }).join('') || '<div class="meta">—</div>';
         setStatus('Listo.');
       } catch (e) {
         outputWrap.innerHTML = '<div class="meta">—</div>';
         setStatus('No se pudo calcular.', true);
+      }
+    };
+
+    const closeSources = () => {
+      if (!sourcesModal) return;
+      sourcesModal.hidden = true;
+    };
+
+    const openSources = async (metric) => {
+      if (!sourcesUrl || !sourcesModal || !sourcesList) return;
+      if (!ensureMatchRequired()) return;
+      const st = currentState();
+      const metricKind = safeText(metric?.kind);
+      const metricKeyVal = safeText(metric?.key);
+      if (!metricKind || !metricKeyVal) return;
+
+      sourcesSubtitle && (sourcesSubtitle.textContent = `${metricKind}`);
+      sourcesTitle && (sourcesTitle.textContent = safeText(metric?.label, metricKeyVal));
+      sourcesList.innerHTML = '<div class="meta">Cargando…</div>';
+      sourcesModal.hidden = false;
+
+      try {
+        const resp = await fetch(sourcesUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ ...st, metric: { kind: metricKind, key: metricKeyVal } }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        const events = Array.isArray(data?.events) ? data.events : [];
+        if (!events.length) {
+          sourcesList.innerHTML = '<div class="meta">No hay acciones para este KPI.</div>';
+          return;
+        }
+        sourcesList.innerHTML = events.map((ev) => {
+          const minute = (ev?.minute === null || ev?.minute === undefined) ? '—' : String(ev.minute);
+          const player = safeText(ev?.player, 'EQUIPO');
+          const etype = safeText(ev?.event_type, '—');
+          const res = safeText(ev?.result, '—');
+          const zone = safeText(ev?.zone, '');
+          const obs = safeText(ev?.observation, '');
+          return `
+            <div class="row">
+              <div style="display:flex; flex-direction:column; gap:0.15rem; min-width:0;">
+                <strong>${escHtml(`${minute}' · ${player}`)}</strong>
+                <small>${escHtml([etype, res, zone].filter(Boolean).join(' · '))}</small>
+                ${obs ? `<small style="opacity:0.95;">${escHtml(obs)}</small>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        sourcesList.innerHTML = '<div class="meta">No se pudieron cargar las acciones.</div>';
       }
     };
 
@@ -451,6 +513,25 @@
     pdfBtn?.addEventListener('click', exportPdf);
     clearBtn?.addEventListener('click', clearAll);
     searchInput?.addEventListener('input', renderAllOptions);
+
+    sourcesClose?.addEventListener('click', closeSources);
+    sourcesModal?.addEventListener('click', (ev) => {
+      if (ev?.target === sourcesModal) closeSources();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if (ev?.key === 'Escape') closeSources();
+    });
+
+    outputWrap?.addEventListener('click', (ev) => {
+      const target = ev?.target;
+      const kpi = target?.closest ? target.closest('[data-metric]') : null;
+      const raw = safeText(kpi?.getAttribute?.('data-metric') || '');
+      if (!raw) return;
+      try {
+        const metric = JSON.parse(raw);
+        openSources(metric);
+      } catch (e) { /* ignore */ }
+    });
 
     renderSelected();
     renderAllOptions();

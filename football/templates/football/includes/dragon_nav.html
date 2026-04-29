@@ -86,6 +86,15 @@
   }
 })();
 </script>
+{% if active_workspace %}
+<script>
+  window.WEBSTATS_WORKSPACE_PREFS = {
+    workspaceId: {{ active_workspace.id|default:0 }},
+    getUrl: "{% url 'workspace-pref-get' %}",
+    setUrl: "{% url 'workspace-pref-set' %}",
+  };
+</script>
+{% endif %}
 {% endif %}
 {% if not hide_product_shortcuts %}
 <nav class="product-nav-shortcuts" aria-label="Accesos rápidos">

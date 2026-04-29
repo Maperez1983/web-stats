@@ -39,13 +39,62 @@
     return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "es"));
   };
 
-  const ensureCustomizer = (detailsEl) => {
+  const prefsClient = (() => {
+    const cfg = window.WEBSTATS_WORKSPACE_PREFS || null;
+    const getUrl = cfg && typeof cfg.getUrl === "string" ? cfg.getUrl : "";
+    const setUrl = cfg && typeof cfg.setUrl === "string" ? cfg.setUrl : "";
+    if (!getUrl || !setUrl) return null;
+    const readCsrf = () => (document.cookie || "")
+      .split(";")
+      .map((s) => s.trim())
+      .find((s) => s.startsWith("csrftoken="))
+      ?.split("=")[1] || "";
+    const get = async (key) => {
+      const k = String(key || "").trim();
+      if (!k) return null;
+      const url = new URL(getUrl, window.location.origin);
+      url.searchParams.set("key", k);
+      const resp = await fetch(url.toString(), { method: "GET", credentials: "same-origin", headers: { Accept: "application/json" } });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || !data || data.ok === false) return null;
+      return data.value ?? null;
+    };
+    const set = async (key, value) => {
+      const k = String(key || "").trim();
+      if (!k) return false;
+      const resp = await fetch(setUrl, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": readCsrf(), Accept: "application/json" },
+        body: JSON.stringify({ key: k, value }),
+      });
+      const data = await resp.json().catch(() => null);
+      return Boolean(resp.ok && data && data.ok !== false);
+    };
+    return { get, set };
+  })();
+
+  const ensureCustomizer = async (detailsEl) => {
     const prefKey = String(detailsEl.dataset.kpiPrefKey || "").trim();
     if (!prefKey) return;
     const container = detailsEl.closest("[data-kpi-container]") || document;
     const storageKey = `kpi_visibility:${prefKey}`;
     const stored = safeJsonParse(window.localStorage?.getItem(storageKey));
-    const visibilityByKey = stored && typeof stored === "object" ? stored : {};
+    const localVisibility = stored && typeof stored === "object" ? stored : {};
+    let visibilityByKey = { ...localVisibility };
+
+    // Preferencia compartida del club (si existe): sirve como "default" y se guarda para staff.
+    // LocalStorage sigue mandando si ya hay algo guardado en este dispositivo.
+    if (prefsClient) {
+      try {
+        const shared = await prefsClient.get(`kpi_visibility:${prefKey}`);
+        if (shared && typeof shared === "object") {
+          visibilityByKey = { ...shared, ...localVisibility };
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
 
     // Apply current visibility before building UI.
     applyVisibility(container, visibilityByKey);
@@ -73,6 +122,10 @@
         window.localStorage?.setItem(storageKey, JSON.stringify(visibilityByKey));
       } catch (err) {
         // ignore
+      }
+      if (prefsClient) {
+        // Best-effort, no bloquea UI.
+        prefsClient.set(`kpi_visibility:${prefKey}`, visibilityByKey).catch(() => {});
       }
     };
 
@@ -105,7 +158,7 @@
 
   const init = () => {
     const customizers = Array.from(document.querySelectorAll("details.kpi-customizer[data-kpi-pref-key]"));
-    customizers.forEach((detailsEl) => ensureCustomizer(detailsEl));
+    customizers.forEach((detailsEl) => { ensureCustomizer(detailsEl); });
   };
 
   if (document.readyState === "loading") {
@@ -114,4 +167,3 @@
     init();
   }
 })();
-
