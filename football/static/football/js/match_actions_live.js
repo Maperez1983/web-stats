@@ -1057,9 +1057,31 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (!button) return;
     button.addEventListener('click', async () => {
       if (button.disabled) return;
-      button.disabled = true;
-      Object.assign(matchInfoState, collectMatchInfoPayload());
+      const setFinalizeInFlight = (inFlight) => {
+        matchFinalizeButtons.forEach((btn) => {
+          if (!btn) return;
+          if (inFlight) {
+            btn.dataset.prevDisabled = btn.disabled ? '1' : '0';
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+          } else {
+            const prev = btn.dataset.prevDisabled;
+            if (prev === '1') btn.disabled = true;
+            else btn.disabled = false;
+            delete btn.dataset.prevDisabled;
+            btn.removeAttribute('aria-busy');
+          }
+        });
+      };
+      setFinalizeInFlight(true);
       try {
+        try {
+          Object.assign(matchInfoState, collectMatchInfoPayload());
+        } catch (err) {
+          console.error(err);
+          showPageStatus('No se pudo leer el formulario del partido. Recarga la página y prueba de nuevo.', 'danger', 6200);
+          return;
+        }
         // No permitimos cerrar si hay acciones offline sin sincronizar: se perderían del resumen/KPI.
         const countOfflineActions = () =>
           readOfflineQueue().filter((item) => item && item.kind === 'action').length;
@@ -1091,16 +1113,25 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
           body: JSON.stringify({ match_id: currentMatchId, match_info: matchInfoState }),
         });
-        const data = await response.json().catch(() => ({}));
+        const rawText = await response.text().catch(() => '');
+        const data = safeParseJson(rawText, {});
         if (!response.ok) {
           showPageStatus(data.error || 'No se pudo guardar el partido.', 'danger', 5200);
           return;
         }
+        const updatedCount = (() => {
+          const parsed = parseInt(String(data.updated ?? 0), 10);
+          return Number.isFinite(parsed) ? parsed : 0;
+        })();
+        const dedupCount = (() => {
+          const parsed = parseInt(String(data.deduplicated ?? 0), 10);
+          return Number.isFinite(parsed) ? parsed : 0;
+        })();
         try {
           const finalEl = document.getElementById('persistent-final');
           if (finalEl) {
             const current = parseInt(String(finalEl.textContent || '0'), 10);
-            const next = (Number.isFinite(current) ? current : 0) + (parseInt(String(data.updated || 0), 10) || 0);
+            const next = (Number.isFinite(current) ? current : 0) + (updatedCount || 0);
             finalEl.textContent = String(next);
           }
         } catch (error) {
@@ -1128,16 +1159,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         try {
           document.querySelector('[data-stage-tab="close"]')?.click();
         } catch (err) { /* ignore */ }
-        showPageStatus(
-          `Partido guardado. ${data.updated || 0} acciones consolidadas${data.deduplicated ? ` · ${data.deduplicated} duplicadas descartadas` : ''}.`,
-          'success',
-          5200
-        );
+        const message = updatedCount
+          ? `Partido guardado. ${updatedCount} acciones consolidadas${dedupCount ? ` · ${dedupCount} duplicadas descartadas` : ''}.`
+          : 'Partido guardado. No había acciones nuevas para consolidar.';
+        showPageStatus(message, 'success', 5200);
       } catch (err) {
         console.error(err);
         showPageStatus('Error al guardar el partido.', 'danger', 5200);
       } finally {
-        button.disabled = false;
+        setFinalizeInFlight(false);
       }
     });
   };

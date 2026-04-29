@@ -346,6 +346,74 @@ def billing_page(request):
     if not _can_manage_workspace(request.user, workspace) and not _can_access_platform(request.user):
         return HttpResponse('No tienes permisos para gestionar la suscripción.', status=403)
 
+    manual_msg = ''
+    manual_err = ''
+    allow_manual = bool(getattr(settings, 'DEBUG', False)) or str(os.getenv('ALLOW_MANUAL_BILLING', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    def _manual_entitlements(plan_key: str, addons_csv: str = '') -> dict:
+        plan_key = str(plan_key or '').strip().lower()
+        addons = {a.strip().lower() for a in str(addons_csv or '').split(',') if a.strip()}
+
+        # Basic/Core: datos + plantilla + convocatoria + métricas manuales.
+        if plan_key in {'basic', 'club_basic', 'core'}:
+            return {
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': True,
+                'manual_stats': True,
+            }
+
+        # Pro (bundle): todo.
+        if plan_key in {'pro', 'club_pro', 'bundle'}:
+            return {
+                'dashboard': True,
+                'coach_overview': True,
+                'players': True,
+                'convocation': True,
+                'manual_stats': True,
+                'match_actions': True,
+                'sessions': True,
+                'analysis': True,
+                'abp_board': True,
+                'tactics': True,
+            }
+
+        # Modular: Core + add-ons.
+        ent = {
+            'dashboard': True,
+            'coach_overview': True,
+            'players': True,
+            'convocation': True,
+            'manual_stats': True,
+        }
+        if 'live' in addons:
+            ent['match_actions'] = True
+        if 'studio' in addons:
+            ent['sessions'] = True
+            ent['abp_board'] = True
+        if 'analysis' in addons:
+            ent['analysis'] = True
+        if 'tactics' in addons:
+            ent['tactics'] = True
+        return ent
+
+    if request.method == 'POST' and allow_manual:
+        form_action = str(request.POST.get('form_action') or '').strip()
+        if form_action == 'manual_set_plan':
+            plan_key = str(request.POST.get('plan_key') or '').strip().lower() or 'pro'
+            addons = str(request.POST.get('addons') or '').strip()
+            try:
+                entitlements = _manual_entitlements(plan_key, addons_csv=addons)
+                workspace.plan_key = plan_key
+                # Si se activa manualmente, lo tratamos como suscripción activa para que no haya paywall.
+                workspace.subscription_status = 'active'
+                workspace.paid_modules = entitlements
+                workspace.save(update_fields=['plan_key', 'subscription_status', 'paid_modules', 'updated_at'])
+                manual_msg = 'Plan actualizado.'
+            except Exception as exc:
+                manual_err = f'No se pudo actualizar el plan: {exc.__class__.__name__}'
+
     expires_at = getattr(workspace, 'trial_expires_at', None)
     now = timezone.now()
     days_left = None
@@ -376,6 +444,9 @@ def billing_page(request):
             'stripe_modular_ready': bool((_stripe_price_map().get(('core', 'month')) or '').strip()),
             'stripe_modular_enabled': _stripe_modular_billing_enabled(),
             'stripe_addons_available': addons_available,
+            'allow_manual_billing': allow_manual,
+            'manual_billing_message': manual_msg,
+            'manual_billing_error': manual_err,
         },
     )
 
@@ -16080,8 +16151,29 @@ def finalize_match_actions(request):
             source_file='registro-acciones',
         ).select_related('player')
     )
+    def _score_payload_for_match():
+        try:
+            is_home = match.home_team_id == primary_team.id
+            score_for = match.home_score if is_home else match.away_score
+            score_against = match.away_score if is_home else match.home_score
+        except Exception:
+            score_for = None
+            score_against = None
+        return {
+            'score_for': '' if score_for is None else str(int(score_for)),
+            'score_against': '' if score_against is None else str(int(score_against)),
+        }
     if not pending_events:
-        return JsonResponse({'saved': True, 'updated': 0, 'match_id': match.id})
+        return JsonResponse(
+            {
+                'saved': True,
+                'match_id': match.id,
+                'match_label': str(match),
+                'updated': 0,
+                'deduplicated': 0,
+                **_score_payload_for_match(),
+            }
+        )
     # Consolidar TODO lo pendiente. No eliminamos "duplicados" aquí porque en fútbol puede haber
     # acciones iguales repetidas en el mismo minuto (y el usuario prefiere sumar de más antes
     # que perder acciones reales). El endpoint `register_match_action` ya evita doble-click inmediato.
@@ -16194,20 +16286,14 @@ def save_match_info(request):
             pass
 
     _invalidate_team_dashboard_caches(primary_team)
-    try:
-        is_home = match.home_team_id == primary_team.id
-        score_for = match.home_score if is_home else match.away_score
-        score_against = match.away_score if is_home else match.home_score
-    except Exception:
-        score_for = None
-        score_against = None
     return JsonResponse(
         {
             'saved': True,
             'match_id': match.id,
             'match_label': str(match),
-            'score_for': '' if score_for is None else str(int(score_for)),
-            'score_against': '' if score_against is None else str(int(score_against)),
+            'updated': int(updated or 0),
+            'deduplicated': 0,
+            **_score_payload_for_match(),
         }
     )
 
