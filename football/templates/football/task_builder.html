@@ -41,7 +41,9 @@
 	        position: fixed;
 	        inset: 0;
 	        /* Debe estar por encima de cualquier overlay/popover del motor de pizarra. */
-	        z-index: 99999;
+	        /* Important: tactical pad creates its own overlays (e.g. PDF viewer) at z-index 2147483647.
+	           We keep landing above all by using the same max int value. */
+	        z-index: 2147483647;
 	        background: rgba(2, 6, 23, 0.58);
 	        backdrop-filter: blur(10px);
 	        -webkit-backdrop-filter: blur(10px);
