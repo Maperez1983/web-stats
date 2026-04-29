@@ -12176,20 +12176,126 @@
 		        const assetId = normalized.split(':')[1] || '';
 		        return (left, top) => buildPdfAssetObject(assetId, left, top);
 		      }
-	      if (kind === 'ball') {
-	        return (left, top) => new fabric.Circle({
-	          left, top, originX: 'center', originY: 'center',
-	          radius: 10, fill: '#ffffff', stroke: '#0f172a', strokeWidth: 2,
-	          data: { kind: 'ball', color: '#ffffff' },
-        });
-      }
-	      if (kind === 'cone') {
-	        return (left, top) => new fabric.Triangle({
-	          left, top, originX: 'center', originY: 'center',
-	          width: 24, height: 24, fill: '#f97316', stroke: '#7c2d12', strokeWidth: 1.6,
-	          data: { kind: 'cone', color: '#f97316' },
-	        });
+		      if (kind === 'ball') {
+		        return (left, top) => {
+		          const r = 10;
+		          const shadow = new fabric.Circle({
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            radius: r + 1.2,
+		            fill: 'rgba(2,6,23,0.35)',
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          shadow.data = { role: 'ball_shadow' };
+		          const base = new fabric.Circle({
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            radius: r,
+		            fill: '#ffffff',
+		            stroke: '#0f172a',
+		            strokeWidth: 2,
+		            selectable: false,
+		            evented: false,
+		          });
+		          base.data = { role: 'ball_base' };
+		          const seam1 = new fabric.Line([-6, -2, 6, -2], {
+		            stroke: 'rgba(15,23,42,0.55)',
+		            strokeWidth: 1.4,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          const seam2 = new fabric.Line([-4, 4, 4, 4], {
+		            stroke: 'rgba(15,23,42,0.55)',
+		            strokeWidth: 1.4,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          const highlight = new fabric.Circle({
+		            left: -3,
+		            top: -4,
+		            originX: 'center',
+		            originY: 'center',
+		            radius: 3.2,
+		            fill: 'rgba(255,255,255,0.55)',
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          highlight.data = { role: 'ball_highlight' };
+		          const group = new fabric.Group([shadow, base, seam1, seam2, highlight], {
+		            left,
+		            top,
+		            originX: 'center',
+		            originY: 'center',
+		            data: { kind: 'ball', color: '#ffffff' },
+		          });
+		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          return group;
+		        };
 	      }
+		      if (kind === 'cone') {
+		        return (left, top) => {
+		          const fill = '#f97316';
+		          const stroke = '#7c2d12';
+		          const base = new fabric.Triangle({
+		            left: 0,
+		            top: -1,
+		            originX: 'center',
+		            originY: 'center',
+		            width: 28,
+		            height: 28,
+		            fill,
+		            stroke,
+		            strokeWidth: 1.6,
+		            selectable: false,
+		            evented: false,
+		          });
+		          base.data = { role: 'cone_base' };
+		          const highlight = new fabric.Path('M -6 6 L 0 -10 L 6 6 Z', {
+		            left: 0,
+		            top: -2,
+		            originX: 'center',
+		            originY: 'center',
+		            fill: 'rgba(255,255,255,0.22)',
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          highlight.data = { role: 'cone_highlight' };
+		          const foot = new fabric.Ellipse({
+		            left: 0,
+		            top: 14,
+		            originX: 'center',
+		            originY: 'center',
+		            rx: 12,
+		            ry: 3.8,
+		            fill: 'rgba(2,6,23,0.22)',
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          foot.data = { role: 'cone_shadow' };
+		          const group = new fabric.Group([foot, base, highlight], {
+		            left,
+		            top,
+		            originX: 'center',
+		            originY: 'center',
+		            data: { kind: 'cone', color: fill, stroke_color: stroke },
+		          });
+		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          return group;
+		        };
+		      }
 	      if (kind === 'cone_striped') {
 	        return (left, top) => {
 	          const fill = '#ef4444';
