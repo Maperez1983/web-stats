@@ -40,12 +40,17 @@
 	      .task-landing {
 	        position: fixed;
 	        inset: 0;
-	        z-index: 2000;
+	        /* Debe estar por encima de cualquier overlay/popover del motor de pizarra. */
+	        z-index: 99999;
 	        background: rgba(2, 6, 23, 0.58);
 	        backdrop-filter: blur(10px);
 	        -webkit-backdrop-filter: blur(10px);
 	        display: grid;
 	        place-items: center;
+	        pointer-events: auto;
+	        touch-action: manipulation;
+	        transform: translateZ(0);
+	        -webkit-transform: translateZ(0);
 	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 	      }
 	      .task-landing-card {
