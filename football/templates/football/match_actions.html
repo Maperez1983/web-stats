@@ -3178,8 +3178,8 @@
     {{ substitution_history|json_script:"substitution-history-data" }}
     {{ initial_lineup_payload|json_script:"initial-lineup-server" }}
     {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
-    <script src="{% static 'football/js/match_actions_chrome.js' %}"></script>
-    <script src="{% static 'football/js/match_actions_live.js' %}"></script>
+    <script src="{% static 'football/js/match_actions_chrome.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+    <script src="{% static 'football/js/match_actions_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
       const getInitials = (value) => {
         const raw = String(value || '').trim();
@@ -3230,24 +3230,39 @@
       const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
 	      const matchInfoResetBtn = document.getElementById('match-info-reset-btn');
 
-	      // --- Modo Partido PRO ---
-	      const proModeStorageKey = 'webstats:match_actions:pro_mode:v1';
-	      const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
-	      const loadProMode = () => {
-	        try {
-	          const url = new URL(window.location.href);
-	          const qp = url.searchParams.get('pro');
-	          if (qp === '1' || qp === 'true' || qp === 'on') return true;
-	          if (qp === '0' || qp === 'false' || qp === 'off') return false;
-	        } catch (e) {}
-	        try {
-	          const raw = localStorage.getItem(proModeStorageKey);
-	          if (raw === null || raw === undefined || raw === '') return false;
-	          return String(raw) === '1';
-	        } catch (e) {
-	          return false;
-	        }
-	      };
+		      // --- Modo Partido PRO ---
+		      const proModeStorageKey = 'webstats:match_actions:pro_mode:v1';
+		      const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
+		      const wantsProByDefault = () => {
+		        try {
+		          const isTouch = ('ontouchstart' in window) || (Number(navigator.maxTouchPoints || 0) > 0);
+		          if (!isTouch) return false;
+		          const params = new URLSearchParams(window.location.search || '');
+		          const live = String(params.get('live') || '').trim().toLowerCase();
+		          const stage = String(params.get('stage') || '').trim().toLowerCase();
+		          if (live === '1' || live === 'true' || live === 'on' || stage === 'live') return true;
+		          const platform = String(navigator.platform || '');
+		          const isIpad = /iPad/i.test(platform) || (platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1 && Math.max(window.innerWidth || 0, window.innerHeight || 0) >= 900);
+		          return isIpad;
+		        } catch (e) {
+		          return false;
+		        }
+		      };
+		      const loadProMode = () => {
+		        try {
+		          const url = new URL(window.location.href);
+		          const qp = url.searchParams.get('pro');
+		          if (qp === '1' || qp === 'true' || qp === 'on') return true;
+		          if (qp === '0' || qp === 'false' || qp === 'off') return false;
+		        } catch (e) {}
+		        try {
+		          const raw = localStorage.getItem(proModeStorageKey);
+		          if (raw === null || raw === undefined || raw === '') return wantsProByDefault();
+		          return String(raw) === '1';
+		        } catch (e) {
+		          return wantsProByDefault();
+		        }
+		      };
 	      const setProMode = (enabled, { persist = true } = {}) => {
 	        const on = Boolean(enabled);
 	        document.body.classList.toggle('pro-mode', on);

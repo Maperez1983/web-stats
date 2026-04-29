@@ -1100,6 +1100,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       setFinalizeInFlight(true);
       try {
         try {
+          showPageStatus('Guardando partido…', 'info', 1800);
+        } catch (err) {
+          // ignore
+        }
+        try {
           Object.assign(matchInfoState, collectMatchInfoPayload());
         } catch (err) {
           console.error(err);
