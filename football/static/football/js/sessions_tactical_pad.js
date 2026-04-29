@@ -754,6 +754,7 @@
 		    const tokenBaseColorInput = document.getElementById('task-token-base-color');
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
+		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
@@ -1650,8 +1651,14 @@
 	    };
 	    const normalizeTokenPattern = (value) => {
 	      const v = safeText(value).trim().toLowerCase();
-	      if (v === 'solid') return 'solid';
+	      if (v === 'solid' || v === 'half' || v === 'sash') return v;
 	      return 'striped';
+	    };
+	    const TOKEN_PATTERN_LABEL = {
+	      striped: 'rayas',
+	      solid: 'sólido',
+	      half: 'mitad',
+	      sash: 'banda',
 	    };
 	    let tokenGlobalStyle = 'disk';
 	    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
@@ -2923,6 +2930,37 @@
 	      return found;
 	    };
 
+	    const tokenHasNameTagBg = (group) => {
+	      let found = false;
+	      walkTokenObjects(group, (child) => {
+	        if (found) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_name_bg') found = true;
+	      });
+	      return found;
+	    };
+
+	    const normalizeTokenNameTagMode = (value) => (safeText(value).toLowerCase() === 'none' ? 'none' : 'solid');
+	    const applyTokenNameTagMode = (group, modeRaw) => {
+	      if (!group || safeText(group?.data?.kind) !== 'token') return false;
+	      const mode = normalizeTokenNameTagMode(modeRaw);
+	      setObjectData(group, { token_name_tag: mode });
+	      const visible = mode !== 'none';
+	      walkTokenObjects(group, (child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (role !== 'token_name_bg') return;
+	        try {
+	          child.set({
+	            visible,
+	            opacity: visible ? 1 : 0,
+	          });
+	        } catch (e) { /* ignore */ }
+	      });
+	      group.dirty = true;
+	      return true;
+	    };
+
 	    const applyTokenPalette = (group, options = {}) => {
 	      if (!group) return false;
 	      const kind = safeText(group?.data?.kind);
@@ -2958,10 +2996,51 @@
 	        }
 	      });
 
+	      const stripeGroups = [];
+	      walkTokenObjects(group, (child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_stripes') stripeGroups.push(child);
+	      });
+
 	      const effectiveBase = pattern === 'solid' ? stripeHex : baseHex;
 	      baseNodes.forEach((node) => { try { node.set({ fill: effectiveBase }); } catch (e) { /* ignore */ } });
-	      stripeNodes.forEach((node) => { try { node.set({ fill: stripeHex }); } catch (e) { /* ignore */ } });
-	      baseStripeNodes.forEach((node) => { try { node.set({ fill: effectiveBase }); } catch (e) { /* ignore */ } });
+
+	      // Modo patrón:
+	      // - striped: alterna franjas
+	      // - half: mitad izquierda base / mitad derecha franja
+	      // - sash: franjas en diagonal (rotando el grupo de franjas)
+	      // - solid: oculta franjas
+	      const showStripes = pattern !== 'solid';
+	      stripeGroups.forEach((stripeGroup) => {
+	        try {
+	          stripeGroup.set({
+	            visible: showStripes,
+	            angle: pattern === 'sash' ? -35 : 0,
+	          });
+	        } catch (e) { /* ignore */ }
+	      });
+
+	      if (!showStripes) {
+	        stripeNodes.forEach((node) => { try { node.set({ fill: stripeHex, visible: false }); } catch (e) { /* ignore */ } });
+	        baseStripeNodes.forEach((node) => { try { node.set({ fill: stripeHex, visible: false }); } catch (e) { /* ignore */ } });
+	        group.dirty = true;
+	        return true;
+	      }
+
+	      // En half debemos recolorear todas las franjas según su posición X.
+	      if (pattern === 'half') {
+	        const allStripeRects = stripeNodes.concat(baseStripeNodes);
+	        allStripeRects.forEach((node) => {
+	          if (!node) return;
+	          const x = Number(node.left) || 0;
+	          const fill = x >= 0 ? stripeHex : baseHex;
+	          try { node.set({ fill, visible: true }); } catch (e) { /* ignore */ }
+	        });
+	      } else {
+	        stripeNodes.forEach((node) => { try { node.set({ fill: stripeHex, visible: true }); } catch (e) { /* ignore */ } });
+	        baseStripeNodes.forEach((node) => { try { node.set({ fill: effectiveBase, visible: true }); } catch (e) { /* ignore */ } });
+	      }
 
 	      group.dirty = true;
 	      return true;
@@ -3173,6 +3252,7 @@
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
 		        if (tokenColorGrid) tokenColorGrid.hidden = true;
 		        if (tokenPatternActions) tokenPatternActions.hidden = true;
+		        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
 		        return;
 		      }
 	      selectionToolbar.hidden = false;
@@ -3202,6 +3282,18 @@
 		      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
 		      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
 		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
+		      if (tokenNameTagActions) {
+		        const hasNameTag = isToken ? tokenHasNameTagBg(active) : false;
+		        tokenNameTagActions.hidden = !hasNameTag;
+		        if (hasNameTag) {
+		          const mode = normalizeTokenNameTagMode(active?.data?.token_name_tag);
+		          Array.from(tokenNameTagActions.querySelectorAll('button[data-token-name-tag]') || []).forEach((btn) => {
+		            const btnMode = normalizeTokenNameTagMode(btn.dataset.tokenNameTag);
+		            btn.classList.toggle('is-active', btnMode === mode);
+		            try { btn.setAttribute('aria-pressed', btnMode === mode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      }
 		      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
 		        tokenMetaRow.hidden = !isToken;
 		        if (isToken) {
@@ -11667,6 +11759,23 @@
 		          });
 		          numberText.data = { role: 'token_number' };
 		          tokenParts.push(numberText);
+		          const nameBg = new fabric.Rect({
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -34,
+		            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
+		            height: 18,
+		            rx: 8,
+		            ry: 8,
+		            fill: 'rgba(2,6,23,0.68)',
+		            stroke: 'rgba(255,255,255,0.14)',
+		            strokeWidth: 1,
+		            selectable: false,
+		            evented: false,
+		          });
+		          nameBg.data = { role: 'token_name_bg' };
+		          tokenParts.push(nameBg);
 		          const nameText = new fabric.Text(displayName, {
 		            originX: 'center',
 		            originY: 'center',
@@ -11744,6 +11853,23 @@
 			          });
 		          numberText.data = { role: 'token_number' };
 		          tokenParts.push(numberText);
+		          const nameBg = new fabric.Rect({
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -34,
+		            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
+		            height: 18,
+		            rx: 8,
+		            ry: 8,
+		            fill: 'rgba(2,6,23,0.68)',
+		            stroke: 'rgba(255,255,255,0.14)',
+		            strokeWidth: 1,
+		            selectable: false,
+		            evented: false,
+		          });
+		          nameBg.data = { role: 'token_name_bg' };
+		          tokenParts.push(nameBg);
 		          const nameText = new fabric.Text(displayName, {
 		            originX: 'center',
 		            originY: 'center',
@@ -12007,6 +12133,7 @@
 			          token_size: 'm',
 			          token_style: style,
 			          token_pattern: pattern,
+			          token_name_tag: 'solid',
 			          token_base_color: baseColor,
 			          token_stripe_color: stripeColor,
 			          color: kind === 'player_local' ? stripeColor : (kind === 'player_away' ? stripeColor : palette.fill),
@@ -12016,6 +12143,10 @@
 			          playerPhotoUrl: photoUrl,
 			        },
 			      });
+		      // Aplica patrón inicial (half/sash/solid) de forma consistente.
+		      try {
+		        applyTokenPalette(group, { base: baseColor, stripe: stripeColor, pattern });
+		      } catch (e) { /* ignore */ }
 		      // Evita blur por cache rasterizado al escalar/zoomear; los tokens son vectoriales.
 		      try { group.objectCaching = false; } catch (error) { /* ignore */ }
 		      try { group.noScaleCache = true; } catch (error) { /* ignore */ }
@@ -15263,7 +15394,15 @@
 			        applyToActiveFlexibleObject((active) => {
 			          if (!isTokenGroup(active)) return;
 			          applyTokenPalette(active, { pattern: tokenPattern });
-			        }, `Patrón: ${normalizeTokenPattern(tokenPattern) === 'solid' ? 'sólido' : 'rayas'}.`);
+			        }, `Patrón: ${TOKEN_PATTERN_LABEL[normalizeTokenPattern(tokenPattern)] || normalizeTokenPattern(tokenPattern)}.`);
+			        return;
+			      }
+			      const tokenNameTag = safeText(button.dataset.tokenNameTag);
+			      if (tokenNameTag) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          applyTokenNameTagMode(active, tokenNameTag);
+			        }, `Nombre: ${normalizeTokenNameTagMode(tokenNameTag) === 'none' ? 'sin fondo' : 'fondo'}.`);
 			        return;
 			      }
 			      const scalePreset = Number(button.dataset.scalePreset);

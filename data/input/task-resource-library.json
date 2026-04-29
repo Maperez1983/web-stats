@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-04T21:45:00.000000+00:00",
+  "generated_at": "2026-04-29T15:06:17.458421+00:00",
   "resources_by_scope": {
     "coach": [
       {
@@ -8,6 +8,94 @@
         "title": "Arco precisión",
         "kind": "arc",
         "category": "finalizacion",
+        "count": 2
+      },
+      {
+        "key": "ladder",
+        "label": "ESC",
+        "title": "Escalera coordinación",
+        "kind": "ladder",
+        "category": "coordinacion",
+        "count": 4
+      },
+      {
+        "key": "cone",
+        "label": "CONO",
+        "title": "Cono alto",
+        "kind": "cone",
+        "category": "delimitacion",
+        "count": 4
+      },
+      {
+        "key": "ball",
+        "label": "BAL",
+        "title": "Balón",
+        "kind": "ball",
+        "category": "juego",
+        "count": 3
+      },
+      {
+        "key": "medicine-ball",
+        "label": "MED",
+        "title": "Balón medicinal",
+        "kind": "medicine-ball",
+        "category": "fisico",
+        "count": 2
+      },
+      {
+        "key": "goal",
+        "label": "PORT",
+        "title": "Portería móvil",
+        "kind": "goal",
+        "category": "porterias",
+        "count": 2
+      },
+      {
+        "key": "band",
+        "label": "GOMA",
+        "title": "Goma resistencia",
+        "kind": "band",
+        "category": "fisico",
+        "count": 2
+      },
+      {
+        "key": "mini-goal",
+        "label": "MPORT",
+        "title": "Mini portería",
+        "kind": "mini-goal",
+        "category": "porterias",
+        "count": 1
+      },
+      {
+        "key": "bib",
+        "label": "PETO",
+        "title": "Petos",
+        "kind": "bib",
+        "category": "organizacion",
+        "count": 1
+      },
+      {
+        "key": "stake",
+        "label": "ESTACA",
+        "title": "Estaca zona",
+        "kind": "stake",
+        "category": "delimitacion",
+        "count": 1
+      },
+      {
+        "key": "target",
+        "label": "OBJ",
+        "title": "Objetivo diana",
+        "kind": "target",
+        "category": "finalizacion",
+        "count": 1
+      },
+      {
+        "key": "board",
+        "label": "TAB",
+        "title": "Pizarra coach",
+        "kind": "board",
+        "category": "control",
         "count": 1
       }
     ]

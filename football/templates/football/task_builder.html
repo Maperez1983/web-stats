@@ -128,9 +128,13 @@
 	        touch-action: manipulation;
 	      }
 	      .task-landing-action small { opacity: 0.85; font-weight: 700; }
-	      .task-landing-action.primary {
+	      .task-landing-action.is-selected {
 	        background: rgba(34, 211, 238, 0.14);
 	        border-color: rgba(34, 211, 238, 0.38);
+	      }
+	      .task-landing-action.is-selected:focus-visible {
+	        outline: 3px solid rgba(34, 211, 238, 0.55);
+	        outline-offset: 2px;
 	      }
 	      .task-landing-foot {
 	        display: flex;
@@ -2438,6 +2442,11 @@
         padding: 0.5rem 0.8rem;
         cursor: pointer;
       }
+      .selection-actions button.is-active {
+        border-color: rgba(244, 180, 0, 0.46);
+        background: rgba(244, 180, 0, 0.14);
+        color: rgba(255, 242, 199, 0.98);
+      }
       .selection-actions button:disabled {
         opacity: 0.45;
         cursor: not-allowed;
@@ -3305,20 +3314,20 @@
 	              </div>
 	              <div class="task-landing-actions">
 	                <h2>¿Qué quieres hacer?</h2>
-	                <p class="meta">Entra por la opción más rápida. Puedes cambiar luego sin perder nada.</p>
-	                <button type="button" class="task-landing-action primary" data-landing-go="assistant">
+	                <p class="meta">Elige una opción y pulsa <strong>Entrar</strong>. Puedes cambiar luego sin perder nada.</p>
+	                <button type="button" class="task-landing-action" data-landing-go="assistant" aria-pressed="false">
 	                  Recomendar tarea
 	                  <small>Asistente · “Sugerir tareas”</small>
 	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="board">
+	                <button type="button" class="task-landing-action" data-landing-go="board" aria-pressed="false">
 	                  Abrir pizarra
 	                  <small>Colocar fichas, dibujar y simular</small>
 	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="text">
+	                <button type="button" class="task-landing-action" data-landing-go="text" aria-pressed="false">
 	                  Editar contenido
 	                  <small>Descripción, reglas, objetivos…</small>
 	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="exportar">
+	                <button type="button" class="task-landing-action" data-landing-go="exportar" aria-pressed="false">
 	                  Exportar / imprimir
 	                  <small>PDF, PNG, compartir…</small>
 	                </button>
@@ -4250,6 +4259,13 @@
 	                        <span class="preset-label">Patrón</span>
 	                        <button type="button" data-token-pattern="striped">Rayas</button>
 	                        <button type="button" data-token-pattern="solid">Sólido</button>
+	                        <button type="button" data-token-pattern="half">Mitad</button>
+	                        <button type="button" data-token-pattern="sash">Banda</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-name-tag-actions" hidden>
+	                        <span class="preset-label">Nombre</span>
+	                        <button type="button" data-token-name-tag="solid">Fondo</button>
+	                        <button type="button" data-token-name-tag="none">Sin fondo</button>
 	                      </div>
 	                      <div class="selection-note">
 	                        Tip: usa `Cmd/Ctrl + D` para duplicar.
@@ -9278,7 +9294,7 @@
 			      });
 			    </script>
           <script>
-            // Pantalla de entrada (¿Qué quieres hacer?): wiring de botones + preferencia "no mostrar".
+            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
             (function () {
               const landing = document.getElementById('task-landing');
               if (!landing) return;
@@ -9362,39 +9378,77 @@
               try { landing.addEventListener('pointerdown', onAnyPress, { capture: true, passive: true }); } catch (e) { /* ignore */ }
               try { landing.addEventListener('touchstart', onAnyPress, { capture: true, passive: true }); } catch (e) { /* ignore */ }
 
-              landing.querySelectorAll('[data-landing-go]').forEach((btn) => {
-                const handler = (ev) => {
-                  ev.preventDefault();
-                  ev.stopPropagation();
-                  const action = String(btn.getAttribute('data-landing-go') || '').trim();
-                  setHiddenPref();
+              const choiceButtons = Array.from(landing.querySelectorAll('.task-landing-action[data-landing-go]') || []);
+              const closeBtn = landing.querySelector('.task-landing-close[data-landing-go="close"]');
+              let selectedAction = 'assistant';
 
-                  if (action === 'close' || action === 'board') {
-                    closeLanding();
-                    return;
-                  }
-                  if (action === 'assistant') {
-                    // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
-                    activateSidePane('assistant');
-                    closeLanding();
-                    return;
-                  }
-                  if (action === 'text') {
-                    activateTaskMode('text');
-                    closeLanding();
-                    return;
-                  }
-                  if (action === 'exportar') {
-                    activateSidePane('exportar');
-                    closeLanding();
-                    return;
-                  }
+              const normalizeAction = (value) => {
+                const v = String(value || '').trim().toLowerCase();
+                if (v === 'assistant' || v === 'text' || v === 'exportar' || v === 'board') return v;
+                return 'board';
+              };
+
+              const setSelected = (actionRaw) => {
+                selectedAction = normalizeAction(actionRaw);
+                choiceButtons.forEach((btn) => {
+                  const a = normalizeAction(btn.getAttribute('data-landing-go'));
+                  const isOn = a === selectedAction;
+                  btn.classList.toggle('is-selected', isOn);
+                  try { btn.setAttribute('aria-pressed', isOn ? 'true' : 'false'); } catch (e) { /* ignore */ }
+                });
+              };
+
+              const runSelected = () => {
+                const action = normalizeAction(selectedAction);
+                if (action === 'assistant') {
+                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
+                  activateSidePane('assistant');
                   closeLanding();
-                };
-                // click + touchstart (capturing) para asegurar respuesta inmediata en iPad.
-                btn.addEventListener('click', handler);
-                try { btn.addEventListener('touchstart', handler, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+                  return;
+                }
+                if (action === 'text') {
+                  activateTaskMode('text');
+                  closeLanding();
+                  return;
+                }
+                if (action === 'exportar') {
+                  activateSidePane('exportar');
+                  closeLanding();
+                  return;
+                }
+                // board: solo entra.
+                closeLanding();
+              };
+
+              const onChoice = (btn, ev) => {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { /* ignore */ }
+                setSelected(btn.getAttribute('data-landing-go'));
+              };
+
+              choiceButtons.forEach((btn) => {
+                btn.addEventListener('click', (ev) => onChoice(btn, ev));
+                try { btn.addEventListener('touchstart', (ev) => onChoice(btn, ev), { capture: true, passive: false }); } catch (e) { /* ignore */ }
               });
+
+              if (closeBtn) {
+                const handler = (ev) => {
+                  try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { /* ignore */ }
+                  setHiddenPref();
+                  runSelected();
+                };
+                closeBtn.addEventListener('click', handler);
+                try { closeBtn.addEventListener('touchstart', handler, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+              }
+
+              // Default: sugerimos Asistente (el usuario puede cambiar con 1 toque).
+              try {
+                const params = new URLSearchParams(String(window.location.search || ''));
+                const pane = String(params.get('pane') || '').trim().toLowerCase();
+                if (pane === 'assistant') setSelected('assistant');
+                else setSelected('assistant');
+              } catch (e) {
+                setSelected('assistant');
+              }
 
               // Mostrar al entrar si no está desactivado.
               openLandingIfNeeded();

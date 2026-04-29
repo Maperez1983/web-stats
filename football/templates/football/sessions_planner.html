@@ -1595,7 +1595,8 @@
 	              {% with create_page=request.GET.create_page|default:'' %}
 					        <section class="panel">
 					          <h2>
-                      {% if create_page == 'task' %}Tarea
+                      {% if not create_page %}Entrenamiento
+                      {% elif create_page == 'task' %}Tarea
                       {% elif create_page == 'session' %}Sesión
                       {% elif create_page == 'microcycle' %}Microciclo
                       {% elif create_page == 'tactics' %}Táctica
@@ -1618,6 +1619,12 @@
                                 <stop offset="0%" stop-color="#5f8f42"></stop>
                                 <stop offset="100%" stop-color="#557f3c"></stop>
                               </linearGradient>
+                              <filter id="create-token-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(2,6,23,0.35)" />
+                              </filter>
+                              <marker id="create-arrow-head" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+                                <path d="M 0 0 L 12 6 L 0 12 z" fill="rgba(248,250,252,0.92)"></path>
+                              </marker>
                             </defs>
                             <rect x="0" y="0" width="1050" height="680" fill="url(#create-pitch-bg)"></rect>
                             <rect x="35" y="35" width="980" height="610" fill="none" stroke="rgba(248,250,252,0.92)" stroke-width="4"></rect>
@@ -1630,6 +1637,23 @@
                             <rect x="964" y="259" width="51" height="162" fill="none" stroke="rgba(248,250,252,0.66)" stroke-width="3"></rect>
                             <circle cx="138" cy="340" r="4" fill="rgba(248,250,252,0.66)"></circle>
                             <circle cx="912" cy="340" r="4" fill="rgba(248,250,252,0.66)"></circle>
+
+                            <!-- Mini demo: tokens + flecha para que la “pizarra” se entienda de un vistazo. -->
+                            <g filter="url(#create-token-shadow)">
+                              <!-- Local -->
+                              <circle cx="292" cy="245" r="22" fill="#0f7a35" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
+                              <text x="292" y="252" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">8</text>
+                              <circle cx="345" cy="335" r="22" fill="#0f7a35" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
+                              <text x="345" y="342" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">9</text>
+                              <circle cx="300" cy="450" r="22" fill="#0f7a35" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
+                              <text x="300" y="457" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">11</text>
+                              <!-- Rival -->
+                              <circle cx="430" cy="270" r="22" fill="#dc2626" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
+                              <text x="430" y="277" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">4</text>
+                              <circle cx="430" cy="410" r="22" fill="#dc2626" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
+                              <text x="430" y="417" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">5</text>
+                            </g>
+                            <path d="M 320 445 C 400 440, 450 410, 520 350" fill="none" stroke="rgba(248,250,252,0.92)" stroke-width="8" stroke-linecap="round" marker-end="url(#create-arrow-head)"></path>
                           </svg>
                         </div>
 				              </div>
@@ -1658,15 +1682,6 @@
 					          </div>
                   <script>
                     (function () {
-                      // Preview (rápido): renderiza el mismo campo que usa la pizarra real, sin cargar el motor completo.
-                      try {
-                        const previewHost = document.getElementById('coach-create-hero-preview');
-                        if (previewHost && window.WebstatsPitchPreview && typeof window.WebstatsPitchPreview.buildPitchSvg === 'function') {
-                          const svgMarkup = window.WebstatsPitchPreview.buildPitchSvg('full_pitch', 'landscape', 'classic');
-                          previewHost.innerHTML = svgMarkup || '';
-                        }
-                      } catch (e) { /* ignore */ }
-
                       // Demo (bajo demanda): carga el editor real dentro de un modal con iframe.
                       try {
                         const openBtn = document.getElementById('coach-create-demo-open');
