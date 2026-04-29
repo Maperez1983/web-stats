@@ -13697,9 +13697,9 @@
 	        if (canUseStorage) {
 	          try { dismissed = safeText(window.localStorage.getItem(hideKey)) === '1'; } catch (e) { dismissed = false; }
 	        }
-	        if (landingEl && shouldShow && !dismissed) {
-	          landingEl.hidden = false;
-	          const closeLanding = (persist = false) => {
+		        if (landingEl && shouldShow && !dismissed) {
+		          landingEl.hidden = false;
+		          const closeLanding = (persist = false) => {
 	            try { landingEl.hidden = true; } catch (e) { /* ignore */ }
 	            if (persist && canUseStorage) {
 	              try { window.localStorage.setItem(hideKey, '1'); } catch (e) { /* ignore */ }
@@ -13710,37 +13710,59 @@
 	              url.searchParams.delete('landing');
 	              window.history.replaceState({}, '', url.toString());
 	            } catch (e) { /* ignore */ }
-	          };
-	          landingEl.addEventListener('click', (ev) => {
-	            const btn = ev.target && ev.target.closest ? ev.target.closest('[data-landing-go]') : null;
-	            if (!btn) return;
-	            ev.preventDefault();
-	            const go = safeText(btn.getAttribute('data-landing-go'));
-	            const persist = !!hideToggle?.checked;
-	            closeLanding(persist);
-	            if (go === 'assistant') {
-	              try { activateSidePane('assistant'); } catch (e) { /* ignore */ }
-	              return;
-	            }
-	            if (go === 'exportar') {
-	              try { activateSidePane('exportar'); } catch (e) { /* ignore */ }
-	              return;
-	            }
-	            if (go === 'text') {
-	              const textBtn = document.querySelector('#task-mode-tabs button[data-task-mode="text"]');
-	              try { textBtn?.click?.(); } catch (e) { /* ignore */ }
-	              try { activateSidePane('ficha'); } catch (e) { /* ignore */ }
-	              return;
-	            }
-	            if (go === 'board') {
-	              const boardBtn = document.querySelector('#task-mode-tabs button[data-task-mode="board"]');
-	              try { boardBtn?.click?.(); } catch (e) { /* ignore */ }
-	              return;
-	            }
-	          });
-	        }
-	      }
-	    } catch (e) { /* ignore */ }
+		          };
+		          const handleLandingGo = (btn) => {
+		            if (!btn) return;
+		            const go = safeText(btn.getAttribute('data-landing-go'));
+		            const persist = !!hideToggle?.checked;
+		            closeLanding(persist);
+		            if (go === 'assistant') {
+		              try { activateSidePane('assistant'); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		            if (go === 'exportar') {
+		              try { activateSidePane('exportar'); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		            if (go === 'text') {
+		              const textBtn = document.querySelector('#task-mode-tabs button[data-task-mode="text"]');
+		              try { textBtn?.click?.(); } catch (e) { /* ignore */ }
+		              try { activateSidePane('ficha'); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		            if (go === 'board') {
+		              const boardBtn = document.querySelector('#task-mode-tabs button[data-task-mode="board"]');
+		              try { boardBtn?.click?.(); } catch (e) { /* ignore */ }
+		              return;
+		            }
+		          };
+
+		          // iOS/WebView: el delegation sobre el overlay a veces falla con backdrop-filter.
+		          // Enlazamos handlers directos por botón para que todas las opciones respondan.
+		          try {
+		            const buttons = Array.from(landingEl.querySelectorAll('[data-landing-go]'));
+		            buttons.forEach((b) => {
+		              b.addEventListener('click', (ev) => {
+		                ev.preventDefault();
+		                handleLandingGo(b);
+		              });
+		              b.addEventListener('touchend', (ev) => {
+		                ev.preventDefault();
+		                handleLandingGo(b);
+		              }, { passive: false });
+		            });
+		          } catch (e) { /* ignore */ }
+
+		          // Fallback: delegation (por si se inserta dinámicamente algún botón).
+		          landingEl.addEventListener('click', (ev) => {
+		            const btn = ev.target && ev.target.closest ? ev.target.closest('[data-landing-go]') : null;
+		            if (!btn) return;
+		            ev.preventDefault();
+		            handleLandingGo(btn);
+		          });
+		        }
+		      }
+		    } catch (e) { /* ignore */ }
 
 	    let pingKeepalive = null;
 	    if (keepaliveUrl) {
