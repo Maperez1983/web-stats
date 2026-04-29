@@ -55,6 +55,10 @@
 	        -webkit-transform: translateZ(0);
 	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 	      }
+      /* Garantiza que `landing.hidden = true` siempre oculte el modal incluso si otro CSS pisa `[hidden]`. */
+      .task-landing[hidden] {
+        display: none !important;
+      }
 	      .task-landing * {
 	        pointer-events: auto;
 	      }
@@ -9519,7 +9523,7 @@
               };
 
               const onChoice = (btn, ev) => {
-                try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { /* ignore */ }
+                try { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
                 setSelected(btn.getAttribute('data-landing-go'));
               };
 
@@ -9530,12 +9534,16 @@
 
               if (closeBtn) {
                 const handler = (ev) => {
-                  try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { /* ignore */ }
-                  setHiddenPref();
-                  runSelected();
+                  try { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
+                  try { setHiddenPref(); } catch (e) { /* ignore */ }
+                  try { runSelected(); } catch (err) {
+                    // Nunca dejes al usuario atrapado.
+                    try { closeLanding(); } catch (e) { /* ignore */ }
+                  }
                 };
                 closeBtn.addEventListener('click', handler);
                 try { closeBtn.addEventListener('touchstart', handler, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+                try { closeBtn.addEventListener('pointerdown', handler, { capture: true }); } catch (e) { /* ignore */ }
               }
 
               // Default: sugerimos Asistente (el usuario puede cambiar con 1 toque).
