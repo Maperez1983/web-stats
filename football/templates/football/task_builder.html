@@ -53,6 +53,9 @@
 	        -webkit-transform: translateZ(0);
 	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 	      }
+	      .task-landing * {
+	        pointer-events: auto;
+	      }
 	      .task-landing-card {
 	        width: min(1320px, 96vw);
 	        border-radius: 26px;
@@ -9278,6 +9281,11 @@
               const landing = document.getElementById('task-landing');
               if (!landing) return;
 
+              // Debug mínimo (solo visual): si WKWebView está tragándose los eventos, al menos veremos el contador subir.
+              try {
+                landing.setAttribute('data-debug', '1');
+              } catch (e) { /* ignore */ }
+
               const scopeKey = String('{{ scope_key|default:"" }}' || '').trim() || 'global';
               const storageKey = `webstats:tpad:landing_hide_v1:${scopeKey}`;
               const hideCheck = document.getElementById('task-landing-hide');
@@ -9342,8 +9350,18 @@
                 closeLanding();
               });
 
+              // iOS/WKWebView: por seguridad, enganchamos también a pointerdown/touchstart (capturing),
+              // porque algunos overlays con backdrop-filter pueden “comerse” el click.
+              const onAnyPress = (ev) => {
+                try {
+                  landing.dataset.lastPress = String(Date.now());
+                } catch (e) { /* ignore */ }
+              };
+              try { landing.addEventListener('pointerdown', onAnyPress, { capture: true, passive: true }); } catch (e) { /* ignore */ }
+              try { landing.addEventListener('touchstart', onAnyPress, { capture: true, passive: true }); } catch (e) { /* ignore */ }
+
               landing.querySelectorAll('[data-landing-go]').forEach((btn) => {
-                btn.addEventListener('click', (ev) => {
+                const handler = (ev) => {
                   ev.preventDefault();
                   ev.stopPropagation();
                   const action = String(btn.getAttribute('data-landing-go') || '').trim();
@@ -9370,7 +9388,10 @@
                     return;
                   }
                   closeLanding();
-                });
+                };
+                // click + touchstart (capturing) para asegurar respuesta inmediata en iPad.
+                btn.addEventListener('click', handler);
+                try { btn.addEventListener('touchstart', handler, { capture: true, passive: false }); } catch (e) { /* ignore */ }
               });
 
               // Mostrar al entrar si no está desactivado.
