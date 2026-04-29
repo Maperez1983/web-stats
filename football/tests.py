@@ -166,6 +166,111 @@ class TacticsLandingModalFallbackTests(TestCase):
         self.assertContains(response, 'onclick="return window.__webstatsTaskLandingGo')
 
 
+class KPIExplorerWorkspacePresetsTests(TestCase):
+    def setUp(self):
+        self.competition = Competition.objects.create(name='Comp', slug='comp')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='Grupo', slug='grupo')
+        self.team = Team.objects.create(
+            name='Equipo prueba',
+            slug='equipo-prueba-kpi',
+            short_name='Prueba',
+            group=self.group,
+            is_primary=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival prueba',
+            slug='rival-prueba-kpi',
+            short_name='Rival',
+            group=self.group,
+            is_primary=False,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-kpi',
+            email='coach-kpi@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB KPI',
+            slug='club-kpi',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.player = Player.objects.create(team=self.team, name='Jugador', number=7, is_active=True)
+        self.match = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=timezone.localdate(),
+            home_team=self.team,
+            away_team=self.rival,
+        )
+        MatchEvent.objects.create(
+            match=self.match,
+            player=self.player,
+            minute=5,
+            event_type='Pase',
+            result='OK',
+            zone='Defensa derecha',
+            tercio='Defensa',
+            observation='Pase interior',
+            source_file='manual',
+        )
+
+    def test_workspace_preference_set_and_get(self):
+        self.client.force_login(self.user)
+        set_url = f"{reverse('workspace-pref-set')}?workspace={self.workspace.id}"
+        get_url = f"{reverse('workspace-pref-get')}?workspace={self.workspace.id}&key=test.pref"
+        response = self.client.post(
+            set_url,
+            data=json.dumps({'key': 'test.pref', 'value': {'a': 1}}),
+            content_type='application/json',
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        response = self.client.get(get_url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertEqual(payload.get('value', {}).get('a'), 1)
+
+    def test_kpi_explorer_page_includes_shared_preset_ui(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('kpi-explorer')}?workspace={self.workspace.id}"
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'kpi-preset-name')
+        self.assertContains(response, 'kpi-preset-save')
+        self.assertContains(response, 'kpi-preset-list')
+
+    def test_kpi_explorer_sources_api_returns_rows(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('kpi-explorer-sources-api')}?workspace={self.workspace.id}"
+        payload = {
+            'scope': 'match',
+            'context': 'league',
+            'match_id': int(self.match.id),
+            'player_id': 0,
+            'metric': {'kind': 'derived', 'key': 'pass_attempts'},
+        }
+        response = self.client.post(url, data=json.dumps(payload), content_type='application/json', secure=True)
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body.get('ok'))
+        self.assertGreaterEqual(int(body.get('count') or 0), 1)
+
+
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
         self.primary_global_team = Team.objects.create(

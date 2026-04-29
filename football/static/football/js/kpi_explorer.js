@@ -72,6 +72,9 @@
     const pdfBtn = document.getElementById('kpi-pdf');
     const clearBtn = document.getElementById('kpi-clear');
     const searchInput = document.getElementById('kpi-search');
+    const presetNameInput = document.getElementById('kpi-preset-name');
+    const presetSaveBtn = document.getElementById('kpi-preset-save');
+    const presetList = document.getElementById('kpi-preset-list');
 
     const derivedWrap = document.getElementById('kpi-derived');
     const eventTypesWrap = document.getElementById('kpi-event-types');
@@ -86,6 +89,41 @@
     const sourcesUrl = safeText(document.getElementById('kpi-sources-url')?.value);
     const pdfUrl = safeText(document.getElementById('kpi-pdf-url')?.value);
     const csrf = document.querySelector('#kpi-csrf input[name="csrfmiddlewaretoken"]')?.value || '';
+
+    const prefsClient = (() => {
+      const cfg = window.WEBSTATS_WORKSPACE_PREFS || null;
+      const getUrl = cfg && typeof cfg.getUrl === 'string' ? cfg.getUrl : '';
+      const setUrl = cfg && typeof cfg.setUrl === 'string' ? cfg.setUrl : '';
+      if (!getUrl || !setUrl) return null;
+      const readCsrf = () => (document.cookie || '')
+        .split(';')
+        .map((s) => s.trim())
+        .find((s) => s.startsWith('csrftoken='))
+        ?.split('=')[1] || '';
+      const get = async (key) => {
+        const k = String(key || '').trim();
+        if (!k) return null;
+        const url = new URL(getUrl, window.location.origin);
+        url.searchParams.set('key', k);
+        const resp = await fetch(url.toString(), { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok || !data || data.ok === false) return null;
+        return data.value ?? null;
+      };
+      const set = async (key, value) => {
+        const k = String(key || '').trim();
+        if (!k) return false;
+        const resp = await fetch(setUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': readCsrf(), Accept: 'application/json' },
+          body: JSON.stringify({ key: k, value }),
+        });
+        const data = await resp.json().catch(() => null);
+        return Boolean(resp.ok && data && data.ok !== false);
+      };
+      return { get, set };
+    })();
 
     const sourcesModal = document.getElementById('kpi-sources-modal');
     const sourcesClose = document.getElementById('kpi-sources-close');
@@ -103,6 +141,29 @@
       try { return JSON.parse(window.localStorage?.getItem(storageKey) || 'null'); } catch (e) { return null; }
     })();
     let selected = Array.isArray(stored) ? stored : [];
+
+    const presetsStorageKey = 'kpi_explorer:presets';
+    const sharedPresetsKey = 'kpi_explorer_presets:v1';
+    const normalizePresetName = (raw) => safeText(raw, '').replace(/\s+/g, ' ').trim().slice(0, 42);
+    const readLocalPresets = () => {
+      try {
+        const parsed = JSON.parse(window.localStorage?.getItem(presetsStorageKey) || 'null');
+        if (!parsed || typeof parsed !== 'object') return [];
+        const items = Array.isArray(parsed?.items) ? parsed.items : [];
+        return items
+          .filter((x) => x && typeof x === 'object' && normalizePresetName(x.name))
+          .map((x) => ({ name: normalizePresetName(x.name), metrics: Array.isArray(x.metrics) ? x.metrics.slice(0, 80) : [] }))
+          .slice(0, 20);
+      } catch (e) {
+        return [];
+      }
+    };
+    const writeLocalPresets = (items) => {
+      try {
+        window.localStorage?.setItem(presetsStorageKey, JSON.stringify({ v: 1, items: (items || []).slice(0, 20) }));
+      } catch (e) { /* ignore */ }
+    };
+    let sharedPresets = [];
 
     const normalize = (s) => safeText(s, '').toLowerCase();
 
@@ -196,6 +257,93 @@
       Array.from(selectedWrap.querySelectorAll('[data-move-down]')).forEach((btn) => {
         btn.addEventListener('click', () => moveMetric(safeText(btn.getAttribute('data-move-down')), +1));
       });
+    };
+
+    const renderPresets = () => {
+      if (!presetList) return;
+      const items = Array.isArray(sharedPresets) ? sharedPresets : [];
+      if (!items.length) {
+        presetList.innerHTML = '<div class="meta">No hay presets guardados todavía.</div>';
+        return;
+      }
+      presetList.innerHTML = items.map((p) => {
+        const name = normalizePresetName(p?.name) || 'Preset';
+        const metrics = Array.isArray(p?.metrics) ? p.metrics : [];
+        const payload = { name, metrics };
+        return `
+          <div class="row">
+            <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+              <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(name)}</strong>
+              <small>${escHtml(String(metrics.length))} KPIs</small>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+              <button type="button" class="button" data-preset-load='${escHtml(JSON.stringify(payload))}'>Cargar</button>
+              <button type="button" class="button danger" data-preset-del="${escHtml(name)}">Borrar</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      Array.from(presetList.querySelectorAll('[data-preset-load]')).forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const raw = btn.getAttribute('data-preset-load') || '';
+          try {
+            const payload = JSON.parse(raw);
+            const metrics = Array.isArray(payload?.metrics) ? payload.metrics : [];
+            selected = metrics.slice(0, 80);
+            persistSelected();
+            renderSelected();
+            setStatus(`Preset cargado: ${safeText(payload?.name, '')}.`);
+          } catch (e) { /* ignore */ }
+        });
+      });
+      Array.from(presetList.querySelectorAll('[data-preset-del]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const name = normalizePresetName(btn.getAttribute('data-preset-del') || '');
+          if (!name) return;
+          sharedPresets = (Array.isArray(sharedPresets) ? sharedPresets : []).filter((p) => normalizePresetName(p?.name) !== name);
+          renderPresets();
+          writeLocalPresets(sharedPresets);
+          if (prefsClient) prefsClient.set(sharedPresetsKey, { v: 1, items: sharedPresets }).catch(() => {});
+          setStatus('Preset borrado.');
+        });
+      });
+    };
+
+    const loadPresets = async () => {
+      sharedPresets = readLocalPresets();
+      renderPresets();
+      if (!prefsClient) return;
+      try {
+        const shared = await prefsClient.get(sharedPresetsKey);
+        const items = Array.isArray(shared?.items) ? shared.items : (Array.isArray(shared) ? shared : []);
+        if (items && items.length) {
+          sharedPresets = items
+            .filter((x) => x && typeof x === 'object' && normalizePresetName(x.name))
+            .map((x) => ({ name: normalizePresetName(x.name), metrics: Array.isArray(x.metrics) ? x.metrics.slice(0, 80) : [] }))
+            .slice(0, 20);
+          writeLocalPresets(sharedPresets);
+          renderPresets();
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    const savePreset = async () => {
+      const name = normalizePresetName(presetNameInput?.value || '');
+      if (!name) { setStatus('Pon un nombre al preset.', true); return; }
+      if (!selected.length) { setStatus('No hay KPIs seleccionados para guardar.', true); return; }
+      const existing = (Array.isArray(sharedPresets) ? sharedPresets : []).filter((p) => normalizePresetName(p?.name) !== name);
+      sharedPresets = [{ name, metrics: selected.slice(0, 80) }, ...existing].slice(0, 20);
+      renderPresets();
+      writeLocalPresets(sharedPresets);
+      if (prefsClient) {
+        const ok = await prefsClient.set(sharedPresetsKey, { v: 1, items: sharedPresets });
+        if (!ok) setStatus('Preset guardado local, pero no se pudo sincronizar al workspace.', true);
+        else setStatus('Preset guardado.');
+      } else {
+        setStatus('Preset guardado (local).');
+      }
+      try { if (presetNameInput) presetNameInput.value = ''; } catch (e) { /* ignore */ }
     };
 
     const currentState = () => ({
@@ -513,6 +661,13 @@
     pdfBtn?.addEventListener('click', exportPdf);
     clearBtn?.addEventListener('click', clearAll);
     searchInput?.addEventListener('input', renderAllOptions);
+    presetSaveBtn?.addEventListener('click', savePreset);
+    presetNameInput?.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        savePreset();
+      }
+    });
 
     sourcesClose?.addEventListener('click', closeSources);
     sourcesModal?.addEventListener('click', (ev) => {
@@ -535,6 +690,7 @@
 
     renderSelected();
     renderAllOptions();
+    loadPresets();
   };
 
   if (document.readyState === 'loading') {

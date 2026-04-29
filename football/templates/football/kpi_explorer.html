@@ -66,6 +66,13 @@
             <button type="button" class="button ghost" data-kpi-preset="defense">Defensa</button>
             <button type="button" class="button ghost" data-kpi-preset="gk">Portero</button>
           </div>
+          <div class="hint" style="margin-top:0.75rem;">Presets del club</div>
+          <div class="meta">Guarda una selección de KPIs para reutilizarla (compartido en el workspace).</div>
+          <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem; align-items:center;">
+            <input type="text" id="kpi-preset-name" placeholder="Ej: Rival, Descanso, Defensa…" style="flex:1; min-width: 220px;" />
+            <button type="button" class="button" id="kpi-preset-save">Guardar preset</button>
+          </div>
+          <div class="list" id="kpi-preset-list" style="margin-top:0.55rem;"></div>
           <div class="hint">1) Define el contexto</div>
           <div style="display:grid; gap:0.55rem; margin-top:0.55rem;">
             <label>
