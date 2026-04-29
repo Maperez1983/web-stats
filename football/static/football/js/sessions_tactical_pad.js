@@ -11729,16 +11729,19 @@
 		            stripeGroup.data = { role: 'token_stripes' };
 		            tokenParts.push(stripeGroup);
 		          }
-		          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-		            originX: 'center',
-		            originY: 'center',
-		            left: 0,
-		            top: -2,
-		            fontSize: 14,
-		            fontWeight: '800',
-		            fill: '#ffffff',
-		            shadow: 'rgba(15,23,42,0.65) 0 1px 2px',
-		          });
+			          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -2,
+			            fontSize: 14,
+			            fontWeight: '800',
+			            fill: '#ffffff',
+			            stroke: 'rgba(2,6,23,0.65)',
+			            strokeWidth: 2,
+			            paintFirst: 'stroke',
+			            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+			          });
 		          numberText.data = { role: 'token_number' };
 		          tokenParts.push(numberText);
 		          const nameText = new fabric.Text(displayName, {
@@ -11753,21 +11756,52 @@
 		          });
 		          nameText.data = { role: 'token_name' };
 		          tokenParts.push(nameText);
-		        } else {
-		          const baseCircle = new fabric.Circle({
-		            radius,
-		            fill: isAway ? stripeColor : effectiveBase,
-		            stroke: 'rgba(255,255,255,0.92)',
-		            strokeWidth: 2,
-		            originX: 'center',
-		            originY: 'center',
-		            left: 0,
-		            top: 0,
-		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
-		          });
-		          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
-		          tokenParts.push(baseCircle);
-		        if (isGoalkeeper) {
+			        } else {
+			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
+			          const outerRing = new fabric.Circle({
+			            radius: radius + 1,
+			            fill: '',
+			            stroke: 'rgba(2,6,23,0.55)',
+			            strokeWidth: 2,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          outerRing.data = { role: 'token_outer_ring' };
+			          tokenParts.push(outerRing);
+
+			          const baseCircle = new fabric.Circle({
+			            radius,
+			            fill: isAway ? stripeColor : effectiveBase,
+			            stroke: 'rgba(255,255,255,0.92)',
+			            strokeWidth: 2.5,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+			          });
+			          baseCircle.data = { role: isAway ? 'token_fill' : 'token_base' };
+			          tokenParts.push(baseCircle);
+
+			          const innerRing = new fabric.Circle({
+			            radius: Math.max(2, radius - 3),
+			            fill: '',
+			            stroke: 'rgba(255,255,255,0.20)',
+			            strokeWidth: 1.5,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          innerRing.data = { role: 'token_inner_ring' };
+			          tokenParts.push(innerRing);
+			        if (isGoalkeeper) {
 		          // Portero: disco azul con brillo suave (aproxima el gradiente CSS del bank).
 		          const gkBg = new fabric.Circle({
 	            radius: radius - 1,
@@ -11835,34 +11869,68 @@
 	            left: 0,
 	            top: 0,
 	          });
-		          stripeGroup.data = { role: 'token_stripes' };
-		          tokenParts.push(stripeGroup);
-		        }
-		        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-	          originX: 'center',
-	          originY: 'center',
-	          left: 0,
-	          top: 0,
-	          fontSize: 15,
-	          fontWeight: '800',
-	          fill: isAway ? '#0b1220' : '#ffffff',
-	          shadow: 'rgba(15,23,42,0.65) 0 1px 2px',
-	        });
-	        numberText.data = { role: 'token_number' };
-	        tokenParts.push(numberText);
-	        const nameText = new fabric.Text(displayName, {
-	          originX: 'center',
-	          originY: 'center',
-	          left: 0,
-	          top: -34,
-	          fontSize: 10,
-	          fontWeight: '700',
-	          fill: '#e2e8f0',
-	          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
-	        });
-		        nameText.data = { role: 'token_name' };
-		        tokenParts.push(nameText);
-		        }
+			          stripeGroup.data = { role: 'token_stripes' };
+			          tokenParts.push(stripeGroup);
+			        }
+			        // Brillo común para look más "pro" (broadcast).
+			        const gloss = new fabric.Circle({
+			          radius: 9,
+			          originX: 'center',
+			          originY: 'center',
+			          left: -7,
+			          top: -10,
+			          fill: 'rgba(255,255,255,0.18)',
+			          strokeWidth: 0,
+			          selectable: false,
+			          evented: false,
+			        });
+			        gloss.data = { role: 'token_gloss' };
+			        tokenParts.push(gloss);
+			        const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          fontSize: 15,
+		          fontWeight: '800',
+		          fill: isAway ? '#0b1220' : '#ffffff',
+		          stroke: isAway ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.65)',
+		          strokeWidth: 2,
+		          paintFirst: 'stroke',
+		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		        });
+		        numberText.data = { role: 'token_number' };
+		        tokenParts.push(numberText);
+		        const nameBg = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: -34,
+		          width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
+		          height: 18,
+		          rx: 8,
+		          ry: 8,
+		          fill: 'rgba(2,6,23,0.68)',
+		          stroke: 'rgba(255,255,255,0.14)',
+		          strokeWidth: 1,
+		          selectable: false,
+		          evented: false,
+		        });
+		        nameBg.data = { role: 'token_name_bg' };
+		        tokenParts.push(nameBg);
+		        const nameText = new fabric.Text(displayName, {
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: -34,
+		          fontSize: 10,
+		          fontWeight: '700',
+		          fill: '#e2e8f0',
+		          shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+		        });
+			        nameText.data = { role: 'token_name' };
+			        tokenParts.push(nameText);
+			        }
 		      } else {
 	        baseRadius = kind === 'goalkeeper_local' ? 24 : 21;
 	        const circle = new fabric.Circle({
