@@ -126,6 +126,46 @@ class LoginNextRedirectTests(TestCase):
         self.assertEqual(response['Location'], reverse('dashboard-home'))
 
 
+class TacticsLandingModalFallbackTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo prueba',
+            slug='equipo-prueba',
+            short_name='Prueba',
+            is_primary=True,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-tactics',
+            email='coach-tactics@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB PRUEBA',
+            slug='club-prueba',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(
+            workspace=self.workspace,
+            team=self.team,
+            is_default=True,
+        )
+
+    def test_coach_tactics_page_includes_clickable_landing_fallback(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('coach-tactics')}?workspace={self.workspace.id}"
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '__webstatsTaskLandingGo')
+        self.assertContains(response, 'onclick="return window.__webstatsTaskLandingGo')
+
+
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
         self.primary_global_team = Team.objects.create(
