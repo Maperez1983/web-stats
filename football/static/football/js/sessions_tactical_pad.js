@@ -3136,14 +3136,92 @@
 	        applyTokenColor(object, colorHex);
 	        return;
 	      }
-	      if (kind.startsWith('emoji_')) {
-	        applyEmojiColor(object, colorHex);
-	        return;
-	      }
-	      if (kind === 'zone') {
-	        setObjectData(object, { color: colorHex });
-	        const style = normalizeZoneStyle(object?.data?.zone_style);
-	        const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
+		      if (kind.startsWith('emoji_')) {
+		        applyEmojiColor(object, colorHex);
+		        return;
+		      }
+		      if ((kind === 'ladder' || kind === 'ladder_L' || kind === 'ladder_zigzag' || kind === 'hurdle' || kind === 'mini_hurdle') && Array.isArray(object._objects)) {
+		        object._objects.forEach((child) => {
+		          if (!child) return;
+		          if (child.stroke !== undefined) {
+		            try { child.set({ stroke: colorHex }); } catch (e) { /* ignore */ }
+		          }
+		        });
+		        object.dirty = true;
+		        return;
+		      }
+		      if (kind === 'tape') {
+		        try {
+		          object.set({
+		            fill: rgbaFromHex(colorHex, 0.16),
+		            stroke: colorHex,
+		          });
+		        } catch (e) { /* ignore */ }
+		        return;
+		      }
+		      if ((kind === 'gate' || kind === 'mannequin' || kind === 'wall' || kind === 'rebounder' || kind === 'barrier' || kind.startsWith('marker_') || kind.startsWith('line_') || kind === 'measure' || kind === 'goal_target') && Array.isArray(object._objects)) {
+		        object._objects.forEach((child) => {
+		          if (!child) return;
+		          if (kind === 'barrier' && Array.isArray(child?._objects)) {
+		            // Barrera: reusa la recoloración del maniquí.
+		            try { applyObjectColor(child, colorHex); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          const role = safeText(child?.data?.role);
+		          if (role === 'marker_ring' && child.fill !== undefined) {
+		            try { child.set({ fill: rgbaFromHex(colorHex, 0.22) }); } catch (e) { /* ignore */ }
+		          }
+		          if (role === 'marker_text' && child.fill !== undefined) {
+		            try { child.set({ fill: contrastTextForFill(colorHex) }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'line_label_bg') {
+		            try { child.set({ fill: 'rgba(2,6,23,0.72)' }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'line_label' && child.fill !== undefined) {
+		            try { child.set({ fill: '#f8fafc' }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'measure_bg') {
+		            try { child.set({ fill: 'rgba(2,6,23,0.72)' }); } catch (e) { /* ignore */ }
+		          }
+		          if (role === 'measure_text' && child.fill !== undefined) {
+		            try { child.set({ fill: '#f8fafc' }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'measure_head' && child.fill !== undefined) {
+		            try { child.set({ fill: colorHex }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'goal_target_dot') {
+		            try { child.set({ fill: rgbaFromHex(colorHex, 0.20), stroke: colorHex }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (role === 'gate_cone') {
+		            try { child.set({ fill: colorHex, stroke: darkenHex(colorHex, 0.55) }); } catch (e) { /* ignore */ }
+		            return;
+		          }
+		          if (child.fill !== undefined && (role.includes('base') || role.includes('cone') || role.includes('body') || role.includes('head') || role.includes('frame'))) {
+		            try { child.set({ fill: rgbaFromHex(colorHex, 0.22) }); } catch (e) { /* ignore */ }
+		          }
+		          if (child.stroke !== undefined) {
+		            try { child.set({ stroke: colorHex }); } catch (e) { /* ignore */ }
+		          }
+		          if (role === 'marker_ring') {
+		            try { child.set({ stroke: 'rgba(255,255,255,0.92)' }); } catch (e) { /* ignore */ }
+		          }
+		        });
+		        object.dirty = true;
+		        if (kind === 'measure') {
+		          try { updateMeasureLabelWorld(object); } catch (e) { /* ignore */ }
+		        }
+		        return;
+		      }
+		      if (kind === 'zone') {
+		        setObjectData(object, { color: colorHex });
+		        const style = normalizeZoneStyle(object?.data?.zone_style);
+		        const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
 	        const borderDash = style === 'solid' ? null : [10, 8];
 	        if (object.type === 'rect') {
 	          object.set({
@@ -11464,10 +11542,10 @@
 		        y: clamp(y, 24, h - 24),
 		      };
 		    };
-		    const createFactoryFromPayload = (payload) => {
-		      if (!payload || typeof payload !== 'object') return null;
-		      const rawKind = safeText(payload.kind);
-		      if (rawKind.startsWith('image_url:')) {
+			    const createFactoryFromPayload = (payload) => {
+			      if (!payload || typeof payload !== 'object') return null;
+			      const rawKind = safeText(payload.kind);
+			      if (rawKind.startsWith('image_url:')) {
 		        const url = rawKind.slice('image_url:'.length);
 		        const desired = clamp(Number(payload.desiredSize) || 56, 28, 220);
 		        const title = safeText(payload.title);
@@ -11476,19 +11554,36 @@
 		          label: title || 'una imagen',
 		        };
 		      }
-		      if (rawKind.startsWith('pdf_asset:')) {
-		        const assetId = rawKind.split(':')[1] || '';
-		        const desired = clamp(Number(payload.desiredSize) || 56, 28, 180);
-		        const title = safeText(payload.title);
+			      if (rawKind.startsWith('pdf_asset:')) {
+			        const assetId = rawKind.split(':')[1] || '';
+			        const desired = clamp(Number(payload.desiredSize) || 56, 28, 180);
+			        const title = safeText(payload.title);
+			        return {
+			          factory: (left, top) => buildPdfAssetObject(assetId, left, top, { desiredSize: desired, title }),
+			          label: title || 'un recurso gráfico',
+			        };
+			      }
+			      if (rawKind === 'text') {
+			        const content = safeText(payload.text || payload.value || payload.title || 'Texto');
+			        const color = parseColorToHex(payload.color, '#ffffff') || '#ffffff';
+			        return {
+			          factory: (left, top) => new fabric.IText(content, {
+			            left,
+			            top,
+			            originX: 'center',
+			            originY: 'center',
+			            fontSize: clamp(Number(payload.fontSize) || 22, 12, 72),
+			            fill: color,
+			            fontWeight: '800',
+			            data: { kind: 'text', color },
+			          }),
+			          label: 'un texto',
+			        };
+			      }
+			      if (payload.playerId) {
+			        const player = players.find((item) => String(item.id) === String(payload.playerId));
+		        if (!player) return null;
 		        return {
-		          factory: (left, top) => buildPdfAssetObject(assetId, left, top, { desiredSize: desired, title }),
-		          label: title || 'un recurso gráfico',
-		        };
-		      }
-		      if (payload.playerId) {
-		        const player = players.find((item) => String(item.id) === String(payload.playerId));
-	        if (!player) return null;
-	        return {
 	          factory: playerTokenFactory(payload.kind || 'player_local', player),
 	          label: safeText(player.name, 'el jugador'),
 	        };
@@ -11512,7 +11607,7 @@
 		      return true;
 		    };
 
-		    const applyAssistantBoardTemplate = (detail = {}) => {
+			    const applyAssistantBoardTemplate = (detail = {}) => {
 		      if (isSimulating) {
 		        setStatus('Modo simulación: no se puede aplicar una plantilla. Sal del simulador.', true);
 		        return false;
@@ -11590,12 +11685,79 @@
 		      try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
 		      pushHistory();
 		      syncInspector();
-		      setStatus(added.length ? `Plantilla aplicada (${added.length} elementos).` : 'Plantilla aplicada.');
-		      return true;
-		    };
-		    const registerDraggableButton = (button, payloadBuilder) => {
-		      if (!button) return;
-		      button.draggable = true;
+			      setStatus(added.length ? `Plantilla aplicada (${added.length} elementos).` : 'Plantilla aplicada.');
+			      return true;
+			    };
+
+			    const applyLocalTemplate = (templateKey) => {
+			      const key = safeText(templateKey);
+			      if (!key) return false;
+			      const box = readPitchBoxWorld();
+			      const at = (xp, yp) => ({
+			        x: (Number(box.x) || 0) + (clamp(Number(xp) || 0, 0, 1) * (Number(box.width) || 1)),
+			        y: (Number(box.y) || 0) + (clamp(Number(yp) || 0, 0, 1) * (Number(box.height) || 1)),
+			      });
+			      const items = [];
+			      const add = (kind, xp, yp, options = {}) => {
+			        const p = at(xp, yp);
+			        const payload = { kind: safeText(kind) };
+			        if (options.payload && typeof options.payload === 'object') Object.assign(payload, options.payload);
+			        items.push({
+			          x: p.x,
+			          y: p.y,
+			          angle: options.angle,
+			          scale: options.scale,
+			          scaleX: options.scaleX,
+			          scaleY: options.scaleY,
+			          opacity: options.opacity,
+			          payload,
+			        });
+			      };
+			      const addText = (text, xp, yp, options = {}) => add('text', xp, yp, { ...options, payload: { text } });
+
+			      if (key === 'formation_433') {
+			        add('goalkeeper_local', 0.5, 0.88);
+			        [0.20, 0.40, 0.60, 0.80].forEach((x) => add('player_local', x, 0.72));
+			        [0.32, 0.50, 0.68].forEach((x) => add('player_local', x, 0.56));
+			        [0.28, 0.50, 0.72].forEach((x) => add('player_local', x, 0.40));
+			      } else if (key === 'formation_4231') {
+			        add('goalkeeper_local', 0.5, 0.88);
+			        [0.20, 0.40, 0.60, 0.80].forEach((x) => add('player_local', x, 0.72));
+			        [0.42, 0.58].forEach((x) => add('player_local', x, 0.58));
+			        [0.28, 0.50, 0.72].forEach((x) => add('player_local', x, 0.46));
+			        add('player_local', 0.50, 0.34);
+			      } else if (key === 'abp_corner_left' || key === 'abp_corner_right') {
+			        const leftCorner = key === 'abp_corner_left';
+			        const cx = leftCorner ? 0.05 : 0.95;
+			        add('ball', cx, 0.08, { scale: 0.9 });
+			        add('arrow_curve', leftCorner ? 0.18 : 0.82, 0.18, { angle: leftCorner ? 0 : 180, scale: 1.2 });
+			        // Atacantes y defensores en zona.
+			        [0.44, 0.52, 0.60].forEach((x) => add('player_local', x, 0.22));
+			        [0.46, 0.54, 0.62].forEach((x) => add('player_rival', x, 0.30, { scale: 0.95 }));
+			      } else if (key === 'abp_fk_frontal') {
+			        add('ball', 0.50, 0.24, { scale: 0.9 });
+			        add('barrier', 0.50, 0.20, { scale: 0.9 });
+			        add('arrow_solid', 0.50, 0.16, { angle: -90, scale: 1.35 });
+			        // Rematadores.
+			        [0.42, 0.50, 0.58].forEach((x) => add('player_local', x, 0.30));
+			      } else if (key === 'zone_14') {
+			        add('zone', 0.50, 0.56, { scaleX: 1.9, scaleY: 1.3 });
+			        addText('ZONA 14', 0.50, 0.56, { payload: { fontSize: 18, color: '#f8fafc' } });
+			      } else if (key === 'halfspace_left') {
+			        add('zone', 0.32, 0.52, { scaleX: 1.6, scaleY: 2.2 });
+			        addText('MEDIO ESPACIO', 0.32, 0.52, { payload: { fontSize: 14, color: '#f8fafc' } });
+			      } else if (key === 'halfspace_right') {
+			        add('zone', 0.68, 0.52, { scaleX: 1.6, scaleY: 2.2 });
+			        addText('MEDIO ESPACIO', 0.68, 0.52, { payload: { fontSize: 14, color: '#f8fafc' } });
+			      } else {
+			        return false;
+			      }
+
+			      return applyAssistantBoardTemplate({ items, clear: false });
+			    };
+			    const registerDraggableButton = (button, payloadBuilder) => {
+			      if (!button) return;
+			      button.draggable = true;
       // iPad/iOS: HTML5 drag & drop es poco fiable. Añadimos “drag” por pointer events
       // para poder arrastrar recursos desde la biblioteca al campo.
       let touchDrag = null;
@@ -12675,19 +12837,540 @@
 	          return group;
 	        };
 	      }
-	      if (kind === 'ring') {
-	        return (left, top) => new fabric.Circle({
-	          left,
-	          top,
-	          originX: 'center',
-	          originY: 'center',
-	          radius: 22,
-	          fill: '',
-	          stroke: '#ef4444',
-	          strokeWidth: 4,
-	          data: { kind: 'ring', color: '#ef4444' },
-	        });
-	      }
+		      if (kind === 'ring') {
+		        return (left, top) => new fabric.Circle({
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          radius: 22,
+		          fill: '',
+		          stroke: '#ef4444',
+		          strokeWidth: 4,
+		          data: { kind: 'ring', color: '#ef4444' },
+		        });
+		      }
+
+		      const buildLadderGroup = (left, top, variant = 'straight') => {
+		        const stroke = '#f8fafc';
+		        const rail = (x1, y1, x2, y2, width = 5) => {
+		          const ln = new fabric.Line([x1, y1, x2, y2], {
+		            stroke,
+		            strokeWidth: width,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          ln.data = { role: 'ladder_rail' };
+		          return ln;
+		        };
+		        const rung = (x1, y1, x2, y2) => {
+		          const ln = new fabric.Line([x1, y1, x2, y2], {
+		            stroke: 'rgba(248,250,252,0.92)',
+		            strokeWidth: 4,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          ln.data = { role: 'ladder_rung' };
+		          return ln;
+		        };
+
+		        const parts = [];
+		        if (variant === 'L') {
+		          const segW = 120;
+		          const segH = 62;
+		          parts.push(rail(-segW / 2, -segH / 2, segW / 2, -segH / 2));
+		          parts.push(rail(-segW / 2, segH / 2, segW / 2, segH / 2));
+		          for (let i = 1; i <= 4; i += 1) {
+		            const x = -segW / 2 + (segW * (i / 5));
+		            parts.push(rung(x, -segH / 2 + 6, x, segH / 2 - 6));
+		          }
+		          const vx = segW / 2;
+		          parts.push(rail(vx - segH / 2, -segW / 2, vx - segH / 2, segW / 2));
+		          parts.push(rail(vx + segH / 2, -segW / 2, vx + segH / 2, segW / 2));
+		          for (let i = 1; i <= 4; i += 1) {
+		            const y = -segW / 2 + (segW * (i / 5));
+		            parts.push(rung(vx - segH / 2 + 6, y, vx + segH / 2 - 6, y));
+		          }
+		        } else if (variant === 'zigzag') {
+		          const seg = 110;
+		          const gap = 38;
+		          const y = 0;
+		          for (let i = 0; i < 3; i += 1) {
+		            const x0 = (i - 1) * (seg - 16);
+		            const offset = (i % 2 === 0) ? -gap / 2 : gap / 2;
+		            parts.push(rail(x0 - seg / 2, y + offset - 26, x0 + seg / 2, y + offset - 26));
+		            parts.push(rail(x0 - seg / 2, y + offset + 26, x0 + seg / 2, y + offset + 26));
+		            for (let r = 1; r <= 3; r += 1) {
+		              const x = x0 - seg / 2 + (seg * (r / 4));
+		              parts.push(rung(x, y + offset - 22, x, y + offset + 22));
+		            }
+		          }
+		        } else {
+		          const width = 170;
+		          const height = 70;
+		          const railsGap = 44;
+		          const leftRailX = -railsGap / 2;
+		          const rightRailX = railsGap / 2;
+		          parts.push(rail(leftRailX, -height / 2, leftRailX, height / 2));
+		          parts.push(rail(rightRailX, -height / 2, rightRailX, height / 2));
+		          const rungCount = 6;
+		          const rungStep = height / (rungCount + 1);
+		          for (let i = 1; i <= rungCount; i += 1) {
+		            const y = -height / 2 + (rungStep * i);
+		            parts.push(rung(leftRailX + 6, y, rightRailX - 6, y));
+		          }
+		        }
+
+		        const group = new fabric.Group(parts, {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: variant === 'L' ? 'ladder_L' : (variant === 'zigzag' ? 'ladder_zigzag' : 'ladder'), color: stroke },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'ladder') return (left, top) => buildLadderGroup(left, top, 'straight');
+		      if (kind === 'ladder_L') return (left, top) => buildLadderGroup(left, top, 'L');
+		      if (kind === 'ladder_zigzag') return (left, top) => buildLadderGroup(left, top, 'zigzag');
+
+		      const buildHurdle = (left, top, mini = false) => {
+		        const stroke = mini ? '#a855f7' : '#22d3ee';
+		        const width = mini ? 86 : 120;
+		        const height = mini ? 24 : 34;
+		        const bar = new fabric.Line([-width / 2, 0, width / 2, 0], {
+		          stroke,
+		          strokeWidth: 5,
+		          strokeLineCap: 'round',
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.18) 0 8px 16px',
+		        });
+		        bar.data = { role: 'hurdle_bar' };
+		        const leg = (x) => {
+		          const ln = new fabric.Line([x, 0, x, height], {
+		            stroke: rgbaFromHex(stroke, 0.72),
+		            strokeWidth: 5,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          ln.data = { role: 'hurdle_leg' };
+		          return ln;
+		        };
+		        const group = new fabric.Group([bar, leg(-width / 2), leg(width / 2)], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: mini ? 'mini_hurdle' : 'hurdle', color: stroke },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'hurdle') return (left, top) => buildHurdle(left, top, false);
+		      if (kind === 'mini_hurdle') return (left, top) => buildHurdle(left, top, true);
+
+		      if (kind === 'tape') {
+		        return (left, top) => new fabric.Rect({
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          width: 220,
+		          height: 26,
+		          rx: 10,
+		          ry: 10,
+		          fill: rgbaFromHex('#facc15', 0.16),
+		          stroke: '#facc15',
+		          strokeWidth: 3,
+		          strokeDashArray: [10, 8],
+		          data: { kind: 'tape', color: '#facc15' },
+		          shadow: 'rgba(2,6,23,0.18) 0 6px 14px',
+		        });
+		      }
+
+		      const buildGate = (left, top) => {
+		        const color = '#f97316';
+		        const cone = (x) => {
+		          const tri = new fabric.Triangle({
+		            left: x,
+		            top: 10,
+		            originX: 'center',
+		            originY: 'center',
+		            width: 24,
+		            height: 24,
+		            angle: 180,
+		            fill: color,
+		            stroke: darkenHex(color, 0.55),
+		            strokeWidth: 1.2,
+		            selectable: false,
+		            evented: false,
+		          });
+		          tri.data = { role: 'gate_cone' };
+		          return tri;
+		        };
+		        const bar = new fabric.Line([-44, 10, 44, 10], {
+		          stroke: 'rgba(248,250,252,0.85)',
+		          strokeWidth: 4,
+		          strokeLineCap: 'round',
+		          selectable: false,
+		          evented: false,
+		        });
+		        bar.data = { role: 'gate_bar' };
+		        const group = new fabric.Group([cone(-44), cone(44), bar], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: 'gate', color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'gate') return (left, top) => buildGate(left, top);
+
+		      const buildMannequin = (left, top, options = {}) => {
+		        const color = safeText(options.color, '#94a3b8');
+		        const head = new fabric.Circle({
+		          radius: 10,
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: -34,
+		          fill: rgbaFromHex(color, 0.22),
+		          stroke: color,
+		          strokeWidth: 3,
+		          selectable: false,
+		          evented: false,
+		        });
+		        head.data = { role: 'mannequin_head' };
+		        const body = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          width: 46,
+		          height: 78,
+		          rx: 18,
+		          ry: 18,
+		          fill: rgbaFromHex(color, 0.18),
+		          stroke: color,
+		          strokeWidth: 3,
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.18) 0 10px 22px',
+		        });
+		        body.data = { role: 'mannequin_body' };
+		        const base = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 48,
+		          width: 54,
+		          height: 10,
+		          rx: 6,
+		          ry: 6,
+		          fill: 'rgba(2,6,23,0.28)',
+		          strokeWidth: 0,
+		          selectable: false,
+		          evented: false,
+		        });
+		        base.data = { role: 'mannequin_base_bg' };
+		        const group = new fabric.Group([base, body, head], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: 'mannequin', color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'mannequin') return (left, top) => buildMannequin(left, top);
+
+		      const buildWall = (left, top) => {
+		        const color = '#64748b';
+		        const base = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          width: 160,
+		          height: 56,
+		          rx: 12,
+		          ry: 12,
+		          fill: rgbaFromHex(color, 0.22),
+		          stroke: color,
+		          strokeWidth: 3,
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.18) 0 10px 22px',
+		        });
+		        base.data = { role: 'wall_base' };
+		        const lines = [];
+		        for (let y = -18; y <= 18; y += 18) {
+		          const ln = new fabric.Line([-74, y, 74, y], {
+		            stroke: rgbaFromHex(color, 0.55),
+		            strokeWidth: 2,
+		            selectable: false,
+		            evented: false,
+		          });
+		          ln.data = { role: 'wall_line' };
+		          lines.push(ln);
+		        }
+		        const group = new fabric.Group([base, ...lines], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: 'wall', color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'wall') return (left, top) => buildWall(left, top);
+
+		      const buildRebounder = (left, top) => {
+		        const color = '#22d3ee';
+		        const frame = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          width: 140,
+		          height: 80,
+		          rx: 12,
+		          ry: 12,
+		          fill: rgbaFromHex(color, 0.08),
+		          stroke: color,
+		          strokeWidth: 3,
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.16) 0 10px 22px',
+		        });
+		        frame.data = { role: 'rebounder_frame' };
+		        const net = [];
+		        for (let x = -60; x <= 60; x += 18) {
+		          const ln = new fabric.Line([x, -34, x, 34], { stroke: rgbaFromHex(color, 0.28), strokeWidth: 2, selectable: false, evented: false });
+		          ln.data = { role: 'rebounder_net' };
+		          net.push(ln);
+		        }
+		        const group = new fabric.Group([frame, ...net], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: 'rebounder', color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'rebounder') return (left, top) => buildRebounder(left, top);
+
+		      const buildBarrier = (left, top) => {
+		        const color = '#94a3b8';
+		        const items = [];
+		        const gap = 42;
+		        for (let i = 0; i < 4; i += 1) {
+		          const x = (i - 1.5) * gap;
+		          const m = buildMannequin(x, 0, { color });
+		          m.data = { ...(m.data || {}), kind: 'mannequin' };
+		          items.push(m);
+		        }
+		        const group = new fabric.Group(items, {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: 'barrier', color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'barrier') return (left, top) => buildBarrier(left, top);
+
+		      const buildMarker = (left, top, kindKey, label, color) => {
+		        const fill = parseColorToHex(color, '#22d3ee');
+		        const ring = new fabric.Circle({
+		          radius: 18,
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          fill: rgbaFromHex(fill, 0.22),
+		          stroke: 'rgba(255,255,255,0.92)',
+		          strokeWidth: 2,
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.18) 0 10px 22px',
+		        });
+		        ring.data = { role: 'marker_ring' };
+		        const text = new fabric.Text(String(label || '').slice(0, 2).toUpperCase(), {
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: 0,
+		          fontSize: 12,
+		          fontWeight: '900',
+		          fill: contrastTextForFill(fill),
+		          selectable: false,
+		          evented: false,
+		        });
+		        text.data = { role: 'marker_text' };
+		        const group = new fabric.Group([ring, text], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: safeText(kindKey, 'marker_start'), marker_label: String(label || ''), color: fill },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'marker_start') return (left, top) => buildMarker(left, top, 'marker_start', 'I', '#22c55e');
+		      if (kind === 'marker_end') return (left, top) => buildMarker(left, top, 'marker_end', 'F', '#ef4444');
+		      if (kind === 'marker_pass') return (left, top) => buildMarker(left, top, 'marker_pass', 'P', '#22d3ee');
+		      if (kind === 'marker_shot') return (left, top) => buildMarker(left, top, 'marker_shot', 'T', '#f59e0b');
+		      if (kind === 'marker_support') return (left, top) => buildMarker(left, top, 'marker_support', 'A', '#a855f7');
+
+		      const buildTacticalLine = (left, top, opts = {}) => {
+		        const color = safeText(opts.color, '#f8fafc');
+		        const label = safeText(opts.label, '');
+		        const dash = Array.isArray(opts.dash) ? opts.dash : [14, 10];
+		        const line = new fabric.Line([-320, 0, 320, 0], {
+		          stroke: color,
+		          strokeWidth: 6,
+		          strokeDashArray: dash,
+		          strokeLineCap: 'round',
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.18) 0 10px 22px',
+		        });
+		        line.data = { role: 'line_stroke' };
+		        const bg = new fabric.Rect({
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: -22,
+		          width: Math.max(88, Math.min(240, (label.length * 8) + 24)),
+		          height: 18,
+		          rx: 9,
+		          ry: 9,
+		          fill: 'rgba(2,6,23,0.72)',
+		          stroke: 'rgba(255,255,255,0.12)',
+		          strokeWidth: 1,
+		          selectable: false,
+		          evented: false,
+		        });
+		        bg.data = { role: 'line_label_bg' };
+		        const tx = new fabric.Text(label, {
+		          originX: 'center',
+		          originY: 'center',
+		          left: 0,
+		          top: -22,
+		          fontSize: 11,
+		          fontWeight: '900',
+		          fill: '#f8fafc',
+		          selectable: false,
+		          evented: false,
+		        });
+		        tx.data = { role: 'line_label' };
+		        const group = new fabric.Group([line, bg, tx], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: safeText(opts.kind, 'line_pressure'), color },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'line_pressure') return (left, top) => buildTacticalLine(left, top, { kind: 'line_pressure', label: 'LÍNEA PRESIÓN', color: '#f97316', dash: [14, 10] });
+		      if (kind === 'line_defensive') return (left, top) => buildTacticalLine(left, top, { kind: 'line_defensive', label: 'LÍNEA DEFENSIVA', color: '#22c55e', dash: [18, 12] });
+		      if (kind === 'line_offside') return (left, top) => buildTacticalLine(left, top, { kind: 'line_offside', label: 'FUERA DE JUEGO', color: '#facc15', dash: [10, 8] });
+
+		      if (kind === 'measure') {
+		        return (left, top) => {
+		          const color = '#22d3ee';
+		          const line = new fabric.Line([-120, 0, 120, 0], {
+		            stroke: color,
+		            strokeWidth: 5,
+		            strokeLineCap: 'round',
+		            selectable: false,
+		            evented: false,
+		          });
+		          line.data = { role: 'measure_line' };
+		          const headL = new fabric.Triangle({ left: -120, top: 0, width: 16, height: 16, angle: -90, fill: color, originX: 'center', originY: 'center', selectable: false, evented: false });
+		          headL.data = { role: 'measure_head' };
+		          const headR = new fabric.Triangle({ left: 120, top: 0, width: 16, height: 16, angle: 90, fill: color, originX: 'center', originY: 'center', selectable: false, evented: false });
+		          headR.data = { role: 'measure_head' };
+		          const bg = new fabric.Rect({
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: -20,
+		            width: 84,
+		            height: 18,
+		            rx: 9,
+		            ry: 9,
+		            fill: 'rgba(2,6,23,0.72)',
+		            stroke: 'rgba(255,255,255,0.12)',
+		            strokeWidth: 1,
+		            selectable: false,
+		            evented: false,
+		          });
+		          bg.data = { role: 'measure_bg' };
+		          const tx = new fabric.Text('— m', { originX: 'center', originY: 'center', left: 0, top: -20, fontSize: 11, fontWeight: '900', fill: '#f8fafc', selectable: false, evented: false });
+		          tx.data = { role: 'measure_text' };
+		          const group = new fabric.Group([line, headL, headR, bg, tx], {
+		            left,
+		            top,
+		            originX: 'center',
+		            originY: 'center',
+		            data: { kind: 'measure', color },
+		          });
+		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          try { updateMeasureLabelWorld(group); } catch (e) { /* ignore */ }
+		          return group;
+		        };
+		      }
+
+		      if (kind === 'goal_target') {
+		        return (left, top) => {
+		          const goal = buildGoalGroup(0, 0, 'net', { width: 150, height: 86, stroke: '#f8fafc', strokeWidth: 3 });
+		          const targets = [];
+		          const t = (x, y) => {
+		            const c = new fabric.Circle({ left: x, top: y, originX: 'center', originY: 'center', radius: 9, fill: 'rgba(245,158,11,0.20)', stroke: '#f59e0b', strokeWidth: 2, selectable: false, evented: false });
+		            c.data = { role: 'goal_target_dot' };
+		            targets.push(c);
+		          };
+		          const w = 150;
+		          const h = 86;
+		          t(-w / 2 + 18, -h / 2 + 18);
+		          t(w / 2 - 18, -h / 2 + 18);
+		          t(-w / 2 + 18, h / 2 - 18);
+		          t(w / 2 - 18, h / 2 - 18);
+		          const group = new fabric.Group([goal, ...targets], { left, top, originX: 'center', originY: 'center', data: { kind: 'goal_target', color: '#f8fafc' } });
+		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          return group;
+		        };
+		      }
+
 		      if (kind === 'zone') {
 		        return (left, top) => {
 		          const colorHex = '#22d3ee';
@@ -14388,14 +15071,18 @@
     // El submit real se gestiona al final del fichero (unificado con el sync de campos ocultos + preview HD).
     // Aquí solo mantenemos pingKeepalive para reutilizarlo en ese handler.
 
-			    canvas.on('object:modified', (event) => {
-			      if (canvas.__loading) return;
-			      if (event?.target?.data?.base) return;
-			      if (isSimulating) {
-			        hideSimGuides();
-			        if (simulationAutoCapture && !simulationPlaying) {
-			          const now = Date.now();
-			          if (now - simulationLastAutoCaptureAt >= 450) {
+				    canvas.on('object:modified', (event) => {
+				      if (canvas.__loading) return;
+				      if (event?.target?.data?.base) return;
+				      try {
+				        const target = event?.target;
+				        if (safeText(target?.data?.kind) === 'measure') updateMeasureLabelWorld(target);
+				      } catch (e) { /* ignore */ }
+				      if (isSimulating) {
+				        hideSimGuides();
+				        if (simulationAutoCapture && !simulationPlaying) {
+				          const now = Date.now();
+				          if (now - simulationLastAutoCaptureAt >= 450) {
 			            simulationLastAutoCaptureAt = now;
 			            captureSimulationStep();
 			          }
@@ -16003,11 +16690,27 @@
 				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 				    });
 
-			    libraryPane?.addEventListener('click', (event) => {
-			      const button = event.target.closest('button[data-add]');
-			      if (!button) return;
-					      const add = safeText(button.dataset.add);
-					      if (!add) return;
+				    libraryPane?.addEventListener('click', (event) => {
+				      const templateBtn = event.target.closest('button[data-template]');
+				      if (templateBtn) {
+				        const templateKey = safeText(templateBtn.dataset.template);
+				        try {
+				          if (applyLocalTemplate(templateKey)) {
+				            setStatus('Plantilla aplicada.');
+				          } else {
+				            setStatus('No se pudo aplicar la plantilla.', true);
+				          }
+				        } catch (e) {
+				          setStatus('No se pudo aplicar la plantilla.', true);
+				        }
+				        try { event.preventDefault(); } catch (e) { /* ignore */ }
+				        try { event.stopPropagation(); } catch (e) { /* ignore */ }
+				        return;
+				      }
+				      const button = event.target.closest('button[data-add]');
+				      if (!button) return;
+						      const add = safeText(button.dataset.add);
+						      if (!add) return;
 					      if (freeDrawMode) handleCanvasAction('draw_free');
 					      if (add.startsWith('image_url:')) {
 				        const url = add.slice('image_url:'.length);
