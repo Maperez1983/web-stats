@@ -360,6 +360,29 @@
         gap: 0.35rem;
         font-size: 0.82rem;
       }
+      .setup-checklist-details {
+        margin-top: 0.55rem;
+      }
+      .setup-checklist-details summary {
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(245, 247, 250, 0.95);
+      }
+      .setup-checklist-details summary::-webkit-details-marker {
+        display: none;
+      }
       .setup-checklist li {
         display: flex;
         gap: 0.5rem;
@@ -953,7 +976,9 @@
               const checklist = Array.isArray(payload?.setup_checklist) ? payload.setup_checklist : [];
               let checklistHtml = '';
               if (checklist.length) {
-                const rows = checklist.slice(0, 7).map((item) => {
+                const pending = checklist.filter((item) => item && item.required && !item.ok).length;
+                const totalRequired = checklist.filter((item) => item && item.required).length;
+                const rows = checklist.slice(0, 6).map((item) => {
                   const ok = Boolean(item && item.ok);
                   const required = Boolean(item && item.required);
                   const label = String(item?.label || '').trim();
@@ -961,7 +986,13 @@
                   const prefix = ok ? '✓' : required ? '•' : '·';
                   return `<li class="${cls}"><strong>${prefix}</strong><span>${label || 'Paso'}</span></li>`;
                 }).join('');
-                checklistHtml = `<ul class="setup-checklist">${rows}</ul>`;
+                // Evita “ensuciar” la home: la checklist queda plegada por defecto.
+                checklistHtml = `
+                  <details class="setup-checklist-details">
+                    <summary>Checklist (${pending}/${totalRequired || checklist.length} pendientes)</summary>
+                    <ul class="setup-checklist">${rows}</ul>
+                  </details>
+                `;
               }
               setupBanner.hidden = false;
               setupBanner.innerHTML = `
