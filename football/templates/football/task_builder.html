@@ -9265,8 +9265,113 @@
                   });
               }
             } catch (e) { /* ignore */ }
-		      });
-		    </script>
+			      });
+			    </script>
+          <script>
+            // Pantalla de entrada (¿Qué quieres hacer?): wiring de botones + preferencia "no mostrar".
+            (function () {
+              const landing = document.getElementById('task-landing');
+              if (!landing) return;
+
+              const scopeKey = String('{{ scope_key|default:"" }}' || '').trim() || 'global';
+              const storageKey = `webstats:tpad:landing_hide_v1:${scopeKey}`;
+              const hideCheck = document.getElementById('task-landing-hide');
+
+              const setHiddenPref = () => {
+                try {
+                  if (hideCheck && hideCheck.checked) {
+                    localStorage.setItem(storageKey, '1');
+                  } else {
+                    localStorage.removeItem(storageKey);
+                  }
+                } catch (e) { /* ignore */ }
+              };
+
+              const shouldHideLanding = () => {
+                try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
+              };
+
+              const openLandingIfNeeded = () => {
+                if (!shouldHideLanding()) {
+                  try { landing.hidden = false; } catch (e) { /* ignore */ }
+                }
+              };
+
+              const closeLanding = () => {
+                try { landing.hidden = true; } catch (e) { /* ignore */ }
+              };
+
+              const clickFirst = (selector) => {
+                const el = document.querySelector(selector);
+                if (!el) return false;
+                try { el.click(); } catch (e) { return false; }
+                return true;
+              };
+
+              const activateTaskMode = (mode) => {
+                if (!mode) return false;
+                // Tabs superiores (Pizarra/Contenido).
+                const btn = document.querySelector(`#task-mode-tabs [data-task-mode="${mode}"]`);
+                if (btn) {
+                  try { btn.click(); } catch (e) { /* ignore */ }
+                  return true;
+                }
+                return false;
+              };
+
+              const activateSidePane = (pane) => {
+                if (!pane) return false;
+                const btn = document.querySelector(`#task-side-tabs [data-pane="${pane}"]`);
+                if (btn) {
+                  try { btn.click(); } catch (e) { /* ignore */ }
+                  return true;
+                }
+                return false;
+              };
+
+              landing.addEventListener('click', (ev) => {
+                // Click fuera de la tarjeta -> cerrar (no bloquear).
+                const card = landing.querySelector('.task-landing-card');
+                if (card && ev.target && card.contains(ev.target)) return;
+                setHiddenPref();
+                closeLanding();
+              });
+
+              landing.querySelectorAll('[data-landing-go]').forEach((btn) => {
+                btn.addEventListener('click', (ev) => {
+                  ev.preventDefault();
+                  ev.stopPropagation();
+                  const action = String(btn.getAttribute('data-landing-go') || '').trim();
+                  setHiddenPref();
+
+                  if (action === 'close' || action === 'board') {
+                    closeLanding();
+                    return;
+                  }
+                  if (action === 'assistant') {
+                    // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
+                    activateSidePane('assistant');
+                    closeLanding();
+                    return;
+                  }
+                  if (action === 'text') {
+                    activateTaskMode('text');
+                    closeLanding();
+                    return;
+                  }
+                  if (action === 'exportar') {
+                    activateSidePane('exportar');
+                    closeLanding();
+                    return;
+                  }
+                  closeLanding();
+                });
+              });
+
+              // Mostrar al entrar si no está desactivado.
+              openLandingIfNeeded();
+            })();
+          </script>
         {% if tactics_mode %}
         <script>
           // Seguro extra: si el script principal falló antes de enganchar listeners, estos botones
