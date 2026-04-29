@@ -1,0 +1,123 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Dashboard KPIs · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .page { max-width: 1320px; margin: 0 auto; padding: 1.1rem; }
+      .head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom: 0.9rem; }
+      .head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .grid { display:grid; grid-template-columns: 0.78fr 1.22fr; gap: 1rem; align-items:start; }
+      @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .button.ghost { background: rgba(255,255,255,0.02); }
+      .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row strong { font-weight: 900; }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      input[type="text"], select {
+        width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
+        color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
+      }
+      .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.9rem; }
+      .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap:0.6rem; margin-top:0.6rem; }
+      .kpi { border-radius: 18px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); padding: 0.85rem; }
+      .kpi .k { font-size: 0.72rem; letter-spacing:0.08em; text-transform:uppercase; font-weight:900; color: rgba(226,232,240,0.78); }
+      .kpi .v { margin-top:0.35rem; font-size: 1.55rem; font-weight: 900; }
+      .pill { display:inline-flex; align-items:center; justify-content:center; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    {% include 'football/includes/dragon_nav.html' %}
+    <main class="page">
+      <div class="head">
+        <div>
+          <h1>Dashboard KPIs</h1>
+          <div class="meta">{% if team %}{{ team.display_name|default:team.name }}{% endif %} · KPIs por rol</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="button ghost" href="{% url 'kpi-explorer' %}{% if team %}?team={{ team.id }}{% endif %}">Configurar KPIs</a>
+          <a class="button ghost" href="{% url 'reports-hub' %}{% if team %}?team={{ team.id }}{% endif %}">Informes</a>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <div class="hint">1) Rol + preset</div>
+          <div style="display:grid; gap:0.55rem; margin-top:0.55rem;">
+            <label>
+              Rol
+              <select id="dash-role">
+                <option value="coach">Entrenador</option>
+                <option value="analyst">Analista</option>
+                <option value="fitness">Físico</option>
+                <option value="goalkeeper">Porteros</option>
+              </select>
+            </label>
+            <label>
+              Preset (del club)
+              <select id="dash-preset"></select>
+            </label>
+            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+              <button type="button" class="button" id="dash-save-default">Guardar como default</button>
+              <span class="pill" id="dash-default-pill" hidden>Default</span>
+            </div>
+          </div>
+
+          <div class="hint" style="margin-top:0.95rem;">2) Contexto</div>
+          <div style="display:grid; gap:0.55rem; margin-top:0.55rem;">
+            <label>
+              Scope
+              <select id="dash-scope">
+                <option value="team">Equipo</option>
+                <option value="match">Partido</option>
+                <option value="player">Jugador</option>
+              </select>
+            </label>
+            <label>
+              Contexto
+              <select id="dash-context">
+                <option value="all">Todos</option>
+                <option value="league">Liga</option>
+                <option value="tournament">Torneo</option>
+                <option value="friendly">Amistoso</option>
+              </select>
+            </label>
+            <label id="dash-match-wrap">
+              Partido (opcional)
+              <select id="dash-match"></select>
+            </label>
+            <label id="dash-player-wrap" hidden>
+              Jugador
+              <select id="dash-player"></select>
+            </label>
+            <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+              <button type="button" class="button primary" id="dash-run">Actualizar</button>
+            </div>
+            <div class="meta" id="dash-status">Listo.</div>
+          </div>
+        </section>
+
+        <aside class="card">
+          <div class="hint">KPIs</div>
+          <div class="kpi-grid" id="dash-output"></div>
+        </aside>
+      </div>
+    </main>
+
+    {{ match_items|json_script:"dash-match-items" }}
+    {{ player_items|json_script:"dash-player-items" }}
+    <input type="hidden" id="dash-query-url" value="{% url 'kpi-explorer-query-api' %}" />
+    <form id="dash-csrf" style="display:none;">{% csrf_token %}</form>
+
+    <script src="{% static 'football/js/kpi_dashboard.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+  </body>
+</html>
+

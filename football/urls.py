@@ -42,6 +42,7 @@ urlpatterns = [
     path('media/pdf-assets/<int:asset_id>/', views.pdf_graphic_asset_file, name='pdf-graphic-asset-file'),
     path('players/', views.player_dashboard_page, name='player-dashboard'),
     path('coach/informes/', views.reports_hub_page, name='reports-hub'),
+    path('coach/dashboard/', views.kpi_dashboard_page, name='kpi-dashboard'),
     path('coach/informes/equipo/pdf/', views.team_season_report_pdf, name='team-season-report-pdf'),
     path('coach/informes/partido/pdf/', views.match_staff_report_pdf, name='match-staff-report-pdf'),
     path('admin-tools/', views.admin_page, name='admin-page'),

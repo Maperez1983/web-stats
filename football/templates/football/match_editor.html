@@ -119,6 +119,93 @@
       </section>
 
       <section class="panel">
+        <h2 style="margin:0 0 0.6rem;">Vídeo vinculado (auto-marcadores)</h2>
+        <p style="margin:0 0 0.75rem;color:#94a3b8;font-weight:700;">
+          Vincula un vídeo al partido para que el sistema cree <strong>marcadores</strong> (y opcionalmente <strong>clips</strong>)
+          al registrar acciones. Kickoff es el timecode donde empieza el partido en el vídeo (ej: <code>00:12</code>).
+        </p>
+
+        <form method="post" class="grid" style="align-items:end;">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="video_link_save" />
+          <div style="grid-column: span 3;">
+            <label>Vídeo</label>
+            <select name="video_id" required>
+              <option value="">Selecciona vídeo…</option>
+              {% for v in available_videos %}
+                <option value="{{ v.id }}">#{{ v.id }} · {{ v.title|default:"Vídeo" }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div style="grid-column: span 1;">
+            <label>Kickoff (timecode)</label>
+            <input name="kickoff_timecode" placeholder="00:00" />
+          </div>
+          <div style="grid-column: span 2; display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+            <label style="display:flex; gap:0.4rem; align-items:center; text-transform:none; letter-spacing:0; font-size:0.85rem;">
+              <input type="checkbox" name="is_active" value="1" checked /> Activo
+            </label>
+            <label style="display:flex; gap:0.4rem; align-items:center; text-transform:none; letter-spacing:0; font-size:0.85rem;">
+              <input type="checkbox" name="auto_markers" value="1" checked /> Auto-marcadores
+            </label>
+            <label style="display:flex; gap:0.4rem; align-items:center; text-transform:none; letter-spacing:0; font-size:0.85rem;">
+              <input type="checkbox" name="auto_clips" value="1" /> Auto-clips
+            </label>
+          </div>
+          <div style="grid-column: span 1;">
+            <label>Pre (ms)</label>
+            <input name="clip_pre_ms" inputmode="numeric" placeholder="6000" />
+          </div>
+          <div style="grid-column: span 1;">
+            <label>Post (ms)</label>
+            <input name="clip_post_ms" inputmode="numeric" placeholder="6000" />
+          </div>
+          <div style="grid-column: span 4; display:flex; justify-content:flex-end; gap:0.6rem;">
+            <button class="btn primary" type="submit">Guardar vínculo</button>
+          </div>
+        </form>
+
+        {% if video_links %}
+          <div style="margin-top:0.9rem;">
+            <h3 style="margin:0 0 0.45rem;font-size:1rem;">Vínculos actuales</h3>
+            <table>
+              <thead>
+                <tr>
+                  <th>Vínculo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for link in video_links %}
+                  <tr>
+                    <td>
+                      <strong>#{{ link.id }}</strong>
+                      <small>Vídeo #{{ link.video_id }} · {{ link.video.title|default:"Vídeo" }}</small>
+                      <small>Kickoff: {{ link.kickoff_video_ms }} ms · Activo: {{ link.is_active }}</small>
+                      <small>Markers: {{ link.auto_markers }} · Clips: {{ link.auto_clips }} ({{ link.clip_pre_ms }}/{{ link.clip_post_ms }} ms)</small>
+                    </td>
+                    <td>
+                      <div class="row-actions">
+                        <a class="btn" href="{% url 'analysis-video-studio' link.video_id %}?team={{ primary_team_id }}">Abrir Video Studio</a>
+                        <form method="post" style="display:inline;">
+                          {% csrf_token %}
+                          <input type="hidden" name="form_action" value="video_link_delete" />
+                          <input type="hidden" name="link_id" value="{{ link.id }}" />
+                          <button class="btn danger" type="submit" onclick="return confirm('¿Eliminar vínculo vídeo-partido?')">Eliminar</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p style="margin:0.8rem 0 0;color:#94a3b8;font-weight:700;">No hay vídeos vinculados a este partido.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel">
         <h2 style="margin:0 0 0.6rem;">Añadir acción</h2>
         <form method="post" class="row-form" style="margin-bottom:0.85rem;">
           {% csrf_token %}

@@ -271,6 +271,95 @@ class KPIExplorerWorkspacePresetsTests(TestCase):
         self.assertGreaterEqual(int(body.get('count') or 0), 1)
 
 
+class MatchActionsVideoAutoLinkTests(TestCase):
+    def setUp(self):
+        self.competition = Competition.objects.create(name='Comp2', slug='comp2')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='Grupo2', slug='grupo2')
+        self.team = Team.objects.create(
+            name='Equipo vídeo',
+            slug='equipo-video',
+            short_name='Video',
+            group=self.group,
+            is_primary=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival vídeo',
+            slug='rival-video',
+            short_name='RivalV',
+            group=self.group,
+            is_primary=False,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-video',
+            email='coach-video@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB VIDEO',
+            slug='club-video',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'match_actions': True, 'analysis': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.player = Player.objects.create(team=self.team, name='Jugador Video', number=9, is_active=True)
+        self.match = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=timezone.localdate(),
+            home_team=self.team,
+            away_team=self.rival,
+        )
+        self.conv = ConvocationRecord.objects.create(team=self.team, match=self.match, opponent_name='Rival vídeo', is_current=True)
+        self.conv.players.add(self.player)
+
+        video_file = SimpleUploadedFile('rival.mp4', b'0' * 1024, content_type='video/mp4')
+        self.video = RivalVideo.objects.create(team=self.team, rival_team=self.rival, title='Partido completo', video=video_file, source=RivalVideo.SOURCE_MANUAL)
+        # Link vídeo a partido
+        from football.models import MatchVideoLink
+        self.link = MatchVideoLink.objects.create(
+            team=self.team,
+            match=self.match,
+            video=self.video,
+            kickoff_video_ms=0,
+            is_active=True,
+            auto_markers=True,
+            auto_clips=True,
+            clip_pre_ms=4000,
+            clip_post_ms=4000,
+            created_by='test',
+        )
+
+    def test_register_match_action_creates_timeline_event_and_clip(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('match-action-record')}?workspace={self.workspace.id}&team={self.team.id}"
+        response = self.client.post(
+            url,
+            data={
+                'match_id': str(self.match.id),
+                'player': str(self.player.id),
+                'action_type': 'Pase',
+                'result': 'OK',
+                'zone': 'Defensa derecha',
+                'minute': '2',
+            },
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn('id', payload)
+        # Auto marker
+        self.assertEqual(VideoTimelineEvent.objects.filter(team=self.team, video=self.video).count(), 1)
+        # Auto clip
+        self.assertEqual(VideoClip.objects.filter(team=self.team, video=self.video).count(), 1)
+
+
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
         self.primary_global_team = Team.objects.create(
