@@ -71,6 +71,30 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return [matchFinalizeBtn].filter(Boolean);
   })();
 
+  // Safari (y iOS) puede restaurar la página desde bfcache con el estado DOM "congelado"
+  // (por ejemplo: botones deshabilitados tras un submit). Forzamos un estado coherente.
+  const forceEnableFinalizeButtons = () => {
+    matchFinalizeButtons.forEach((btn) => {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      try {
+        delete btn.dataset.prevDisabled;
+      } catch (err) {
+        // Safari: `delete dataset.*` puede fallar en strict mode, usa removeAttribute.
+        try {
+          btn.removeAttribute('data-prev-disabled');
+        } catch (e) {}
+      }
+    });
+  };
+  forceEnableFinalizeButtons();
+  window.addEventListener('pageshow', (event) => {
+    if (event && event.persisted) {
+      forceEnableFinalizeButtons();
+    }
+  });
+
   const computeSubstitutionsCount = () => {
     const rows = quickHistoryState?.subs || [];
     let entries = 0;
