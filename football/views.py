@@ -123,6 +123,7 @@ from football.models import (
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
+    MatchVideoLink,
     VideoTelestrationProject,
     VideoTimelineEvent,
     VideoClip,
@@ -15862,6 +15863,11 @@ def register_match_action(request):
         system='touch-field',
         raw_data={'client_event_uid': client_event_uid} if client_event_uid else {},
     )
+    try:
+        _maybe_create_video_marker_for_match_action(primary_team, match=match, event=event, action_type=action_type, result=result, zone=zone, observation=observation)
+    except Exception:
+        # No bloquear el registro en vivo por fallos del módulo vídeo.
+        pass
     _invalidate_team_dashboard_caches(primary_team)
     return JsonResponse(_serialize_match_event(event, duplicate=False))
 
@@ -17665,6 +17671,42 @@ def kpi_explorer_page(request):
             'match_items': match_items,
             'player_items': player_items,
             'derived_metrics': _kpi_explorer_derived_metrics(),
+        },
+    )
+
+
+@login_required
+def kpi_dashboard_page(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede acceder a KPIs.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    matches = list(
+        _team_match_queryset(primary_team)
+        .select_related('home_team', 'away_team')
+        .order_by('-date', '-id')[:60]
+    )
+    roster = list(Player.objects.filter(team=primary_team).order_by('name')[:120])
+    match_items = []
+    for m in matches:
+        opp = m.away_team if m.home_team_id == primary_team.id else m.home_team
+        opp_name = str(getattr(opp, 'display_name', '') or getattr(opp, 'name', '') or '').strip() or 'Rival'
+        label = f"{m.date.strftime('%d/%m/%Y') if m.date else '—'} · vs {opp_name}"
+        if m.round:
+            label = f"{m.round} · {label}"
+        match_items.append({'id': int(m.id), 'label': label, 'context': str(getattr(m, 'context', '') or '').strip()})
+    player_items = [{'id': int(p.id), 'label': f"{p.name}{f' · #{p.number}' if p.number else ''}".strip()} for p in roster]
+    return render(
+        request,
+        'football/kpi_dashboard.html',
+        {
+            'team': primary_team,
+            'match_items': match_items,
+            'player_items': player_items,
         },
     )
 
@@ -39345,6 +39387,19 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     # preferimos consistencia inmediata al navegar/generar PDFs.
     cache_key = f'{_player_dashboard_cache_key(primary_team.id)}:{scope_value}'
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter)
+    # Evita KPIs desactualizados: si el equipo tiene acciones pendientes (`touch-field`) en el partido activo,
+    # no usamos caché para que PJ/minutos y contadores reflejen lo recién registrado.
+    if can_use_cache:
+        try:
+            active_match_probe = get_active_match(primary_team)
+            if active_match_probe and MatchEvent.objects.filter(
+                match=active_match_probe,
+                source_file='registro-acciones',
+                system='touch-field',
+            ).exists():
+                can_use_cache = False
+        except Exception:
+            pass
     if can_use_cache:
         cached_rows = cache.get(cache_key)
         if isinstance(cached_rows, list):
