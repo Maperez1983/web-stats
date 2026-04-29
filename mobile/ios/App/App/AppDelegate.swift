@@ -224,9 +224,19 @@ class MainViewController: CAPBridgeViewController, WKHTTPCookieStoreObserver {
 
     private func restoreLastUrlIfNeeded() {
         guard let saved = UserDefaults.standard.string(forKey: lastUrlDefaultsKey), !saved.isEmpty else { return }
-        guard let target = URL(string: saved) else { return }
+        guard var target = URL(string: saved) else { return }
         guard target.scheme?.lowercased().hasPrefix("http") == true else { return }
         guard isEligibleHost(target) else { return }
+
+        // Seguridad/UX: si por cualquier motivo se persistió una URL http, forzamos https.
+        // En producción las cookies de sesión suelen ser Secure, y http causaría logout infinito.
+        if (target.scheme ?? "").lowercased() == "http" {
+            var components = URLComponents(url: target, resolvingAgainstBaseURL: false)
+            components?.scheme = "https"
+            if let httpsTarget = components?.url {
+                target = httpsTarget
+            }
+        }
 
         // Si estamos en /login o en la home, devolvemos al último punto guardado.
         let current = webView?.url

@@ -306,6 +306,15 @@
         const urlLabel = document.querySelector("[data-login-url]");
         const copyBtn = document.querySelector("[data-copy-login-url]");
         const href = String(window.location && window.location.href ? window.location.href : "");
+        // Si llega por http (p.ej. URL persistida antigua), forzamos https para que funcionen cookies Secure.
+        try {
+          const isHttp = window.location && window.location.protocol === "http:";
+          if (isHttp && window.location.host) {
+            const httpsHref = "https://" + window.location.host + window.location.pathname + window.location.search + window.location.hash;
+            window.location.replace(httpsHref);
+            return;
+          }
+        } catch (_) {}
         if (urlLabel) urlLabel.textContent = href;
         if (!copyBtn) return;
         copyBtn.addEventListener("click", async () => {
