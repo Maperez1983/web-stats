@@ -755,6 +755,7 @@
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
+		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
 		    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
@@ -2759,10 +2760,22 @@
     const applyObjectStrokeWidth = (object, strokeWidth) => {
       if (!object) return;
       const width = clamp(Number(strokeWidth) || 3, 1, 14);
+      const kind = safeText(object?.data?.kind);
+      // Zona: solo aplica a borde (no a hatch interno).
+      if (kind === 'zone' && Array.isArray(object._objects)) {
+        object._objects.forEach((child) => {
+          if (!child) return;
+          const role = safeText(child?.data?.role);
+          if (role !== 'zone_border') return;
+          if (child.strokeWidth !== undefined) child.set({ strokeWidth: width });
+        });
+        object.dirty = true;
+        setObjectData(object, { stroke_width: width });
+        return;
+      }
       if (typeof object.set === 'function' && object.strokeWidth !== undefined) {
         object.set({ strokeWidth: width });
       }
-      const kind = safeText(object?.data?.kind);
       if (Array.isArray(object._objects)) {
         object._objects.forEach((child) => {
           if (!child) return;
@@ -2961,6 +2974,52 @@
 	      return true;
 	    };
 
+	    const normalizeZoneStyle = (value) => {
+	      const v = safeText(value).toLowerCase();
+	      if (v === 'solid' || v === 'outline') return v;
+	      return 'hatch';
+	    };
+	    const ZONE_STYLE_LABEL = { hatch: 'rayado', solid: 'sólido', outline: 'contorno' };
+	    const applyZoneStyle = (zoneObject, styleRaw) => {
+	      if (!zoneObject || safeText(zoneObject?.data?.kind) !== 'zone') return false;
+	      const style = normalizeZoneStyle(styleRaw);
+	      setObjectData(zoneObject, { zone_style: style });
+	      const colorHex = parseColorToHex(zoneObject?.data?.color, objectPreferredColor(zoneObject));
+	      const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
+	      const borderDash = style === 'solid' ? null : [10, 8];
+	      if (zoneObject.type === 'rect') {
+	        zoneObject.set({
+	          fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)',
+	          stroke: colorHex,
+	          strokeDashArray: borderDash || undefined,
+	        });
+	        zoneObject.dirty = true;
+	        return true;
+	      }
+	      if (!Array.isArray(zoneObject._objects)) return false;
+	      zoneObject._objects.forEach((child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'zone_base') {
+	          try { child.set({ fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)' }); } catch (e) { /* ignore */ }
+	        } else if (role === 'zone_border') {
+	          try { child.set({ stroke: colorHex, strokeDashArray: borderDash || undefined }); } catch (e) { /* ignore */ }
+	        } else if (role === 'zone_hatch_group') {
+	          try { child.set({ visible: style === 'hatch' }); } catch (e) { /* ignore */ }
+	          try {
+	            if (Array.isArray(child._objects)) {
+	              child._objects.forEach((ln) => {
+	                if (!ln) return;
+	                if (ln.stroke !== undefined) ln.set({ stroke: rgbaFromHex(colorHex, 0.38) });
+	              });
+	            }
+	          } catch (e) { /* ignore */ }
+	        }
+	      });
+	      zoneObject.dirty = true;
+	      return true;
+	    };
+
 	    const applyTokenPalette = (group, options = {}) => {
 	      if (!group) return false;
 	      const kind = safeText(group?.data?.kind);
@@ -3081,6 +3140,77 @@
 	        applyEmojiColor(object, colorHex);
 	        return;
 	      }
+	      if (kind === 'zone') {
+	        setObjectData(object, { color: colorHex });
+	        const style = normalizeZoneStyle(object?.data?.zone_style);
+	        const fillAlpha = style === 'outline' ? 0 : (style === 'solid' ? 0.18 : 0.12);
+	        const borderDash = style === 'solid' ? null : [10, 8];
+	        if (object.type === 'rect') {
+	          object.set({
+	            stroke: colorHex,
+	            fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)',
+	            strokeDashArray: borderDash || undefined,
+	          });
+	          return;
+	        }
+	        if (Array.isArray(object._objects)) {
+	          object._objects.forEach((child) => {
+	            if (!child) return;
+	            const role = safeText(child?.data?.role);
+	            if (role === 'zone_base') {
+	              try { child.set({ fill: fillAlpha ? rgbaFromHex(colorHex, fillAlpha) : 'rgba(0,0,0,0)' }); } catch (e) { /* ignore */ }
+	            } else if (role === 'zone_border') {
+	              try { child.set({ stroke: colorHex, strokeDashArray: borderDash || undefined }); } catch (e) { /* ignore */ }
+	            } else if (role === 'zone_hatch_group') {
+	              try {
+	                if (Array.isArray(child._objects)) {
+	                  child._objects.forEach((ln) => {
+	                    if (!ln) return;
+	                    if (ln.stroke !== undefined) ln.set({ stroke: rgbaFromHex(colorHex, 0.38) });
+	                  });
+	                }
+	              } catch (e) { /* ignore */ }
+	            }
+	          });
+	          object.dirty = true;
+	        }
+	        return;
+	      }
+	      if (kind.startsWith('shape-lane-') && Array.isArray(object._objects) && object._objects.length) {
+	        object._objects.forEach((child) => {
+	          if (!child) return;
+	          const role = safeText(child?.data?.role);
+	          if (child.type === 'rect') {
+	            try {
+	              child.set({
+	                stroke: colorHex,
+	                fill: rgbaFromHex(colorHex, 0.08),
+	              });
+	            } catch (e) { /* ignore */ }
+	            return;
+	          }
+	          if (role === 'lane_hatch') {
+	            try { child.set({ stroke: rgbaFromHex(colorHex, 0.32) }); } catch (e) { /* ignore */ }
+	            return;
+	          }
+	          if (role === 'lane_hatch_group') {
+	            try {
+	              if (Array.isArray(child._objects)) {
+	                child._objects.forEach((ln) => {
+	                  if (!ln) return;
+	                  if (ln.stroke !== undefined) ln.set({ stroke: rgbaFromHex(colorHex, 0.32) });
+	                });
+	              }
+	            } catch (e) { /* ignore */ }
+	            return;
+	          }
+	          if (child.stroke !== undefined) {
+	            try { child.set({ stroke: colorHex }); } catch (e) { /* ignore */ }
+	          }
+	        });
+	        object.dirty = true;
+	        return;
+	      }
 	      if (kind === 'cone-striped' && Array.isArray(object._objects) && object._objects.length) {
 	        const triangle = object._objects.find((child) => child && child.type === 'triangle');
 	        if (triangle) {
@@ -3094,10 +3224,6 @@
 	        object.dirty = true;
 	        return;
 	      }
-      if (kind === 'zone') {
-        object.set({ stroke: colorHex, fill: rgbaFromHex(colorHex, 0.16) });
-        return;
-      }
       if (kind === 'cone') {
         object.set({ fill: colorHex, stroke: darkenHex(colorHex, 0.55) });
         return;
@@ -3253,6 +3379,7 @@
 		        if (tokenColorGrid) tokenColorGrid.hidden = true;
 		        if (tokenPatternActions) tokenPatternActions.hidden = true;
 		        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
+		        if (zoneStyleActions) zoneStyleActions.hidden = true;
 		        return;
 		      }
 	      selectionToolbar.hidden = false;
@@ -3291,6 +3418,18 @@
 		            const btnMode = normalizeTokenNameTagMode(btn.dataset.tokenNameTag);
 		            btn.classList.toggle('is-active', btnMode === mode);
 		            try { btn.setAttribute('aria-pressed', btnMode === mode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      }
+		      if (zoneStyleActions) {
+		        const isZone = safeText(active?.data?.kind) === 'zone';
+		        zoneStyleActions.hidden = !isZone;
+		        if (isZone) {
+		          const style = normalizeZoneStyle(active?.data?.zone_style);
+		          Array.from(zoneStyleActions.querySelectorAll('button[data-zone-style]') || []).forEach((btn) => {
+		            const btnStyle = normalizeZoneStyle(btn.dataset.zoneStyle);
+		            btn.classList.toggle('is-active', btnStyle === style);
+		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
 		        }
 		      }
@@ -11711,6 +11850,19 @@
 		        const isAway = kind === 'player_away';
 		        const isGoalkeeper = kind === 'goalkeeper_local';
 		        if (style === 'photo') {
+		          const tokenShadow = new fabric.Circle({
+		            radius: radius + 4,
+		            fill: 'rgba(2,6,23,0.26)',
+		            originX: 'center',
+		            originY: 'center',
+		            left: 2,
+		            top: 4,
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          tokenShadow.data = { role: 'token_shadow' };
+		          tokenParts.push(tokenShadow);
 		          const border = new fabric.Circle({
 		            radius,
 		            fill: effectiveBase,
@@ -11773,6 +11925,7 @@
 		            strokeWidth: 1,
 		            selectable: false,
 		            evented: false,
+		            shadow: 'rgba(2,6,23,0.45) 0 8px 18px',
 		          });
 		          nameBg.data = { role: 'token_name_bg' };
 		          tokenParts.push(nameBg);
@@ -11867,6 +12020,7 @@
 		            strokeWidth: 1,
 		            selectable: false,
 		            evented: false,
+		            shadow: 'rgba(2,6,23,0.45) 0 8px 18px',
 		          });
 		          nameBg.data = { role: 'token_name_bg' };
 		          tokenParts.push(nameBg);
@@ -11883,6 +12037,19 @@
 		          nameText.data = { role: 'token_name' };
 		          tokenParts.push(nameText);
 			        } else {
+			          const tokenShadow = new fabric.Circle({
+			            radius: radius + 4,
+			            fill: 'rgba(2,6,23,0.26)',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 2,
+			            top: 4,
+			            strokeWidth: 0,
+			            selectable: false,
+			            evented: false,
+			          });
+			          tokenShadow.data = { role: 'token_shadow' };
+			          tokenParts.push(tokenShadow);
 			          // Borde exterior oscuro para que la chapa destaque sobre líneas blancas/césped.
 			          const outerRing = new fabric.Circle({
 			            radius: radius + 1,
@@ -12041,6 +12208,7 @@
 		          strokeWidth: 1,
 		          selectable: false,
 		          evented: false,
+		          shadow: 'rgba(2,6,23,0.45) 0 8px 18px',
 		        });
 		        nameBg.data = { role: 'token_name_bg' };
 		        tokenParts.push(nameBg);
@@ -12106,6 +12274,7 @@
           fill: 'rgba(15,23,42,0.94)',
           stroke: 'rgba(255,255,255,0.14)',
           strokeWidth: 1,
+          shadow: 'rgba(2,6,23,0.45) 0 8px 18px',
         });
         nameBg.data = { role: 'token_name_bg' };
 	        tokenParts.push(nameBg);
@@ -12520,12 +12689,96 @@
 	        });
 	      }
 		      if (kind === 'zone') {
-		        return (left, top) => new fabric.Rect({
-		          left, top, originX: 'center', originY: 'center',
-		          width: 130, height: 84, fill: 'rgba(34,211,238,0.16)', stroke: '#22d3ee', strokeWidth: 3,
-	          rx: 12, ry: 12, data: { kind: 'zone', color: '#22d3ee' },
-	        });
-	      }
+		        return (left, top) => {
+		          const colorHex = '#22d3ee';
+		          const width = 138;
+		          const height = 90;
+		          const rx = 14;
+		          const ry = 14;
+		          const base = new fabric.Rect({
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            width,
+		            height,
+		            rx,
+		            ry,
+		            fill: rgbaFromHex(colorHex, 0.12),
+		            strokeWidth: 0,
+		            selectable: false,
+		            evented: false,
+		          });
+		          base.data = { role: 'zone_base' };
+
+		          // Hatch overlay (broadcast style).
+		          const hatchLines = [];
+		          const step = 16;
+		          const span = Math.max(width, height) * 2;
+		          for (let x = -span; x <= span; x += step) {
+		            const line = new fabric.Line([x, -span, x, span], {
+		              stroke: rgbaFromHex(colorHex, 0.38),
+		              strokeWidth: 2,
+		              selectable: false,
+		              evented: false,
+		            });
+		            line.data = { role: 'zone_hatch' };
+		            hatchLines.push(line);
+		          }
+		          const hatchGroup = new fabric.Group(hatchLines, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            selectable: false,
+		            evented: false,
+		            angle: -35,
+		          });
+		          hatchGroup.clipPath = new fabric.Rect({
+		            originX: 'center',
+		            originY: 'center',
+		            left: 0,
+		            top: 0,
+		            width: width - 4,
+		            height: height - 4,
+		            rx: rx - 2,
+		            ry: ry - 2,
+		          });
+		          hatchGroup.data = { role: 'zone_hatch_group' };
+
+		          const border = new fabric.Rect({
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            width,
+		            height,
+		            rx,
+		            ry,
+		            fill: '',
+		            stroke: colorHex,
+		            strokeWidth: 3,
+		            strokeDashArray: [10, 8],
+		            strokeLineCap: 'round',
+		            strokeLineJoin: 'round',
+		            selectable: false,
+		            evented: false,
+		            shadow: 'rgba(2,6,23,0.22) 0 6px 14px',
+		          });
+		          border.data = { role: 'zone_border' };
+
+		          const group = new fabric.Group([base, hatchGroup, border], {
+		            left,
+		            top,
+		            originX: 'center',
+		            originY: 'center',
+		            data: { kind: 'zone', color: colorHex, zone_style: 'hatch', stroke_width: 3 },
+		          });
+		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          return group;
+		        };
+		      }
 	      if (kind === 'goal') return (left, top) => buildGoalGroup(left, top, 'net');
 	      if (kind === 'goal_posts') return (left, top) => buildGoalGroup(left, top, 'posts');
 	      if (kind === 'goal_3d') return (left, top) => buildGoalGroup(left, top, '3d');
@@ -12696,6 +12949,8 @@
 	        const width = 192;
 	        const height = 52;
 	        const stroke = '#22d3ee';
+	        const rx = 10;
+	        const ry = 10;
 	        const outer = new fabric.Rect({
 	          left: 0,
 	          top: 0,
@@ -12703,14 +12958,49 @@
 	          originY: 'center',
 	          width,
 	          height,
-	          rx: 8,
-	          ry: 8,
-	          fill: 'rgba(34,211,238,0.06)',
+	          rx,
+	          ry,
+	          fill: rgbaFromHex(stroke, 0.08),
 	          stroke,
 	          strokeWidth: 3,
+	          strokeDashArray: [10, 8],
 	          selectable: false,
 	          evented: false,
 	        });
+	        outer.data = { role: 'lane_outer' };
+	        const hatchLines = [];
+	        const step = 18;
+	        const span = Math.max(width, height) * 2;
+	        for (let x = -span; x <= span; x += step) {
+	          const ln = new fabric.Line([x, -span, x, span], {
+	            stroke: rgbaFromHex(stroke, 0.32),
+	            strokeWidth: 2,
+	            selectable: false,
+	            evented: false,
+	          });
+	          ln.data = { role: 'lane_hatch' };
+	          hatchLines.push(ln);
+	        }
+	        const hatch = new fabric.Group(hatchLines, {
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          selectable: false,
+	          evented: false,
+	          angle: -35,
+	        });
+	        hatch.clipPath = new fabric.Rect({
+	          originX: 'center',
+	          originY: 'center',
+	          left: 0,
+	          top: 0,
+	          width: width - 4,
+	          height: height - 4,
+	          rx: rx - 2,
+	          ry: ry - 2,
+	        });
+	        hatch.data = { role: 'lane_hatch_group' };
 	        const lines = [];
 	        for (let i = 1; i < colCount; i += 1) {
 	          const x = -width / 2 + (width * (i / colCount));
@@ -12721,7 +13011,7 @@
 	            evented: false,
 	          }));
 	        }
-	        const group = new fabric.Group([outer, ...lines], {
+	        const group = new fabric.Group([outer, hatch, ...lines], {
 	          left,
 	          top,
 	          originX: 'center',
@@ -15403,6 +15693,14 @@
 			          if (!isTokenGroup(active)) return;
 			          applyTokenNameTagMode(active, tokenNameTag);
 			        }, `Nombre: ${normalizeTokenNameTagMode(tokenNameTag) === 'none' ? 'sin fondo' : 'fondo'}.`);
+			        return;
+			      }
+			      const zoneStyle = safeText(button.dataset.zoneStyle);
+			      if (zoneStyle) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (safeText(active?.data?.kind) !== 'zone') return;
+			          applyZoneStyle(active, zoneStyle);
+			        }, `Zona: ${ZONE_STYLE_LABEL[normalizeZoneStyle(zoneStyle)] || normalizeZoneStyle(zoneStyle)}.`);
 			        return;
 			      }
 			      const scalePreset = Number(button.dataset.scalePreset);
