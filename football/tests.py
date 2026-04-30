@@ -435,6 +435,60 @@ class SessionsPlannerPRGRegressionTests(TestCase):
         self.assertContains(response, 'Tarea interactiva origen')
 
 
+class LoginRememberSessionRedirectTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='login-remember',
+            email='login-remember@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+
+    def test_login_redirects_when_already_authenticated(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('login'), secure=True)
+        self.assertIn(response.status_code, {301, 302})
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1', 'app.segundajugada.es'])
+class AppHomePlatformDefaultTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo app home',
+            slug='equipo-app-home',
+            short_name='Home',
+            is_primary=True,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='platform-user',
+            email='platform-user@example.com',
+            password='pass-1234',
+            is_staff=True,
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        self.workspace = Workspace.objects.create(
+            name='CLUB HOME',
+            slug='club-home',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+    def test_app_root_does_not_force_platform_when_workspace_active(self):
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session.save()
+        response = self.client.get('/', secure=True, HTTP_HOST='app.segundajugada.es')
+        self.assertEqual(response.status_code, 200)
+
+
 class MatchActionsVideoAutoLinkTests(TestCase):
     def setUp(self):
         self.competition = Competition.objects.create(name='Comp2', slug='comp2')

@@ -79,6 +79,7 @@ class RoleAwareLoginView(auth_views.LoginView):
 
     template_name = "registration/login.html"
     authentication_form = None
+    redirect_authenticated_user = True
 
     # iOS/WKWebView a veces autocapitaliza el primer carácter o añade espacios invisibles.
     # Normalizamos aquí para que el login sea robusto sin exigir al usuario "teclear perfecto".
@@ -158,5 +159,11 @@ class RoleAwareLoginView(auth_views.LoginView):
             return requested_next
         # Producto: usuario de plataforma aterriza en /platform/ para elegir cliente/espacio.
         if _can_access_platform(self.request.user):
+            # Si ya hay un cliente activo, evitamos “reiniciar” siempre en Platform al abrir la app.
+            try:
+                if hasattr(self.request, "session") and int(self.request.session.get("active_workspace_id") or 0) > 0:
+                    return f"{reverse('dashboard-home')}?home=club"
+            except Exception:
+                pass
             return reverse("platform-overview")
         return reverse("dashboard-home")

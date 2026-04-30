@@ -328,7 +328,7 @@ def public_build_info(request):
         or ''
     ).strip()
     return JsonResponse(
-        {
+	        {
             'ok': True,
             'build': {
                 'id': build_id,
@@ -10170,7 +10170,13 @@ def dashboard_page(request):
     if _can_access_platform(request.user) and (host in app_hosts or host.startswith('app.')):
         forced_home = str(request.GET.get('home') or '').strip().lower()
         if forced_home != 'club':
-            return redirect('platform-overview')
+            # Si el usuario ya tiene un cliente activo (workspace) no lo mandamos a Platform en cada arranque.
+            # Esto evita que la app "reinicie" siempre en Platform tras cerrar/abrir en iPad.
+            try:
+                if not _get_active_workspace(request):
+                    return redirect('platform-overview')
+            except Exception:
+                return redirect('platform-overview')
     if current_role == AppUserRole.ROLE_PLAYER:
         primary_team = _get_primary_team_for_request(request)
         current_player = _resolve_player_for_user(request.user, primary_team)
@@ -30442,6 +30448,31 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if library_sort and library_sort != 'recent':
             task_library_filtered = filter_task_library_advanced(task_library_filtered, sort_key=library_sort)
 
+    # Paginación de Biblioteca (evita renderizar cientos de cards y corrige el caso
+    # en el que el template espera `task_library_page_items`).
+    library_total = len(task_library_filtered or [])
+    page_size = 28
+    library_pages = max(1, int(math.ceil(library_total / float(page_size))) if library_total else 1)
+    library_page = _parse_int(request.GET.get('lib_page') or request.POST.get('lib_page') or 1) or 1
+    if library_page < 1:
+        library_page = 1
+    if library_page > library_pages:
+        library_page = library_pages
+    start = (library_page - 1) * page_size
+    end = start + page_size
+    task_library_page_items = list((task_library_filtered or [])[start:end])
+    try:
+        pager_params = request.GET.copy()
+        try:
+            pager_params.pop('lib_page')
+        except KeyError:
+            pass
+        library_pager_prefix = pager_params.urlencode()
+        if library_pager_prefix:
+            library_pager_prefix = f'{library_pager_prefix}&'
+    except Exception:
+        library_pager_prefix = ''
+
     planning_microcycles = []
     planning_sessions = []
     inbox_microcycle = None
@@ -30822,11 +30853,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_builder_edit_route_name': _task_builder_edit_route_name(scope_key),
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
-            'task_library': task_library,
-            'task_library_filtered': task_library_filtered,
-            'library_deleted_tasks': library_deleted_tasks,
-            'analysis': analysis,
-            'analysis_task': analysis_task,
+	            'task_library': task_library,
+	            'task_library_filtered': task_library_filtered,
+	            'task_library_page_items': task_library_page_items,
+	            'library_page': library_page,
+	            'library_pages': library_pages,
+	            'library_total': library_total,
+	            'library_pager_prefix': library_pager_prefix,
+	            'library_deleted_tasks': library_deleted_tasks,
+	            'analysis': analysis,
+	            'analysis_task': analysis_task,
             'scope_key': scope_key,
             'scope_title': scope_title,
             'context_group_rows': context_group_rows,
