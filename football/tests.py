@@ -271,6 +271,139 @@ class KPIExplorerWorkspacePresetsTests(TestCase):
         self.assertGreaterEqual(int(body.get('count') or 0), 1)
 
 
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+class SessionsPlannerPRGRegressionTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='sessions-prg',
+            email='sessions-prg@example.com',
+            password='pass-1234',
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.team = Team.objects.create(
+            name='Equipo sesiones',
+            slug='equipo-sesiones',
+            short_name='Sesiones',
+            is_primary=True,
+        )
+        self.workspace = Workspace.objects.create(
+            name='CLUB SESIONES',
+            slug='club-sesiones',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+        self.library_microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Biblioteca Entrenador',
+            objective='Repo',
+            week_start=date.today(),
+            week_end=date.today(),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+            notes=f'{football_views.LIBRARY_MICROCYCLE_MARKER} tests',
+        )
+        self.library_session = TrainingSession.objects.create(
+            microcycle=self.library_microcycle,
+            session_date=date.today(),
+            duration_minutes=90,
+            intensity=TrainingSession.INTENSITY_MEDIUM,
+            focus='Biblioteca PDF · Entrenador',
+            content='',
+            status=TrainingSession.STATUS_PLANNED,
+            order=1,
+        )
+        self.source_task = SessionTask.objects.create(
+            session=self.library_session,
+            title='Tarea origen',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=15,
+            objective='',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'coach', 'repository': 'traditional'}},
+            status=SessionTask.STATUS_PLANNED,
+            order=1,
+            notes='',
+        )
+
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo',
+            objective='',
+            week_start=date.today() + timedelta(days=7),
+            week_end=date.today() + timedelta(days=13),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+            notes='',
+        )
+        self.session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date.today() + timedelta(days=7),
+            duration_minutes=90,
+            intensity=TrainingSession.INTENSITY_MEDIUM,
+            focus='Sesión destino',
+            content='',
+            status=TrainingSession.STATUS_PLANNED,
+            order=1,
+        )
+
+    def test_copy_task_to_session_uses_prg_redirect_and_keeps_selected_session(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?team={self.team.id}&workspace={self.workspace.id}&tab=sessions&library_repo=traditional&session_id={self.session.id}"
+        before = SessionTask.objects.filter(session=self.session, deleted_at__isnull=True).count()
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'copy_library_task_to_session',
+                'planner_tab': 'sessions',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'library_repo': 'traditional',
+                'selected_session_id': str(self.session.id),
+                'target_session_id': str(self.session.id),
+                'source_task_id': str(self.source_task.id),
+                'target_block': SessionTask.BLOCK_CONDITIONING,
+            },
+            follow=False,
+        )
+        after = SessionTask.objects.filter(session=self.session, deleted_at__isnull=True).count()
+        self.assertEqual(after, before + 1)
+        self.assertIn(response.status_code, {301, 302})
+        self.assertIn('tab=sessions', response['Location'])
+        self.assertIn(f'session_id={self.session.id}', response['Location'])
+
+    def test_create_session_plan_uses_prg_redirect(self):
+        self.client.force_login(self.user)
+        url = f"{reverse('sessions')}?team={self.team.id}&workspace={self.workspace.id}&tab=sessions&library_repo=traditional"
+        before = TrainingSession.objects.filter(microcycle__team=self.team).count()
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'create_session_plan',
+                'planner_tab': 'sessions',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'plan_microcycle_id': '',
+                'plan_session_date': str(date.today()),
+                'plan_session_focus': 'Nueva sesión',
+                'plan_session_minutes': '90',
+                'plan_session_intensity': TrainingSession.INTENSITY_MEDIUM,
+                'plan_session_status': TrainingSession.STATUS_PLANNED,
+            },
+            follow=False,
+        )
+        after = TrainingSession.objects.filter(microcycle__team=self.team).count()
+        self.assertEqual(after, before + 1)
+        self.assertIn(response.status_code, {301, 302})
+
+
 class MatchActionsVideoAutoLinkTests(TestCase):
     def setUp(self):
         self.competition = Competition.objects.create(name='Comp2', slug='comp2')
@@ -582,7 +715,8 @@ class SessionsAssignTaskSmokeTests(TestCase):
             },
             secure=True,
         )
-        self.assertEqual(response.status_code, 200)
+        # PRG: la vista redirige tras POST.
+        self.assertIn(response.status_code, {301, 302})
         self.assertTrue(SessionTask.objects.filter(session=self.session, title__icontains='Rondo').exists())
 
 
@@ -5758,6 +5892,7 @@ class SessionsPlanningTests(TestCase):
                 'plan_session_status': TrainingSession.STATUS_PLANNED,
                 'plan_session_content': 'Tarea de activación y juego aplicado',
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5898,6 +6033,7 @@ class StaffUserLinkingTests(TestCase):
                 'plan_session_focus': 'Sesión con tareas',
                 'plan_session_task_ids': [library_task.id],
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5916,6 +6052,7 @@ class StaffUserLinkingTests(TestCase):
                 'plan_session_date': '2026-04-01',
                 'plan_session_focus': 'Sesión fuera de rango',
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5939,6 +6076,7 @@ class StaffUserLinkingTests(TestCase):
                 'plan_session_date': '2026-03-25',
                 'plan_session_focus': 'Transición + finalización',
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5968,6 +6106,7 @@ class StaffUserLinkingTests(TestCase):
                 'edit_session_status': TrainingSession.STATUS_DONE,
                 'edit_session_content': 'Contenido actualizado',
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -5993,6 +6132,7 @@ class StaffUserLinkingTests(TestCase):
                 'planner_tab': 'planning',
                 'delete_session_id': session.id,
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -6435,6 +6575,7 @@ class StaffUserLinkingTests(TestCase):
                 'source_task_id': task.id,
                 'target_session_id': session.id,
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -6461,7 +6602,7 @@ class StaffUserLinkingTests(TestCase):
                 'move_direction': 'up',
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertIn(response.status_code, {301, 302})
         task_a.refresh_from_db()
         task_b.refresh_from_db()
         self.assertEqual(task_b.order, 1)
@@ -6475,7 +6616,7 @@ class StaffUserLinkingTests(TestCase):
                 'task_id': task_b.id,
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertIn(response.status_code, {301, 302})
         self.assertEqual(SessionTask.objects.filter(session=session).count(), 3)
 
         response = self.client.post(
@@ -6486,7 +6627,7 @@ class StaffUserLinkingTests(TestCase):
                 'task_id': task_a.id,
             },
         )
-        self.assertEqual(response.status_code, 200)
+        self.assertIn(response.status_code, {301, 302})
         task_a.refresh_from_db()
         self.assertIsNotNone(task_a.deleted_at)
 
@@ -6514,6 +6655,7 @@ class StaffUserLinkingTests(TestCase):
                 'clone_week_start': '2026-03-30',
                 'clone_week_end': '2026-04-05',
             },
+            follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
@@ -6997,6 +7139,7 @@ class SessionsPlannerTaskAssignTests(TestCase):
                 'replace_existing': '1',
                 'source_task_id': str(self.source_task.id),
             },
+            follow=True,
         )
         self.assertEqual(response.status_code, 200)
         copied = (
@@ -7026,6 +7169,7 @@ class SessionsPlannerTaskAssignTests(TestCase):
                 'replace_existing': '1',
                 'source_task_id': str(self.source_task.id),
             },
+            follow=True,
         )
         self.assertEqual(response.status_code, 200)
         copied = (
@@ -7096,6 +7240,7 @@ class SessionsPlannerCreateSessionTests(TestCase):
                 'plan_session_intensity': TrainingSession.INTENSITY_MEDIUM,
                 'plan_session_status': TrainingSession.STATUS_PLANNED,
             },
+            follow=True,
         )
         self.assertEqual(response.status_code, 200)
         created = TrainingSession.objects.filter(microcycle=self.microcycle, focus__iexact='Transición + finalización').first()

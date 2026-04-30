@@ -2500,7 +2500,18 @@
 	      const w = Number(worldWidth) || 0;
 	      const h = Number(worldHeight) || 0;
 	      if (w > 0 && h > 0) return { w, h };
-	      return { w: Math.round(canvas.getWidth() || 0), h: Math.round(canvas.getHeight() || 0) };
+	      const cw = Math.round(canvas.getWidth() || 0);
+	      const ch = Math.round(canvas.getHeight() || 0);
+	      if (cw > 0 && ch > 0) return { w: cw, h: ch };
+	      try {
+	        const rect = stage?.getBoundingClientRect?.();
+	        const rw = Math.round(rect?.width || 0);
+	        const rh = Math.round(rect?.height || 0);
+	        if (rw > 0 && rh > 0) return { w: rw, h: rh };
+	      } catch (e) { /* ignore */ }
+	      // Fallback defensivo: evita clamps a 24px (objetos “pegados” al margen) si el canvas
+	      // se inicializa temporalmente con tamaño 0 en iPad/WKWebView.
+	      return { w: 1280, h: 720 };
 	    };
 	    // Pan del viewport (en px de canvas) cuando se usa viewportTransform (sin scrollbars).
 	    let viewportPanX = 0;
@@ -11252,8 +11263,9 @@
 
 	    const objectAtPointer = (factory, pointer) => {
 	      const { w, h } = worldSize();
-	      const left = clamp(pointer.x || 0, 24, w - 24);
-	      const top = clamp(pointer.y || 0, 24, h - 24);
+	      const pad = 6;
+	      const left = clamp(pointer.x || 0, pad, (Number(w) || 0) - pad);
+	      const top = clamp(pointer.y || 0, pad, (Number(h) || 0) - pad);
 	      return factory(left, top);
 	    };
 
@@ -11540,13 +11552,14 @@
 		        y = (rawScreenY - offsetY) / scale;
 		      }
 		      const { w, h } = worldSize();
+		      const pad = 6;
 		      if (!Number.isFinite(x) || !Number.isFinite(y)) {
 		        x = (Number(w) || 0) / 2;
 		        y = (Number(h) || 0) / 2;
 		      }
 		      return {
-		        x: clamp(x, 24, w - 24),
-		        y: clamp(y, 24, h - 24),
+		        x: clamp(x, pad, (Number(w) || 0) - pad),
+		        y: clamp(y, pad, (Number(h) || 0) - pad),
 		      };
 		    };
 			    const createFactoryFromPayload = (payload) => {

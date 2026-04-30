@@ -1500,6 +1500,15 @@
 		      </div>
 	      <p class="meta" style="margin-top:-0.35rem; margin-bottom:0.9rem;">Espacio activo: <strong>{{ scope_title|default:"Sesiones" }}</strong> <span class="product-chip role">Sesiones · Microciclos · Biblioteca · Crear tarea</span></p>
 
+      {% if messages %}
+        {% for message in messages %}
+          {% if 'error' in message.tags %}
+            <div class="alert err">{{ message }}</div>
+          {% else %}
+            <div class="alert ok">{{ message }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
       {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 

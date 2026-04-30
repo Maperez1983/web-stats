@@ -9541,6 +9541,8 @@
               choiceButtons.forEach((btn) => {
                 btn.addEventListener('click', (ev) => onChoice(btn, ev));
                 try { btn.addEventListener('touchstart', (ev) => onChoice(btn, ev), { capture: true, passive: false }); } catch (e) { /* ignore */ }
+                // iOS/WKWebView: algunos taps no disparan click (o llegan tarde). Capturamos pointerdown.
+                try { btn.addEventListener('pointerdown', (ev) => onChoice(btn, ev), { capture: true }); } catch (e) { /* ignore */ }
               });
 
               if (closeBtn) {

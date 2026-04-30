@@ -27,6 +27,7 @@ from types import SimpleNamespace
 from urllib.parse import quote, urlparse, parse_qs
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth import login as auth_login, update_session_auth_hash, logout as auth_logout
@@ -30103,6 +30104,67 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             error = 'No se pudo completar la operación. Revisa los datos e inténtalo de nuevo.'
             if wants_json and planner_action == 'update_session_sections':
                 return JsonResponse({'ok': False, 'error': error}, status=500)
+        # PRG (Post/Redirect/Get): evita dobles envíos, estabiliza navegación en WKWebView
+        # y reduce casos donde el usuario “vuelve al login” por reintentos/refresh.
+        if not wants_json:
+            try:
+                if feedback:
+                    messages.success(request, feedback)
+                if error:
+                    messages.error(request, error)
+            except Exception:
+                pass
+            try:
+                scope_route_name = {
+                    'coach': 'sessions',
+                    'goalkeeper': 'sessions-goalkeeper',
+                    'fitness': 'sessions-fitness',
+                }.get(scope_key, 'sessions')
+                base_url = reverse(scope_route_name)
+            except Exception:
+                base_url = request.path
+
+            params = request.GET.copy()
+            try:
+                params['team'] = str(int(getattr(primary_team, 'id', 0) or 0) or '')
+            except Exception:
+                pass
+            try:
+                if active_workspace_id:
+                    params['workspace'] = str(int(active_workspace_id))
+            except Exception:
+                pass
+            try:
+                params['library_repo'] = str(library_repository or LIBRARY_REPOSITORY_TRADITIONAL)
+            except Exception:
+                pass
+
+            # Tab: `create/import` son principales; `library/sessions/microcycles` son subtabs.
+            try:
+                tab_value = main_tab if main_tab in {'create', 'import'} else (active_tab or 'library')
+                params['tab'] = tab_value
+            except Exception:
+                pass
+
+            # Mantener selección de sesión cuando aplique.
+            session_hint = (
+                auto_selected_session_id
+                or _parse_int(request.POST.get('selected_session_id'))
+                or _parse_int(request.POST.get('target_session_id'))
+                or _parse_int(request.POST.get('sections_session_id'))
+                or _parse_int(request.POST.get('edit_session_id'))
+            )
+            if session_hint:
+                try:
+                    params['session_id'] = str(int(session_hint))
+                except Exception:
+                    pass
+
+            try:
+                query = params.urlencode()
+                return redirect(f'{base_url}?{query}' if query else base_url)
+            except Exception:
+                return redirect(base_url)
     elif request.method == 'GET':
         # Compat: antes existía `_normalize_tab` (solo sub-tabs). Ahora usamos `_normalize_nav`
         # para pestañas principales + subtabs (biblioteca/sesiones/microciclos).
