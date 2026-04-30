@@ -1704,7 +1704,9 @@
         top: 0.75rem;
         align-self: start;
         max-height: calc(100vh - 2.75rem);
-        overflow: auto;
+        /* Evita scroll lateral "fantasma" en Biblioteca (iPad/Safari): solo scroll vertical. */
+        overflow-x: hidden;
+        overflow-y: auto;
         padding-right: 2px;
       }
       body.tactics-mode .pitch-side {
@@ -1757,7 +1759,8 @@
           position: sticky;
           top: 0.75rem;
           max-height: calc(100vh - 2.75rem);
-          overflow: auto;
+          overflow-x: hidden;
+          overflow-y: auto;
           padding-right: 2px;
         }
       }
