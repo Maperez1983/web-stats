@@ -703,6 +703,41 @@
         display: grid;
         gap: 0.45rem;
       }
+      .create-quick-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 0.5rem;
+        margin-top: 0.15rem;
+      }
+      .create-quick-actions a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
+        text-decoration: none;
+        border-radius: 14px;
+        border: 1px solid rgba(244, 180, 0, 0.26);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.13), rgba(47, 125, 50, 0.06));
+        color: rgba(255, 242, 199, 0.96);
+        padding: 0.7rem 0.8rem;
+        font-weight: 950;
+        letter-spacing: 0.04em;
+      }
+      .create-quick-actions a small {
+        display: block;
+        font-weight: 700;
+        color: rgba(225, 236, 255, 0.82);
+        letter-spacing: 0;
+      }
+      .create-quick-actions a .chev {
+        opacity: 0.8;
+        font-size: 1.15rem;
+        line-height: 1;
+      }
+      .create-quick-actions a:hover {
+        border-color: rgba(244, 180, 0, 0.46);
+        background: rgba(244, 180, 0, 0.12);
+      }
       .create-hero-guide .example {
         border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.10);
@@ -1657,10 +1692,16 @@
                           </svg>
                         </div>
 				              </div>
-				              <div class="create-hero-guide">
-				                <div class="example"><strong>Ejemplo 1:</strong> “Quiero una tarea de finalización desde banda” → <em>Tarea</em> → <em>Recomendador</em> → aplica y ajusta.</div>
-				                <div class="example"><strong>Ejemplo 2:</strong> “Tengo el entreno del martes” → <em>Sesión</em> → crea sesión → en Biblioteca asigna tareas por bloque.</div>
-				                <div class="example"><strong>Ejemplo 3:</strong> “Semana de partido” → <em>Microciclo</em> → crea microciclo → planifica sesiones MD-4…</div>
+					              <div class="create-hero-guide">
+                        <div class="create-quick-actions" aria-label="Acciones rápidas">
+                          <a href="{% url task_builder_route_name %}?repo=traditional&landing=1"><span>Nueva tarea <small>Clásica · pizarra</small></span><span class="chev" aria-hidden="true">›</span></a>
+                          <a href="{% url task_builder_route_name %}?repo=interactive&landing=1"><span>Tarea interactiva <small>Timeline · escenarios</small></span><span class="chev" aria-hidden="true">›</span></a>
+                          <a href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><span>Nueva sesión <small>Bloques · asignación</small></span><span class="chev" aria-hidden="true">›</span></a>
+                          <a href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><span>Nuevo microciclo <small>Planificar semana</small></span><span class="chev" aria-hidden="true">›</span></a>
+                        </div>
+					                <div class="example"><strong>Ejemplo 1:</strong> “Quiero una tarea de finalización desde banda” → <em>Tarea</em> → <em>Recomendador</em> → aplica y ajusta.</div>
+					                <div class="example"><strong>Ejemplo 2:</strong> “Tengo el entreno del martes” → <em>Sesión</em> → crea sesión → en Biblioteca asigna tareas por bloque.</div>
+					                <div class="example"><strong>Ejemplo 3:</strong> “Semana de partido” → <em>Microciclo</em> → crea microciclo → planifica sesiones MD-4…</div>
                         <div class="example">
                           <strong>Demo:</strong> abre una pizarra real (se carga solo si la necesitas).
                           <div class="create-demo-row">
@@ -3163,9 +3204,9 @@
 	        </p>
 	        {% endif %}
         {% if library_view == 'phase' and not library_key %}
-        {% elif task_library_filtered %}
+        {% elif task_library_page_items %}
         <div class="task-list">
-          {% for t in task_library_filtered %}
+          {% for t in task_library_page_items %}
 			          <article
 			            class="task task-clickable"
 			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
@@ -3336,6 +3377,17 @@
           </article>
           {% endfor %}
         </div>
+        {% if library_pages|default:1|add:0 > 1 %}
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:center; margin-top: 1rem;">
+          {% if library_page|default:1|add:0 > 1 %}
+          <a class="button secondary" href="?{{ library_pager_prefix }}lib_page={{ library_page|add:'-1' }}">← Anterior</a>
+          {% endif %}
+          <span class="meta">Página {{ library_page|default:1 }} / {{ library_pages|default:1 }} · {{ library_total|default:0 }} tareas</span>
+          {% if library_page|default:1|add:0 < library_pages|default:1|add:0 %}
+          <a class="button secondary" href="?{{ library_pager_prefix }}lib_page={{ library_page|add:'1' }}">Siguiente →</a>
+          {% endif %}
+        </div>
+        {% endif %}
         {% else %}
         <p class="empty">No hay tareas para el filtro actual en biblioteca.</p>
         {% endif %}

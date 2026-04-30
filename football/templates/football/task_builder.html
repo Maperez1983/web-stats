@@ -859,7 +859,10 @@
         transform: translateX(-50%);
         z-index: 120;
         max-width: min(960px, 96vw);
-        overflow-x: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+        row-gap: 0.35rem;
+        overflow-x: visible;
         -webkit-overflow-scrolling: touch;
         box-shadow: 0 20px 46px rgba(2, 6, 23, 0.55);
         background: rgba(2, 6, 23, 0.82);

@@ -16008,7 +16008,7 @@
 	      setStatus('PNG descargado.');
 	    };
 
-		    const exportStateJson = () => {
+			    const exportStateJson = () => {
 		      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 		      const payload = (() => {
 		        const base = serializeState();
@@ -16021,11 +16021,28 @@
 		      })();
 		      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
 		      downloadBlob(blob, `${title}.json`);
-		      setStatus('JSON descargado.');
+			      setStatus('JSON descargado.');
+			    };
+
+		    const normalizeTokenSelection = () => {
+		      const active = canvas.getActiveObject();
+		      if (!active) return;
+		      // Si se selecciona un sub-elemento dentro de una ficha (token), promovemos la selección al grupo
+		      // para que el inspector (color/escala) funcione siempre.
+		      const parent = active.group || active._group || null;
+		      if (!parent) return;
+		      if (safeText(parent?.data?.kind) !== 'token') return;
+		      try {
+		        canvas.setActiveObject(parent);
+		        canvas.requestRenderAll();
+		      } catch (e) { /* ignore */ }
 		    };
-	    canvas.on('selection:created', syncInspector);
-	    canvas.on('selection:updated', syncInspector);
-	    canvas.on('selection:cleared', syncInspector);
+
+		    canvas.on('selection:created', normalizeTokenSelection);
+		    canvas.on('selection:updated', normalizeTokenSelection);
+		    canvas.on('selection:created', syncInspector);
+		    canvas.on('selection:updated', syncInspector);
+		    canvas.on('selection:cleared', syncInspector);
 	    canvas.on('selection:created', renderLayers);
 	    canvas.on('selection:updated', renderLayers);
 	    canvas.on('selection:cleared', renderLayers);
@@ -17792,9 +17809,9 @@
 			    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
 			    const resourceDetails = document.getElementById('task-resource-details');
 			    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
-			    const resourceSelect = document.getElementById('task-resource-select');
-			    const resourceHelper = document.querySelector('.resource-helper');
-			    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
+				    const resourceSelect = document.getElementById('task-resource-select');
+				    const resourceHelper = document.querySelector('.resource-helper');
+				    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
 			    const getDeviceMode = () => {
 			      const raw = safeText(document.body?.dataset?.deviceMode);
 			      if (raw === 'desktop' || raw === 'tablet') return raw;
@@ -17809,16 +17826,17 @@
 		      if (getDeviceMode() === 'desktop') return true;
 		      if (getDeviceMode() === 'tablet') return false;
 		      try { return !!(window.matchMedia && window.matchMedia('(min-width: 761px)').matches); } catch (error) { return true; }
-		    };
-			    const isSmallUi = () => {
-			      if (getDeviceMode() === 'tablet') return true;
-			      if (getDeviceMode() === 'desktop') return false;
-			      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
-			    };
-			    // Siempre mostramos recursos en una sola vista (sin desplegable flotante).
-			    // Importante: mantener <details> cerrado evita que el backdrop bloquee clics en la barra superior.
-			    try { if (resourceDetails) resourceDetails.open = false; } catch (error) { /* ignore */ }
-			    let activeResourceKey = '';
+				    };
+				    const isSmallUi = () => {
+				      if (getDeviceMode() === 'tablet') return true;
+				      if (getDeviceMode() === 'desktop') return false;
+				      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
+				    };
+				    // Recursos: en iOS/Safari, si <details> está cerrado, el navegador puede ocultar sus hijos
+				    // aunque intentemos forzar display por CSS. Para evitar “desaparecen pestañas”, lo dejamos abierto.
+				    // Como el summary está oculto por CSS, no hay comportamiento de desplegable.
+				    try { if (resourceDetails) resourceDetails.open = true; } catch (error) { /* ignore */ }
+				    let activeResourceKey = '';
 	    const resourceLabelForKey = (key) => {
 	      const normalized = safeText(key);
 	      const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
@@ -17854,17 +17872,11 @@
 	      const key = safeText(resourceSelect.value);
 	      activateResourcePanel(key);
 	    });
-			    if (resourceTabs.length && resourcePanels.length) {
-	          // Por defecto: si hay recursos importados (PDF/PPT), arrancamos ahí para reutilizar assets.
-	          // Si no, arrancamos en “Recursos base”.
-	          let initialResource = 'base';
-	          try {
-	            const importedPanel = document.querySelector('.resource-panel[data-panel="importados"]');
-	            const hasImportedAssets = Boolean(importedPanel && importedPanel.querySelector('.pdf-asset-btn img'));
-	            initialResource = hasImportedAssets ? 'importados' : 'base';
-	          } catch (error) { /* ignore */ }
-			      activateResourcePanel(initialResource);
-			    }
+				    if (resourceTabs.length && resourcePanels.length) {
+				      // Por defecto arrancamos en “Recursos base” para que siempre sea operativa la pizarra
+				      // aunque no haya importaciones (y para que sea evidente dónde están flechas/figuras).
+				      activateResourcePanel('base');
+				    }
 		    // Permite alternar el modo (Ordenador/iPad/Auto) sin recargar ni perder trabajo.
 		    try {
 		      window.addEventListener('webstats:tpad:device-change', () => {
