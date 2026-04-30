@@ -421,6 +421,14 @@ canvas {
   gap: 0.45rem;
 }
 
+.broadcast-kpis.is-3up .broadcast-kpi {
+  flex-basis: calc(33.333% - 0.45rem);
+}
+
+.broadcast-kpis.is-4up .broadcast-kpi {
+  flex-basis: calc(25% - 0.45rem);
+}
+
 .broadcast-kpi {
   flex: 1 1 calc(50% - 0.45rem);
   min-width: 140px;

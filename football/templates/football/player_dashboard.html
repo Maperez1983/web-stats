@@ -364,17 +364,17 @@
               </div>
               <div class="subline">{{ player.profile_label }}</div>
 
-              <div class="quick">
-                {% if selected_match %}
-                  <div class="item"><span>Acciones</span><strong>{{ player.match_actions|default:"0" }}</strong></div>
-                  <div class="item"><span>Éxitos</span><strong>{{ player.match_successes|default:"0" }}</strong></div>
-                  <div class="item"><span>% Éxito</span><strong>{{ player.match_success_rate|default:"0" }}%</strong></div>
-                {% else %}
-                  <div class="item"><span>Partidos</span><strong>{{ player.match_count|default:"0" }}</strong></div>
-                  <div class="item"><span>Acciones</span><strong>{{ player.total_actions|default:"0" }}</strong></div>
-                  <div class="item"><span>% Éxito</span><strong>{{ player.success_rate|default:"0" }}%</strong></div>
-                {% endif %}
-              </div>
+	              <div class="broadcast-kpis is-3up" aria-label="KPIs rápidos">
+	                {% if selected_match %}
+	                  <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.match_actions|default:"0" }}</div></div>
+	                  <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.match_successes|default:"0" }}</div></div>
+	                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.match_success_rate|default:"0" }}%</div></div>
+	                {% else %}
+	                  <div class="broadcast-kpi"><div class="k">PJ</div><div class="v">{{ player.match_count|default:"0" }}</div></div>
+	                  <div class="broadcast-kpi is-cool"><div class="k">Acc</div><div class="v">{{ player.total_actions|default:"0" }}</div></div>
+	                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:"0" }}%</div></div>
+	                {% endif %}
+	              </div>
 
               <div class="kpi-row">
                 {% for kpi in player.smart_kpis|slice:":3" %}
