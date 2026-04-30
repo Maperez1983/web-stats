@@ -14966,19 +14966,28 @@
 	      const isTacticsMode = (() => {
 	        try { return safeText(form?.dataset?.tacticsMode) === '1'; } catch (e) { return false; }
 	      })();
-	      if (!isTacticsMode) {
-	        const landingEl = document.getElementById('task-landing');
-	        const hideToggle = document.getElementById('task-landing-hide');
-	        const hideKey = 'webstats:tpad:landing_dismissed_v1';
-	        const shouldShow = safeText(urlParams.get('landing')) === '1';
-	        let dismissed = false;
-	        if (canUseStorage) {
-	          try { dismissed = safeText(window.localStorage.getItem(hideKey)) === '1'; } catch (e) { dismissed = false; }
-	        }
-		        if (landingEl && shouldShow && !dismissed) {
-		          landingEl.hidden = false;
-		          const closeLanding = (persist = false) => {
-	            try { landingEl.hidden = true; } catch (e) { /* ignore */ }
+			      if (!isTacticsMode) {
+			        const landingEl = document.getElementById('task-landing');
+			        // La landing V2 se gestiona 100% desde plantilla (selección + "Entrar").
+			        // Evita doble-binding de eventos (iOS/WKWebView) que bloqueaba opciones inferiores.
+			        let useLegacyLanding = true;
+			        try {
+			          if (landingEl && safeText(landingEl.dataset?.landingV2) === '1') useLegacyLanding = false;
+			        } catch (e) { /* ignore */ }
+			        if (!useLegacyLanding) {
+			          // Nada: la plantilla abre/cierra y navega al modo elegido.
+			        } else {
+			          const hideToggle = document.getElementById('task-landing-hide');
+			          const hideKey = 'webstats:tpad:landing_dismissed_v1';
+			          const shouldShow = safeText(urlParams.get('landing')) === '1';
+		        let dismissed = false;
+		        if (canUseStorage) {
+		          try { dismissed = safeText(window.localStorage.getItem(hideKey)) === '1'; } catch (e) { dismissed = false; }
+		        }
+			        if (landingEl && shouldShow && !dismissed) {
+			          landingEl.hidden = false;
+			          const closeLanding = (persist = false) => {
+		            try { landingEl.hidden = true; } catch (e) { /* ignore */ }
 	            if (persist && canUseStorage) {
 	              try { window.localStorage.setItem(hideKey, '1'); } catch (e) { /* ignore */ }
 	            }
@@ -15031,14 +15040,15 @@
 		            });
 		          } catch (e) { /* ignore */ }
 
-		          // Fallback: delegation (por si se inserta dinámicamente algún botón).
-		          landingEl.addEventListener('click', (ev) => {
-		            const btn = ev.target && ev.target.closest ? ev.target.closest('[data-landing-go]') : null;
-		            if (!btn) return;
-		            ev.preventDefault();
-		            handleLandingGo(btn);
-		          });
-		        }
+			          // Fallback: delegation (por si se inserta dinámicamente algún botón).
+			          landingEl.addEventListener('click', (ev) => {
+			            const btn = ev.target && ev.target.closest ? ev.target.closest('[data-landing-go]') : null;
+			            if (!btn) return;
+			            ev.preventDefault();
+			            handleLandingGo(btn);
+			          });
+			        }
+			      }
 		      }
 		    } catch (e) { /* ignore */ }
 

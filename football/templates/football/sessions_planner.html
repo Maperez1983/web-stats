@@ -620,128 +620,28 @@
         font-size: 0.76rem;
       }
       .create-hero-top .meta { margin: 0; }
-      .create-hero-pitch {
-        height: 240px;
-        background: rgba(2, 6, 23, 0.18);
-        display: grid;
-        place-items: center;
-        position: relative;
-        overflow: hidden;
-      }
+	      .create-hero-pitch {
+	        height: clamp(260px, 36vw, 460px);
+	        background: rgba(2, 6, 23, 0.18);
+	        display: grid;
+	        place-items: center;
+	        position: relative;
+	        overflow: hidden;
+	      }
       .create-hero-pitch svg { width: 100%; height: 100%; display: block; }
       .create-hero-preview {
         width: 100%;
         height: 100%;
       }
-      .create-demo-row {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        align-items: center;
-        margin-top: 0.15rem;
-      }
-      .create-demo-btn {
-        border-radius: 999px;
-        border: 1px solid rgba(244, 180, 0, 0.3);
-        background: rgba(244, 180, 0, 0.08);
-        color: rgba(255, 242, 199, 0.96);
-        font-weight: 900;
-        padding: 0.44rem 0.8rem;
-        cursor: pointer;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        font-size: 0.7rem;
-      }
-      .create-demo-btn:hover { border-color: rgba(244, 180, 0, 0.46); background: rgba(244, 180, 0, 0.12); }
-      .create-demo-note { font-size: 0.78rem; color: rgba(225, 236, 255, 0.78); margin: 0; }
-      .create-demo-modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(2, 6, 23, 0.74);
-        display: grid;
-        place-items: center;
-        padding: 1rem;
-        z-index: 9999;
-      }
-      .create-demo-modal[hidden] { display: none !important; }
-      .create-demo-sheet {
-        width: min(1180px, 96vw);
-        height: min(760px, 86vh);
-        border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.16);
-        background: rgba(2, 10, 22, 0.92);
-        overflow: hidden;
-        display: grid;
-        grid-template-rows: auto 1fr;
-      }
-      .create-demo-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.8rem;
-        padding: 0.65rem 0.8rem;
-        border-bottom: 1px solid rgba(255,255,255,0.12);
-      }
-      .create-demo-head strong { letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.74rem; }
-      .create-demo-close {
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.18);
-        background: rgba(255,255,255,0.06);
-        color: rgba(248,250,252,0.92);
-        font-weight: 900;
-        padding: 0.4rem 0.7rem;
-        cursor: pointer;
-      }
-      .create-demo-iframe {
-        width: 100%;
-        height: 100%;
-        border: 0;
-        background: transparent;
-      }
-      .create-hero-guide {
-        padding: 0.85rem 0.9rem 0.95rem;
-        display: grid;
-        gap: 0.45rem;
-      }
-      .create-quick-actions {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 0.5rem;
-        margin-top: 0.15rem;
-      }
-      .create-quick-actions a {
-        display: inline-flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.65rem;
-        text-decoration: none;
-        border-radius: 14px;
-        border: 1px solid rgba(244, 180, 0, 0.26);
-        background: linear-gradient(135deg, rgba(244, 180, 0, 0.13), rgba(47, 125, 50, 0.06));
-        color: rgba(255, 242, 199, 0.96);
-        padding: 0.7rem 0.8rem;
-        font-weight: 950;
-        letter-spacing: 0.04em;
-      }
-      .create-quick-actions a small {
-        display: block;
-        font-weight: 700;
-        color: rgba(225, 236, 255, 0.82);
-        letter-spacing: 0;
-      }
-      .create-quick-actions a .chev {
-        opacity: 0.8;
-        font-size: 1.15rem;
-        line-height: 1;
-      }
-      .create-quick-actions a:hover {
-        border-color: rgba(244, 180, 0, 0.46);
-        background: rgba(244, 180, 0, 0.12);
-      }
-      .create-hero-guide .example {
-        border-radius: 14px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: rgba(255,255,255,0.04);
+	      .create-hero-guide {
+	        padding: 0.85rem 0.9rem 0.95rem;
+	        display: grid;
+	        gap: 0.45rem;
+	      }
+	      .create-hero-guide .example {
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.10);
+	        background: rgba(255,255,255,0.04);
         padding: 0.6rem 0.7rem;
         color: rgba(248,250,252,0.92);
         font-size: 0.82rem;
@@ -1691,27 +1591,14 @@
                             <path d="M 320 445 C 400 440, 450 410, 520 350" fill="none" stroke="rgba(248,250,252,0.92)" stroke-width="8" stroke-linecap="round" marker-end="url(#create-arrow-head)"></path>
                           </svg>
                         </div>
-				              </div>
-					              <div class="create-hero-guide">
-                        <div class="create-quick-actions" aria-label="Acciones rápidas">
-                          <a href="{% url task_builder_route_name %}?repo=traditional&landing=1"><span>Nueva tarea <small>Clásica · pizarra</small></span><span class="chev" aria-hidden="true">›</span></a>
-                          <a href="{% url task_builder_route_name %}?repo=interactive&landing=1"><span>Tarea interactiva <small>Timeline · escenarios</small></span><span class="chev" aria-hidden="true">›</span></a>
-                          <a href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><span>Nueva sesión <small>Bloques · asignación</small></span><span class="chev" aria-hidden="true">›</span></a>
-                          <a href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"><span>Nuevo microciclo <small>Planificar semana</small></span><span class="chev" aria-hidden="true">›</span></a>
-                        </div>
-					                <div class="example"><strong>Ejemplo 1:</strong> “Quiero una tarea de finalización desde banda” → <em>Tarea</em> → <em>Recomendador</em> → aplica y ajusta.</div>
-					                <div class="example"><strong>Ejemplo 2:</strong> “Tengo el entreno del martes” → <em>Sesión</em> → crea sesión → en Biblioteca asigna tareas por bloque.</div>
-					                <div class="example"><strong>Ejemplo 3:</strong> “Semana de partido” → <em>Microciclo</em> → crea microciclo → planifica sesiones MD-4…</div>
-                        <div class="example">
-                          <strong>Demo:</strong> abre una pizarra real (se carga solo si la necesitas).
-                          <div class="create-demo-row">
-                            <button type="button" class="create-demo-btn" id="coach-create-demo-open" data-demo-url="{% url task_builder_route_name %}?repo=traditional&landing=1">Ver demo interactiva</button>
-                            <p class="create-demo-note">No afecta a tu sesión; es solo para probar el editor.</p>
-                          </div>
-                        </div>
-				              </div>
-				            </div>
-					            <aside class="create-side">
+					              </div>
+						              <div class="create-hero-guide">
+						                <div class="example"><strong>Ejemplo 1:</strong> “Quiero una tarea de finalización desde banda” → <em>Tarea</em> → <em>Recomendador</em> → aplica y ajusta.</div>
+						                <div class="example"><strong>Ejemplo 2:</strong> “Tengo el entreno del martes” → <em>Sesión</em> → crea sesión → en Biblioteca asigna tareas por bloque.</div>
+						                <div class="example"><strong>Ejemplo 3:</strong> “Semana de partido” → <em>Microciclo</em> → crea microciclo → planifica sesiones MD-4…</div>
+					              </div>
+					            </div>
+						            <aside class="create-side">
 					              <div class="create-side-head">Módulos</div>
 					              <div class="create-modules" aria-label="Módulos">
 	                        <a class="create-mod-btn" href="?tab=create&create_page=task&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tarea <small>Crear · interactiva · importar · recomendador</small></a>
@@ -1721,45 +1608,7 @@
 					              </div>
 					            </aside>
 					          </div>
-                  <script>
-                    (function () {
-                      // Demo (bajo demanda): carga el editor real dentro de un modal con iframe.
-                      try {
-                        const openBtn = document.getElementById('coach-create-demo-open');
-                        if (!openBtn) return;
-                        const modal = document.createElement('div');
-                        modal.className = 'create-demo-modal';
-                        modal.hidden = true;
-                        modal.innerHTML = `
-                          <div class="create-demo-sheet" role="dialog" aria-modal="true" aria-label="Demo pizarra">
-                            <div class="create-demo-head">
-                              <strong>Demo · Pizarra</strong>
-                              <button type="button" class="create-demo-close" data-close="1">Cerrar</button>
-                            </div>
-                            <iframe class="create-demo-iframe" title="Demo pizarra" loading="lazy"></iframe>
-                          </div>
-                        `;
-                        document.body.appendChild(modal);
-                        const iframe = modal.querySelector('iframe');
-                        const closeBtn = modal.querySelector('[data-close="1"]');
-                        const close = () => { try { modal.hidden = true; } catch (e) {} };
-                        const open = () => {
-                          try {
-                            const url = String(openBtn.getAttribute('data-demo-url') || '').trim();
-                            if (iframe && url && !iframe.getAttribute('src')) iframe.setAttribute('src', url);
-                            modal.hidden = false;
-                          } catch (e) { /* ignore */ }
-                        };
-                        openBtn.addEventListener('click', (ev) => { ev.preventDefault(); open(); });
-                        if (closeBtn) closeBtn.addEventListener('click', (ev) => { ev.preventDefault(); close(); });
-                        modal.addEventListener('click', (ev) => {
-                          const sheet = ev.target && ev.target.closest ? ev.target.closest('.create-demo-sheet') : null;
-                          if (!sheet) close();
-                        });
-                        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) close(); });
-                      } catch (e) { /* ignore */ }
-                    })();
-                  </script>
+	                  {# Demo eliminado (ruido). Si lo reactivamos, lo hacemos como acción dentro de "Tarea". #}
                   {% else %}
                   <p class="meta" style="margin-top:0;"><a class="button" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Volver a presentación</a></p>
                   {% if create_page == 'task' %}

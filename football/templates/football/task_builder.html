@@ -3300,12 +3300,12 @@
         </div>
 	        {% endif %}
 
-	        <div class="builder">
-	          <div class="task-landing" id="task-landing" hidden aria-label="Inicio de tarea" role="dialog">
-	            <div class="task-landing-card">
-	              <div class="task-landing-pitch" aria-hidden="true">
-	                {% if task_preview_url %}
-	                  <img src="{{ task_preview_url }}" alt="Vista previa de la tarea" loading="lazy" />
+		          <div class="builder">
+		          <div class="task-landing" id="task-landing" hidden aria-label="Inicio de tarea" role="dialog" data-landing-v2="1">
+		            <div class="task-landing-card">
+		              <div class="task-landing-pitch" aria-hidden="true">
+		                {% if task_preview_url %}
+		                  <img src="{{ task_preview_url }}" alt="Vista previa de la tarea" loading="lazy" />
 	                {% else %}
 	                  <svg viewBox="0 0 105 68" fill="none" xmlns="http://www.w3.org/2000/svg">
 	                    <rect x="1" y="1" width="103" height="66" stroke="rgba(248,250,252,0.92)" stroke-width="1.2"/>
@@ -3318,121 +3318,40 @@
 	                    <rect x="98" y="26" width="6" height="16" stroke="rgba(248,250,252,0.75)" stroke-width="0.9"/>
 	                  </svg>
 	                {% endif %}
-	              </div>
-	              <div class="task-landing-actions">
-	                <h2>¿Qué quieres hacer?</h2>
-	                <p class="meta">Elige una opción y pulsa <strong>Entrar</strong>. Puedes cambiar luego sin perder nada.</p>
-	                <button type="button" class="task-landing-action" data-landing-go="assistant" aria-pressed="false" onclick="return window.__webstatsTaskLandingGo && window.__webstatsTaskLandingGo('assistant');">
-	                  Recomendar tarea
-	                  <small>Asistente · “Sugerir tareas”</small>
-	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="board" aria-pressed="false" onclick="return window.__webstatsTaskLandingGo && window.__webstatsTaskLandingGo('board');">
-	                  Abrir pizarra
-	                  <small>Colocar fichas, dibujar y simular</small>
-	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="text" aria-pressed="false" onclick="return window.__webstatsTaskLandingGo && window.__webstatsTaskLandingGo('text');">
-	                  Editar contenido
-	                  <small>Descripción, reglas, objetivos…</small>
-	                </button>
-	                <button type="button" class="task-landing-action" data-landing-go="exportar" aria-pressed="false" onclick="return window.__webstatsTaskLandingGo && window.__webstatsTaskLandingGo('exportar');">
-	                  Exportar / imprimir
-	                  <small>PDF, PNG, compartir…</small>
-	                </button>
-	                <div class="task-landing-foot">
-	                  <label class="ui-check">
-	                  <input type="checkbox" id="task-landing-hide" />
-	                    No mostrar de nuevo
-	                  </label>
-	                  <button type="button" class="task-landing-close" data-landing-go="close" onclick="return window.__webstatsTaskLandingGo && window.__webstatsTaskLandingGo('close');">Entrar</button>
-	                </div>
-	              </div>
-	            </div>
-	          </div>
-	          <script>
-	            // Fallback robusto: en Safari/iPad a veces los listeners (JS principal) pueden no engancharse por un error previo.
-	            // Dejamos handlers inline + esta función global para que el modal siempre sea operable.
-	            (function () {
-	              const landing = document.getElementById('task-landing');
-	              if (!landing) return;
-
-	              const scopeKey = String('{{ scope_key|default:"" }}' || '').trim() || 'global';
-	              const storageKey = `webstats:tpad:landing_hide_v2:${scopeKey}`;
-	              const hideCheck = document.getElementById('task-landing-hide');
-
-	              const setHiddenPref = () => {
-	                try {
-	                  if (hideCheck && hideCheck.checked) localStorage.setItem(storageKey, '1');
-	                  else localStorage.removeItem(storageKey);
-	                } catch (e) { /* ignore */ }
-	              };
-	              const shouldHideLanding = () => {
-	                try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
-	              };
-	              const closeLanding = () => {
-	                try { landing.hidden = true; } catch (e) { /* ignore */ }
-	              };
-	              const openLandingIfNeeded = () => {
-	                if (!shouldHideLanding()) {
-	                  try { landing.hidden = false; } catch (e) { /* ignore */ }
-	                }
-	              };
-
-	              const clickFirst = (selector) => {
-	                try {
-	                  const el = document.querySelector(selector);
-	                  if (!el) return false;
-	                  el.click();
-	                  return true;
-	                } catch (e) {
-	                  return false;
-	                }
-	              };
-	              const activateTaskMode = (mode) => clickFirst(`#task-mode-tabs [data-task-mode="${mode}"]`);
-	              const activateSidePane = (pane) => clickFirst(`#task-side-tabs [data-pane="${pane}"]`);
-
-	              window.__webstatsTaskLandingGo = (action) => {
-	                try {
-	                  setHiddenPref();
-	                  const a = String(action || '').trim();
-	                  if (a === 'assistant') activateSidePane('assistant');
-	                  else if (a === 'text') activateTaskMode('text');
-	                  else if (a === 'exportar') activateSidePane('exportar');
-	                  // 'close' y 'board': solo cerrar.
-	                  closeLanding();
-	                } catch (e) {
-	                  closeLanding();
-	                }
-	                return false;
-	              };
-	              window.__webstatsTaskLandingDismiss = () => {
-	                try { setHiddenPref(); } catch (e) { /* ignore */ }
-	                closeLanding();
-	                return false;
-	              };
-
-	              // Click fuera de la tarjeta -> cerrar.
-	              landing.addEventListener('click', (ev) => {
-	                try {
-	                  const card = landing.querySelector('.task-landing-card');
-	                  if (card && ev && ev.target && card.contains(ev.target)) return;
-	                } catch (e) { /* ignore */ }
-	                window.__webstatsTaskLandingDismiss();
-	              });
-	              // Escape -> cerrar.
-	              document.addEventListener('keydown', (ev) => {
-	                try {
-	                  if (!landing.hidden && ev && ev.key === 'Escape') window.__webstatsTaskLandingDismiss();
-	                } catch (e) { /* ignore */ }
-	              });
-
-	              // Mostrar al entrar si no está desactivado.
-	              openLandingIfNeeded();
-	            })();
-	          </script>
-	          <section class="panel">
-	            <div class="panel-body">
-	                <div class="panel-head">
-	                  <div>
+		              </div>
+		              <div class="task-landing-actions">
+		                <h2>¿Qué quieres hacer?</h2>
+		                <p class="meta">Elige una opción y pulsa <strong>Entrar</strong>. Puedes cambiar luego sin perder nada.</p>
+		                <button type="button" class="task-landing-action" data-landing-go="assistant" aria-pressed="false">
+		                  Recomendar tarea
+		                  <small>Asistente · “Sugerir tareas”</small>
+		                </button>
+		                <button type="button" class="task-landing-action" data-landing-go="board" aria-pressed="false">
+		                  Abrir pizarra
+		                  <small>Colocar fichas, dibujar y simular</small>
+		                </button>
+		                <button type="button" class="task-landing-action" data-landing-go="text" aria-pressed="false">
+		                  Editar contenido
+		                  <small>Descripción, reglas, objetivos…</small>
+		                </button>
+		                <button type="button" class="task-landing-action" data-landing-go="exportar" aria-pressed="false">
+		                  Exportar / imprimir
+		                  <small>PDF, PNG, compartir…</small>
+		                </button>
+		                <div class="task-landing-foot">
+		                  <label class="ui-check">
+		                  <input type="checkbox" id="task-landing-hide" />
+		                    No mostrar de nuevo
+		                  </label>
+		                  <button type="button" class="task-landing-close" data-landing-go="close">Entrar</button>
+		                </div>
+		              </div>
+		            </div>
+		          </div>
+		          <section class="panel">
+		            <div class="panel-body">
+		                <div class="panel-head">
+		                  <div>
 	                  <h2>Pizarra</h2>
                   <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
                 </div>
@@ -9398,20 +9317,36 @@
             } catch (e) { /* ignore */ }
 			      });
 			    </script>
-          <script>
-            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
-            (function () {
-              const landing = document.getElementById('task-landing');
-              if (!landing) return;
+	          <script>
+	            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
+	            (function () {
+	              const landing = document.getElementById('task-landing');
+	              if (!landing) return;
 
               // Debug mínimo (solo visual): si WKWebView está tragándose los eventos, al menos veremos el contador subir.
               try {
                 landing.setAttribute('data-debug', '1');
               } catch (e) { /* ignore */ }
 
-              const scopeKey = String('{{ scope_key|default:"" }}' || '').trim() || 'global';
-              const storageKey = `webstats:tpad:landing_hide_v1:${scopeKey}`;
-              const hideCheck = document.getElementById('task-landing-hide');
+	              const scopeKey = String('{{ scope_key|default:"" }}' || '').trim() || 'global';
+	              const storageKey = `webstats:tpad:landing_hide_v1:${scopeKey}`;
+	              const hideCheck = document.getElementById('task-landing-hide');
+	              const shouldShow = (() => {
+	                try {
+	                  const params = new URLSearchParams(String(window.location.search || ''));
+	                  return String(params.get('landing') || '') === '1';
+	                } catch (e) {
+	                  return false;
+	                }
+	              })();
+
+	              const clearLandingParam = () => {
+	                try {
+	                  const url = new URL(window.location.href);
+	                  url.searchParams.delete('landing');
+	                  window.history.replaceState({}, '', url.toString());
+	                } catch (e) { /* ignore */ }
+	              };
 
               const setHiddenPref = () => {
                 try {
@@ -9427,15 +9362,16 @@
                 try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
               };
 
-              const openLandingIfNeeded = () => {
-                if (!shouldHideLanding()) {
-                  try { landing.hidden = false; } catch (e) { /* ignore */ }
-                }
-              };
+	              const openLandingIfNeeded = () => {
+	                if (shouldShow && !shouldHideLanding()) {
+	                  try { landing.hidden = false; } catch (e) { /* ignore */ }
+	                }
+	              };
 
-              const closeLanding = () => {
-                try { landing.hidden = true; } catch (e) { /* ignore */ }
-              };
+	              const closeLanding = () => {
+	                try { landing.hidden = true; } catch (e) { /* ignore */ }
+	                clearLandingParam();
+	              };
 
               const clickFirst = (selector) => {
                 const el = document.querySelector(selector);
@@ -9465,13 +9401,13 @@
                 return false;
               };
 
-              landing.addEventListener('click', (ev) => {
-                // Click fuera de la tarjeta -> cerrar (no bloquear).
-                const card = landing.querySelector('.task-landing-card');
-                if (card && ev.target && card.contains(ev.target)) return;
-                setHiddenPref();
-                closeLanding();
-              });
+	              landing.addEventListener('click', (ev) => {
+	                // Click fuera de la tarjeta -> cerrar (no bloquear).
+	                const card = landing.querySelector('.task-landing-card');
+	                if (card && ev.target && card.contains(ev.target)) return;
+	                setHiddenPref();
+	                closeLanding();
+	              });
 
               // iOS/WKWebView: por seguridad, enganchamos también a pointerdown/touchstart (capturing),
               // porque algunos overlays con backdrop-filter pueden “comerse” el click.
@@ -9503,12 +9439,12 @@
                 });
               };
 
-              const runSelected = () => {
-                const action = normalizeAction(selectedAction);
-                if (action === 'assistant') {
-                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
-                  activateSidePane('assistant');
-                  closeLanding();
+	              const runSelected = () => {
+	                const action = normalizeAction(selectedAction);
+	                if (action === 'assistant') {
+	                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
+	                  activateSidePane('assistant');
+	                  closeLanding();
                   return;
                 }
                 if (action === 'text') {
@@ -9521,9 +9457,9 @@
                   closeLanding();
                   return;
                 }
-                // board: solo entra.
-                closeLanding();
-              };
+	                // board: solo entra.
+	                closeLanding();
+	              };
 
               const onChoice = (btn, ev) => {
                 try { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
@@ -9559,10 +9495,10 @@
                 setSelected('assistant');
               }
 
-              // Mostrar al entrar si no está desactivado.
-              openLandingIfNeeded();
-            })();
-          </script>
+	              // Mostrar solo cuando viene desde flujo rápido (ej: Sesiones → crear/editar).
+	              openLandingIfNeeded();
+	            })();
+	          </script>
         {% if tactics_mode %}
         <script>
           // Seguro extra: si el script principal falló antes de enganchar listeners, estos botones
