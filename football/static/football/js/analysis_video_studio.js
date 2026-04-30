@@ -3103,6 +3103,40 @@
       if (!k) return;
       const tag = safeText(ev?.target?.tagName, '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // Atajos globales (productividad): Espacio play/pausa · I/O marcar IN/OUT · C guardar clip · T tag.
+      if (k === ' ' || k === 'Spacebar') {
+        ev.preventDefault();
+        try {
+          if (video.paused || video.ended) video.play();
+          else video.pause();
+        } catch (e) { /* ignore */ }
+        syncPlayButtons();
+        return;
+      }
+      if (k === 'i' || k === 'I') {
+        ev.preventDefault();
+        markIn();
+        return;
+      }
+      if (k === 'o' || k === 'O') {
+        ev.preventDefault();
+        markOut();
+        return;
+      }
+      if (k === 'c' || k === 'C') {
+        ev.preventDefault();
+        saveClip();
+        return;
+      }
+      if (k === 't' || k === 'T') {
+        ev.preventDefault();
+        try {
+          if (eventKindSelect) eventKindSelect.value = 'tag';
+          if (eventLabelInput && !safeText(eventLabelInput.value, '')) eventLabelInput.value = 'Tag';
+        } catch (e) { /* ignore */ }
+        addTimelineEvent();
+        return;
+      }
       if (k >= '1' && k <= '9') {
         const idx = Number(k) - 1;
         const p = eventPresets[idx];

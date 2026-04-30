@@ -478,6 +478,182 @@ class MatchdayQuickButtonsTests(TestCase):
         self.assertIn('Falta', labels)
 
 
+class SessionsAssignTaskSmokeTests(TestCase):
+    def setUp(self):
+        self.competition = Competition.objects.create(name='CompSes', slug='comp-ses')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='GrupoSes', slug='grupo-ses')
+        self.team = Team.objects.create(
+            name='Equipo Sesiones',
+            slug='equipo-ses',
+            short_name='SES',
+            group=self.group,
+            is_primary=True,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-ses',
+            email='coach-ses@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='WS SESIONES',
+            slug='ws-ses',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'sessions': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+        # Microciclo y sesión real donde asignar.
+        self.micro = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Micro 1',
+            week_start=timezone.localdate(),
+            week_end=timezone.localdate(),
+        )
+        self.session = TrainingSession.objects.create(
+            microcycle=self.micro,
+            session_date=timezone.localdate(),
+            focus='Entreno 1',
+            duration_minutes=75,
+            intensity='media',
+            status='Planificada',
+            order=1,
+        )
+
+        # Tarea en biblioteca (origen).
+        self.library_micro = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Biblioteca · entrenador',
+            week_start=timezone.localdate() + timedelta(days=7),
+            week_end=timezone.localdate() + timedelta(days=7),
+            notes='[LIBRARY]',
+        )
+        self.library_session = TrainingSession.objects.create(
+            microcycle=self.library_micro,
+            session_date=timezone.localdate(),
+            focus='Biblioteca · tareas',
+            duration_minutes=0,
+            intensity='baja',
+            status='Planificada',
+            order=1,
+        )
+        self.source_task = SessionTask.objects.create(
+            session=self.library_session,
+            title='Rondo 4v2',
+            block=SessionTask.BLOCK_CONDITIONING,
+            duration_minutes=12,
+            objective='',
+            coaching_points='',
+            confrontation_rules='',
+            tactical_layout={'meta': {'scope': 'coach', 'repository': 'traditional'}},
+            status=SessionTask.STATUS_PLANNED,
+            order=1,
+            notes='',
+        )
+
+    def _activate_workspace(self):
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+    def test_sessions_page_renders(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('sessions'), secure=True)
+        self.assertEqual(response.status_code, 200)
+
+    def test_assign_library_task_to_session_creates_task(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        url = reverse('sessions')
+        response = self.client.post(
+            url,
+            data={
+                'planner_action': 'copy_library_task_to_session',
+                'source_task_id': str(self.source_task.id),
+                'target_session_id': str(self.session.id),
+                'target_block': SessionTask.BLOCK_CONDITIONING,
+                'replace_existing': '1',
+                'library_repo': 'traditional',
+            },
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(SessionTask.objects.filter(session=self.session, title__icontains='Rondo').exists())
+
+
+class CriticalPagesSmokeTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(name='Equipo Smoke', slug='equipo-smoke', short_name='SMK', is_primary=True)
+        self.user = get_user_model().objects.create_user(
+            username='coach-smoke',
+            email='coach-smoke@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='WS SMOKE',
+            slug='ws-smoke',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'sessions': True, 'abp_board': True, 'match_actions': True, 'analysis': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+        # Partido mínimo para registro de acciones.
+        competition = Competition.objects.create(name='CompSmoke', slug='comp-smoke')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='GrupoSmoke', slug='grupo-smoke')
+        self.team.group = group
+        self.team.save(update_fields=['group'])
+        rival = Team.objects.create(name='Rival Smoke', slug='rival-smoke', short_name='RIV', group=group, is_primary=False)
+        self.match = Match.objects.create(
+            season=season,
+            group=group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=timezone.localdate(),
+            home_team=self.team,
+            away_team=rival,
+        )
+        self.player = Player.objects.create(team=self.team, name='Jugador Smoke', number=10, is_active=True)
+        conv = ConvocationRecord.objects.create(team=self.team, match=self.match, opponent_name='Rival', is_current=True)
+        conv.players.add(self.player)
+
+        # Vídeo mínimo para Video Studio.
+        video_file = SimpleUploadedFile('smoke.mp4', b'0' * 1024, content_type='video/mp4')
+        self.video = RivalVideo.objects.create(team=self.team, rival_team=rival, title='Video Smoke', video=video_file, source=RivalVideo.SOURCE_MANUAL)
+
+    def _activate_workspace(self):
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+    def test_abp_board_renders(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('coach-abp-board'), secure=True)
+        self.assertEqual(response.status_code, 200)
+
+    def test_match_actions_renders(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('match-action-page'), secure=True)
+        self.assertEqual(response.status_code, 200)
+
+    def test_video_studio_renders(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('analysis-video-studio', args=[self.video.id]), secure=True)
+        self.assertEqual(response.status_code, 200)
+
+
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
         self.primary_global_team = Team.objects.create(
