@@ -116,10 +116,11 @@ from football.models import (
 	    WorkspaceTeam,
 	    WorkspaceTeamAccess,
 	    WorkspaceMembership,
-	    WorkspacePreference,
-	    TrainingMicrocycle,
-	    TrainingSession,
-	    ConvocationRecord,
+		    WorkspacePreference,
+		    TrainingMicrocycle,
+		    TrainingSession,
+		    TrainingSessionAttendance,
+		    ConvocationRecord,
     RivalConvocationRecord,
     HomeCarouselImage,
     AnalystVideoFolder,
@@ -28207,6 +28208,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         if action_key in {
             'create_session_plan',
             'update_session_plan',
+            'update_session_attendance',
             'update_session_sections',
             'delete_session_plan',
             'duplicate_session_plan',
@@ -29079,6 +29081,91 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 feedback = 'Secciones de sesión guardadas.'
                 if wants_json:
                     return JsonResponse({'ok': True, 'message': feedback})
+
+            elif planner_action == 'update_session_attendance':
+                session_id = _parse_int(
+                    request.POST.get('attendance_session_id')
+                    or request.POST.get('selected_session_id')
+                    or request.POST.get('sections_session_id')
+                )
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+
+                allowed_statuses = {choice[0] for choice in TrainingSessionAttendance.STATUS_CHOICES}
+                roster_ids = set(Player.objects.filter(team=primary_team).values_list('id', flat=True))
+                wanted_by_pid = {}
+                delete_pids = set()
+                for key, value in request.POST.items():
+                    if not key.startswith('attendance_status_'):
+                        continue
+                    pid = _parse_int(key.replace('attendance_status_', '', 1))
+                    if not pid or pid not in roster_ids:
+                        continue
+                    status = str(value or '').strip()
+                    notes = str(request.POST.get(f'attendance_notes_{pid}') or '').strip()[:180]
+                    if not status:
+                        delete_pids.add(pid)
+                        continue
+                    if status not in allowed_statuses:
+                        continue
+                    wanted_by_pid[pid] = (status, notes)
+
+                touched_pids = set(wanted_by_pid.keys()) | set(delete_pids)
+                existing = {}
+                if touched_pids:
+                    existing = {
+                        int(mark.player_id): mark
+                        for mark in TrainingSessionAttendance.objects.filter(
+                            session=session_obj,
+                            player_id__in=list(touched_pids),
+                        )
+                    }
+                now = timezone.now()
+                to_create = []
+                to_update = []
+                for pid, (status, notes) in wanted_by_pid.items():
+                    mark = existing.get(pid)
+                    if mark:
+                        mark.status = status
+                        mark.notes = notes
+                        mark.marked_by = request.user
+                        mark.updated_at = now
+                        to_update.append(mark)
+                    else:
+                        to_create.append(
+                            TrainingSessionAttendance(
+                                session=session_obj,
+                                player_id=pid,
+                                status=status,
+                                notes=notes,
+                                marked_by=request.user,
+                                updated_at=now,
+                            )
+                        )
+
+                deleted_count = 0
+                if delete_pids:
+                    deleted_count = TrainingSessionAttendance.objects.filter(
+                        session=session_obj,
+                        player_id__in=list(delete_pids),
+                    ).delete()[0]
+                created_count = 0
+                if to_create:
+                    TrainingSessionAttendance.objects.bulk_create(to_create, ignore_conflicts=True)
+                    created_count = len(to_create)
+                updated_count = 0
+                if to_update:
+                    TrainingSessionAttendance.objects.bulk_update(to_update, ['status', 'notes', 'marked_by', 'updated_at'])
+                    updated_count = len(to_update)
+                feedback = f'Asistencia guardada: +{created_count} · {updated_count} actualizadas · {deleted_count} quitadas.'
 
             elif planner_action == 'delete_session_plan':
                 session_id = _parse_int(request.POST.get('delete_session_id'))
@@ -30470,6 +30557,40 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         )
                 section['task_rows'] = section_tasks
 
+    session_attendance_rows = []
+    session_attendance_counts = {}
+    attendance_status_choices = getattr(TrainingSessionAttendance, 'STATUS_CHOICES', [])
+    if planner_tables_ready and active_tab == 'sessions' and selected_session:
+        roster_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:140]
+        )
+        existing_marks = {
+            int(mark.player_id): mark
+            for mark in TrainingSessionAttendance.objects.filter(
+                session=selected_session,
+                player_id__in=[int(p.id) for p in roster_players],
+            )
+        }
+        session_attendance_counts = {choice[0]: 0 for choice in attendance_status_choices}
+        for p in roster_players:
+            mark = existing_marks.get(int(p.id))
+            status = str(getattr(mark, 'status', '') or '').strip()
+            notes = str(getattr(mark, 'notes', '') or '').strip()
+            if status and status in session_attendance_counts:
+                session_attendance_counts[status] += 1
+            session_attendance_rows.append(
+                {
+                    'id': int(p.id),
+                    'name': str(p.name or '').strip(),
+                    'number': _parse_int(getattr(p, 'number', None)) or '',
+                    'position': str(getattr(p, 'position', '') or '').strip(),
+                    'status': status,
+                    'notes': notes,
+                }
+            )
+
     # Pestaña Microciclos: cargamos el plan semanal completo.
     planning_session_ids = [int(item.id) for item in planning_sessions if getattr(item, 'id', None)]
     planning_tasks_by_session = defaultdict(list)
@@ -30745,13 +30866,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
             'planning_task_source_options': planning_task_source_options,
-            'selected_session': selected_session,
-            'selected_session_id': selected_session_id,
-            'selected_session_plan_fields': selected_session_plan_fields,
-            'selected_session_task_sections': selected_session_task_sections,
-            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
-            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
-            'session_status_choices': TrainingSession.STATUS_CHOICES,
+	            'selected_session': selected_session,
+	            'selected_session_id': selected_session_id,
+	            'selected_session_plan_fields': selected_session_plan_fields,
+	            'selected_session_task_sections': selected_session_task_sections,
+	            'attendance_status_choices': attendance_status_choices,
+	            'session_attendance_rows': session_attendance_rows,
+	            'session_attendance_counts': session_attendance_counts,
+	            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
+	            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
+	            'session_status_choices': TrainingSession.STATUS_CHOICES,
             'planning_microcycles': planning_microcycles,
             'standalone_sessions': standalone_sessions,
             'inbox_microcycle_id': (int(inbox_microcycle.id) if inbox_microcycle else None),

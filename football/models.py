@@ -937,6 +937,43 @@ class TrainingSession(models.Model):
         return f'{self.session_date:%d/%m} · {self.focus}'
 
 
+class TrainingSessionAttendance(models.Model):
+    STATUS_PRESENT = 'present'
+    STATUS_ABSENT = 'absent'
+    STATUS_LATE = 'late'
+    STATUS_INJURED = 'injured'
+    STATUS_EXCUSED = 'excused'
+    STATUS_CHOICES = [
+        (STATUS_PRESENT, 'Presente'),
+        (STATUS_ABSENT, 'Ausente'),
+        (STATUS_LATE, 'Llega tarde'),
+        (STATUS_INJURED, 'Lesionado'),
+        (STATUS_EXCUSED, 'Justificado'),
+    ]
+
+    session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name='attendance_marks')
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='training_session_attendance')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    notes = models.CharField(max_length=180, blank=True)
+    marked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='training_session_attendance_marks',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('session', 'player')
+        ordering = ['-updated_at', '-id']
+
+    def __str__(self):
+        player_label = self.player.name if self.player else 'Jugador'
+        return f'{self.session} · {player_label} · {self.status}'
+
+
 class SessionTask(models.Model):
     BLOCK_ACTIVATION = 'activation'
     BLOCK_MAIN_1 = 'main_1'

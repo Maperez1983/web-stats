@@ -750,6 +750,42 @@
       }
       .create-subpanel[hidden] { display:none !important; }
       .create-subpanel .meta { margin-top: -0.25rem; }
+      /* Asistencia de sesión (cantera/amateur): rápido y sin ruido. */
+      .attendance-toolbar {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0.35rem 0 0.55rem;
+      }
+      .attendance-search {
+        flex: 1;
+        min-width: 180px;
+      }
+      .attendance-list {
+        display: grid;
+        gap: 0.35rem;
+        max-height: 340px;
+        overflow: auto;
+        padding-right: 0.25rem;
+      }
+      .att-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(140px, 0.65fr) minmax(0, 1fr);
+        gap: 0.45rem;
+        align-items: center;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.03);
+        padding: 0.45rem 0.55rem;
+      }
+      .att-player strong { display:block; font-size: 0.82rem; }
+      .att-player small { display:block; opacity:0.72; margin-top:0.1rem; }
+      .att-row input[type="text"] { width: 100%; }
+      @media (max-width: 980px) {
+        .att-row { grid-template-columns: 1fr; }
+      }
       .badge {
         display: inline-flex;
         align-items: center;
@@ -1954,15 +1990,75 @@
 		                Tipo: <strong>Sesión suelta</strong> (sin microciclo)
 		                {% else %}
 		                Microciclo: <strong>{{ selected_session.microcycle.week_start|date:"d/m" }}-{{ selected_session.microcycle.week_end|date:"d/m" }}</strong> · {{ selected_session.microcycle.title }}
-		                {% endif %}
-		              </p>
-		              {% endif %}
+			              {% endif %}
+			              </p>
+			              {% endif %}
+				            </div>
+
+			            <div class="editor-box" id="planner-attendance">
+			              <h3>Asistencia</h3>
+			              {% if selected_session %}
+			              <p class="meta" style="margin-top:-0.15rem;">
+			                Marca asistencia para cantera/amateur (se guarda por sesión).
+			                {% if session_attendance_counts %}
+			                  <span class="badge">Pres: {{ session_attendance_counts.present|default:0 }}</span>
+			                  <span class="badge">Aus: {{ session_attendance_counts.absent|default:0 }}</span>
+			                  <span class="badge">Tarde: {{ session_attendance_counts.late|default:0 }}</span>
+			                  <span class="badge">Les: {{ session_attendance_counts.injured|default:0 }}</span>
+			                  <span class="badge">Just: {{ session_attendance_counts.excused|default:0 }}</span>
+			                {% endif %}
+			              </p>
+			              <form method="post" class="grid" id="session-attendance-form" autocomplete="off">
+			                {% csrf_token %}
+			                <input type="hidden" name="planner_action" value="update_session_attendance" />
+			                <input type="hidden" name="planner_tab" value="sessions" />
+			                <input type="hidden" name="team" value="{{ primary_team_id }}" />
+			                {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+			                <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
+			                <input type="hidden" name="attendance_session_id" value="{{ selected_session.id }}" />
+			                <div class="attendance-toolbar" style="grid-column:1/-1;">
+			                  <input class="attendance-search" id="attendance-search" type="text" placeholder="Buscar jugador…" />
+			                  <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+			                    <button type="button" class="secondary" id="attendance-all-present">Todos presentes</button>
+			                    <button type="button" class="secondary" id="attendance-all-absent">Todos ausentes</button>
+			                    <button type="button" class="ghost" id="attendance-clear">Limpiar</button>
+			                    <button type="button" class="ghost" id="attendance-copy-summary">Copiar resumen</button>
+			                  </div>
+			                </div>
+			                <div class="attendance-list" id="attendance-list" style="grid-column:1/-1;">
+			                  {% for row in session_attendance_rows %}
+			                  <div class="att-row" data-player-name="{{ row.name|default:''|lower }}" data-player-number="{{ row.number|default:'' }}">
+			                    <div class="att-player">
+			                      <strong>{% if row.number %}#{{ row.number }} {% endif %}{{ row.name|default:"Jugador" }}</strong>
+			                      <small>{% if row.position %}{{ row.position }}{% else %}—{% endif %}</small>
+			                    </div>
+			                    <div>
+			                      <select name="attendance_status_{{ row.id }}">
+			                        <option value="">Sin marcar</option>
+			                        {% for value, label in attendance_status_choices %}
+			                        <option value="{{ value }}" {% if row.status == value %}selected{% endif %}>{{ label }}</option>
+			                        {% endfor %}
+			                      </select>
+			                    </div>
+			                    <div>
+			                      <input type="text" name="attendance_notes_{{ row.id }}" maxlength="180" placeholder="Nota (opcional)" value="{{ row.notes|default:'' }}" />
+			                    </div>
+			                  </div>
+			                  {% endfor %}
+			                </div>
+			                <div style="grid-column:1/-1; display:flex; justify-content:flex-end;">
+			                  <button type="submit" class="primary">Guardar asistencia</button>
+			                </div>
+			              </form>
+			              {% else %}
+			              <p class="empty">Selecciona una sesión para marcar asistencia.</p>
+			              {% endif %}
 			            </div>
 
-		            <div class="editor-box">
-		              <h3>Textos de sesión</h3>
-		              {% if selected_session %}
-		              <div class="alert" id="session-texts-draft-banner" hidden>
+			            <div class="editor-box">
+			              <h3>Textos de sesión</h3>
+			              {% if selected_session %}
+			              <div class="alert" id="session-texts-draft-banner" hidden>
 		                <strong>Borrador encontrado.</strong>
 		                <span style="opacity:0.9;">Se detectó un borrador local sin guardar para esta sesión.</span>
 		                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.45rem;">
@@ -3736,23 +3832,107 @@
 	            window.setTimeout(() => { void saveServer(); }, 900);
 	          }
 	        } catch (e) {}
-		        form.addEventListener('submit', () => clearDraft());
-	        window.addEventListener('beforeunload', () => {
-	          try { saveDraft(readValues()); } catch (e) {}
-	          try {
+			        form.addEventListener('submit', () => clearDraft());
+		        window.addEventListener('beforeunload', () => {
+		          try { saveDraft(readValues()); } catch (e) {}
+		          try {
 	            if (navigator.sendBeacon) {
 	              const payload = new FormData(form);
 	              payload.set('ajax', '1');
 	              navigator.sendBeacon(postUrl, payload);
 	            }
 	          } catch (e) {}
-	        });
-		      })();
+			        });
+			      })();
 
 			      (() => {
-			        const links = Array.from(document.querySelectorAll('a.session-pdf-link[data-session-pdf="1"]'));
-			        if (!links.length) return;
-			        const buildUrl = (href) => {
+			        const form = document.getElementById('session-attendance-form');
+			        if (!form) return;
+			        const list = document.getElementById('attendance-list');
+			        const search = document.getElementById('attendance-search');
+			        const btnAllPresent = document.getElementById('attendance-all-present');
+			        const btnAllAbsent = document.getElementById('attendance-all-absent');
+			        const btnClear = document.getElementById('attendance-clear');
+			        const btnCopy = document.getElementById('attendance-copy-summary');
+			        if (!list) return;
+			        const rows = Array.from(list.querySelectorAll('.att-row'));
+			        const normalize = (value) => String(value || '').trim().toLowerCase();
+			        const applyFilter = () => {
+			          const q = normalize(search ? search.value : '');
+			          rows.forEach((row) => {
+			            const name = normalize(row.getAttribute('data-player-name'));
+			            const number = normalize(row.getAttribute('data-player-number'));
+			            row.style.display = (!q || name.includes(q) || number.includes(q)) ? '' : 'none';
+			          });
+			        };
+			        const setAll = (value) => {
+			          rows.forEach((row) => {
+			            if (row.style.display === 'none') return;
+			            const sel = row.querySelector('select');
+			            if (sel) sel.value = value;
+			          });
+			        };
+			        if (search) search.addEventListener('input', applyFilter);
+			        if (btnAllPresent) btnAllPresent.addEventListener('click', () => setAll('present'));
+			        if (btnAllAbsent) btnAllAbsent.addEventListener('click', () => setAll('absent'));
+			        if (btnClear) btnClear.addEventListener('click', () => setAll(''));
+			        if (btnCopy) btnCopy.addEventListener('click', async () => {
+			          const labels = { present: 'Presente', absent: 'Ausente', late: 'Llega tarde', injured: 'Lesionado', excused: 'Justificado' };
+			          const grouped = { present: [], absent: [], late: [], injured: [], excused: [] };
+			          const rowLabel = (row) => {
+			            const name = String(row.getAttribute('data-player-name') || '').trim();
+			            const number = String(row.getAttribute('data-player-number') || '').trim();
+			            const prettyName = name ? name.replace(/\b\w/g, (c) => c.toUpperCase()) : 'Jugador';
+			            return number ? `#${number} ${prettyName}` : prettyName;
+			          };
+			          rows.forEach((row) => {
+			            const sel = row.querySelector('select');
+			            const value = sel ? String(sel.value || '').trim() : '';
+			            if (!value || !(value in grouped)) return;
+			            grouped[value].push(rowLabel(row));
+			          });
+			          const sessionLabel = (() => {
+			            try {
+			              const sel = document.querySelector('#planner-active-session select[name="session_id"]');
+			              const opt = sel && sel.selectedOptions ? sel.selectedOptions[0] : null;
+			              return opt ? String(opt.textContent || '').trim() : '';
+			            } catch (e) { return ''; }
+			          })();
+			          const lines = [];
+			          if (sessionLabel) lines.push(`Asistencia · ${sessionLabel}`);
+			          const order = ['present', 'absent', 'late', 'injured', 'excused'];
+			          order.forEach((key) => {
+			            const items = grouped[key] || [];
+			            const head = `${labels[key]}: ${items.length}`;
+			            lines.push(items.length ? `${head} (${items.join(', ')})` : head);
+			          });
+			          const text = lines.join('\n');
+			          try {
+			            if (navigator.clipboard && navigator.clipboard.writeText) {
+			              await navigator.clipboard.writeText(text);
+			            } else {
+			              const ta = document.createElement('textarea');
+			              ta.value = text;
+			              ta.style.position = 'fixed';
+			              ta.style.left = '-9999px';
+			              document.body.appendChild(ta);
+			              ta.focus();
+			              ta.select();
+			              document.execCommand('copy');
+			              ta.remove();
+			            }
+			            btnCopy.textContent = 'Copiado';
+			            window.setTimeout(() => { btnCopy.textContent = 'Copiar resumen'; }, 900);
+			          } catch (e) {
+			            window.alert('No se pudo copiar el resumen.');
+			          }
+			        });
+			      })();
+
+				      (() => {
+				        const links = Array.from(document.querySelectorAll('a.session-pdf-link[data-session-pdf="1"]'));
+				        if (!links.length) return;
+				        const buildUrl = (href) => {
 		          try {
 		            const url = new URL(href, window.location.href);
 		            url.searchParams.set('_ts', String(Date.now()));
