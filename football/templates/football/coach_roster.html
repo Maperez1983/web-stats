@@ -256,27 +256,34 @@
       }
       .broadcast-kpis {
         margin-top: 0.55rem;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.45rem;
       }
       .broadcast-kpi {
-        border-radius: 12px;
+        flex: 1 1 calc(50% - 0.45rem);
+        min-width: 140px;
+        border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(2, 6, 23, 0.4);
-        padding: 0.45rem 0.55rem;
-        display: grid;
-        gap: 0.1rem;
+        background: linear-gradient(180deg, rgba(2, 6, 23, 0.46), rgba(2, 6, 23, 0.32));
+        padding: 0.34rem 0.55rem;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.55rem;
       }
       .broadcast-kpi .k {
         font-size: 0.62rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: rgba(148, 163, 184, 0.92);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .broadcast-kpi .v {
         font-weight: 950;
-        font-size: 0.92rem;
+        font-size: 0.98rem;
         letter-spacing: 0.02em;
         color: rgba(248, 250, 252, 0.96);
         line-height: 1.1;
@@ -311,6 +318,12 @@
       .scope-row select {
         width: auto;
         min-width: 240px;
+      }
+      @media (max-width: 540px) {
+        .broadcast-kpi {
+          min-width: 0;
+          flex-basis: 100%;
+        }
       }
       @media (max-width: 900px) {
         form.add {
@@ -387,8 +400,8 @@
                     </span>
                   </p>
                   <div class="broadcast-kpis" aria-label="KPIs clave">
-                    <div class="broadcast-kpi is-cool"><div class="k">Influencia</div><div class="v">{{ card.influence_score|default:0|floatformat:0 }}</div></div>
-                    <div class="broadcast-kpi is-accent"><div class="k">Importancia</div><div class="v">{{ card.importance_score|default:0|floatformat:0 }}</div></div>
+                    <div class="broadcast-kpi is-cool"><div class="k">INF</div><div class="v">{{ card.influence_score|default:0|floatformat:0 }}</div></div>
+                    <div class="broadcast-kpi is-accent"><div class="k">IMP</div><div class="v">{{ card.importance_score|default:0|floatformat:0 }}</div></div>
                     <div class="broadcast-kpi"><div class="k">% Part.</div><div class="v">{{ card.participation_pct|default:0|floatformat:0 }}</div></div>
                     <div class="broadcast-kpi"><div class="k">% Disp.</div><div class="v">{{ card.availability_pct|default:0|floatformat:0 }}</div></div>
                   </div>
