@@ -3051,7 +3051,7 @@
             </div>
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
               <button class="secondary" type="submit">Aplicar</button>
-              <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Limpiar</a>
+              <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Limpiar</a>
               <button class="secondary" type="button" id="library-save-preset">Guardar preset</button>
             </div>
             <div id="library-presets" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
@@ -3073,7 +3073,7 @@
             <div style="display:flex; flex-direction:column; gap:0.35rem;">
               {% for col in library_collections %}
               <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
-                <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&collection_id={{ col.id }}">{{ col.name }} · {{ col.item_count|default:0 }}</a>
+                <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&collection_id={{ col.id }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ col.name }} · {{ col.item_count|default:0 }}</a>
                 <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar la colección? No borra las tareas, solo la agrupación.');">
                   {% csrf_token %}
                   <input type="hidden" name="planner_action" value="delete_task_collection" />
@@ -3129,33 +3129,33 @@
         {% endif %}
 	        {% if library_view == 'phase' and phase_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in phase_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.label|default:item.key }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% elif library_view == 'type' and type_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in type_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=type&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in type_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=type&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% elif library_view == 'players' and players_band_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in players_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=players&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in players_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=players&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% elif library_view == 'duration' and duration_band_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=duration&library_key={{ item.key }}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in duration_band_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=duration&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.key }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% elif library_view == 'date' and date_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in date_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=date&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in date_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=date&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% elif library_view == 'quality' and quality_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
-	          {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=quality&library_key={{ item.key }}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
+	          {% for item in quality_group_rows %}<a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=quality&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">{{ item.label }} · {{ item.count }}</a>{% endfor %}
 	        </p>
 	        {% endif %}
 	        {% if library_view == 'phase' and not library_key %}
 	        <div class="folder-grid">
 	          {% for item in phase_group_rows %}
-	          <a class="folder-card" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}">
+		          <a class="folder-card" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&library_key={{ item.key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
 	            <strong>{{ item.label|default:item.key }}</strong>
 	            <span>{{ item.count }} tareas</span>
 	          </a>
@@ -3164,7 +3164,7 @@
         <p class="meta">Selecciona una carpeta para ver sus tareas.</p>
 	        {% elif library_view == 'phase' and library_key %}
 	        <p class="meta">
-	          <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">← Volver a carpetas</a>
+		          <a class="badge" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Volver a carpetas</a>
 	        </p>
 	        {% endif %}
         {% if library_view == 'phase' and not library_key %}
