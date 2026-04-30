@@ -814,6 +814,38 @@
 				    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
 				    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
 
+				    // iPad/Safari (WebKit): `position: fixed` dentro de un contenedor con `overflow:auto`
+				    // se comporta como `absolute` y puede dejar la barra de comandos fuera de pantalla
+				    // (p. ej. los "3 puntos" aparecen pero no son clicables/visibles hasta hacer scroll).
+				    // Solución: en modo tablet, movemos el command bar al `<body>` para evitar el overflow parent.
+				    const commandBarDock = (() => {
+				      if (!commandBar) return null;
+				      return {
+				        originalParent: commandBar.parentElement,
+				        originalNext: commandBar.nextElementSibling,
+				      };
+				    })();
+				    const syncCommandBarDock = () => {
+				      if (!commandBar || !commandBarDock) return;
+				      const wantsDock = document.body.classList.contains('ui-tablet');
+				      if (wantsDock) {
+				        if (commandBar.parentElement !== document.body) {
+				          try { document.body.appendChild(commandBar); } catch (e) { /* ignore */ }
+				        }
+				        return;
+				      }
+				      // Undock (desktop/auto wide): devolver a su sitio original si podemos.
+				      if (commandBar.parentElement === document.body && commandBarDock.originalParent) {
+				        try {
+				          commandBarDock.originalParent.insertBefore(commandBar, commandBarDock.originalNext || null);
+				        } catch (e) { /* ignore */ }
+				      }
+				    };
+				    try {
+				      syncCommandBarDock();
+				      window.addEventListener('webstats:tpad:device-change', syncCommandBarDock);
+				    } catch (e) { /* ignore */ }
+
 				    const setTacticsPanelOpen = (open) => {
 				      if (!isTacticsMode) return;
 				      const enabled = !!open;
@@ -9941,7 +9973,15 @@
 			      try { closePatternPopover(); } catch (error) { /* ignore */ }
 			      try { setLayersPopoverOpen(false); } catch (error) { /* ignore */ }
 			      try { setScenariosPopoverOpen(false); } catch (error) { /* ignore */ }
-			      setSimPopoverOpen(!!simPopover?.hidden);
+			      const wantsOpen = !!simPopover?.hidden;
+			      // En modo táctica, el simulador puede estar acoplado en el panel lateral.
+			      // Si intentamos abrirlo desde la barra de comandos, asegúrate de abrir el panel
+			      // para que no parezca "botón muerto" (iPad/Safari).
+			      if (wantsOpen && isTacticsMode && simPopover?.classList?.contains('is-docked')) {
+			        try { setTacticsToolsOpen(false); } catch (e) { /* ignore */ }
+			        try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
+			      }
+			      setSimPopoverOpen(wantsOpen);
 			    });
 			    simCloseBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();

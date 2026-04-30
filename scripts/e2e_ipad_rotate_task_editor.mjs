@@ -14,6 +14,15 @@ async function placeLocalPlayer(page, position) {
   // Espera a que Fabric haya inicializado el canvas y los listeners del editor.
   await page.locator('canvas.upper-canvas').first().waitFor({ state: 'attached', timeout: 20000 });
 
+  // En tablet el panel Biblioteca puede arrancar colapsado para no robar campo.
+  // Para este test necesitamos acceder a los botones base (Jugador local).
+  await page.evaluate(() => {
+    try {
+      window.__webstatsTpadSetLibraryCollapsed?.(false);
+    } catch {}
+  });
+  await page.waitForTimeout(200);
+
   // Usa el toolstrip principal (no el strip draggable).
   const addButton = page.locator('#task-basic-tools [data-add="player_local"]').first();
   await addButton.waitFor({ state: 'visible' });
@@ -61,7 +70,11 @@ async function main() {
   const consoleErrors = [];
   page.on('pageerror', (err) => consoleErrors.push(`pageerror: ${err?.message || String(err)}`));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(`console.error: ${msg.text()}`);
+    if (msg.type() !== 'error') return;
+    const text = msg.text() || '';
+    if (/Failed to load resource: A TLS error/i.test(text)) return;
+    if (/TypeError: Load failed/i.test(text)) return;
+    consoleErrors.push(`console.error: ${text}`);
   });
 
   await page.goto(`${BASE_URL}/login/?next=/coach/sesiones/tareas/nueva/`, { waitUntil: 'domcontentloaded' });

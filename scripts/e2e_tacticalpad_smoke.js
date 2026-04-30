@@ -7,7 +7,13 @@
 //
 // Usage:
 //   E2E_BASE_URL=http://127.0.0.1:8001 E2E_USERNAME=e2e_coach E2E_PASSWORD=e2e node scripts/e2e_tacticalpad_smoke.js
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
+
+function pickBrowserType() {
+  const raw = String(process.env.E2E_BROWSER || 'chromium').trim().toLowerCase();
+  if (raw === 'webkit' || raw === 'safari') return webkit;
+  return chromium;
+}
 
 function extractFirstObjectOfKind(state, kind) {
   const objects = state && Array.isArray(state.objects) ? state.objects : [];
@@ -25,7 +31,8 @@ async function main() {
   const password = process.env.E2E_PASSWORD || 'e2e';
   const headless = String(process.env.E2E_HEADLESS || 'true').toLowerCase() !== 'false';
 
-  const browser = await chromium.launch({ headless });
+  const browserType = pickBrowserType();
+  const browser = await browserType.launch({ headless });
   const context = await browser.newContext({
     // Use a large viewport so controls are visible, but keep touch enabled.
     // This still catches many touch/pointer related regressions without fighting mobile UI chrome.
@@ -48,7 +55,11 @@ async function main() {
     if (msg.type() === 'error' || msg.type() === 'warning') console.log(line);
   });
   page.on('pageerror', (err) => {
-    const line = `[pageerror] ${String(err && err.stack ? err.stack : err)}`;
+    const raw = String(err && err.stack ? err.stack : err);
+    // WebKit headless puede emitir un pageerror benigno al intentar registrar/leer el service worker en local.
+    // No afecta al editor (y en Safari real no bloquea el flujo).
+    if (/sw\.js/i.test(raw) && /Cannot load http/i.test(raw)) return;
+    const line = `[pageerror] ${raw}`;
     pageErrors.push(line);
     console.log(line);
   });
