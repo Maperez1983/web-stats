@@ -17822,17 +17822,19 @@
       setSurfaceMenuOpen(false);
     });
 
-			    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
-			    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
-			    const resourceDetails = document.getElementById('task-resource-details');
-			    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
-				    const resourceSelect = document.getElementById('task-resource-select');
-				    const resourceHelper = document.querySelector('.resource-helper');
-				    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
-			    const getDeviceMode = () => {
-			      const raw = safeText(document.body?.dataset?.deviceMode);
-			      if (raw === 'desktop' || raw === 'tablet') return raw;
-			      return 'auto';
+				    const resourceTabs = Array.from(document.querySelectorAll('.resource-tab'));
+				    const resourcePanels = Array.from(document.querySelectorAll('.resource-panel'));
+				    const resourceDetails = document.getElementById('task-resource-details');
+				    const resourceSummaryLabel = document.getElementById('task-resource-summary-label');
+					    const resourceSelect = document.getElementById('task-resource-select');
+					    const resourceHelper = document.querySelector('.resource-helper');
+            const libraryToggleBtn = document.getElementById('task-library-toggle');
+            const libraryFilterInput = document.getElementById('task-library-filter');
+					    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
+				    const getDeviceMode = () => {
+				      const raw = safeText(document.body?.dataset?.deviceMode);
+				      if (raw === 'desktop' || raw === 'tablet') return raw;
+				      return 'auto';
 			    };
 		    const isDesktopUi = () => {
 		      if (getDeviceMode() === 'desktop') return true;
@@ -17844,16 +17846,66 @@
 		      if (getDeviceMode() === 'tablet') return false;
 		      try { return !!(window.matchMedia && window.matchMedia('(min-width: 761px)').matches); } catch (error) { return true; }
 				    };
-				    const isSmallUi = () => {
-				      if (getDeviceMode() === 'tablet') return true;
-				      if (getDeviceMode() === 'desktop') return false;
-				      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
-				    };
-				    // Recursos: en iOS/Safari, si <details> está cerrado, el navegador puede ocultar sus hijos
-				    // aunque intentemos forzar display por CSS. Para evitar “desaparecen pestañas”, lo dejamos abierto.
-				    // Como el summary está oculto por CSS, no hay comportamiento de desplegable.
-				    try { if (resourceDetails) resourceDetails.open = true; } catch (error) { /* ignore */ }
-				    let activeResourceKey = '';
+					    const isSmallUi = () => {
+					      if (getDeviceMode() === 'tablet') return true;
+					      if (getDeviceMode() === 'desktop') return false;
+					      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
+					    };
+            // Biblioteca colapsable: rail + panel. En tablet por defecto colapsada para no robar campo.
+            const LIBRARY_COLLAPSED_KEY = 'webstats:tpad:library-collapsed-v1';
+            let libraryCollapsed = false;
+            const defaultLibraryCollapsed = (() => {
+              if (getDeviceMode() === 'tablet') return true;
+              if (getDeviceMode() === 'desktop') return false;
+              try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
+            })();
+            const applyLibraryCollapsed = (collapsed, { persist = true } = {}) => {
+              libraryCollapsed = !!collapsed;
+              document.body.classList.toggle('library-collapsed', libraryCollapsed);
+              try { libraryToggleBtn?.setAttribute('aria-pressed', libraryCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
+              try { libraryToggleBtn?.setAttribute('title', libraryCollapsed ? 'Expandir biblioteca' : 'Colapsar biblioteca'); } catch (e) { /* ignore */ }
+              if (libraryCollapsed) {
+                try { if (libraryFilterInput) libraryFilterInput.value = ''; } catch (e) { /* ignore */ }
+              }
+              if (persist) {
+                try { window.localStorage?.setItem(LIBRARY_COLLAPSED_KEY, libraryCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+              }
+            };
+            try {
+              const stored = window.localStorage?.getItem(LIBRARY_COLLAPSED_KEY);
+              if (stored == null) applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
+              else applyLibraryCollapsed(stored === '1', { persist: false });
+            } catch (e) {
+              applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
+            }
+            libraryToggleBtn?.addEventListener('click', () => applyLibraryCollapsed(!libraryCollapsed));
+            window.__webstatsTpadSetLibraryCollapsed = (value) => applyLibraryCollapsed(!!value);
+            window.__webstatsTpadGetLibraryCollapsed = () => libraryCollapsed;
+
+            const normalizeLookupText = (raw) => {
+              try {
+                return String(raw || '')
+                  .toLowerCase()
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .trim();
+              } catch (e) {
+                return String(raw || '').toLowerCase().trim();
+              }
+            };
+            const applyLibraryFilter = () => {
+              if (!libraryFilterInput) return;
+              const q = normalizeLookupText(libraryFilterInput.value);
+              const activePanel = resourcePanels.find((panel) => panel && panel.hidden === false) || null;
+              if (!activePanel) return;
+              const buttons = Array.from(activePanel.querySelectorAll('button') || []);
+              buttons.forEach((btn) => {
+                const hay = normalizeLookupText(btn.getAttribute('title') || btn.textContent || '');
+                btn.hidden = !!q && !hay.includes(q);
+              });
+            };
+            libraryFilterInput?.addEventListener('input', applyLibraryFilter);
+					    let activeResourceKey = '';
 	    const resourceLabelForKey = (key) => {
 	      const normalized = safeText(key);
 	      const match = resourceTabs.find((tab) => safeText(tab.dataset.resource) === normalized);
@@ -17877,10 +17929,12 @@
 	      if (resourceHelper) {
 	        resourceHelper.hidden = !!normalized;
 	      }
+        try { applyLibraryFilter(); } catch (e) { /* ignore */ }
 	    };
 	    resourceTabs.forEach((tab) => {
 	      tab.addEventListener('click', () => {
 	        const target = safeText(tab.dataset.resource);
+          if (libraryCollapsed) applyLibraryCollapsed(false);
 	        if (target && target === activeResourceKey) activateResourcePanel('');
 	        else activateResourcePanel(target);
 	      });
