@@ -3623,6 +3623,9 @@ class TaskLibraryTests(TestCase):
 
 class ManualStatsTests(TestCase):
     def setUp(self):
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
             username='statsadmin',
@@ -3930,6 +3933,9 @@ class PlayerDetailStatsFallbackTests(TestCase):
 
 class AdminActionsTests(TestCase):
     def setUp(self):
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         user_model = get_user_model()
         self.user = user_model.objects.create_user(
             username='adminactions',
@@ -4949,6 +4955,10 @@ class MatchActionWorkflowTests(TestCase):
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):
         cache.clear()
+        # Esta batería valida comportamiento legacy (monoclub) sin onboarding/workspace.
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         self.user = get_user_model().objects.create_user(
             username='dashboard-user',
             email='dashboard@example.com',
@@ -5230,6 +5240,9 @@ class PlayerDashboardViewTests(TestCase):
 class CoachTrainerMetricsTests(TestCase):
     def setUp(self):
         cache.clear()
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         self.user = get_user_model().objects.create_user(
             username='coach-metrics',
             email='coach-metrics@example.com',
@@ -5480,6 +5493,9 @@ class StatsScopePersistenceTests(TestCase):
 class AnalysisVideoWorkspaceTests(TestCase):
     def setUp(self):
         cache.clear()
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         self.user = get_user_model().objects.create_user(
             username='analyst-workspace',
             email='analyst-workspace@example.com',
@@ -5819,6 +5835,16 @@ class StaffUserLinkingTests(TestCase):
         )
         WorkspaceMembership.objects.create(workspace=self.workspace, user=self.admin, role=WorkspaceMembership.ROLE_ADMIN)
         self.client.force_login(self.admin)
+        self.user = self.admin
+        self.player = Player.objects.create(team=self.team, name='Hugo', number=9, position='DC', is_active=True)
+        self.microcycle = TrainingMicrocycle.objects.create(
+            team=self.team,
+            title='Microciclo Staff',
+            objective='',
+            week_start=date(2026, 3, 23),
+            week_end=date(2026, 3, 29),
+            status=TrainingMicrocycle.STATUS_DRAFT,
+        )
 
     def test_inviting_user_links_matching_staff_member_by_email(self):
         StaffMember.objects.create(
@@ -6502,6 +6528,9 @@ class StaffUserLinkingTests(TestCase):
 class CoachOverviewTests(TestCase):
     def setUp(self):
         cache.clear()
+        self._fallback_env = patch.dict(os.environ, {'ALLOW_SINGLE_CLUB_FALLBACK': '1'}, clear=False)
+        self._fallback_env.start()
+        self.addCleanup(self._fallback_env.stop)
         self.user = get_user_model().objects.create_user(
             username='coach-overview',
             email='coach-overview@example.com',

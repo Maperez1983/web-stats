@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Perfil Task Studio</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      :root { --bg:#08111d; --panel: rgba(11, 19, 33, 0.95); --ink:#f5f7fa; --muted: rgba(226,232,240,0.74); --line: rgba(148,163,184,0.18); }
+      body { margin:0; min-height:100vh; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Arial; }
+      .wrap { max-width: 900px; margin: 0 auto; padding: 18px 16px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+      label { display:block; font-size: 13px; opacity: .92; }
+      input { width: 100%; padding: 10px 12px; margin-top: 6px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,0.04); color: var(--ink); }
+      button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(250,204,21,0.16); color: var(--ink); font-weight: 700; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 style="margin: 0 0 12px;">Perfil Task Studio</h1>
+      <form method="post">
+        {% csrf_token %}
+        <div class="panel" style="display:grid; gap: 10px;">
+          <label>Nombre documento
+            <input type="text" name="document_name" value="{{ profile.document_name }}" />
+          </label>
+          <label>Nombre visible
+            <input type="text" name="display_name" value="{{ profile.display_name }}" />
+          </label>
+          <label>Club
+            <input type="text" name="club_name" value="{{ profile.club_name }}" />
+          </label>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <label>Primario
+              <input type="text" name="primary_color" value="{{ profile.primary_color }}" />
+            </label>
+            <label>Secundario
+              <input type="text" name="secondary_color" value="{{ profile.secondary_color }}" />
+            </label>
+            <label>Acento
+              <input type="text" name="accent_color" value="{{ profile.accent_color }}" />
+            </label>
+          </div>
+          <button type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>

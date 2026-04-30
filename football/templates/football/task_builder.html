@@ -5,8 +5,16 @@
 	    <meta charset="UTF-8" />
 		    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
-		    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-		    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <script>
+      window.__webstatsTaskLandingGo = function(href) {
+        try {
+          if (href) { window.location.href = href; }
+        } catch (e) {}
+        return false;
+      };
+    </script>
 		    {% include 'football/pwa_head.html' %}
 		    <style>
 	      :root {
@@ -3266,7 +3274,7 @@
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
-		          <a href="{{ back_url|default:'#' }}" class="button">{{ back_label|default:'Volver a sesiones' }}</a>
+		          <a href="{{ back_url|default:'#' }}" class="button" onclick="return window.__webstatsTaskLandingGo(this.href)">{{ back_label|default:'Volver a sesiones' }}</a>
 			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
 			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="false" title="Muestra una guía rápida en pantalla">Guía</button>
 		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>

@@ -8,7 +8,6 @@ _SYNONYMS = {
     'salida de balon': 'salida de balón',
     'salida de balón (build up)': 'salida de balón',
     'build up': 'salida de balón',
-    'inicio': 'salida de balón',
     'presion': 'presión',
     'presión alta': 'presión',
     'presión media': 'presión',
@@ -76,4 +75,3 @@ def normalize_tags(values: Iterable[str]) -> List[str]:
         seen.add(key)
         out.append(norm)
     return out
-

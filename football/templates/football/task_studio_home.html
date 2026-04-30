@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Task Studio</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <style>
+      :root { --bg:#08111d; --panel: rgba(11, 19, 33, 0.95); --ink:#f5f7fa; --muted: rgba(226,232,240,0.74); --line: rgba(148,163,184,0.18); }
+      body { margin:0; min-height:100vh; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Arial; }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+      h1,h2 { letter-spacing: .02em; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 style="margin: 0 0 6px;">Task Studio</h1>
+      <p style="margin: 0 0 18px; color: var(--muted);">Repositorio privado · {{ owner.username }}</p>
+
+      <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px;">
+        <div class="panel" style="padding: 14px;">
+          <h2 style="margin:0 0 6px;">Primeros pasos</h2>
+          <div style="color: var(--muted);">Crea tu perfil, tu plantilla y tus tareas privadas.</div>
+        </div>
+        <div class="panel" style="padding: 14px;">
+          <h2 style="margin:0 0 6px;">Perfil e identidad</h2>
+          <div style="color: var(--muted);">Colores, nombre y escudo para tus PDF.</div>
+        </div>
+        <div class="panel" style="padding: 14px;">
+          <h2 style="margin:0 0 6px;">Plantilla privada</h2>
+          <div style="color: var(--muted);">Jugadores para asignar a tus tareas.</div>
+        </div>
+      </div>
+
+      <div class="panel" style="padding: 14px;">
+        <h2 style="margin: 0 0 10px;">Tareas</h2>
+        {% if tasks %}
+          <ul style="margin:0; padding-left:18px;">
+            {% for task in tasks %}
+              <li style="margin: 6px 0;">{{ task.title }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div style="color: var(--muted);">Aún no tienes tareas.</div>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>

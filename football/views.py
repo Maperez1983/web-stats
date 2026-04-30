@@ -4135,8 +4135,6 @@ def _get_user_role(user):
     legacy_map = {
         'admin': AppUserRole.ROLE_ADMIN,
         'player': AppUserRole.ROLE_PLAYER,
-        # Legacy: Task Studio deja de existir como producto. Trátalo como rol técnico estándar.
-        AppUserRole.ROLE_TASK_STUDIO: AppUserRole.ROLE_COACH,
     }
     normalized_role = legacy_map.get(role, role)
     if normalized_role:
@@ -4625,14 +4623,11 @@ def _get_active_team_for_request(request):
                     pass
             return team
 
-        # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global.
-        # El usuario debe crear/seleccionar su club desde onboarding.
+        # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global para roles técnicos
+        # porque en multicliente eso mezclará datos entre clubes.
+        # En modo legacy/monoclub (ALLOW_SINGLE_CLUB_FALLBACK o tests) sí caemos al Team.is_primary.
         if _single_club_fallback_enabled():
-            role = _get_user_role(request.user)
-            if role == AppUserRole.ROLE_PLAYER:
-                return Team.objects.filter(is_primary=True).first()
-            if role in TECHNICAL_ROLES or role is None:
-                return Team.objects.filter(is_primary=True).first()
+            return Team.objects.filter(is_primary=True).first()
         return None
     return Team.objects.filter(is_primary=True).first() if _single_club_fallback_enabled() else None
 
@@ -5640,14 +5635,81 @@ def _sync_workspace_competition_context(workspace, primary_team=None):
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
+    def _next_ok_for_snapshot(payload):
+        if not isinstance(payload, dict):
+            return False
+        status = str(payload.get('status') or '').strip().lower()
+        if status != 'next':
+            return False
+        opponent_name = _payload_opponent_name(payload).strip().lower()
+        if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
+            return False
+        round_value = str(payload.get('round') or '').strip()
+        if not round_value:
+            return False
+        return True
+    snapshot_next = {}
+    try:
+        universo_snapshot = load_universo_snapshot()
+        raw_snapshot_next = {}
+        if isinstance(universo_snapshot, dict):
+            raw_snapshot_next = universo_snapshot.get('next_match') if isinstance(universo_snapshot.get('next_match'), dict) else {}
+        normalized_snapshot_next = normalize_next_match_payload(raw_snapshot_next) if raw_snapshot_next else {}
+        if normalized_snapshot_next and _next_ok_for_snapshot(normalized_snapshot_next):
+            # Validación ligera: aseguramos que el snapshot corresponde al equipo por nombre en standings.
+            snapshot_rows = universo_snapshot.get('standings') if isinstance(universo_snapshot, dict) else []
+            candidate_keys = {
+                _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+                _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+            }
+            candidate_keys = {key for key in candidate_keys if key}
+            snapshot_ok = False
+            if isinstance(snapshot_rows, list) and candidate_keys:
+                for row in snapshot_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    row_keys = {
+                        _normalize_team_lookup_key(row.get('team')),
+                        _normalize_team_lookup_key(row.get('full_name')),
+                    }
+                    row_keys = {key for key in row_keys if key}
+                    if candidate_keys & row_keys:
+                        snapshot_ok = True
+                        break
+            if snapshot_ok:
+                snapshot_next = normalized_snapshot_next
+    except Exception:
+        snapshot_next = {}
     # No hacer scraping/red desde este flujo: puede ejecutarse durante navegación y provocar timeouts.
-    local_next = get_next_match(primary_team, primary_team.group, allow_external_fetch=False)
-    if not _next_match_payload_is_reliable(local_next):
-        local_next = {}
+    # Además, el snapshot de Platform debe ser estable aunque el "próximo" partido ya haya pasado (tests con fechas fijas).
+    def _db_next_for_snapshot():
+        today = timezone.localdate()
+        base_qs = (
+            Match.objects
+            .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+            .select_related('home_team', 'away_team')
+        )
+        scoped_qs = base_qs.filter(group=primary_team.group) if getattr(primary_team, 'group_id', None) else base_qs
+        match_obj = (
+            scoped_qs.filter(date__gte=today).order_by('date', 'id').first()
+            or base_qs.filter(date__gte=today).order_by('date', 'id').first()
+        )
+        if not match_obj:
+            match_obj = (
+                scoped_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
+                or base_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
+                or scoped_qs.order_by('-id').first()
+                or base_qs.order_by('-id').first()
+            )
+        if not match_obj:
+            return {}
+        return build_match_payload(match_obj, primary_team, status='next')
+    local_next = _db_next_for_snapshot() or {}
     next_match_payload = (
-        (convocation_next if _next_match_payload_is_reliable(convocation_next) else {})
-        or provider_next
-        or preferred_next
+        (convocation_next if _next_ok_for_snapshot(convocation_next) else {})
+        or (provider_next if _next_ok_for_snapshot(provider_next) else {})
+        or (preferred_next if _next_ok_for_snapshot(preferred_next) else {})
+        or (snapshot_next if _next_ok_for_snapshot(snapshot_next) else {})
         or local_next
         or {}
     )
@@ -10113,10 +10175,18 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
+    if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
+        if _can_access_task_studio(request.user):
+            return redirect('task-studio-home')
     active_workspace_obj = _get_active_workspace(request)
     # Producto comercial: si el usuario tiene sesión pero no tiene club/workspace aún,
     # lo llevamos directamente a onboarding (creación del club desde la app).
-    if request.user.is_authenticated and not _can_access_platform(request.user) and not active_workspace_obj:
+    if (
+        request.user.is_authenticated
+        and not _can_access_platform(request.user)
+        and not active_workspace_obj
+        and current_role not in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}
+    ):
         try:
             return redirect('club-onboarding')
         except Exception:
@@ -10953,14 +11023,33 @@ def platform_overview_page(request):
     if platform_auto_ensure_workspaces:
         if primary_team:
             _ensure_club_workspace(primary_team)
+        try:
+            studio_users = list(
+                User.objects
+                .filter(app_role__role__in=[AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST])
+                .distinct()
+            )
+        except Exception:
+            studio_users = []
+        for studio_user in studio_users:
+            try:
+                workspace = _ensure_task_studio_workspace(studio_user)
+                if workspace:
+                    TaskStudioProfile.objects.update_or_create(
+                        user=studio_user,
+                        defaults={'workspace': workspace, 'is_enabled': True},
+                    )
+            except Exception:
+                continue
 
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or 'workspace_create').strip().lower()
         if form_action == 'workspace_create':
             active_tab = 'workspace-create'
             workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
-            # Task Studio deja de existir en el nuevo modelo: en Plataforma solo se crean clientes club.
-            workspace_kind = Workspace.KIND_CLUB
+            workspace_kind = str(request.POST.get('workspace_kind') or Workspace.KIND_CLUB).strip()
+            if workspace_kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
+                workspace_kind = Workspace.KIND_CLUB
             owner_username = _sanitize_username(request.POST.get('owner_username'), max_len=150)
             team_id = _parse_int(request.POST.get('team_id'))
             team_new_name = _sanitize_task_text((request.POST.get('team_new_name') or '').strip(), multiline=False, max_len=150)
@@ -11074,6 +11163,11 @@ def platform_overview_page(request):
                         user=owner_user,
                         defaults={'role': WorkspaceMembership.ROLE_OWNER},
                     )
+                if workspace.kind == Workspace.KIND_TASK_STUDIO and owner_user:
+                    TaskStudioProfile.objects.update_or_create(
+                        user=owner_user,
+                        defaults={'workspace': workspace, 'is_enabled': True},
+                    )
                 for admin_user in admin_users:
                     if owner_user and admin_user.id == owner_user.id:
                         continue
@@ -11166,6 +11260,16 @@ def platform_overview_page(request):
                     user.is_staff = True
                     user.save(update_fields=['is_staff'])
                 AppUserRole.objects.update_or_create(user=user, defaults={'role': role_value})
+                if role_value == AppUserRole.ROLE_TASK_STUDIO:
+                    try:
+                        workspace = _ensure_task_studio_workspace(user)
+                        if workspace:
+                            TaskStudioProfile.objects.update_or_create(
+                                user=user,
+                                defaults={'workspace': workspace, 'is_enabled': True},
+                            )
+                    except Exception:
+                        pass
                 assigned_workspace = None
                 if assign_workspace_id:
                     assigned_workspace = Workspace.objects.filter(id=assign_workspace_id, is_active=True).first()
@@ -11297,6 +11401,12 @@ def platform_overview_page(request):
                 owned_club_workspace = Workspace.objects.filter(kind=Workspace.KIND_CLUB, owner_user=user_obj).first()
                 if owned_club_workspace:
                     raise ValueError(f'No puedes borrar {user_obj.username} mientras sea propietario de {owned_club_workspace.name}.')
+                owned_studio_workspace = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user=user_obj).first()
+                if owned_studio_workspace:
+                    try:
+                        _delete_task_studio_workspace(owned_studio_workspace, disable_owner_profile=False)
+                    except Exception:
+                        pass
                 WorkspaceMembership.objects.filter(user=user_obj).delete()
                 UserInvitation.objects.filter(user=user_obj).update(is_active=False)
                 username = user_obj.username
@@ -11312,7 +11422,7 @@ def platform_overview_page(request):
                 carousel_message = 'Cambios guardados en Home global.'
 
     club_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_CLUB).count()
-    studio_workspace_count = 0
+    studio_workspace_count = Workspace.objects.filter(kind=Workspace.KIND_TASK_STUDIO).count()
     linked_club_user_count = (
         WorkspaceMembership.objects
         .filter(workspace__kind=Workspace.KIND_CLUB)
@@ -11370,7 +11480,20 @@ def platform_overview_page(request):
                 .filter(kind=Workspace.KIND_CLUB)
                 .order_by('name', 'id')
             )
+            studio_workspaces_qs = workspaces_qs.filter(kind=Workspace.KIND_TASK_STUDIO, owner_user__isnull=False)
+            if clients_query:
+                studio_workspaces_qs = studio_workspaces_qs.filter(
+                    Q(name__icontains=clients_query)
+                    | Q(slug__icontains=clients_query)
+                    | Q(owner_user__username__icontains=clients_query)
+                    | Q(owner_user__email__icontains=clients_query)
+                )
+            studio_workspaces = list(studio_workspaces_qs.order_by('name', 'id'))
             for workspace in club_workspaces:
+                workspace.active_module_count = len(
+                    _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
+                )
+            for workspace in studio_workspaces:
                 workspace.active_module_count = len(
                     _workspace_selected_module_keys(workspace.kind, _workspace_enabled_modules(workspace))
                 )
@@ -11522,6 +11645,12 @@ def platform_overview_page(request):
             .select_related('session__microcycle__team')
             .order_by('-created_at', '-id')[:6]
         )
+        recent_studio_tasks = list(
+            TaskStudioTask.objects
+            .select_related('owner')
+            .filter(deleted_at__isnull=True)
+            .order_by('-created_at', '-id')[:6]
+        )
         recent_sessions = list(
             TrainingSession.objects
             .select_related('microcycle__team')
@@ -11548,6 +11677,24 @@ def platform_overview_page(request):
                     'meta': f"{item.session_date:%d/%m/%Y} · {item.duration_minutes or 0} min",
                     'uefa_url': reverse('session-plan-pdf', args=[item.id]),
                     'club_url': f"{reverse('session-plan-pdf', args=[item.id])}?style=club",
+                    'created_at': item.created_at,
+                }
+            )
+        for item in recent_studio_tasks:
+            owner = getattr(item, 'owner', None)
+            owner_label = (
+                (owner.get_full_name().strip() if owner and hasattr(owner, 'get_full_name') else '')
+                or (getattr(owner, 'username', '') if owner else '')
+                or 'Task Studio'
+            )
+            recent_documents.append(
+                {
+                    'type': 'Tarea studio',
+                    'title': str(item.title or 'Tarea').strip() or 'Tarea',
+                    'source': owner_label,
+                    'meta': f"{item.get_block_display()} · {item.duration_minutes or 0} min",
+                    'uefa_url': reverse('task-studio-home') + (f"?user={int(owner.id)}" if owner and _is_admin_user(request.user) else ''),
+                    'club_url': '',
                     'created_at': item.created_at,
                 }
             )
@@ -11584,6 +11731,8 @@ def platform_overview_page(request):
             'club_workspace_count': club_workspace_count,
             'primary_workspace': primary_workspace,
             'club_workspaces': club_workspaces,
+            'studio_workspaces': studio_workspaces,
+            'studio_workspace_count': studio_workspace_count,
             'workspace_users': workspace_users,
             'platform_users': platform_users,
             'platform_users_total': platform_users_total,
@@ -11594,8 +11743,9 @@ def platform_overview_page(request):
             'edit_user': edit_user_obj,
             'carousel_images': carousel_images,
             'teams': teams,
-            'workspace_kind_choices': [(Workspace.KIND_CLUB, 'Club')],
+            'workspace_kind_choices': [(Workspace.KIND_CLUB, 'Club'), (Workspace.KIND_TASK_STUDIO, 'Task Studio')],
             'workspace_module_catalog_club': _workspace_module_catalog_for_template(Workspace.KIND_CLUB),
+            'workspace_module_catalog_studio': _workspace_module_catalog_for_template(Workspace.KIND_TASK_STUDIO),
             'workspace_form': workspace_form,
             'competition_provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
             'user_form': user_form,
@@ -11629,18 +11779,25 @@ def platform_workspace_detail_page(request, workspace_id):
         raise Http404('Workspace no encontrado')
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
-    if workspace.kind != Workspace.KIND_CLUB:
-        raise Http404('Este tipo de workspace ya no está soportado.')
     feedback = str(request.session.pop('platform_feedback', '') or '')
     error = str(request.session.pop('platform_error', '') or '')
     can_manage_workspace = _can_manage_workspace(request.user, workspace)
     invite_link = ''
+    if workspace.kind not in {Workspace.KIND_CLUB, Workspace.KIND_TASK_STUDIO}:
+        raise Http404('Este tipo de workspace no está soportado.')
     competition_search_inputs = {
         'provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
-        'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
-        'competition_query': str(getattr(getattr(getattr(getattr(workspace.primary_team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
-        'group_query': str(getattr(getattr(workspace.primary_team, 'group', None), 'name', '') or '').strip(),
+        'team_query': '',
+        'competition_query': '',
+        'group_query': '',
     }
+    if workspace.kind == Workspace.KIND_CLUB:
+        competition_search_inputs = {
+            'provider': WorkspaceCompetitionContext.PROVIDER_MANUAL,
+            'team_query': str(getattr(workspace.primary_team, 'name', '') or '').strip(),
+            'competition_query': str(getattr(getattr(getattr(getattr(workspace.primary_team, 'group', None), 'season', None), 'competition', None), 'name', '') or '').strip(),
+            'group_query': str(getattr(getattr(workspace.primary_team, 'group', None), 'name', '') or '').strip(),
+        }
     competition_search_results = []
     if request.method == 'POST':
         form_action = (request.POST.get('form_action') or '').strip().lower()
@@ -12245,7 +12402,7 @@ def platform_workspace_delete_page(request, workspace_id):
             mapping.pop(str(workspace_id_value), None)
             mapping.pop(workspace_id_value, None)
             request.session['active_team_by_workspace'] = mapping
-        request.session['platform_feedback'] = f'Club eliminado: {workspace_name}.'
+        request.session['platform_feedback'] = f'Cliente eliminado: {workspace_name}.'
         return redirect('platform-overview')
 
     return HttpResponse('Tipo de workspace no eliminable desde esta acción.', status=403)
@@ -12259,6 +12416,15 @@ def platform_workspace_enter_page(request, workspace_id):
     if not _can_view_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para acceder a este workspace.', status=403)
     request.session['active_workspace_id'] = workspace.id
+    if workspace.kind == Workspace.KIND_TASK_STUDIO:
+        url = reverse('task-studio-home')
+        try:
+            owner_id = int(getattr(workspace, 'owner_user_id', 0) or 0)
+        except Exception:
+            owner_id = 0
+        if owner_id and (_is_admin_user(request.user) or int(getattr(request.user, 'id', 0) or 0) != owner_id):
+            url = f'{url}?user={owner_id}'
+        return redirect(url)
     desired_team_id = _parse_int(request.GET.get('team'))
     if desired_team_id and workspace.kind == Workspace.KIND_CLUB:
         try:
@@ -13068,84 +13234,32 @@ def admin_page(request):
                                 category=category,
                                 game_format=game_format,
                             )
-                            # Nuevo modelo (unificado): cada categoría se crea como un club independiente (workspace).
-                            # Esto evita mezclar datos dentro del mismo cliente y elimina el selector de categorías.
-                            category_label = category or str(getattr(team_obj, 'display_name', '') or getattr(team_obj, 'name', '') or '').strip()
-                            new_workspace_name = f'{str(getattr(workspace, "name", "") or "").strip()} · {category_label}'.strip(' ·')
-                            new_workspace_name = _sanitize_task_text(new_workspace_name, multiline=False, max_len=160)
-                            if not new_workspace_name:
-                                new_workspace_name = f'Club {team_obj.id}'
-                            new_slug = _unique_workspace_slug(new_workspace_name)
-
-                            new_workspace = Workspace.objects.create(
-                                name=new_workspace_name,
-                                slug=new_slug,
-                                kind=Workspace.KIND_CLUB,
-                                primary_team=team_obj,
-                                owner_user=workspace.owner_user,
-                                enabled_modules=dict(getattr(workspace, 'enabled_modules', None) or {}),
-                                trial_expires_at=getattr(workspace, 'trial_expires_at', None),
-                                subscription_status=str(getattr(workspace, 'subscription_status', '') or 'trial').strip() or 'trial',
-                                plan_key=str(getattr(workspace, 'plan_key', '') or '').strip(),
-                                is_active=bool(getattr(workspace, 'is_active', True)),
-                                notes=f'Creado automáticamente desde {workspace.name}.',
-                            )
-
-                            # Permisos: copiamos solo roles privilegiados + el creador actual.
-                            base_memberships = list(
-                                WorkspaceMembership.objects
-                                .select_related('user')
-                                .filter(
-                                    workspace=workspace,
-                                    role__in={WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN},
-                                )
-                            )
-                            for membership in base_memberships:
-                                if not membership.user_id:
-                                    continue
-                                WorkspaceMembership.objects.update_or_create(
-                                    workspace=new_workspace,
-                                    user=membership.user,
-                                    defaults={'role': membership.role},
-                                )
-                            creator_membership = WorkspaceMembership.objects.filter(workspace=workspace, user=request.user).first()
-                            WorkspaceMembership.objects.update_or_create(
-                                workspace=new_workspace,
-                                user=request.user,
-                                defaults={'role': getattr(creator_membership, 'role', None) or WorkspaceMembership.ROLE_ADMIN},
-                            )
-                            if new_workspace.owner_user_id:
-                                WorkspaceMembership.objects.update_or_create(
-                                    workspace=new_workspace,
-                                    user_id=new_workspace.owner_user_id,
-                                    defaults={'role': WorkspaceMembership.ROLE_OWNER},
-                                )
-
+                            # Categoría adicional dentro del mismo club/workspace.
                             WorkspaceTeam.objects.get_or_create(
-                                workspace=new_workspace,
+                                workspace=workspace,
                                 team=team_obj,
-                                defaults={'is_default': True},
+                                defaults={'is_default': False},
                             )
-                            WorkspaceTeamAccess.objects.update_or_create(
-                                workspace=new_workspace,
+                            WorkspaceTeamAccess.objects.get_or_create(
+                                workspace=workspace,
                                 team=team_obj,
                                 user=request.user,
-                                defaults={'is_default': True},
+                                defaults={'is_default': False},
                             )
-                            if new_workspace.owner_user_id:
-                                WorkspaceTeamAccess.objects.update_or_create(
-                                    workspace=new_workspace,
+                            if getattr(workspace, 'owner_user_id', None):
+                                WorkspaceTeamAccess.objects.get_or_create(
+                                    workspace=workspace,
                                     team=team_obj,
-                                    user_id=new_workspace.owner_user_id,
-                                    defaults={'is_default': True},
+                                    user_id=workspace.owner_user_id,
+                                    defaults={'is_default': False},
                                 )
 
                             # Si se proporciona ID/URL de Universo, dejamos preparado el contexto competitivo por equipo.
                             universo_group_id = str(group_external_id or '').strip()
                             if universo_group_id:
                                 try:
-                                    _bootstrap_workspace_competition_context(
-                                        new_workspace,
+                                    contexto = _bootstrap_workspace_competition_context(
+                                        workspace,
                                         primary_team=team_obj,
                                         provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
                                         external_competition_key=universo_competition_key or None,
@@ -13154,12 +13268,17 @@ def admin_page(request):
                                         external_source_url=universo_url or None,
                                         auto_sync_enabled=True,
                                     )
+                                    if contexto:
+                                        WorkspaceCompetitionSnapshot.objects.filter(context=contexto).delete()
+                                        contexto.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
+                                        contexto.sync_error = ''
+                                        contexto.save(update_fields=['sync_status', 'sync_error', 'updated_at'])
                                 except Exception:
                                     pass
                             elif universo_url:
                                 try:
                                     _bootstrap_workspace_competition_context(
-                                        new_workspace,
+                                        workspace,
                                         primary_team=team_obj,
                                         external_source_url=universo_url,
                                     )
@@ -13176,7 +13295,7 @@ def admin_page(request):
                                     team_obj.save(update_fields=['crest_url'])
                         except Exception:
                             pass
-                        teams_message = f'Club creado: {new_workspace.name}.'
+                        teams_message = 'Categoría creada.'
                 except ValueError as exc:
                     teams_error = str(exc)
                 except Exception:
@@ -16648,6 +16767,13 @@ def save_match_info(request):
         _sync_match_score_from_events(match, primary_team)
     except Exception:
         pass
+    try:
+        is_home = match.home_team_id == primary_team.id
+        score_for = match.home_score if is_home else match.away_score
+        score_against = match.away_score if is_home else match.home_score
+    except Exception:
+        score_for = None
+        score_against = None
 
     # Mantener Convocatoria alineada con los cambios (si existe).
     try:
@@ -16696,9 +16822,10 @@ def save_match_info(request):
             'saved': True,
             'match_id': match.id,
             'match_label': str(match),
-            'updated': int(updated or 0),
+            'updated': 0,
             'deduplicated': 0,
-            **_score_payload_for_match(),
+            'score_for': '' if score_for is None else str(int(score_for)),
+            'score_against': '' if score_against is None else str(int(score_against)),
         }
     )
 
@@ -32598,6 +32725,195 @@ def _clone_task_studio_task(source_task):
 
 @login_required
 @ensure_csrf_cookie
+def task_studio_home_page(request):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_home', label='Inicio')
+    if forbidden:
+        return forbidden
+    profile = _task_studio_profile_for_user(owner)
+    if profile and not profile.is_enabled:
+        return HttpResponse('Task Studio está deshabilitado para este usuario.', status=403)
+    tasks = list(
+        TaskStudioTask.objects
+        .filter(owner=owner, deleted_at__isnull=True)
+        .order_by('-updated_at', '-id')[:120]
+    )
+    return render(
+        request,
+        'football/task_studio_home.html',
+        {
+            'owner': owner,
+            'profile': profile,
+            'tasks': tasks,
+            'is_admin_user': _is_admin_user(request.user),
+        },
+    )
+
+
+@login_required
+def task_studio_profile_page(request):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_profile', label='Perfil')
+    if forbidden:
+        return forbidden
+    profile = _task_studio_profile_for_user(owner)
+    if profile and not profile.is_enabled:
+        return HttpResponse('Task Studio está deshabilitado para este usuario.', status=403)
+
+    if request.method == 'POST':
+        def _clean_color(value, default):
+            raw = str(value or '').strip()
+            if re.fullmatch(r'#[0-9a-fA-F]{6}', raw or ''):
+                return raw.lower()
+            return default
+
+        profile.document_name = _sanitize_task_text((request.POST.get('document_name') or '').strip(), multiline=False, max_len=140)
+        profile.display_name = _sanitize_task_text((request.POST.get('display_name') or '').strip(), multiline=False, max_len=140)
+        profile.club_name = _sanitize_task_text((request.POST.get('club_name') or '').strip(), multiline=False, max_len=140)
+        profile.primary_color = _clean_color(request.POST.get('primary_color'), profile.primary_color)
+        profile.secondary_color = _clean_color(request.POST.get('secondary_color'), profile.secondary_color)
+        profile.accent_color = _clean_color(request.POST.get('accent_color'), profile.accent_color)
+        profile.save(update_fields=['document_name', 'display_name', 'club_name', 'primary_color', 'secondary_color', 'accent_color', 'updated_at'])
+        return JsonResponse({'ok': True})
+
+    return render(
+        request,
+        'football/task_studio_profile.html',
+        {
+            'owner': owner,
+            'profile': profile,
+            'is_admin_user': _is_admin_user(request.user),
+        },
+    )
+
+
+@login_required
+@require_POST
+def task_studio_roster_page(request):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_roster', label='Plantilla')
+    if forbidden:
+        return forbidden
+    action = str(request.POST.get('studio_action') or '').strip().lower()
+    if action != 'add':
+        return JsonResponse({'ok': False, 'error': 'Acción no válida.'}, status=400)
+    name = _sanitize_task_text((request.POST.get('name') or '').strip(), multiline=False, max_len=120)
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Nombre obligatorio.'}, status=400)
+    number = _parse_int(request.POST.get('number'))
+    if number is not None:
+        number = max(0, min(number, 99))
+    position = _sanitize_task_text((request.POST.get('position') or '').strip(), multiline=False, max_len=60)
+    workspace = _ensure_task_studio_workspace(owner)
+    player, _ = TaskStudioRosterPlayer.objects.update_or_create(
+        owner=owner,
+        name=name,
+        defaults={
+            'workspace': workspace,
+            'number': number,
+            'position': position,
+            'is_active': True,
+        },
+    )
+    return JsonResponse({'ok': True, 'player_id': player.id})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def task_studio_task_create(request):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_tasks', label='Tareas')
+    if forbidden:
+        return forbidden
+    task = _save_task_studio_entry(request, owner)
+    return JsonResponse({'ok': True, 'task_id': task.id})
+
+
+@login_required
+@require_POST
+def task_studio_task_delete(request, task_id):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_tasks', label='Tareas')
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    if not task.deleted_at:
+        task.deleted_at = timezone.now()
+        task.deleted_by = request.user if request.user.is_authenticated else None
+        task.save(update_fields=['deleted_at', 'deleted_by'])
+    url = reverse('task-studio-home')
+    if _is_admin_user(request.user) and _parse_int(request.GET.get('user')):
+        url = f'{url}?user={int(request.GET.get("user"))}'
+    return redirect(url)
+
+
+@login_required
+@require_POST
+def task_studio_task_duplicate(request, task_id):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_tasks', label='Tareas')
+    if forbidden:
+        return forbidden
+    task = _task_studio_task_for_request(request, task_id)
+    if not task:
+        raise Http404('Tarea no encontrada')
+    _clone_task_studio_task(task)
+    url = reverse('task-studio-home')
+    if _is_admin_user(request.user) and _parse_int(request.GET.get('user')):
+        url = f'{url}?user={int(request.GET.get("user"))}'
+    return redirect(url)
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def task_studio_task_pdf_preview(request):
+    if not _can_access_task_studio(request.user):
+        return HttpResponse('No tienes permisos para acceder a Task Studio.', status=403)
+    owner = _task_studio_target_user(request)
+    if not owner:
+        return HttpResponse('No se pudo resolver el usuario propietario.', status=400)
+    forbidden = _forbid_if_task_studio_module_disabled(request, owner, 'task_studio_pdfs', label='PDF')
+    if forbidden:
+        return forbidden
+    pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
+    if pdf_style not in {'uefa', 'club'}:
+        pdf_style = 'uefa'
+    context = _build_task_studio_draft_pdf_context(request, owner, pdf_style=pdf_style)
+    html = render_to_string('football/session_task_pdf.html', context)
+    filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=True)
+
+
+@login_required
+@ensure_csrf_cookie
 def sessions_page(request):
     response = _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
     if response is None:
@@ -38536,7 +38852,9 @@ def get_next_match(primary_team, group, *, allow_external_fetch=None):
             standings_team_ids = set()
 
     def _opponent_in_group_standings(match):
-        if not group or not standings_team_ids:
+        # En fases tempranas (o datos incompletos) puede existir clasificación parcial (solo tu equipo).
+        # En ese caso NO filtramos por standings para poder mostrar el próximo partido igualmente.
+        if not group or not standings_team_ids or len(standings_team_ids) < 3:
             return True
         team_id = getattr(primary_team, 'id', None)
         if not team_id:
