@@ -840,7 +840,10 @@
 				    };
 
 				    // Backdrop global (evita “superposición” visual de popovers/modales).
-				    const __overlayDetailsIds = ['task-builder-actions-menu', 'pitch-view-menu', 'task-side-more', 'task-resource-details'];
+				    // OJO: `task-resource-details` se usa como selector/tabs de recursos (no es un modal).
+				    // En iPad/Safari lo dejamos abierto por defecto para que se vean sus hijos; si lo
+				    // tratamos como overlay, el backdrop bloquea la UI (parece “difuminado sin opciones”).
+				    const __overlayDetailsIds = ['task-builder-actions-menu', 'pitch-view-menu'];
 				    const __overlayFloatingIds = [
 				      'task-command-menu',
 				      'task-pattern-popover',
@@ -9859,8 +9862,8 @@
 			        if (el && el.tagName === 'DETAILS') el.addEventListener('toggle', () => { try { __scheduleBackdropSync(); } catch (e) { /* ignore */ } });
 			      });
 			      const backdrop = document.getElementById('tpad-overlay-backdrop');
-			      backdrop?.addEventListener('click', (event) => {
-			        event.preventDefault();
+			      const closeAllOverlays = (event) => {
+			        try { event?.preventDefault?.(); } catch (e) { /* ignore */ }
 			        __overlayDetailsIds.forEach((id) => {
 			          const el = document.getElementById(id);
 			          if (el && el.tagName === 'DETAILS') {
@@ -9875,7 +9878,11 @@
 			        try { setScenariosPopoverOpen(false); } catch (e) { /* ignore */ }
 			        try { setSimPopoverOpen(false); } catch (e) { /* ignore */ }
 			        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
-			      });
+			      };
+			      // iPad/Safari: usamos también pointerdown/touchstart para que el backdrop siempre cierre.
+			      backdrop?.addEventListener('click', closeAllOverlays);
+			      backdrop?.addEventListener('pointerdown', closeAllOverlays);
+			      backdrop?.addEventListener('touchstart', closeAllOverlays, { passive: false });
 			      __syncBackdropNow();
 			    } catch (e) { /* ignore */ }
 				    window.addEventListener('keydown', (event) => {

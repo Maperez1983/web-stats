@@ -3212,7 +3212,7 @@
 			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
 			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="false" title="Muestra una guía rápida en pantalla">Guía</button>
 		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>
-	            <details class="action-menu" id="task-builder-actions-menu">
+            <details class="action-menu" id="task-builder-actions-menu">
               <summary class="action-summary" aria-label="Abrir opciones">Opciones</summary>
               <div class="action-menu-body" role="menu">
                 {% if not tactics_mode %}
@@ -3228,6 +3228,21 @@
                   </div>
                 </div>
                 {% endif %}
+                <div class="action-menu-group">
+                  <div class="action-menu-title">Panel</div>
+                  <div class="action-menu-row">
+                    {% if tactics_mode %}
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Playbook</button>
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;animacion&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Escenarios</button>
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;capas&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Capas</button>
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+                    {% else %}
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha básica</button>
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;avanzado&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha avanzada</button>
+                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+                    {% endif %}
+                  </div>
+                </div>
                 {% if not tactics_mode and task and can_restore_original %}
                 <div class="action-menu-group">
                   <div class="action-menu-title">Seguridad</div>
@@ -4471,16 +4486,10 @@
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
 	                        {% else %}
-					                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha</button>
+					                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true">Ficha básica</button>
+					                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Ficha avanzada</button>
                             <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false">Asistente</button>
-	                        <details class="side-tab-more" id="task-side-more">
-	                          <summary class="side-tab" role="button" aria-label="Más opciones">Más</summary>
-	                          <div class="side-more-menu" aria-label="Opciones avanzadas">
-	                            <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false">Avanzado</button>
-	                          </div>
-	                        </details>
 					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false">Escenarios</button>
-					                <button type="button" class="side-tab" data-pane="biblioteca" role="tab" aria-selected="false">Biblioteca</button>
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false">Capas</button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false">Exportar</button>
 					                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false">Vista previa</button>
@@ -5138,50 +5147,6 @@
 		              </div>
                   {% endif %}
 
-              {% if not tactics_mode %}
-		              <div class="side-pane" data-pane="biblioteca" role="tabpanel">
-	                <div class="section">
-	                  <h3>Biblioteca visual</h3>
-	                  <p>Arrastra o haz clic para colocar recursos en la pizarra.</p>
-	                  <div class="tool-group-title" style="margin-top:0.8rem;">Accesorios</div>
-		                  <div class="resource-strip library-grid" id="task-library-tools">
-		                    <button type="button" data-add="cone" title="Cono"><span class="library-emoji" aria-hidden="true">🔺</span>Cono</button>
-		                    <button type="button" data-add="ball" title="Balón"><span class="library-emoji" aria-hidden="true">⚽</span>Balón</button>
-		                    <button type="button" data-add="goal" title="Portería"><span class="library-emoji" aria-hidden="true">🥅</span>Portería</button>
-		                    <button type="button" data-add="goal_posts" title="Portería (marco)"><span class="library-emoji" aria-hidden="true">🥅</span>Marco</button>
-		                    <button type="button" data-add="goal_3d" title="Portería 3D"><span class="library-emoji" aria-hidden="true">🥅</span>3D</button>
-		                    <button type="button" data-add="goal_mini" title="Mini portería"><span class="library-emoji" aria-hidden="true">🥅</span>Mini</button>
-		                    <button type="button" data-add="zone" title="Zona"><span class="library-emoji" aria-hidden="true">⬚</span>Zona</button>
-		                    <button type="button" data-add="text" title="Texto"><span class="library-emoji" aria-hidden="true">T</span>Texto</button>
-		                  </div>
-
-	                  <div class="tool-group-title" style="margin-top:0.9rem;">Jugadores</div>
-	                  <div class="resource-strip library-grid">
-	                    <button type="button" data-add="player_local" title="Jugador local"><span class="library-emoji" aria-hidden="true">🔵</span>Local</button>
-	                    <button type="button" data-add="player_rival" title="Jugador rival"><span class="library-emoji" aria-hidden="true">🔴</span>Rival</button>
-	                    <button type="button" data-add="player_away" title="2ª equipación"><span class="library-emoji" aria-hidden="true">🟡</span>2ª</button>
-	                    <button type="button" data-add="goalkeeper_local" title="Portero"><span class="library-emoji" aria-hidden="true">🧤</span>Portero</button>
-	                  </div>
-
-	                  <div class="tool-group-title" style="margin-top:0.9rem;">Trazos</div>
-	                  <div class="resource-strip library-grid">
-	                    <button type="button" data-add="line_solid" title="Línea continua"><span class="library-emoji" aria-hidden="true">━</span>Línea</button>
-	                    <button type="button" data-add="line_dash" title="Línea discontinua"><span class="library-emoji" aria-hidden="true">╌</span>Dash</button>
-	                    <button type="button" data-add="arrow_solid" title="Flecha continua"><span class="library-emoji" aria-hidden="true">➜</span>Flecha</button>
-	                    <button type="button" data-add="arrow_curve" title="Flecha curva"><span class="library-emoji" aria-hidden="true">↷</span>Curva</button>
-	                  </div>
-
-	                  <div class="tool-group-title" style="margin-top:0.9rem;">Figuras</div>
-	                  <div class="resource-strip library-grid">
-	                    <button type="button" data-add="shape_circle" title="Círculo"><span class="library-emoji" aria-hidden="true">◯</span>Círculo</button>
-	                    <button type="button" data-add="shape_square" title="Cuadrado"><span class="library-emoji" aria-hidden="true">▢</span>Cuadrado</button>
-	                    <button type="button" data-add="shape_rect" title="Rectángulo"><span class="library-emoji" aria-hidden="true">▭</span>Rect.</button>
-	                    <button type="button" data-add="shape_triangle" title="Triángulo"><span class="library-emoji" aria-hidden="true">△</span>Triáng.</button>
-	                  </div>
-	                </div>
-		              </div>
-              {% endif %}
-
 		              <div class="side-pane" data-pane="capas" role="tabpanel">
 		                <div class="section">
 		                  <h3>Capas</h3>
@@ -5200,11 +5165,17 @@
 		                    <button type="button" class="button" id="export-json">Estado (JSON)</button>
 		                    <button type="button" class="button" id="export-png-steps">PNGs (pasos)</button>
 		                  </div>
+                      {% if not tactics_mode %}
+		                  <div class="export-grid" style="margin-top:0.65rem;">
+		                    <button type="button" class="button" data-print-style="uefa">PDF UEFA</button>
+		                    <button type="button" class="button" data-print-style="club">PDF Club</button>
+		                  </div>
+                      {% endif %}
 		                  <div class="export-note">
                         {% if tactics_mode %}
 		                    Tip: para “Pack” (portada + índice + miniaturas) usa Playbook.
                         {% else %}
-		                    Tip: el PDF se genera desde “Vista previa” con los botones de impresión.
+		                    Tip: puedes generar el PDF desde aquí o desde “Opciones”.
                         {% endif %}
 		                  </div>
 		                </div>
@@ -5356,7 +5327,7 @@
 		            {
 		              anchor: '#task-side-tabs',
 		              title: '4) Panel lateral',
-		              body: 'Aquí están Ficha, Escenarios, Biblioteca, Capas, Exportar y Vista previa. En “Más” se agrupan Asistente y Avanzado.',
+		              body: 'Aquí están Ficha básica, Ficha avanzada, Asistente, Escenarios, Capas, Exportar y Vista previa.',
 		            },
 		            {
 		              anchor: 'button.side-tab[data-pane=\"preview\"]',
@@ -9443,6 +9414,7 @@
 	                const action = normalizeAction(selectedAction);
 	                if (action === 'assistant') {
 	                  // En modo tácticas puede no existir "assistant": en ese caso solo cerramos.
+	                  activateTaskMode('text');
 	                  activateSidePane('assistant');
 	                  closeLanding();
                   return;
@@ -9453,6 +9425,7 @@
                   return;
                 }
                 if (action === 'exportar') {
+                  activateTaskMode('text');
                   activateSidePane('exportar');
                   closeLanding();
                   return;
