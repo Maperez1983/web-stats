@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
-    <style>
+	    <style>
       :root {
         --bg: #071022;
         --panel: #0d1b34;
@@ -417,7 +417,7 @@
           grid-template-columns: 1fr 1fr;
         }
       }
-      @media (max-width: 680px) {
+	      @media (max-width: 680px) {
         .header {
           align-items: flex-start;
           flex-direction: column;
@@ -435,9 +435,39 @@
         .control-grid {
           grid-template-columns: 1fr;
         }
-      }
-    </style>
-  </head>
+	      }
+
+        /* Tipo de partido (Liga/Torneo/Amistoso): hacerlo visible tipo “broadcast”. */
+        .segmented {
+          display: flex;
+          gap: 0.35rem;
+          flex-wrap: wrap;
+          margin-top: 0.35rem;
+        }
+        .segmented .seg-btn {
+          appearance: none;
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(255,255,255,0.06);
+          color: rgba(248,250,252,0.92);
+          border-radius: 999px;
+          padding: 0.45rem 0.7rem;
+          font-weight: 950;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-size: 0.66rem;
+          cursor: pointer;
+        }
+        .segmented .seg-btn.is-active {
+          border-color: rgba(244, 180, 0, 0.62);
+          background: rgba(244, 180, 0, 0.16);
+          color: rgba(255, 246, 220, 0.98);
+        }
+        .segmented .seg-btn:focus-visible {
+          outline: 3px solid rgba(244, 180, 0, 0.38);
+          outline-offset: 2px;
+        }
+	    </style>
+	  </head>
   <body class="prod-commercial">
     <main class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
@@ -469,13 +499,18 @@
 	            <select id="match-opponent-select"></select>
 	            <input id="match-opponent-manual" type="text" placeholder="Escribe rival manual..." style="display:none;margin-top:0.35rem;" />
 	          </label>
-	          <label>Tipo
-	            <select id="match-context">
-	              {% for item in match_context_options %}
-	              <option value="{{ item.value }}" {% if match_info.context == item.value %}selected{% endif %}>{{ item.label }}</option>
-	              {% endfor %}
-	            </select>
-	          </label>
+		          <label>Tipo
+		            <div class="segmented" id="match-context-seg">
+		              {% for item in match_context_options %}
+		              <button type="button" class="seg-btn {% if match_info.context == item.value %}is-active{% endif %}" data-match-context="{{ item.value }}">{{ item.label }}</button>
+		              {% endfor %}
+		            </div>
+		            <select id="match-context" style="display:none;">
+		              {% for item in match_context_options %}
+		              <option value="{{ item.value }}" {% if match_info.context == item.value %}selected{% endif %}>{{ item.label }}</option>
+		              {% endfor %}
+		            </select>
+		          </label>
 	          <label>Jornada
 	            <input id="match-round" type="text" value="{{ match_info.round|default:''|escape }}" />
 	          </label>
@@ -588,7 +623,8 @@
 	      const matchOpponentManual = document.querySelector('#match-opponent-manual');
 	      const matchRivalCrest = document.querySelector('#match-rival-crest');
 	      const matchRivalName = document.querySelector('#match-rival-name');
-	      const matchContext = document.querySelector('#match-context');
+		      const matchContext = document.querySelector('#match-context');
+          const matchContextSeg = document.querySelector('#match-context-seg');
 	      const matchTournamentRow = document.querySelector('#match-tournament-row');
 	      const matchTournamentName = document.querySelector('#match-tournament-name');
 	      const matchTournamentStage = document.querySelector('#match-tournament-stage');
@@ -598,15 +634,36 @@
 	      const matchLocationSelect = document.querySelector('#match-location-select');
 	      const matchLocationManual = document.querySelector('#match-location-manual');
 
-	      const syncContextVisibility = () => {
-	        const contextValue = String(matchContext?.value || '').trim();
-	        const isTournament = contextValue === 'tournament';
-	        if (matchTournamentRow) matchTournamentRow.style.display = isTournament ? 'block' : 'none';
+		      const syncContextVisibility = () => {
+		        const contextValue = String(matchContext?.value || '').trim();
+		        const isTournament = contextValue === 'tournament';
+		        if (matchTournamentRow) matchTournamentRow.style.display = isTournament ? 'block' : 'none';
 	        if (!isTournament) {
 	          if (matchTournamentName) matchTournamentName.value = '';
 	          if (matchTournamentStage) matchTournamentStage.value = '';
 	        }
-	      };
+		      };
+
+          const syncContextSeg = () => {
+            if (!matchContextSeg || !matchContext) return;
+            const current = String(matchContext.value || '').trim();
+            matchContextSeg.querySelectorAll('[data-match-context]').forEach((btn) => {
+              const v = String(btn.getAttribute('data-match-context') || '').trim();
+              btn.classList.toggle('is-active', v && v === current);
+            });
+          };
+
+          if (matchContextSeg && matchContext) {
+            matchContextSeg.addEventListener('click', (ev) => {
+              const target = ev.target && ev.target.closest ? ev.target.closest('[data-match-context]') : null;
+              if (!target) return;
+              const value = String(target.getAttribute('data-match-context') || '').trim();
+              if (!value) return;
+              matchContext.value = value;
+              syncContextSeg();
+              syncContextVisibility();
+            });
+          }
 
       const selectedSet = new Set(({{ selected_player_ids_json|safe }} || []).map((item) => String(item)));
       const initialCaptainId = {{ captain_id_json|safe }};
@@ -1099,10 +1156,11 @@
 
       hydratePositionFilter();
       hydrateOpponentSelect();
-      updateLocationOptions();
-      setManualVisibility();
-      syncContextVisibility();
-      applyFilters();
+	      updateLocationOptions();
+	      setManualVisibility();
+	      syncContextSeg();
+	      syncContextVisibility();
+	      applyFilters();
       syncCardStates();
       renderSelected();
       updatePdfState();

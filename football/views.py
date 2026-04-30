@@ -32451,8 +32451,25 @@ def session_task_video_import_api(request):
         size = int(getattr(uploaded, 'size', 0) or 0)
     except Exception:
         size = 0
-    if size and size > 60 * 1024 * 1024:
-        return JsonResponse({'ok': False, 'error': 'El vídeo es demasiado grande (máx 60MB).'}, status=400)
+    try:
+        max_mb = int(str(os.getenv('IG_VIDEO_IMPORT_MAX_MB', '250') or '250').strip() or '250')
+    except Exception:
+        max_mb = 250
+    max_mb = max(25, min(max_mb, 1024))
+    max_bytes = max_mb * 1024 * 1024
+    if size and size > max_bytes:
+        return JsonResponse({'ok': False, 'error': f'El vídeo es demasiado grande (máx {max_mb}MB).'}, status=400)
+
+    # UX/performance: vídeos grandes tardan mucho en procesar (frame sampling + OCR).
+    # Para >~90MB activamos "fast": menos frames y sin OCR automático (se puede completar a mano).
+    fast = False
+    try:
+        fast = (
+            str(request.POST.get('fast') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+            or (size and size >= 90 * 1024 * 1024)
+        )
+    except Exception:
+        fast = False
 
     name_hint = (request.POST.get('name') or '').strip()
     clip = None
@@ -32465,8 +32482,8 @@ def session_task_video_import_api(request):
                 for chunk in uploaded.chunks():
                     f.write(chunk)
 
-            clip = _build_ig_clip_from_video_file(str(in_path), name_hint=name_hint)
-            suggested = _extract_ig_task_fields_from_video_file(str(in_path))
+            clip = _build_ig_clip_from_video_file(str(in_path), name_hint=name_hint, fast=fast)
+            suggested = {} if fast else _extract_ig_task_fields_from_video_file(str(in_path))
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
     except Exception:

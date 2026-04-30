@@ -46,9 +46,6 @@
 	      }
 	      /* Pantalla de entrada (comercial): vista del campo + tarjetas de acciones. */
 	      .task-landing {
-	        /* Desactivada: la pantalla intermedia “¿Qué quieres hacer?” bloqueaba la entrada en tareas en iPad/Safari.
-	           Si en el futuro se quiere reactivar, quitar este `display:none` y la salida temprana del script. */
-	        display: none !important;
 	        position: fixed;
 	        inset: 0;
 	        /* Debe estar por encima de cualquier overlay/popover del motor de pizarra. */
@@ -9393,13 +9390,9 @@
 			    </script>
 	          <script>
 	            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
-	            (function () {
-	              const landing = document.getElementById('task-landing');
-	              if (!landing) return;
-	              // Hard-disable: el usuario quiere entrar directo al editor sin pantalla intermedia.
-	              try { landing.hidden = true; } catch (e) { /* ignore */ }
-	              try { landing.style.display = 'none'; } catch (e) { /* ignore */ }
-	              return;
+		            (function () {
+		              const landing = document.getElementById('task-landing');
+		              if (!landing) return;
 
               // Debug mínimo (solo visual): si WKWebView está tragándose los eventos, al menos veremos el contador subir.
               try {
