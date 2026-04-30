@@ -14602,7 +14602,8 @@
         overlay.style.cssText = [
           'position:fixed',
           'inset:0',
-          'z-index:2147483647',
+          // Un punto por debajo del landing (que usa el máximo) para evitar empates de z-index en iOS/Safari.
+          'z-index:2147483646',
           'background:rgba(2,6,23,0.78)',
           'display:none',
           'flex-direction:column',

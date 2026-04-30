@@ -963,6 +963,11 @@
         z-index: 160;
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
       }
+      /* ui-tablet: el command bar vive fijo abajo => el menú debe abrirse hacia arriba (si no, queda fuera de pantalla). */
+      body.ui-tablet .command-menu {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
       /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
       .command-menu[hidden] {
         display: none !important;
@@ -1008,6 +1013,11 @@
         z-index: 162;
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
         overflow: hidden;
+      }
+      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+      body.ui-tablet:not(.tactics-mode) .layers-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
       }
       .layers-popover[hidden] {
         display: none !important;
@@ -1058,6 +1068,11 @@
         z-index: 163;
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
         overflow: hidden;
+      }
+      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+      body.ui-tablet:not(.tactics-mode) .scenarios-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
       }
       .scenarios-popover[hidden] {
         display: none !important;
@@ -1147,6 +1162,11 @@
 	        z-index: 164;
 	        box-shadow: 0 18px 44px rgba(0,0,0,0.38);
 	        overflow: hidden;
+	      }
+	      /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
+	      body.ui-tablet:not(.tactics-mode) .sim-popover {
+	        top: auto;
+	        bottom: calc(100% + 10px);
 	      }
 	      .sim-popover[hidden] {
 	        display: none !important;
@@ -1410,6 +1430,11 @@
         box-shadow: 0 18px 44px rgba(0,0,0,0.38);
         display: grid;
         gap: 10px;
+      }
+      /* ui-tablet: los popovers (patrón/formación/overlays) están anclados al dock inferior => abrir hacia arriba. */
+      body.ui-tablet .pattern-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
       }
       /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
       .pattern-popover[hidden] {
@@ -9405,11 +9430,13 @@
                 try { return localStorage.getItem(storageKey) === '1'; } catch (e) { return false; }
               };
 
-	              const openLandingIfNeeded = () => {
-	                if (shouldShow && !shouldHideLanding()) {
-	                  try { landing.hidden = false; } catch (e) { /* ignore */ }
-	                }
-	              };
+		              const openLandingIfNeeded = () => {
+		                if (shouldShow && !shouldHideLanding()) {
+		                  // Asegura que el landing quede por encima de overlays insertados dinámicamente (PDF, etc.).
+		                  try { document.body.appendChild(landing); } catch (e) { /* ignore */ }
+		                  try { landing.hidden = false; } catch (e) { /* ignore */ }
+		                }
+		              };
 
 	              const closeLanding = () => {
 	                try { landing.hidden = true; } catch (e) { /* ignore */ }
