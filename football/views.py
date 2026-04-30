@@ -4361,6 +4361,21 @@ def _get_active_workspace(request):
             return workspace
         request.session.pop('active_workspace_id', None)
     if _can_access_platform(request.user):
+        # Si el usuario "plataforma" solo tiene 1 club disponible (por membresía),
+        # lo fijamos como contexto activo para que las vistas de producto (sesiones, partido, etc.)
+        # no queden en estado "sin club" y devuelvan 302/400/404 en app/webview.
+        try:
+            club_ws = list(
+                available_qs
+                .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                .order_by('id')[:2]
+            )
+            if len(club_ws) == 1:
+                workspace = club_ws[0]
+                request.session['active_workspace_id'] = workspace.id
+                return workspace
+        except Exception:
+            pass
         # En modo plataforma, si no hay contexto seleccionado devolvemos None.
         # Excepción: si el sistema solo tiene 1 club activo, fijamos ese contexto para que
         # Dashboard/API no caigan en el "equipo primario global" y no se mezclen categorías.
@@ -4546,6 +4561,70 @@ def _get_active_team_for_request(request):
 
     # Modo sin workspace / usuario no plataforma: mantenemos el fallback histórico.
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+        # Producto comercial: si no hay workspace activo, intentamos resolver el equipo desde el acceso del usuario.
+        # Esto evita 400/404 cuando la app/webview pierde la querystring `?team=` o `?workspace=`.
+        # Seguridad: solo elegimos equipos a los que el usuario ya está vinculado; no usamos el "equipo primario global".
+        try:
+            explicit_team = _team_from_request_param(request)
+        except Exception:
+            explicit_team = None
+        if explicit_team:
+            try:
+                if hasattr(request, 'session'):
+                    request.session['active_team_id'] = int(explicit_team.id)
+            except Exception:
+                pass
+            return explicit_team
+
+        remembered_team_id = None
+        try:
+            if hasattr(request, 'session'):
+                remembered_team_id = _parse_int(request.session.get('active_team_id'))
+        except Exception:
+            remembered_team_id = None
+
+        team_ids = set()
+        try:
+            team_ids.update(
+                WorkspaceTeamAccess.objects
+                .filter(user=request.user)
+                .values_list('team_id', flat=True)
+            )
+        except Exception:
+            pass
+        if not team_ids:
+            try:
+                team_ids.update(
+                    WorkspaceTeam.objects
+                    .filter(workspace__is_active=True, workspace__owner_user=request.user)
+                    .values_list('team_id', flat=True)
+                )
+            except Exception:
+                pass
+        if not team_ids:
+            try:
+                team_ids.update(
+                    WorkspaceTeam.objects
+                    .filter(workspace__is_active=True, workspace__memberships__user=request.user)
+                    .values_list('team_id', flat=True)
+                )
+            except Exception:
+                pass
+        team_ids = {int(tid) for tid in team_ids if tid}
+        if remembered_team_id and int(remembered_team_id) in team_ids:
+            team = Team.objects.filter(id=int(remembered_team_id)).first()
+            if team:
+                return team
+        if len(team_ids) == 1:
+            team = Team.objects.filter(id=next(iter(team_ids))).first()
+            if team:
+                try:
+                    if hasattr(request, 'session'):
+                        request.session['active_team_id'] = int(team.id)
+                except Exception:
+                    pass
+            return team
+
         # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global.
         # El usuario debe crear/seleccionar su club desde onboarding.
         if _single_club_fallback_enabled():
