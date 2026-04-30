@@ -403,6 +403,37 @@ class SessionsPlannerPRGRegressionTests(TestCase):
         self.assertEqual(after, before + 1)
         self.assertIn(response.status_code, {301, 302})
 
+    def test_sessions_view_does_not_hide_tasks_by_repository(self):
+        self.client.force_login(self.user)
+        interactive_source = SessionTask.objects.create(
+            session=self.library_session,
+            title='Tarea interactiva origen',
+            block=SessionTask.BLOCK_ACTIVATION,
+            duration_minutes=8,
+            tactical_layout={'meta': {'scope': 'coach', 'repository': 'interactive'}},
+            status=SessionTask.STATUS_PLANNED,
+            order=2,
+        )
+        url = f"{reverse('sessions')}?team={self.team.id}&workspace={self.workspace.id}&tab=sessions&library_repo=traditional&session_id={self.session.id}"
+        self.client.post(
+            url,
+            data={
+                'planner_action': 'copy_library_task_to_session',
+                'planner_tab': 'sessions',
+                'team': str(self.team.id),
+                'workspace': str(self.workspace.id),
+                'library_repo': 'traditional',
+                'selected_session_id': str(self.session.id),
+                'target_session_id': str(self.session.id),
+                'source_task_id': str(interactive_source.id),
+                'target_block': SessionTask.BLOCK_ACTIVATION,
+              },
+            follow=False,
+        )
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tarea interactiva origen')
+
 
 class MatchActionsVideoAutoLinkTests(TestCase):
     def setUp(self):

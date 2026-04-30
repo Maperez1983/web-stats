@@ -1,6 +1,20 @@
 (function () {
   const isCapacitor =
     !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const isIOSLike = (() => {
+    try {
+      const ua = String(navigator && navigator.userAgent ? navigator.userAgent : '');
+      if (/(iPad|iPhone|iPod)/i.test(ua)) return true;
+      // iPadOS 13+ se anuncia como Macintosh, pero con touch points.
+      const platform = String(navigator && navigator.platform ? navigator.platform : '');
+      const maxTouchPoints = Number(navigator && navigator.maxTouchPoints ? navigator.maxTouchPoints : 0);
+      if (platform === 'MacIntel' && maxTouchPoints > 1) return true;
+      if (/Macintosh/i.test(ua) && /Mobile/i.test(ua)) return true;
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  })();
   const isStandalone = (() => {
     try {
       if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -31,7 +45,8 @@
 
   // En la app (Capacitor) no existe "barra" de navegación del navegador: si abrimos un PDF en la misma WebView,
   // el usuario se queda sin forma de volver. Por eso interceptamos también en modo móvil/PWA.
-  const shouldEnable = isCapacitor || isStandalone || isMobileLike;
+  // iPad (Pencil/ratón) puede no contar como "mobileLike" aunque siga necesitando overlay (y evitar "pantalla en blanco" sin volver).
+  const shouldEnable = isCapacitor || isStandalone || isMobileLike || isIOSLike;
   if (!shouldEnable) return;
 
   const safeText = (value) => String(value ?? '').trim();
@@ -238,6 +253,65 @@
     openOverlay({ html });
   };
 
+  const fetchAndOpenPdfPost = async (url, { formData = null, suggestedName = '' } = {}) => {
+    openOverlay({ html: '<!doctype html><html lang="es"><meta charset="utf-8"><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px;"><h1 style="font-size:16px;margin:0 0 8px;">Generando PDF…</h1><p style="margin:0;color:#334155;">En unos segundos aparecerá el documento.</p></body></html>' });
+    let resp = null;
+    try {
+      resp = await fetch(url.toString(), {
+        method: 'POST',
+        body: formData || undefined,
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+    } catch (e) {
+      openOverlay({
+        html: '<!doctype html><html lang="es"><meta charset="utf-8"><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px;">No se pudo conectar para generar el PDF.</body></html>',
+      });
+      return;
+    }
+
+    const ct = String(resp.headers.get('content-type') || '').toLowerCase();
+    if (!resp.ok) {
+      const msg = safeText(await resp.text()) || `No se pudo generar el PDF (HTTP ${resp.status}).`;
+      openOverlay({
+        html: `<!doctype html><html lang="es"><meta charset="utf-8"><body style="font-family:system-ui,Segoe UI,Arial,sans-serif;padding:20px;"><strong>Error:</strong> ${msg}</body></html>`,
+      });
+      return;
+    }
+
+    if (ct.includes('application/pdf')) {
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const headerName = contentDispositionFilename(resp.headers.get('content-disposition'));
+      const fallbackName = suggestedName || 'documento.pdf';
+      const name = headerName || fallbackName;
+      openOverlay({ blobUrl, filename: name });
+      return;
+    }
+
+    const html = await resp.text();
+    openOverlay({ html });
+  };
+
+  const buildUrlFromGetForm = (formEl, baseUrl) => {
+    const u = new URL(baseUrl.toString(), window.location.href);
+    try {
+      const params = new URLSearchParams(u.search || '');
+      const fd = new FormData(formEl);
+      fd.forEach((value, key) => {
+        if (value instanceof File) return;
+        const v = safeText(value);
+        if (!v) return;
+        params.set(String(key), v);
+      });
+      u.search = params.toString();
+    } catch (e) {
+      // ignore
+    }
+    return u;
+  };
+
   document.addEventListener(
     'click',
     (event) => {
@@ -266,6 +340,51 @@
         fileSafeSlug(url.pathname.split('/').filter(Boolean).slice(-2).join('_'));
       const filename = `${label || 'documento'}.pdf`;
       fetchAndOpenPdf(url, { suggestedName: filename });
+    },
+    true,
+  );
+
+  document.addEventListener(
+    'submit',
+    (event) => {
+      const form = event.target;
+      if (!form || !form.getAttribute) return;
+      if (safeText(form.getAttribute('data-no-pdf-viewer')) === '1') return;
+      const action = safeText(form.getAttribute('action')) || window.location.href;
+      let url = null;
+      try {
+        url = new URL(action, window.location.href);
+      } catch (e) {
+        return;
+      }
+      if (!isSameOrigin(url)) return;
+      if (!looksLikePdfRoute(url)) return;
+
+      const method = safeText(form.getAttribute('method')).toUpperCase() || 'GET';
+      event.preventDefault();
+      event.stopPropagation();
+
+      const submitter = event.submitter || null;
+      const label =
+        safeText(form.getAttribute('data-pdf-name')) ||
+        safeText(submitter && submitter.getAttribute ? submitter.getAttribute('data-pdf-name') : '') ||
+        safeText(submitter && submitter.textContent ? submitter.textContent : '') ||
+        fileSafeSlug(form.getAttribute('name')) ||
+        fileSafeSlug(url.pathname.split('/').filter(Boolean).slice(-2).join('_'));
+      const filename = `${fileSafeSlug(label || 'documento') || 'documento'}.pdf`;
+
+      if (method === 'GET') {
+        const finalUrl = buildUrlFromGetForm(form, url);
+        fetchAndOpenPdf(finalUrl, { suggestedName: filename });
+        return;
+      }
+
+      const payload = new FormData(form);
+      // Evita mandar ficheros por error (en PDFs del sistema no deberían existir y en iOS puede ser pesado).
+      Array.from(payload.entries()).forEach(([key, value]) => {
+        if (value instanceof File) payload.delete(key);
+      });
+      fetchAndOpenPdfPost(url, { formData: payload, suggestedName: filename });
     },
     true,
   );

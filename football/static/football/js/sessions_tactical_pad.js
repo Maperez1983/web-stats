@@ -14626,6 +14626,17 @@
       }
 
 	      const isCapacitor = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+	      const isIOSLike = (() => {
+	        try {
+	          const ua = String(navigator && navigator.userAgent ? navigator.userAgent : '');
+	          if (/(iPad|iPhone|iPod)/i.test(ua)) return true;
+	          const platform = String(navigator && navigator.platform ? navigator.platform : '');
+	          const maxTouchPoints = Number(navigator && navigator.maxTouchPoints ? navigator.maxTouchPoints : 0);
+	          if (platform === 'MacIntel' && maxTouchPoints > 1) return true;
+	          if (/Macintosh/i.test(ua) && /Mobile/i.test(ua)) return true;
+	        } catch (e) { /* ignore */ }
+	        return false;
+	      })();
 	      const isStandalone = (() => {
 	        try {
 	          if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -14646,7 +14657,8 @@
 	          return false;
 	        }
 	      })();
-	      const shouldUseOverlay = isCapacitor || isStandalone || isMobileLike;
+	      // iPad (Pencil/ratón) puede no contar como "mobileLike" aunque necesite overlay para no bloquear la app.
+	      const shouldUseOverlay = isCapacitor || isStandalone || isMobileLike || isIOSLike;
       const ensurePdfOverlay = () => {
         let overlay = document.getElementById('tpad-pdf-overlay');
         if (overlay) return overlay;

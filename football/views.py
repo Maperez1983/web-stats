@@ -30500,14 +30500,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             )
             if scope_key != 'coach':
                 selected_session_tasks = [item for item in selected_session_tasks if _task_scope_for_item(item) == scope_key]
-            # Filtro: Biblioteca (Clásicas/Interactivas) aplicado también a la vista de sesiones.
-            try:
-                selected_session_tasks = [
-                    item for item in selected_session_tasks
-                    if _library_repository_for_task(item) == library_repository
-                ]
-            except Exception:
-                pass
+            # Importante (UX): en una sesión queremos ver *todas* las tareas asignadas, sin ocultarlas por repo.
+            # El filtro "Clásicas/Interactivas" aplica a la Biblioteca, pero en Sesiones confunde:
+            # el usuario asigna y luego “desaparece” si el repo no coincide.
 
             selected_task_sheets = [_build_session_task_sheet(task_obj) for task_obj in selected_session_tasks]
             selected_session_task_sections = [
