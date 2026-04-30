@@ -2847,31 +2847,37 @@
 			          </a>
 			        </div>
 	      </section>
-		      <section class="panel">
-		        <h2>Biblioteca de tareas</h2>
-		        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
-	        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
-	          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}">Tradicionales</a>
-	          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}">Interactivas</a>
-	        </div>
-	        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
-	          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview">Todas</a>
-	          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites">Favoritas</a>
-	          <a class="tab-link {% if library_view == 'source' and library_key == 'imported' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=imported">Importadas</a>
-	          <a class="tab-link {% if library_view == 'source' and library_key == 'created' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=created">Creadas</a>
-	          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=drawn">Dibujadas</a>
-	          <details style="margin:0;">
-	            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
-	            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
-	              <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase">Por fase</a>
-	              <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type">Por tipo</a>
-	              <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players">Por jugadores</a>
-	              <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration">Por duración</a>
-	              <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date">Por fecha</a>
-	              <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality">Por calidad</a>
-	            </div>
-	          </details>
-	        </div>
+			      <section class="panel">
+			        <h2>Biblioteca de tareas</h2>
+			        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
+              {% if library_filters_active %}
+              <div class="alert err" style="margin-top:0.55rem;">
+                Hay filtros activos y pueden dejar la lista vacía.
+                <a class="button secondary" style="margin-left:0.55rem; text-decoration:none;" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Limpiar filtros</a>
+              </div>
+              {% endif %}
+		        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
+		          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tradicionales</a>
+		          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Interactivas</a>
+		        </div>
+		        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
+		          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Todas</a>
+		          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Favoritas</a>
+		          <a class="tab-link {% if library_view == 'source' and library_key == 'imported' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=imported&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importadas</a>
+		          <a class="tab-link {% if library_view == 'source' and library_key == 'created' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=created&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Creadas</a>
+		          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=drawn&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Dibujadas</a>
+		          <details style="margin:0;">
+		            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
+		            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
+		              <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por fase</a>
+		              <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por tipo</a>
+		              <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por jugadores</a>
+		              <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por duración</a>
+		              <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por fecha</a>
+		              <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por calidad</a>
+		            </div>
+		          </details>
+		        </div>
         <details style="margin:0 0 0.6rem;" {% if library_filters_active %}open{% endif %}>
           <summary class="button secondary" style="display:inline-flex; width:max-content;">
             Filtros
