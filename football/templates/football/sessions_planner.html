@@ -1647,15 +1647,16 @@
 					              </div>
 					            </div>
 						            <aside class="create-side">
-					              <div class="create-side-head">Módulos</div>
-					              <div class="create-modules" aria-label="Módulos">
-	                        <a class="create-mod-btn" href="?tab=create&create_page=task&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tarea <small>Crear · interactiva · importar · recomendador</small></a>
-	                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesión <small>Crear · importar PDF · tareas por bloque</small></a>
-	                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclo <small>Crear · planificar semana</small></a>
-	                        <a class="create-mod-btn" href="?tab=create&create_page=tactics&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Táctica <small>Pizarra · playbook · ABP</small></a>
-					              </div>
-					            </aside>
-					          </div>
+				              <div class="create-side-head">Módulos</div>
+				              <div class="create-modules" aria-label="Módulos">
+		                        <a class="create-mod-btn" href="?tab=create&create_page=task&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tarea <small>Crear · interactiva · importar · recomendador</small></a>
+		                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesión <small>Crear · importar PDF · tareas por bloque</small></a>
+		                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclo <small>Crear · planificar semana</small></a>
+		                        <a class="create-mod-btn" href="?tab=create&create_page=tactics&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Táctica <small>Pizarra · playbook · ABP</small></a>
+		                        <a class="create-mod-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca <small>Tareas · sesiones · microciclos</small></a>
+				              </div>
+				            </aside>
+				          </div>
 	                  {# Demo eliminado (ruido). Si lo reactivamos, lo hacemos como acción dentro de "Tarea". #}
                   {% else %}
                   <p class="meta" style="margin-top:0;"><a class="button" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Volver a presentación</a></p>

@@ -17917,7 +17917,7 @@
               libraryCollapsed = !!collapsed;
               document.body.classList.toggle('library-collapsed', libraryCollapsed);
               try { libraryToggleBtn?.setAttribute('aria-pressed', libraryCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
-              try { libraryToggleBtn?.setAttribute('title', libraryCollapsed ? 'Expandir biblioteca' : 'Colapsar biblioteca'); } catch (e) { /* ignore */ }
+              try { libraryToggleBtn?.setAttribute('title', libraryCollapsed ? 'Expandir recursos' : 'Colapsar recursos'); } catch (e) { /* ignore */ }
               if (libraryCollapsed) {
                 try { if (libraryFilterInput) libraryFilterInput.value = ''; } catch (e) { /* ignore */ }
               }
