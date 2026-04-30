@@ -3346,10 +3346,16 @@
           {% endif %}
         </div>
         {% endif %}
-        {% else %}
-        <p class="empty">No hay tareas para el filtro actual en biblioteca.</p>
-        {% endif %}
-      </section>
+	        {% else %}
+	        <p class="empty">No hay tareas para el filtro actual en biblioteca.</p>
+          <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; margin-top:0.8rem;">
+            <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver todas</a>
+            {% if library_deleted_tasks %}
+            <span class="meta">También hay tareas en <strong>Papelera biblioteca ({{ library_deleted_tasks|length }})</strong>.</span>
+            {% endif %}
+          </div>
+	        {% endif %}
+	      </section>
 
       <section class="panel">
         <details>
