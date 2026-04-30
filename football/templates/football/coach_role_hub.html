@@ -1392,16 +1392,19 @@
         {% if coach_match_view and coach_match_view.player_cards %}
         <div class="coach-match-table" style="margin-top:1rem;">
           <h3>Jugadores del partido</h3>
-          <div class="coach-player-card-grid">
-            {% for player in coach_match_view.player_cards %}
-            <article class="coach-player-card">
-              <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
-              <span class="meta">Acciones {{ player.actions }} · Éxitos {{ player.successes }}</span>
-              <span class="meta">Tasa de éxito {{ player.success_rate|floatformat:-1 }}%</span>
-            </article>
-            {% endfor %}
-          </div>
-        </div>
+	          <div class="coach-player-card-grid">
+	            {% for player in coach_match_view.player_cards %}
+	            <article class="coach-player-card">
+	              <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+	              <div class="broadcast-kpis" aria-label="KPIs del partido">
+	                <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.actions|default:0 }}</div></div>
+	                <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.successes|default:0 }}</div></div>
+	                <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</div></div>
+	              </div>
+	            </article>
+	            {% endfor %}
+	          </div>
+	        </div>
         {% endif %}
       </section>
       {% endif %}
@@ -1576,16 +1579,19 @@
 	          <section class="summary-card">
 	            <h3>Jugadores del partido</h3>
 	            <p class="summary-meta">Acciones y tasa de éxito por jugador (solo sobre acciones medidas).</p>
-	            <div class="coach-player-card-grid">
-	              {% for player in coach_match_view.player_cards %}
-	              <article class="coach-player-card">
-	                <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
-	                <span class="meta">Acciones {{ player.actions }} · Éxitos {{ player.successes }}</span>
-	                <span class="meta">Tasa de éxito {{ player.success_rate|floatformat:-1 }}%</span>
-	              </article>
-	              {% endfor %}
-	            </div>
-	          </section>
+		            <div class="coach-player-card-grid">
+		              {% for player in coach_match_view.player_cards %}
+		              <article class="coach-player-card">
+		                <strong>{% if player.number %}#{{ player.number }} {% endif %}{{ player.name }}</strong>
+		                <div class="broadcast-kpis" aria-label="KPIs del partido">
+		                  <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.actions|default:0 }}</div></div>
+		                  <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.successes|default:0 }}</div></div>
+		                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</div></div>
+		                </div>
+		              </article>
+		              {% endfor %}
+		            </div>
+		          </section>
 	          {% endif %}
 	          {% endif %}
 

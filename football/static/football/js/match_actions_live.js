@@ -904,6 +904,26 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     });
   }
   fieldPopup.addEventListener('click', (event) => event.stopPropagation());
+  const resultSelect = popupForm?.querySelector?.('select[name="result"]') || null;
+  const teamOnlyInput = popupForm?.querySelector?.('input[name="team_only"]') || null;
+  const setResultValue = (value) => {
+    const v = String(value || '').trim();
+    if (!resultSelect || !v) return false;
+    try {
+      const exists = Array.from(resultSelect.options || []).some((opt) => String(opt.value || '') === v);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        resultSelect.appendChild(opt);
+      }
+    } catch (e) {}
+    resultSelect.value = v;
+    try {
+      resultSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) {}
+    return true;
+  };
   quickButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
@@ -911,10 +931,46 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       actionInput.value = btn.dataset.action;
       pushRecentAction(btn.dataset.action);
       try {
+        if (teamOnlyInput) {
+          teamOnlyInput.value = btn.dataset.teamOnly === '1' ? '1' : '0';
+        }
+      } catch (e) {}
+      try {
+        if (btn.dataset.result) setResultValue(btn.dataset.result);
+      } catch (e) {}
+      try {
         actionInput.dispatchEvent(new Event('input', { bubbles: true }));
       } catch (e) {}
     });
   });
+  const quickHotkeys = (() => {
+    const map = new Map();
+    try {
+      quickButtons.forEach((btn) => {
+        const key = String(btn.dataset.hotkey || '').trim();
+        if (!key) return;
+        if (!'123456789'.includes(key)) return;
+        if (map.has(key)) return;
+        map.set(key, btn);
+      });
+    } catch (e) {}
+    return map;
+  })();
+  if (quickHotkeys.size) {
+    window.addEventListener('keydown', (event) => {
+      if (!event || event.defaultPrevented) return;
+      const key = String(event.key || '').trim();
+      if (!quickHotkeys.has(key)) return;
+      // Evita interferir cuando estás escribiendo en inputs.
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+      event.preventDefault();
+      try {
+        const btn = quickHotkeys.get(key);
+        btn?.click();
+      } catch (e) {}
+    });
+  }
 
   const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false }) => {
     if (!historyList) return false;

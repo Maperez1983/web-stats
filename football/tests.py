@@ -360,6 +360,124 @@ class MatchActionsVideoAutoLinkTests(TestCase):
         self.assertEqual(VideoClip.objects.filter(team=self.team, video=self.video).count(), 1)
 
 
+class MatchdayQuickButtonsTests(TestCase):
+    def setUp(self):
+        self.competition = Competition.objects.create(name='CompQB', slug='comp-qb')
+        self.season = Season.objects.create(competition=self.competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='GrupoQB', slug='grupo-qb')
+        self.team = Team.objects.create(
+            name='Equipo QB',
+            slug='equipo-qb',
+            short_name='QB',
+            group=self.group,
+            is_primary=True,
+        )
+        self.rival = Team.objects.create(
+            name='Rival QB',
+            slug='rival-qb',
+            short_name='RQB',
+            group=self.group,
+            is_primary=False,
+        )
+        self.user = get_user_model().objects.create_user(
+            username='coach-qb',
+            email='coach-qb@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.member = get_user_model().objects.create_user(
+            username='staff-qb',
+            email='staff-qb@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.member, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='CLUB QB',
+            slug='club-qb',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'match_actions': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.member, role=WorkspaceMembership.ROLE_MEMBER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.player = Player.objects.create(team=self.team, name='Jugador QB', number=7, is_active=True)
+        self.match = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=timezone.localdate(),
+            home_team=self.team,
+            away_team=self.rival,
+        )
+        self.conv = ConvocationRecord.objects.create(team=self.team, match=self.match, opponent_name='Rival QB', is_current=True)
+        self.conv.players.add(self.player)
+
+        from football.models import WorkspacePreference
+        WorkspacePreference.objects.create(
+            workspace=self.workspace,
+            key='matchday_quick_buttons:v1',
+            value={
+                'v': 1,
+                'by_role': {
+                    'coach': [
+                        {'label': 'DA', 'action': 'Duelos aéreos', 'result': 'Ganado', 'hotkey': '1'},
+                        {'label': 'DIS', 'action': 'Disparo', 'result': 'A puerta', 'hotkey': '2'},
+                    ]
+                },
+            },
+        )
+
+    def _activate_workspace(self):
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+    def test_match_action_page_renders_custom_quick_buttons(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('match-action-page'), secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-action="Duelos aéreos"')
+        self.assertContains(response, 'data-result="Ganado"')
+        self.assertContains(response, 'data-hotkey="1"')
+
+    def test_quick_buttons_api_denies_non_admin_members(self):
+        self.client.force_login(self.member)
+        self._activate_workspace()
+        response = self.client.get(reverse('matchday-quick-buttons-api'), secure=True)
+        self.assertEqual(response.status_code, 403)
+
+    def test_quick_buttons_api_roundtrip(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        url = reverse('matchday-quick-buttons-api')
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertEqual(payload.get('role'), 'coach')
+        self.assertGreaterEqual(len(payload.get('items') or []), 1)
+
+        post_payload = {
+            'items': [
+                {'label': 'Falta', 'action': 'Falta', 'result': 'Ganado', 'hotkey': '3'},
+            ],
+        }
+        response = self.client.post(url, data=json.dumps(post_payload), content_type='application/json', secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        labels = [item.get('label') for item in (payload.get('items') or [])]
+        self.assertIn('Falta', labels)
+
+
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
         self.primary_global_team = Team.objects.create(

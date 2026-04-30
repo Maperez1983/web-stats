@@ -15507,6 +15507,132 @@ def _build_default_lineup_payload_with_limit(convocation_players, *, starters_li
     )
 
 
+def _matchday_quick_buttons_role_key(user) -> str:
+    role = _get_user_role(user)
+    if role == AppUserRole.ROLE_ANALYST:
+        return 'analyst'
+    if role == AppUserRole.ROLE_FITNESS:
+        return 'fitness'
+    if role == AppUserRole.ROLE_GOALKEEPER:
+        return 'goalkeeper'
+    return 'coach'
+
+
+def _normalize_matchday_quick_buttons(raw_items, *, max_items=30):
+    items = raw_items if isinstance(raw_items, list) else []
+    out = []
+    for it in items[: max(0, int(max_items or 30))]:
+        if isinstance(it, str):
+            action = _sanitize_task_text(it.strip(), multiline=False, max_len=120)
+            if not action:
+                continue
+            out.append({'label': action, 'action': action, 'result': '', 'hotkey': '', 'team_only': False})
+            continue
+        if not isinstance(it, dict):
+            continue
+        label = _sanitize_task_text(str(it.get('label') or '').strip(), multiline=False, max_len=42)
+        action = _sanitize_task_text(
+            str(it.get('action') or it.get('event_type') or '').strip(), multiline=False, max_len=120
+        )
+        if not action:
+            continue
+        result = _sanitize_task_text(str(it.get('result') or '').strip(), multiline=False, max_len=120)
+        hotkey = str(it.get('hotkey') or '').strip()[:1]
+        if hotkey and hotkey not in '1234567890':
+            hotkey = ''
+        team_only = bool(it.get('team_only')) or bool(it.get('teamOnly'))
+        out.append(
+            {
+                'label': label or action,
+                'action': action,
+                'result': result,
+                'hotkey': hotkey,
+                'team_only': team_only,
+            }
+        )
+    return out
+
+
+def _load_matchday_quick_buttons_for_workspace(*, user, workspace):
+    """
+    Plantillas de acción rápida configurables por workspace/rol.
+
+    Formato:
+      { v:1, items:[{label,action,result,team_only,hotkey}], by_role:{coach:[...], analyst:[...]} }
+    """
+    base = _normalize_matchday_quick_buttons(load_match_quick_actions())
+    if not workspace:
+        return base
+    pref = WorkspacePreference.objects.filter(workspace=workspace, key='matchday_quick_buttons:v1').first()
+    value = pref.value if pref and isinstance(pref.value, dict) else {}
+    role_key = _matchday_quick_buttons_role_key(user)
+    raw_items = []
+    try:
+        by_role = value.get('by_role') if isinstance(value.get('by_role'), dict) else {}
+        raw_items = by_role.get(role_key) or value.get('items') or []
+    except Exception:
+        raw_items = []
+    items = _normalize_matchday_quick_buttons(raw_items)
+    return items or base
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def matchday_quick_buttons_api(request):
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    if not _can_manage_workspace(request.user, workspace) and not _can_access_platform(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    role_key = _matchday_quick_buttons_role_key(request.user)
+    pref = WorkspacePreference.objects.filter(workspace=workspace, key='matchday_quick_buttons:v1').first()
+    existing = pref.value if pref and isinstance(pref.value, dict) else {}
+
+    if request.method == 'GET':
+        items = []
+        try:
+            by_role = existing.get('by_role') if isinstance(existing.get('by_role'), dict) else {}
+            items = by_role.get(role_key) or existing.get('items') or []
+        except Exception:
+            items = []
+        return JsonResponse(
+            {
+                'ok': True,
+                'role': role_key,
+                'items': _normalize_matchday_quick_buttons(items),
+            }
+        )
+
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    raw_items = data.get('items')
+    items = _normalize_matchday_quick_buttons(raw_items, max_items=30)
+
+    # Merge: mantiene otras roles si existen.
+    value = existing if isinstance(existing, dict) else {}
+    by_role = value.get('by_role') if isinstance(value.get('by_role'), dict) else {}
+    by_role = {**by_role, role_key: items}
+    value = {**value, 'v': 1, 'by_role': by_role}
+
+    # Guardrail tamaño.
+    try:
+        raw_size = len(json.dumps(value, ensure_ascii=False).encode('utf-8'))
+    except Exception:
+        raw_size = 0
+    if raw_size > 150_000:
+        return JsonResponse({'ok': False, 'error': 'Configuración demasiado grande.'}, status=400)
+
+    obj, _ = WorkspacePreference.objects.update_or_create(
+        workspace=workspace,
+        key='matchday_quick_buttons:v1',
+        defaults={'value': value},
+    )
+    return JsonResponse({'ok': True, 'role': role_key, 'updated_at': obj.updated_at})
+
+
 @login_required
 def match_action_page(request):
     if not _can_edit_match_actions(request.user):
@@ -15597,6 +15723,9 @@ def match_action_page(request):
             actions_pending_count = 0
             actions_final_count = 0
     official_next = load_preferred_next_match_payload(primary_team=primary_team)
+    active_ws = _get_active_workspace(request)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, active_ws)) if active_ws else False
+    matchday_quick_buttons = _load_matchday_quick_buttons_for_workspace(user=request.user, workspace=active_ws)
 
     def _payload_date_label(payload):
         raw_date = (payload or {}).get('date')
@@ -15745,7 +15874,8 @@ def match_action_page(request):
             'message': message,
             'team_name': primary_team.name,
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True) or '',
-            'quick_actions': load_match_quick_actions(),
+            'quick_actions': matchday_quick_buttons,
+            'matchday_quick_actions': matchday_quick_buttons,
             'action_catalog': load_match_actions(),
             'field_zone_defs': FIELD_ZONES,
             'result_options': load_match_results(),
@@ -15766,6 +15896,9 @@ def match_action_page(request):
             'match_regulation_minutes': _regulation_minutes_for_team(primary_team),
             'starters_limit': starters_limit,
             'default_stage': default_stage,
+            'can_manage_workspace': can_manage_workspace,
+            'active_workspace': active_ws,
+            'matchday_role_key': _matchday_quick_buttons_role_key(request.user),
         },
     )
 

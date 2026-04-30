@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 	    {% include 'football/pwa_head.html' %}
-	    <style>
+    <style>
 	      :root {
 	        --bg: var(--prod-bg, #08111d);
 	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
@@ -2385,6 +2385,19 @@
         border-color: rgba(244, 180, 0, 0.28);
       }
     </style>
+    {% if can_manage_workspace %}
+    <style>
+      .quick-config-modal { position:fixed; inset:0; z-index:2147483647; background:rgba(2,6,23,0.72); display:flex; align-items:center; justify-content:center; padding: 1rem; }
+      .quick-config-modal[hidden] { display:none !important; }
+      .quick-config-card { width:min(980px, 100%); background: rgba(7, 16, 30, 0.96); border:1px solid rgba(255,255,255,0.14); border-radius: 18px; padding: 0.9rem; box-shadow: 0 22px 60px rgba(0,0,0,0.45); }
+      .quick-config-card header { display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; }
+      .quick-config-row { display:grid; grid-template-columns: 1fr 1fr 0.8fr 0.6fr 0.45fr; gap:0.45rem; align-items:end; }
+      @media (max-width: 860px) { .quick-config-row { grid-template-columns: 1fr 1fr; } }
+      .quick-config-row label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      .quick-config-row input { width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800; }
+      .quick-config-row .mini { max-width: 84px; }
+    </style>
+    {% endif %}
   </head>
   <body class="prod-commercial">
     <div class="page">
@@ -2802,9 +2815,15 @@
                 {% csrf_token %}
                 <input type="hidden" name="event_id" value="" />
                 <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
+                <input type="hidden" name="team_only" value="0" />
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
                   <div class="popup-header-actions">
+                    {% if can_manage_workspace %}
+                    <button type="button" class="popup-edit-toggle" id="popup-quick-config-open">
+                      Atajos
+                    </button>
+                    {% endif %}
                     <button
                       type="button"
                       class="popup-edit-toggle"
@@ -2818,9 +2837,23 @@
                 </div>
                 <div class="popup-quick-actions">
                   {% for action in quick_actions %}
+                  {% if action.label %}
+                  <button
+                    type="button"
+                    class="pill-button quick-action"
+                    data-action="{{ action.action }}"
+                    {% if action.result %}data-result="{{ action.result }}"{% endif %}
+                    {% if action.hotkey %}data-hotkey="{{ action.hotkey }}"{% endif %}
+                    {% if action.team_only %}data-team-only="1"{% endif %}
+                    title="{% if action.hotkey %}Tecla {{ action.hotkey }}{% else %}Atajo{% endif %}"
+                  >
+                    {{ action.label }}
+                  </button>
+                  {% else %}
                   <button type="button" class="pill-button quick-action" data-action="{{ action }}">
                     {{ action }}
                   </button>
+                  {% endif %}
                   {% endfor %}
                 </div>
                 <input type="hidden" name="player" id="selected-player" />
@@ -2886,6 +2919,23 @@
                 </div>
               </form>
             </div>
+
+            {% if can_manage_workspace %}
+            <div class="quick-config-modal" id="quick-config-modal" hidden>
+              <div class="quick-config-card">
+                <header>
+                  <strong>Atajos (Matchday PRO)</strong>
+                  <button type="button" class="button ghost" id="quick-config-close">Cerrar</button>
+                </header>
+                <p class="meta">Configura botones rápidos por club (workspace). Se guardan para el staff.</p>
+                <div id="quick-config-rows" style="display:grid; gap:0.55rem; margin-top:0.65rem;"></div>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.75rem; justify-content:flex-end;">
+                  <button type="button" class="button ghost" id="quick-config-add">Añadir</button>
+                  <button type="button" class="button primary" id="quick-config-save">Guardar</button>
+                </div>
+              </div>
+            </div>
+            {% endif %}
           </div>
           </div>
           <section class="live-stats-hud is-collapsed" id="live-stats-hud" aria-live="polite">
@@ -3187,6 +3237,7 @@
     {{ substitution_history|json_script:"substitution-history-data" }}
     {{ initial_lineup_payload|json_script:"initial-lineup-server" }}
     {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
+    {{ matchday_quick_actions|default:"[]"|json_script:"matchday-quick-actions" }}
     <script src="{% static 'football/js/match_actions_chrome.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script src="{% static 'football/js/match_actions_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
@@ -3837,6 +3888,120 @@
 	      const resetRegisterUrl = urlWithMatchId('{% url "match-action-reset" %}');
       const eventsUrl = urlWithMatchId('{% url "match-actions-events-api" %}');
       const keepaliveUrl = '{% url "session-keepalive" %}';
+      const matchdayQuickButtonsApiUrl = '{% url "matchday-quick-buttons-api" %}';
+      const matchdayQuickActions = (() => {
+        try {
+          const raw = document.getElementById('matchday-quick-actions')?.textContent || '[]';
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          return [];
+        }
+      })();
+      const quickConfigModal = document.getElementById('quick-config-modal');
+      const quickConfigRows = document.getElementById('quick-config-rows');
+      const quickConfigOpen = document.getElementById('popup-quick-config-open');
+      const quickConfigClose = document.getElementById('quick-config-close');
+      const quickConfigAdd = document.getElementById('quick-config-add');
+      const quickConfigSave = document.getElementById('quick-config-save');
+      const quickConfigRole = '{{ matchday_role_key|default:"" }}';
+      const createQuickConfigRow = (value = {}) => {
+        const row = document.createElement('div');
+        row.className = 'quick-config-row';
+        const mkInput = (label, key, { placeholder = '', className = '' } = {}) => {
+          const wrap = document.createElement('label');
+          wrap.textContent = label;
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.placeholder = placeholder;
+          input.value = String(value?.[key] || '').trim();
+          if (className) input.className = className;
+          wrap.appendChild(input);
+          row.appendChild(wrap);
+          return input;
+        };
+        const labelInput = mkInput('Label', 'label', { placeholder: 'Ej: Disparo' });
+        const actionInputEl = mkInput('Acción', 'action', { placeholder: 'Ej: Disparo' });
+        const resultInput = mkInput('Resultado', 'result', { placeholder: 'Ej: A puerta' });
+        const hotkeyInput = mkInput('Tecla', 'hotkey', { placeholder: '1-9', className: 'mini' });
+        const removeWrap = document.createElement('label');
+        removeWrap.textContent = 'Quitar';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'button ghost';
+        removeBtn.textContent = '✕';
+        removeBtn.addEventListener('click', () => row.remove());
+        removeWrap.appendChild(removeBtn);
+        row.appendChild(removeWrap);
+        row._fields = { labelInput, actionInputEl, resultInput, hotkeyInput };
+        return row;
+      };
+      const openQuickConfig = () => {
+        if (!quickConfigModal || !quickConfigRows) return;
+        quickConfigRows.innerHTML = '';
+        const seed = matchdayQuickActions.length ? matchdayQuickActions : [];
+        seed.slice(0, 18).forEach((item) => quickConfigRows.appendChild(createQuickConfigRow(item)));
+        if (!seed.length) quickConfigRows.appendChild(createQuickConfigRow({}));
+        quickConfigModal.hidden = false;
+        try { quickConfigRows.querySelector('input')?.focus(); } catch (e) {}
+      };
+      const closeQuickConfig = () => {
+        if (!quickConfigModal) return;
+        quickConfigModal.hidden = true;
+      };
+      const collectQuickConfigItems = () => {
+        if (!quickConfigRows) return [];
+        const out = [];
+        Array.from(quickConfigRows.children || []).forEach((row) => {
+          const fields = row?._fields || {};
+          const label = String(fields.labelInput?.value || '').trim();
+          const action = String(fields.actionInputEl?.value || '').trim();
+          const result = String(fields.resultInput?.value || '').trim();
+          let hotkey = String(fields.hotkeyInput?.value || '').trim();
+          hotkey = hotkey ? hotkey.slice(0, 1) : '';
+          if (hotkey && !'123456789'.includes(hotkey)) hotkey = '';
+          if (!action) return;
+          out.push({ label: label || action, action, result, hotkey });
+        });
+        return out.slice(0, 30);
+      };
+      const saveQuickConfig = async () => {
+        const items = collectQuickConfigItems();
+        if (!items.length) {
+          showPageStatus('Añade al menos un atajo.', 'warning', 2600);
+          return;
+        }
+        try {
+          const resp = await fetch(matchdayQuickButtonsApiUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ role: quickConfigRole, items }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.ok) {
+            const msg = data?.error || 'No se pudo guardar.';
+            showPageStatus(msg, 'error', 3600);
+            return;
+          }
+          showPageStatus('Atajos guardados. Recarga para verlos.', 'success', 3200);
+          closeQuickConfig();
+        } catch (e) {
+          showPageStatus('Error de red guardando atajos.', 'error', 3600);
+        }
+      };
+      if (quickConfigOpen && quickConfigModal) {
+        quickConfigOpen.addEventListener('click', openQuickConfig);
+        quickConfigClose?.addEventListener('click', closeQuickConfig);
+        quickConfigModal.addEventListener('click', (event) => {
+          if (event.target === quickConfigModal) closeQuickConfig();
+        });
+        quickConfigAdd?.addEventListener('click', () => quickConfigRows?.appendChild(createQuickConfigRow({})));
+        quickConfigSave?.addEventListener('click', () => { saveQuickConfig(); });
+        window.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !quickConfigModal.hidden) closeQuickConfig();
+        });
+      }
 	      const lineupSaveUrl = urlWithMatchId('{% url "match-lineup-save" %}');
 	      const lineupGetUrl = urlWithMatchId('{% url "match-lineup-get" %}');
 	      const lineupStorageKey = initialMatchDbIdEl?.textContent

@@ -475,13 +475,17 @@
                       {% else %}
                         <span class="player-photo fallback">{{ player.name|initials }}</span>
                       {% endif %}
-                      <div style="min-width:0;">
-                        <strong style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">#{{ player.number }} {{ player.name }}</strong>
-                        <span style="margin-top:0.1rem;">Acciones: {{ player.actions }} · Éxitos: {{ player.successes }} · Éxito: {{ player.success_rate }}%</span>
-                      </div>
-                    </div>
-                  </a>
-                </article>
+	                      <div style="min-width:0;">
+	                        <strong style="margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">#{{ player.number }} {{ player.name }}</strong>
+	                        <div class="broadcast-kpis" aria-label="KPIs del partido">
+	                          <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.actions|default:0 }}</div></div>
+	                          <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.successes|default:0 }}</div></div>
+	                          <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</div></div>
+	                        </div>
+	                      </div>
+	                    </div>
+	                  </a>
+	                </article>
               {% empty %}
                 <p>Sin jugadores con acciones en este partido.</p>
               {% endfor %}

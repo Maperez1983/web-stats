@@ -136,6 +136,7 @@ urlpatterns = [
     path('coach/partidos/<int:match_id>/editar/', views.match_editor_page, name='match-editor'),
     path('incidencias/', views.incident_page, name='incident-page'),
     path('registro-acciones/', views.match_action_page, name='match-action-page'),
+    path('registro-acciones/quick-buttons/', views.matchday_quick_buttons_api, name='matchday-quick-buttons-api'),
     path('registro-acciones/guardar/', views.register_match_action, name='match-action-record'),
     path('registro-acciones/lineup/save/', views.save_match_lineup, name='match-lineup-save'),
     path('registro-acciones/lineup/get/', views.get_match_lineup, name='match-lineup-get'),
