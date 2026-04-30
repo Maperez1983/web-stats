@@ -28,11 +28,12 @@ async function login(page, baseUrl, username, password) {
 }
 
 async function openLandingAndEnter(page) {
-  // Landing modal appears with ?landing=1
-  await page.waitForSelector('#task-landing', { state: 'visible', timeout: 35_000 });
-  await page.click('.task-landing-action[data-landing-go="board"]');
-  await page.click('.task-landing-close[data-landing-go="close"]');
-  await page.waitForSelector('#task-landing', { state: 'hidden', timeout: 35_000 });
+  // Landing is disabled in production; keep this helper as a no-op for backwards compat.
+  const landing = page.locator('#task-landing');
+  if ((await landing.count()) === 0) return;
+  if (!(await landing.isVisible().catch(() => false))) return;
+  await page.click('.task-landing-close[data-landing-go="close"]').catch(() => null);
+  await page.waitForSelector('#task-landing', { state: 'hidden', timeout: 35_000 }).catch(() => null);
 }
 
 async function clickPopover(page, trigger, popover, label) {
@@ -118,8 +119,8 @@ async function main() {
   try {
     await login(page, baseUrl, username, password);
 
-    await smokeEditor(page, baseUrl, '/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1&landing=1&device=tablet', 'Tareas');
-    await smokeEditor(page, baseUrl, '/coach/tactica/?landing=1&device=tablet', 'Táctica');
+    await smokeEditor(page, baseUrl, '/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1&device=tablet', 'Tareas');
+    await smokeEditor(page, baseUrl, '/coach/tactica/?device=tablet', 'Táctica');
 
     if (errors.length) {
       throw new Error(`JS errors:\n- ${errors.slice(0, 20).join('\n- ')}`);
