@@ -2051,6 +2051,63 @@
 			                  <button type="submit" class="primary">Guardar asistencia</button>
 			                </div>
 			              </form>
+			              {% if session_absence_rows %}
+			              <div class="alert" style="margin-top:0.75rem;">
+			                <strong>Faltas (Ausente)</strong>
+			                <span style="opacity:0.9;">Para ausencias justificadas usa el estado <em>Justificado</em>. Aquí solo contamos <em>Ausente</em>.</span>
+			              </div>
+			              <div class="editor-box" style="margin-top:0.65rem; padding:0.85rem;">
+			                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+			                  <div class="meta" style="margin:0;">
+			                    Ausencias registradas: <strong>{{ session_absence_rows|length }}</strong>
+			                  </div>
+			                  {% if can_manage_fines %}
+			                  <form method="post" style="margin:0; display:flex; gap:0.5rem; flex-wrap:wrap; align-items:flex-end;">
+			                    {% csrf_token %}
+			                    <input type="hidden" name="planner_action" value="create_session_absence_fines" />
+			                    <input type="hidden" name="planner_tab" value="sessions" />
+			                    <input type="hidden" name="team" value="{{ primary_team_id }}" />
+			                    {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+			                    <input type="hidden" name="selected_session_id" value="{{ selected_session.id }}" />
+			                    <input type="hidden" name="fine_session_id" value="{{ selected_session.id }}" />
+			                    <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
+			                      Importe (€/falta)
+			                      <input type="number" name="fine_amount" min="5" step="5" value="5" style="min-width:120px;" />
+			                    </label>
+			                    <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
+			                      Nota (opcional)
+			                      <input type="text" name="fine_note" maxlength="120" placeholder="Ej. Sin avisar" style="min-width:220px;" />
+			                    </label>
+			                    <button type="submit" class="danger" onclick="return confirm('¿Registrar multas por ausencia para esta sesión?');">Registrar multas</button>
+			                    {% for row in session_absence_rows %}
+			                      {% if not row.has_fine %}
+			                        <input type="hidden" name="fine_player_id" value="{{ row.id }}" />
+			                      {% endif %}
+			                    {% endfor %}
+			                  </form>
+			                  {% else %}
+			                  <div class="meta" style="margin:0;">Solo un admin puede registrar multas.</div>
+			                  {% endif %}
+			                </div>
+			                <div class="attendance-list" style="margin-top:0.65rem;">
+			                  {% for row in session_absence_rows %}
+			                    <div class="att-row" style="grid-template-columns: 1fr auto; align-items:center;">
+			                      <div class="att-player">
+			                        <strong>{% if row.number %}#{{ row.number }} {% endif %}{{ row.name|default:"Jugador" }}</strong>
+			                        <small>{% if row.position %}{{ row.position }}{% else %}—{% endif %}</small>
+			                      </div>
+			                      <div>
+			                        {% if row.has_fine %}
+			                          <span class="badge">Multa ya creada</span>
+			                        {% else %}
+			                          <span class="badge">Pendiente</span>
+			                        {% endif %}
+			                      </div>
+			                    </div>
+			                  {% endfor %}
+			                </div>
+			              </div>
+			              {% endif %}
 			              {% else %}
 			              <p class="empty">Selecciona una sesión para marcar asistencia.</p>
 			              {% endif %}
@@ -2169,7 +2226,7 @@
 		                </label>
 			                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
 			                  <button type="submit" class="secondary">Asignar</button>
-			                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}">Crear tarea</a>
+			                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&session_id={{ selected_session.id }}">Crear tarea</a>
 			                </div>
 			              </form>
 

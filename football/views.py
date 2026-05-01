@@ -29589,6 +29589,73 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     updated_count = len(to_update)
                 feedback = f'Asistencia guardada: +{created_count} · {updated_count} actualizadas · {deleted_count} quitadas.'
 
+            elif planner_action == 'create_session_absence_fines':
+                if not _is_admin_user(request.user):
+                    raise ValueError('Solo administradores pueden registrar multas.')
+                session_id = _parse_int(request.POST.get('fine_session_id') or request.POST.get('selected_session_id'))
+                amount = _parse_int(request.POST.get('fine_amount')) or 0
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                if amount <= 0 or amount % 5 != 0:
+                    raise ValueError('La cantidad debe ser un múltiplo de 5.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+                marker = f'ENTRENO:{int(session_obj.id)}'
+                fine_note_extra = str(request.POST.get('fine_note') or '').strip()[:120]
+                base_note = f'{marker} · {session_obj.session_date:%d/%m/%Y} · {str(getattr(session_obj, "focus", "") or "Sesión").strip()}'
+                if fine_note_extra:
+                    base_note = f'{base_note} · {fine_note_extra}'
+
+                absent_ids = set(
+                    int(pid)
+                    for pid in request.POST.getlist('fine_player_id')
+                    if _parse_int(pid)
+                )
+                if not absent_ids:
+                    absent_ids = set(
+                        int(pid)
+                        for pid in TrainingSessionAttendance.objects.filter(
+                            session=session_obj,
+                            status=TrainingSessionAttendance.STATUS_ABSENT,
+                        ).values_list('player_id', flat=True)
+                        if _parse_int(pid)
+                    )
+                if not absent_ids:
+                    raise ValueError('No hay ausencias para sancionar.')
+
+                existing_fined = set(
+                    int(pid)
+                    for pid in PlayerFine.objects.filter(
+                        player__team=primary_team,
+                        reason=PlayerFine.REASON_ABSENCE,
+                        player_id__in=list(absent_ids),
+                        note__icontains=marker,
+                    ).values_list('player_id', flat=True)
+                    if _parse_int(pid)
+                )
+                created = 0
+                for pid in sorted(absent_ids):
+                    if pid in existing_fined:
+                        continue
+                    player_obj = Player.objects.filter(id=pid, team=primary_team).first()
+                    if not player_obj:
+                        continue
+                    PlayerFine.objects.create(
+                        player=player_obj,
+                        reason=PlayerFine.REASON_ABSENCE,
+                        amount=int(amount),
+                        note=base_note,
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                    )
+                    created += 1
+                feedback = f'Multas registradas: {created}.'
+
             elif planner_action == 'delete_session_plan':
                 session_id = _parse_int(request.POST.get('delete_session_id'))
                 if not session_id:
@@ -31001,6 +31068,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     session_attendance_rows = []
     session_attendance_counts = {}
+    session_absence_rows = []
+    can_manage_fines = bool(_is_admin_user(request.user)) if request and getattr(request, 'user', None) else False
     attendance_status_choices = getattr(TrainingSessionAttendance, 'STATUS_CHOICES', [])
     if planner_tables_ready and active_tab == 'sessions' and selected_session:
         roster_players = list(
@@ -31032,6 +31101,35 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'notes': notes,
                 }
             )
+        try:
+            absent_ids = [
+                int(row['id'])
+                for row in session_attendance_rows
+                if str(row.get('status') or '').strip() == TrainingSessionAttendance.STATUS_ABSENT
+            ]
+            marker = f'ENTRENO:{int(selected_session.id)}'
+            already_fined = set()
+            if absent_ids:
+                already_fined = {
+                    int(pid)
+                    for pid in PlayerFine.objects.filter(
+                        player__team=primary_team,
+                        reason=PlayerFine.REASON_ABSENCE,
+                        player_id__in=absent_ids,
+                        note__icontains=marker,
+                    ).values_list('player_id', flat=True)
+                    if _parse_int(pid)
+                }
+            session_absence_rows = [
+                {
+                    **row,
+                    'has_fine': int(row.get('id') or 0) in already_fined,
+                }
+                for row in session_attendance_rows
+                if str(row.get('status') or '').strip() == TrainingSessionAttendance.STATUS_ABSENT
+            ]
+        except Exception:
+            session_absence_rows = []
 
     # Pestaña Microciclos: cargamos el plan semanal completo.
     planning_session_ids = [int(item.id) for item in planning_sessions if getattr(item, 'id', None)]
@@ -31320,6 +31418,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 	            'attendance_status_choices': attendance_status_choices,
 	            'session_attendance_rows': session_attendance_rows,
 	            'session_attendance_counts': session_attendance_counts,
+	            'session_absence_rows': session_absence_rows,
+	            'can_manage_fines': can_manage_fines,
 	            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
 	            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
 	            'session_status_choices': TrainingSession.STATUS_CHOICES,
@@ -32700,6 +32800,18 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         )
         initial = _task_builder_initial_values(None)
         error = error or 'No se pudieron preparar los datos del editor. Recarga la página.'
+
+    # Si venimos desde una sesión (Sesiones → Crear tarea) preseleccionamos la sesión destino.
+    try:
+        if not str(initial.get('target_session_id') or '').strip():
+            forced_session_id = _parse_int(request.GET.get('session_id'))
+            if forced_session_id:
+                exists = TrainingSession.objects.filter(id=forced_session_id, microcycle__team=primary_team).exists()
+                if exists:
+                    initial = dict(initial)
+                    initial['target_session_id'] = str(int(forced_session_id))
+    except Exception:
+        pass
     can_restore_original = False
     try:
         if task and isinstance(getattr(task, 'tactical_layout', None), dict):
@@ -32734,6 +32846,25 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         available_players = []
         logger.exception('sessions_task_builder: no se pudieron cargar jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
+
+    confirmed_player_ids = []
+    confirmed_only_default = False
+    try:
+        target_session_id = _parse_int(initial.get('target_session_id'))
+        if target_session_id:
+            confirmed_player_ids = list(
+                TrainingSessionAttendance.objects
+                .filter(
+                    session_id=target_session_id,
+                    status__in=[TrainingSessionAttendance.STATUS_PRESENT, TrainingSessionAttendance.STATUS_LATE],
+                )
+                .values_list('player_id', flat=True)
+            )
+            confirmed_player_ids = [int(pid) for pid in confirmed_player_ids if _parse_int(pid)]
+            confirmed_only_default = bool(confirmed_player_ids)
+    except Exception:
+        confirmed_player_ids = []
+        confirmed_only_default = False
     # Recursos gráficos extraídos de PDFs importados (y/o subidos por el usuario en su estudio).
     # En sesiones (coach/club) mostramos:
     # - assets del equipo (team=primary_team)
@@ -32838,6 +32969,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
             'available_players': available_players,
+            'confirmed_player_ids': confirmed_player_ids,
+            'confirmed_only_default': confirmed_only_default,
             'pdf_assets': pdf_assets,
             'pdf_assets_json': pdf_assets_json,
             'ppt_icons': ppt_icons,

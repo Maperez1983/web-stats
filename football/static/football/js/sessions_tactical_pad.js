@@ -731,6 +731,7 @@
 				    const toolStrip = document.getElementById('task-basic-tools');
 				    const playerBank = document.getElementById('task-player-bank');
 			    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
+			    const onlyConfirmedPlayersToggle = document.getElementById('task-only-confirmed-players');
 			    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
 			    const selectionToolbar = document.getElementById('task-selection-toolbar');
     const selectionSummary = document.getElementById('task-selection-summary');
@@ -1677,6 +1678,15 @@
 	      players = [];
 	    }
 	    if (!Array.isArray(players)) players = [];
+
+	    let confirmedPlayerIds = [];
+	    try {
+	      confirmedPlayerIds = JSON.parse(document.getElementById('tpad-confirmed-player-ids')?.textContent || '[]');
+	    } catch (error) {
+	      confirmedPlayerIds = [];
+	    }
+	    if (!Array.isArray(confirmedPlayerIds)) confirmedPlayerIds = [];
+	    const confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
 
 	    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
 	    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
@@ -13999,6 +14009,25 @@
 		        schedulePlayerBankUpdate();
 		      });
 		    }
+
+		    const CONFIRMED_ONLY_KEY = 'webstats:tpad:only_confirmed_players';
+		    const readConfirmedOnlyPref = () => {
+		      try {
+		        const raw = safeText(window.localStorage?.getItem(CONFIRMED_ONLY_KEY));
+		        if (raw === '0') return false;
+		        if (raw === '1') return true;
+		      } catch (error) { /* ignore */ }
+		      return confirmedPlayerIdSet.size > 0;
+		    };
+		    let onlyConfirmedPlayersEnabled = readConfirmedOnlyPref();
+		    if (onlyConfirmedPlayersToggle) {
+		      onlyConfirmedPlayersToggle.checked = onlyConfirmedPlayersEnabled;
+		      onlyConfirmedPlayersToggle.addEventListener('change', () => {
+		        onlyConfirmedPlayersEnabled = !!onlyConfirmedPlayersToggle.checked;
+		        try { window.localStorage?.setItem(CONFIRMED_ONLY_KEY, onlyConfirmedPlayersEnabled ? '1' : '0'); } catch (error) { /* ignore */ }
+		        renderPlayerBank();
+		      });
+		    }
 		    let playerBankUpdateTimer = null;
 		    const updatePlayerBankVisibility = () => {
 		      if (!playerBank) return;
@@ -14016,7 +14045,10 @@
 		    const renderPlayerBank = () => {
 		      if (!playerBank) return;
 		      playerBank.innerHTML = '';
-		      const roster = (Array.isArray(players) ? players.slice() : []);
+		      let roster = (Array.isArray(players) ? players.slice() : []);
+		      if (onlyConfirmedPlayersEnabled && confirmedPlayerIdSet.size > 0) {
+		        roster = roster.filter((p) => confirmedPlayerIdSet.has(String(p?.id || '')));
+		      }
 		      roster.sort((a, b) => {
 		        const na = Number.parseInt(String(a?.number || ''), 10);
 		        const nb = Number.parseInt(String(b?.number || ''), 10);

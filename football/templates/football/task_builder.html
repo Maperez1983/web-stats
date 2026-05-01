@@ -4608,6 +4608,12 @@
 	                      <input type="checkbox" id="task-hide-used-players" checked />
 	                      Ocultar usados
 	                    </label>
+	                    {% if confirmed_player_ids %}
+	                    <label class="chip-toggle" title="Muestra solo jugadores confirmados (Presente/Llega tarde) según la asistencia de la sesión seleccionada.">
+	                      <input type="checkbox" id="task-only-confirmed-players" {% if confirmed_only_default %}checked{% endif %} />
+	                      Solo confirmados
+	                    </label>
+	                    {% endif %}
 	                  </div>
 	                  <div class="player-bank-nav" aria-label="Navegación de plantilla">
 	                    <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
@@ -5382,6 +5388,7 @@
     </main>
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
+		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
 		    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
