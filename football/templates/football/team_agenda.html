@@ -1,0 +1,198 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Agenda semanal · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% -10%, rgba(70, 211, 255, 0.16), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.14), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell {
+        max-width: 1160px;
+        margin: 0 auto;
+        padding: 1.2rem;
+      }
+      .header {
+        margin-top: 0.9rem;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        background: rgba(7, 16, 30, 0.82);
+        backdrop-filter: blur(4px);
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .header p {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.74);
+      }
+      .actions {
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+      .btn {
+        appearance: none;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 999px;
+        padding: 0.55rem 0.9rem;
+        background: rgba(15, 23, 42, 0.62);
+        color: rgba(245, 247, 250, 0.92);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        text-decoration: none;
+      }
+      .btn.primary {
+        border-color: rgba(244, 180, 0, 0.32);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
+      }
+      .btn:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+      }
+      .week-grid {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+      }
+      @media (max-width: 920px) {
+        .week-grid { grid-template-columns: 1fr; }
+      }
+      .day-card {
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.72);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem 1rem 1.05rem;
+      }
+      .day-card h2 {
+        margin: 0;
+        font-size: 0.82rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+      .day-card .meta {
+        margin: 0.35rem 0 0.85rem;
+        color: rgba(226, 232, 240, 0.74);
+        font-weight: 800;
+      }
+      .items { display: grid; gap: 0.55rem; }
+      .item {
+        display: flex;
+        gap: 0.7rem;
+        align-items: flex-start;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 16px;
+        padding: 0.75rem 0.8rem;
+        text-decoration: none;
+        color: rgba(248, 250, 252, 0.94);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .item:hover { border-color: rgba(244, 180, 0, 0.35); }
+      .tag {
+        min-width: 64px;
+        height: 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+      }
+      .tag.is-match { border-color: rgba(244, 180, 0, 0.35); }
+      .tag.is-session { border-color: rgba(34, 211, 238, 0.25); }
+      .title { font-weight: 950; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.76rem; }
+      .sub { margin-top: 0.18rem; color: rgba(226, 232, 240, 0.74); font-weight: 800; font-size: 0.82rem; }
+      .empty { margin: 0; color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+      .footer-note {
+        margin-top: 1rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.82rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .footer-note a { color: rgba(186, 230, 253, 0.92); text-decoration: none; font-weight: 900; }
+      .footer-note a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <div class="shell">
+      {% include 'football/includes/dragon_nav.html' %}
+
+      <header class="header">
+        <div>
+          <h1>Agenda semanal</h1>
+          <p>{{ team_name }} · {{ week_label }}</p>
+        </div>
+        <div class="actions">
+          <a class="btn" href="{{ prev_week_url }}">Semana −</a>
+          <a class="btn" href="{{ today_url }}">Hoy</a>
+          <a class="btn" href="{{ next_week_url }}">Semana +</a>
+          <a class="btn primary" href="{% url 'team-calendar-ics' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">ICS</a>
+        </div>
+      </header>
+
+      <div class="week-grid">
+        {% for day in days %}
+        <section class="day-card">
+          <h2>{{ day.day_label }}</h2>
+          <p class="meta">{{ day.date_label }}</p>
+          <div class="items">
+            {% for item in day.items %}
+              <a class="item" href="{{ item.url }}">
+                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">{% if item.kind == 'match' %}Partido{% else %}Entreno{% endif %}</span>
+                <span style="min-width:0;">
+                  <div class="title">{{ item.title }}</div>
+                  <div class="sub">{{ item.meta }}</div>
+                </span>
+              </a>
+            {% empty %}
+              <p class="empty">Sin eventos.</p>
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+
+      <div class="footer-note">
+        <span>Tip: usa <strong>Ctrl/Cmd + K</strong> y busca “Agenda semanal”.</span>
+        <span>Ventana: {{ week_label }} · Generado {{ generated_at|date:"d/m/Y H:i" }}</span>
+      </div>
+    </div>
+  </body>
+</html>
+

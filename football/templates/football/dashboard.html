@@ -797,22 +797,27 @@
 	              </a>
 	              {% endif %}
 
-	              {% if workspace_module_access.sessions|default:True %}
-	              <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Entrenamiento</strong>
-	                <span>Tareas · sesiones · microciclos</span>
-	              </a>
+		              {% if workspace_module_access.sessions|default:True %}
+		              <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+		                <strong>Entrenamiento</strong>
+		                <span>Tareas · sesiones · microciclos</span>
+		              </a>
 	              {% else %}
 	              <a class="quick-action is-secondary is-disabled" href="#">
 	                <strong>Entrenamiento</strong>
 	                <span>Módulo desactivado</span>
 	              </a>
-	              {% endif %}
+		              {% endif %}
 
-	              <a class="quick-action is-muted" href="{% url 'coach-detail' %}">
-	                <strong>Entrenador</strong>
-	                <span>Accesos y gestión</span>
-	              </a>
+		              <a class="quick-action is-muted" href="{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+		                <strong>Agenda</strong>
+		                <span>Semana (sesiones + partidos)</span>
+		              </a>
+
+		              <a class="quick-action is-muted" href="{% url 'coach-detail' %}">
+		                <strong>Entrenador</strong>
+		                <span>Accesos y gestión</span>
+		              </a>
 
 	              {% if workspace_module_access.players|default:True %}
 	              <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}{% if active_team %}?team={{ active_team.id }}{% endif %}">

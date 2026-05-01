@@ -109,6 +109,7 @@
               </div>
               <div class="actions">
                 <button class="btn primary" type="submit">Descargar PDF</button>
+                <a class="btn" id="openMatchReport" href="#" rel="nofollow">Abrir presentación</a>
               </div>
             </div>
           </form>
@@ -125,6 +126,28 @@
         refresh();
       })();
     </script>
+    <script>
+      (function () {
+        var select = document.getElementById('rep-match');
+        var link = document.getElementById('openMatchReport');
+        if (!select || !link) return;
+        function build() {
+          var matchId = String(select.value || '').trim();
+          if (!matchId) {
+            link.setAttribute('aria-disabled', 'true');
+            link.href = '#';
+            return;
+          }
+          link.removeAttribute('aria-disabled');
+          var url = "{% url 'match-staff-report' %}";
+          var qs = [];
+          qs.push("match_id=" + encodeURIComponent(matchId));
+          {% if request.GET.team %}qs.push("team={{ request.GET.team|urlencode }}");{% endif %}
+          link.href = url + "?" + qs.join("&");
+        }
+        select.addEventListener('change', build);
+        build();
+      })();
+    </script>
   </body>
 </html>
-

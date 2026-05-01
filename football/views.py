@@ -17747,36 +17747,172 @@ def _sections_from_request(request, default):
     return set(default or [])
 
 
+def _week_bounds_for_date(day):
+    day = day or timezone.localdate()
+    # Lunes como inicio de semana (España).
+    start = day - timedelta(days=int(day.weekday() or 0))
+    end = start + timedelta(days=6)
+    return start, end
+
+
 @login_required
-def match_staff_report_pdf(request):
-    if not _can_edit_match_actions(request.user):
-        return HttpResponse('Solo el cuerpo técnico puede descargar el informe del partido.', status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
-    if forbidden:
-        return forbidden
-    match_id = _parse_int(request.GET.get('match_id'))
-    if not match_id:
-        return HttpResponse('Falta match_id.', status=400)
-    match = (
-        Match.objects
-        .select_related('group__season__competition', 'home_team', 'away_team')
-        .filter(id=match_id)
-        .first()
+def team_agenda_page(request):
+    """
+    Vista visual (semana) de sesiones + partidos.
+
+    Nota: complementa el export ICS con una agenda usable “de un vistazo”.
+    """
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo no configurado')
+
+    raw_date = str(request.GET.get('date') or '').strip()
+    day = None
+    if raw_date:
+        try:
+            day = datetime.strptime(raw_date, '%Y-%m-%d').date()
+        except ValueError:
+            day = None
+    day = day or timezone.localdate()
+    week_start, week_end = _week_bounds_for_date(day)
+
+    matches = list(
+        _team_match_queryset(primary_team)
+        .filter(date__range=(week_start, week_end))
+        .select_related('home_team', 'away_team')
+        .order_by('date', 'kickoff_time', 'id')
     )
-    if not match:
-        raise Http404('Partido no encontrado')
+    sessions = list(
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(microcycle__team=primary_team)
+        .filter(session_date__range=(week_start, week_end))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .order_by('session_date', 'start_time', 'order', 'id')
+    )
 
-    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
-    if not primary_team:
-        for candidate in [match.home_team, match.away_team]:
-            if candidate and _user_can_access_team(request, candidate):
-                primary_team = candidate
-                break
-    if not primary_team:
-        raise Http404('Equipo principal no configurado')
-    if primary_team.id not in {match.home_team_id, match.away_team_id}:
-        return HttpResponse('No tienes acceso a este partido.', status=403)
+    def _match_title(m):
+        opponent = m.away_team if m.home_team_id == primary_team.id else m.home_team
+        opp = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() or 'Rival'
+        label = f'vs {opp}'.strip()
+        context_label = dict(Match.CONTEXT_CHOICES).get(m.context, 'Liga')
+        if m.context == Match.CONTEXT_TOURNAMENT and str(m.tournament_name or '').strip():
+            context_label = f'Torneo · {str(m.tournament_name).strip()}'
+        return f'[{context_label}] {label}'.strip()
 
+    def _match_meta(m):
+        bits = []
+        if getattr(m, 'kickoff_time', None):
+            try:
+                bits.append(m.kickoff_time.strftime('%H:%M'))
+            except Exception:
+                pass
+        loc = str(getattr(m, 'location', '') or '').strip()
+        if loc:
+            bits.append(loc)
+        rid = str(getattr(m, 'round', '') or '').strip()
+        if rid:
+            bits.append(rid)
+        return ' · '.join(bits) if bits else '—'
+
+    def _session_title(s):
+        focus = str(getattr(s, 'focus', '') or '').strip() or 'Sesión'
+        return focus
+
+    def _session_meta(s):
+        bits = []
+        if getattr(s, 'start_time', None):
+            try:
+                bits.append(s.start_time.strftime('%H:%M'))
+            except Exception:
+                pass
+        if getattr(s, 'duration_minutes', None):
+            bits.append(f"{int(s.duration_minutes)}'")
+        intensity = str(getattr(s, 'get_intensity_display', lambda: '')() or '').strip()
+        if intensity:
+            bits.append(intensity)
+        try:
+            micro = getattr(s, 'microcycle', None)
+            if micro and getattr(micro, 'name', None):
+                bits.append(str(micro.name))
+        except Exception:
+            pass
+        return ' · '.join([b for b in bits if str(b or '').strip()]) if bits else '—'
+
+    buckets = {week_start + timedelta(days=i): [] for i in range(7)}
+    for m in matches:
+        if not m.date:
+            continue
+        buckets.setdefault(m.date, []).append(
+            {
+                'kind': 'match',
+                'title': _match_title(m),
+                'meta': _match_meta(m),
+                'url': reverse('match-hub') + f'?match_id={int(m.id)}&team={int(primary_team.id)}',
+            }
+        )
+    for s in sessions:
+        if not s.session_date:
+            continue
+        buckets.setdefault(s.session_date, []).append(
+            {
+                'kind': 'session',
+                'title': _session_title(s),
+                'meta': _session_meta(s),
+                'url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}',
+            }
+        )
+
+    def _day_label(d):
+        # d: date
+        names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        try:
+            return names[int(d.weekday())]
+        except Exception:
+            return 'Día'
+
+    days = []
+    for d in [week_start + timedelta(days=i) for i in range(7)]:
+        items = list(buckets.get(d) or [])
+        items.sort(key=lambda it: (0 if it.get('kind') == 'match' else 1, str(it.get('meta') or '')))
+        days.append(
+            {
+                'date': d,
+                'day_label': _day_label(d),
+                'date_label': d.strftime('%d/%m/%Y'),
+                'items': items,
+            }
+        )
+
+    week_label = f'{week_start.strftime("%d/%m")}–{week_end.strftime("%d/%m/%Y")}'
+    team_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
+
+    def _qs_for_date(target):
+        base = []
+        if request.GET.get('team'):
+            base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        base.append('date=' + urllib.parse.quote(target.strftime('%Y-%m-%d')))
+        return '?' + '&'.join(base)
+
+    return render(
+        request,
+        'football/team_agenda.html',
+        {
+            'team_name': team_name,
+            'days': days,
+            'week_label': week_label,
+            'prev_week_url': reverse('team-agenda') + _qs_for_date(week_start - timedelta(days=7)),
+            'next_week_url': reverse('team-agenda') + _qs_for_date(week_start + timedelta(days=7)),
+            'today_url': reverse('team-agenda') + _qs_for_date(timezone.localdate()),
+            'generated_at': timezone.localtime(),
+        },
+    )
+
+
+def _match_staff_report_context(request, *, match, primary_team):
+    """
+    Contexto común para HTML/PDF del informe staff.
+    """
     opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
     opponent_name = (opponent_team.display_name if opponent_team else '').strip() or 'Rival'
     team_name = primary_team.display_name
@@ -17864,19 +18000,28 @@ def match_staff_report_pdf(request):
         actions = int(row.get('actions') or 0)
         successes = int(row.get('successes') or 0)
         row['success_rate'] = round((successes / actions) * 100, 1) if actions else 0
-    players.sort(key=lambda r: (-int(r.get('actions') or 0), str(r.get('name') or '').lower()))
+    players.sort(key=lambda r: (-int(r.get('actions') or 0), str(r.get('name') or '')))
 
-    event_counter = Counter(ev.event_type for ev in events)
-    result_counter = Counter(ev.result for ev in events)
-    top_event_types = [{'event': k, 'count': v} for k, v in event_counter.most_common(6)]
-    top_results = [{'result': k or '—', 'count': v} for k, v in result_counter.most_common(6)]
+    top_event_types = {}
+    top_results = {}
+    for ev in events:
+        et = (ev.event_type or '').strip() or '—'
+        rs = (ev.result or '').strip() or '—'
+        top_event_types[et] = top_event_types.get(et, 0) + 1
+        top_results[rs] = top_results.get(rs, 0) + 1
+    top_event_types = [{'event': k, 'count': v} for k, v in sorted(top_event_types.items(), key=lambda x: (-x[1], x[0]))[:6]]
+    top_results = [{'result': k, 'count': v} for k, v in sorted(top_results.items(), key=lambda x: (-x[1], x[0]))[:6]]
 
     def _with_pct(rows):
         total = sum(int(r.get('count') or 0) for r in rows) or 0
+        out = []
         for r in rows:
-            c = int(r.get('count') or 0)
-            r['pct'] = round((c / total) * 100, 1) if total else 0
-        return rows
+            count = int(r.get('count') or 0)
+            pct = round((count / total) * 100, 1) if total else 0
+            item = dict(r)
+            item['pct'] = pct
+            out.append(item)
+        return out
 
     top_event_types = _with_pct(top_event_types)
     top_results = _with_pct(top_results)
@@ -17944,7 +18089,8 @@ def match_staff_report_pdf(request):
                 )
     except Exception:
         staff_lines = []
-    context = {
+
+    return {
         'team_name': team_name,
         'opponent_name': opponent_name,
         'brand_mark_src': brand_mark_src,
@@ -17962,9 +18108,85 @@ def match_staff_report_pdf(request):
         'sections': sections,
         'generated_at': timezone.localtime(),
     }
+
+
+@login_required
+def match_staff_report_pdf(request):
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede descargar el informe del partido.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    match_id = _parse_int(request.GET.get('match_id'))
+    if not match_id:
+        return HttpResponse('Falta match_id.', status=400)
+    match = (
+        Match.objects
+        .select_related('group__season__competition', 'home_team', 'away_team')
+        .filter(id=match_id)
+        .first()
+    )
+    if not match:
+        raise Http404('Partido no encontrado')
+
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        for candidate in [match.home_team, match.away_team]:
+            if candidate and _user_can_access_team(request, candidate):
+                primary_team = candidate
+                break
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if primary_team.id not in {match.home_team_id, match.away_team_id}:
+        return HttpResponse('No tienes acceso a este partido.', status=403)
+    context = _match_staff_report_context(request, match=match, primary_team=primary_team)
     pdf_html = render_to_string('football/match_staff_report_pdf.html', context)
+    team_name = str(context.get('team_name') or '').strip() or 'equipo'
+    opponent_name = str(context.get('opponent_name') or '').strip() or 'rival'
     filename = slugify(f'informe-partido-{team_name}-{opponent_name}-{match.date or timezone.localdate()}') or f'informe-partido-{match.id}'
     return _build_pdf_response_or_html_fallback(request, pdf_html, filename, inline=True, force_pdf=True)
+
+
+@login_required
+def match_staff_report_page(request):
+    """
+    Informe staff en HTML con modo Presentación (1 click).
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede ver el informe del partido.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return forbidden
+    match_id = _parse_int(request.GET.get('match_id'))
+    if not match_id:
+        return HttpResponse('Falta match_id.', status=400)
+    match = (
+        Match.objects
+        .select_related('group__season__competition', 'home_team', 'away_team')
+        .filter(id=match_id)
+        .first()
+    )
+    if not match:
+        raise Http404('Partido no encontrado')
+
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        for candidate in [match.home_team, match.away_team]:
+            if candidate and _user_can_access_team(request, candidate):
+                primary_team = candidate
+                break
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if primary_team.id not in {match.home_team_id, match.away_team_id}:
+        return HttpResponse('No tienes acceso a este partido.', status=403)
+
+    context = _match_staff_report_context(request, match=match, primary_team=primary_team)
+    qs = []
+    if request.GET.get('team'):
+        qs.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+    qs.append('match_id=' + urllib.parse.quote(str(match_id)))
+    context['pdf_url'] = reverse('match-staff-report-pdf') + '?' + '&'.join(qs)
+    return render(request, 'football/match_staff_report.html', context)
 
 
 def _kpi_explorer_derived_metrics():
