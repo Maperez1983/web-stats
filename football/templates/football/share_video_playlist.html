@@ -24,6 +24,24 @@
       .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       video { display:block; width:100%; height:auto; }
+      .stage canvas { position:absolute; inset:0; width:100%; height:100%; z-index: 4; touch-action:none; }
+      .pl-overlay { position:absolute; inset:0; z-index:5; pointer-events:none; }
+      .pl-lower { position:absolute; left:0.85rem; right:0.85rem; bottom:0.85rem; padding:0.7rem 0.85rem; border-radius: 16px; background: rgba(2,6,23,0.62); border:1px solid rgba(255,255,255,0.14); display:flex; align-items:flex-end; justify-content:space-between; gap:0.8rem; }
+      .pl-lower strong { font-weight: 950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.78rem; }
+      .pl-lower span { color: rgba(226,232,240,0.78); font-weight: 800; font-size:0.82rem; }
+      .pl-toolbar { position:absolute; left:0.85rem; top:0.85rem; right:0.85rem; z-index:6; pointer-events:auto; display:none; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; }
+      .pl-toolbar .group { display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; }
+      .pl-toolbar input[type="color"] { width: 38px; height: 38px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); padding: 0; }
+      .pl-toolbar input[type="range"] { width: 120px; }
+
+      body.is-present .page { max-width: none; padding: 0.8rem; }
+      body.is-present .grid { grid-template-columns: 1fr; }
+      body.is-present aside.card { display:none; }
+      body.is-present .pl-toolbar { display:flex; }
+      body.is-present .card { border-radius: 0; padding: 0.75rem; }
+      body.is-present .card:first-child { margin-bottom: 0.65rem; }
+      body.is-present .stage { border-radius: 22px; }
+      body.is-present #pl-video { max-height: calc(100vh - 210px); }
       .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
     </style>
   </head>
@@ -38,6 +56,7 @@
           <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
             <button type="button" class="button primary" id="pl-playall">Play lista</button>
             <button type="button" class="button" id="pl-stop">Stop</button>
+            <button type="button" class="button" id="pl-present">Presentación</button>
           </div>
         </div>
       </div>
@@ -48,6 +67,30 @@
             <video id="pl-video" controls preload="metadata" playsinline crossorigin="anonymous">
               <source src="{{ video_stream_url }}" />
             </video>
+            <canvas id="pl-canvas" aria-label="Telestración" hidden></canvas>
+            <div class="pl-overlay" id="pl-overlay" hidden>
+              <div class="pl-toolbar" id="pl-toolbar">
+                <div class="group">
+                  <button type="button" class="button primary" id="pl-tool-pen">Dibujar</button>
+                  <button type="button" class="button" id="pl-undo">Deshacer</button>
+                  <button type="button" class="button" id="pl-clear">Limpiar</button>
+                </div>
+                <div class="group">
+                  <input type="color" id="pl-color" value="#f4b400" title="Color" />
+                  <input type="range" id="pl-width" min="2" max="14" step="1" value="6" title="Grosor" />
+                  <button type="button" class="button" id="pl-hide-ui">Ocultar UI</button>
+                </div>
+              </div>
+              <div class="pl-lower" id="pl-lower">
+                <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+                  <strong id="pl-lower-title">Clip</strong>
+                  <span id="pl-lower-sub">00:00</span>
+                </div>
+                <div style="display:flex; gap:0.55rem; align-items:center;">
+                  <span class="meta" id="pl-lower-meta" style="margin:0;">Presentación</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="status" id="pl-status">Listo.</div>
         </section>
@@ -65,6 +108,17 @@
           const status = document.getElementById('pl-status');
           const btnPlayAll = document.getElementById('pl-playall');
           const btnStop = document.getElementById('pl-stop');
+          const btnPresent = document.getElementById('pl-present');
+          const overlay = document.getElementById('pl-overlay');
+          const canvas = document.getElementById('pl-canvas');
+          const toolbar = document.getElementById('pl-toolbar');
+          const btnUndo = document.getElementById('pl-undo');
+          const btnClear = document.getElementById('pl-clear');
+          const btnHideUi = document.getElementById('pl-hide-ui');
+          const colorInput = document.getElementById('pl-color');
+          const widthInput = document.getElementById('pl-width');
+          const lowerTitle = document.getElementById('pl-lower-title');
+          const lowerSub = document.getElementById('pl-lower-sub');
           const safeText = (v, f='') => String(v ?? '').trim() || f;
           const fmt = (s) => {
             const n = Number(s) || 0;
@@ -76,6 +130,128 @@
           let active = false;
           let idx = 0;
           let busy = false;
+          let present = false;
+          let hideUi = false;
+
+          // --- Presentation telestration (lightweight, ephemeral) ---
+          const dpr = () => Math.max(1, window.devicePixelRatio || 1);
+          const state = {
+            strokes: [],
+            drawing: false,
+            points: [],
+          };
+          const resizeCanvas = () => {
+            if (!canvas || !video) return;
+            const rect = video.getBoundingClientRect();
+            const ratio = dpr();
+            const w = Math.max(1, Math.round(rect.width * ratio));
+            const h = Math.max(1, Math.round(rect.height * ratio));
+            if (canvas.width !== w) canvas.width = w;
+            if (canvas.height !== h) canvas.height = h;
+            redraw();
+          };
+          const ctx = () => canvas?.getContext?.('2d') || null;
+          const redraw = () => {
+            const c = ctx();
+            if (!c || !canvas) return;
+            c.clearRect(0, 0, canvas.width, canvas.height);
+            c.lineCap = 'round';
+            c.lineJoin = 'round';
+            (state.strokes || []).forEach((s) => {
+              if (!s || !Array.isArray(s.points) || s.points.length < 2) return;
+              c.strokeStyle = String(s.color || '#f4b400');
+              c.lineWidth = Number(s.width || 6);
+              c.beginPath();
+              const first = s.points[0];
+              c.moveTo(first.x, first.y);
+              s.points.slice(1).forEach((p) => c.lineTo(p.x, p.y));
+              c.stroke();
+            });
+            if (state.drawing && state.points.length > 1) {
+              c.strokeStyle = String(colorInput?.value || '#f4b400');
+              c.lineWidth = Number(widthInput?.value || 6);
+              c.beginPath();
+              c.moveTo(state.points[0].x, state.points[0].y);
+              state.points.slice(1).forEach((p) => c.lineTo(p.x, p.y));
+              c.stroke();
+            }
+          };
+          const pointFromEvent = (ev) => {
+            const rect = canvas.getBoundingClientRect();
+            const ratio = dpr();
+            const x = (Number(ev.clientX) - rect.left) * ratio;
+            const y = (Number(ev.clientY) - rect.top) * ratio;
+            return { x, y };
+          };
+          const startStroke = (ev) => {
+            if (!present) return;
+            if (!canvas) return;
+            ev.preventDefault();
+            state.drawing = true;
+            state.points = [pointFromEvent(ev)];
+            redraw();
+          };
+          const moveStroke = (ev) => {
+            if (!present || !state.drawing) return;
+            ev.preventDefault();
+            state.points.push(pointFromEvent(ev));
+            if (state.points.length > 1200) state.points = state.points.slice(-1200);
+            redraw();
+          };
+          const endStroke = (ev) => {
+            if (!present || !state.drawing) return;
+            ev.preventDefault();
+            state.drawing = false;
+            if (state.points.length > 1) {
+              state.strokes.push({
+                color: String(colorInput?.value || '#f4b400'),
+                width: Number(widthInput?.value || 6),
+                points: state.points.slice(0, 1200),
+              });
+            }
+            state.points = [];
+            redraw();
+          };
+          const clearStrokes = () => {
+            state.strokes = [];
+            state.points = [];
+            state.drawing = false;
+            redraw();
+          };
+          const undoStroke = () => {
+            state.strokes.pop();
+            redraw();
+          };
+          const setPresent = (on) => {
+            present = !!on;
+            document.body.classList.toggle('is-present', present);
+            if (overlay) overlay.hidden = !present;
+            if (canvas) canvas.hidden = !present;
+            if (present) {
+              hideUi = false;
+              if (toolbar) toolbar.style.display = '';
+              resizeCanvas();
+              requestAnimationFrame(resizeCanvas);
+              try { window.scrollTo(0, 0); } catch (e) {}
+            } else {
+              clearStrokes();
+            }
+          };
+          btnPresent?.addEventListener('click', () => setPresent(!present));
+          btnHideUi?.addEventListener('click', () => {
+            hideUi = !hideUi;
+            if (toolbar) toolbar.style.display = hideUi ? 'none' : '';
+          });
+          btnUndo?.addEventListener('click', undoStroke);
+          btnClear?.addEventListener('click', clearStrokes);
+          window.addEventListener('resize', () => { if (present) resizeCanvas(); });
+          video?.addEventListener('loadedmetadata', () => { if (present) resizeCanvas(); });
+          // Drawing events (pointer)
+          canvas?.addEventListener?.('pointerdown', startStroke);
+          canvas?.addEventListener?.('pointermove', moveStroke);
+          canvas?.addEventListener?.('pointerup', endStroke);
+          canvas?.addEventListener?.('pointercancel', endStroke);
+          canvas?.addEventListener?.('pointerleave', endStroke);
 
           const render = () => {
             if (!list) return;
@@ -105,6 +281,7 @@
                 if (!c) return;
                 active = false;
                 idx = i;
+                clearStrokes();
                 try { video.currentTime = Math.max(0, Number(c.in_s) || 0); } catch(e) {}
                 try { await video.play(); } catch(e) {}
                 setStatus(`Clip ${i+1}/${clips.length}`);
@@ -117,6 +294,7 @@
             const c = clips[i];
             if (!c) return;
             idx = i;
+            clearStrokes();
             try { video.currentTime = Math.max(0, Number(c.in_s) || 0); } catch(e) {}
             try { await video.play(); } catch(e) {}
             setStatus(`Lista ${i+1}/${clips.length}`);
@@ -132,6 +310,12 @@
             setStatus('Parado.');
           });
           video?.addEventListener('timeupdate', () => {
+            if (present) {
+              const c = clips[idx];
+              const title = safeText(c?.title, `Clip ${idx+1}`);
+              if (lowerTitle) lowerTitle.textContent = title.slice(0, 52);
+              if (lowerSub) lowerSub.textContent = `${fmt(video.currentTime || 0)} · ${fmt(Number(c?.out_s) || 0) || '—'}`;
+            }
             if (!active || busy) return;
             const c = clips[idx];
             if (!c) return;

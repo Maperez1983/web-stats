@@ -3473,6 +3473,7 @@
         });
       }
       const playerInput = document.getElementById('selected-player');
+      const quickButtonsContainer = popupForm.querySelector('.popup-quick-actions');
       const quickButtons = popupForm.querySelectorAll('.quick-action');
       const popupCloseButtons = popupForm.querySelectorAll('.close-popup');
       const convocationCards = document.querySelectorAll('.convocation-card');
@@ -3680,26 +3681,55 @@
         });
         return out.slice(0, 12);
       };
+      const normalizeQuickConfigItems = (items) => {
+        const raw = Array.isArray(items) ? items : [];
+        const out = [];
+        raw.forEach((it) => {
+          if (typeof it === 'string') {
+            const action = String(it || '').trim();
+            if (!action) return;
+            out.push({ label: action, action, result: '', hotkey: '' });
+            return;
+          }
+          if (!it || typeof it !== 'object') return;
+          const action = String(it.action || it.event_type || '').trim();
+          if (!action) return;
+          out.push({
+            label: String(it.label || action).trim() || action,
+            action,
+            result: String(it.result || '').trim(),
+            hotkey: String(it.hotkey || '').trim().slice(0, 1),
+          });
+        });
+        return out.slice(0, 30);
+      };
+
       const renderProActionFavorites = () => {
         if (!proActionFavoritesEl) return;
         if (!document.body.classList.contains('pro-mode')) {
           proActionFavoritesEl.innerHTML = '';
           return;
         }
-        const { favorites } = computeFavorites();
-        const list = (favorites && favorites.length ? favorites : loadFallbackFavorites()).slice(0, 6);
+        const quick = normalizeQuickConfigItems(matchdayQuickActions);
+        const list = (quick.length ? quick.map((row) => row.action) : []).slice(0, 6);
+        const fallback = !list.length ? (computeFavorites().favorites.length ? computeFavorites().favorites : loadFallbackFavorites()) : [];
+        const labels = (list.length ? list : fallback).slice(0, 6);
         proActionFavoritesEl.innerHTML = '';
-        if (!list.length) return;
-        list.forEach((label) => {
+        if (!labels.length) return;
+        labels.forEach((label) => {
+          const quickHit = quick.find((row) => String(row.action || '').trim() === String(label || '').trim()) || null;
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'pro-chip';
-          btn.textContent = label;
+          btn.textContent = quickHit ? (quickHit.label || label) : label;
           btn.title = 'Seleccionar acción';
           btn.addEventListener('click', () => {
-            if (actionInput) actionInput.value = label;
-            try { syncResultOptionsForAction(label); } catch (e) {}
-            try { pushRecentAction(label); } catch (e) {}
+            const action = quickHit ? (quickHit.action || '') : label;
+            const result = quickHit ? (quickHit.result || '') : '';
+            if (actionInput) actionInput.value = action;
+            try { syncResultOptionsForAction(action); } catch (e) {}
+            try { pushRecentAction(action); } catch (e) {}
+            try { if (result) setResultValue(result); } catch (e) {}
             try { actionInput?.dispatchEvent?.(new Event('input', { bubbles: true })); } catch (e) {}
           });
           proActionFavoritesEl.appendChild(btn);
@@ -3984,7 +4014,30 @@
             showPageStatus(msg, 'error', 3600);
             return;
           }
-          showPageStatus('Atajos guardados. Recarga para verlos.', 'success', 3200);
+          // Recarga suave: actualizar atajos en vivo (sin refrescar página).
+          try {
+            const getResp = await fetch(matchdayQuickButtonsApiUrl, { credentials: 'same-origin' });
+            const getData = await getResp.json().catch(() => ({}));
+            if (getResp.ok && getData?.ok && Array.isArray(getData.items)) {
+              matchdayQuickActions.splice(0, matchdayQuickActions.length, ...getData.items);
+              if (quickButtonsContainer) {
+                quickButtonsContainer.innerHTML = '';
+                normalizeQuickConfigItems(matchdayQuickActions).slice(0, 18).forEach((row) => {
+                  const b = document.createElement('button');
+                  b.type = 'button';
+                  b.className = 'pill-button quick-action';
+                  b.dataset.action = row.action;
+                  if (row.result) b.dataset.result = row.result;
+                  if (row.hotkey) b.dataset.hotkey = row.hotkey;
+                  b.title = row.hotkey ? `Tecla ${row.hotkey}` : 'Atajo';
+                  b.textContent = row.label || row.action;
+                  quickButtonsContainer.appendChild(b);
+                });
+              }
+              try { renderProActionFavorites(); } catch (e) {}
+            }
+          } catch (e) {}
+          showPageStatus('Atajos guardados.', 'success', 2800);
           closeQuickConfig();
         } catch (e) {
           showPageStatus('Error de red guardando atajos.', 'error', 3600);
@@ -5909,6 +5962,7 @@
         highlight,
         interactiveSurface,
         quickButtons,
+        quickButtonsContainer,
         popupCloseButtons,
         convocationCards,
         playerInput,

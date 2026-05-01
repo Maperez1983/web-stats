@@ -35,6 +35,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     highlight,
     interactiveSurface,
     quickButtons,
+    quickButtonsContainer,
     popupCloseButtons,
     convocationCards,
     playerInput,
@@ -924,53 +925,66 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     } catch (e) {}
     return true;
   };
-  quickButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      quickButtons.forEach((other) => other.classList.remove('quake-action-active'));
-      btn.classList.add('quake-action-active');
-      actionInput.value = btn.dataset.action;
-      pushRecentAction(btn.dataset.action);
-      try {
-        if (teamOnlyInput) {
-          teamOnlyInput.value = btn.dataset.teamOnly === '1' ? '1' : '0';
-        }
-      } catch (e) {}
-      try {
-        if (btn.dataset.result) setResultValue(btn.dataset.result);
-      } catch (e) {}
-      try {
-        actionInput.dispatchEvent(new Event('input', { bubbles: true }));
-      } catch (e) {}
-    });
-  });
-  const quickHotkeys = (() => {
-    const map = new Map();
+  const normalizeButtonsList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value.length === 'number') return Array.from(value).filter(Boolean);
+    return [];
+  };
+  const getQuickButtons = () => {
+    if (quickButtonsContainer && quickButtonsContainer.querySelectorAll) {
+      return Array.from(quickButtonsContainer.querySelectorAll('.quick-action')).filter(Boolean);
+    }
+    return normalizeButtonsList(quickButtons);
+  };
+  const applyQuickButton = (btn) => {
+    if (!btn) return;
+    const all = getQuickButtons();
     try {
-      quickButtons.forEach((btn) => {
-        const key = String(btn.dataset.hotkey || '').trim();
-        if (!key) return;
-        if (!'123456789'.includes(key)) return;
-        if (map.has(key)) return;
-        map.set(key, btn);
-      });
+      all.forEach((other) => other.classList.remove('quake-action-active'));
     } catch (e) {}
-    return map;
-  })();
-  if (quickHotkeys.size) {
-    window.addEventListener('keydown', (event) => {
-      if (!event || event.defaultPrevented) return;
-      const key = String(event.key || '').trim();
-      if (!quickHotkeys.has(key)) return;
-      // Evita interferir cuando estás escribiendo en inputs.
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+    try {
+      btn.classList.add('quake-action-active');
+    } catch (e) {}
+    const action = String(btn.dataset.action || '').trim();
+    if (actionInput && action) actionInput.value = action;
+    if (action) pushRecentAction(action);
+    try {
+      if (teamOnlyInput) teamOnlyInput.value = btn.dataset.teamOnly === '1' ? '1' : '0';
+    } catch (e) {}
+    try {
+      if (btn.dataset.result) setResultValue(btn.dataset.result);
+    } catch (e) {}
+    try {
+      actionInput?.dispatchEvent?.(new Event('input', { bubbles: true }));
+    } catch (e) {}
+  };
+
+  // Delegación: soporta re-render de atajos sin reiniciar la página.
+  const initialButtons = getQuickButtons();
+  initialButtons.forEach((btn) => btn.addEventListener('click', () => applyQuickButton(btn)));
+  if (quickButtonsContainer && quickButtonsContainer.addEventListener) {
+    quickButtonsContainer.addEventListener('click', (event) => {
+      const target = event.target;
+      const btn = target && target.closest ? target.closest('.quick-action') : null;
+      if (!btn) return;
       event.preventDefault();
-      try {
-        const btn = quickHotkeys.get(key);
-        btn?.click();
-      } catch (e) {}
+      applyQuickButton(btn);
     });
   }
+
+  // Hotkeys: rehace lookup dinámico (por si se reconfiguran atajos).
+  window.addEventListener('keydown', (event) => {
+    if (!event || event.defaultPrevented) return;
+    const key = String(event.key || '').trim();
+    if (!'123456789'.includes(key)) return;
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+    const btn = getQuickButtons().find((candidate) => String(candidate?.dataset?.hotkey || '').trim() === key);
+    if (!btn) return;
+    event.preventDefault();
+    applyQuickButton(btn);
+  });
 
   const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false }) => {
     if (!historyList) return false;
@@ -1388,7 +1402,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const teamOnlyActions = ['saque de esquina a favor', 'saque de esquina en contra', 'corner a favor', 'corner en contra'];
   const isTeamOnlyActionValue = (actionValue) =>
     teamOnlyActions.includes(String(actionValue || '').trim().toLowerCase());
-  const resultSelect = popupForm?.querySelector('select[name="result"]') || null;
+  // `resultSelect` ya está resuelto arriba (para atajos). Reutilizarlo evita errores de redeclaración.
   const resetPopupForm = ({ preserveFields = false } = {}) => {
     if (!popupForm) return;
     const preserved = {
