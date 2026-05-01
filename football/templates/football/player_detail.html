@@ -306,12 +306,89 @@
 	          radial-gradient(closest-side, #f8fafc 68%, transparent 70% 100%),
 	          conic-gradient(var(--prod-secondary, #f4b400) calc(var(--pct) * 1%), #d1d5db 0);
 	      }
-      .performance-blocks {
-        margin-top: 1rem;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 0.7rem;
-      }
+	      .performance-blocks {
+	        margin-top: 1rem;
+	        display: grid;
+	        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	        gap: 0.7rem;
+	      }
+	      .performance-radar {
+	        margin-top: 1rem;
+	        border-radius: 0.9rem;
+	        border: 1px solid rgba(15, 118, 110, 0.24);
+	        background: rgba(255, 255, 255, 0.75);
+	        padding: 0.85rem;
+	      }
+	      .radar-grid {
+	        display: grid;
+	        grid-template-columns: minmax(240px, 0.9fr) minmax(220px, 1.1fr);
+	        gap: 0.9rem;
+	        align-items: center;
+	      }
+	      @media (max-width: 900px) {
+	        .radar-grid { grid-template-columns: 1fr; }
+	      }
+	      .radar-figure {
+	        display: grid;
+	        place-items: center;
+	      }
+	      .radar-figure svg {
+	        width: min(360px, 100%);
+	        height: auto;
+	        display: block;
+	      }
+	      .radar-legend h4 {
+	        margin: 0;
+	        font-size: 0.86rem;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	        color: rgba(15, 23, 42, 0.86);
+	      }
+	      .radar-legend p {
+	        margin: 0.35rem 0 0;
+	        color: rgba(15, 23, 42, 0.72);
+	        font-weight: 700;
+	      }
+	      .radar-axes {
+	        margin: 0.65rem 0 0;
+	        padding: 0;
+	        list-style: none;
+	        display: grid;
+	        grid-template-columns: repeat(2, minmax(0, 1fr));
+	        gap: 0.5rem 0.75rem;
+	      }
+	      .radar-axes li {
+	        display: flex;
+	        gap: 0.5rem;
+	        align-items: baseline;
+	        min-width: 0;
+	      }
+	      .radar-dot {
+	        width: 10px;
+	        height: 10px;
+	        border-radius: 999px;
+	        background: var(--prod-secondary, #f4b400);
+	        border: 1px solid rgba(15, 23, 42, 0.12);
+	        flex: 0 0 auto;
+	        margin-top: 0.2rem;
+	      }
+	      .radar-axis-label {
+	        font-weight: 950;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        font-size: 0.72rem;
+	        color: rgba(15, 23, 42, 0.86);
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	      }
+	      .radar-axis-value {
+	        margin-left: auto;
+	        font-weight: 900;
+	        color: rgba(15, 23, 42, 0.78);
+	        font-size: 0.82rem;
+	        flex: 0 0 auto;
+	      }
       .performance-block {
         border-radius: 0.85rem;
         padding: 0.75rem 0.8rem;
@@ -776,8 +853,8 @@
       <section class="card tab-pane" data-pane="performance">
         <h2 style="margin-top:0;">Rendimiento, KPI y mapa de calor</h2>
         {% if stats %}
-          <div class="performance-overview" data-kpi-container>
-            <h3>KPI de rendimiento</h3>
+	          <div class="performance-overview" data-kpi-container>
+	            <h3>KPI de rendimiento</h3>
             <details class="kpi-customizer" data-kpi-pref-key="player_detail">
               <summary>Personalizar KPIs</summary>
               <div class="kpi-customizer-body"></div>
@@ -815,8 +892,8 @@
                 <div class="kpi-ring-label">Tiro a puerta</div>
               </article>
             </div>
-            <div class="performance-blocks">
-              <div class="performance-block" data-kpi-key="total_actions" data-kpi-label="Acciones"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
+	            <div class="performance-blocks">
+	              <div class="performance-block" data-kpi-key="total_actions" data-kpi-label="Acciones"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
               <div class="performance-block" data-kpi-key="duels" data-kpi-label="Duelos"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
               <div class="performance-block" data-kpi-key="aerial_duels_total" data-kpi-label="Duelos aéreos"><span class="label">Duelos aéreos</span><span class="value">{{ stats.aerial_duel_summary.won|default:0 }}/{{ stats.aerial_duel_summary.total|default:0 }}</span></div>
               <div class="performance-block" data-kpi-key="passes" data-kpi-label="Pases"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
@@ -824,11 +901,49 @@
               <div class="performance-block" data-kpi-key="shots_per_goal" data-kpi-label="Disparos/Gol"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
               <div class="performance-block" data-kpi-key="goals" data-kpi-label="Goles"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
               <div class="performance-block" data-kpi-key="assists" data-kpi-label="Asistencias"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
-              {% if stats.profile == 'goalkeeper' or stats.goalkeeper_saves %}
-              <div class="performance-block" data-kpi-key="goalkeeper_saves" data-kpi-label="Paradas"><span class="label">Paradas</span><span class="value">{{ stats.goalkeeper_saves|default:0 }}</span></div>
-              {% endif %}
-            </div>
-          </div>
+	              {% if stats.profile == 'goalkeeper' or stats.goalkeeper_saves %}
+	              <div class="performance-block" data-kpi-key="goalkeeper_saves" data-kpi-label="Paradas"><span class="label">Paradas</span><span class="value">{{ stats.goalkeeper_saves|default:0 }}</span></div>
+	              {% endif %}
+	            </div>
+
+	            <div
+	              class="performance-radar"
+	              id="player-performance-radar"
+	              data-profile="{{ stats.profile|default:''|escapejs }}"
+	              data-success="{{ stats.success_rate|default:0 }}"
+	              data-duel="{{ stats.duel_rate|default:0 }}"
+	              data-pass="{{ stats.passes.accuracy|default:0 }}"
+	              data-shot="{{ stats.shots.accuracy|default:0 }}"
+	              data-aerial-won="{{ stats.aerial_duel_summary.won|default:0 }}"
+	              data-aerial-total="{{ stats.aerial_duel_summary.total|default:0 }}"
+	              data-actions="{{ stats.total_actions|default:0 }}"
+	              data-pj="{{ stats.pj|default:0 }}"
+	              data-goals="{{ stats.goals|default:0 }}"
+	              data-assists="{{ stats.assists|default:0 }}"
+	              data-saves="{{ stats.goalkeeper_saves|default:0 }}"
+	            >
+	              <div class="radar-grid">
+	                <div class="radar-figure" aria-label="Gráfico de araña (radar) de rendimiento">
+	                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" focusable="false">
+	                    <defs>
+	                      <linearGradient id="radarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+	                        <stop offset="0%" stop-color="rgba(244,180,0,0.55)"></stop>
+	                        <stop offset="100%" stop-color="rgba(47,125,50,0.45)"></stop>
+	                      </linearGradient>
+	                    </defs>
+	                    <g id="radar-grid"></g>
+	                    <g id="radar-data"></g>
+	                    <g id="radar-labels"></g>
+	                  </svg>
+	                </div>
+	                <div class="radar-legend">
+	                  <h4>Radar (normalizado)</h4>
+	                  <p>Escala 0–100. Mezcla porcentajes + volumen/impacto por partido para lectura rápida del staff.</p>
+	                  <ul class="radar-axes" id="radar-axes-list"></ul>
+	                </div>
+	              </div>
+	            </div>
+	          </div>
 
           <div class="performance-map">
             <div class="field-diagram">
@@ -1114,8 +1229,8 @@
       </section>
     </div>
 
-    <script>
-      (() => {
+	    <script>
+	      (() => {
         const fallbackTab = '{{ active_tab|default:"general"|escapejs }}' || 'general';
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         const panes = Array.from(document.querySelectorAll('.tab-pane'));
@@ -1128,8 +1243,165 @@
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
         activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'general');
-      })();
-    </script>
-    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
-  </body>
-</html>
+	      })();
+	    </script>
+	    <script>
+	      (function () {
+	        const root = document.getElementById('player-performance-radar');
+	        if (!root) return;
+
+	        const svg = root.querySelector('svg');
+	        const gridG = svg ? svg.querySelector('#radar-grid') : null;
+	        const dataG = svg ? svg.querySelector('#radar-data') : null;
+	        const labelsG = svg ? svg.querySelector('#radar-labels') : null;
+	        const axesList = document.getElementById('radar-axes-list');
+	        if (!svg || !gridG || !dataG || !labelsG || !axesList) return;
+
+	        const num = (v) => {
+	          const n = Number(String(v ?? '').replace(',', '.'));
+	          return Number.isFinite(n) ? n : 0;
+	        };
+	        const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+	        const pct = (won, total) => (total > 0 ? (won / total) * 100 : 0);
+	        const fmt = (n, suffix = '') => `${Math.round(n)}${suffix}`;
+	        const fmtPct = (n) => `${Math.round(n)}%`;
+
+	        const profile = String(root.dataset.profile || '').trim().toLowerCase();
+	        const successRate = clamp(num(root.dataset.success), 0, 100);
+	        const duelRate = clamp(num(root.dataset.duel), 0, 100);
+	        const passAcc = clamp(num(root.dataset.pass), 0, 100);
+	        const shotAcc = clamp(num(root.dataset.shot), 0, 100);
+	        const aerialRate = clamp(pct(num(root.dataset.aerialWon), num(root.dataset.aerialTotal)), 0, 100);
+
+	        const actions = Math.max(0, num(root.dataset.actions));
+	        const pj = Math.max(0, num(root.dataset.pj));
+	        const actionsPerMatch = pj > 0 ? (actions / pj) : actions;
+	        // Heurística: 60 acciones/partido ≈ 100 (ajustable sin romper datos históricos).
+	        const volumeScore = clamp((actionsPerMatch / 60) * 100, 0, 100);
+
+	        const goals = Math.max(0, num(root.dataset.goals));
+	        const assists = Math.max(0, num(root.dataset.assists));
+	        const contribPerMatch = pj > 0 ? ((goals + assists) / pj) : 0;
+	        // Heurística: 1 G+A por partido ≈ 100.
+	        const impactScore = clamp(contribPerMatch * 100, 0, 100);
+
+	        const saves = Math.max(0, num(root.dataset.saves));
+	        const savesPerMatch = pj > 0 ? (saves / pj) : saves;
+	        // Heurística: 8 paradas/partido ≈ 100.
+	        const savesScore = clamp((savesPerMatch / 8) * 100, 0, 100);
+
+	        const axes = profile === 'goalkeeper'
+	          ? [
+	              { key: 'Éxito', value: successRate, display: fmtPct(successRate) },
+	              { key: 'Paradas', value: savesScore, display: pj ? `${Math.round(savesPerMatch * 10) / 10}/PJ` : `${Math.round(saves)}` },
+	              { key: 'Pase', value: passAcc, display: fmtPct(passAcc) },
+	              { key: 'Duelos', value: duelRate, display: fmtPct(duelRate) },
+	              { key: 'Aéreo', value: aerialRate, display: fmtPct(aerialRate) },
+	              { key: 'Volumen', value: volumeScore, display: pj ? `${Math.round(actionsPerMatch)}/PJ` : `${Math.round(actions)}` },
+	            ]
+	          : [
+	              { key: 'Éxito', value: successRate, display: fmtPct(successRate) },
+	              { key: 'Duelos', value: duelRate, display: fmtPct(duelRate) },
+	              { key: 'Aéreo', value: aerialRate, display: fmtPct(aerialRate) },
+	              { key: 'Pase', value: passAcc, display: fmtPct(passAcc) },
+	              { key: 'Tiro', value: shotAcc, display: fmtPct(shotAcc) },
+	              { key: 'Impacto', value: impactScore, display: pj ? `${Math.round((contribPerMatch) * 100) / 100} G+A/PJ` : `${goals + assists}` },
+	            ];
+
+	        const cx = 180;
+	        const cy = 180;
+	        const R = 120;
+	        const labelR = 142;
+	        const rings = [0.25, 0.5, 0.75, 1];
+	        const angleFor = (i, n) => (-Math.PI / 2) + (i * 2 * Math.PI / n);
+	        const point = (angle, r) => ({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
+
+	        const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+	        clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
+
+	        // Grid rings
+	        rings.forEach((t) => {
+	          const rr = R * t;
+	          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+	          c.setAttribute('cx', String(cx));
+	          c.setAttribute('cy', String(cy));
+	          c.setAttribute('r', String(rr));
+	          c.setAttribute('fill', 'none');
+	          c.setAttribute('stroke', 'rgba(15,23,42,0.14)');
+	          c.setAttribute('stroke-width', '1');
+	          gridG.appendChild(c);
+	        });
+
+	        // Axis lines + labels
+	        axes.forEach((axis, i) => {
+	          const a = angleFor(i, axes.length);
+	          const p0 = point(a, 0);
+	          const p1 = point(a, R);
+	          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+	          line.setAttribute('x1', String(p0.x));
+	          line.setAttribute('y1', String(p0.y));
+	          line.setAttribute('x2', String(p1.x));
+	          line.setAttribute('y2', String(p1.y));
+	          line.setAttribute('stroke', 'rgba(15,23,42,0.14)');
+	          line.setAttribute('stroke-width', '1');
+	          gridG.appendChild(line);
+
+	          const pl = point(a, labelR);
+	          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+	          text.setAttribute('x', String(pl.x));
+	          text.setAttribute('y', String(pl.y));
+	          text.setAttribute('fill', 'rgba(15,23,42,0.78)');
+	          text.setAttribute('font-size', '11');
+	          text.setAttribute('font-weight', '900');
+	          text.setAttribute('text-anchor', pl.x < cx - 10 ? 'end' : (pl.x > cx + 10 ? 'start' : 'middle'));
+	          text.setAttribute('dominant-baseline', pl.y < cy ? 'auto' : 'hanging');
+	          text.textContent = axis.key;
+	          labelsG.appendChild(text);
+	        });
+
+	        // Data polygon
+	        const pts = axes.map((axis, i) => {
+	          const a = angleFor(i, axes.length);
+	          const r = R * (clamp(num(axis.value), 0, 100) / 100);
+	          return point(a, r);
+	        });
+	        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+	        const d = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+	        path.setAttribute('d', d);
+	        path.setAttribute('fill', 'url(#radarFill)');
+	        path.setAttribute('stroke', 'rgba(15,23,42,0.22)');
+	        path.setAttribute('stroke-width', '1.5');
+	        dataG.appendChild(path);
+
+	        pts.forEach((p) => {
+	          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+	          dot.setAttribute('cx', String(p.x));
+	          dot.setAttribute('cy', String(p.y));
+	          dot.setAttribute('r', '3.6');
+	          dot.setAttribute('fill', 'rgba(244,180,0,0.92)');
+	          dot.setAttribute('stroke', 'rgba(15,23,42,0.18)');
+	          dot.setAttribute('stroke-width', '1');
+	          dataG.appendChild(dot);
+	        });
+
+	        // Legend list
+	        axes.forEach((axis) => {
+	          const li = document.createElement('li');
+	          const dot = document.createElement('span');
+	          dot.className = 'radar-dot';
+	          const label = document.createElement('span');
+	          label.className = 'radar-axis-label';
+	          label.textContent = axis.key;
+	          const value = document.createElement('span');
+	          value.className = 'radar-axis-value';
+	          value.textContent = String(axis.display || fmt(axis.value));
+	          li.appendChild(dot);
+	          li.appendChild(label);
+	          li.appendChild(value);
+	          axesList.appendChild(li);
+	        });
+	      })();
+	    </script>
+	    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
+	  </body>
+	</html>
