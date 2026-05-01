@@ -2364,25 +2364,38 @@
       .rich-toolbar button:hover {
         background: rgba(255, 255, 255, 0.07);
       }
-      .rich-area {
-        min-height: 120px;
-        padding: 0.72rem 0.82rem;
-        outline: none;
-        font-size: 0.92rem;
-        letter-spacing: 0.02em;
-        text-transform: none;
-        text-align: left !important;
-        display: block !important;
+	      .rich-area {
+	        min-height: 120px;
+	        padding: 0.72rem 0.82rem;
+	        outline: none;
+	        font-size: 0.92rem;
+	        letter-spacing: 0.02em;
+	        text-transform: none;
+	        text-align: left !important;
+	        display: block !important;
         justify-content: flex-start !important;
         align-items: stretch !important;
         align-content: flex-start !important;
         direction: ltr;
         white-space: pre-wrap;
-        line-height: 1.55;
-      }
-      .rich-area * {
-        text-align: left !important;
-      }
+	        line-height: 1.55;
+	      }
+	      .rich-area * {
+	        text-align: left !important;
+	        /* Evita que el contenido quede "centrado" por wrappers (flex/align) dentro del HTML pegado. */
+	        justify-content: flex-start !important;
+	        align-items: flex-start !important;
+	        align-content: flex-start !important;
+	        margin-left: 0 !important;
+	        margin-right: 0 !important;
+	      }
+	      .rich-area p,
+	      .rich-area div,
+	      .rich-area span,
+	      .rich-area section,
+	      .rich-area article {
+	        text-align: left !important;
+	      }
       .rich-area ul,
       .rich-area ol {
         margin: 0;
