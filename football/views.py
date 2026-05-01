@@ -17993,6 +17993,67 @@ def team_agenda_page(request):
     )
 
 
+@login_required
+def player_attendance_mark(request):
+    """
+    Confirmación rápida de asistencia desde la vista del jugador.
+
+    Nota: se guarda en TrainingSessionAttendance (misma fuente que el staff). El staff puede editar/ajustar después.
+    """
+    if request.method != 'POST':
+        return HttpResponse(status=405)
+
+    session_id = _parse_int(request.POST.get('session_id'))
+    status = str(request.POST.get('status') or '').strip()
+    notes = str(request.POST.get('notes') or '').strip()[:180]
+    if not session_id or not status:
+        return JsonResponse({'error': 'Faltan datos.'}, status=400)
+
+    player = (
+        Player.objects
+        .select_related('team')
+        .filter(user=request.user, is_active=True)
+        .first()
+    )
+    if not player or not player.team_id:
+        return JsonResponse({'error': 'No hay jugador vinculado a tu usuario.'}, status=403)
+
+    allowed_statuses = {value for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
+    if status not in allowed_statuses:
+        return JsonResponse({'error': 'Estado no válido.'}, status=400)
+
+    session_obj = (
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(id=session_id, microcycle__team_id=int(player.team_id))
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .first()
+    )
+    if not session_obj:
+        return JsonResponse({'error': 'Sesión no encontrada.'}, status=404)
+
+    mark, _ = TrainingSessionAttendance.objects.get_or_create(
+        session=session_obj,
+        player=player,
+        defaults={
+            'status': status,
+            'notes': notes,
+            'marked_by': request.user,
+        },
+    )
+    if mark.status != status or (notes and mark.notes != notes) or mark.marked_by_id != request.user.id:
+        mark.status = status
+        if notes:
+            mark.notes = notes
+        mark.marked_by = request.user
+        mark.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
+
+    next_url = str(request.POST.get('next') or '').strip()
+    if next_url and next_url.startswith('/'):
+        return redirect(next_url)
+    return redirect(reverse('player-detail', args=[player.id]) + '?preview=player')
+
+
 def _match_staff_report_context(request, *, match, primary_team):
     """
     Contexto común para HTML/PDF del informe staff.
@@ -38296,6 +38357,98 @@ def player_detail_page(request, player_id):
         active_workspace = _get_active_workspace(request)
         home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
 
+        # Asistencia (temporada): conteo por estado + sesiones totales del equipo.
+        season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
+        season_start = getattr(season_obj, 'start_date', None) if season_obj else None
+        season_end = getattr(season_obj, 'end_date', None) if season_obj else None
+        if not season_start:
+            season_start = timezone.localdate() - timedelta(days=365)
+        if not season_end:
+            season_end = timezone.localdate() + timedelta(days=30)
+        session_total_in_season = int(
+            TrainingSession.objects
+            .filter(microcycle__team=primary_team)
+            .filter(session_date__range=(season_start, season_end))
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .count()
+            or 0
+        )
+        attendance_counts = {
+            TrainingSessionAttendance.STATUS_PRESENT: 0,
+            TrainingSessionAttendance.STATUS_ABSENT: 0,
+            TrainingSessionAttendance.STATUS_LATE: 0,
+            TrainingSessionAttendance.STATUS_INJURED: 0,
+            TrainingSessionAttendance.STATUS_EXCUSED: 0,
+        }
+        for row in (
+            TrainingSessionAttendance.objects
+            .filter(player=player, session__session_date__range=(season_start, season_end))
+            .values('status')
+            .annotate(total=Count('id'))
+        ):
+            key = str(row.get('status') or '').strip()
+            if key in attendance_counts:
+                attendance_counts[key] = int(row.get('total') or 0)
+        marked_total = sum(attendance_counts.values())
+        attendance_pending = max(0, session_total_in_season - marked_total)
+
+        # Días de baja (temporada): suma de días en registros de lesión que solapan con la temporada.
+        injury_days = 0
+        try:
+            for rec in injury_records:
+                start = getattr(rec, 'injury_date', None)
+                if not start:
+                    continue
+                end = getattr(rec, 'return_date', None) or season_end
+                if not end:
+                    continue
+                window_start = max(start, season_start) if season_start else start
+                window_end = min(end, season_end) if season_end else end
+                if window_end and window_start and window_end >= window_start:
+                    injury_days += int((window_end - window_start).days) + 1
+        except Exception:
+            injury_days = 0
+
+        # Próximas sesiones: útiles para que el jugador confirme asistencia.
+        today = timezone.localdate()
+        upcoming_end = today + timedelta(days=14)
+        upcoming_sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team)
+            .filter(session_date__range=(today, upcoming_end))
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .order_by('session_date', 'start_time', 'order', 'id')[:12]
+        )
+        upcoming_marks = {
+            int(mark.session_id): mark
+            for mark in TrainingSessionAttendance.objects.filter(
+                player=player,
+                session_id__in=[int(s.id) for s in upcoming_sessions],
+            )
+        } if upcoming_sessions else {}
+        upcoming_session_rows = []
+        for s in upcoming_sessions:
+            mark = upcoming_marks.get(int(s.id))
+            upcoming_session_rows.append(
+                {
+                    'id': int(s.id),
+                    'date': s.session_date,
+                    'date_label': s.session_date.strftime('%d/%m/%Y') if s.session_date else '',
+                    'time_label': s.start_time.strftime('%H:%M') if getattr(s, 'start_time', None) else '',
+                    'focus': str(getattr(s, 'focus', '') or '').strip() or 'Sesión',
+                    'status': str(getattr(mark, 'status', '') or '').strip(),
+                    'status_label': dict(TrainingSessionAttendance.STATUS_CHOICES).get(getattr(mark, 'status', ''), '') if mark else '',
+                    'notes': str(getattr(mark, 'notes', '') or '').strip() if mark else '',
+                }
+            )
+
+        can_self_mark_attendance = bool(
+            request.user.is_authenticated
+            and getattr(player, 'user_id', None)
+            and int(player.user_id) == int(request.user.id)
+        )
+
         return render(
             request,
             'football/player_detail.html',
@@ -38334,6 +38487,16 @@ def player_detail_page(request, player_id):
                 'can_preview_player_view': can_preview_player_view,
                 'workspace_entry_url': home_url,
                 'home_url': home_url,
+                'attendance_season_start': season_start,
+                'attendance_season_end': season_end,
+                'attendance_session_total': session_total_in_season,
+                'attendance_counts': attendance_counts,
+                'attendance_marked_total': marked_total,
+                'attendance_pending': attendance_pending,
+                'injury_days_in_season': injury_days,
+                'upcoming_sessions': upcoming_session_rows,
+                'attendance_status_choices': TrainingSessionAttendance.STATUS_CHOICES,
+                'can_self_mark_attendance': can_self_mark_attendance,
             },
         )
     except Exception:

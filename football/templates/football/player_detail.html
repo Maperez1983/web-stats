@@ -583,6 +583,77 @@
 
       <section class="card tab-pane" data-pane="general">
         <h2 style="margin-top:0;">Datos personales y estadísticas generales</h2>
+        <div style="margin:0.85rem 0 1rem; border:1px solid rgba(144,161,185,0.22); border-radius:1rem; padding:0.9rem; background:rgba(2,6,23,0.22);">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+            <div>
+              <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Asistencia (temporada)</strong>
+              <div class="subtle" style="margin-top:0.25rem;">
+                {{ attendance_season_start|date:"d/m/Y" }}–{{ attendance_season_end|date:"d/m/Y" }}
+                · Sesiones: <strong>{{ attendance_session_total }}</strong>
+                · Marcadas: <strong>{{ attendance_marked_total }}</strong>
+                · Pendientes: <strong>{{ attendance_pending }}</strong>
+                · Días baja: <strong>{{ injury_days_in_season }}</strong>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
+              <span class="product-chip">Pres {{ attendance_counts.present|default:0 }}</span>
+              <span class="product-chip">Aus {{ attendance_counts.absent|default:0 }}</span>
+              <span class="product-chip">Tarde {{ attendance_counts.late|default:0 }}</span>
+              <span class="product-chip">Les {{ attendance_counts.injured|default:0 }}</span>
+              <span class="product-chip">Just {{ attendance_counts.excused|default:0 }}</span>
+            </div>
+          </div>
+
+          {% if upcoming_sessions %}
+            <div style="margin-top:0.85rem; border-top:1px solid rgba(144,161,185,0.16); padding-top:0.75rem;">
+              <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:0.82rem;">Próximas sesiones (14 días)</strong>
+              <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
+                {% for s in upcoming_sessions %}
+                  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; border:1px solid rgba(144,161,185,0.18); border-radius:0.85rem; padding:0.65rem 0.75rem; background:rgba(15,23,42,0.32);">
+                    <div style="min-width:240px;">
+                      <div style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">
+                        {{ s.date_label }}{% if s.time_label %} · {{ s.time_label }}{% endif %}
+                      </div>
+                      <div class="subtle" style="margin-top:0.2rem;">{{ s.focus }}</div>
+                      <div class="subtle" style="margin-top:0.25rem;">
+                        {% if s.status_label %}
+                          Estado: <strong>{{ s.status_label }}</strong>
+                        {% else %}
+                          Estado: <strong>Sin confirmar</strong>
+                        {% endif %}
+                        {% if s.notes %} · {{ s.notes }}{% endif %}
+                      </div>
+                    </div>
+                    {% if can_self_mark_attendance %}
+                      <form method="post" action="{% url 'player-attendance-mark' %}" style="display:flex; gap:0.4rem; align-items:flex-end; flex-wrap:wrap;">
+                        {% csrf_token %}
+                        <input type="hidden" name="session_id" value="{{ s.id }}" />
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                        <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
+                          Confirmación
+                          <select name="status">
+                            <option value="">Seleccionar…</option>
+                            {% for value, label in attendance_status_choices %}
+                              <option value="{{ value }}" {% if s.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
+                        <label style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.82rem;">
+                          Nota (opcional)
+                          <input type="text" name="notes" maxlength="180" value="{{ s.notes|default:'' }}" placeholder="Ej. Llego 10' tarde…" />
+                        </label>
+                        <button class="btn" type="submit">Guardar</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              {% if not can_self_mark_attendance %}
+                <p class="subtle" style="margin:0.65rem 0 0;">Solo el jugador puede confirmar su asistencia desde su cuenta.</p>
+              {% endif %}
+            </div>
+          {% endif %}
+        </div>
         <div class="personal-layout">
           {% if not is_player_readonly %}
           <form method="post" enctype="multipart/form-data">
