@@ -11565,27 +11565,34 @@
 	      Array.from(playerBank?.querySelectorAll('button') || []).forEach((button) => button.classList.remove('is-active'));
 	      Array.from(libraryPane?.querySelectorAll('button[data-add]') || []).forEach((button) => button.classList.remove('is-active'));
 	    };
-		    const pointerFromStageEvent = (event) => {
-		      // DragEvent (HTML5 DnD) no es un evento “nativo” de Fabric y en iOS a veces devuelve punteros 0,0.
-		      // Para drop usamos boundingClientRect + viewportTransform (si aplica) para obtener coordenadas fiables.
-		      let clientX = Number(event?.clientX);
-		      let clientY = Number(event?.clientY);
-		      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
-		        const touch = event?.touches?.[0] || event?.changedTouches?.[0];
-		        clientX = Number(touch?.clientX);
-		        clientY = Number(touch?.clientY);
-		      }
-		      const rectSource = canvas?.upperCanvasEl || canvas?.lowerCanvasEl || stage;
-		      const rect = rectSource?.getBoundingClientRect?.() || stage.getBoundingClientRect();
-		      const safeWidth = Math.max(1, Number(rect?.width) || 1);
-		      const safeHeight = Math.max(1, Number(rect?.height) || 1);
-		      const rawScreenX = ((clientX - rect.left) / safeWidth) * (Number(canvas.getWidth?.()) || 0);
-		      const rawScreenY = ((clientY - rect.top) / safeHeight) * (Number(canvas.getHeight?.()) || 0);
-		      let x = rawScreenX;
-		      let y = rawScreenY;
-		      if (useViewportMapping) {
-		        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-		        const scale = Number(vpt[0]) || 1;
+			    const pointerFromStageEvent = (event) => {
+			      // DragEvent (HTML5 DnD) no es un evento “nativo” de Fabric y en iOS a veces devuelve punteros 0,0.
+			      // Para drop usamos boundingClientRect + viewportTransform (si aplica) para obtener coordenadas fiables.
+			      let clientX = Number(event?.clientX);
+			      let clientY = Number(event?.clientY);
+			      if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+			        const touch = event?.touches?.[0] || event?.changedTouches?.[0];
+			        clientX = Number(touch?.clientX);
+			        clientY = Number(touch?.clientY);
+			      }
+			      const rectSource = canvas?.upperCanvasEl || canvas?.lowerCanvasEl || stage;
+			      const rect = rectSource?.getBoundingClientRect?.() || stage.getBoundingClientRect();
+			      const safeWidth = Math.max(1, Number(rect?.width) || 1);
+			      const safeHeight = Math.max(1, Number(rect?.height) || 1);
+			      const canvasW = Number(canvas.getWidth?.()) || 0;
+			      const canvasH = Number(canvas.getHeight?.()) || 0;
+			      // Fallback: algunos DragEvents (iOS/iPadOS) no llevan clientX/clientY útiles,
+			      // pero sí offsetX/offsetY respecto al target.
+			      const offsetX = Number(event?.offsetX);
+			      const offsetY = Number(event?.offsetY);
+			      const hasOffsets = Number.isFinite(offsetX) && Number.isFinite(offsetY) && offsetX > 0 && offsetY > 0;
+			      const rawScreenX = hasOffsets ? ((offsetX / safeWidth) * canvasW) : (((clientX - rect.left) / safeWidth) * canvasW);
+			      const rawScreenY = hasOffsets ? ((offsetY / safeHeight) * canvasH) : (((clientY - rect.top) / safeHeight) * canvasH);
+			      let x = rawScreenX;
+			      let y = rawScreenY;
+			      if (useViewportMapping) {
+			        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+			        const scale = Number(vpt[0]) || 1;
 		        const offsetX = Number(vpt[4]) || 0;
 		        const offsetY = Number(vpt[5]) || 0;
 		        x = (rawScreenX - offsetX) / scale;

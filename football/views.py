@@ -17816,6 +17816,28 @@ def team_agenda_page(request):
         .order_by('session_date', 'start_time', 'order', 'id')
     )
 
+    roster_total = int(Player.objects.filter(team=primary_team, is_active=True).count() or 0)
+    attendance_by_session_id = {}
+    if sessions:
+        session_ids = [int(s.id) for s in sessions if getattr(s, 'id', None)]
+        if session_ids:
+            raw_counts = (
+                TrainingSessionAttendance.objects
+                .filter(session_id__in=session_ids)
+                .values('session_id', 'status')
+                .annotate(total=Count('id'))
+            )
+            counts = {}
+            for row in raw_counts:
+                sid = int(row.get('session_id') or 0)
+                if not sid:
+                    continue
+                status = str(row.get('status') or '').strip()
+                if not status:
+                    continue
+                counts.setdefault(sid, {})[status] = int(row.get('total') or 0)
+            attendance_by_session_id = counts
+
     def _match_title(m):
         opponent = m.away_team if m.home_team_id == primary_team.id else m.home_team
         opp = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() or 'Rival'
@@ -17879,12 +17901,49 @@ def team_agenda_page(request):
     for s in sessions:
         if not s.session_date:
             continue
+        counts = attendance_by_session_id.get(int(s.id)) or {}
+        marked = sum(int(v or 0) for v in counts.values())
+        attendance_state = 'pending'
+        if marked:
+            if roster_total and marked >= roster_total:
+                attendance_state = 'complete'
+            else:
+                attendance_state = 'partial'
+        attendance_bits = []
+        if marked:
+            if roster_total:
+                attendance_bits.append(f'Asistencia {marked}/{roster_total}')
+            else:
+                attendance_bits.append(f'Asistencia {marked}')
+            short_labels = {
+                TrainingSessionAttendance.STATUS_ABSENT: 'Aus',
+                TrainingSessionAttendance.STATUS_LATE: 'Tarde',
+                TrainingSessionAttendance.STATUS_INJURED: 'Les',
+                TrainingSessionAttendance.STATUS_EXCUSED: 'Just',
+                TrainingSessionAttendance.STATUS_PRESENT: 'Pres',
+            }
+            for key in [
+                TrainingSessionAttendance.STATUS_ABSENT,
+                TrainingSessionAttendance.STATUS_LATE,
+                TrainingSessionAttendance.STATUS_INJURED,
+                TrainingSessionAttendance.STATUS_EXCUSED,
+            ]:
+                val = int(counts.get(key, 0) or 0)
+                if val:
+                    attendance_bits.append(f'{short_labels.get(key, key)} {val}')
+        if attendance_bits:
+            attendance_label = ' · '.join(attendance_bits)
+        else:
+            attendance_label = 'Pasar lista'
         buckets.setdefault(s.session_date, []).append(
             {
                 'kind': 'session',
                 'title': _session_title(s),
                 'meta': _session_meta(s),
                 'url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}',
+                'attendance_label': attendance_label,
+                'attendance_state': attendance_state,
+                'attendance_url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}#planner-attendance',
             }
         )
 

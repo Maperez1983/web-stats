@@ -134,6 +134,23 @@
       .tag.is-session { border-color: rgba(34, 211, 238, 0.25); }
       .title { font-weight: 950; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.76rem; }
       .sub { margin-top: 0.18rem; color: rgba(226, 232, 240, 0.74); font-weight: 800; font-size: 0.82rem; }
+      .att {
+        margin-top: 0.35rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(2, 6, 23, 0.28);
+        color: rgba(226, 232, 240, 0.86);
+      }
+      .att.is-pending { border-color: rgba(255, 255, 255, 0.14); }
+      .att.is-partial { border-color: rgba(244, 180, 0, 0.35); color: rgba(255, 242, 199, 0.92); }
+      .att.is-complete { border-color: rgba(34, 211, 238, 0.3); color: rgba(186, 230, 253, 0.94); }
       .empty { margin: 0; color: rgba(226, 232, 240, 0.72); font-weight: 800; }
       .footer-note {
         margin-top: 1rem;
@@ -173,11 +190,14 @@
           <p class="meta">{{ day.date_label }}</p>
           <div class="items">
             {% for item in day.items %}
-              <a class="item" href="{{ item.url }}">
+              <a class="item" href="{% if item.kind == 'session' and item.attendance_url %}{{ item.attendance_url }}{% else %}{{ item.url }}{% endif %}">
                 <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">{% if item.kind == 'match' %}Partido{% else %}Entreno{% endif %}</span>
                 <span style="min-width:0;">
                   <div class="title">{{ item.title }}</div>
                   <div class="sub">{{ item.meta }}</div>
+                  {% if item.kind == 'session' and item.attendance_label %}
+                    <div class="att is-{{ item.attendance_state|default:'pending' }}">{{ item.attendance_label }}</div>
+                  {% endif %}
                 </span>
               </a>
             {% empty %}
@@ -195,4 +215,3 @@
     </div>
   </body>
 </html>
-
