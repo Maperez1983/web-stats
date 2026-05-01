@@ -8,6 +8,27 @@
 <link rel="icon" type="image/png" sizes="192x192" href="{% static 'football/pwa/icons/icon-192.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 <link rel="icon" type="image/png" sizes="512x512" href="{% static 'football/pwa/icons/icon-512.png' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 <script src="{% static 'football/js/pdf_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+{% if request.user.is_authenticated %}
+<script>
+  (function () {
+    // Mantiene la sesión viva en WebView/PWA cuando el usuario está leyendo/edita sin hacer requests.
+    // Evita que acciones críticas (Asignar tarea, Guardar pizarra, PDFs) redirijan a login tras minutos sin actividad.
+    try {
+      const ping = async () => {
+        try {
+          await fetch('/api/session/keepalive/', { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } });
+        } catch (e) {}
+      };
+      // Ping inicial suave.
+      window.setTimeout(() => { ping(); }, 15000);
+      // Ping periódico.
+      window.setInterval(() => { ping(); }, 6 * 60 * 1000);
+      // Al volver a la app/pestaña.
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(); });
+    } catch (e) {}
+  })();
+</script>
+{% endif %}
 <script>
   (function () {
     if (!('serviceWorker' in navigator)) return;

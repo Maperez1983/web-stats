@@ -15129,7 +15129,9 @@
 	    if (keepaliveUrl) {
 	      pingKeepalive = async () => {
 	        try {
-          const response = await fetch(keepaliveUrl, { credentials: 'same-origin' });
+          // En algunas configuraciones (Capacitor / WKWebView) el origen puede no considerarse "same-origin"
+          // aunque el usuario esté autenticado; `include` evita falsos negativos (y bucles al login).
+          const response = await fetch(keepaliveUrl, { credentials: 'include', headers: { Accept: 'application/json' } });
           const redirectedToLogin = response.redirected && /\/login\/?$/.test(new URL(response.url).pathname);
           if (redirectedToLogin || response.status === 401 || response.status === 403) {
             persistDraftNow('session-expired');
@@ -18129,13 +18131,10 @@
 	      if (pingKeepalive) {
 	        const ok = await pingKeepalive();
 	        if (!ok) {
-	          // Asegura mensaje visible incluso si el usuario está scrolleado abajo.
-	          try { window.alert('Sesión caducada. Se guardó un borrador local; inicia sesión y vuelve a esta pestaña.'); } catch (error) { /* ignore */ }
-	          try {
-	            const next = encodeURIComponent(window.location.pathname + window.location.search);
-	            window.location.href = `/login/?next=${next}`;
-	          } catch (error) { /* ignore */ }
-	          return;
+	          // Importante: NO forzamos navegación al login aquí porque en WKWebView pueden darse
+	          // falsos negativos (cookies no enviadas en fetch aunque el POST sí funcione).
+	          // Dejamos que el submit continúe; si realmente caducó, el servidor redirigirá.
+	          try { window.alert('No se pudo verificar la sesión. Se guardó un borrador local; si aparece login, vuelve y reintenta.'); } catch (error) { /* ignore */ }
 	        }
 	      }
 		      isSubmitting = true;
