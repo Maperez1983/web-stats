@@ -15178,6 +15178,31 @@ def player_dashboard_page(request):
                 player['match_success_rate'] = round((successes / actions) * 100, 1) if actions else 0
                 selected_match_total_actions += actions
 
+    # Percentiles (Pxx) para mini-radar de lista (comparativa dentro del equipo / filtro actual)
+    if player_stats:
+        try:
+            for row in player_stats:
+                total_actions = int(row.get('total_actions', 0) or 0)
+                minutes = int(row.get('minutes', 0) or 0)
+                row['actions_per90'] = round((total_actions / minutes) * 90, 1) if minutes > 0 else 0.0
+            pop_a90 = [float(r.get('actions_per90', 0) or 0) for r in player_stats]
+            pop_sr = [float(r.get('success_rate', 0) or 0) for r in player_stats]
+            pop_part = [float(r.get('participation_pct', 0) or 0) for r in player_stats]
+            pop_inf = [float(r.get('influence_score', 0) or 0) for r in player_stats]
+            pop_imp = [float(r.get('importance_score', 0) or 0) for r in player_stats]
+            for row in player_stats:
+                row['radar_pcts'] = {
+                    'a90': _percentile_rank(row.get('actions_per90', 0), pop_a90),
+                    'sr': _percentile_rank(row.get('success_rate', 0), pop_sr),
+                    'part': _percentile_rank(row.get('participation_pct', 0), pop_part),
+                    'inf': _percentile_rank(row.get('influence_score', 0), pop_inf),
+                    'imp': _percentile_rank(row.get('importance_score', 0), pop_imp),
+                }
+        except Exception:
+            for row in player_stats:
+                row['actions_per90'] = row.get('actions_per90', 0) or 0
+                row['radar_pcts'] = {}
+
     current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_preview_player_view = current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user)
@@ -22976,6 +23001,24 @@ def coach_roster_page(request):
             )
         except Exception:
             player_cards = []
+        if player_cards:
+            try:
+                pop_a90 = [float(r.get('actions_per90', 0) or 0) for r in player_cards]
+                pop_sr = [float(r.get('success_rate', 0) or 0) for r in player_cards]
+                pop_part = [float(r.get('participation_pct', 0) or 0) for r in player_cards]
+                pop_inf = [float(r.get('influence_score', 0) or 0) for r in player_cards]
+                pop_imp = [float(r.get('importance_score', 0) or 0) for r in player_cards]
+                for row in player_cards:
+                    row['radar_pcts'] = {
+                        'a90': _percentile_rank(row.get('actions_per90', 0), pop_a90),
+                        'sr': _percentile_rank(row.get('success_rate', 0), pop_sr),
+                        'part': _percentile_rank(row.get('participation_pct', 0), pop_part),
+                        'inf': _percentile_rank(row.get('influence_score', 0), pop_inf),
+                        'imp': _percentile_rank(row.get('importance_score', 0), pop_imp),
+                    }
+            except Exception:
+                for row in player_cards:
+                    row['radar_pcts'] = {}
     active_workspace = _get_active_workspace(request)
     active_team_query = []
     if active_workspace and getattr(active_workspace, 'id', None):

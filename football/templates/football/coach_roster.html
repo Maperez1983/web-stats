@@ -254,12 +254,25 @@
         font-size: 0.72rem;
         color: rgba(226, 232, 240, 0.9);
       }
-      .broadcast-kpis {
-        margin-top: 0.55rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-      }
+	      .broadcast-kpis {
+	        margin-top: 0.55rem;
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.45rem;
+	      }
+	      .mini-radar-wrap {
+	        margin-top: 0.55rem;
+	        display: flex;
+	        justify-content: flex-end;
+	      }
+	      svg.mini-radar {
+	        width: 92px;
+	        height: 76px;
+	        display: block;
+	        border-radius: 14px;
+	        border: 1px solid rgba(56, 189, 248, 0.18);
+	        background: rgba(2, 6, 23, 0.35);
+	      }
       .broadcast-kpi {
         flex: 1 1 calc(50% - 0.45rem);
         min-width: 140px;
@@ -405,20 +418,31 @@
                     <div class="broadcast-kpi"><div class="k">% Part.</div><div class="v">{{ card.participation_pct|default:0|floatformat:0 }}</div></div>
                     <div class="broadcast-kpi"><div class="k">% Disp.</div><div class="v">{{ card.availability_pct|default:0|floatformat:0 }}</div></div>
                   </div>
-                  <div class="mini-kpis">
-                    <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
-                    <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
-                    <span class="mini-kpi">G+A {{ card.goal_contrib|default:0 }}</span>
-                    {% if card.shot_attempts or card.shots_on_target %}<span class="mini-kpi">TAP {{ card.shots_on_target|default:0 }}/{{ card.shot_attempts|default:0 }}</span>{% endif %}
-                    {% if card.duels_total %}<span class="mini-kpi">Duel {{ card.duels_won|default:0 }}/{{ card.duels_total|default:0 }}</span>{% endif %}
-                    {% if card.aerial_duels_total %}<span class="mini-kpi">Aéreo {{ card.aerial_duels_won|default:0 }}/{{ card.aerial_duels_total|default:0 }}</span>{% endif %}
-                    {% if card.key_passes_completed %}<span class="mini-kpi">KP {{ card.key_passes_completed|default:0 }}</span>{% endif %}
-                    {% if card.goalkeeper_saves %}<span class="mini-kpi">Par {{ card.goalkeeper_saves|default:0 }}</span>{% endif %}
-                    <span class="mini-kpi">% {{ card.success_rate|default:0 }}</span>
-                    {% if card.actions_per90 %}<span class="mini-kpi">A/90 {{ card.actions_per90|default:0 }}</span>{% endif %}
-                  </div>
-                </div>
-              </a>
+	                  <div class="mini-kpis">
+	                    <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
+	                    <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
+	                    <span class="mini-kpi">G+A {{ card.goal_contrib|default:0 }}</span>
+	                    {% if card.shot_attempts or card.shots_on_target %}<span class="mini-kpi">TAP {{ card.shots_on_target|default:0 }}/{{ card.shot_attempts|default:0 }}</span>{% endif %}
+	                    {% if card.duels_total %}<span class="mini-kpi">Duel {{ card.duels_won|default:0 }}/{{ card.duels_total|default:0 }}</span>{% endif %}
+	                    {% if card.aerial_duels_total %}<span class="mini-kpi">Aéreo {{ card.aerial_duels_won|default:0 }}/{{ card.aerial_duels_total|default:0 }}</span>{% endif %}
+	                    {% if card.key_passes_completed %}<span class="mini-kpi">KP {{ card.key_passes_completed|default:0 }}</span>{% endif %}
+	                    {% if card.goalkeeper_saves %}<span class="mini-kpi">Par {{ card.goalkeeper_saves|default:0 }}</span>{% endif %}
+	                    <span class="mini-kpi">% {{ card.success_rate|default:0 }}</span>
+	                    {% if card.actions_per90 %}<span class="mini-kpi">A/90 {{ card.actions_per90|default:0 }}</span>{% endif %}
+	                  </div>
+	                  <div class="mini-radar-wrap" aria-hidden="true">
+	                    <svg
+	                      class="mini-radar"
+	                      viewBox="0 0 100 100"
+	                      data-a90="{{ card.radar_pcts.a90|default:0 }}"
+	                      data-sr="{{ card.radar_pcts.sr|default:0 }}"
+	                      data-part="{{ card.radar_pcts.part|default:0 }}"
+	                      data-inf="{{ card.radar_pcts.inf|default:0 }}"
+	                      data-imp="{{ card.radar_pcts.imp|default:0 }}"
+	                    ></svg>
+	                  </div>
+	                </div>
+	              </a>
             {% empty %}
               <div style="grid-column:1/-1; color:#94a3b8;">No hay jugadores aún. Usa “Alta y plantilla”.</div>
             {% endfor %}
@@ -456,10 +480,60 @@
                   }
                 });
               }
-            })();
-          </script>
-        {% else %}
-        <form method="post" class="add">
+	            })();
+	          </script>
+	          <script>
+	            (function() {
+	              const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+	              const num = (v) => {
+	                const n = Number(String(v ?? '').replace(',', '.'));
+	                return Number.isFinite(n) ? n : 0;
+	              };
+	              const render = (svg, values) => {
+	                const n = values.length;
+	                if (!n) return;
+	                const cx = 50;
+	                const cy = 50;
+	                const R = 30;
+	                const rings = [0.5, 1];
+	                const angleFor = (i) => (-Math.PI / 2) + (i * 2 * Math.PI / n);
+	                const point = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+	                const pts = values.map((v, i) => {
+	                  const a = angleFor(i);
+	                  const r = R * (clamp(num(v), 0, 100) / 100);
+	                  const p = point(a, r);
+	                  return `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
+	                }).join(' ');
+	                let grid = '';
+	                rings.forEach((t) => {
+	                  grid += `<circle cx="${cx}" cy="${cy}" r="${(R * t).toFixed(1)}" fill="none" stroke="rgba(148,163,184,0.22)" stroke-width="1"/>`;
+	                });
+	                for (let i = 0; i < n; i++) {
+	                  const a = angleFor(i);
+	                  const p = point(a, R);
+	                  grid += `<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="rgba(148,163,184,0.18)" stroke-width="1"/>`;
+	                }
+	                svg.innerHTML = `
+	                  ${grid}
+	                  <polygon points="${pts}" fill="rgba(56,189,248,0.18)" stroke="rgba(56,189,248,0.85)" stroke-width="1.4" />
+	                `;
+	              };
+	              const svgs = Array.from(document.querySelectorAll('svg.mini-radar'));
+	              if (!svgs.length) return;
+	              svgs.forEach((svg) => {
+	                const values = [
+	                  svg.dataset.a90,
+	                  svg.dataset.sr,
+	                  svg.dataset.part,
+	                  svg.dataset.inf,
+	                  svg.dataset.imp,
+	                ];
+	                render(svg, values);
+	              });
+	            })();
+	          </script>
+	        {% else %}
+	        <form method="post" class="add">
           {% csrf_token %}
           <input type="hidden" name="action" value="add" />
           <label>
