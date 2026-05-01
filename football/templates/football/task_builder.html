@@ -1672,8 +1672,47 @@
 	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .pitch-status {
 	        margin-top: 0.5rem;
 	      }
-	      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section {
-	        margin-top: 0.65rem !important;
+		      body.ui-desktop #task-pitch-viewport.is-portrait ~ .section {
+		        margin-top: 0.65rem !important;
+		      }
+
+	      /* Tablet/phone portrait: mantener Recursos visibles sin que “pisen” el campo.
+	         En vez de columna lateral (que en pantallas estrechas provoca scroll lateral y overlays),
+	         usamos un layout apilado: campo arriba + Recursos abajo con altura fija y scroll interno. */
+	      @media (max-width: 1180px) and (orientation: portrait) {
+	        .pitch-layout {
+	          grid-template-columns: 1fr;
+	          grid-template-areas:
+	            "main"
+	            "side";
+	        }
+	        .pitch-side {
+	          position: relative;
+	          top: auto;
+	          max-height: none;
+	          height: min(56vh, 520px);
+	          overflow: hidden;
+	          padding-right: 0;
+	        }
+	        .pitch-side .resource-details {
+	          display: grid;
+	          grid-template-rows: auto auto auto 1fr;
+	          gap: 0;
+	          height: 100%;
+	        }
+	        .pitch-side .library-head,
+	        .pitch-side .library-filter,
+	        .pitch-side .resource-tabs {
+	          background: rgba(7, 22, 44, 0.92);
+	        }
+	        .pitch-side .resource-tabs {
+	          padding-bottom: 0.55rem;
+	        }
+	        .pitch-side .resource-panel.is-visible {
+	          overflow-y: auto;
+	          overflow-x: hidden;
+	          padding-bottom: calc(84px + env(safe-area-inset-bottom));
+	        }
 	      }
       .pitch-viewport {
         width: 100%;
