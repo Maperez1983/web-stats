@@ -732,6 +732,8 @@
 				    const playerBank = document.getElementById('task-player-bank');
 			    const hideUsedPlayersToggle = document.getElementById('task-hide-used-players');
 			    const onlyConfirmedPlayersToggle = document.getElementById('task-only-confirmed-players');
+			    const onlyConfirmedPlayersWrap = document.getElementById('task-only-confirmed-wrap');
+			    const targetSessionSelect = document.getElementById('draw-target-session');
 			    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
 			    const selectionToolbar = document.getElementById('task-selection-toolbar');
     const selectionSummary = document.getElementById('task-selection-summary');
@@ -1686,7 +1688,7 @@
 	      confirmedPlayerIds = [];
 	    }
 	    if (!Array.isArray(confirmedPlayerIds)) confirmedPlayerIds = [];
-	    const confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
+	    let confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
 
 	    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
 	    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
@@ -14026,6 +14028,58 @@
 		        onlyConfirmedPlayersEnabled = !!onlyConfirmedPlayersToggle.checked;
 		        try { window.localStorage?.setItem(CONFIRMED_ONLY_KEY, onlyConfirmedPlayersEnabled ? '1' : '0'); } catch (error) { /* ignore */ }
 		        renderPlayerBank();
+		      });
+		    }
+
+		    const applyConfirmedPlayers = (ids) => {
+		      const list = Array.isArray(ids) ? ids : [];
+		      confirmedPlayerIdSet = new Set(list.map((value) => String(value)));
+		      const has = confirmedPlayerIdSet.size > 0;
+		      if (onlyConfirmedPlayersWrap) {
+		        try { onlyConfirmedPlayersWrap.hidden = !has; } catch (e) { /* ignore */ }
+		      }
+		      if (!has) {
+		        onlyConfirmedPlayersEnabled = false;
+		        if (onlyConfirmedPlayersToggle) onlyConfirmedPlayersToggle.checked = false;
+		      } else {
+		        // Si no hay preferencia guardada, por defecto lo activamos (UX: sesión → participantes).
+		        let hasStoredPref = false;
+		        try { hasStoredPref = window.localStorage?.getItem(CONFIRMED_ONLY_KEY) !== null; } catch (e) { hasStoredPref = false; }
+		        if (!hasStoredPref) {
+		          onlyConfirmedPlayersEnabled = true;
+		          if (onlyConfirmedPlayersToggle) onlyConfirmedPlayersToggle.checked = true;
+		        } else {
+		          onlyConfirmedPlayersEnabled = readConfirmedOnlyPref();
+		          if (onlyConfirmedPlayersToggle) onlyConfirmedPlayersToggle.checked = onlyConfirmedPlayersEnabled;
+		        }
+		      }
+		      renderPlayerBank();
+		    };
+
+		    const fetchConfirmedPlayersForSession = async (sessionId) => {
+		      const apiUrl = safeText(form?.dataset?.confirmedPlayersApiUrl);
+		      if (!apiUrl) return;
+		      const sid = Number.parseInt(String(sessionId || ''), 10);
+		      if (!Number.isFinite(sid) || sid <= 0) {
+		        applyConfirmedPlayers([]);
+		        return;
+		      }
+		      try {
+		        const url = new URL(apiUrl, window.location.origin);
+		        url.searchParams.set('session_id', String(sid));
+		        const res = await fetch(url.toString(), { credentials: 'same-origin' });
+		        const data = await res.json().catch(() => ({}));
+		        if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo cargar confirmados.');
+		        applyConfirmedPlayers(Array.isArray(data.confirmed_player_ids) ? data.confirmed_player_ids : []);
+		      } catch (error) {
+		        // Soft-fail: no bloquear el editor.
+		        try { applyConfirmedPlayers([]); } catch (e) { /* ignore */ }
+		      }
+		    };
+
+		    if (targetSessionSelect) {
+		      targetSessionSelect.addEventListener('change', () => {
+		        fetchConfirmedPlayersForSession(targetSessionSelect.value);
 		      });
 		    }
 		    let playerBankUpdateTimer = null;

@@ -3420,6 +3420,7 @@
 				        data-task-id="{% if task %}{{ task.id }}{% endif %}"
 				        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
 				        data-video-import-url="{{ video_import_url|default:'' }}"
+				        data-confirmed-players-api-url="{{ confirmed_players_api_url|default:'' }}"
 				        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
 				        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
 			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
@@ -4608,12 +4609,10 @@
 	                      <input type="checkbox" id="task-hide-used-players" checked />
 	                      Ocultar usados
 	                    </label>
-	                    {% if confirmed_player_ids %}
-	                    <label class="chip-toggle" title="Muestra solo jugadores confirmados (Presente/Llega tarde) según la asistencia de la sesión seleccionada.">
+	                    <label class="chip-toggle" id="task-only-confirmed-wrap" title="Muestra solo jugadores confirmados (Presente/Llega tarde) según la asistencia de la sesión seleccionada." {% if not confirmed_player_ids %}hidden{% endif %}>
 	                      <input type="checkbox" id="task-only-confirmed-players" {% if confirmed_only_default %}checked{% endif %} />
 	                      Solo confirmados
 	                    </label>
-	                    {% endif %}
 	                  </div>
 	                  <div class="player-bank-nav" aria-label="Navegación de plantilla">
 	                    <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
@@ -4662,7 +4661,7 @@
                   {% if show_session_selector|default:True %}
                   <label>
                     Sesión
-                    <select name="draw_target_session_id">
+                    <select name="draw_target_session_id" id="draw-target-session">
                       <option value="">Biblioteca del área</option>
                       {% for session in all_sessions %}
                       <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:'s' %}selected{% endif %}>

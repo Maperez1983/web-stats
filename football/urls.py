@@ -183,6 +183,7 @@ urlpatterns = [
     path('coach/tactica/', views.coach_tactics_page, name='coach-tactics'),
     path('coach/11-inicial/', views.initial_eleven_page, name='initial-eleven'),
     path('coach/sesiones/', views.sessions_page, name='sessions'),
+    path('coach/sesiones/api/confirmed-players/', views.sessions_confirmed_players_api, name='sessions-confirmed-players-api'),
     path('coach/sesiones/tareas/nueva/', views.sessions_task_create_page, name='sessions-task-create'),
     path('coach/sesiones/tareas/pdf-preview/', views.session_task_pdf_preview, name='sessions-task-pdf-preview'),
     path('coach/sesiones/tareas/video-import/', views.session_task_video_import_api, name='sessions-task-video-import'),

@@ -32984,8 +32984,42 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 	            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
 	            'show_session_selector': True,
 	            'show_dragon_nav': True,
+	            'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
 	        },
     )
+
+
+@login_required
+def sessions_confirmed_players_api(request):
+    """
+    Devuelve ids de jugadores confirmados (Presente/Llega tarde) para una sesión del equipo activo.
+    Se usa en el editor visual para filtrar la plantilla sin recargar la página.
+    """
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo no configurado.'}, status=400)
+    session_id = _parse_int(request.GET.get('session_id'))
+    if not session_id:
+        return JsonResponse({'ok': True, 'session_id': None, 'confirmed_player_ids': []})
+    session_obj = (
+        TrainingSession.objects
+        .select_related('microcycle')
+        .filter(id=session_id, microcycle__team=primary_team)
+        .exclude(status=TrainingSession.STATUS_CANCELED)
+        .first()
+    )
+    if not session_obj:
+        return JsonResponse({'error': 'Sesión no encontrada.'}, status=404)
+    confirmed_player_ids = list(
+        TrainingSessionAttendance.objects
+        .filter(
+            session=session_obj,
+            status__in=[TrainingSessionAttendance.STATUS_PRESENT, TrainingSessionAttendance.STATUS_LATE],
+        )
+        .values_list('player_id', flat=True)
+    )
+    confirmed_player_ids = [int(pid) for pid in confirmed_player_ids if _parse_int(pid)]
+    return JsonResponse({'ok': True, 'session_id': int(session_obj.id), 'confirmed_player_ids': confirmed_player_ids})
 
 
 @csrf_exempt
