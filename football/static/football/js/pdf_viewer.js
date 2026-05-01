@@ -344,6 +344,66 @@
     true,
   );
 
+  // Guardrail extra: algunos flujos legacy abren PDFs con `window.open(url)` o `location.assign(url)`.
+  // En webviews (Capacitor/iOS/PWA) eso puede dejar al usuario atrapado. Interceptamos y abrimos en overlay.
+  try {
+    const origOpen = window.open ? window.open.bind(window) : null;
+    if (origOpen) {
+      window.open = function patchedOpen(url, name, features) {
+        try {
+          const href = safeText(url);
+          if (href && !href.startsWith('about:')) {
+            const u = new URL(href, window.location.href);
+            if (isSameOrigin(u) && looksLikePdfRoute(u)) {
+              fetchAndOpenPdf(u, {
+                suggestedName: `${fileSafeSlug(u.pathname.split('/').filter(Boolean).slice(-2).join('_')) || 'documento'}.pdf`,
+              });
+              return null;
+            }
+          }
+        } catch (e) {
+          // ignore, fallback to original window.open
+        }
+        return origOpen(url, name, features);
+      };
+    }
+  } catch (e) {
+    // ignore
+  }
+  try {
+    const patchLocationMethod = (methodName) => {
+      try {
+        const proto = window.Location && window.Location.prototype ? window.Location.prototype : null;
+        if (!proto) return;
+        const orig = proto[methodName];
+        if (typeof orig !== 'function') return;
+        proto[methodName] = function patchedLocation(url) {
+          try {
+            const href = safeText(url);
+            if (href) {
+              const u = new URL(href, window.location.href);
+              if (isSameOrigin(u) && looksLikePdfRoute(u)) {
+                fetchAndOpenPdf(u, {
+                  suggestedName: `${fileSafeSlug(u.pathname.split('/').filter(Boolean).slice(-2).join('_')) || 'documento'}.pdf`,
+                });
+                return;
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+          return orig.call(this, url);
+        };
+      } catch (e) {
+        // ignore
+      }
+    };
+    patchLocationMethod('assign');
+    patchLocationMethod('replace');
+  } catch (e) {
+    // ignore
+  }
+
   document.addEventListener(
     'submit',
     (event) => {

@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "qa": "bash scripts/qa_suite.sh",
+    "e2e:audit": "node scripts/e2e_audit_playwright.js"
+  },
   "devDependencies": {
     "playwright": "^1.58.2"
   }
