@@ -18110,6 +18110,37 @@ def _match_staff_report_context(request, *, match, primary_team):
     }
 
 
+def _percentile_rank(value, population):
+    """
+    Percentil (0-100) simple y estable para UI.
+
+    - population: lista de números.
+    - devuelve int 0..100.
+    """
+    try:
+        v = float(value)
+    except Exception:
+        v = 0.0
+    vals = []
+    for x in population or []:
+        try:
+            vals.append(float(x))
+        except Exception:
+            continue
+    if not vals:
+        return 0
+    vals.sort()
+    # Percentil "inclusive": % de valores <= v.
+    le = 0
+    for x in vals:
+        if x <= v:
+            le += 1
+        else:
+            break
+    pct = int(round((le / len(vals)) * 100))
+    return max(0, min(100, pct))
+
+
 @login_required
 def match_staff_report_pdf(request):
     if not _can_edit_match_actions(request.user):
@@ -37939,6 +37970,65 @@ def player_detail_page(request, player_id):
             'successes_per90': 0,
             'decisive_actions_per90': 0,
         }
+        # Percentiles vs plantilla (para lectura rápida tipo TV).
+        # Nota: usamos el dashboard ya calculado (misma fuente que la ficha) para evitar dobles queries.
+        try:
+            all_rows = [row for row in (matches or []) if isinstance(row, dict)]
+            # Helpers para extraer métricas de cada jugador.
+            def _row_num(row, key, default=0.0):
+                try:
+                    return float(row.get(key) or 0)
+                except Exception:
+                    return float(default)
+
+            def _passes_acc(row):
+                p = row.get('passes') if isinstance(row.get('passes'), dict) else {}
+                try:
+                    return float(p.get('accuracy') or 0)
+                except Exception:
+                    return 0.0
+
+            def _shots_acc(row):
+                s = row.get('shots') if isinstance(row.get('shots'), dict) else {}
+                try:
+                    return float(s.get('accuracy') or 0)
+                except Exception:
+                    return 0.0
+
+            def _aerial_rate(row):
+                a = row.get('aerial_duel_summary') if isinstance(row.get('aerial_duel_summary'), dict) else {}
+                won = _parse_int(a.get('won')) or 0
+                total = _parse_int(a.get('total')) or 0
+                return (won / total) * 100.0 if total else 0.0
+
+            pop = {
+                'success_rate': [_row_num(r, 'success_rate') for r in all_rows],
+                'duel_rate': [_row_num(r, 'duel_rate') for r in all_rows],
+                'passes_accuracy': [_passes_acc(r) for r in all_rows],
+                'shots_accuracy': [_shots_acc(r) for r in all_rows],
+                'aerial_rate': [_aerial_rate(r) for r in all_rows],
+                'total_actions': [_row_num(r, 'total_actions') for r in all_rows],
+                'decisive_actions_per90': [_row_num(r, 'decisive_actions_per90') for r in all_rows],
+                'successes_per90': [_row_num(r, 'successes_per90') for r in all_rows],
+            }
+            player_percentiles = {
+                'success_rate': _percentile_rank(safe_stats.get('success_rate') or 0, pop['success_rate']),
+                'duel_rate': _percentile_rank(safe_stats.get('duel_rate') or 0, pop['duel_rate']),
+                'passes_accuracy': _percentile_rank(
+                    (safe_stats.get('passes') or {}).get('accuracy') if isinstance(safe_stats.get('passes'), dict) else 0,
+                    pop['passes_accuracy'],
+                ),
+                'shots_accuracy': _percentile_rank(
+                    (safe_stats.get('shots') or {}).get('accuracy') if isinstance(safe_stats.get('shots'), dict) else 0,
+                    pop['shots_accuracy'],
+                ),
+                'aerial_rate': _percentile_rank(_aerial_rate(safe_stats), pop['aerial_rate']),
+                'total_actions': _percentile_rank(safe_stats.get('total_actions') or 0, pop['total_actions']),
+                'decisive_actions_per90': _percentile_rank(safe_stats.get('decisive_actions_per90') or 0, pop['decisive_actions_per90']),
+                'successes_per90': _percentile_rank(safe_stats.get('successes_per90') or 0, pop['successes_per90']),
+            }
+        except Exception:
+            player_percentiles = {}
         active_tab = (request.GET.get('tab') or 'general').strip().lower()
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
@@ -38110,6 +38200,7 @@ def player_detail_page(request, player_id):
             {
                 'player': player,
                 'stats': safe_stats,
+                'player_percentiles': player_percentiles,
                 'scope_value': scope,
                 'tournament_filter': tournament_filter,
                 'tournament_options': _team_tournament_name_options(primary_team) if scope == Match.CONTEXT_TOURNAMENT else [],

@@ -319,6 +319,30 @@
 	        background: rgba(255, 255, 255, 0.75);
 	        padding: 0.85rem;
 	      }
+	      .radar-preset {
+	        margin-top: 0.55rem;
+	        display: flex;
+	        gap: 0.45rem;
+	        flex-wrap: wrap;
+	        align-items: center;
+	      }
+	      .radar-preset button {
+	        appearance: none;
+	        cursor: pointer;
+	        border: 1px solid rgba(15, 23, 42, 0.16);
+	        background: rgba(255, 255, 255, 0.7);
+	        color: rgba(15, 23, 42, 0.86);
+	        border-radius: 999px;
+	        padding: 0.35rem 0.65rem;
+	        font-weight: 950;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	        font-size: 0.68rem;
+	      }
+	      .radar-preset button.is-active {
+	        border-color: rgba(244, 180, 0, 0.55);
+	        background: rgba(244, 180, 0, 0.18);
+	      }
 	      .radar-grid {
 	        display: grid;
 	        grid-template-columns: minmax(240px, 0.9fr) minmax(220px, 1.1fr);
@@ -362,6 +386,38 @@
 	        gap: 0.5rem;
 	        align-items: baseline;
 	        min-width: 0;
+	      }
+	      .radar-trends {
+	        margin-top: 0.75rem;
+	        display: grid;
+	        grid-template-columns: repeat(2, minmax(0, 1fr));
+	        gap: 0.65rem;
+	      }
+	      @media (max-width: 720px) {
+	        .radar-trends { grid-template-columns: 1fr; }
+	      }
+	      .trend-card {
+	        border-radius: 14px;
+	        border: 1px solid rgba(15, 23, 42, 0.12);
+	        background: rgba(255, 255, 255, 0.7);
+	        padding: 0.6rem 0.65rem;
+	      }
+	      .trend-card strong {
+	        display: block;
+	        font-size: 0.72rem;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: rgba(15, 23, 42, 0.78);
+	      }
+	      .trend-card svg { width: 100%; height: 54px; display: block; margin-top: 0.35rem; }
+	      .trend-meta {
+	        margin-top: 0.35rem;
+	        color: rgba(15, 23, 42, 0.72);
+	        font-weight: 800;
+	        font-size: 0.8rem;
+	        display: flex;
+	        justify-content: space-between;
+	        gap: 0.6rem;
 	      }
 	      .radar-dot {
 	        width: 10px;
@@ -449,13 +505,26 @@
         .personal-layout { grid-template-columns: 1fr; }
         .player-photo-card { justify-self: start; }
       }
-      @media (max-width: 900px) {
-        .personal-layout { grid-template-columns: 1fr; }
-        .player-photo-card { max-width: 200px; }
-        .general-head { grid-template-columns: 1fr; }
-        .general-crest img { width: 74px; height: 74px; }
-      }
-    </style>
+	      @media (max-width: 900px) {
+	        .personal-layout { grid-template-columns: 1fr; }
+	        .player-photo-card { max-width: 200px; }
+	        .general-head { grid-template-columns: 1fr; }
+	        .general-crest img { width: 74px; height: 74px; }
+	      }
+
+	      /* Player presentation mode (broadcast-like): hide chrome, focus on rendimiento. */
+	      body.is-player-present { padding: 0.8rem; }
+	      body.is-player-present .container { max-width: none; }
+	      body.is-player-present header,
+	      body.is-player-present .tabs,
+	      body.is-player-present .preview-banner { display: none !important; }
+	      body.is-player-present .card { margin-top: 0.6rem; }
+	      body.is-player-present [data-pane="performance"] { display: block !important; }
+	      body.is-player-present .performance-map,
+	      body.is-player-present .performance-table { display: none !important; }
+	      body.is-player-present .performance-radar { padding: 0.95rem; border-radius: 1.05rem; }
+	      body.is-player-present .radar-figure svg { width: min(520px, 100%); }
+	    </style>
   </head>
   <body class="prod-commercial">
     <div class="container">
@@ -482,14 +551,15 @@
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
           {% endif %}
 	        </div>
-	        <div style="display:flex;gap:1rem;">
-	          {% if can_preview_player_view and player_view_preview %}
-	          <a class="btn alt" href="{% url 'player-detail' player.id %}{% if active_tab %}?tab={{ active_tab }}{% endif %}">Volver a edición staff</a>
-	          {% endif %}
-	          <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">Imprimir PDF</a>
-	          <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
-	        </div>
-	      </header>
+		        <div style="display:flex;gap:1rem;">
+		          {% if can_preview_player_view and player_view_preview %}
+		          <a class="btn alt" href="{% url 'player-detail' player.id %}{% if active_tab %}?tab={{ active_tab }}{% endif %}">Volver a edición staff</a>
+		          {% endif %}
+		          <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">Imprimir PDF</a>
+		          <button class="btn alt" type="button" id="playerPresentToggle" title="Modo presentación">Presentación</button>
+		          <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
+		        </div>
+		      </header>
       {% if player_view_preview %}
       <div class="preview-banner">
         <strong>Vista previa jugador</strong>
@@ -910,6 +980,13 @@
 	              class="performance-radar"
 	              id="player-performance-radar"
 	              data-profile="{{ stats.profile|default:''|escapejs }}"
+	              data-pct-success="{{ player_percentiles.success_rate|default:0 }}"
+	              data-pct-duel="{{ player_percentiles.duel_rate|default:0 }}"
+	              data-pct-pass="{{ player_percentiles.passes_accuracy|default:0 }}"
+	              data-pct-shot="{{ player_percentiles.shots_accuracy|default:0 }}"
+	              data-pct-aerial="{{ player_percentiles.aerial_rate|default:0 }}"
+	              data-pct-impact="{{ player_percentiles.decisive_actions_per90|default:0 }}"
+	              data-pct-volume="{{ player_percentiles.total_actions|default:0 }}"
 	              data-success="{{ stats.success_rate|default:0 }}"
 	              data-duel="{{ stats.duel_rate|default:0 }}"
 	              data-pass="{{ stats.passes.accuracy|default:0 }}"
@@ -939,10 +1016,37 @@
 	                <div class="radar-legend">
 	                  <h4>Radar (normalizado)</h4>
 	                  <p>Escala 0–100. Mezcla porcentajes + volumen/impacto por partido para lectura rápida del staff.</p>
+	                  <div class="radar-preset" id="radar-preset">
+	                    <button type="button" data-preset="auto" class="is-active">Auto</button>
+	                    <button type="button" data-preset="ofensivo">Ofensivo</button>
+	                    <button type="button" data-preset="constructor">Constructor</button>
+	                    <button type="button" data-preset="defensivo">Defensivo</button>
+	                  </div>
 	                  <ul class="radar-axes" id="radar-axes-list"></ul>
+	                  <div class="radar-trends" id="radar-trends">
+	                    <div class="trend-card">
+	                      <strong>Acciones (últimos 6)</strong>
+	                      <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia acciones" role="img">
+	                        <path id="trend-actions-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+	                        <path id="trend-actions-fill" d="" fill="rgba(244,180,0,0.16)" stroke="none"></path>
+	                      </svg>
+	                      <div class="trend-meta"><span id="trend-actions-min">—</span><span id="trend-actions-max">—</span></div>
+	                    </div>
+	                    <div class="trend-card">
+	                      <strong>% Éxito (últimos 6)</strong>
+	                      <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia éxito" role="img">
+	                        <path id="trend-success-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+	                        <path id="trend-success-fill" d="" fill="rgba(47,125,50,0.16)" stroke="none"></path>
+	                      </svg>
+	                      <div class="trend-meta"><span id="trend-success-min">—</span><span id="trend-success-max">—</span></div>
+	                    </div>
+	                  </div>
 	                </div>
 	              </div>
 	            </div>
+	            {% if stats.matches %}
+	              {{ stats.matches|json_script:"player-trend-matches" }}
+	            {% endif %}
 	          </div>
 
           <div class="performance-map">
@@ -1242,13 +1346,36 @@
           window.history.replaceState({}, '', url);
         };
         buttons.forEach((btn) => btn.addEventListener('click', () => activate(btn.dataset.tab)));
-        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'general');
-	      })();
-	    </script>
-	    <script>
-	      (function () {
-	        const root = document.getElementById('player-performance-radar');
-	        if (!root) return;
+	        activate(buttons.some((b) => b.dataset.tab === fallbackTab) ? fallbackTab : 'general');
+		      })();
+		    </script>
+		    <script>
+		      (function () {
+		        const btn = document.getElementById('playerPresentToggle');
+		        if (!btn) return;
+		        const key = 'player_detail:present:v1';
+		        const activatePerformance = () => {
+		          try {
+		            const perfBtn = document.querySelector('.tab-btn[data-tab="performance"]');
+		            if (perfBtn) perfBtn.click();
+		          } catch (e) {}
+		        };
+		        const apply = (on) => {
+		          document.body.classList.toggle('is-player-present', !!on);
+		          btn.textContent = on ? 'Salir' : 'Presentación';
+		          try { window.localStorage.setItem(key, on ? '1' : '0'); } catch (e) {}
+		          if (on) activatePerformance();
+		        };
+		        let initial = false;
+		        try { initial = window.localStorage.getItem(key) === '1'; } catch (e) {}
+		        apply(initial);
+		        btn.addEventListener('click', () => apply(!document.body.classList.contains('is-player-present')));
+		      })();
+		    </script>
+		    <script>
+		      (function () {
+		        const root = document.getElementById('player-performance-radar');
+		        if (!root) return;
 
 	        const svg = root.querySelector('svg');
 	        const gridG = svg ? svg.querySelector('#radar-grid') : null;
@@ -1267,6 +1394,13 @@
 	        const fmtPct = (n) => `${Math.round(n)}%`;
 
 	        const profile = String(root.dataset.profile || '').trim().toLowerCase();
+	        const pctSuccess = clamp(num(root.dataset.pctSuccess), 0, 100);
+	        const pctDuel = clamp(num(root.dataset.pctDuel), 0, 100);
+	        const pctPass = clamp(num(root.dataset.pctPass), 0, 100);
+	        const pctShot = clamp(num(root.dataset.pctShot), 0, 100);
+	        const pctAerial = clamp(num(root.dataset.pctAerial), 0, 100);
+	        const pctImpact = clamp(num(root.dataset.pctImpact), 0, 100);
+	        const pctVolume = clamp(num(root.dataset.pctVolume), 0, 100);
 	        const successRate = clamp(num(root.dataset.success), 0, 100);
 	        const duelRate = clamp(num(root.dataset.duel), 0, 100);
 	        const passAcc = clamp(num(root.dataset.pass), 0, 100);
@@ -1290,37 +1424,82 @@
 	        // Heurística: 8 paradas/partido ≈ 100.
 	        const savesScore = clamp((savesPerMatch / 8) * 100, 0, 100);
 
-	        const axes = profile === 'goalkeeper'
-	          ? [
-	              { key: 'Éxito', value: successRate, display: fmtPct(successRate) },
-	              { key: 'Paradas', value: savesScore, display: pj ? `${Math.round(savesPerMatch * 10) / 10}/PJ` : `${Math.round(saves)}` },
-	              { key: 'Pase', value: passAcc, display: fmtPct(passAcc) },
-	              { key: 'Duelos', value: duelRate, display: fmtPct(duelRate) },
-	              { key: 'Aéreo', value: aerialRate, display: fmtPct(aerialRate) },
-	              { key: 'Volumen', value: volumeScore, display: pj ? `${Math.round(actionsPerMatch)}/PJ` : `${Math.round(actions)}` },
-	            ]
-	          : [
-	              { key: 'Éxito', value: successRate, display: fmtPct(successRate) },
-	              { key: 'Duelos', value: duelRate, display: fmtPct(duelRate) },
-	              { key: 'Aéreo', value: aerialRate, display: fmtPct(aerialRate) },
-	              { key: 'Pase', value: passAcc, display: fmtPct(passAcc) },
-	              { key: 'Tiro', value: shotAcc, display: fmtPct(shotAcc) },
-	              { key: 'Impacto', value: impactScore, display: pj ? `${Math.round((contribPerMatch) * 100) / 100} G+A/PJ` : `${goals + assists}` },
-	            ];
+	        const mk = (key, value, display, pctRank) => ({ key, value, display, pctRank: clamp(num(pctRank), 0, 100) });
+	        const axisValues = {
+	          exito: mk('Éxito', successRate, fmtPct(successRate), pctSuccess),
+	          duelos: mk('Duelos', duelRate, fmtPct(duelRate), pctDuel),
+	          aereo: mk('Aéreo', aerialRate, fmtPct(aerialRate), pctAerial),
+	          pase: mk('Pase', passAcc, fmtPct(passAcc), pctPass),
+	          tiro: mk('Tiro', shotAcc, fmtPct(shotAcc), pctShot),
+	          impacto: mk('Impacto', impactScore, pj ? `${Math.round((contribPerMatch) * 100) / 100} G+A/PJ` : `${goals + assists}`, pctImpact),
+	          volumen: mk('Volumen', volumeScore, pj ? `${Math.round(actionsPerMatch)}/PJ` : `${Math.round(actions)}`, pctVolume),
+	          paradas: mk('Paradas', savesScore, pj ? `${Math.round(savesPerMatch * 10) / 10}/PJ` : `${Math.round(saves)}`, pctImpact),
+	        };
 
-	        const cx = 180;
-	        const cy = 180;
-	        const R = 120;
-	        const labelR = 142;
+	        const buildAxes = (presetKey) => {
+	          const preset = String(presetKey || 'auto').trim().toLowerCase();
+	          if (profile === 'goalkeeper') {
+	            return [axisValues.exito, axisValues.paradas, axisValues.pase, axisValues.duelos, axisValues.aereo, axisValues.volumen];
+	          }
+	          if (preset === 'ofensivo') return [axisValues.impacto, axisValues.tiro, axisValues.exito, axisValues.pase, axisValues.duelos, axisValues.aereo];
+	          if (preset === 'constructor') return [axisValues.pase, axisValues.exito, axisValues.volumen, axisValues.duelos, axisValues.impacto, axisValues.tiro];
+	          if (preset === 'defensivo') return [axisValues.duelos, axisValues.aereo, axisValues.exito, axisValues.volumen, axisValues.pase, axisValues.impacto];
+	          // auto
+	          return [axisValues.exito, axisValues.duelos, axisValues.aereo, axisValues.pase, axisValues.tiro, axisValues.impacto];
+	        };
+
+	        const renderPresetButtons = () => {
+	          const wrap = document.getElementById('radar-preset');
+	          if (!wrap) return;
+	          if (profile === 'goalkeeper') {
+	            wrap.style.display = 'none';
+	          } else {
+	            wrap.style.display = '';
+	          }
+	        };
+	        renderPresetButtons();
+
+	        const keyStorage = 'player_radar_preset:v1';
+	        let activePreset = 'auto';
+	        try {
+	          const stored = window.localStorage.getItem(keyStorage);
+	          if (stored) activePreset = stored;
+	        } catch (e) {}
+	        const presetWrap = document.getElementById('radar-preset');
+	        const setPresetActive = (preset) => {
+	          activePreset = String(preset || 'auto').trim().toLowerCase();
+	          try { window.localStorage.setItem(keyStorage, activePreset); } catch (e) {}
+	          if (presetWrap) {
+	            Array.from(presetWrap.querySelectorAll('button[data-preset]')).forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-preset') === activePreset));
+	          }
+	        };
+	        if (presetWrap) {
+	          presetWrap.addEventListener('click', (e) => {
+	            const btn = e.target && e.target.closest ? e.target.closest('button[data-preset]') : null;
+	            if (!btn) return;
+	            e.preventDefault();
+	            setPresetActive(btn.getAttribute('data-preset'));
+	            render();
+	          });
+	        }
+	        setPresetActive(activePreset);
+
+	        const render = () => {
+	          const axes = buildAxes(activePreset);
+
+	          const cx = 180;
+	          const cy = 180;
+	          const R = 120;
+	          const labelR = 142;
 	        const rings = [0.25, 0.5, 0.75, 1];
 	        const angleFor = (i, n) => (-Math.PI / 2) + (i * 2 * Math.PI / n);
 	        const point = (angle, r) => ({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
 
-	        const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
-	        clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
+	          const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+	          clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
 
 	        // Grid rings
-	        rings.forEach((t) => {
+	          rings.forEach((t) => {
 	          const rr = R * t;
 	          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 	          c.setAttribute('cx', String(cx));
@@ -1333,7 +1512,7 @@
 	        });
 
 	        // Axis lines + labels
-	        axes.forEach((axis, i) => {
+	          axes.forEach((axis, i) => {
 	          const a = angleFor(i, axes.length);
 	          const p0 = point(a, 0);
 	          const p1 = point(a, R);
@@ -1360,7 +1539,7 @@
 	        });
 
 	        // Data polygon
-	        const pts = axes.map((axis, i) => {
+	          const pts = axes.map((axis, i) => {
 	          const a = angleFor(i, axes.length);
 	          const r = R * (clamp(num(axis.value), 0, 100) / 100);
 	          return point(a, r);
@@ -1373,7 +1552,7 @@
 	        path.setAttribute('stroke-width', '1.5');
 	        dataG.appendChild(path);
 
-	        pts.forEach((p) => {
+	          pts.forEach((p) => {
 	          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 	          dot.setAttribute('cx', String(p.x));
 	          dot.setAttribute('cy', String(p.y));
@@ -1385,7 +1564,7 @@
 	        });
 
 	        // Legend list
-	        axes.forEach((axis) => {
+	          axes.forEach((axis) => {
 	          const li = document.createElement('li');
 	          const dot = document.createElement('span');
 	          dot.className = 'radar-dot';
@@ -1394,12 +1573,60 @@
 	          label.textContent = axis.key;
 	          const value = document.createElement('span');
 	          value.className = 'radar-axis-value';
-	          value.textContent = String(axis.display || fmt(axis.value));
+	          const rank = typeof axis.pctRank === 'number' ? ` · P${Math.round(axis.pctRank)}` : '';
+	          value.textContent = String(axis.display || fmt(axis.value)) + rank;
 	          li.appendChild(dot);
 	          li.appendChild(label);
 	          li.appendChild(value);
 	          axesList.appendChild(li);
+	          });
+	        };
+
+	        render();
+	      })();
+	    </script>
+	    <script>
+	      (function () {
+	        const el = document.getElementById('player-trend-matches');
+	        if (!el) return;
+	        let matches = [];
+	        try { matches = JSON.parse(el.textContent || '[]') || []; } catch (e) { matches = []; }
+	        if (!Array.isArray(matches) || !matches.length) return;
+
+	        const last = matches.slice(-6);
+	        const actions = last.map((m) => Number(m && m.actions) || 0);
+	        const success = last.map((m) => {
+	          const a = Number(m && m.actions) || 0;
+	          const s = Number(m && m.successes) || 0;
+	          return a ? (s / a) * 100 : 0;
 	        });
+
+	        const draw = (vals, pathId, fillId, minId, maxId, fmt) => {
+	          const path = document.getElementById(pathId);
+	          const fill = document.getElementById(fillId);
+	          const minEl = document.getElementById(minId);
+	          const maxEl = document.getElementById(maxId);
+	          if (!path || !fill || !minEl || !maxEl) return;
+	          const w = 240;
+	          const h = 54;
+	          const max = Math.max(...vals, 1);
+	          const min = Math.min(...vals, 0);
+	          const span = Math.max(1e-6, max - min);
+	          const pts = vals.map((v, i) => {
+	            const x = (vals.length === 1) ? (w / 2) : (i * (w / (vals.length - 1)));
+	            const y = h - (((v - min) / span) * (h - 6) + 3);
+	            return [x, y];
+	          });
+	          const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+	          path.setAttribute('d', d);
+	          const df = `${d} L ${pts[pts.length - 1][0].toFixed(1)} ${h} L ${pts[0][0].toFixed(1)} ${h} Z`;
+	          fill.setAttribute('d', df);
+	          minEl.textContent = `min ${fmt(min)}`;
+	          maxEl.textContent = `max ${fmt(max)}`;
+	        };
+
+	        draw(actions, 'trend-actions-path', 'trend-actions-fill', 'trend-actions-min', 'trend-actions-max', (v) => String(Math.round(v)));
+	        draw(success, 'trend-success-path', 'trend-success-fill', 'trend-success-min', 'trend-success-max', (v) => `${Math.round(v)}%`);
 	      })();
 	    </script>
 	    <script src="{% static 'football/js/kpi_customizer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
