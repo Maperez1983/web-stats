@@ -21393,7 +21393,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
             pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
-            if pitch_grass_style not in {'classic', 'realistic'}:
+            if pitch_grass_style not in {'classic', 'realistic', 'pro', 'artificial', 'dry', 'wet'}:
                 pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
@@ -21658,7 +21658,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                 pitch_preset = str(meta.get('pitch_preset') or 'full_pitch').strip() or 'full_pitch'
                 pitch_orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
                 pitch_grass_style = str(meta.get('pitch_grass_style') or 'classic').strip().lower()
-                if pitch_grass_style not in {'classic', 'realistic'}:
+                if pitch_grass_style not in {'classic', 'realistic', 'pro', 'artificial', 'dry', 'wet'}:
                     pitch_grass_style = 'classic'
                 # En PDF no queremos recortes por zoom: forzamos a 1.0.
                 pitch_zoom = 1.0
@@ -28978,7 +28978,7 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
     pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
     pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
     pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
-    if pitch_grass_style not in {"classic", "realistic"}:
+    if pitch_grass_style not in {"classic", "realistic", "pro", "artificial", "dry", "wet"}:
         pitch_grass_style = "classic"
     pitch_zoom = meta.get("pitch_zoom") or 1.0
     try:
@@ -32831,7 +32831,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         pitch_preset = 'full_pitch'
     if pitch_orientation not in {'landscape', 'portrait'}:
         pitch_orientation = 'landscape'
-    if pitch_grass_style not in {'classic', 'realistic'}:
+    if pitch_grass_style not in {'classic', 'realistic', 'pro', 'artificial', 'dry', 'wet'}:
         pitch_grass_style = 'classic'
     try:
         pitch_zoom = float(pitch_zoom or 1.0)
@@ -34330,7 +34330,7 @@ def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
             pitch_preset = (request.POST.get('draw_task_pitch_preset') or 'full_pitch').strip()
             pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or 'landscape').strip().lower()
             pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or 'classic').strip().lower()
-            if pitch_grass_style not in {'classic', 'realistic'}:
+            if pitch_grass_style not in {'classic', 'realistic', 'pro', 'artificial', 'dry', 'wet'}:
                 pitch_grass_style = 'classic'
             try:
                 pitch_zoom = float(str(request.POST.get('draw_task_pitch_zoom') or '1.0').strip())
@@ -45195,7 +45195,29 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     try:
         img = Image.open(io.BytesIO(image_bytes))
     except Exception:
-        return ''
+        # Fallback HEIC/HEIF: algunos ficheros de iOS pueden fallar con PIL incluso con opener.
+        # Si hay ImageMagick disponible, convertimos a PNG en memoria y reintentamos.
+        try:
+            if shutil.which('magick') is not None:
+                proc = subprocess.run(
+                    ['magick', 'heic:-', 'png:-'],
+                    input=image_bytes,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=25,
+                    check=False,
+                )
+            else:
+                proc = None
+        except Exception:
+            proc = None
+        if proc and proc.returncode == 0 and proc.stdout:
+            try:
+                img = Image.open(io.BytesIO(proc.stdout))
+            except Exception:
+                return ''
+        else:
+            return ''
     try:
         if ImageOps is not None:
             try:
@@ -45224,8 +45246,9 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     except Exception:
         pass
 
+    # Mantenemos combinaciones reducidas (rendimiento): OCR se ejecuta en cada upload.
     configs = ['--psm 6', '--psm 4']
-    langs = ['spa+eng', 'spa', 'eng']
+    langs = ['spa', 'spa+eng']
     variants = [img]
     # Algunas fotos de libros/temarios salen mejor en escala de grises + autocontrast.
     if ImageOps is not None:
@@ -45243,6 +45266,22 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
                     pass
         except Exception:
             pass
+    # Muchas fotos de manual vienen giradas (cámara lateral). Probamos rotaciones.
+    rotated_variants = []
+    for v in variants:
+        rotated_variants.append(v)
+        try:
+            rotated_variants.append(v.rotate(90, expand=True))
+            rotated_variants.append(v.rotate(270, expand=True))
+        except Exception:
+            pass
+    # Reducimos ruido: prioriza variantes en gris (si existen) y limita tamaño.
+    if len(rotated_variants) > 4:
+        try:
+            rotated_variants = rotated_variants[-4:]
+        except Exception:
+            pass
+    variants = rotated_variants
 
     best_text = ''
     best_score = 0
@@ -45257,6 +45296,11 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
                 cleaned = str(text or '').strip()
                 if len(cleaned) < 40:
                     continue
+                alpha = sum(1 for ch in cleaned if ch.isalpha())
+                alpha_ratio = alpha / max(1, len(cleaned))
+                # Si casi no hay letras, suele ser ruido (iconos, líneas, etc.).
+                if alpha < 25 or alpha_ratio < 0.22:
+                    continue
                 low = _assistant__norm_line(cleaned) if '_assistant__norm_line' in globals() else cleaned.casefold()
                 hits = 0
                 for kw in boost_keywords:
@@ -45266,10 +45310,13 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
                     except Exception:
                         continue
                 # Priorizamos texto más largo y que contenga keywords típicas de fichas.
-                score = len(cleaned) + (hits * 220)
+                score = int(alpha * 2.2 + len(cleaned) * 0.35 + (hits * 420))
                 if score > best_score:
                     best_score = score
                     best_text = cleaned
+                # Early stop: cuando encontramos mucho texto con keywords, suele ser suficiente.
+                if best_score >= 2200 and hits >= 2 and len(best_text) >= 400:
+                    return best_text.strip()
     return best_text.strip()
 
 
@@ -45765,6 +45812,7 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     if not title or len(title) < 6:
         return {'created': 0, 'updated': 0}
 
+    raw_lines = sections.get('raw_lines') or []
     desc_lines = sections.get('desc') or []
     beh_lines = sections.get('behaviors') or []
     cons_lines = sections.get('considerations') or []
@@ -45775,6 +45823,24 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
 
     raw_all = str(text or '')
     raw_norm = _assistant__norm_line(raw_all)
+
+    # Fallback: si no detectamos secciones, cogemos líneas próximas al título (típico en fotos de libro).
+    if not desc_lines and raw_lines:
+        try:
+            title_norm = _assistant__norm_line(title)
+        except Exception:
+            title_norm = ''
+        idx_title = None
+        for i, line in enumerate(raw_lines[:120]):
+            if title_norm and _assistant__norm_line(str(line or '')) == title_norm:
+                idx_title = i
+                break
+        if idx_title is None:
+            idx_title = 0
+        try:
+            desc_lines = [str(v or '').strip() for v in raw_lines[idx_title + 1: idx_title + 20] if str(v or '').strip()]
+        except Exception:
+            desc_lines = []
 
     # Campos estructurados (si están en la ficha).
     players_raw = _first_match(
@@ -45844,8 +45910,10 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     description_html = _assistant_html_list(description_items)
     rules_html = _assistant_html_list(rules_items)
 
-    category = _assistant__guess_category_from_text(text)
-    goal_key = _assistant__infer_goal_key_from_text(text, category_hint=category)
+    # Inferimos categoría/goal con el contenido "útil" (para evitar ruido de páginas adyacentes).
+    text_for_infer = '\n'.join([title] + list(desc_lines[:40]) + list(beh_lines[:30]) + list(cons_lines[:30]) + list(struct_lines[:30]))
+    category = _assistant__guess_category_from_text(text_for_infer or text)
+    goal_key = _assistant__infer_goal_key_from_text(text_for_infer or text, category_hint=category)
     training_type = {
         TaskBlueprint.CATEGORY_FINISH: 'Finalización',
         TaskBlueprint.CATEGORY_BUILD: 'Inicio y progresión',
