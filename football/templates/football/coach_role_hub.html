@@ -640,12 +640,32 @@
       }
       .field-diagram.is-heatmap .field-zone {
         border-color: transparent;
-        color: transparent;
-        text-shadow: none;
+        color: #f8fafc;
+        text-shadow: 0 2px 8px rgba(2, 6, 23, 0.95), 0 0 2px rgba(15, 23, 42, 0.9);
       }
       .field-diagram.is-heatmap .field-zone .zone-label,
       .field-diagram.is-heatmap .field-zone .zone-count {
-        opacity: 0;
+        opacity: 1;
+      }
+      .field-diagram.is-heatmap .field-zone .zone-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.16rem 0.5rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.66);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(6px);
+      }
+      .field-diagram.is-heatmap .field-zone .zone-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.16rem 0.5rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.75);
+        border: 1px solid rgba(250, 204, 21, 0.25);
+        color: #facc15;
       }
       .field-diagram.is-heatmap .field-zone--cool {
         background: radial-gradient(circle at center, rgba(56, 189, 248, 0.22), rgba(56, 189, 248, 0.04));

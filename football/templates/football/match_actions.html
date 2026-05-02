@@ -2960,6 +2960,11 @@
                   <label>Slot 3 <select id="live-kpi-s3"></select></label>
                   <label>Slot 4 <select id="live-kpi-s4"></select></label>
                 </div>
+                <div class="live-kpi-config-actions" style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; margin-top:0.55rem;">
+                  <span class="meta" id="live-kpi-workspace-status" style="margin-right:auto; opacity:0.8;" hidden></span>
+                  <button type="button" class="live-stats-hud-settings" id="live-kpi-use-workspace" hidden title="Aplicar KPIs guardados para el club">Usar club</button>
+                  <button type="button" class="live-stats-hud-settings" id="live-kpi-save-workspace" hidden title="Guardar estos KPIs para el staff del club">Guardar club</button>
+                </div>
               </div>
               <div class="live-stats-chips">
                 <article class="live-stats-chip"><span>Acciones</span><strong id="live-stat-actions">0</strong></article>
@@ -3073,15 +3078,23 @@
                 </a>
                 <a
                   class="sheet"
+                  href="{% url 'match-staff-report' %}?match_id={{ match_info.match_id }}{% if request.GET.team %}&team={{ request.GET.team|urlencode }}{% endif %}"
+                  title="Abrir informe staff (presentación)"
+                >
+                  Informe staff
+                </a>
+                <a
+                  class="sheet"
                   href="{% url 'match-stats' match_info.match_id %}"
                   title="Abrir ficha del partido"
                 >
                   Ficha partido
                 </a>
                 {% endif %}
+                <button type="button" class="toolbar-pill" id="match-copy-briefing" title="Copiar resumen del partido para WhatsApp/Staff">Copiar resumen</button>
                 <button type="button" class="reset" id="match-reset-btn">Reiniciar registro</button>
                 <button type="button" class="toolbar-pill" data-stage-jump="live">Volver al directo</button>
-              </div>
+	              </div>
             </section>
           </section>
         </section>
@@ -3919,6 +3932,7 @@
       const eventsUrl = urlWithMatchId('{% url "match-actions-events-api" %}');
       const keepaliveUrl = '{% url "session-keepalive" %}';
       const matchdayQuickButtonsApiUrl = '{% url "matchday-quick-buttons-api" %}';
+      const teamName = '{{ team_name|escapejs }}';
       const matchdayQuickActions = (() => {
         try {
           const raw = document.getElementById('matchday-quick-actions')?.textContent || '[]';
@@ -4118,6 +4132,42 @@
         alerts: document.getElementById('live-stat-alerts'),
       };
       const liveEventStore = new Map();
+      const workspacePrefGetUrl = '{% url "workspace-pref-get" %}';
+      const workspacePrefSetUrl = '{% url "workspace-pref-set" %}';
+      const canManageWorkspace = {% if can_manage_workspace %}true{% else %}false{% endif %};
+      let workspaceLiveKpiSlots = null;
+      let workspaceLiveKpiLoaded = false;
+      const loadWorkspaceLiveKpis = async () => {
+        if (workspaceLiveKpiLoaded) return workspaceLiveKpiSlots;
+        workspaceLiveKpiLoaded = true;
+        try {
+          const url = `${workspacePrefGetUrl}?key=${encodeURIComponent('matchday_live_kpis:v1')}`;
+          const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data || data.ok !== true) return null;
+          const value = data.value;
+          if (Array.isArray(value) && value.length === 4) {
+            workspaceLiveKpiSlots = value.map((x) => String(x || '').trim());
+            return workspaceLiveKpiSlots;
+          }
+        } catch (e) {}
+        return null;
+      };
+      const saveWorkspaceLiveKpis = async (slots) => {
+        if (!canManageWorkspace) return false;
+        try {
+          const resp = await fetch(workspacePrefSetUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+            body: JSON.stringify({ key: 'matchday_live_kpis:v1', value: Array.isArray(slots) ? slots : [] }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          return Boolean(resp.ok && data && data.ok === true);
+        } catch (e) {}
+        return false;
+      };
+      let liveHudSnapshot = null;
       let showPageStatus;
       let setMatchInfoEditing;
       let collectMatchInfoPayload;
@@ -4149,6 +4199,9 @@
           containsText(action, ['abp', 'balon parado', 'balón parado', 'corner', 'córner', 'saque de esquina', 'falta', 'libre directo', 'libre indirecto', 'penalti', 'penalti', 'saque']) ||
           containsText(result, ['abp', 'corner', 'córner', 'falta', 'penalti', 'saque']);
         const cross = containsText(action, ['centro', 'cross']) || containsText(result, ['centro']);
+        const aerial =
+          containsText(action, ['aereo', 'aéreo', 'balon aereo', 'balón aéreo', 'duelo aereo', 'duelo aéreo', 'cabece', 'cabeza', 'segundo balon', '2º balon', '2o balon']) ||
+          containsText(result, ['aereo', 'aéreo', 'cabece', 'cabeza', 'segundo balon', '2º balon', '2o balon']);
         const loss =
           containsText(action, ['perdida', 'pérdida', 'perd']) ||
           containsText(result, ['perdid', 'error', 'fall']);
@@ -4167,6 +4220,8 @@
         const offensiveFail = containsText(result, ['perdid', 'fall', 'error', 'falta', 'intercept', 'robad']);
         const defensiveSuccess = containsText(result, ['ganad', 'ok', 'robo', 'recuper', 'intercep', 'entrada', 'favorable']);
         const defensiveFail = containsText(result, ['perdid', 'fall', 'error', 'falta', 'superad', 'regatead', 'driblad']);
+        const crossOk = cross && offensiveSuccess && !offensiveFail;
+        const aerialWon = aerial && (offensiveSuccess || defensiveSuccess) && !(offensiveFail || defensiveFail);
         const duelWon = duel && (
           (offensiveDuel && offensiveSuccess && !offensiveFail) ||
           (defensiveDuel && defensiveSuccess && !defensiveFail)
@@ -4180,7 +4235,7 @@
           : '';
         const lossDef = loss && tercio === 'def';
         const stealHigh = steal && tercio === 'att';
-        return { shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, loss, lossDef, steal, stealHigh, duel, duelWon, tercio };
+        return { shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, crossOk, aerial, aerialWon, loss, lossDef, steal, stealHigh, duel, duelWon, tercio };
       };
       const refreshLiveStatsHud = () => {
         // KPIs primarios (configurables)
@@ -4201,6 +4256,9 @@
             const parsed = raw ? JSON.parse(raw) : null;
             if (Array.isArray(parsed) && parsed.length === 4) return parsed.map((x) => String(x || '').trim());
           } catch (e) {}
+          if (Array.isArray(workspaceLiveKpiSlots) && workspaceLiveKpiSlots.length === 4) {
+            return workspaceLiveKpiSlots.map((x) => String(x || '').trim());
+          }
           return ['shots_target', 'shots', 'duels_rate', 'losses_def'];
         };
         const writePrimarySlots = (slots) => {
@@ -4209,16 +4267,25 @@
         const kpiCatalog = {
           shots_target: { label: 'A puerta', value: (t) => String(t.shotsTarget) },
           shots: { label: 'Tiros', value: (t) => String(t.shots) },
+          shots_ap: { label: 'Tiros A/P', value: (t) => `${t.shotsTarget}/${t.shots}` },
           shots_ratio: { label: 'A puerta %', value: (t, extra) => `${extra.shotAcc}%` },
           duels_rate: { label: 'Duelos %', value: (t, extra) => `${extra.duelRate}%` },
           duels: { label: 'Duelos', value: (t) => `${t.duelsWon}/${t.duels}` },
+          aerial_rate: { label: 'Aéreos %', value: (t, extra) => `${extra.aerialRate}%` },
+          aerial: { label: 'Aéreos', value: (t) => `${t.aerialWon}/${t.aerial}` },
           passes_acc: { label: 'Pase %', value: (t, extra) => `${extra.passAcc}%` },
           pace5: { label: "Últ. 5'", value: (t, extra) => `${extra.pace5.toFixed(1)}/min` },
           losses_def: { label: 'Pérd salida', value: (t) => String(t.lossesDef) },
+          losses: { label: 'Pérdidas', value: (t) => String(t.losses) },
           steals_high: { label: 'Recup altas', value: (t) => String(t.stealsHigh) },
+          steals: { label: 'Robos', value: (t) => String(t.steals) },
           abp: { label: 'ABP', value: (t) => String(t.abp) },
+          crosses: { label: 'Centros', value: (t) => String(t.crosses) },
+          crosses_ok: { label: 'Centros OK', value: (t) => `${t.crossesOk}/${t.crosses}` },
           attack: { label: 'Ataque', value: (t) => String(t.tercio_att) },
           possession: { label: 'Posesión', value: (t, extra) => `${extra.possessionApprox}%` },
+          cards: { label: 'Tarjetas', value: (t) => String(t.cards) },
+          subs: { label: 'Cambios', value: (t) => String(t.subs) },
         };
         const totals = {
           actions: liveEventStore.size,
@@ -4230,6 +4297,9 @@
           subs: 0,
           abp: 0,
           crosses: 0,
+          crossesOk: 0,
+          aerial: 0,
+          aerialWon: 0,
           duels: 0,
           duelsWon: 0,
           losses: 0,
@@ -4263,6 +4333,9 @@
           if (summary.stealHigh) totals.stealsHigh += 1;
           if (summary.setPiece) totals.abp += 1;
           if (summary.cross) totals.crosses += 1;
+          if (summary.crossOk) totals.crossesOk += 1;
+          if (summary.aerial) totals.aerial += 1;
+          if (summary.aerialWon) totals.aerialWon += 1;
           if (summary.sub) {
             const resultText = String(eventData?.result || '').toLowerCase();
             if (resultText.includes('salida')) subExits += 1;
@@ -4292,6 +4365,7 @@
           ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
           : 50;
         const duelRate = totals.duels ? Math.round((totals.duelsWon / totals.duels) * 100) : 0;
+        const aerialRate = totals.aerial ? Math.round((totals.aerialWon / totals.aerial) * 100) : 0;
         const shotAcc = totals.shots ? Math.round((totals.shotsTarget / totals.shots) * 100) : 0;
         const alerts = (() => {
           const parts = [];
@@ -4300,6 +4374,7 @@
           if (currentMinute >= 20 && totals.shots === 0) parts.push('SIN TIROS');
           if (totals.cards >= 3) parts.push('RIESGO TARJETAS');
           if (totals.duels >= 10 && duelRate <= 40) parts.push('DUELOS PERDIDOS');
+          if (totals.aerial >= 8 && aerialRate <= 40) parts.push('AÉREOS PERDIDOS');
           if (totals.abp >= 5) parts.push('MUCHO ABP');
           if (!parts.length) return '—';
           return parts.slice(0, 2).join(' · ');
@@ -4324,11 +4399,17 @@
         if (liveStatEls.alerts) liveStatEls.alerts.textContent = alerts;
         if (persistentActionsEl) persistentActionsEl.textContent = String(totals.actions);
         if (persistentPossessionEl) persistentPossessionEl.textContent = `${possessionApprox}%`;
+        liveHudSnapshot = {
+          minute: currentMinute,
+          alerts,
+          totals: { ...totals },
+          extra: { passAcc, duelRate, aerialRate, shotAcc, possessionApprox, pace, pace5 },
+        };
 
         // Render KPIs primarios
         try {
           const slots = readPrimarySlots();
-          const extra = { passAcc, duelRate, shotAcc, possessionApprox, pace5 };
+          const extra = { passAcc, duelRate, aerialRate, shotAcc, possessionApprox, pace5 };
           const rows = [
             { l: kpiPrimaryEls.l1, v: kpiPrimaryEls.v1, key: slots[0] },
             { l: kpiPrimaryEls.l2, v: kpiPrimaryEls.v2, key: slots[1] },
@@ -4370,6 +4451,64 @@
               configWrap.hidden = open;
             });
             configBtn.dataset.bound = '1';
+          }
+          // Preferencia compartida (club/workspace): opcional, para que el staff tenga los mismos KPIs en vivo.
+          const wsStatus = document.getElementById('live-kpi-workspace-status');
+          const wsUseBtn = document.getElementById('live-kpi-use-workspace');
+          const wsSaveBtn = document.getElementById('live-kpi-save-workspace');
+          const setWsStatus = (msg = '') => {
+            if (!wsStatus) return;
+            const txt = String(msg || '').trim();
+            wsStatus.hidden = !txt;
+            wsStatus.textContent = txt;
+          };
+          if (wsSaveBtn) wsSaveBtn.hidden = !canManageWorkspace;
+          if (wsSaveBtn && wsSaveBtn.dataset.bound !== '1') {
+            wsSaveBtn.addEventListener('click', async () => {
+              const next = selects.map((s) => String(s?.value || '').trim());
+              const ok = await saveWorkspaceLiveKpis(next);
+              if (ok) {
+                workspaceLiveKpiSlots = next;
+                setWsStatus('KPIs del club actualizados.');
+                showPageStatus && showPageStatus('KPIs guardados para el club.', 'success', 2600);
+              } else {
+                showPageStatus && showPageStatus('No se pudieron guardar los KPIs del club.', 'danger', 4200);
+              }
+            });
+            wsSaveBtn.dataset.bound = '1';
+          }
+          if (wsUseBtn && wsUseBtn.dataset.bound !== '1') {
+            wsUseBtn.addEventListener('click', () => {
+              if (!(Array.isArray(workspaceLiveKpiSlots) && workspaceLiveKpiSlots.length === 4)) return;
+              writePrimarySlots(workspaceLiveKpiSlots);
+              selects.forEach((sel, idx) => {
+                if (sel) sel.value = workspaceLiveKpiSlots[idx] || sel.value;
+              });
+              setWsStatus('Aplicados KPIs del club.');
+              scheduleRefreshLiveStatsHud();
+            });
+            wsUseBtn.dataset.bound = '1';
+          }
+          if (!workspaceLiveKpiLoaded) {
+            loadWorkspaceLiveKpis().then((val) => {
+              if (Array.isArray(val) && val.length === 4) {
+                // Mostrar opción "Usar club" si existe configuración.
+                if (wsUseBtn) wsUseBtn.hidden = false;
+                setWsStatus('KPIs del club disponibles.');
+                // Si el usuario no tiene configuración local guardada, adopta la del club.
+                try {
+                  const raw = localStorage.getItem(primaryKey) || '';
+                  const parsed = raw ? JSON.parse(raw) : null;
+                  if (!(Array.isArray(parsed) && parsed.length === 4)) {
+                    writePrimarySlots(val);
+                    selects.forEach((sel, idx) => {
+                      if (sel) sel.value = val[idx] || sel.value;
+                    });
+                    scheduleRefreshLiveStatsHud();
+                  }
+                } catch (e) {}
+              }
+            });
           }
           // Mantén el estado abierto/cerrado según lo que el usuario haya tocado.
         } catch (e) { /* ignore */ }
@@ -5796,6 +5935,7 @@
       const closeSummaryCorners = document.getElementById('close-summary-corners');
       const closeSummaryAlerts = document.getElementById('close-summary-alerts');
 	      const closeFinalizeBtn = document.getElementById('match-finalize-btn');
+      const copyBriefingBtn = document.getElementById('match-copy-briefing');
       let liveSummaryState = {
         actions: 0,
         yellow: 0,
@@ -5805,6 +5945,29 @@
         cornerAgainst: 0,
         elapsedSeconds: 0,
         matchInfo: { ...matchInfoState },
+      };
+      const copyTextToClipboard = async (text) => {
+        const value = String(text || '').trim();
+        if (!value) return false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+            return true;
+          }
+        } catch (e) {}
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = value;
+          ta.setAttribute('readonly', 'readonly');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          return Boolean(ok);
+        } catch (e) {}
+        return false;
       };
       const formatSummaryClock = (seconds) => {
         const safeSeconds = Math.max(0, Number(seconds) || 0);
@@ -5916,6 +6079,42 @@
 	      });
 	      // Inicializa el estado del cierre (deshabilita Guardar si falta rival/marcador/11).
 	      requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
+      if (copyBriefingBtn && copyBriefingBtn.dataset.bound !== '1') {
+        copyBriefingBtn.addEventListener('click', async () => {
+          const info = liveSummaryState.matchInfo || {};
+          const opponent = String(info.opponent || '').trim() || 'Rival';
+          const context = String(info.context || 'league').toLowerCase();
+          const ctxLabel = context === 'tournament' ? (String(info.tournament_name || '').trim() || 'Torneo')
+            : context === 'friendly' ? 'Amistoso'
+            : 'Liga';
+          const roundLabel = String(info.round || '').trim() ? `J${String(info.round || '').trim()}` : '';
+          const scoreFor = String(info.score_for || '').trim() || '—';
+          const scoreAgainst = String(info.score_against || '').trim() || '—';
+          const metaBits = [];
+          if (String(info.datetime || '').trim()) metaBits.push(String(info.datetime || '').trim());
+          if (String(info.location || '').trim()) metaBits.push(String(info.location || '').trim());
+          const hud = liveHudSnapshot;
+          const lines = [];
+          lines.push(`Resumen · ${teamName} vs ${opponent}${roundLabel ? ` · ${roundLabel}` : ''} · ${ctxLabel}`);
+          if (metaBits.length) lines.push(metaBits.join(' · '));
+          lines.push(`Marcador: ${scoreFor} - ${scoreAgainst}`);
+          if (hud && hud.totals) {
+            const t = hud.totals;
+            const ex = hud.extra || {};
+            lines.push(
+              `Acciones: ${t.actions} · Tiros: ${t.shotsTarget}/${t.shots} A/P · Pase: ${ex.passAcc ?? 0}% · Duelos: ${t.duelsWon}/${t.duels} (${ex.duelRate ?? 0}%) · Pérd salida: ${t.lossesDef} · Recup altas: ${t.stealsHigh} · ABP: ${t.abp}`
+            );
+            if (String(hud.alerts || '').trim() && hud.alerts !== '—') lines.push(`Alertas: ${hud.alerts}`);
+          }
+          const ok = await copyTextToClipboard(lines.filter(Boolean).join('\n'));
+          if (ok) {
+            showPageStatus && showPageStatus('Resumen copiado al portapapeles.', 'success', 2600);
+          } else {
+            showPageStatus && showPageStatus('No se pudo copiar (iOS). Mantén pulsado para copiar manualmente.', 'warning', 4800);
+          }
+        });
+        copyBriefingBtn.dataset.bound = '1';
+      }
 	      if (matchInfoSaveBtn) {
 	        matchInfoSaveBtn.addEventListener('click', () => {
 	          requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
