@@ -38556,6 +38556,10 @@ def player_detail_page(request, player_id):
             key = str(row.get('status') or '').strip()
             if key in attendance_counts:
                 attendance_counts[key] = int(row.get('total') or 0)
+        attendance_completed_total = int(attendance_counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0) or 0) + int(
+            attendance_counts.get(TrainingSessionAttendance.STATUS_LATE, 0) or 0
+        )
+        attendance_completed_pct = round((attendance_completed_total / session_total_in_season) * 100, 1) if session_total_in_season else 0.0
         marked_total = sum(attendance_counts.values())
         attendance_pending = max(0, session_total_in_season - marked_total)
 
@@ -38658,6 +38662,8 @@ def player_detail_page(request, player_id):
                 'attendance_season_end': season_end,
                 'attendance_session_total': session_total_in_season,
                 'attendance_counts': attendance_counts,
+                'attendance_completed_total': attendance_completed_total,
+                'attendance_completed_pct': attendance_completed_pct,
                 'attendance_marked_total': marked_total,
                 'attendance_pending': attendance_pending,
                 'injury_days_in_season': injury_days,
