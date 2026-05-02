@@ -124,6 +124,12 @@ class Command(BaseCommand):
         sessions_url = reverse("sessions")
         resp = c.get(sessions_url, {"team": int(team.id), "workspace": int(workspace.id), "tab": "create"})
         _ok("GET sesiones", resp.status_code == 200, f"status={resp.status_code}")
+        resp = c.get(sessions_url, {"team": int(team.id), "workspace": int(workspace.id), "tab": "library"})
+        _ok("GET biblioteca tareas", resp.status_code == 200, f"status={resp.status_code}")
+        resp = c.get(sessions_url, {"team": int(team.id), "workspace": int(workspace.id), "tab": "sessions"})
+        _ok("GET biblioteca sesiones", resp.status_code == 200, f"status={resp.status_code}")
+        resp = c.get(sessions_url, {"team": int(team.id), "workspace": int(workspace.id), "tab": "import"})
+        _ok("GET importar", resp.status_code == 200, f"status={resp.status_code}")
 
         # 3) Importar tarea PDF (library_upload_pdf raw) y verificar que se crea.
         pdf_file = None
@@ -153,6 +159,12 @@ class Command(BaseCommand):
             _ok("POST importar tarea PDF", resp.status_code in (200, 302), f"status={resp.status_code}")
             after = SessionTask.objects.count()
             _ok("tarea PDF creada", after >= before + 1, f"before={before} after={after}")
+            created_task = SessionTask.objects.order_by("-id").first()
+            if created_task and created_task.task_pdf:
+                # Probar descarga/inline del PDF
+                file_url = reverse("session-task-file", args=[int(created_task.id)])
+                resp = c.get(file_url, {"team": int(team.id), "workspace": int(workspace.id)})
+                _ok("GET archivo PDF tarea", resp.status_code == 200, f"status={resp.status_code}")
 
         # 4) Enviar a papelera una tarea de biblioteca (si existe).
         lib_task = (
@@ -187,6 +199,40 @@ class Command(BaseCommand):
         bp_url = reverse("task-assistant-blueprints-api")
         resp = c.get(bp_url, {"team": int(team.id), "workspace": int(workspace.id)})
         _ok("GET blueprints api", resp.status_code == 200, f"status={resp.status_code}")
+
+        # 6b) Abrir editor de tarea (task builder) para asegurar que carga (GET).
+        try:
+            builder_url = reverse("sessions-task-create")
+            resp = c.get(builder_url, {"team": int(team.id), "workspace": int(workspace.id)})
+            _ok("GET task builder", resp.status_code == 200, f"status={resp.status_code}")
+        except Exception as exc:
+            _ok("GET task builder", False, str(exc))
+
+        # 6c) Importar sesión PDF y abrir archivo
+        if pdf_bytes:
+            before_docs = ImportedSessionDocument.objects.filter(team=team).count()
+            pdf_file2 = SimpleUploadedFile("smoke_session.pdf", pdf_bytes, content_type="application/pdf")
+            resp = c.post(
+                sessions_url,
+                data={
+                    "planner_action": "library_upload_session_pdf",
+                    "planner_tab": "import",
+                    "team": int(team.id),
+                    "workspace": int(workspace.id),
+                    "library_repo": "traditional",
+                    "session_pdf_date": "",
+                    "session_pdf_title": "SMOKE SESION PDF",
+                    "library_session_pdf": pdf_file2,
+                },
+            )
+            _ok("POST importar sesión PDF", resp.status_code in (200, 302), f"status={resp.status_code}")
+            after_docs = ImportedSessionDocument.objects.filter(team=team).count()
+            _ok("sesión PDF creada", after_docs >= before_docs + 1, f"before={before_docs} after={after_docs}")
+            doc = ImportedSessionDocument.objects.filter(team=team).order_by("-id").first()
+            if doc and doc.pdf:
+                file_url = reverse("imported-session-file", args=[int(doc.id)])
+                resp = c.get(file_url, {"team": int(team.id), "workspace": int(workspace.id)})
+                _ok("GET archivo PDF sesión importada", resp.status_code == 200, f"status={resp.status_code}")
 
         # 7) Crea microciclo/sesión mínima (flujo base).
         try:
