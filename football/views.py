@@ -28150,14 +28150,29 @@ def _ensure_original_task_snapshot(task):
 def _is_imported_task(task):
     if not task:
         return False
-    if bool(getattr(task, 'task_pdf', None)):
-        return True
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     source = str(meta.get('source') or '').strip().lower()
     if source in {'pdf_analysis', 'pdf_import', 'pdf'}:
         return True
     if str(meta.get('pdf_source_name') or '').strip():
+        return True
+    # Compat: en versiones antiguas algunas importaciones no guardaban `meta.source/pdf_source_name`,
+    # pero sí quedaba el PDF original y una nota explícita de importación. Evita marcar como "Importada"
+    # cualquier tarea creada/editar y luego exportada a PDF.
+    try:
+        notes = str(getattr(task, 'notes', '') or '').strip().lower()
+    except Exception:
+        notes = ''
+    if bool(getattr(task, 'task_pdf', None)) and any(
+        token in notes
+        for token in (
+            'cargada desde biblioteca pdf',
+            'importada desde pdf',
+            'extraída automáticamente desde pdf',
+            'importada desde captura',
+        )
+    ):
         return True
     return False
 
