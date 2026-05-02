@@ -31491,8 +31491,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         .filter(
                             session__microcycle_id=selected_session.microcycle_id,
                             session__microcycle__team=primary_team,
-                            session__status=TrainingSession.STATUS_DONE,
                         )
+                        .exclude(session__status=TrainingSession.STATUS_CANCELED)
                         .select_related('session')
                         .order_by('session_id', 'order', 'id')
                     )
