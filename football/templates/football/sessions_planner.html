@@ -636,7 +636,9 @@
 	        position: relative;
 	        overflow: hidden;
 	      }
-      .create-hero-pitch svg { width: 100%; height: 100%; display: block; }
+      /* Evita que se “corten” bordes/sombras por el recorte del contenedor. */
+      .create-hero-preview { width: 100%; height: 100%; padding: 18px; }
+      .create-hero-pitch svg { width: 100%; height: 100%; display: block; overflow: visible; }
       .create-hero-preview {
         width: 100%;
         height: 100%;
