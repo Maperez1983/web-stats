@@ -18236,6 +18236,16 @@ def _match_staff_report_context(request, *, match, primary_team):
     except Exception:
         staff_lines = []
 
+    briefing = None
+    try:
+        workspace = _get_active_workspace(request) or Workspace.objects.filter(primary_team=primary_team).first()
+        if workspace:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key=f'match_briefing:v1:{match.id}').first()
+            if pref and isinstance(pref.value, dict):
+                briefing = pref.value
+    except Exception:
+        briefing = None
+
     return {
         'team_name': team_name,
         'opponent_name': opponent_name,
@@ -18246,6 +18256,7 @@ def _match_staff_report_context(request, *, match, primary_team):
         'location_label': location_label,
         'round_label': round_label,
         'staff_lines': staff_lines,
+        'briefing': briefing,
         'summary_cards': summary_cards,
         'top_event_types': top_event_types,
         'top_results': top_results,
@@ -45536,6 +45547,7 @@ def task_assistant_knowledge_upload_api(request):
             or name.endswith('.png')
             or name.endswith('.jpg')
             or name.endswith('.jpeg')
+            or name.endswith('.heic')
             or name.endswith('.webp')
         )
 

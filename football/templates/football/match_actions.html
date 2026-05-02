@@ -2960,6 +2960,20 @@
                   <label>Slot 3 <select id="live-kpi-s3"></select></label>
                   <label>Slot 4 <select id="live-kpi-s4"></select></label>
                 </div>
+                <details class="live-alerts-config" style="margin-top:0.65rem;">
+                  <summary class="meta" style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">Alertas (en vivo)</summary>
+                  <div class="live-kpi-config-grid" style="margin-top:0.55rem;">
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>Pérdidas en salida (últ. 5')</span><input type="checkbox" id="live-alert-losses-def-enabled" checked /></span><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-losses-def-th" value="3" /></label>
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>Sin tiros (minuto)</span><input type="checkbox" id="live-alert-no-shots-enabled" checked /></span><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-no-shots-min" value="20" /></label>
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>Tarjetas (total)</span><input type="checkbox" id="live-alert-cards-enabled" checked /></span><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-cards-th" value="3" /></label>
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>ABP (total)</span><input type="checkbox" id="live-alert-abp-enabled" checked /></span><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-abp-th" value="5" /></label>
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>Duelos perdidos (mín / % máx)</span><input type="checkbox" id="live-alert-duels-enabled" checked /></span><div style="display:flex; gap:0.4rem;"><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-duels-min" value="10" /><input type="number" inputmode="numeric" min="0" max="100" step="1" id="live-alert-duels-rate" value="40" /></div></label>
+                    <label><span style="display:flex; gap:0.4rem; align-items:center; justify-content:space-between;"><span>Aéreos perdidos (mín / % máx)</span><input type="checkbox" id="live-alert-aerial-enabled" checked /></span><div style="display:flex; gap:0.4rem;"><input type="number" inputmode="numeric" min="1" step="1" id="live-alert-aerial-min" value="8" /><input type="number" inputmode="numeric" min="0" max="100" step="1" id="live-alert-aerial-rate" value="40" /></div></label>
+                  </div>
+                  <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.55rem;">
+                    <button type="button" class="live-stats-hud-settings" id="live-alerts-save-workspace" hidden title="Guardar alertas para el club">Guardar alertas (club)</button>
+                  </div>
+                </details>
                 <div class="live-kpi-config-actions" style="display:flex; gap:0.5rem; align-items:center; justify-content:flex-end; margin-top:0.55rem;">
                   <span class="meta" id="live-kpi-workspace-status" style="margin-right:auto; opacity:0.8;" hidden></span>
                   <button type="button" class="live-stats-hud-settings" id="live-kpi-use-workspace" hidden title="Aplicar KPIs guardados para el club">Usar club</button>
@@ -4137,6 +4151,28 @@
       const canManageWorkspace = {% if can_manage_workspace %}true{% else %}false{% endif %};
       let workspaceLiveKpiSlots = null;
       let workspaceLiveKpiLoaded = false;
+      const liveAlertsPrefKey = 'matchday_live_alerts:v1';
+      let workspaceLiveAlertsLoaded = false;
+      let liveAlertsState = null;
+      const defaultLiveAlerts = () => ({
+        v: 1,
+        enabled: {
+          losses_def: true,
+          no_shots: true,
+          cards: true,
+          abp: true,
+          duels: true,
+          aerial: true,
+        },
+        losses_def_last5: 3,
+        no_shots_minute: 20,
+        cards_total: 3,
+        abp_total: 5,
+        duels_min: 10,
+        duels_rate_max: 40,
+        aerial_min: 8,
+        aerial_rate_max: 40,
+      });
       const loadWorkspaceLiveKpis = async () => {
         if (workspaceLiveKpiLoaded) return workspaceLiveKpiSlots;
         workspaceLiveKpiLoaded = true;
@@ -4161,6 +4197,36 @@
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
             body: JSON.stringify({ key: 'matchday_live_kpis:v1', value: Array.isArray(slots) ? slots : [] }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          return Boolean(resp.ok && data && data.ok === true);
+        } catch (e) {}
+        return false;
+      };
+      const loadWorkspaceLiveAlerts = async () => {
+        if (workspaceLiveAlertsLoaded) return liveAlertsState;
+        workspaceLiveAlertsLoaded = true;
+        try {
+          const url = `${workspacePrefGetUrl}?key=${encodeURIComponent(liveAlertsPrefKey)}`;
+          const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data || data.ok !== true) return null;
+          const value = data.value;
+          if (value && typeof value === 'object') {
+            liveAlertsState = value;
+            return liveAlertsState;
+          }
+        } catch (e) {}
+        return null;
+      };
+      const saveWorkspaceLiveAlerts = async (value) => {
+        if (!canManageWorkspace) return false;
+        try {
+          const resp = await fetch(workspacePrefSetUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+            body: JSON.stringify({ key: liveAlertsPrefKey, value: value && typeof value === 'object' ? value : defaultLiveAlerts() }),
           });
           const data = await resp.json().catch(() => ({}));
           return Boolean(resp.ok && data && data.ok === true);
@@ -4368,14 +4434,24 @@
         const aerialRate = totals.aerial ? Math.round((totals.aerialWon / totals.aerial) * 100) : 0;
         const shotAcc = totals.shots ? Math.round((totals.shotsTarget / totals.shots) * 100) : 0;
         const alerts = (() => {
+          const cfg = (liveAlertsState && typeof liveAlertsState === 'object') ? liveAlertsState : defaultLiveAlerts();
+          const enabled = (cfg && typeof cfg.enabled === 'object') ? cfg.enabled : {};
+          const thLossesDef = Math.max(1, Number(cfg.losses_def_last5) || 3);
+          const thNoShotsMin = Math.max(1, Number(cfg.no_shots_minute) || 20);
+          const thCards = Math.max(1, Number(cfg.cards_total) || 3);
+          const thAbp = Math.max(1, Number(cfg.abp_total) || 5);
+          const thDuelsMin = Math.max(1, Number(cfg.duels_min) || 10);
+          const thDuelsRate = Math.max(0, Math.min(100, Number(cfg.duels_rate_max) || 40));
+          const thAerialMin = Math.max(1, Number(cfg.aerial_min) || 8);
+          const thAerialRate = Math.max(0, Math.min(100, Number(cfg.aerial_rate_max) || 40));
           const parts = [];
-          if (last5.lossesDef >= 3) parts.push('PÉRDIDAS EN SALIDA');
+          if (enabled.losses_def !== false && last5.lossesDef >= thLossesDef) parts.push('PÉRDIDAS EN SALIDA');
           if (totals.shotsTarget >= 3 && totals.shots >= 5) parts.push('MUCHO TIRO A PUERTA');
-          if (currentMinute >= 20 && totals.shots === 0) parts.push('SIN TIROS');
-          if (totals.cards >= 3) parts.push('RIESGO TARJETAS');
-          if (totals.duels >= 10 && duelRate <= 40) parts.push('DUELOS PERDIDOS');
-          if (totals.aerial >= 8 && aerialRate <= 40) parts.push('AÉREOS PERDIDOS');
-          if (totals.abp >= 5) parts.push('MUCHO ABP');
+          if (enabled.no_shots !== false && currentMinute >= thNoShotsMin && totals.shots === 0) parts.push('SIN TIROS');
+          if (enabled.cards !== false && totals.cards >= thCards) parts.push('RIESGO TARJETAS');
+          if (enabled.duels !== false && totals.duels >= thDuelsMin && duelRate <= thDuelsRate) parts.push('DUELOS PERDIDOS');
+          if (enabled.aerial !== false && totals.aerial >= thAerialMin && aerialRate <= thAerialRate) parts.push('AÉREOS PERDIDOS');
+          if (enabled.abp !== false && totals.abp >= thAbp) parts.push('MUCHO ABP');
           if (!parts.length) return '—';
           return parts.slice(0, 2).join(' · ');
         })();
@@ -4509,6 +4585,104 @@
                 } catch (e) {}
               }
             });
+          }
+
+          // Alertas configurables (club/workspace).
+          const alertsSaveBtn = document.getElementById('live-alerts-save-workspace');
+          const alertEls = {
+            lossesEnabled: document.getElementById('live-alert-losses-def-enabled'),
+            lossesTh: document.getElementById('live-alert-losses-def-th'),
+            noShotsEnabled: document.getElementById('live-alert-no-shots-enabled'),
+            noShotsMin: document.getElementById('live-alert-no-shots-min'),
+            cardsEnabled: document.getElementById('live-alert-cards-enabled'),
+            cardsTh: document.getElementById('live-alert-cards-th'),
+            abpEnabled: document.getElementById('live-alert-abp-enabled'),
+            abpTh: document.getElementById('live-alert-abp-th'),
+            duelsEnabled: document.getElementById('live-alert-duels-enabled'),
+            duelsMin: document.getElementById('live-alert-duels-min'),
+            duelsRate: document.getElementById('live-alert-duels-rate'),
+            aerialEnabled: document.getElementById('live-alert-aerial-enabled'),
+            aerialMin: document.getElementById('live-alert-aerial-min'),
+            aerialRate: document.getElementById('live-alert-aerial-rate'),
+          };
+          const readAlertsFromUi = () => {
+            const num = (v, fallback) => {
+              const n = Number(String(v ?? '').trim());
+              return Number.isFinite(n) ? n : fallback;
+            };
+            const cfg = {
+              v: 1,
+              enabled: {
+                losses_def: Boolean(alertEls.lossesEnabled?.checked),
+                no_shots: Boolean(alertEls.noShotsEnabled?.checked),
+                cards: Boolean(alertEls.cardsEnabled?.checked),
+                abp: Boolean(alertEls.abpEnabled?.checked),
+                duels: Boolean(alertEls.duelsEnabled?.checked),
+                aerial: Boolean(alertEls.aerialEnabled?.checked),
+              },
+              losses_def_last5: Math.max(1, Math.round(num(alertEls.lossesTh?.value, 3))),
+              no_shots_minute: Math.max(1, Math.round(num(alertEls.noShotsMin?.value, 20))),
+              cards_total: Math.max(1, Math.round(num(alertEls.cardsTh?.value, 3))),
+              abp_total: Math.max(1, Math.round(num(alertEls.abpTh?.value, 5))),
+              duels_min: Math.max(1, Math.round(num(alertEls.duelsMin?.value, 10))),
+              duels_rate_max: Math.max(0, Math.min(100, Math.round(num(alertEls.duelsRate?.value, 40)))),
+              aerial_min: Math.max(1, Math.round(num(alertEls.aerialMin?.value, 8))),
+              aerial_rate_max: Math.max(0, Math.min(100, Math.round(num(alertEls.aerialRate?.value, 40)))),
+            };
+            return cfg;
+          };
+          const renderAlertsUi = (cfg) => {
+            const c = cfg && typeof cfg === 'object' ? cfg : defaultLiveAlerts();
+            const en = c.enabled && typeof c.enabled === 'object' ? c.enabled : {};
+            if (alertEls.lossesEnabled) alertEls.lossesEnabled.checked = en.losses_def !== false;
+            if (alertEls.noShotsEnabled) alertEls.noShotsEnabled.checked = en.no_shots !== false;
+            if (alertEls.cardsEnabled) alertEls.cardsEnabled.checked = en.cards !== false;
+            if (alertEls.abpEnabled) alertEls.abpEnabled.checked = en.abp !== false;
+            if (alertEls.duelsEnabled) alertEls.duelsEnabled.checked = en.duels !== false;
+            if (alertEls.aerialEnabled) alertEls.aerialEnabled.checked = en.aerial !== false;
+            if (alertEls.lossesTh) alertEls.lossesTh.value = String(Math.max(1, Number(c.losses_def_last5) || 3));
+            if (alertEls.noShotsMin) alertEls.noShotsMin.value = String(Math.max(1, Number(c.no_shots_minute) || 20));
+            if (alertEls.cardsTh) alertEls.cardsTh.value = String(Math.max(1, Number(c.cards_total) || 3));
+            if (alertEls.abpTh) alertEls.abpTh.value = String(Math.max(1, Number(c.abp_total) || 5));
+            if (alertEls.duelsMin) alertEls.duelsMin.value = String(Math.max(1, Number(c.duels_min) || 10));
+            if (alertEls.duelsRate) alertEls.duelsRate.value = String(Math.max(0, Math.min(100, Number(c.duels_rate_max) || 40)));
+            if (alertEls.aerialMin) alertEls.aerialMin.value = String(Math.max(1, Number(c.aerial_min) || 8));
+            if (alertEls.aerialRate) alertEls.aerialRate.value = String(Math.max(0, Math.min(100, Number(c.aerial_rate_max) || 40)));
+          };
+          // Estado inicial.
+          if (!liveAlertsState) liveAlertsState = defaultLiveAlerts();
+          if (!workspaceLiveAlertsLoaded) {
+            loadWorkspaceLiveAlerts().then((val) => {
+              if (val && typeof val === 'object') {
+                liveAlertsState = val;
+                renderAlertsUi(liveAlertsState);
+                scheduleRefreshLiveStatsHud();
+              } else {
+                renderAlertsUi(liveAlertsState);
+              }
+            });
+          }
+          // Bind cambios (feedback inmediato).
+          Object.values(alertEls).forEach((el) => {
+            if (!el || el.dataset.bound === '1') return;
+            el.addEventListener('change', () => {
+              liveAlertsState = readAlertsFromUi();
+              scheduleRefreshLiveStatsHud();
+            });
+            el.dataset.bound = '1';
+          });
+          if (alertsSaveBtn) alertsSaveBtn.hidden = !canManageWorkspace;
+          if (alertsSaveBtn && alertsSaveBtn.dataset.bound !== '1') {
+            alertsSaveBtn.addEventListener('click', async () => {
+              liveAlertsState = readAlertsFromUi();
+              const ok = await saveWorkspaceLiveAlerts(liveAlertsState);
+              if (ok) {
+                showPageStatus && showPageStatus('Alertas guardadas para el club.', 'success', 2600);
+              } else {
+                showPageStatus && showPageStatus('No se pudieron guardar las alertas.', 'danger', 4200);
+              }
+            });
+            alertsSaveBtn.dataset.bound = '1';
           }
           // Mantén el estado abierto/cerrado según lo que el usuario haya tocado.
         } catch (e) { /* ignore */ }

@@ -70,6 +70,22 @@
     </div>
 
     <div class="content">
+      {% if briefing %}
+      <div class="section">
+        <h2>Plan de partido (Briefing)</h2>
+        <div class="timeline">
+          {% if briefing.objective %}<div class="t-item"><div class="t-min">🎯</div><div><div class="t-title">Objetivo</div><div class="t-text">{{ briefing.objective }}</div></div></div>{% endif %}
+          {% if briefing.triggers %}<div class="t-item"><div class="t-min">⚡</div><div><div class="t-title">Triggers / ajustes</div><div class="t-text">{{ briefing.triggers }}</div></div></div>{% endif %}
+          {% if briefing.with_ball %}<div class="t-item"><div class="t-min">⚽</div><div><div class="t-title">Con balón</div><div class="t-text">{{ briefing.with_ball|linebreaksbr }}</div></div></div>{% endif %}
+          {% if briefing.without_ball %}<div class="t-item"><div class="t-min">🛡</div><div><div class="t-title">Sin balón</div><div class="t-text">{{ briefing.without_ball|linebreaksbr }}</div></div></div>{% endif %}
+          {% if briefing.setpieces_for %}<div class="t-item"><div class="t-min">🚩</div><div><div class="t-title">ABP a favor</div><div class="t-text">{{ briefing.setpieces_for|linebreaksbr }}</div></div></div>{% endif %}
+          {% if briefing.setpieces_against %}<div class="t-item"><div class="t-min">⛔</div><div><div class="t-title">ABP en contra</div><div class="t-text">{{ briefing.setpieces_against|linebreaksbr }}</div></div></div>{% endif %}
+          {% if briefing.subs_plan %}<div class="t-item"><div class="t-min">🔁</div><div><div class="t-title">Plan de cambios</div><div class="t-text">{{ briefing.subs_plan|linebreaksbr }}</div></div></div>{% endif %}
+          {% if briefing.risks %}<div class="t-item"><div class="t-min">⚠️</div><div><div class="t-title">Riesgos / alertas</div><div class="t-text">{{ briefing.risks|linebreaksbr }}</div></div></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if 'summary' in sections %}
       <div class="section">
         <h2>Resumen</h2>
