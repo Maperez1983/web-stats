@@ -4,6 +4,7 @@ from football.models import SessionTask, Team
 from football.views import (
     _cleanup_task_joined_text_fields,
     _ensure_library_task_preview,
+    _learn_task_blueprint_from_task,
     _refresh_task_from_pdf_analysis,
     _task_analysis_needs_refresh,
     _task_scope_for_item,
@@ -57,6 +58,15 @@ class Command(BaseCommand):
                     if _refresh_task_from_pdf_analysis(task):
                         refreshed += 1
                         task_changed = True
+                        try:
+                            _learn_task_blueprint_from_task(
+                                team=team,
+                                task=task,
+                                scope_key=scope,
+                                actor_username="reanalyze_pro",
+                            )
+                        except Exception:
+                            pass
                 if _cleanup_task_joined_text_fields(task):
                     text_fixed += 1
                     task_changed = True

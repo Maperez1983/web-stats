@@ -1874,6 +1874,7 @@
 	                  class="task task-clickable"
 	                  data-detail-url="{% url 'imported-session-file' doc.id %}"
 	                  data-pdf-viewer="1"
+	                  data-pdf-open-direct="1"
 	                  data-pdf-title="Sesión importada · {{ doc.title }}"
 	                  tabindex="0"
 	                  role="link"
@@ -1887,6 +1888,16 @@
                     <p class="meta">{% if doc.session_date %}<strong>{{ doc.session_date|date:"d/m/Y" }}</strong>{% else %}<strong>Sin fecha</strong>{% endif %} · PDF original</p>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
 	                      <a class="button" href="{% url 'imported-session-file' doc.id %}" data-pdf-viewer="1" data-pdf-title="Sesión importada · {{ doc.title }}">Abrir PDF</a>
+	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión importada? (Se borrará el PDF guardado)');">
+	                        {% csrf_token %}
+	                        <input type="hidden" name="planner_action" value="delete_imported_session_doc" />
+	                        <input type="hidden" name="planner_tab" value="sessions" />
+	                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
+	                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+	                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                        <input type="hidden" name="doc_id" value="{{ doc.id }}" />
+	                        <button type="submit" class="danger">Eliminar</button>
+	                      </form>
                     </div>
                   </div>
                 </article>
@@ -3231,7 +3242,7 @@
 			          <article
 			            class="task task-clickable"
 			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
-			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
+			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-open-direct="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
 			            tabindex="0"
 			            role="link"
 			            aria-label="Abrir tarea {{ t.title }}"
@@ -3292,6 +3303,16 @@
 	                {% else %}
 	                <a class="button" href="{% url task_builder_edit_route_name t.id %}">Editar</a>
 	                {% endif %}
+                  <form method="post" style="margin:0;" onsubmit="return confirm('¿Enviar esta tarea a la papelera? (Se puede restaurar)');">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="delete_library_task" />
+                    <input type="hidden" name="planner_tab" value="library" />
+                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <input type="hidden" name="task_id" value="{{ t.id }}" />
+                    <button type="submit" class="danger">Papelera</button>
+                  </form>
 	                {% if planning_session_items %}
                   <details style="margin:0;">
                     <summary class="button secondary" style="display:inline-flex; width:max-content;">Añadir a sesión</summary>
@@ -3516,6 +3537,11 @@
 		          if (!detailUrl) return;
 		          if (card && card.hasAttribute && card.hasAttribute('data-pdf-viewer')) {
 		            const title = (card.getAttribute('data-pdf-title') || '').trim() || 'PDF';
+		            const openDirect = String(card.getAttribute('data-pdf-open-direct') || '').trim() === '1';
+		            if (openDirect) {
+		              window.location.href = detailUrl;
+		              return;
+		            }
 		            window.location.href = buildPdfViewerUrl(detailUrl, title);
 		            return;
 		          }

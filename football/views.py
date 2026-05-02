@@ -26521,6 +26521,165 @@ def _apply_analysis_to_task(task, analysis):
     task.save(update_fields=['tactical_layout'])
 
 
+def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
+    """
+    Mapea heurísticamente un PDF importado a los "goals" del recomendador Smart.
+    Mantener simple y estable: no debe bloquear importaciones.
+    """
+    try:
+        block = str(getattr(task, 'block', '') or '').strip()
+    except Exception:
+        block = ''
+    if block in {SessionTask.BLOCK_ACTIVATION, SessionTask.BLOCK_RECOVERY}:
+        return 'warmup'
+    if block == SessionTask.BLOCK_SET_PIECES:
+        return 'set_pieces'
+    if block == SessionTask.BLOCK_CONDITIONING:
+        return 'warmup'
+
+    contexts = analysis.get('work_contexts') if isinstance(analysis, dict) else []
+    phase_tags = analysis.get('phase_tags') if isinstance(analysis, dict) else []
+    try:
+        contexts_set = {str(x).strip().lower() for x in (contexts or []) if str(x).strip()}
+    except Exception:
+        contexts_set = set()
+    try:
+        phase_set = {str(x).strip().lower() for x in (phase_tags or []) if str(x).strip()}
+    except Exception:
+        phase_set = set()
+
+    if 'salida_balon' in contexts_set:
+        return 'build_up'
+    if 'finalizacion' in contexts_set:
+        return 'final_third'
+    if 'presion_alta' in contexts_set:
+        return 'pressing'
+    if 'transicion_ofensiva' in contexts_set:
+        return 'transition_dta'
+    if 'transicion_defensiva' in contexts_set:
+        return 'transition_atd'
+    if 'abp' in contexts_set or 'abp' in phase_set:
+        return 'set_pieces'
+    if 'defensa' in phase_set:
+        return 'defending'
+    if 'transicion' in phase_set:
+        return 'transition_atd'
+    return 'progression'
+
+
+def _infer_blueprint_category_for_task(task, scope_key: str = '') -> str:
+    try:
+        scope = str(scope_key or '').strip().lower()
+    except Exception:
+        scope = ''
+    if scope == 'goalkeeper':
+        return TaskBlueprint.CATEGORY_GK
+    try:
+        block = str(getattr(task, 'block', '') or '').strip()
+    except Exception:
+        block = ''
+    if block == SessionTask.BLOCK_SET_PIECES:
+        return TaskBlueprint.CATEGORY_ABP
+    if block == SessionTask.BLOCK_CONDITIONING:
+        return TaskBlueprint.CATEGORY_PHYSICAL
+    return TaskBlueprint.CATEGORY_OTHER
+
+
+def _learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: str = '', actor_username: str = '') -> bool:
+    """
+    "Aprendizaje" mínimo: crea/actualiza una TaskBlueprint desde el OCR/parseo del PDF importado.
+
+    Importante: NO modifica el PDF (solo metadatos para recomendador).
+    """
+    if not team or not task or not isinstance(analysis, dict):
+        return False
+    try:
+        name = _sanitize_task_text(str(analysis.get('title') or getattr(task, 'title', '') or '').strip(), multiline=False, max_len=160)
+    except Exception:
+        name = ''
+    if not name:
+        return False
+
+    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    tpl = {
+        'title': name,
+        'objective': _sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=False, max_len=180),
+        'minutes': int(analysis.get('minutes') or getattr(task, 'duration_minutes', 15) or 15),
+        'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
+        'player_count': _sanitize_task_text(str(sheet.get('players') or '').strip(), multiline=False, max_len=120),
+        'dimensions': _sanitize_task_text(str(sheet.get('dimensions') or '').strip(), multiline=False, max_len=120),
+        'materials': _sanitize_task_text(str(sheet.get('materials') or '').strip(), multiline=False, max_len=180),
+        'space': _sanitize_task_text(str(sheet.get('space') or '').strip(), multiline=False, max_len=120),
+        'training_type': '',
+        'strategy': '',
+        'dynamics': '',
+        'structure': '',
+        'coordination': '',
+        'coordination_skills': '',
+        'tactical_intent': '',
+        'organization_html': '',
+        'description_html': str(sheet.get('description_html') or ''),
+        'coaching_html': str(sheet.get('coaching_html') or ''),
+        'rules_html': str(sheet.get('rules_html') or ''),
+        'progression_html': '',
+        'regression_html': '',
+        'success_criteria_html': '',
+        'drills': [],
+        'canvas_state': {},
+        'canvas_width': 0,
+        'canvas_height': 0,
+        'source_name': 'PDF importado (OCR)',
+    }
+
+    meta = {
+        'goal': _infer_blueprint_goal_from_pdf_analysis(task, analysis),
+        'subphase': 'pdf_import',
+        'approach': 'auto',
+    }
+
+    try:
+        TaskBlueprint.objects.update_or_create(
+            team=team,
+            name=name[:160],
+            defaults={
+                'category': _infer_blueprint_category_for_task(task, scope_key=scope_key),
+                'description': _sanitize_task_text(str(tpl.get('objective') or '').strip(), multiline=False, max_len=220),
+                'payload': {'meta': meta, 'tpl': tpl},
+                'created_by': str(actor_username or '').strip()[:80],
+            },
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _learn_task_blueprint_from_task(*, team, task, scope_key: str = '', actor_username: str = '') -> bool:
+    """
+    Variante para mantenimiento: genera una blueprint usando los campos ya guardados en la tarea
+    (objetivo/consignas/reglas + task_sheet dentro de meta['analysis'] si existe).
+    """
+    if not team or not task:
+        return False
+    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    analysis = {
+        'title': str(getattr(task, 'title', '') or '').strip(),
+        'objective': str(getattr(task, 'objective', '') or '').strip(),
+        'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
+        'summary': str(analysis_meta.get('summary') or '').strip(),
+        'task_sheet': task_sheet,
+    }
+    return _learn_task_blueprint_from_pdf_import(
+        team=team,
+        task=task,
+        analysis=analysis,
+        scope_key=scope_key,
+        actor_username=actor_username,
+    )
+
+
 def _extract_section_block(text, section_aliases):
     """
     Extrae un bloque de texto bajo una cabecera (alias) hasta que detecta otra cabecera.
@@ -28142,6 +28301,16 @@ def _import_library_tasks_from_pdf_advanced(
             _apply_analysis_to_task(first_task, first_analysis)
         except Exception:
             pass
+        try:
+            _learn_task_blueprint_from_pdf_import(
+                team=primary_team,
+                task=first_task,
+                analysis=first_analysis,
+                scope_key=scope_key,
+                actor_username='pdf_import',
+            )
+        except Exception:
+            pass
         if recreate_board and preview_bytes:
             _maybe_recreate_board_from_preview_bytes(first_task, preview_bytes)
         created_count += 1
@@ -28208,6 +28377,16 @@ def _import_library_tasks_from_pdf_advanced(
                 extra_task.save(update_fields=['task_preview_image'])
             try:
                 _apply_analysis_to_task(extra_task, extra_analysis)
+            except Exception:
+                pass
+            try:
+                _learn_task_blueprint_from_pdf_import(
+                    team=primary_team,
+                    task=extra_task,
+                    analysis=extra_analysis,
+                    scope_key=scope_key,
+                    actor_username='pdf_import',
+                )
             except Exception:
                 pass
             if recreate_board and extra_preview_bytes:
@@ -28639,6 +28818,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'delete_session_task',
             'restore_session_task',
             'purge_session_task',
+            'delete_imported_session_doc',
         }:
             return 'library', 'sessions'
         if action_key in {'create_task_collection', 'delete_task_collection', 'add_task_to_collection', 'remove_task_from_collection'}:
@@ -28726,6 +28906,31 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             _ensure_library_task_preview(created_task, force=True, prefer_render=True)
                         except Exception:
                             pass
+                        # OCR/parseo para alimentar el recomendador (sin tocar el PDF original).
+                        try:
+                            extracted_text = _extract_pdf_text(created_task.task_pdf, max_chars=30000)
+                        except Exception:
+                            extracted_text = ''
+                        if extracted_text:
+                            try:
+                                analysis = _suggest_task_from_pdf(extracted_text)
+                            except Exception:
+                                analysis = None
+                            if isinstance(analysis, dict) and analysis:
+                                try:
+                                    _apply_analysis_to_task(created_task, analysis)
+                                except Exception:
+                                    pass
+                                try:
+                                    _learn_task_blueprint_from_pdf_import(
+                                        team=primary_team,
+                                        task=created_task,
+                                        analysis=analysis,
+                                        scope_key=scope_key,
+                                        actor_username=(getattr(request.user, 'username', '') or ''),
+                                    )
+                                except Exception:
+                                    pass
                         created_count += 1
                         processed_pdfs += 1
 
@@ -28796,6 +29001,30 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if created_docs == 1
                     else f'Se importaron {created_docs} sesiones (PDF).'
                 )
+
+            elif planner_action == 'delete_imported_session_doc':
+                doc_id = _parse_int(request.POST.get('doc_id'))
+                if not doc_id:
+                    raise ValueError('Documento no válido.')
+                doc = ImportedSessionDocument.objects.filter(id=doc_id, team=primary_team).first()
+                if not doc:
+                    raise ValueError('Sesión importada no encontrada.')
+                title_label = str(getattr(doc, 'title', '') or f'Sesión importada {doc.id}').strip()
+                try:
+                    if getattr(doc, 'pdf', None):
+                        doc.pdf.delete(save=False)
+                except Exception:
+                    pass
+                try:
+                    if getattr(doc, 'preview_image', None):
+                        doc.preview_image.delete(save=False)
+                except Exception:
+                    pass
+                try:
+                    doc.delete()
+                except Exception:
+                    raise ValueError('No se pudo eliminar la sesión importada.')
+                feedback = f'Sesión importada eliminada: {title_label}.'
 
             elif planner_action == 'library_upload_video':
                 repository = _normalize_library_repository(request.POST.get('library_repo') or LIBRARY_REPOSITORY_INTERACTIVE)
