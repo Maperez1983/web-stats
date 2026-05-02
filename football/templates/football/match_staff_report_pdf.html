@@ -70,9 +70,10 @@
     </div>
 
     <div class="content">
-      {% if briefing %}
+      {% if briefing or plan_abc %}
       <div class="section">
-        <h2>Plan de partido (Briefing)</h2>
+        <h2>Plan de partido</h2>
+        {% if briefing %}
         <div class="timeline">
           {% if briefing.objective %}<div class="t-item"><div class="t-min">🎯</div><div><div class="t-title">Objetivo</div><div class="t-text">{{ briefing.objective }}</div></div></div>{% endif %}
           {% if briefing.triggers %}<div class="t-item"><div class="t-min">⚡</div><div><div class="t-title">Triggers / ajustes</div><div class="t-text">{{ briefing.triggers }}</div></div></div>{% endif %}
@@ -83,6 +84,18 @@
           {% if briefing.subs_plan %}<div class="t-item"><div class="t-min">🔁</div><div><div class="t-title">Plan de cambios</div><div class="t-text">{{ briefing.subs_plan|linebreaksbr }}</div></div></div>{% endif %}
           {% if briefing.risks %}<div class="t-item"><div class="t-min">⚠️</div><div><div class="t-title">Riesgos / alertas</div><div class="t-text">{{ briefing.risks|linebreaksbr }}</div></div></div>{% endif %}
         </div>
+        {% endif %}
+        {% if plan_abc %}
+        <div style="margin-top:10px;">
+          <div style="font-weight:900; letter-spacing:0.1em; text-transform:uppercase; font-size:11px; color:#e2e8f0;">Plan A/B/C</div>
+          <div class="timeline" style="margin-top:8px;">
+            {% if plan_abc.a %}<div class="t-item"><div class="t-min">🅰️</div><div><div class="t-title">Plan A</div><div class="t-text">{{ plan_abc.a|linebreaksbr }}</div></div></div>{% endif %}
+            {% if plan_abc.b %}<div class="t-item"><div class="t-min">🅱️</div><div><div class="t-title">Plan B</div><div class="t-text">{{ plan_abc.b|linebreaksbr }}</div></div></div>{% endif %}
+            {% if plan_abc.c %}<div class="t-item"><div class="t-min">🅾️</div><div><div class="t-title">Plan C</div><div class="t-text">{{ plan_abc.c|linebreaksbr }}</div></div></div>{% endif %}
+            {% if plan_abc.checklist %}<div class="t-item"><div class="t-min">✅</div><div><div class="t-title">Checklist</div><div class="t-text">{{ plan_abc.checklist|linebreaksbr }}</div></div></div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
       </div>
       {% endif %}
 
@@ -93,6 +106,23 @@
           {% for card in summary_cards %}
           <div class="card"><div class="kv"><div class="k">{{ card.label }}</div><div class="v">{{ card.value }}</div></div></div>
           {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if postmatch_pro %}
+      <div class="section">
+        <h2>Postpartido PRO</h2>
+        <div style="font-size:11px;color:#e2e8f0;line-height:1.35;">
+          {% for line in postmatch_pro.insights %}
+          <div style="margin-top:6px;">{{ line }}</div>
+          {% empty %}
+          <div style="margin-top:6px;color:#64748b;">Sin insights automáticos.</div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:10px;">
+          <div style="font-weight:900; letter-spacing:0.1em; text-transform:uppercase; font-size:11px; color:#e2e8f0;">Propuesta microciclo</div>
+          <div style="margin-top:8px; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:10px; color:#e2e8f0; background: rgba(2,6,23,0.14); border:1px solid rgba(255,255,255,0.12); border-radius: 10px; padding:8px;">{{ postmatch_pro.microcycle_text }}</div>
         </div>
       </div>
       {% endif %}

@@ -477,7 +477,9 @@
               </div>
               <div class="actions">
                 <button class="button" type="submit">Guardar informe manual</button>
+                <button class="button ghost" type="button" id="rival-report-to-tasks" data-report-id="{{ manual_report_latest_id|default:0 }}">Crear tareas (biblioteca)</button>
               </div>
+              <p class="meta" id="rival-report-to-tasks-status" style="margin:0.35rem 0 0;">Convierte el último informe guardado en plantillas reutilizables.</p>
               {% if manual_report_message %}
               <p class="ok">{{ manual_report_message }}</p>
               {% endif %}
@@ -850,6 +852,45 @@
             if (summary) summary.textContent = 'No se pudo cargar la forma reciente.';
             if (list) list.innerHTML = '<li><span class="meta">Revisa la configuración de Universo.</span></li>';
           });
+	      })();
+
+	      (function () {
+	        const btn = document.getElementById('rival-report-to-tasks');
+	        const status = document.getElementById('rival-report-to-tasks-status');
+	        if (!btn) return;
+	        const csrf = document.querySelector('input[name=\"csrfmiddlewaretoken\"]')?.value || '';
+	        const apiUrl = \"{% url 'analysis-rival-report-to-blueprints-api' %}\";
+	        btn.addEventListener('click', async () => {
+	          try {
+	            btn.disabled = true;
+	            if (status) status.textContent = 'Creando tareas…';
+	            const reportId = Number(btn.dataset.reportId || '0') || 0;
+	            const resp = await fetch(apiUrl, {
+	              method: 'POST',
+	              credentials: 'same-origin',
+	              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	              body: JSON.stringify({ report_id: reportId || undefined }),
+	            });
+	            const data = await resp.json().catch(() => ({}));
+	            if (!resp.ok || !data?.ok) {
+	              const msg = data?.error || 'No se pudo crear.';
+	              if (status) status.textContent = msg;
+	              alert(msg);
+	              return;
+	            }
+	            const created = Number(data?.created || 0);
+	            const updated = Number(data?.updated || 0);
+	            const skipped = Number(data?.skipped || 0);
+	            const items = Array.isArray(data?.items) ? data.items : [];
+	            const names = items.slice(0, 6).map((x) => x?.name).filter(Boolean).join(' · ');
+	            if (status) status.textContent = `OK · creadas ${created} · actualizadas ${updated} · vacías ${skipped}${names ? ' · ' + names : ''}`;
+	          } catch (e) {
+	            if (status) status.textContent = 'Error creando tareas.';
+	            alert('Error creando tareas.');
+	          } finally {
+	            btn.disabled = false;
+	          }
+	        });
 	      })();
 	
 	      (function () {

@@ -65,6 +65,18 @@ except Exception:  # pragma: no cover
     Image = None
     ImageFilter = None
     ImageOps = None
+else:
+    # Soporte HEIC/HEIF (iPhone/iPad). Si la dependencia no está instalada,
+    # PIL lanzará al abrir el fichero y haremos fallback a no extraer texto.
+    try:  # pragma: no cover
+        from pillow_heif import register_heif_opener  # type: ignore
+    except Exception:
+        register_heif_opener = None
+    if register_heif_opener is not None:
+        try:
+            register_heif_opener()
+        except Exception:
+            pass
 
 try:
     import pytesseract
@@ -18246,6 +18258,183 @@ def _match_staff_report_context(request, *, match, primary_team):
     except Exception:
         briefing = None
 
+    plan_abc = None
+    try:
+        workspace = _get_active_workspace(request) or Workspace.objects.filter(primary_team=primary_team).first()
+        if workspace:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key=f'match_plan_abc:v1:{match.id}').first()
+            if pref and isinstance(pref.value, dict):
+                plan_abc = pref.value
+    except Exception:
+        plan_abc = None
+
+    # --- Postpartido PRO: insights + propuesta microciclo (automático) ---
+    def _contains_text(value, terms):
+        txt = str(value or '').lower()
+        if not txt:
+            return False
+        return any(term in txt for term in terms)
+
+    def _is_shot(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        return _contains_text(a, ['tiro', 'remate', 'disparo']) or _contains_text(r, ['tiro', 'remate', 'disparo'])
+
+    def _is_shot_on_target(ev):
+        if not _is_shot(ev):
+            return False
+        a = str(getattr(ev, 'event_type', '') or '').lower()
+        r = str(getattr(ev, 'result', '') or '').lower()
+        o = str(getattr(ev, 'observation', '') or '').lower()
+        return ('a puerta' in r) or ('gol' in a) or ('gol' in r) or ('gol' in o)
+
+    def _is_pass(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        return _contains_text(a, ['pase']) or _contains_text(r, ['pase'])
+
+    def _is_cross(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        return _contains_text(a, ['centro', 'cross']) or _contains_text(r, ['centro'])
+
+    def _is_duel(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['duelo', 'duel', '1v1']) or _contains_text(r, ['duelo']) or _contains_text(z, ['duelo'])
+
+    def _is_aerial(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['aéreo', 'aereo', 'aereo']) or _contains_text(r, ['aéreo', 'aereo']) or _contains_text(z, ['aéreo', 'aereo'])
+
+    def _is_abp(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['abp', 'balón parado', 'balon parado', 'corner', 'córner', 'saque de esquina', 'falta', 'penalti', 'penalty']) or _contains_text(r, ['abp', 'corner', 'córner', 'falta', 'penalti']) or _contains_text(z, ['abp', 'corner', 'córner', 'falta', 'penalti'])
+
+    def _is_loss(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['pérd', 'perd']) or _contains_text(r, ['pérd', 'perd']) or _contains_text(z, ['pérd', 'perd'])
+
+    def _is_steal(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['robo', 'recuper']) or _contains_text(r, ['robo', 'recuper']) or _contains_text(z, ['robo', 'recuper'])
+
+    totals = {
+        'shots': 0,
+        'shots_target': 0,
+        'passes': 0,
+        'passes_ok': 0,
+        'crosses': 0,
+        'crosses_ok': 0,
+        'duels': 0,
+        'duels_won': 0,
+        'aerial': 0,
+        'aerial_won': 0,
+        'abp': 0,
+        'losses_def': 0,
+        'steals_high': 0,
+    }
+    for ev in events:
+        if _is_shot(ev):
+            totals['shots'] += 1
+            if _is_shot_on_target(ev):
+                totals['shots_target'] += 1
+        if _is_pass(ev):
+            totals['passes'] += 1
+            if result_is_success(ev.result):
+                totals['passes_ok'] += 1
+        if _is_cross(ev):
+            totals['crosses'] += 1
+            if result_is_success(ev.result):
+                totals['crosses_ok'] += 1
+        if _is_duel(ev):
+            totals['duels'] += 1
+            if result_is_success(ev.result):
+                totals['duels_won'] += 1
+        if _is_aerial(ev):
+            totals['aerial'] += 1
+            if result_is_success(ev.result):
+                totals['aerial_won'] += 1
+        if _is_abp(ev):
+            totals['abp'] += 1
+        if _is_loss(ev):
+            tercio = str(getattr(ev, 'tercio', '') or '').lower()
+            zone = str(getattr(ev, 'zone', '') or '').lower()
+            if 'def' in tercio or 'def' in zone or 'defensa' in zone:
+                totals['losses_def'] += 1
+        if _is_steal(ev):
+            tercio = str(getattr(ev, 'tercio', '') or '').lower()
+            zone = str(getattr(ev, 'zone', '') or '').lower()
+            if 'att' in tercio or 'ataque' in zone or 'ofens' in zone:
+                totals['steals_high'] += 1
+
+    pass_acc = round((totals['passes_ok'] / totals['passes']) * 100, 1) if totals['passes'] else 0
+    shot_acc = round((totals['shots_target'] / totals['shots']) * 100, 1) if totals['shots'] else 0
+    duel_rate = round((totals['duels_won'] / totals['duels']) * 100, 1) if totals['duels'] else 0
+    aerial_rate = round((totals['aerial_won'] / totals['aerial']) * 100, 1) if totals['aerial'] else 0
+    cross_acc = round((totals['crosses_ok'] / totals['crosses']) * 100, 1) if totals['crosses'] else 0
+
+    insights = []
+    if totals['shots'] == 0:
+        insights.append('⚠️ Sin tiros registrados. Prioriza finalización y llegada.')
+    elif totals['shots_target'] == 0:
+        insights.append(f'⚠️ 0 tiros a puerta ({totals["shots"]} totales). Ajusta última decisión / zonas de tiro.')
+    elif shot_acc <= 30 and totals['shots'] >= 5:
+        insights.append(f'📉 Puntería baja: {totals["shots_target"]}/{totals["shots"]} A/P ({shot_acc}%).')
+    if totals['losses_def'] >= 4:
+        insights.append(f'⚠️ Pérdidas en salida (tercio DEF): {totals["losses_def"]}. Revisar salida y apoyos.')
+    if totals['duels'] >= 10 and duel_rate <= 45:
+        insights.append(f'📉 Duelos: {totals["duels_won"]}/{totals["duels"]} ({duel_rate}%). Ajustar alturas y perfiles.')
+    if totals['aerial'] >= 8 and aerial_rate <= 45:
+        insights.append(f'📉 Aéreos: {totals["aerial_won"]}/{totals["aerial"]} ({aerial_rate}%). Trabajo de disputa/2ª jugada.')
+    if totals['passes'] >= 20 and pass_acc <= 70:
+        insights.append(f'📉 Pase: {totals["passes_ok"]}/{totals["passes"]} ({pass_acc}%). Simplificar y mejorar orientación corporal.')
+    if totals['crosses'] >= 6 and cross_acc <= 25:
+        insights.append(f'📉 Centros: {totals["crosses_ok"]}/{totals["crosses"]} ({cross_acc}%). Mejorar timing y ocupación área.')
+    if totals['steals_high'] >= 4:
+        insights.append(f'✅ Recuperaciones altas: {totals["steals_high"]}. Mantener agresividad tras pérdida.')
+    if totals['abp'] >= 6:
+        insights.append(f'📌 ABP: {totals["abp"]} acciones. Preparar 2-3 jugadas clave y su defensa.')
+    insights = insights[:6]
+
+    # Propuesta microciclo (texto listo para copiar)
+    micro_lines = []
+    micro_lines.append('Propuesta microciclo (postpartido)')
+    micro_lines.append(f'- Foco 1: {"Salida + apoyos" if totals["losses_def"] >= 4 else "Consolidar plan y automatismos"}')
+    if totals['shots_target'] == 0 or (totals['shots'] and shot_acc <= 30):
+        micro_lines.append('- Foco 2: Finalización + llegada al área (toma de decisión).')
+    if totals['duels'] >= 10 and duel_rate <= 45:
+        micro_lines.append('- Foco 3: Duelos/1v1 (perfil corporal, ayudas y timing).')
+    if totals['aerial'] >= 8 and aerial_rate <= 45:
+        micro_lines.append('- Foco 4: Juego aéreo + 2ª jugada (estructura de rechace).')
+    if totals['abp'] >= 6:
+        micro_lines.append('- Foco 5: ABP (2 jugadas a favor + 1 defensa).')
+    if len(micro_lines) == 2:
+        micro_lines.append('- Foco 2: Repasar salida, presión y transiciones según rival.')
+    microcycle_text = '\n'.join(micro_lines)
+
+    postmatch_pro = {
+        'totals': totals,
+        'rates': {
+            'pass_acc': pass_acc,
+            'shot_acc': shot_acc,
+            'duel_rate': duel_rate,
+            'aerial_rate': aerial_rate,
+            'cross_acc': cross_acc,
+        },
+        'insights': insights,
+        'microcycle_text': microcycle_text,
+    }
+
     return {
         'team_name': team_name,
         'opponent_name': opponent_name,
@@ -18257,6 +18446,8 @@ def _match_staff_report_context(request, *, match, primary_team):
         'round_label': round_label,
         'staff_lines': staff_lines,
         'briefing': briefing,
+        'plan_abc': plan_abc,
+        'postmatch_pro': postmatch_pro,
         'summary_cards': summary_cards,
         'top_event_types': top_event_types,
         'top_results': top_results,
@@ -18375,6 +18566,169 @@ def match_staff_report_page(request):
     qs.append('match_id=' + urllib.parse.quote(str(match_id)))
     context['pdf_url'] = reverse('match-staff-report-pdf') + '?' + '&'.join(qs)
     return render(request, 'football/match_staff_report.html', context)
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def match_postmatch_pro_to_blueprints_api(request):
+    """
+    Crea TaskBlueprints (biblioteca) a partir de la propuesta Postpartido PRO de un match.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = request.POST.dict() if hasattr(request, 'POST') else {}
+
+    match_id = _parse_int((data or {}).get('match_id'))
+    if not match_id:
+        return JsonResponse({'ok': False, 'error': 'match_id requerido.'}, status=400)
+
+    match = Match.objects.select_related('home_team', 'away_team').filter(id=match_id).first()
+    if not match:
+        return JsonResponse({'ok': False, 'error': 'Partido no encontrado.'}, status=404)
+
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    if primary_team.id not in {match.home_team_id, match.away_team_id}:
+        return JsonResponse({'ok': False, 'error': 'No tienes acceso a este partido.'}, status=403)
+
+    events = list(MatchEvent.objects.filter(match=match).order_by('minute', 'id'))
+
+    def _contains_text(value, terms):
+        txt = str(value or '').lower()
+        if not txt:
+            return False
+        return any(term in txt for term in terms)
+
+    def _is_shot(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        return _contains_text(a, ['tiro', 'remate', 'disparo']) or _contains_text(r, ['tiro', 'remate', 'disparo'])
+
+    def _is_shot_on_target(ev):
+        if not _is_shot(ev):
+            return False
+        a = str(getattr(ev, 'event_type', '') or '').lower()
+        r = str(getattr(ev, 'result', '') or '').lower()
+        o = str(getattr(ev, 'observation', '') or '').lower()
+        return ('a puerta' in r) or ('gol' in a) or ('gol' in r) or ('gol' in o)
+
+    def _is_duel(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['duelo', 'duel', '1v1']) or _contains_text(r, ['duelo']) or _contains_text(z, ['duelo'])
+
+    def _is_aerial(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['aéreo', 'aereo']) or _contains_text(r, ['aéreo', 'aereo']) or _contains_text(z, ['aéreo', 'aereo'])
+
+    def _is_abp(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['abp', 'balón parado', 'balon parado', 'corner', 'córner', 'saque de esquina', 'falta', 'penalti', 'penalty']) or _contains_text(r, ['abp', 'corner', 'córner', 'falta', 'penalti']) or _contains_text(z, ['abp', 'corner', 'córner', 'falta', 'penalti'])
+
+    def _is_loss(ev):
+        a = str(getattr(ev, 'event_type', '') or '')
+        r = str(getattr(ev, 'result', '') or '')
+        z = str(getattr(ev, 'zone', '') or '')
+        return _contains_text(a, ['pérd', 'perd']) or _contains_text(r, ['pérd', 'perd']) or _contains_text(z, ['pérd', 'perd'])
+
+    totals = {'shots': 0, 'shots_target': 0, 'duels': 0, 'duels_won': 0, 'aerial': 0, 'aerial_won': 0, 'abp': 0, 'losses_def': 0}
+    for ev in events:
+        if _is_shot(ev):
+            totals['shots'] += 1
+            if _is_shot_on_target(ev):
+                totals['shots_target'] += 1
+        if _is_duel(ev):
+            totals['duels'] += 1
+            if result_is_success(ev.result):
+                totals['duels_won'] += 1
+        if _is_aerial(ev):
+            totals['aerial'] += 1
+            if result_is_success(ev.result):
+                totals['aerial_won'] += 1
+        if _is_abp(ev):
+            totals['abp'] += 1
+        if _is_loss(ev):
+            tercio = str(getattr(ev, 'tercio', '') or '').lower()
+            zone = str(getattr(ev, 'zone', '') or '').lower()
+            if 'def' in tercio or 'def' in zone or 'defensa' in zone:
+                totals['losses_def'] += 1
+
+    shot_acc = round((totals['shots_target'] / totals['shots']) * 100, 1) if totals['shots'] else 0
+    duel_rate = round((totals['duels_won'] / totals['duels']) * 100, 1) if totals['duels'] else 0
+    aerial_rate = round((totals['aerial_won'] / totals['aerial']) * 100, 1) if totals['aerial'] else 0
+
+    opponent_name = ''
+    try:
+        if match.home_team_id == primary_team.id and match.away_team:
+            opponent_name = match.away_team.display_name
+        elif match.away_team_id == primary_team.id and match.home_team:
+            opponent_name = match.home_team.display_name
+    except Exception:
+        opponent_name = ''
+    opponent_name = str(opponent_name or '').strip() or 'Rival'
+    prefix = f'Postpartido · {opponent_name} · #{match.id}'
+
+    focus_items = []
+    if totals['losses_def'] >= 4:
+        focus_items.append(('Salida + apoyos', TaskBlueprint.CATEGORY_BUILD, f"Reducir pérdidas en salida (DEF): {totals['losses_def']}."))
+    if totals['shots_target'] == 0 or (totals['shots'] and shot_acc <= 30):
+        focus_items.append(('Finalización + llegada', TaskBlueprint.CATEGORY_FINISH, f"Tiros A/P: {totals['shots_target']}/{totals['shots']} ({shot_acc}%)."))
+    if totals['duels'] >= 10 and duel_rate <= 45:
+        focus_items.append(('Duelos/1v1', TaskBlueprint.CATEGORY_PRESS, f"Duelos: {totals['duels_won']}/{totals['duels']} ({duel_rate}%)."))
+    if totals['aerial'] >= 8 and aerial_rate <= 45:
+        focus_items.append(('Juego aéreo + 2ª jugada', TaskBlueprint.CATEGORY_OTHER, f"Aéreos: {totals['aerial_won']}/{totals['aerial']} ({aerial_rate}%)."))
+    if totals['abp'] >= 6:
+        focus_items.append(('ABP clave', TaskBlueprint.CATEGORY_ABP, f"ABP registradas: {totals['abp']}."))
+    if not focus_items:
+        focus_items.append(('Consolidar plan', TaskBlueprint.CATEGORY_OTHER, 'Repasar plan y automatismos según rival/contexto.'))
+
+    created_by = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    created_count = 0
+    updated_count = 0
+    items = []
+    for title, category, desc in focus_items[:8]:
+        name = _sanitize_task_text(f'{prefix} · {title}', multiline=False, max_len=160)
+        payload = {
+            'source': 'postmatch_pro',
+            'match_id': int(match.id),
+            'opponent': opponent_name,
+            'focus': title,
+            'totals': totals,
+        }
+        try:
+            obj, was_created = TaskBlueprint.objects.update_or_create(
+                team=primary_team,
+                name=name,
+                defaults={
+                    'category': category,
+                    'description': _sanitize_task_text(desc, multiline=False, max_len=220),
+                    'payload': payload,
+                    'created_by': created_by,
+                },
+            )
+            if was_created:
+                created_count += 1
+            else:
+                updated_count += 1
+            items.append({'id': int(obj.id), 'name': str(obj.name or ''), 'category': str(obj.category or '')})
+        except Exception:
+            continue
+
+    return JsonResponse({'ok': True, 'created': created_count, 'updated': updated_count, 'items': items[:30]})
 
 
 def _kpi_explorer_derived_metrics():
@@ -22872,6 +23226,8 @@ def coach_abp_board_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
+    workspace = _get_active_workspace(request)
+    can_manage_workspace = bool(_can_manage_workspace(request.user, workspace)) if workspace else bool(_can_access_platform(request.user))
     players = []
     if primary_team:
         players = list(
@@ -22883,6 +23239,7 @@ def coach_abp_board_page(request):
         {
             'players': players,
             'team_name': primary_team.display_name if primary_team else 'Equipo principal',
+            'can_manage_workspace': can_manage_workspace,
         },
     )
 
@@ -35578,6 +35935,7 @@ def analysis_page(request):
             'home_rival_name': home_rival_name,
             'extracted': extracted,
             'manual_initial': manual_initial,
+            'manual_report_latest_id': int(manual_report_latest.id) if manual_report_latest else 0,
             'manual_reports': manual_reports,
             'manual_report_message': manual_report_message,
             'manual_report_error': manual_report_error,
@@ -38447,6 +38805,124 @@ def analysis_rival_form_api(request):
     payload_out = {'matches': matches, 'summary': summary}
     cache.set(cache_key, payload_out, 60 * 30)
     return JsonResponse({'ok': True, 'available': True, **payload_out})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_rival_report_to_blueprints_api(request):
+    """
+    Convierte un informe rival (RivalAnalysisReport) en plantillas (TaskBlueprint).
+
+    Objetivo: pasar de scouting -> entreno sin reescribir.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo análisis no disponible.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'Módulo sesiones no disponible.'}, status=403)
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    data = {}
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+
+    report_id = _parse_int((data or {}).get('report_id'))
+    if report_id:
+        report = RivalAnalysisReport.objects.filter(team=primary_team, id=report_id).first()
+    else:
+        report = RivalAnalysisReport.objects.filter(team=primary_team).order_by('-updated_at', '-id').first()
+    if not report:
+        return JsonResponse({'ok': False, 'error': 'Informe rival no encontrado.'}, status=404)
+
+    rival = str(report.rival_name or '').strip() or 'Rival'
+    round_label = str(report.match_round or '').strip()
+    title_prefix = f'{rival}{" · " + round_label if round_label else ""}'.strip()
+
+    def _mk_name(suffix: str) -> str:
+        base = f'{title_prefix} · {suffix}'.strip()
+        if len(base) <= 160:
+            return base
+        return (base[:157].rstrip() + '…') if len(base) > 160 else base
+
+    sections = [
+        ('Patrones ofensivos', TaskBlueprint.CATEGORY_BUILD, report.attacking_patterns),
+        ('Patrones defensivos', TaskBlueprint.CATEGORY_PRESS, report.defensive_patterns),
+        ('Transiciones', TaskBlueprint.CATEGORY_TRANSITION, report.transitions),
+        ('ABP rival (a favor)', TaskBlueprint.CATEGORY_ABP, report.set_pieces_for),
+        ('ABP rival (en contra)', TaskBlueprint.CATEGORY_ABP, report.set_pieces_against),
+        ('Jugadores clave', TaskBlueprint.CATEGORY_OTHER, report.key_players),
+        ('Debilidades', TaskBlueprint.CATEGORY_OTHER, report.weaknesses),
+        ('Oportunidades', TaskBlueprint.CATEGORY_FINISH, report.opportunities),
+        ('Plan de partido', TaskBlueprint.CATEGORY_OTHER, report.match_plan),
+        ('Tareas individuales', TaskBlueprint.CATEGORY_OTHER, report.individual_tasks),
+        ('Alertas / riesgos', TaskBlueprint.CATEGORY_OTHER, report.alert_notes),
+    ]
+
+    created_by = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    created_count = 0
+    updated_count = 0
+    skipped = 0
+    saved = []
+    for label, category, text in sections:
+        body = _sanitize_task_text(str(text or ''), multiline=True, max_len=2400)
+        if not body.strip():
+            skipped += 1
+            continue
+        name = _mk_name(label)
+        description = _sanitize_task_text(body.splitlines()[0] if body else '', multiline=False, max_len=220)
+        payload = {
+            'source': 'rival_report',
+            'report_id': int(report.id),
+            'rival_name': rival,
+            'match_round': round_label,
+            'section': label,
+            'text': body,
+            'confidence': int(getattr(report, 'confidence_level', 3) or 3),
+            'status': str(getattr(report, 'status', '') or '').strip(),
+            'updated_at': report.updated_at.isoformat() if getattr(report, 'updated_at', None) else None,
+        }
+        try:
+            obj, was_created = TaskBlueprint.objects.update_or_create(
+                team=primary_team,
+                name=name,
+                defaults={
+                    'category': category,
+                    'description': description,
+                    'payload': payload,
+                    'created_by': created_by,
+                },
+            )
+            if was_created:
+                created_count += 1
+            else:
+                updated_count += 1
+            saved.append({'id': int(obj.id), 'name': str(obj.name or ''), 'category': str(obj.category or '')})
+        except Exception:
+            continue
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'report_id': int(report.id),
+            'created': int(created_count),
+            'updated': int(updated_count),
+            'skipped': int(skipped),
+            'items': saved[:40],
+        }
+    )
 
 
 @login_required
@@ -44872,6 +45348,7 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
         or lower_title.endswith('.png')
         or lower_title.endswith('.jpg')
         or lower_title.endswith('.jpeg')
+        or lower_title.endswith('.heic')
         or lower_title.endswith('.webp')
     )
 
@@ -45221,6 +45698,51 @@ def _assistant__guess_category_from_text(text: str) -> str:
     return TaskBlueprint.CATEGORY_OTHER
 
 
+def _assistant__infer_goal_key_from_text(text: str, category_hint: str = '') -> str:
+    """
+    Intenta mapear una ficha OCR a un `goal` del recomendador Smart.
+
+    Nota: es conservador. Si no hay señales suficientes devuelve 'auto'.
+    """
+    haystack = _assistant__norm_line(text or '')
+    specs = _assistant_goal_specs()
+    best_key = ''
+    best_score = 0
+    for goal_key, spec in (specs or {}).items():
+        kws = spec.get('keywords') or []
+        hits = 0
+        for kw in kws:
+            k = _assistant__norm_line(str(kw or ''))
+            if k and k in haystack:
+                hits += 1
+        score = hits * 100
+        try:
+            if category_hint and str(spec.get('category') or '') == str(category_hint):
+                score += 30
+        except Exception:
+            pass
+        if score > best_score:
+            best_score = score
+            best_key = goal_key
+
+    # Si no hay hits suficientes, fallback por categoría (solo equivalencias claras).
+    if best_score < 200:
+        cat = str(category_hint or '').strip()
+        if cat == TaskBlueprint.CATEGORY_BUILD:
+            return 'build_up'
+        if cat == TaskBlueprint.CATEGORY_PRESS:
+            return 'pressing'
+        if cat == TaskBlueprint.CATEGORY_TRANSITION:
+            return 'transition_atd'
+        if cat == TaskBlueprint.CATEGORY_ABP:
+            return 'set_pieces'
+        if cat == TaskBlueprint.CATEGORY_PHYSICAL:
+            return 'warmup'
+        return 'auto'
+
+    return best_key or 'auto'
+
+
 def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDocument, text: str):
     """
     Crea 1 blueprint desde una ficha OCR (tablas tipo libros/temarios).
@@ -45303,17 +45825,27 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
     coaching_items.extend(_assistant__split_sentences(' '.join(beh_lines), limit=6))
     coaching_items = coaching_items[:10]
 
+    description_items = []
+    description_items.extend(_assistant__split_sentences(' '.join(desc_lines), limit=12))
+    # Si OCR no detecta "Descripción", usamos la parte estructural como fallback.
+    if not description_items:
+        description_items.extend(_assistant__split_sentences(' '.join(struct_lines), limit=10))
+    description_items = description_items[:12]
+
     rules_items = []
-    rules_items.extend(_assistant__split_sentences(' '.join(desc_lines), limit=10))
-    rules_items.extend(_assistant__split_sentences(' '.join(prov_lines), limit=8))
-    rules_items.extend(_assistant__split_sentences(' '.join(cont_lines), limit=6))
-    rules_items.extend(_assistant__split_sentences(' '.join(struct_lines), limit=6))
+    rules_items.extend(_assistant__split_sentences(' '.join(prov_lines), limit=10))
+    rules_items.extend(_assistant__split_sentences(' '.join(cont_lines), limit=10))
+    if not rules_items:
+        # Fallback: algunas fichas ponen "reglas" dentro de la descripción.
+        rules_items.extend(_assistant__split_sentences(' '.join(struct_lines), limit=10))
     rules_items = rules_items[:12]
 
     coaching_html = _assistant_html_list(coaching_items)
+    description_html = _assistant_html_list(description_items)
     rules_html = _assistant_html_list(rules_items)
 
     category = _assistant__guess_category_from_text(text)
+    goal_key = _assistant__infer_goal_key_from_text(text, category_hint=category)
     training_type = {
         TaskBlueprint.CATEGORY_FINISH: 'Finalización',
         TaskBlueprint.CATEGORY_BUILD: 'Inicio y progresión',
@@ -45343,6 +45875,7 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
         **({'player_count': player_count} if player_count else {}),
         **({'dimensions': f'{dimensions} m' if dimensions and not dimensions.lower().endswith('m') else dimensions} if dimensions else {}),
         **({'series': series} if series else {}),
+        'description_html': description_html,
         'coaching_html': coaching_html,
         'rules_html': rules_html,
         'source_name': 'Foto (OCR)',
@@ -45351,7 +45884,7 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
         'tpl': tpl,
         'meta': {
             'v': 1,
-            'goal': 'auto',
+            'goal': goal_key or 'auto',
             'subphase': 'auto',
             'approach': 'auto',
             'source_doc_id': int(doc.id),
@@ -45590,6 +46123,7 @@ def task_assistant_knowledge_upload_api(request):
                 or lower_title.endswith('.png')
                 or lower_title.endswith('.jpg')
                 or lower_title.endswith('.jpeg')
+                or lower_title.endswith('.heic')
                 or lower_title.endswith('.webp')
             )
             if is_pdf:

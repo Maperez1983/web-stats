@@ -2604,6 +2604,31 @@
                   <button type="submit">Cargar</button>
                 </form>
             </div>
+            <article class="status-card match-plan-card" id="match-plan-card" style="margin-top:0.9rem;">
+              <h5>Plan de partido (A/B/C)</h5>
+              <p class="meta" style="margin:0.15rem 0 0.55rem;">Guárdalo por club y se mostrará en el informe staff.</p>
+              <details open>
+                <summary class="meta" style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">🅰️ Plan A (inicio)</summary>
+                <textarea id="match-plan-a" placeholder="Estructura, presión, salida, consignas..." style="min-height:78px; margin-top:0.45rem;"></textarea>
+              </details>
+              <details style="margin-top:0.55rem;">
+                <summary class="meta" style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">🅱️ Plan B (si vamos por debajo / se atasca)</summary>
+                <textarea id="match-plan-b" placeholder="Ajustes y cambios de plan..." style="min-height:78px; margin-top:0.45rem;"></textarea>
+              </details>
+              <details style="margin-top:0.55rem;">
+                <summary class="meta" style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">🅾️ Plan C (últimos 15’ / gestionar resultado)</summary>
+                <textarea id="match-plan-c" placeholder="Plan cierre: conservador/agresivo, ABP, gestión..." style="min-height:78px; margin-top:0.45rem;"></textarea>
+              </details>
+              <details style="margin-top:0.55rem;">
+                <summary class="meta" style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">✅ Checklist banquillo</summary>
+                <textarea id="match-plan-checklist" placeholder="1) Presión tras pérdida 2) Vigilancias 3) ... " style="min-height:70px; margin-top:0.45rem;"></textarea>
+              </details>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.65rem;">
+                <button type="button" class="toolbar-pill" id="match-plan-copy" title="Copiar hoja de banquillo para WhatsApp">Copiar hoja banquillo</button>
+                <button type="button" class="toolbar-pill" id="match-plan-save" title="Guardar plan por club/workspace" {% if not can_manage_workspace %}disabled{% endif %}>Guardar plan (club)</button>
+              </div>
+              <p class="meta" id="match-plan-status" style="margin:0.45rem 0 0;">—</p>
+            </article>
             <div class="pre-lineup-panel">
               <article class="status-card">
                 <h5>Once inicial</h5>
@@ -4233,6 +4258,105 @@
         } catch (e) {}
         return false;
       };
+
+      // --- Plan A/B/C (prepartido) ---
+      const matchPlanEls = {
+        a: document.getElementById('match-plan-a'),
+        b: document.getElementById('match-plan-b'),
+        c: document.getElementById('match-plan-c'),
+        checklist: document.getElementById('match-plan-checklist'),
+      };
+      const matchPlanCopyBtn = document.getElementById('match-plan-copy');
+      const matchPlanSaveBtn = document.getElementById('match-plan-save');
+      const matchPlanStatusEl = document.getElementById('match-plan-status');
+      const matchPlanPrefKey = currentMatchId ? `match_plan_abc:v1:${currentMatchId}` : '';
+      const defaultMatchPlan = () => ({ v: 1, a: '', b: '', c: '', checklist: '' });
+      const applyMatchPlan = (value) => {
+        const st = value && typeof value === 'object' ? value : defaultMatchPlan();
+        if (matchPlanEls.a) matchPlanEls.a.value = String(st.a || '');
+        if (matchPlanEls.b) matchPlanEls.b.value = String(st.b || '');
+        if (matchPlanEls.c) matchPlanEls.c.value = String(st.c || '');
+        if (matchPlanEls.checklist) matchPlanEls.checklist.value = String(st.checklist || '');
+      };
+      const collectMatchPlan = () => ({
+        v: 1,
+        a: String(matchPlanEls.a?.value || '').trim(),
+        b: String(matchPlanEls.b?.value || '').trim(),
+        c: String(matchPlanEls.c?.value || '').trim(),
+        checklist: String(matchPlanEls.checklist?.value || '').trim(),
+      });
+      const loadMatchPlan = async () => {
+        if (!matchPlanPrefKey || !workspacePrefGetUrl) return null;
+        try {
+          const url = `${workspacePrefGetUrl}?key=${encodeURIComponent(matchPlanPrefKey)}`;
+          const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data || data.ok !== true) return null;
+          const value = data.value;
+          if (value && typeof value === 'object') {
+            applyMatchPlan(value);
+            if (matchPlanStatusEl) matchPlanStatusEl.textContent = 'Plan cargado (club).';
+            return value;
+          }
+        } catch (e) {}
+        if (matchPlanStatusEl) matchPlanStatusEl.textContent = 'Sin plan guardado.';
+        return null;
+      };
+      const saveMatchPlan = async () => {
+        if (!matchPlanPrefKey || !workspacePrefSetUrl) return false;
+        if (!canManageWorkspace) {
+          showPageStatus('No tienes permisos para guardar por club.', 'warning', 3200);
+          return false;
+        }
+        try {
+          const value = collectMatchPlan();
+          const resp = await fetch(workspacePrefSetUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+            body: JSON.stringify({ key: matchPlanPrefKey, value }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (resp.ok && data && data.ok === true) {
+            if (matchPlanStatusEl) matchPlanStatusEl.textContent = 'Plan guardado (club).';
+            showPageStatus('Plan guardado.', 'success', 2600);
+            return true;
+          }
+        } catch (e) {}
+        showPageStatus('No se pudo guardar el plan.', 'error', 3600);
+        return false;
+      };
+      const buildBenchSheetText = () => {
+        const plan = collectMatchPlan();
+        const info = matchInfoState || {};
+        const opponent = String(info.opponent || '').trim() || 'Rival';
+        const location = String(info.location || '').trim();
+        const datetime = String(info.datetime || '').trim();
+        const round = String(info.round || '').trim();
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+        const bench = Array.isArray(lineupState?.bench) ? lineupState.bench : [];
+        const fmtList = (rows) => rows.map((p) => `#${p.number || '--'} ${String(p.name || '').toUpperCase()}`.trim()).filter(Boolean).join(', ');
+        const lines = [];
+        lines.push(`Hoja banquillo · ${teamName} vs ${opponent}`);
+        if (round) lines.push(`Jornada: ${round}`);
+        if (datetime) lines.push(`Fecha: ${datetime}`);
+        if (location) lines.push(`Campo: ${location}`);
+        if (starters.length) lines.push(`11: ${fmtList(starters.slice(0, 11))}`);
+        if (bench.length) lines.push(`Suplentes: ${fmtList(bench)}`);
+        if (plan.a) lines.push(`\nPLAN A:\n${plan.a}`);
+        if (plan.b) lines.push(`\nPLAN B:\n${plan.b}`);
+        if (plan.c) lines.push(`\nPLAN C:\n${plan.c}`);
+        if (plan.checklist) lines.push(`\nCHECKLIST:\n${plan.checklist}`);
+        return lines.join('\n');
+      };
+      if (matchPlanSaveBtn) matchPlanSaveBtn.addEventListener('click', () => { saveMatchPlan(); });
+      if (matchPlanCopyBtn) matchPlanCopyBtn.addEventListener('click', async () => {
+        const text = buildBenchSheetText();
+        const ok = await copyTextToClipboard(text);
+        if (ok) showPageStatus('Hoja copiada.', 'success', 2600);
+        else showPageStatus('No se pudo copiar (iOS). Mantén pulsado para copiar manualmente.', 'warning', 4800);
+      });
+      try { loadMatchPlan(); } catch (e) {}
       let liveHudSnapshot = null;
       let showPageStatus;
       let setMatchInfoEditing;

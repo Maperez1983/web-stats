@@ -6,6 +6,10 @@
 
   const PLAYBOOK_STORAGE_KEY = 'abpPlaybook:v2';
   const DRAFT_STORAGE_KEY = `abpBoardDraft:v2:${window.location.pathname}`;
+  const WORKSPACE_PLAYBOOK_KEY = 'abp_playbook:v1';
+  const workspacePrefGetUrl = String(window.__ABP_WORKSPACE_PREF_GET_URL || '').trim();
+  const workspacePrefSetUrl = String(window.__ABP_WORKSPACE_PREF_SET_URL || '').trim();
+  const canManageWorkspace = Boolean(window.__ABP_CAN_MANAGE_WORKSPACE);
 
   document.addEventListener('DOMContentLoaded', () => {
     const field = document.getElementById('abp-field');
@@ -23,7 +27,11 @@
     const savePlayBtn = document.getElementById('save-play-btn');
     const loadPlayBtn = document.getElementById('load-play-btn');
     const deletePlayBtn = document.getElementById('delete-play-btn');
+    const savePlayClubBtn = document.getElementById('save-play-club-btn');
+    const clubPullBtn = document.getElementById('club-pull-btn');
+    const clubPushBtn = document.getElementById('club-push-btn');
     const quickComponents = Array.from(document.querySelectorAll('[data-component]'));
+    const csrf = document.querySelector('input[name=\"csrfmiddlewaretoken\"]')?.value || '';
 
     const state = {
       playing: false,
@@ -138,16 +146,73 @@
     const writePlaybook = (payload) => {
       writeStorageJson(PLAYBOOK_STORAGE_KEY, payload || {});
     };
+    let workspacePlaybook = null;
+    const readWorkspacePlaybook = async () => {
+      if (!workspacePrefGetUrl) return null;
+      try {
+        const url = `${workspacePrefGetUrl}?key=${encodeURIComponent(WORKSPACE_PLAYBOOK_KEY)}`;
+        const resp = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data || data.ok !== true) return null;
+        const value = data.value;
+        if (value && typeof value === 'object') {
+          workspacePlaybook = value;
+          return workspacePlaybook;
+        }
+        workspacePlaybook = {};
+        return workspacePlaybook;
+      } catch (e) {
+        return null;
+      }
+    };
+    const writeWorkspacePlaybook = async (payload) => {
+      if (!workspacePrefSetUrl) return false;
+      if (!canManageWorkspace) return false;
+      try {
+        const resp = await fetch(workspacePrefSetUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+          body: JSON.stringify({ key: WORKSPACE_PLAYBOOK_KEY, value: payload && typeof payload === 'object' ? payload : {} }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        return Boolean(resp.ok && data && data.ok === true);
+      } catch (e) {
+        return false;
+      }
+    };
     const refreshPlaybookSelect = () => {
       if (!playbookSelect) return;
       const playbook = readPlaybook();
       playbookSelect.innerHTML = '<option value="">Jugada actual (sin guardar)</option>';
-      Object.keys(playbook).sort().forEach((name) => {
+      const club = (workspacePlaybook && typeof workspacePlaybook === 'object') ? workspacePlaybook : {};
+      const names = new Set(Object.keys(playbook || {}));
+      Object.keys(club || {}).forEach((n) => names.add(n));
+      Array.from(names).sort().forEach((name) => {
         const option = document.createElement('option');
         option.value = name;
-        option.textContent = name;
+        const isClubOnly = !(playbook && Object.prototype.hasOwnProperty.call(playbook, name)) && Object.prototype.hasOwnProperty.call(club, name);
+        option.textContent = isClubOnly ? `🏟 ${name}` : name;
         playbookSelect.appendChild(option);
       });
+    };
+    const normalizeSelectName = (value) => String(value || '').replace(/^🏟\s+/, '').trim();
+    const resolvePlayPayload = (name) => {
+      const playbook = readPlaybook();
+      if (playbook && Object.prototype.hasOwnProperty.call(playbook, name)) return playbook[name];
+      const club = (workspacePlaybook && typeof workspacePlaybook === 'object') ? workspacePlaybook : {};
+      if (club && Object.prototype.hasOwnProperty.call(club, name)) return club[name];
+      return null;
+    };
+    const mergeIntoLocal = (clubPayload) => {
+      const local = readPlaybook();
+      const club = clubPayload && typeof clubPayload === 'object' ? clubPayload : {};
+      const merged = { ...(local || {}) };
+      Object.keys(club).forEach((name) => {
+        if (!Object.prototype.hasOwnProperty.call(merged, name)) merged[name] = club[name];
+      });
+      writePlaybook(merged);
+      return merged;
     };
 
     playersList?.addEventListener('click', (event) => {
@@ -208,26 +273,95 @@
       if (playbookSelect) playbookSelect.value = trimmed;
       log(`Jugada guardada: ${trimmed}`);
     });
+    savePlayClubBtn?.addEventListener('click', async () => {
+      if (!canManageWorkspace) return;
+      const name = window.prompt('Nombre de la jugada (club):');
+      if (!name) return;
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      if (!workspacePlaybook) await readWorkspacePlaybook();
+      const club = (workspacePlaybook && typeof workspacePlaybook === 'object') ? workspacePlaybook : {};
+      club[trimmed] = buildPayload();
+      const ok = await writeWorkspacePlaybook(club);
+      if (!ok) {
+        log('No se pudo guardar en club');
+        alert('No se pudo guardar en club.');
+        return;
+      }
+      workspacePlaybook = club;
+      const local = readPlaybook();
+      local[trimmed] = club[trimmed];
+      writePlaybook(local);
+      refreshPlaybookSelect();
+      if (playbookSelect) playbookSelect.value = trimmed;
+      log(`Jugada guardada en club: ${trimmed}`);
+    });
     loadPlayBtn?.addEventListener('click', () => {
       const selected = playbookSelect?.value || '';
       if (!selected) return;
-      const playbook = readPlaybook();
-      const payload = playbook[selected];
+      const normalized = normalizeSelectName(selected);
+      const payload = resolvePlayPayload(normalized);
       if (!payload) return;
       hydrateFromPayload(payload);
-      log(`Jugada cargada: ${selected}`);
+      log(`Jugada cargada: ${normalized}`);
     });
     deletePlayBtn?.addEventListener('click', () => {
       const selected = playbookSelect?.value || '';
       if (!selected) return;
+      const normalized = normalizeSelectName(selected);
       const playbook = readPlaybook();
-      delete playbook[selected];
+      delete playbook[normalized];
       writePlaybook(playbook);
       refreshPlaybookSelect();
-      log(`Jugada eliminada: ${selected}`);
+      log(`Jugada eliminada: ${normalized}`);
     });
 
-    refreshPlaybookSelect();
+    const init = async () => {
+      await readWorkspacePlaybook();
+      refreshPlaybookSelect();
+      const playParam = (() => {
+        try {
+          const u = new URL(window.location.href);
+          return (u.searchParams.get('play') || '').trim();
+        } catch (e) {
+          return '';
+        }
+      })();
+      if (playParam) {
+        const payload = resolvePlayPayload(playParam);
+        if (payload) {
+          hydrateFromPayload(payload);
+          log(`Jugada cargada: ${playParam}`);
+        }
+      }
+    };
+    init();
+
+    clubPullBtn?.addEventListener('click', async () => {
+      log('Cargando playbook del club…');
+      const club = await readWorkspacePlaybook();
+      if (!club) {
+        alert('No se pudo cargar el playbook del club.');
+        return;
+      }
+      mergeIntoLocal(club);
+      refreshPlaybookSelect();
+      log('Playbook club cargado (merge).');
+    });
+    clubPushBtn?.addEventListener('click', async () => {
+      if (!canManageWorkspace) return;
+      const okConfirm = window.confirm('¿Sobrescribir el playbook del club con tu playbook local?');
+      if (!okConfirm) return;
+      const local = readPlaybook();
+      const ok = await writeWorkspacePlaybook(local);
+      if (!ok) {
+        alert('No se pudo guardar el playbook del club.');
+        return;
+      }
+      workspacePlaybook = { ...(local || {}) };
+      refreshPlaybookSelect();
+      log('Playbook club guardado.');
+    });
     const existingDraft = readStorageJson(DRAFT_STORAGE_KEY, {});
     if (existingDraft && Array.isArray(existingDraft.tokens) && existingDraft.tokens.length) {
       hydrateFromPayload(existingDraft);

@@ -273,6 +273,7 @@
   </head>
   <body class="prod-commercial">
     <div class="page">
+      <form style="display:none;">{% csrf_token %}</form>
       {% include 'football/includes/dragon_nav.html' %}
       <div class="top">
         <h1>Pizarra ABP · {{ team_name }}</h1>
@@ -287,6 +288,8 @@
             <button id="add-rival-btn" type="button">Añadir rival</button>
             <button id="clear-btn" type="button">Limpiar</button>
             <button id="export-btn" type="button">Descargar jugada</button>
+            <button id="club-pull-btn" type="button" class="primary" title="Cargar jugadas guardadas por el club (workspace)">Cargar club</button>
+            <button id="club-push-btn" type="button" class="primary" {% if not can_manage_workspace %}disabled{% endif %} title="Guardar el playbook local como playbook del club (workspace)">Guardar club</button>
           </div>
           <div class="plays-row">
             <select id="playbook-select">
@@ -295,6 +298,7 @@
             <button id="save-play-btn" type="button">Guardar</button>
             <button id="load-play-btn" type="button">Cargar</button>
             <button id="delete-play-btn" type="button">Borrar</button>
+            <button id="save-play-club-btn" type="button" class="primary" {% if not can_manage_workspace %}disabled{% endif %} title="Guardar la jugada actual en el playbook del club">Guardar (club)</button>
           </div>
           <div class="quick-components">
             <button type="button" data-component="ball">Balón</button>
@@ -335,6 +339,11 @@
       </section>
     </div>
     <script src="{% static 'football/js/tactical_pad_shared.js' %}"></script>
+    <script>
+      window.__ABP_WORKSPACE_PREF_GET_URL = "{% url 'workspace-pref-get' %}";
+      window.__ABP_WORKSPACE_PREF_SET_URL = "{% url 'workspace-pref-set' %}";
+      window.__ABP_CAN_MANAGE_WORKSPACE = {% if can_manage_workspace %}true{% else %}false{% endif %};
+    </script>
     <script src="{% static 'football/js/abp_board.js' %}"></script>
   </body>
 </html>

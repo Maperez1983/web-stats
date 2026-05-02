@@ -175,10 +175,11 @@
       </header>
 
       <div class="section-grid" id="reportGrid">
-        {% if briefing %}
+        {% if briefing or plan_abc %}
         <section class="card" style="grid-column: 1 / -1;">
           <h2>Plan de partido</h2>
-          <p class="meta">Briefing prepartido (compartido por el club).</p>
+          <p class="meta">Briefing prepartido / plan A-B-C (compartido por el club).</p>
+          {% if briefing %}
           <div class="timeline">
             {% if briefing.objective %}<div class="t-item"><div class="t-min">🎯</div><div><div class="t-title">Objetivo</div><div class="t-text">{{ briefing.objective }}</div></div></div>{% endif %}
             {% if briefing.triggers %}<div class="t-item"><div class="t-min">⚡</div><div><div class="t-title">Triggers / ajustes</div><div class="t-text">{{ briefing.triggers }}</div></div></div>{% endif %}
@@ -189,6 +190,18 @@
             {% if briefing.subs_plan %}<div class="t-item"><div class="t-min">🔁</div><div><div class="t-title">Plan de cambios</div><div class="t-text">{{ briefing.subs_plan|linebreaksbr }}</div></div></div>{% endif %}
             {% if briefing.risks %}<div class="t-item"><div class="t-min">⚠️</div><div><div class="t-title">Riesgos / alertas</div><div class="t-text">{{ briefing.risks|linebreaksbr }}</div></div></div>{% endif %}
           </div>
+          {% endif %}
+          {% if plan_abc %}
+          <div style="margin-top:1rem;">
+            <h3 style="margin:0 0 0.35rem; letter-spacing:0.1em; text-transform:uppercase; font-size:0.9rem;">Plan A/B/C</h3>
+            <div class="timeline">
+              {% if plan_abc.a %}<div class="t-item"><div class="t-min">🅰️</div><div><div class="t-title">Plan A</div><div class="t-text">{{ plan_abc.a|linebreaksbr }}</div></div></div>{% endif %}
+              {% if plan_abc.b %}<div class="t-item"><div class="t-min">🅱️</div><div><div class="t-title">Plan B</div><div class="t-text">{{ plan_abc.b|linebreaksbr }}</div></div></div>{% endif %}
+              {% if plan_abc.c %}<div class="t-item"><div class="t-min">🅾️</div><div><div class="t-title">Plan C</div><div class="t-text">{{ plan_abc.c|linebreaksbr }}</div></div></div>{% endif %}
+              {% if plan_abc.checklist %}<div class="t-item"><div class="t-min">✅</div><div><div class="t-title">Checklist banquillo</div><div class="t-text">{{ plan_abc.checklist|linebreaksbr }}</div></div></div>{% endif %}
+            </div>
+          </div>
+          {% endif %}
         </section>
         {% endif %}
 
@@ -200,6 +213,29 @@
             {% for card in summary_cards %}
             <div class="kpi"><div class="k">{{ card.label }}</div><div class="v">{{ card.value }}</div></div>
             {% endfor %}
+          </div>
+        </section>
+        {% endif %}
+
+        {% if postmatch_pro %}
+        <section class="card">
+          <h2>Postpartido PRO</h2>
+          <p class="meta">Insights automáticos basados en acciones registradas (no tracking).</p>
+          <ul class="list">
+            {% for line in postmatch_pro.insights %}
+            <li>{{ line }}</li>
+            {% empty %}
+            <li><span class="meta">Sin insights automáticos.</span></li>
+            {% endfor %}
+          </ul>
+          <div style="margin-top:0.75rem;">
+            <div class="meta" style="margin-bottom:0.35rem;">Propuesta microciclo (listo para copiar):</div>
+            <pre id="postmatch-microcycle-text" style="margin:0; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: rgba(2,6,23,0.35); border:1px solid rgba(255,255,255,0.12); border-radius: 14px; padding:0.75rem;">{{ postmatch_pro.microcycle_text }}</pre>
+            <div class="actions" style="margin-top:0.55rem; justify-content:flex-start;">
+              <button class="btn" type="button" id="postmatch-copy">Copiar propuesta</button>
+              <button class="btn primary" type="button" id="postmatch-to-tasks" data-match-id="{{ request.GET.match_id|default:'' }}">Crear tareas (biblioteca)</button>
+            </div>
+            <p class="meta" id="postmatch-status" style="margin:0.35rem 0 0;">—</p>
           </div>
         </section>
         {% endif %}
@@ -339,6 +375,70 @@
         try { initial = window.localStorage.getItem(key) === '1'; } catch (e) {}
         apply(initial);
         btn.addEventListener('click', function () { apply(!document.body.classList.contains('is-present')); });
+      })();
+
+      (function () {
+        var copyBtn = document.getElementById('postmatch-copy');
+        var tasksBtn = document.getElementById('postmatch-to-tasks');
+        var textEl = document.getElementById('postmatch-microcycle-text');
+        var status = document.getElementById('postmatch-status');
+        if (!copyBtn && !tasksBtn) return;
+
+        function setStatus(msg) {
+          if (status) status.textContent = msg || '—';
+        }
+
+        if (copyBtn) {
+          copyBtn.addEventListener('click', function () {
+            try {
+              var text = (textEl && textEl.textContent) ? String(textEl.textContent) : '';
+              if (!text) { setStatus('Nada que copiar.'); return; }
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(function () {
+                  setStatus('Propuesta copiada.');
+                }).catch(function () {
+                  setStatus('No se pudo copiar (iOS).');
+                });
+              } else {
+                setStatus('Clipboard no disponible.');
+              }
+            } catch (e) {
+              setStatus('No se pudo copiar.');
+            }
+          });
+        }
+
+        if (tasksBtn) {
+          tasksBtn.addEventListener('click', function () {
+            var mid = Number(tasksBtn.getAttribute('data-match-id') || '0') || 0;
+            if (!mid) { setStatus('match_id inválido.'); return; }
+            tasksBtn.disabled = true;
+            setStatus('Creando tareas…');
+            fetch("{% url 'match-postmatch-pro-to-blueprints-api' %}", {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+              body: JSON.stringify({ match_id: mid })
+            }).then(function (resp) {
+              return resp.json().catch(function () { return {}; }).then(function (d) { return { ok: resp.ok, d: d }; });
+            }).then(function (res) {
+              if (!res.ok || !res.d || res.d.ok !== true) {
+                var msg = (res.d && res.d.error) ? res.d.error : 'No se pudo crear.';
+                setStatus(msg);
+                alert(msg);
+                return;
+              }
+              var created = Number(res.d.created || 0);
+              var updated = Number(res.d.updated || 0);
+              setStatus('OK · creadas ' + created + ' · actualizadas ' + updated);
+            }).catch(function () {
+              setStatus('Error creando tareas.');
+              alert('Error creando tareas.');
+            }).finally(function () {
+              tasksBtn.disabled = false;
+            });
+          });
+        }
       })();
     </script>
   </body>
