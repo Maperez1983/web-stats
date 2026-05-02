@@ -117,11 +117,12 @@ from football.models import (
 	    WorkspaceTeamAccess,
 	    WorkspaceMembership,
 		    WorkspacePreference,
-		    TrainingMicrocycle,
-		    TrainingSession,
-		    TrainingSessionAttendance,
-		    ConvocationRecord,
-    RivalConvocationRecord,
+			    TrainingMicrocycle,
+			    TrainingSession,
+			    TrainingSessionAttendance,
+			    TrainingSessionTimelineSegment,
+			    ConvocationRecord,
+	    RivalConvocationRecord,
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
@@ -28184,6 +28185,91 @@ def _is_task_editable(task):
     return True
 
 
+def _timeline_segment_label(segment_type: str) -> str:
+    segment_type = str(segment_type or '').strip()
+    return dict(TrainingSessionTimelineSegment.TYPE_CHOICES).get(segment_type, segment_type or 'Segmento')
+
+
+def _close_running_timeline_segment(session_obj, *, ended_at, actor=None):
+    if not session_obj:
+        return None
+    running = (
+        TrainingSessionTimelineSegment.objects
+        .filter(session=session_obj, ended_at__isnull=True)
+        .order_by('-order', '-id')
+        .first()
+    )
+    if not running or not running.started_at:
+        return None
+    if ended_at and running.started_at and ended_at < running.started_at:
+        ended_at = running.started_at
+    running.ended_at = ended_at
+    try:
+        delta = (running.ended_at - running.started_at).total_seconds()
+    except Exception:
+        delta = 0
+    minutes = int(round(max(0, delta) / 60.0))
+    running.duration_minutes = max(0, min(minutes, 360))
+    if actor and getattr(actor, 'is_authenticated', False) and not running.created_by_id:
+        running.created_by = actor
+    running.save(update_fields=['ended_at', 'duration_minutes', 'created_by', 'updated_at'])
+    return running
+
+
+def _serialize_timeline_segments(segments, *, now=None):
+    now = now or timezone.localtime()
+    payload = []
+    for seg in segments or []:
+        try:
+            seg_id = int(getattr(seg, 'id', 0) or 0)
+        except Exception:
+            seg_id = 0
+        if not seg_id:
+            continue
+        started_at = getattr(seg, 'started_at', None)
+        ended_at = getattr(seg, 'ended_at', None)
+        duration_minutes = int(getattr(seg, 'duration_minutes', 0) or 0)
+        if started_at and not ended_at:
+            try:
+                duration_minutes = int(round(max(0, (now - started_at).total_seconds()) / 60.0))
+            except Exception:
+                duration_minutes = duration_minutes
+        payload.append(
+            {
+                'id': seg_id,
+                'type': str(getattr(seg, 'segment_type', '') or ''),
+                'label': _timeline_segment_label(getattr(seg, 'segment_type', '')),
+                'started_at': started_at.isoformat() if started_at else '',
+                'ended_at': ended_at.isoformat() if ended_at else '',
+                'minutes': duration_minutes,
+                'notes': str(getattr(seg, 'notes', '') or ''),
+            }
+        )
+    return payload
+
+
+def _timeline_totals(segments, *, now=None):
+    now = now or timezone.localtime()
+    totals = {key: 0 for key, _ in TrainingSessionTimelineSegment.TYPE_CHOICES}
+    total = 0
+    for seg in segments or []:
+        seg_type = str(getattr(seg, 'segment_type', '') or '')
+        started_at = getattr(seg, 'started_at', None)
+        ended_at = getattr(seg, 'ended_at', None)
+        minutes = int(getattr(seg, 'duration_minutes', 0) or 0)
+        if started_at and not ended_at:
+            try:
+                minutes = int(round(max(0, (now - started_at).total_seconds()) / 60.0))
+            except Exception:
+                minutes = minutes
+        if seg_type in totals:
+            totals[seg_type] += max(0, minutes)
+        total += max(0, minutes)
+    totals['__total__'] = total
+    totals['total_minutes'] = total
+    return totals
+
+
 def _import_library_tasks_from_pdf_advanced(
     *,
     primary_team,
@@ -28796,6 +28882,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     planner_tables_ready = True
     try:
         SessionTask.objects.order_by('-id').values_list('id', flat=True).first()
+        TrainingSessionTimelineSegment.objects.order_by('-id').values_list('id', flat=True).first()
     except (OperationalError, ProgrammingError):
         planner_tables_ready = False
         error = (
@@ -29832,6 +29919,122 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     TrainingSessionAttendance.objects.bulk_update(to_update, ['status', 'notes', 'marked_by', 'updated_at'])
                     updated_count = len(to_update)
                 feedback = f'Asistencia guardada: +{created_count} · {updated_count} actualizadas · {deleted_count} quitadas.'
+
+            elif planner_action in {'timeline_start_segment', 'timeline_stop', 'timeline_update_segments', 'timeline_delete_segment'}:
+                session_id = _parse_int(
+                    request.POST.get('timeline_session_id')
+                    or request.POST.get('selected_session_id')
+                    or request.POST.get('sections_session_id')
+                )
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .exclude(status=TrainingSession.STATUS_CANCELED)
+                    .first()
+                )
+                if not session_obj:
+                    raise ValueError('Sesión no encontrada.')
+
+                now = timezone.localtime()
+                if planner_action == 'timeline_start_segment':
+                    seg_type = str(request.POST.get('segment_type') or '').strip()
+                    allowed_types = {key for key, _ in TrainingSessionTimelineSegment.TYPE_CHOICES}
+                    if seg_type not in allowed_types:
+                        raise ValueError('Tipo de tramo no válido.')
+                    _close_running_timeline_segment(session_obj, ended_at=now, actor=request.user)
+                    next_order = (
+                        TrainingSessionTimelineSegment.objects
+                        .filter(session=session_obj)
+                        .aggregate(Max('order'))
+                        .get('order__max')
+                        or 0
+                    ) + 1
+                    TrainingSessionTimelineSegment.objects.create(
+                        session=session_obj,
+                        segment_type=seg_type,
+                        started_at=now,
+                        ended_at=None,
+                        duration_minutes=0,
+                        order=next_order,
+                        notes='',
+                        created_by=request.user if getattr(request, 'user', None) and request.user.is_authenticated else None,
+                    )
+                    feedback = f'Tramo iniciado: {_timeline_segment_label(seg_type)}.'
+
+                elif planner_action == 'timeline_stop':
+                    closed = _close_running_timeline_segment(session_obj, ended_at=now, actor=request.user)
+                    feedback = 'Tramo detenido.' if closed else 'No había tramo en curso.'
+
+                elif planner_action == 'timeline_delete_segment':
+                    seg_id = _parse_int(request.POST.get('segment_id'))
+                    if not seg_id:
+                        raise ValueError('No se pudo identificar el tramo.')
+                    seg = (
+                        TrainingSessionTimelineSegment.objects
+                        .filter(id=seg_id, session=session_obj)
+                        .first()
+                    )
+                    if not seg:
+                        raise ValueError('Tramo no encontrado.')
+                    seg.delete()
+                    feedback = 'Tramo eliminado.'
+
+                elif planner_action == 'timeline_update_segments':
+                    ids = [int(x) for x in (request.POST.getlist('segment_id') or []) if str(x).strip().isdigit()]
+                    if not ids:
+                        raise ValueError('No hay tramos para actualizar.')
+                    allowed_types = {key for key, _ in TrainingSessionTimelineSegment.TYPE_CHOICES}
+                    segments = list(
+                        TrainingSessionTimelineSegment.objects
+                        .filter(session=session_obj, id__in=ids)
+                        .order_by('order', 'id')
+                    )
+                    seg_by_id = {int(s.id): s for s in segments}
+                    for seg_id in ids:
+                        seg = seg_by_id.get(int(seg_id))
+                        if not seg:
+                            continue
+                        seg_type = str(request.POST.get(f'segment_type_{seg_id}') or seg.segment_type or '').strip()
+                        if seg_type not in allowed_types:
+                            seg_type = seg.segment_type
+                        minutes = _parse_int(request.POST.get(f'segment_minutes_{seg_id}'))
+                        if minutes is None:
+                            minutes = int(seg.duration_minutes or 0)
+                        minutes = max(0, min(int(minutes), 360))
+                        notes = str(request.POST.get(f'segment_notes_{seg_id}') or '').strip()[:180]
+                        seg.segment_type = seg_type
+                        seg.duration_minutes = minutes
+                        seg.notes = notes
+                        seg.save(update_fields=['segment_type', 'duration_minutes', 'notes', 'updated_at'])
+                    feedback = 'Tramos actualizados.'
+
+                if wants_json:
+                    segments = list(
+                        TrainingSessionTimelineSegment.objects
+                        .filter(session=session_obj)
+                        .order_by('order', 'started_at', 'id')
+                    )
+                    totals = _timeline_totals(segments, now=now)
+                    running = next((s for s in segments if getattr(s, 'started_at', None) and not getattr(s, 'ended_at', None)), None)
+                    return JsonResponse(
+                        {
+                            'ok': True,
+                            'message': feedback,
+                            'session_id': int(session_obj.id),
+                            'now': now.isoformat(),
+                            'segments': _serialize_timeline_segments(segments, now=now),
+                            'totals': totals,
+                            'running': {
+                                'id': int(getattr(running, 'id', 0) or 0) if running else 0,
+                                'type': str(getattr(running, 'segment_type', '') or '') if running else '',
+                                'label': _timeline_segment_label(getattr(running, 'segment_type', '')) if running else '',
+                                'started_at': running.started_at.isoformat() if running and getattr(running, 'started_at', None) else '',
+                            },
+                        }
+                    )
 
             elif planner_action == 'create_session_absence_fines':
                 if not _is_admin_user(request.user):
@@ -31231,6 +31434,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     selected_session_plan_fields = {'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'player_count': '', 'materials': '', 'absences': '', 'notes': ''}
     selected_session_tasks = []
     selected_session_task_sections = []
+    selected_session_timeline_segments = []
+    selected_session_timeline_totals = {}
+    selected_session_timeline_running = None
+    selected_session_microcycle_timeline_totals = {}
     selected_session_id = None
     if planner_tables_ready and active_tab == 'sessions':
         selected_session_id = _parse_int(request.GET.get('session_id') or request.POST.get('selected_session_id') or auto_selected_session_id)
@@ -31261,6 +31468,40 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             # Importante (UX): en una sesión queremos ver *todas* las tareas asignadas, sin ocultarlas por repo.
             # El filtro "Clásicas/Interactivas" aplica a la Biblioteca, pero en Sesiones confunde:
             # el usuario asigna y luego “desaparece” si el repo no coincide.
+
+            try:
+                now = timezone.localtime()
+                selected_session_timeline_segments = list(
+                    TrainingSessionTimelineSegment.objects
+                    .filter(session=selected_session)
+                    .order_by('order', 'started_at', 'id')
+                )
+                selected_session_timeline_totals = _timeline_totals(selected_session_timeline_segments, now=now)
+                selected_session_timeline_running = next(
+                    (
+                        seg
+                        for seg in selected_session_timeline_segments
+                        if getattr(seg, 'started_at', None) and not getattr(seg, 'ended_at', None)
+                    ),
+                    None,
+                )
+                if getattr(selected_session, 'microcycle_id', None):
+                    microcycle_segments = list(
+                        TrainingSessionTimelineSegment.objects
+                        .filter(
+                            session__microcycle_id=selected_session.microcycle_id,
+                            session__microcycle__team=primary_team,
+                            session__status=TrainingSession.STATUS_DONE,
+                        )
+                        .select_related('session')
+                        .order_by('session_id', 'order', 'id')
+                    )
+                    selected_session_microcycle_timeline_totals = _timeline_totals(microcycle_segments, now=now)
+            except Exception:
+                selected_session_timeline_segments = []
+                selected_session_timeline_totals = {}
+                selected_session_timeline_running = None
+                selected_session_microcycle_timeline_totals = {}
 
             selected_task_sheets = [_build_session_task_sheet(task_obj) for task_obj in selected_session_tasks]
             selected_session_task_sections = [
@@ -31655,13 +31896,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
             'planning_task_source_options': planning_task_source_options,
-	            'selected_session': selected_session,
-	            'selected_session_id': selected_session_id,
-	            'selected_session_plan_fields': selected_session_plan_fields,
-	            'selected_session_task_sections': selected_session_task_sections,
-	            'attendance_status_choices': attendance_status_choices,
-	            'session_attendance_rows': session_attendance_rows,
-	            'session_attendance_counts': session_attendance_counts,
+		            'selected_session': selected_session,
+		            'selected_session_id': selected_session_id,
+		            'selected_session_plan_fields': selected_session_plan_fields,
+		            'selected_session_task_sections': selected_session_task_sections,
+		            'selected_session_timeline_segments': selected_session_timeline_segments,
+		            'selected_session_timeline_totals': selected_session_timeline_totals,
+		            'selected_session_timeline_running': selected_session_timeline_running,
+		            'selected_session_microcycle_timeline_totals': selected_session_microcycle_timeline_totals,
+		            'attendance_status_choices': attendance_status_choices,
+		            'session_attendance_rows': session_attendance_rows,
+		            'session_attendance_counts': session_attendance_counts,
 	            'session_absence_rows': session_absence_rows,
 	            'can_manage_fines': can_manage_fines,
 	            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,

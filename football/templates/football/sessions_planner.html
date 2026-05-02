@@ -1989,8 +1989,8 @@
 			              </p>
 			            </div>
 
-			            <div class="editor-box" id="planner-active-session">
-			              <h3>Sesión activa</h3>
+				            <div class="editor-box" id="planner-active-session">
+				              <h3>Sesión activa</h3>
 			              <form method="get" class="grid">
 			                <input type="hidden" name="tab" value="sessions" />
 			                <input type="hidden" name="library_repo" value="{{ library_repository }}" />
@@ -2020,12 +2020,118 @@
 		                Microciclo: <strong>{{ selected_session.microcycle.week_start|date:"d/m" }}-{{ selected_session.microcycle.week_end|date:"d/m" }}</strong> · {{ selected_session.microcycle.title }}
 			              {% endif %}
 			              </p>
-			              {% endif %}
+				              {% endif %}
+					            </div>
+
+				            <div class="editor-box" id="planner-live-timeline"
+				              {% if selected_session %}data-session-id="{{ selected_session.id }}"{% endif %}
+				              {% if selected_session_timeline_running and selected_session_timeline_running.started_at %}data-running-start="{{ selected_session_timeline_running.started_at|date:'c' }}"{% endif %}
+				              {% if selected_session_timeline_running %}data-running-type="{{ selected_session_timeline_running.segment_type|default:'' }}"{% endif %}
+				            >
+				              <h3>Sesión en vivo</h3>
+				              {% if selected_session %}
+				              <p class="meta" style="margin-top:-0.15rem;">
+				                Cronómetro por tramos (solo cuenta lo <strong>realizado</strong>). Puedes editar el resumen después.
+				              </p>
+				              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center; margin:0.5rem 0 0.7rem;">
+				                <span class="badge" data-total-type="activation">Activación: <span data-total-value="activation">{{ selected_session_timeline_totals.activation|default:0 }}</span>'</span>
+				                <span class="badge" data-total-type="physical">Físico: <span data-total-value="physical">{{ selected_session_timeline_totals.physical|default:0 }}</span>'</span>
+				                <span class="badge" data-total-type="main">Principal: <span data-total-value="main">{{ selected_session_timeline_totals.main|default:0 }}</span>'</span>
+				                <span class="badge" data-total-type="cooldown">Vuelta calma: <span data-total-value="cooldown">{{ selected_session_timeline_totals.cooldown|default:0 }}</span>'</span>
+				                <span class="badge" data-total-type="pause">Pausas: <span data-total-value="pause">{{ selected_session_timeline_totals.pause|default:0 }}</span>'</span>
+				                <span class="badge" data-total-type="total">Total: <span data-total-value="total">{{ selected_session_timeline_totals.total_minutes|default:0 }}</span>'</span>
+				              </div>
+				              {% if selected_session_microcycle_timeline_totals.total_minutes %}
+				              <p class="meta" style="margin:0 0 0.65rem;">
+				                Semana (sesiones <strong>Realizadas</strong>): {{ selected_session_microcycle_timeline_totals.total_minutes|default:0 }}' ·
+				                Activación {{ selected_session_microcycle_timeline_totals.activation|default:0 }}' ·
+				                Físico {{ selected_session_microcycle_timeline_totals.physical|default:0 }}' ·
+				                Vuelta calma {{ selected_session_microcycle_timeline_totals.cooldown|default:0 }}'
+				              </p>
+				              {% endif %}
+
+				              <div class="grid" style="grid-template-columns: 1fr; gap:0.6rem;">
+				                <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+				                  <div style="display:flex; align-items:baseline; gap:0.6rem;">
+				                    <strong id="live-timer-label">{% if selected_session_timeline_running %}{{ selected_session_timeline_running.segment_type|default:'' }}{% else %}—{% endif %}</strong>
+				                    <span class="badge" id="live-timer-clock">00:00</span>
+				                  </div>
+				                  <div style="display:flex; gap:0.35rem; flex-wrap:wrap;">
+				                    <button type="button" class="secondary js-timeline-start" data-seg-type="activation">Activación</button>
+				                    <button type="button" class="secondary js-timeline-start" data-seg-type="physical">Físico</button>
+				                    <button type="button" class="secondary js-timeline-start" data-seg-type="main">Principal</button>
+				                    <button type="button" class="secondary js-timeline-start" data-seg-type="cooldown">Vuelta calma</button>
+				                    <button type="button" class="ghost js-timeline-start" data-seg-type="pause">Pausa</button>
+				                    <button type="button" class="ghost js-timeline-start" data-seg-type="other">Otro</button>
+				                    <button type="button" class="danger js-timeline-stop">Stop</button>
+				                  </div>
+				                </div>
+				              </div>
+
+				              <div id="timeline-segments" style="margin-top:0.75rem;">
+				                {% if selected_session_timeline_segments %}
+				                <div class="attendance-list" style="margin-top:0;">
+				                  {% for seg in selected_session_timeline_segments %}
+				                  <div class="att-row" style="grid-template-columns: 1fr 110px 1fr; align-items:center;">
+				                    <div class="att-player" style="min-width:0;">
+				                      <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+				                        {{ seg.get_segment_type_display }}
+				                        {% if not seg.ended_at %}<span class="badge" style="margin-left:0.35rem;">En curso</span>{% endif %}
+				                      </strong>
+				                      <small style="opacity:0.9;">{% if seg.started_at %}{{ seg.started_at|date:"H:i" }}{% endif %}{% if seg.ended_at %}–{{ seg.ended_at|date:"H:i" }}{% endif %}</small>
+				                    </div>
+				                    <div><span class="badge">{{ seg.duration_minutes|default:0 }}'</span></div>
+				                    <div style="opacity:0.9; font-size:0.85rem;">{{ seg.notes|default:'' }}</div>
+				                  </div>
+				                  {% endfor %}
+				                </div>
+				                {% else %}
+				                <p class="meta" style="margin:0.35rem 0 0;">Aún no hay tramos. Pulsa un botón para iniciar.</p>
+				                {% endif %}
+				              </div>
+
+				              <details class="session-editor" style="margin-top:0.75rem;">
+				                <summary class="button secondary" style="cursor:pointer;">Editar resultados</summary>
+				                <form method="post" class="grid" style="margin-top:0.7rem;">
+				                  {% csrf_token %}
+				                  <input type="hidden" name="planner_action" value="timeline_update_segments" />
+				                  <input type="hidden" name="planner_tab" value="sessions" />
+				                  <input type="hidden" name="team" value="{{ primary_team_id }}" />
+				                  {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+				                  <input type="hidden" name="timeline_session_id" value="{{ selected_session.id }}" />
+				                  <div style="grid-column:1/-1;" class="meta">Edita minutos y notas. Si hay un tramo “En curso”, usa <strong>Stop</strong> para fijarlo.</div>
+				                  {% for seg in selected_session_timeline_segments %}
+				                  <input type="hidden" name="segment_id" value="{{ seg.id }}" />
+				                  <label>
+				                    Tipo
+				                    <select name="segment_type_{{ seg.id }}">
+				                      {% for value, label in seg.TYPE_CHOICES %}
+				                      <option value="{{ value }}" {% if value == seg.segment_type %}selected{% endif %}>{{ label }}</option>
+				                      {% endfor %}
+				                    </select>
+				                  </label>
+				                  <label>
+				                    Minutos
+				                    <input type="number" min="0" max="360" step="1" name="segment_minutes_{{ seg.id }}" value="{{ seg.duration_minutes|default:0 }}" />
+				                  </label>
+				                  <label style="grid-column:1/-1;">
+				                    Nota (opcional)
+				                    <input type="text" maxlength="180" name="segment_notes_{{ seg.id }}" value="{{ seg.notes|default:'' }}" />
+				                  </label>
+				                  {% endfor %}
+				                  <div style="grid-column:1/-1; display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap;">
+				                    <button type="submit" class="primary">Guardar resumen</button>
+				                  </div>
+				                </form>
+				              </details>
+				              {% else %}
+				              <p class="meta" style="margin-top:-0.15rem;">Selecciona una sesión para usar el cronómetro.</p>
+				              {% endif %}
 				            </div>
 
-			            <div class="editor-box" id="planner-attendance">
-			              <h3>Asistencia</h3>
-			              {% if selected_session %}
+				            <div class="editor-box" id="planner-attendance">
+				              <h3>Asistencia</h3>
+				              {% if selected_session %}
 			              <p class="meta" style="margin-top:-0.15rem;">
 			                Marca asistencia para cantera/amateur (se guarda por sesión).
 			                {% if session_attendance_counts %}
@@ -4167,6 +4273,189 @@
 		          window.__WEBSTATS_PAGE_TOUR_ID = 'sessions_planner_v1';
 		          window.__WEBSTATS_PAGE_TOUR_STEPS = steps;
 		        } catch (e) { /* ignore */ }
+		      })();
+
+		      // Sesión en vivo: cronómetro por tramos (editable después).
+		      (() => {
+		        const panel = document.getElementById('planner-live-timeline');
+		        if (!panel) return;
+		        const sessionId = panel.getAttribute('data-session-id') || '';
+		        if (!sessionId) return;
+
+		        const getCookie = (name) => {
+		          const cookie = (document.cookie || '')
+		            .split(';')
+		            .map((v) => v.trim())
+		            .find((v) => v.startsWith(`${name}=`));
+		          return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+		        };
+		        const csrftoken = getCookie('csrftoken') || '';
+
+		        const labels = {
+		          activation: 'Activación',
+		          physical: 'Físico / Preventivo',
+		          main: 'Tarea principal',
+		          cooldown: 'Vuelta a la calma',
+		          pause: 'Pausa',
+		          other: 'Otro',
+		        };
+
+		        const labelEl = document.getElementById('live-timer-label');
+		        const clockEl = document.getElementById('live-timer-clock');
+		        const segmentsWrap = document.getElementById('timeline-segments');
+
+		        let runningStartIso = panel.getAttribute('data-running-start') || '';
+		        let runningType = panel.getAttribute('data-running-type') || '';
+
+		        const setRunning = (type, startedAtIso) => {
+		          runningType = String(type || '');
+		          runningStartIso = String(startedAtIso || '');
+		          panel.setAttribute('data-running-type', runningType);
+		          if (runningStartIso) panel.setAttribute('data-running-start', runningStartIso);
+		          if (labelEl) labelEl.textContent = labels[runningType] || '—';
+		        };
+
+		        const updateClock = () => {
+		          if (!clockEl) return;
+		          if (!runningStartIso) {
+		            clockEl.textContent = '00:00';
+		            return;
+		          }
+		          const startMs = Date.parse(runningStartIso);
+		          if (!startMs) {
+		            clockEl.textContent = '00:00';
+		            return;
+		          }
+		          const diff = Math.max(0, Date.now() - startMs);
+		          const sec = Math.floor(diff / 1000);
+		          const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+		          const ss = String(sec % 60).padStart(2, '0');
+		          clockEl.textContent = `${mm}:${ss}`;
+		        };
+
+		        const renderTotals = (totals) => {
+		          try {
+		            const t = totals || {};
+		            const setVal = (key, value) => {
+		              const el = panel.querySelector(`[data-total-value=\"${key}\"]`);
+		              if (el) el.textContent = String(Number(value || 0));
+		            };
+		            setVal('activation', t.activation);
+		            setVal('physical', t.physical);
+		            setVal('main', t.main);
+		            setVal('cooldown', t.cooldown);
+		            setVal('pause', t.pause);
+		            setVal('total', t.total_minutes);
+		          } catch (e) {}
+		        };
+
+		        const renderSegments = (segments) => {
+		          if (!segmentsWrap) return;
+		          const items = Array.isArray(segments) ? segments : [];
+		          if (!items.length) {
+		            segmentsWrap.innerHTML = `<p class=\"meta\" style=\"margin:0.35rem 0 0;\">Aún no hay tramos. Pulsa un botón para iniciar.</p>`;
+		            return;
+		          }
+		          const rows = items
+		            .map((seg) => {
+		              const label = labels[seg.type] || seg.label || seg.type || 'Tramo';
+		              const minutes = Number(seg.minutes || 0);
+		              const isRunning = !seg.ended_at;
+		              const timeLabel = seg.started_at
+		                ? new Date(seg.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		                : '';
+		              const endLabel = seg.ended_at
+		                ? new Date(seg.ended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		                : '';
+		              const notes = String(seg.notes || '');
+		              return `
+		                <div class=\"att-row\" style=\"grid-template-columns: 1fr 110px 1fr; align-items:center;\">
+		                  <div class=\"att-player\" style=\"min-width:0;\">
+		                    <strong style=\"white-space:nowrap; overflow:hidden; text-overflow:ellipsis;\">
+		                      ${label}
+		                      ${isRunning ? '<span class=\"badge\" style=\"margin-left:0.35rem;\">En curso</span>' : ''}
+		                    </strong>
+		                    <small style=\"opacity:0.9;\">${timeLabel}${endLabel ? `–${endLabel}` : ''}</small>
+		                  </div>
+		                  <div><span class=\"badge\">${minutes}'</span></div>
+		                  <div style=\"opacity:0.9; font-size:0.85rem;\">${notes}</div>
+		                </div>
+		              `;
+		            })
+		            .join('');
+		          segmentsWrap.innerHTML = `<div class=\"attendance-list\" style=\"margin-top:0;\">${rows}</div>`;
+		        };
+
+		        const postTimeline = async (action, extra = {}) => {
+		          const body = new URLSearchParams();
+		          body.set('planner_action', action);
+		          body.set('planner_tab', 'sessions');
+		          body.set('ajax', '1');
+		          body.set('timeline_session_id', sessionId);
+		          Object.entries(extra || {}).forEach(([k, v]) => body.set(k, String(v)));
+		          const response = await fetch(window.location.href, {
+		            method: 'POST',
+		            headers: {
+		              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+		              'X-Requested-With': 'XMLHttpRequest',
+		              'X-CSRFToken': csrftoken,
+		            },
+		            credentials: 'same-origin',
+		            body,
+		          });
+		          const data = await response.json().catch(() => ({}));
+		          if (!response.ok || !data || !data.ok) {
+		            throw new Error((data && (data.error || data.message)) || 'No se pudo actualizar el cronómetro.');
+		          }
+		          return data;
+		        };
+
+		        const startButtons = panel.querySelectorAll('.js-timeline-start[data-seg-type]');
+		        startButtons.forEach((btn) => {
+		          btn.addEventListener('click', async () => {
+		            btn.disabled = true;
+		            try {
+		              const segType = btn.getAttribute('data-seg-type') || '';
+		              const data = await postTimeline('timeline_start_segment', { segment_type: segType });
+		              renderTotals(data.totals);
+		              renderSegments(data.segments);
+		              if (data.running && data.running.started_at) {
+		                setRunning(data.running.type, data.running.started_at);
+		              } else {
+		                setRunning('', '');
+		              }
+		              updateClock();
+		            } catch (e) {
+		              alert(e.message || 'No se pudo iniciar el tramo.');
+		              window.location.reload();
+		            } finally {
+		              btn.disabled = false;
+		            }
+		          });
+		        });
+
+		        const stopBtn = panel.querySelector('.js-timeline-stop');
+		        if (stopBtn) {
+		          stopBtn.addEventListener('click', async () => {
+		            stopBtn.disabled = true;
+		            try {
+		              const data = await postTimeline('timeline_stop', {});
+		              renderTotals(data.totals);
+		              renderSegments(data.segments);
+		              setRunning('', '');
+		              updateClock();
+		            } catch (e) {
+		              alert(e.message || 'No se pudo detener el tramo.');
+		              window.location.reload();
+		            } finally {
+		              stopBtn.disabled = false;
+		            }
+		          });
+		        }
+
+		        if (labelEl && runningType) labelEl.textContent = labels[runningType] || '—';
+		        updateClock();
+		        window.setInterval(updateClock, 1000);
 		      })();
 		    </script>
 		  </body>

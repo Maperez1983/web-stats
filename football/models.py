@@ -974,6 +974,57 @@ class TrainingSessionAttendance(models.Model):
         return f'{self.session} · {player_label} · {self.status}'
 
 
+class TrainingSessionTimelineSegment(models.Model):
+    """
+    Segmentos temporales "En vivo" de una sesión (activación, físico/preventivo, pausas, etc.).
+
+    Fuente de verdad para contadores de carga realizada (no solo planificada).
+    """
+
+    TYPE_ACTIVATION = 'activation'
+    TYPE_PHYSICAL = 'physical'
+    TYPE_MAIN = 'main'
+    TYPE_COOLDOWN = 'cooldown'
+    TYPE_PAUSE = 'pause'
+    TYPE_OTHER = 'other'
+    TYPE_CHOICES = [
+        (TYPE_ACTIVATION, 'Activación'),
+        (TYPE_PHYSICAL, 'Físico / Preventivo'),
+        (TYPE_MAIN, 'Tarea principal'),
+        (TYPE_COOLDOWN, 'Vuelta a la calma'),
+        (TYPE_PAUSE, 'Pausa'),
+        (TYPE_OTHER, 'Otro'),
+    ]
+
+    session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE, related_name='timeline_segments')
+    segment_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_minutes = models.PositiveSmallIntegerField(default=0)
+    order = models.PositiveSmallIntegerField(default=0)
+    notes = models.CharField(max_length=180, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='training_session_timeline_segments',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'started_at', 'id']
+        indexes = [
+            models.Index(fields=['session', 'segment_type', 'order']),
+            models.Index(fields=['session', '-created_at']),
+        ]
+
+    def __str__(self):
+        label = dict(self.TYPE_CHOICES).get(self.segment_type, self.segment_type or 'Segmento')
+        return f'{self.session} · {label}'
+
+
 class SessionTask(models.Model):
     BLOCK_ACTIVATION = 'activation'
     BLOCK_MAIN_1 = 'main_1'
