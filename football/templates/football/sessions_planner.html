@@ -38,6 +38,7 @@
       .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
       .button.icon-btn { width: 2.8rem; height: 2.8rem; padding: 0; border-radius: 999px; }
       .button.icon-btn svg { width: 1.15rem; height: 1.15rem; display:block; }
+      .button.icon-btn .emoji { font-size: 1.2rem; line-height: 1; }
       .button.icon-btn.small { width: 2.55rem; height: 2.55rem; }
       .button.icon-btn.small svg { width: 1.05rem; height: 1.05rem; }
       .button.danger.icon-btn { border-color: rgba(248,113,113,0.55); background: rgba(248,113,113,0.14); color: #fecaca; }
@@ -1895,7 +1896,7 @@
                     <p class="meta">{% if doc.session_date %}<strong>{{ doc.session_date|date:"d/m/Y" }}</strong>{% else %}<strong>Sin fecha</strong>{% endif %} · PDF original</p>
                     <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
 	                      <a class="button icon-btn" href="{% url 'imported-session-file' doc.id %}" data-pdf-viewer="1" data-pdf-title="Sesión importada · {{ doc.title }}" title="Abrir PDF" aria-label="Abrir PDF">
-                          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 2.75h7.2l3.8 3.8V19.5a1.75 1.75 0 0 1-1.75 1.75h-9.25A1.75 1.75 0 0 1 4.75 19.5V4.5A1.75 1.75 0 0 1 6.5 2.75Z" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 2.9V7h4.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                          <span class="emoji" aria-hidden="true">📄</span>
                           <span class="sr-only">Abrir PDF</span>
                         </a>
 	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión importada? (Se borrará el PDF guardado)');">
@@ -1907,7 +1908,7 @@
 	                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
 	                        <input type="hidden" name="doc_id" value="{{ doc.id }}" />
 	                        <button type="submit" class="button danger icon-btn" title="Eliminar" aria-label="Eliminar">
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 3.75h6M5.75 6.5h12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.25 6.5V19a1.75 1.75 0 0 0 1.75 1.75h2a1.75 1.75 0 0 0 1.75-1.75V6.5" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10v7M13.5 10v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            <span class="emoji" aria-hidden="true">🗑️</span>
                             <span class="sr-only">Eliminar</span>
                           </button>
 	                      </form>
@@ -3310,23 +3311,23 @@
                     title="Vista previa"
                     aria-label="Vista previa"
                   >
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 12s3.4-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.4 6.5-9.5 6.5S2.5 12 2.5 12Z" stroke="currentColor" stroke-width="1.6"/><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.6"/></svg>
+                    <span class="emoji" aria-hidden="true">👁️</span>
                     <span class="sr-only">Vista previa</span>
                   </button>
 	                {% if t.task_pdf %}
 		                <a class="button icon-btn small" href="{% url 'session-task-file' t.id %}" data-pdf-viewer="1" data-pdf-title="Tarea · {{ t.title }}" title="Abrir PDF" aria-label="Abrir PDF">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 2.75h7.2l3.8 3.8V19.5a1.75 1.75 0 0 1-1.75 1.75h-9.25A1.75 1.75 0 0 1 4.75 19.5V4.5A1.75 1.75 0 0 1 6.5 2.75Z" stroke="currentColor" stroke-width="1.6"/><path d="M13.5 2.9V7h4.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                      <span class="emoji" aria-hidden="true">📄</span>
                       <span class="sr-only">Abrir PDF</span>
                     </a>
 		                {% endif %}
 	                {% if t.is_imported %}
 	                <a class="button icon-btn small" href="{% url 'session-task-detail' t.id %}" title="Ver ficha" aria-label="Ver ficha">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 10.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill="currentColor"/><path d="M12 21.25c4.97 0 9-4.03 9-9s-4.03-9-9-9-9 4.03-9 9 4.03 9 9 9Z" stroke="currentColor" stroke-width="1.6"/><path d="M11 11.5h1.2c.9 0 1.3.5 1.3 1.2v4.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <span class="emoji" aria-hidden="true">ℹ️</span>
                     <span class="sr-only">Ver ficha</span>
                   </a>
 	                {% else %}
 	                <a class="button icon-btn small" href="{% url task_builder_edit_route_name t.id %}" title="Editar" aria-label="Editar">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 19.5h3.3l10-10a1.6 1.6 0 0 0 0-2.3l-1-1a1.6 1.6 0 0 0-2.3 0l-10 10V19.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13.2 6.8l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    <span class="emoji" aria-hidden="true">✏️</span>
                     <span class="sr-only">Editar</span>
                   </a>
 	                {% endif %}
@@ -3339,14 +3340,14 @@
                     <input type="hidden" name="library_repo" value="{{ library_repository }}" />
                     <input type="hidden" name="task_id" value="{{ t.id }}" />
                     <button type="submit" class="button danger icon-btn small" title="Papelera" aria-label="Papelera">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 3.75h6M5.75 6.5h12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M9.25 6.5V19a1.75 1.75 0 0 0 1.75 1.75h2a1.75 1.75 0 0 0 1.75-1.75V6.5" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10v7M13.5 10v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                      <span class="emoji" aria-hidden="true">🗑️</span>
                       <span class="sr-only">Papelera</span>
                     </button>
                   </form>
 	                {% if planning_session_items %}
                   <details style="margin:0;">
                     <summary class="button secondary icon-btn small" style="display:inline-flex; width:max-content;" title="Añadir a sesión" aria-label="Añadir a sesión">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                      <span class="emoji" aria-hidden="true">➕</span>
                       <span class="sr-only">Añadir a sesión</span>
                     </summary>
 		                <form method="post" style="margin:0.6rem 0 0; display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
@@ -3368,7 +3369,7 @@
 	                {% endif %}
                 <details class="task-more">
                   <summary class="button secondary icon-btn small" title="Más" aria-label="Más">
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.5 12a1.2 1.2 0 1 0 0 .01V12ZM12 12a1.2 1.2 0 1 0 0 .01V12ZM17.5 12a1.2 1.2 0 1 0 0 .01V12Z" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    <span class="emoji" aria-hidden="true">⋯</span>
                     <span class="sr-only">Más</span>
                   </summary>
                   <div class="task-more-body" role="menu">
