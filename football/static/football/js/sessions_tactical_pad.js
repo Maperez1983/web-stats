@@ -1316,6 +1316,9 @@
 			    const pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
 			    const pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
 			    const pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
+			    const pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
+			    const pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
+			    const pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
 			    const pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
 			    const pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    const pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
@@ -5275,6 +5278,7 @@
 							    let pitch3dCurrentStep = 0;
 							    let pitch3dGhostsEnabled = true;
 							    let pitch3dTrailsEnabled = true;
+							    let pitch3dDrawablesEnabled = true;
 							    let pitch3dGhostRoot = null;
 							    let pitch3dTrailRoot = null;
 
@@ -5287,6 +5291,22 @@
 							      if (!pitch3dRoot) return;
 							      try { if (pitch3dTrailRoot) pitch3dRoot.remove(pitch3dTrailRoot); } catch (e) { /* ignore */ }
 							      pitch3dTrailRoot = null;
+							    };
+
+							    const syncPitch3dLayersUi = () => {
+							      if (pitch3dLayerGhostsInput) pitch3dLayerGhostsInput.checked = !!pitch3dGhostsEnabled;
+							      if (pitch3dLayerTrailsInput) pitch3dLayerTrailsInput.checked = !!pitch3dTrailsEnabled;
+							      if (pitch3dLayerDrawInput) pitch3dLayerDrawInput.checked = !!pitch3dDrawablesEnabled;
+							    };
+							    const applyPitch3dLayerVisibility = () => {
+							      if (pitch3dGhostRoot) pitch3dGhostRoot.visible = !!pitch3dGhostsEnabled;
+							      if (pitch3dTrailRoot) pitch3dTrailRoot.visible = !!pitch3dTrailsEnabled;
+							      if (pitch3dRoot) {
+							        (pitch3dRoot.children || []).forEach((n) => {
+							          if (!n || !n.userData) return;
+							          if (safeText(n.userData.kind) === 'drawable') n.visible = !!pitch3dDrawablesEnabled;
+							        });
+							      }
 							    };
 
 							    const setPitch3dPresentation = (enabled) => {
@@ -5570,6 +5590,28 @@
 						        const dir = b.clone().sub(a).normalize();
 						        const up = new THREE.Vector3(0, 1, 0);
 						        mesh.quaternion.setFromUnitVectors(up, dir);
+						        mesh.userData = { kind: 'drawable', subkind: 'line' };
+						        mesh.visible = !!pitch3dDrawablesEnabled;
+						        root.add(mesh);
+						        return mesh;
+						      };
+						      const addCurve3d = (p1, p2, pCtrl, colorInt, thickness = 0.12, opacity = 0.9) => {
+						        const a = new THREE.Vector3(p1.x, 0.08, p1.z);
+						        const b = new THREE.Vector3(p2.x, 0.08, p2.z);
+						        const c = new THREE.Vector3(pCtrl.x, 0.08, pCtrl.z);
+						        const curve = new THREE.QuadraticBezierCurve3(a, c, b);
+						        const points = curve.getPoints(24);
+						        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 80, thickness, 8, false);
+						        const mat = new THREE.MeshStandardMaterial({
+						          color: colorInt,
+						          roughness: 0.7,
+						          metalness: 0.02,
+						          transparent: true,
+						          opacity: clamp(Number(opacity) || 0.9, 0.12, 0.98),
+						        });
+						        const mesh = new THREE.Mesh(geo, mat);
+						        mesh.userData = { kind: 'drawable', subkind: 'curve' };
+						        mesh.visible = !!pitch3dDrawablesEnabled;
 						        root.add(mesh);
 						        return mesh;
 						      };
@@ -5585,6 +5627,8 @@
 						        const up = new THREE.Vector3(0, 1, 0);
 						        // Cone points up by default; rotate so it points along dir in XZ.
 						        mesh.quaternion.setFromUnitVectors(up, dir);
+						        mesh.userData = { kind: 'drawable', subkind: 'arrow_head' };
+						        mesh.visible = !!pitch3dDrawablesEnabled;
 						        root.add(mesh);
 						        return mesh;
 						      };
@@ -5599,6 +5643,8 @@
 						        const plane = new THREE.Mesh(geo, mat);
 						        plane.rotation.x = -Math.PI / 2;
 						        plane.position.set(center.x, 0.02, center.z);
+						        plane.userData = { kind: 'drawable', subkind: 'zone' };
+						        plane.visible = !!pitch3dDrawablesEnabled;
 						        root.add(plane);
 						        return plane;
 						      };
@@ -5687,7 +5733,14 @@
 						          const b2 = transformPoint2d(half, 0, o);
 						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
 						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
-						          addLine3d(a3, b3, colorInt, thickness, 0.95);
+						          if (kind === 'arrow-curve') {
+						            const curv = Math.max(18, Math.min(120, (groupHeightPx || 80) * 0.6));
+						            const c2 = transformPoint2d(0, -curv, o);
+						            const c3 = mapPoint2dTo3d(c2.x, c2.y);
+						            addCurve3d(a3, b3, c3, colorInt, Math.max(0.08, thickness * 0.95), 0.92);
+						          } else {
+						            addLine3d(a3, b3, colorInt, thickness, 0.95);
+						          }
 						          if (kind.startsWith('arrow')) {
 						            const dir = { x: b3.x - a3.x, z: b3.z - a3.z };
 						            addConeHead3d(b3, dir, colorInt, 0.7);
@@ -6019,7 +6072,7 @@
 						      pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame);
 						    };
 
-							    const openPitch3d = () => {
+						    const openPitch3d = () => {
 							      if (!canUsePitch3d()) {
 							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
 							        return;
@@ -6031,10 +6084,15 @@
 							      pitch3dOpen = true;
 							      pitch3dModal.hidden = false;
 							      setPitch3dPresentation(false);
+							      pitch3dGhostsEnabled = pitch3dLayerGhostsInput ? !!pitch3dLayerGhostsInput.checked : pitch3dGhostsEnabled;
+							      pitch3dTrailsEnabled = pitch3dLayerTrailsInput ? !!pitch3dLayerTrailsInput.checked : pitch3dTrailsEnabled;
+							      pitch3dDrawablesEnabled = pitch3dLayerDrawInput ? !!pitch3dLayerDrawInput.checked : pitch3dDrawablesEnabled;
+							      try { syncPitch3dLayersUi(); } catch (e) { /* ignore */ }
 							      try { resizePitch3d(); } catch (e) { /* ignore */ }
 							      stopPitch3dPlayback();
 							      updatePitch3dPlaybackButton();
 							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
+							      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
 							      try { pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame); } catch (e) { /* ignore */ }
 							    };
 
@@ -6142,11 +6200,21 @@
 						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
 						      if (pitch3dFollowMode !== 'selected') pitch3dSelectedUid = '';
 						    });
+						    const onLayerToggle = () => {
+						      pitch3dGhostsEnabled = !!pitch3dLayerGhostsInput?.checked;
+						      pitch3dTrailsEnabled = !!pitch3dLayerTrailsInput?.checked;
+						      pitch3dDrawablesEnabled = !!pitch3dLayerDrawInput?.checked;
+						      applyPitch3dLayerVisibility();
+						    };
+						    pitch3dLayerGhostsInput?.addEventListener('change', onLayerToggle);
+						    pitch3dLayerTrailsInput?.addEventListener('change', onLayerToggle);
+						    pitch3dLayerDrawInput?.addEventListener('change', onLayerToggle);
 						    pitch3dRefreshBtn?.addEventListener('click', (ev) => {
 						      ev.preventDefault();
 						      stopPitch3dPlayback();
 						      updatePitch3dPlaybackButton();
 						      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true }); } catch (e) { /* ignore */ }
+						      try { applyPitch3dLayerVisibility(); } catch (e) { /* ignore */ }
 						      setStatus('Vista 3D actualizada.');
 						    });
 						    pitch3dPrevBtn?.addEventListener('click', (ev) => {
