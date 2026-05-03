@@ -1274,6 +1274,39 @@
     btnIn?.addEventListener('click', markIn);
     btnOut?.addEventListener('click', markOut);
 
+    // Shortcuts (tipo Sportscode básico): J/K/L, I/O, Space
+    const isTypingTarget = (el) => {
+      const tag = String(el?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      if (el && el.isContentEditable) return true;
+      return false;
+    };
+    const seekBy = (deltaSeconds) => {
+      const cur = Number(video.currentTime) || 0;
+      const dur = Number(video.duration);
+      const maxT = Number.isFinite(dur) && dur > 0 ? dur : 1e12;
+      const next = clamp(cur + (Number(deltaSeconds) || 0), 0, maxT);
+      try { video.currentTime = next; } catch (e) { /* ignore */ }
+      setStatus(`Seek: ${fmtTime(next)}`);
+    };
+    document.addEventListener('keydown', async (ev) => {
+      if (!ev || ev.defaultPrevented) return;
+      if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      if (isTypingTarget(ev.target)) return;
+      const k = String(ev.key || '');
+      if (k === ' ' || k === 'Spacebar') {
+        ev.preventDefault();
+        if (video.paused) { try { await video.play(); } catch (e) { /* ignore */ } } else { try { video.pause(); } catch (e) { /* ignore */ } }
+        syncPlayButtons();
+        return;
+      }
+      if (k === 'i' || k === 'I') { ev.preventDefault(); markIn(); return; }
+      if (k === 'o' || k === 'O') { ev.preventDefault(); markOut(); return; }
+      if (k === 'k' || k === 'K') { ev.preventDefault(); try { video.pause(); } catch (e) { /* ignore */ } syncPlayButtons(); return; }
+      if (k === 'j' || k === 'J') { ev.preventDefault(); seekBy(ev.shiftKey ? -5 : -2); return; }
+      if (k === 'l' || k === 'L') { ev.preventDefault(); seekBy(ev.shiftKey ? 5 : 2); return; }
+    }, { passive: false });
+
     const snapshotPng = () => {
       const w = fabricCanvas.getWidth();
       const h = fabricCanvas.getHeight();
