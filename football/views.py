@@ -16200,6 +16200,118 @@ def _guess_video_timeline_kind(action_type: str, result: str, observation: str) 
     return VideoTimelineEvent.KIND_TAG
 
 
+@login_required
+def match_video_links_api(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede acceder.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El registro de acciones no está activo.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'ok': True, 'match_id': None, 'links': []})
+    links = list(
+        MatchVideoLink.objects
+        .filter(team=primary_team, match=match)
+        .select_related('video')
+        .order_by('-is_active', '-updated_at', '-id')[:8]
+    )
+    items = []
+    for l in links:
+        video = getattr(l, 'video', None)
+        if not video or not getattr(video, 'video', None):
+            continue
+        items.append(
+            {
+                'id': int(l.id),
+                'video_id': int(video.id),
+                'title': str(getattr(video, 'title', '') or '').strip() or f'Vídeo {video.id}',
+                'video_url': video.video.url,
+                'kickoff_video_ms': int(getattr(l, 'kickoff_video_ms', 0) or 0),
+                'is_active': bool(getattr(l, 'is_active', False)),
+                'auto_markers': bool(getattr(l, 'auto_markers', False)),
+                'auto_clips': bool(getattr(l, 'auto_clips', False)),
+                'clip_pre_ms': int(getattr(l, 'clip_pre_ms', 0) or 0),
+                'clip_post_ms': int(getattr(l, 'clip_post_ms', 0) or 0),
+            }
+        )
+    return JsonResponse({'ok': True, 'match_id': int(match.id), 'links': items})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def match_video_marker_api(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede editar.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está activo.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
+    if not match:
+        return JsonResponse({'ok': False, 'error': 'No hay partido.'}, status=400)
+    label = _sanitize_task_text(str(request.POST.get('label') or '').strip(), multiline=False, max_len=160)
+    kind = str(request.POST.get('kind') or '').strip().lower()
+    make_clip = str(request.POST.get('make_clip') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    minute = _parse_int(request.POST.get('minute'))
+    period = _parse_int(request.POST.get('period'))
+
+    # Link activo preferente.
+    link = (
+        MatchVideoLink.objects
+        .filter(team=primary_team, match=match, is_active=True)
+        .select_related('video')
+        .order_by('-updated_at', '-id')
+        .first()
+    )
+    if not link or not getattr(link, 'video', None):
+        return JsonResponse({'ok': False, 'error': 'No hay vídeo vinculado al partido.'}, status=400)
+
+    elapsed_ms = _match_action_elapsed_ms(primary_team, minute=minute, period=period)
+    time_ms = max(0, int(getattr(link, 'kickoff_video_ms', 0) or 0) + int(elapsed_ms or 0))
+    if kind not in {VideoTimelineEvent.KIND_TAG, VideoTimelineEvent.KIND_NOTE, VideoTimelineEvent.KIND_GOAL, VideoTimelineEvent.KIND_SHOT, VideoTimelineEvent.KIND_PRESS, VideoTimelineEvent.KIND_TURNOVER, VideoTimelineEvent.KIND_SET_PIECE}:
+        kind = VideoTimelineEvent.KIND_TAG
+    if not label:
+        label = f"{int(minute) if minute is not None else ''}' · Marca".strip(" '·")
+        label = label or 'Marca'
+
+    marker = VideoTimelineEvent.objects.create(
+        team=primary_team,
+        video=link.video,
+        time_ms=time_ms,
+        kind=kind,
+        label=label,
+        color='',
+        payload={'source': 'match_actions_marker', 'match_id': int(match.id), 'link_id': int(link.id)},
+        created_by=request.user.get_username(),
+    )
+    out = {'ok': True, 'match_id': int(match.id), 'video_id': int(link.video_id), 'time_ms': int(time_ms), 'marker_id': int(marker.id)}
+    if make_clip:
+        pre_ms = int(getattr(link, 'clip_pre_ms', 0) or 0)
+        post_ms = int(getattr(link, 'clip_post_ms', 0) or 0)
+        in_ms = max(0, time_ms - max(0, pre_ms or 6000))
+        out_ms = max(in_ms + 250, time_ms + max(0, post_ms or 6000))
+        clip = VideoClip.objects.create(
+            team=primary_team,
+            video=link.video,
+            title=label[:180],
+            collection=f'Match {int(match.id)}',
+            in_ms=in_ms,
+            out_ms=out_ms,
+            tags=[kind, 'manual', 'match_actions'],
+            notes='',
+            created_by=request.user.get_username(),
+        )
+        out['clip_id'] = int(clip.id)
+    return JsonResponse(out)
+
+
 def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, action_type: str, result: str, zone: str, observation: str) -> dict:
     if not primary_team or not match or not event:
         return {}
@@ -37154,17 +37266,35 @@ def analysis_video_studio_timeline_export_api(request):
                 'payload': obj.payload if isinstance(obj.payload, dict) else {},
             }
         )
-    return JsonResponse(
-        {
-            'ok': True,
-            'meta': {
-                'video_id': int(video_id),
-                'title': str(getattr(video, 'title', '') or '').strip(),
-                'team_id': int(primary_team.id),
-            },
-            'items': payload,
-        }
-    )
+    export_format = str(request.GET.get('format') or '').strip().lower()
+    meta = {
+        'video_id': int(video_id),
+        'title': str(getattr(video, 'title', '') or '').strip(),
+        'team_id': int(primary_team.id),
+    }
+    if export_format == 'csv':
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow(['time_ms', 'kind', 'label', 'color'])
+        for row in payload:
+            writer.writerow([row.get('time_ms'), row.get('kind'), row.get('label'), row.get('color')])
+        resp = HttpResponse(out.getvalue(), content_type='text/csv; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="timeline-video-{int(video_id)}.csv"'
+        return resp
+    if export_format == 'xml':
+        # XML simple (intercambio). No pretende ser Sportscode oficial, pero es importable por herramientas externas.
+        def _x(v):
+            return html.escape(str(v or '').strip())
+        rows_xml = []
+        for row in payload:
+            rows_xml.append(
+                f'<event time_ms="{int(row.get("time_ms") or 0)}" kind="{_x(row.get("kind"))}" color="{_x(row.get("color"))}"><label>{_x(row.get("label"))}</label></event>'
+            )
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + f'<timeline video_id="{int(video_id)}" team_id="{int(primary_team.id)}"><title>{_x(meta["title"])}</title>' + ''.join(rows_xml) + '</timeline>'
+        resp = HttpResponse(xml, content_type='application/xml; charset=utf-8')
+        resp['Content-Disposition'] = f'attachment; filename="timeline-video-{int(video_id)}.xml"'
+        return resp
+    return JsonResponse({'ok': True, 'meta': meta, 'items': payload})
 
 
 @csrf_exempt

@@ -74,6 +74,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return [matchFinalizeBtn].filter(Boolean);
   })();
 
+  const periodInput = (() => {
+    try {
+      return popupForm?.querySelector?.('input[name="period"]') || null;
+    } catch (e) {
+      return null;
+    }
+  })();
+
   // Safari (y iOS) puede restaurar la página desde bfcache con el estado DOM "congelado"
   // (por ejemplo: botones deshabilitados tras un submit). Forzamos un estado coherente.
   const forceEnableFinalizeButtons = () => {
@@ -162,6 +170,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const mid = String(currentMatchId || '').trim();
     return mid ? `webstats:live:last_clip:v1:${mid}` : '';
   })();
+  const lastVideoTimeKey = (() => {
+    const mid = String(currentMatchId || '').trim();
+    return mid ? `webstats:live:last_video_time:v1:${mid}` : '';
+  })();
   const recentActionsKey = 'webstats:live:recent_actions:v1';
   const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
   const safeParseJson = (raw, fallback) => {
@@ -202,6 +214,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (!id) return;
     try {
       window.localStorage.setItem(lastClipKey, JSON.stringify({ clip_id: id, label: String(label || '').slice(0, 220), at: Date.now() }));
+    } catch (e) {}
+  };
+
+  const persistLastVideoTime = ({ timeMs = 0, videoId = 0 } = {}) => {
+    if (!canUseStorage || !lastVideoTimeKey) return;
+    const t = Number(timeMs) || 0;
+    if (!t) return;
+    try {
+      window.localStorage.setItem(lastVideoTimeKey, JSON.stringify({ time_ms: t, video_id: Number(videoId) || 0, at: Date.now() }));
     } catch (e) {}
   };
 
@@ -818,6 +839,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const updateClockDisplay = () => {
     if (matchClockDisplay) matchClockDisplay.textContent = formatClock(elapsedRef.value);
     if (persistentClockEl) persistentClockEl.textContent = formatClock(elapsedRef.value);
+    if (periodInput) periodInput.value = String(Number(currentHalf) || 1);
     syncAutoFields();
     refreshLiveStatsHud();
     emitSummaryChange();
@@ -1569,9 +1591,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           setLastClipUi({ clipId, label });
           persistLastClip({ clipId, label });
         }
+        const timeMs = data?.video_link?.time_ms;
+        const videoId = data?.video_link?.video_id;
+        if (timeMs) persistLastVideoTime({ timeMs, videoId });
       } catch (e) {}
       try {
-        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone } }));
+        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone, video_link: data.video_link || null } }));
       } catch (e) {}
       showPageStatus(
         `${source === 'pro_autosend' ? 'Auto-enviar:' : ''} Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`.trim(),
@@ -1966,6 +1991,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     clearRegisterHistoryUI,
     resetRegisterHudState,
     resetClock,
+    getCurrentHalf: () => Number(currentHalf) || 1,
+    getElapsedSeconds: () => Number(elapsedRef.value) || 0,
     editLastAction,
     redoLastUndo,
     repeatLastAtLastZone,

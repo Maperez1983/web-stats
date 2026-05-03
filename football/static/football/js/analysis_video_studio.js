@@ -2705,7 +2705,24 @@
 	      rebuildCollectionFilters(clipsCache);
 	      renderClips(applyClipFilters(clipsCache));
 	    });
+	    const initialCollection = (() => {
+	      try {
+	        const url = new URL(window.location.href);
+	        return safeText(url.searchParams.get('collection'), '').trim();
+	      } catch (e) {
+	        return '';
+	      }
+	    })();
 	    refreshClips().then(() => {
+	      if (initialCollection && clipCollectionFilterSelect) {
+	        // Solo aplica si existe como opción (rebuildCollectionFilters ya ha poblado el select).
+	        const has = Array.from(clipCollectionFilterSelect.options || []).some((opt) => safeText(opt?.value, '') === initialCollection);
+	        if (has) {
+	          clipCollectionFilterSelect.value = initialCollection;
+	          renderClips(applyClipFilters(clipsCache));
+	          rebuildCollectionFilters(clipsCache);
+	        }
+	      }
 	      if (!initialClipId) return;
 	      try {
 	        const btn = clipsList?.querySelector?.(`[data-vs-clip-load="${initialClipId}"]`);

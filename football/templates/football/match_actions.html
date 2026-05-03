@@ -2398,6 +2398,20 @@
       .quick-config-row .mini { max-width: 84px; }
     </style>
     {% endif %}
+    <style>
+      .match-video-modal { position:fixed; inset:0; z-index:2147483647; background: rgba(2,6,23,0.72); display:flex; align-items:center; justify-content:center; padding: 1rem; }
+      .match-video-modal[hidden] { display:none !important; }
+      .match-video-card { width:min(1100px, 100%); background: rgba(7, 16, 30, 0.96); border:1px solid rgba(255,255,255,0.14); border-radius: 18px; padding: 0.9rem; box-shadow: 0 22px 60px rgba(0,0,0,0.45); display:grid; gap:0.6rem; }
+      .match-video-toolbar { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap; }
+      .match-video-toolbar strong { letter-spacing:0.08em; text-transform:uppercase; }
+      .match-video-grid { display:grid; grid-template-columns: 1fr 0.9fr; gap: 0.75rem; align-items:start; }
+      @media (max-width: 980px) { .match-video-grid { grid-template-columns: 1fr; } }
+      .match-video-stage { border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .match-video-stage video { width:100%; height:auto; display:block; }
+      .match-video-meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .match-video-actions { display:flex; gap:0.55rem; flex-wrap:wrap; justify-content:flex-end; }
+      .match-video-actions .button { white-space:nowrap; }
+    </style>
   </head>
   <body class="prod-commercial">
     <div class="page">
@@ -2436,6 +2450,7 @@
 		  <span id="offline-queue-badge" class="offline-queue-badge" hidden aria-live="polite"></span>
 		  <button type="button" id="offline-queue-sync" class="offline-queue-sync" hidden>Sincronizar</button>
 		  <a id="last-video-clip-btn" class="offline-queue-sync" href="#" hidden>🎬 Último clip</a>
+		  <button type="button" id="video-panel-toggle" class="offline-queue-sync">📺 Vídeo</button>
 		</div>
 	              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
 	            </div>
@@ -2845,11 +2860,11 @@
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
                   <div class="popup-header-actions">
-                    {% if can_manage_workspace %}
+    {% if can_manage_workspace %}
                     <button type="button" class="popup-edit-toggle" id="popup-quick-config-open">
                       Atajos
                     </button>
-                    {% endif %}
+    {% endif %}
                     <button
                       type="button"
                       class="popup-edit-toggle"
@@ -2919,6 +2934,7 @@
                 <label>
                   Minuto
                   <input type="hidden" name="minute" value="0" />
+                  <input type="hidden" name="period" value="1" />
                   <span class="auto-field-value" data-minute-display>0'</span>
                 </label>
                 <label>
@@ -3201,6 +3217,39 @@
           {% endif %}
         </div>
       </aside>
+      <div class="match-video-modal" id="match-video-modal" hidden aria-label="Replay de partido" role="dialog">
+        <div class="match-video-card">
+          <div class="match-video-toolbar">
+            <div>
+              <strong>Replay</strong>
+              <div class="match-video-meta" id="match-video-status">Vincula el vídeo en el editor del partido para usar replay.</div>
+            </div>
+            <button type="button" class="button ghost" id="match-video-close">Cerrar</button>
+          </div>
+          <div class="match-video-grid">
+            <div class="match-video-stage">
+              <video id="match-video" controls preload="metadata" playsinline crossorigin="anonymous">
+                <source id="match-video-src" src="" />
+              </video>
+            </div>
+            <div style="display:grid; gap:0.55rem;">
+              <label style="display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78);">
+                Ángulo
+                <select id="match-video-angle" style="width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;">
+                  <option value="">Cargando…</option>
+                </select>
+              </label>
+              <div class="match-video-actions">
+                <button type="button" class="button" id="match-video-replay">⏪ Replay</button>
+                <button type="button" class="button" id="match-video-mark">🏷️ Marcar</button>
+                <button type="button" class="button" id="match-video-clip">🎬 Clip</button>
+                <a class="button ghost" id="match-video-open-studio" href="#" target="_blank" rel="noopener">🧠 Estudio</a>
+              </div>
+              <div class="match-video-meta" id="match-video-help">Tip: al registrar acciones con Auto-clips activo, puedes abrir el último clip arriba.</div>
+            </div>
+          </div>
+        </div>
+      </div>
       <section class="persistent-hud" aria-live="polite">
         <div class="row">
           <span class="label">Cronómetro</span>
@@ -3972,8 +4021,22 @@
       const eventsUrl = urlWithMatchId('{% url "match-actions-events-api" %}');
       const keepaliveUrl = '{% url "session-keepalive" %}';
       const matchdayQuickButtonsApiUrl = '{% url "matchday-quick-buttons-api" %}';
+      const matchVideoLinksApiUrl = urlWithMatchId('{% url "match-video-links-api" %}');
+      const matchVideoMarkerApiUrl = urlWithMatchId('{% url "match-video-marker-api" %}');
+      const analysisVideoStudioUrlTemplate = '{% url "analysis-video-studio" 0 %}';
       const analysisVideoClipUrlTemplate = '{% url "analysis-video-clip-view" 0 %}';
       const lastVideoClipBtn = document.getElementById('last-video-clip-btn');
+      const videoPanelToggleBtn = document.getElementById('video-panel-toggle');
+      const matchVideoModal = document.getElementById('match-video-modal');
+      const matchVideoCloseBtn = document.getElementById('match-video-close');
+      const matchVideoEl = document.getElementById('match-video');
+      const matchVideoSrcEl = document.getElementById('match-video-src');
+      const matchVideoAngleSelect = document.getElementById('match-video-angle');
+      const matchVideoStatusEl = document.getElementById('match-video-status');
+      const matchVideoReplayBtn = document.getElementById('match-video-replay');
+      const matchVideoMarkBtn = document.getElementById('match-video-mark');
+      const matchVideoClipBtn = document.getElementById('match-video-clip');
+      const matchVideoOpenStudioBtn = document.getElementById('match-video-open-studio');
       const teamName = '{{ team_name|escapejs }}';
       const matchdayQuickActions = (() => {
         try {
@@ -6489,6 +6552,188 @@
         onFieldTap: handleAutoPlayerForTap,
 	        onSummaryChange: updateCloseSummary,
 	      });
+
+        // Replay (vídeo) integrado: carga el/los vídeos vinculados al partido y permite saltar al último momento.
+        (function () {
+          if (!matchVideoModal || !videoPanelToggleBtn || !matchVideoEl || !matchVideoAngleSelect) return;
+          const lastVideoKey = currentMatchId ? `webstats:live:last_video_time:v1:${currentMatchId}` : '';
+          let links = [];
+          let activeLink = null;
+          let lastSeek = null;
+
+          const setVideoStatus = (text) => {
+            if (matchVideoStatusEl) matchVideoStatusEl.textContent = String(text || '').trim();
+          };
+
+          const open = async () => {
+            try { matchVideoModal.hidden = false; } catch (e) {}
+            await refreshLinks();
+          };
+          const close = () => {
+            try { matchVideoModal.hidden = true; } catch (e) {}
+          };
+          matchVideoCloseBtn?.addEventListener('click', close);
+          matchVideoModal.addEventListener('click', (ev) => {
+            const card = matchVideoModal.querySelector('.match-video-card');
+            if (card && ev.target && card.contains(ev.target)) return;
+            close();
+          });
+          videoPanelToggleBtn.addEventListener('click', open);
+
+          const renderAngles = () => {
+            const options = (Array.isArray(links) ? links : []).map((l) => {
+              const label = `${l.is_active ? '⭐ ' : ''}${l.title || 'Vídeo'}`;
+              return `<option value="${String(l.id)}">${label}</option>`;
+            }).join('');
+            matchVideoAngleSelect.innerHTML = options || '<option value="">Sin vídeos</option>';
+            if (activeLink) {
+              matchVideoAngleSelect.value = String(activeLink.id);
+            }
+          };
+
+          const setSource = async (link, { keepTime = true } = {}) => {
+            if (!link || !matchVideoSrcEl) return;
+            const url = String(link.video_url || '').trim();
+            if (!url) return;
+            if (keepTime) {
+              try { lastSeek = Number(matchVideoEl.currentTime) || 0; } catch (e) { lastSeek = null; }
+            } else {
+              lastSeek = null;
+            }
+            activeLink = link;
+            matchVideoSrcEl.setAttribute('src', url);
+            try { matchVideoEl.load(); } catch (e) {}
+            setVideoStatus(`Vídeo: ${link.title || '—'} · kickoff ${Math.round((Number(link.kickoff_video_ms)||0)/1000)}s`);
+            try {
+              if (matchVideoOpenStudioBtn && analysisVideoStudioUrlTemplate) {
+                const base = String(analysisVideoStudioUrlTemplate || '').replace('/0/', `/${Number(link.video_id) || 0}/`);
+                const u = new URL(base, window.location.href);
+                if (currentMatchId) u.searchParams.set('collection', `Match ${currentMatchId}`);
+                matchVideoOpenStudioBtn.setAttribute('href', u.toString());
+              }
+            } catch (e) { /* ignore */ }
+          };
+
+          matchVideoEl.addEventListener('loadedmetadata', () => {
+            if (lastSeek != null) {
+              try { matchVideoEl.currentTime = Math.max(0, Number(lastSeek) || 0); } catch (e) {}
+              lastSeek = null;
+            }
+          });
+
+          matchVideoAngleSelect.addEventListener('change', async () => {
+            const id = Number(matchVideoAngleSelect.value) || 0;
+            const link = links.find((l) => Number(l.id) === id) || null;
+            if (!link) return;
+            await setSource(link, { keepTime: true });
+          });
+
+          const refreshLinks = async () => {
+            if (!matchVideoLinksApiUrl) return;
+            matchVideoAngleSelect.innerHTML = '<option value="">Cargando…</option>';
+            try {
+              const resp = await fetch(matchVideoLinksApiUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok || !data?.ok) {
+                setVideoStatus(data?.error || 'No se pudo cargar vídeos vinculados.');
+                links = [];
+                activeLink = null;
+                renderAngles();
+                return;
+              }
+              links = Array.isArray(data.links) ? data.links : [];
+              activeLink = links.find((l) => !!l.is_active) || links[0] || null;
+              renderAngles();
+              if (activeLink) {
+                await setSource(activeLink, { keepTime: false });
+              } else {
+                setVideoStatus('No hay vídeo vinculado. Abre el editor del partido y añade “Vincular vídeo”.');
+              }
+            } catch (e) {
+              setVideoStatus('Error cargando vídeos.');
+            }
+          };
+
+          const readLastVideoTimeMs = () => {
+            if (!lastVideoKey) return 0;
+            try {
+              const raw = window.localStorage.getItem(lastVideoKey) || '';
+              const obj = JSON.parse(raw);
+              const t = Number(obj?.time_ms) || 0;
+              return t > 0 ? t : 0;
+            } catch (e) {
+              return 0;
+            }
+          };
+
+          const replayLast = async () => {
+            const timeMs = readLastVideoTimeMs();
+            if (!timeMs || !activeLink) {
+              showPageStatus('No hay “último momento” todavía. Registra una acción con vídeo vinculado.', 'warning', 4200);
+              return;
+            }
+            // Asegura que el vídeo activo corresponde al link seleccionado.
+            if (matchVideoAngleSelect.value && String(activeLink.id) !== String(matchVideoAngleSelect.value)) {
+              const id = Number(matchVideoAngleSelect.value) || 0;
+              const link = links.find((l) => Number(l.id) === id) || null;
+              if (link) await setSource(link, { keepTime: false });
+            }
+            const pre = Math.max(0, Number(activeLink.clip_pre_ms) || 0) / 1000.0;
+            const post = Math.max(0, Number(activeLink.clip_post_ms) || 0) / 1000.0;
+            const t = Math.max(0, (Number(timeMs) || 0) / 1000.0 - (pre || 6.0));
+            const stopAt = Math.max(t + 0.25, (Number(timeMs) || 0) / 1000.0 + (post || 6.0));
+            try { matchVideoEl.currentTime = t; } catch (e) {}
+            try { await matchVideoEl.play(); } catch (e) {}
+            // stop simple
+            const handler = () => {
+              try {
+                if ((Number(matchVideoEl.currentTime) || 0) >= stopAt - 0.03) {
+                  matchVideoEl.pause();
+                  matchVideoEl.removeEventListener('timeupdate', handler);
+                }
+              } catch (e) {}
+            };
+            matchVideoEl.addEventListener('timeupdate', handler);
+          };
+
+          const postMarker = async ({ makeClip = false } = {}) => {
+            if (!matchVideoMarkerApiUrl) return;
+            const minute = getCurrentMatchMinute();
+            const period = Number(liveController?.getCurrentHalf?.()) || 1;
+            const label = window.prompt('Etiqueta (opcional):', '') || '';
+            const fd = new FormData();
+            fd.set('minute', String(minute));
+            fd.set('period', String(period));
+            if (label) fd.set('label', String(label).slice(0, 160));
+            if (makeClip) fd.set('make_clip', '1');
+            try {
+              const resp = await fetch(matchVideoMarkerApiUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' }, body: fd });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok || !data?.ok) {
+                showPageStatus(data?.error || 'No se pudo marcar en vídeo.', 'warning', 4200);
+                return;
+              }
+              showPageStatus(makeClip ? 'Clip creado.' : 'Marca creada.', 'success', 2200);
+              if (data.clip_id) {
+                const url = analysisVideoClipUrlTemplate.replace('/0/', `/${Number(data.clip_id)}/`);
+                try { window.open(url, '_blank', 'noopener'); } catch (e) {}
+              }
+            } catch (e) {
+              showPageStatus('Error creando marca/clip.', 'warning', 4200);
+            }
+          };
+
+          matchVideoReplayBtn?.addEventListener('click', replayLast);
+          matchVideoMarkBtn?.addEventListener('click', () => postMarker({ makeClip: false }));
+          matchVideoClipBtn?.addEventListener('click', () => postMarker({ makeClip: true }));
+
+          // Si llega un evento de “acción registrada” con info de vídeo, abre botón de replay más útil.
+          document.addEventListener('webstats:match-actions:recorded', (ev) => {
+            const link = ev?.detail?.video_link;
+            if (!link || !matchVideoModal) return;
+            // si el modal está abierto, no molestamos; si está cerrado, dejamos que el usuario lo abra.
+          });
+        })();
 	      if (proEditLastBtn) {
 	        proEditLastBtn.addEventListener('click', () => {
 	          try { liveController?.editLastAction?.(); } catch (e) {}
