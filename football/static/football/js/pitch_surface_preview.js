@@ -10,11 +10,14 @@
     return node;
   };
 
-  // Preview: we keep classic grass only (no canvas texture generation).
+  // Preview: we keep SVG-only grass (no canvas texture generation).
   const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
     const preset = String(presetKey || 'full_pitch').trim();
     const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-    const grassStyle = safeText(grassStyleKey, 'classic') === 'realistic' ? 'realistic' : 'classic';
+    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
+    const grassStyle = (['classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+      ? normalizedGrass
+      : 'classic';
     const stageW = orientation === 'portrait' ? 680 : 1050;
     const stageH = orientation === 'portrait' ? 1050 : 680;
     const bleed = 30;
@@ -25,11 +28,55 @@
 
     const defs = createSvgNode(doc, 'defs');
     const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
-    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': '#5f8f42' }));
-    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': '#557f3c' }));
+    const gradientStopsByStyle = {
+      classic: ['#5f8f42', '#557f3c'],
+      broadcast: ['#155e3a', '#0f4d2f'],
+      realistic: ['#4f7f3a', '#3f6e35'],
+      pro: ['#2f6a3a', '#245934'],
+      artificial: ['#2fb46d', '#1f8d55'],
+      dry: ['#7b9a45', '#6b8a3a'],
+      wet: ['#1f5a46', '#163f35'],
+      uefa_b: ['#2f6a3a', '#245934'],
+      whiteboard: ['#f8fafc', '#e5e7eb'],
+      blackboard: ['#0b1220', '#030712'],
+    };
+    const [g0, g1] = gradientStopsByStyle[grassStyle] || gradientStopsByStyle.classic;
+    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': g0 }));
+    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': g1 }));
     defs.appendChild(gradient);
-    // In preview we don’t generate the realistic texture; keep classic gradient.
-    const grassFillId = grassStyle === 'realistic' ? 'pitch-bg' : 'pitch-bg';
+    let grassFillId = 'pitch-bg';
+    if (grassStyle === 'uefa_b') {
+      // Prefer dataURL injection if present; otherwise use same-origin static URL.
+      const tileHref = (() => {
+        try {
+          const v = safeText(window.__WEBSTATS_GRASS_TILES && window.__WEBSTATS_GRASS_TILES.uefa_b);
+          if (v && v.startsWith('data:image/')) return v;
+        } catch (e) {}
+        return '/static/football/images/surfaces/grass_uefa_b_tile.png';
+      })();
+      grassFillId = 'pitch-grass-uefa-b';
+      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 140, height: 140 });
+      const image = createSvgNode(doc, 'image', { href: tileHref, x: 0, y: 0, width: 140, height: 140, preserveAspectRatio: 'xMidYMid slice' });
+      pattern.appendChild(image);
+      defs.appendChild(pattern);
+    } else if (grassStyle === 'whiteboard') {
+      grassFillId = 'pitch-whiteboard';
+      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 80, height: 80 });
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 80, height: 80, fill: 'url(#pitch-bg)' }));
+      pattern.appendChild(createSvgNode(doc, 'path', { d: 'M 0 40 L 80 40 M 40 0 L 40 80', stroke: 'rgba(15,23,42,0.08)', 'stroke-width': 1 }));
+      defs.appendChild(pattern);
+    } else if (grassStyle === 'blackboard') {
+      grassFillId = 'pitch-blackboard';
+      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 120, height: 120 });
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 120, height: 120, fill: 'url(#pitch-bg)' }));
+      for (let i = 0; i < 70; i += 1) {
+        const x = (Math.random() * 120).toFixed(2);
+        const y = (Math.random() * 120).toFixed(2);
+        const r = (0.4 + Math.random() * 1.4).toFixed(2);
+        pattern.appendChild(createSvgNode(doc, 'circle', { cx: x, cy: y, r, fill: 'rgba(248,250,252,0.06)' }));
+      }
+      defs.appendChild(pattern);
+    }
     root.appendChild(defs);
 
     root.appendChild(
@@ -77,14 +124,23 @@
     const stage = createStage(orientation);
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-    const line = '#f8fafc';
-    const soft = 'rgba(248,250,252,0.66)';
+    const line = (grassStyle === 'whiteboard') ? '#0f172a' : '#f8fafc';
+    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : 'rgba(248,250,252,0.66)';
 
+    const stripeAlphaByStyle = {
+      classic: 0.05,
+      realistic: 0.05,
+      pro: 0.07,
+      artificial: 0.06,
+      dry: 0.04,
+      wet: 0.04,
+    };
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
       drawRoot.appendChild(
         createSvgNode(doc, 'rect', { x, y, width, height, fill: `url(#${grassFillId})`, stroke: line, 'stroke-width': lineWidth }),
       );
       const stripeW = width / 12;
+      const alpha = stripeAlphaByStyle[grassStyle] ?? 0.05;
       for (let index = 0; index < 12; index += 1) {
         drawRoot.appendChild(
           createSvgNode(doc, 'rect', {
@@ -92,7 +148,7 @@
             y,
             width: stripeW + 1,
             height,
-            fill: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+            fill: index % 2 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`,
             stroke: 'none',
           }),
         );
@@ -180,4 +236,3 @@
     buildPitchSvg,
   };
 })();
-

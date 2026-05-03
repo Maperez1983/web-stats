@@ -177,7 +177,7 @@ def render_task_preview_png(
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
     grass_style = str(pitch_grass_style or "classic").strip().lower()
-    if grass_style not in {"classic", "realistic"}:
+    if grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
         grass_style = "classic"
     try:
         zoom = float(pitch_zoom or 1.0)
@@ -204,6 +204,15 @@ def render_task_preview_png(
     # Inline local static/media images to avoid self-HTTP deadlocks on single-worker deploys.
     safe_state = json.loads(json.dumps(canvas_state, ensure_ascii=False))
     safe_state = _rewrite_urls_to_data_urls(safe_state)
+
+    grass_tiles = {}
+    if grass_style == "uefa_b":
+        try:
+            tile_path = Path(settings.BASE_DIR) / "football" / "static" / "football" / "images" / "surfaces" / "grass_uefa_b_tile.png"
+            if tile_path.exists():
+                grass_tiles["uefa_b"] = "data:image/png;base64," + base64.b64encode(tile_path.read_bytes()).decode("ascii")
+        except Exception:
+            grass_tiles = {}
 
     html = f"""<!doctype html>
 <html lang="es">
@@ -246,17 +255,20 @@ def render_task_preview_png(
     }}
   </style>
 </head>
-<body>
-  <div id="stage">
-    <div id="pitch"></div>
-    <canvas id="c"></canvas>
-  </div>
+	<body>
+	  <div id="stage">
+	    <div id="pitch"></div>
+	    <canvas id="c"></canvas>
+	  </div>
 
-  <script>
-	    window.__TPAD_RENDER__ = {json.dumps({
-	        "preset": preset,
-	        "orientation": orientation,
-	        "grass_style": grass_style,
+	  <script>
+	    window.__WEBSTATS_GRASS_TILES = {json.dumps(grass_tiles, ensure_ascii=False)};
+	  </script>
+	  <script>
+		    window.__TPAD_RENDER__ = {json.dumps({
+		        "preset": preset,
+		        "orientation": orientation,
+		        "grass_style": grass_style,
 	        "zoom": zoom,
 	        "world": {"w": world_width, "h": world_height},
 	        "state": safe_state,
@@ -315,7 +327,8 @@ def render_task_preview_png(
                 const cfg = window.__TPAD_RENDER__ || {};
 	                const preset = String(cfg.preset || 'full_pitch');
 	                const orientation = String(cfg.orientation || 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-	                const grassStyle = String(cfg.grass_style || 'classic') === 'realistic' ? 'realistic' : 'classic';
+		                const rawGrass = String(cfg.grass_style || 'classic').trim().toLowerCase();
+		                const grassStyle = ['classic', 'broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(rawGrass) ? rawGrass : 'classic';
 	                const zoom = Number(cfg.zoom || 1);
 	                const world = cfg.world || {};
 	                const state = cfg.state || {};

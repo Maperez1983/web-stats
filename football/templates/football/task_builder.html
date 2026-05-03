@@ -3605,10 +3605,21 @@
 	                      <span>Orientación</span>
 	                      <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
 	                    </button>
-	                    <button type="button" class="surface-trigger" id="pitch-grass-toggle">
-	                      <span>Césped</span>
-	                      <span class="current" id="pitch-grass-label">{% if initial.pitch_grass_style == 'realistic' %}Realista{% else %}Clásico{% endif %}</span>
-	                    </button>
+		                    <button type="button" class="surface-trigger" id="pitch-grass-toggle">
+		                      <span>Fondo</span>
+		                      <span class="current" id="pitch-grass-label">
+		                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
+		                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
+		                        {% elif initial.pitch_grass_style == 'pro' %}PRO
+		                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
+		                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
+		                        {% elif initial.pitch_grass_style == 'dry' %}Seco
+		                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
+		                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
+		                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
+		                        {% else %}Césped{% endif %}
+		                      </span>
+		                    </button>
 		                    <div class="pitch-zoom">
 		                      <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
 		                      <span class="zoom-readout" id="pitch-zoom-label">100%</span>
@@ -4299,10 +4310,22 @@
 				                          <input type="checkbox" id="task-overlay-passlines" />
 				                          Líneas de pase (auto)
 				                        </label>
-				                        <label class="pattern-check" style="grid-column:1 / -1;">
-				                          <input type="checkbox" id="task-overlay-superiorities" />
-				                          Superioridades (auto)
-				                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-superiorities" />
+					                          Superioridades (auto)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-halfspaces" />
+					                          Mostrar half-spaces (carriles 2 y 4)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-offside" />
+					                          Línea fuera de juego (F7 / referencia)
+					                        </label>
+					                        <label class="pattern-check" style="grid-column:1 / -1;">
+					                          <input type="checkbox" id="task-overlay-zone14" />
+					                          Marcar zona 14 (referencia)
+					                        </label>
 				                      </div>
 				                      <div class="pattern-actions">
 				                        <button type="button" class="primary" id="task-overlays-apply">Aplicar</button>
@@ -4335,6 +4358,7 @@
 		                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9h10v7H7V9Zm2 2v3h2v-3H9Zm4 0v3h2v-3h-2ZM6 8h12v10H6V8Z"/></svg>
 		                    Mini portería
 		                  </button>
+		                  <button type="button" data-add="goal_target" title="Portería con dianas (finalización)">Dianas</button>
 	                  <button type="button" data-add="cone">Cono</button>
 	                  <button type="button" data-add="cone_striped" title="Cono (a rayas)">Cono rayas</button>
 		                  <button type="button" data-add="pole_marker" title="Pica / poste de slalom">Pica</button>
@@ -4528,9 +4552,18 @@
 		                  <button type="button" data-add="line_wave">Ondulada</button>
 	                  <button type="button" data-add="arrow_solid">Flecha continua</button>
 	                  <button type="button" data-add="arrow_thick">Flecha gruesa</button>
-	                  <button type="button" data-add="arrow_dash">Flecha discontinua</button>
-	                  <button type="button" data-add="arrow_dot">Flecha puntos</button>
-	                  <button type="button" data-add="arrow_curve">Flecha curva</button>
+                  <button type="button" data-add="arrow_dash">Flecha discontinua</button>
+                  <button type="button" data-add="arrow_dot">Flecha puntos</button>
+                  <button type="button" data-add="arrow_curve">Flecha curva</button>
+                  <button type="button" data-add="line_pressure" title="Línea de presión (táctica)">Línea presión</button>
+                  <button type="button" data-add="line_defensive" title="Línea defensiva (táctica)">Línea defensiva</button>
+                  <button type="button" data-add="line_offside" title="Línea fuera de juego (táctica)">Fuera de juego</button>
+                  <button type="button" data-add="measure" title="Regla (mide distancias al ajustar)">Medir</button>
+                  <button type="button" data-add="marker_start" title="Marcador inicio">I</button>
+                  <button type="button" data-add="marker_pass" title="Marcador pase">P</button>
+                  <button type="button" data-add="marker_shot" title="Marcador tiro">T</button>
+                  <button type="button" data-add="marker_support" title="Marcador apoyo">A</button>
+                  <button type="button" data-add="marker_end" title="Marcador fin">F</button>
 	                </div>
                   <div data-inspector-slot="trazos"></div>
                 </div>

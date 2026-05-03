@@ -109,12 +109,24 @@
 		    cone_striped: 'un cono (rayas)',
 		    pole_marker: 'una pica',
 		    ring: 'un aro',
+		    ladder: 'una escalera',
+		    ladder_L: 'una escalera (L)',
+		    ladder_zigzag: 'una escalera (zigzag)',
+		    hurdle: 'una valla',
+		    mini_hurdle: 'una mini valla',
+		    tape: 'una cinta',
+		    gate: 'una puerta (conos)',
+		    mannequin: 'un maniquí',
+		    wall: 'un muro',
+		    rebounder: 'un rebounder',
+		    barrier: 'una barrera',
 		    zone: 'una zona',
 		    text: 'un texto',
 		    goal: 'una portería',
 		    goal_posts: 'una portería (marco)',
 		    goal_3d: 'una portería 3D',
 		    goal_mini: 'una mini portería',
+		    goal_target: 'una portería con dianas',
 		    token: 'un jugador',
 		    line: 'una línea',
 		    arrow: 'una flecha',
@@ -125,11 +137,20 @@
 	    line_double: 'una línea doble',
 	    line_curve: 'una curva',
 	    line_wave: 'una línea ondulada',
+	    line_pressure: 'una línea de presión',
+	    line_defensive: 'una línea defensiva',
+	    line_offside: 'una línea de fuera de juego',
 	    arrow_solid: 'una flecha continua',
 	    arrow_thick: 'una flecha gruesa',
 	    arrow_dash: 'una flecha discontinua',
 	    arrow_dot: 'una flecha de puntos',
 	    arrow_curve: 'una flecha curva',
+	    measure: 'una regla de medida',
+	    marker_start: 'un marcador (inicio)',
+	    marker_end: 'un marcador (fin)',
+	    marker_pass: 'un marcador (pase)',
+	    marker_shot: 'un marcador (tiro)',
+	    marker_support: 'un marcador (apoyo)',
 	    shape_circle: 'un círculo',
 	    shape_square: 'un cuadrado',
 	    shape_rect: 'un rectángulo',
@@ -185,69 +206,112 @@
     return `${raw.slice(0, 15).trim()}…`;
   };
 
-	  const __grassTextureCache = new Map();
-	  const __buildGrassTextureDataUrl = (styleKey) => {
-	    const style = safeText(styleKey, 'classic');
-	    if (style !== 'realistic') return '';
-	    if (__grassTextureCache.has(style)) return __grassTextureCache.get(style);
-	    try {
-	      const size = 256;
-	      const canvas = document.createElement('canvas');
-	      canvas.width = size;
-	      canvas.height = size;
-	      const ctx = canvas.getContext('2d');
-	      if (!ctx) return '';
-	      ctx.fillStyle = '#4f7f3a';
-	      ctx.fillRect(0, 0, size, size);
+		  const __grassTextureCache = new Map();
+		  const __buildGrassTextureDataUrl = (styleKey) => {
+		    const style = safeText(styleKey, 'classic').toLowerCase();
+		    const allowed = new Set(['realistic', 'pro', 'artificial', 'dry', 'wet', 'uefa_b', 'broadcast']);
+		    if (!allowed.has(style)) return '';
+		    if (__grassTextureCache.has(style)) return __grassTextureCache.get(style);
+		    try {
+		      if (style === 'uefa_b') {
+		        const fromWindow = (() => {
+		          try { return safeText(window.__WEBSTATS_GRASS_TILES && window.__WEBSTATS_GRASS_TILES.uefa_b); } catch (e) { return ''; }
+		        })();
+		        const dataUrl = fromWindow && fromWindow.startsWith('data:image/') ? fromWindow : '';
+		        // Fallback: static URL (ok en navegador normal; en server-render se inyecta dataURL).
+		        const href = dataUrl || '/static/football/images/surfaces/grass_uefa_b_tile.png';
+		        __grassTextureCache.set(style, href);
+		        return href;
+		      }
+		      const size = 256;
+		      const canvas = document.createElement('canvas');
+		      canvas.width = size;
+		      canvas.height = size;
+		      const ctx = canvas.getContext('2d');
+		      if (!ctx) return '';
+		      const baseByStyle = {
+		        realistic: '#4f7f3a',
+		        pro: '#2f6a3a',
+		        broadcast: '#155e3a',
+		        artificial: '#2fb46d',
+		        dry: '#6b8a3a',
+		        wet: '#1f5a46',
+		      };
+		      ctx.fillStyle = baseByStyle[style] || '#4f7f3a';
+		      ctx.fillRect(0, 0, size, size);
 
-	      // Base noise: tiny pixels.
-	      for (let i = 0; i < 9000; i += 1) {
-	        const x = (Math.random() * size) | 0;
-	        const y = (Math.random() * size) | 0;
-	        const g = 110 + ((Math.random() * 70) | 0);
-	        const a = 0.08 + (Math.random() * 0.12);
-	        ctx.fillStyle = `rgba(0, ${g}, 0, ${a})`;
-	        ctx.fillRect(x, y, 2, 2);
-	      }
+		      // Mowing stripes / bands (subtle, varies by style).
+		      try {
+		        const stripeCount = style === 'artificial' ? 10 : style === 'broadcast' ? 12 : 8;
+		        const stripeW = size / stripeCount;
+		        for (let i = 0; i < stripeCount; i += 1) {
+		          const alpha = style === 'broadcast' ? 0.10 : style === 'pro' ? 0.08 : style === 'wet' ? 0.06 : style === 'dry' ? 0.04 : 0.05;
+		          ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`;
+		          ctx.fillRect(i * stripeW, 0, stripeW + 1, size);
+		        }
+		      } catch (e) { /* ignore */ }
 
-	      // Subtle blades / streaks.
-	      ctx.globalAlpha = 0.12;
-	      for (let i = 0; i < 220; i += 1) {
-	        const x = Math.random() * size;
-	        const y = Math.random() * size;
-	        const len = 12 + Math.random() * 44;
-	        const angle = (-Math.PI / 3) + (Math.random() * (Math.PI / 5));
-	        const x2 = x + Math.cos(angle) * len;
-	        const y2 = y + Math.sin(angle) * len;
-	        ctx.lineWidth = 1 + Math.random() * 2;
-	        const c = 120 + ((Math.random() * 60) | 0);
-	        ctx.strokeStyle = `rgb(${30}, ${c}, ${30})`;
-	        ctx.beginPath();
-	        ctx.moveTo(x, y);
-	        ctx.lineTo(x2, y2);
-	        ctx.stroke();
-	      }
-	      ctx.globalAlpha = 1;
+		      // Base noise: tiny pixels.
+		      for (let i = 0; i < 9000; i += 1) {
+		        const x = (Math.random() * size) | 0;
+		        const y = (Math.random() * size) | 0;
+		        const noiseMax = style === 'artificial' ? 18 : 70;
+		        const g = (style === 'dry')
+		          ? (90 + ((Math.random() * 45) | 0))
+		          : (110 + ((Math.random() * noiseMax) | 0));
+		        const aBase = style === 'artificial' ? 0.04 : 0.08;
+		        const a = aBase + (Math.random() * 0.12);
+		        ctx.fillStyle = style === 'wet'
+		          ? `rgba(10, ${Math.max(70, g)}, 30, ${a})`
+		          : `rgba(0, ${g}, 0, ${a})`;
+		        ctx.fillRect(x, y, 2, 2);
+		      }
 
-	      // Soft vignette (makes it feel less flat when scaled).
-	      const grad = ctx.createRadialGradient(size / 2, size / 2, size / 4, size / 2, size / 2, size * 0.9);
-	      grad.addColorStop(0, 'rgba(255,255,255,0)');
-	      grad.addColorStop(1, 'rgba(0,0,0,0.18)');
-	      ctx.fillStyle = grad;
-	      ctx.fillRect(0, 0, size, size);
+		      // Subtle blades / streaks.
+		      ctx.globalAlpha = style === 'pro' ? 0.14 : style === 'artificial' ? 0.08 : 0.12;
+		      const streaks = style === 'artificial' ? 140 : 220;
+		      for (let i = 0; i < streaks; i += 1) {
+		        const x = Math.random() * size;
+		        const y = Math.random() * size;
+		        const len = 12 + Math.random() * 44;
+		        const angleSpan = style === 'artificial' ? (Math.PI / 8) : (Math.PI / 5);
+		        const angle = (-Math.PI / 3) + (Math.random() * angleSpan);
+		        const x2 = x + Math.cos(angle) * len;
+		        const y2 = y + Math.sin(angle) * len;
+		        ctx.lineWidth = 1 + Math.random() * (style === 'pro' ? 2.4 : 2);
+		        const c = (style === 'dry')
+		          ? (120 + ((Math.random() * 40) | 0))
+		          : (120 + ((Math.random() * 60) | 0));
+		        ctx.strokeStyle = style === 'wet' ? `rgb(${20}, ${c}, ${40})` : `rgb(${30}, ${c}, ${30})`;
+		        ctx.beginPath();
+		        ctx.moveTo(x, y);
+		        ctx.lineTo(x2, y2);
+		        ctx.stroke();
+		      }
+		      ctx.globalAlpha = 1;
 
-	      const dataUrl = canvas.toDataURL('image/png');
-	      __grassTextureCache.set(style, dataUrl);
-	      return dataUrl;
-	    } catch (error) {
-	      return '';
-	    }
-	  };
+		      // Soft vignette (makes it feel less flat when scaled).
+		      const grad = ctx.createRadialGradient(size / 2, size / 2, size / 4, size / 2, size / 2, size * 0.9);
+		      grad.addColorStop(0, 'rgba(255,255,255,0)');
+		      grad.addColorStop(1, style === 'wet' ? 'rgba(0,0,0,0.26)' : 'rgba(0,0,0,0.18)');
+		      ctx.fillStyle = grad;
+		      ctx.fillRect(0, 0, size, size);
 
-		  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
-		    const preset = String(presetKey || 'full_pitch').trim();
-		    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-		    const grassStyle = safeText(grassStyleKey, 'classic') === 'realistic' ? 'realistic' : 'classic';
+		      const dataUrl = canvas.toDataURL('image/png');
+		      __grassTextureCache.set(style, dataUrl);
+		      return dataUrl;
+		    } catch (error) {
+		      return '';
+		    }
+		  };
+
+			  const buildPitchSvg = (presetKey, orientationKey = 'landscape', grassStyleKey = 'classic') => {
+			    const preset = String(presetKey || 'full_pitch').trim();
+			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
+			    const grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			      ? normalizedGrass
+			      : 'classic';
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
 		    // del borde no se recorte incluso con overflow hidden.
 		    const stageW = orientation === 'portrait' ? 680 : 1050;
@@ -270,17 +334,48 @@
     // priorizar llenar el viewport y minimizar esos márgenes.
     root.setAttribute('preserveAspectRatio', orientation === 'portrait' ? 'xMidYMid slice' : 'xMidYMid meet');
 
-	    const defs = createSvgNode(doc, 'defs');
-	    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
-	    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': '#5f8f42' }));
-	    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': '#557f3c' }));
-	    defs.appendChild(gradient);
+		    const defs = createSvgNode(doc, 'defs');
+		    const gradient = createSvgNode(doc, 'linearGradient', { id: 'pitch-bg', x1: '0%', y1: '0%', x2: '0%', y2: '100%' });
+		    const gradientStopsByStyle = {
+		      classic: ['#5f8f42', '#557f3c'],
+		      realistic: ['#4f7f3a', '#3f6e35'],
+		      pro: ['#2f6a3a', '#245934'],
+		      broadcast: ['#155e3a', '#0f4d2f'],
+		      artificial: ['#2fb46d', '#1f8d55'],
+		      dry: ['#7b9a45', '#6b8a3a'],
+		      wet: ['#1f5a46', '#163f35'],
+		      whiteboard: ['#f8fafc', '#e5e7eb'],
+		      blackboard: ['#0b1220', '#030712'],
+		      uefa_b: ['#2f6a3a', '#245934'],
+		    };
+		    const stops = gradientStopsByStyle[grassStyle] || gradientStopsByStyle.classic;
+		    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '0%', 'stop-color': stops[0] }));
+		    gradient.appendChild(createSvgNode(doc, 'stop', { offset: '100%', 'stop-color': stops[1] }));
+		    defs.appendChild(gradient);
 
-	    let grassFillId = 'pitch-bg';
-	    if (grassStyle === 'realistic') {
-	      const dataUrl = __buildGrassTextureDataUrl('realistic');
-	      if (dataUrl) {
-	        grassFillId = 'pitch-grass-img';
+		    let grassFillId = 'pitch-bg';
+		    if (grassStyle === 'blackboard') {
+		      grassFillId = 'pitch-blackboard';
+		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 120, height: 120 });
+		      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 120, height: 120, fill: 'url(#pitch-bg)' }));
+		      // Chalk speckles.
+		      for (let i = 0; i < 90; i += 1) {
+		        const x = (Math.random() * 120).toFixed(2);
+		        const y = (Math.random() * 120).toFixed(2);
+		        const r = (0.4 + Math.random() * 1.4).toFixed(2);
+		        pattern.appendChild(createSvgNode(doc, 'circle', { cx: x, cy: y, r, fill: 'rgba(248,250,252,0.06)' }));
+		      }
+		      defs.appendChild(pattern);
+		    } else if (grassStyle === 'whiteboard') {
+		      grassFillId = 'pitch-whiteboard';
+		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 80, height: 80 });
+		      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 80, height: 80, fill: 'url(#pitch-bg)' }));
+		      pattern.appendChild(createSvgNode(doc, 'path', { d: 'M 0 40 L 80 40 M 40 0 L 40 80', stroke: 'rgba(15,23,42,0.08)', 'stroke-width': 1 }));
+		      defs.appendChild(pattern);
+		    } else if (grassStyle !== 'classic') {
+		      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
+		      if (dataUrl) {
+		        grassFillId = 'pitch-grass-img';
 	        const pattern = createSvgNode(doc, 'pattern', {
 	          id: grassFillId,
 	          patternUnits: 'userSpaceOnUse',
@@ -363,8 +458,8 @@
     // y evitar márgenes vacíos enormes en superficies parciales (tercios, medio campo, futsal, etc).
     let pitchBox = { x: stage.x, y: stage.y, width: stage.width, height: stage.height };
     const scale = stage.width / 105;
-    const line = '#f8fafc';
-    const soft = 'rgba(248,250,252,0.66)';
+	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : '#f8fafc';
+	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : 'rgba(248,250,252,0.66)';
 
     const drawFrame = (x, y, width, height, lineWidth = 4) => {
       drawRoot.appendChild(createSvgNode(doc, 'rect', {
@@ -1277,6 +1372,9 @@
 				    const overlaySectorsInput = document.getElementById('task-overlay-sectors');
 				    const overlayPassLinesInput = document.getElementById('task-overlay-passlines');
 				    const overlaySuperioritiesInput = document.getElementById('task-overlay-superiorities');
+				    const overlayHalfspacesInput = document.getElementById('task-overlay-halfspaces');
+				    const overlayOffsideInput = document.getElementById('task-overlay-offside');
+				    const overlayZone14Input = document.getElementById('task-overlay-zone14');
 				    const overlaysApplyBtn = document.getElementById('task-overlays-apply');
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
@@ -2139,6 +2237,9 @@
 		    let tacticalSectorsVisible = !!initialTacticalPrefs.sectors;
 		    let tacticalPassLinesVisible = !!initialTacticalPrefs.pass_lines;
 		    let tacticalSuperioritiesVisible = !!initialTacticalPrefs.superiorities;
+		    let tacticalHalfspacesVisible = !!initialTacticalPrefs.halfspaces;
+		    let tacticalOffsideVisible = !!initialTacticalPrefs.offside;
+		    let tacticalZone14Visible = !!initialTacticalPrefs.zone14;
 
 		    let tacticalOverlayObjects = [];
 		    let tacticalOverlayFrame = null;
@@ -2150,6 +2251,9 @@
 		      if (overlaySectorsInput) overlaySectorsInput.checked = !!tacticalSectorsVisible;
 		      if (overlayPassLinesInput) overlayPassLinesInput.checked = !!tacticalPassLinesVisible;
 		      if (overlaySuperioritiesInput) overlaySuperioritiesInput.checked = !!tacticalSuperioritiesVisible;
+		      if (overlayHalfspacesInput) overlayHalfspacesInput.checked = !!tacticalHalfspacesVisible;
+		      if (overlayOffsideInput) overlayOffsideInput.checked = !!tacticalOffsideVisible;
+		      if (overlayZone14Input) overlayZone14Input.checked = !!tacticalZone14Visible;
 		    };
 		    const persistTacticalPrefs = () => {
 		      writeTacticalPrefs({
@@ -2158,6 +2262,9 @@
 		        sectors: !!tacticalSectorsVisible,
 		        pass_lines: !!tacticalPassLinesVisible,
 		        superiorities: !!tacticalSuperioritiesVisible,
+		        halfspaces: !!tacticalHalfspacesVisible,
+		        offside: !!tacticalOffsideVisible,
+		        zone14: !!tacticalZone14Visible,
 		      });
 		    };
 		    // Sincroniza el UI inicial con las prefs persistidas.
@@ -2191,6 +2298,44 @@
 		      try { line.strokeUniform = true; } catch (e) { /* ignore */ }
 		      return line;
 		    };
+		    const makeOverlayRect = (x, y, width, height, opts = {}) => {
+		      const rect = new fabric.Rect({
+		        left: x,
+		        top: y,
+		        originX: 'left',
+		        originY: 'top',
+		        width,
+		        height,
+		        fill: opts.fill || 'rgba(148,163,184,0.08)',
+		        stroke: opts.stroke || '',
+		        strokeWidth: opts.strokeWidth || 0,
+		        strokeDashArray: opts.dash || undefined,
+		        selectable: false,
+		        evented: false,
+		        excludeFromExport: true,
+		        opacity: Number.isFinite(Number(opts.opacity)) ? Number(opts.opacity) : 1,
+		      });
+		      rect.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
+		      try { rect.objectCaching = false; } catch (e) { /* ignore */ }
+		      return rect;
+		    };
+		    const makeOverlayLabel = (x, y, text, opts = {}) => {
+		      const label = new fabric.Text(safeText(text), {
+		        left: x,
+		        top: y,
+		        originX: opts.originX || 'center',
+		        originY: opts.originY || 'center',
+		        fontSize: Number(opts.fontSize) || 12,
+		        fontWeight: opts.fontWeight || '900',
+		        fill: opts.fill || 'rgba(226,232,240,0.92)',
+		        selectable: false,
+		        evented: false,
+		        excludeFromExport: true,
+		      });
+		      label.data = { base: true, kind: 'tactical-overlay', overlay: safeText(opts.overlay || '') };
+		      try { label.objectCaching = false; } catch (e) { /* ignore */ }
+		      return label;
+		    };
 
 		    const collectTokensOnCanvas = () => {
 		      const objects = canvas.getObjects?.() || [];
@@ -2222,6 +2367,70 @@
 		          overlays.push(makeOverlayLine([x, 0, x, h], { overlay: 'sectors', dash: [10, 10], opacity: 0.75 }));
 		        }
 		      }
+		      return overlays;
+		    };
+		    const buildHalfspacesOverlays = () => {
+		      if (!tacticalHalfspacesVisible) return [];
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      const laneH = h / 5;
+		      const fill = 'rgba(99,102,241,0.09)';
+		      const stroke = 'rgba(99,102,241,0.32)';
+		      overlays.push(makeOverlayRect(0, laneH, w, laneH, { overlay: 'halfspaces', fill, stroke, strokeWidth: 2, dash: [10, 8], opacity: 0.95 }));
+		      overlays.push(makeOverlayRect(0, laneH * 3, w, laneH, { overlay: 'halfspaces', fill, stroke, strokeWidth: 2, dash: [10, 8], opacity: 0.95 }));
+		      return overlays;
+		    };
+		    const buildOffsideOverlays = () => {
+		      if (!tacticalOffsideVisible) return [];
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      // Referencia por defecto: fuera de juego a 13m en fútbol 7. En campo completo es solo una guía.
+		      const metersW = 105;
+		      const sx = w / metersW;
+		      const offsideMeters = 13;
+		      const dx = offsideMeters * sx;
+		      if (dx > 0 && dx < (w / 2)) {
+		        overlays.push(makeOverlayLine([dx, 0, dx, h], { overlay: 'offside', dash: [10, 8], opacity: 0.92, stroke: 'rgba(250,204,21,0.70)', strokeWidth: 3 }));
+		        overlays.push(makeOverlayLine([w - dx, 0, w - dx, h], { overlay: 'offside', dash: [10, 8], opacity: 0.92, stroke: 'rgba(250,204,21,0.70)', strokeWidth: 3 }));
+		        overlays.push(makeOverlayLabel(dx, 18, 'FJ', { overlay: 'offside-label', fontSize: 12, fill: 'rgba(250,204,21,0.92)', originX: 'center', originY: 'top' }));
+		        overlays.push(makeOverlayLabel(w - dx, 18, 'FJ', { overlay: 'offside-label', fontSize: 12, fill: 'rgba(250,204,21,0.92)', originX: 'center', originY: 'top' }));
+		      }
+		      return overlays;
+		    };
+		    const buildZone14Overlays = () => {
+		      if (!tacticalZone14Visible) return [];
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      const sx = w / 105;
+		      const sy = h / 68;
+		      const penaltyDepth = 16.5 * sx;
+		      const zoneLen = 10 * sx;
+		      const zoneWidth = 20 * sy;
+		      const y = (h / 2) - (zoneWidth / 2);
+		      const fill = 'rgba(245,158,11,0.10)';
+		      const stroke = 'rgba(245,158,11,0.60)';
+		      const addZone = (x) => {
+		        const rect = makeOverlayRect(x, y, zoneLen, zoneWidth, { overlay: 'zone14', fill, stroke, strokeWidth: 2, dash: [10, 8], opacity: 0.98 });
+		        const label = makeOverlayLabel(x + (zoneLen / 2), y + 6, 'Z14', { overlay: 'zone14-label', fontSize: 12, fill: 'rgba(245,158,11,0.92)', originY: 'top' });
+		        const group = new fabric.Group([rect, label], {
+		          left: 0,
+		          top: 0,
+		          originX: 'left',
+		          originY: 'top',
+		          selectable: false,
+		          evented: false,
+		          excludeFromExport: true,
+		        });
+		        group.data = { base: true, kind: 'tactical-overlay', overlay: 'zone14-group' };
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        overlays.push(group);
+		      };
+		      // Zona 14 en ambos lados (guía). Si el preset es tercio/medio campo, seguirá siendo una referencia.
+		      addZone(Math.max(0, penaltyDepth));
+		      addZone(Math.max(0, w - penaltyDepth - zoneLen));
 		      return overlays;
 		    };
 
@@ -2333,12 +2542,15 @@
 
 		    const renderTacticalOverlays = () => {
 		      clearTacticalOverlays();
-		      if (!(tacticalLanesVisible || tacticalSectorsVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible)) {
+		      if (!(tacticalLanesVisible || tacticalSectorsVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) {
 		        canvas.requestRenderAll();
 		        return;
 		      }
 		      const overlays = [
 		        ...buildLaneSectorOverlays(),
+		        ...buildHalfspacesOverlays(),
+		        ...buildOffsideOverlays(),
+		        ...buildZone14Overlays(),
 		        ...buildPassingLinesOverlays(),
 		        ...buildSuperioritiesOverlays(),
 		      ];
@@ -2355,7 +2567,7 @@
 		        tacticalOverlayObjects.forEach((obj) => {
 		          if (!obj) return;
 		          const overlay = safeText(obj?.data?.overlay);
-		          if (overlay === 'lanes' || overlay === 'sectors') {
+		          if (overlay === 'lanes' || overlay === 'sectors' || overlay === 'halfspaces' || overlay === 'offside' || overlay === 'zone14' || overlay === 'zone14-group' || overlay === 'offside-label' || overlay === 'zone14-label') {
 		            try { canvas.sendToBack(obj); } catch (e) { /* ignore */ }
 		          }
 		        });
@@ -2364,7 +2576,7 @@
 		    };
 
 		    const scheduleTacticalOverlayRefresh = () => {
-		      if (!(tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalLanesVisible || tacticalSectorsVisible)) return;
+		      if (!(tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalLanesVisible || tacticalSectorsVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) return;
 		      tacticalOverlayDirty = true;
 		      if (tacticalOverlayFrame) return;
 		      tacticalOverlayFrame = window.requestAnimationFrame(() => {
@@ -2456,16 +2668,25 @@
  	    let playbackTimer = null;
  	    let playbackRestoreState = null;
  			    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
-			    const GRASS_STYLE_LABEL = {
-			      classic: 'Clásico',
-			      realistic: 'Realista',
-			    };
-			    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
-			    if (!['classic', 'realistic'].includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
-			    const syncGrassUi = () => {
-			      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
-			      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
-			    };
+				    const GRASS_STYLE_LABEL = {
+				      classic: 'Césped',
+				      broadcast: 'Broadcast',
+				      realistic: 'Realista',
+				      pro: 'PRO',
+				      uefa_b: 'UEFA B',
+				      artificial: 'Artificial',
+				      dry: 'Seco',
+				      wet: 'Mojado',
+				      whiteboard: 'Blanca',
+				      blackboard: 'Negra',
+				    };
+				    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet', 'whiteboard', 'blackboard'];
+				    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
+				    if (!GRASS_STYLE_ORDER.includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
+				    const syncGrassUi = () => {
+				      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
+				      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
+				    };
 			    syncGrassUi();
 				    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
 				    let zoomTouched = false;
@@ -4600,6 +4821,9 @@
 		      tacticalSectorsVisible = !!overlaySectorsInput?.checked;
 		      tacticalPassLinesVisible = !!overlayPassLinesInput?.checked;
 		      tacticalSuperioritiesVisible = !!overlaySuperioritiesInput?.checked;
+		      tacticalHalfspacesVisible = !!overlayHalfspacesInput?.checked;
+		      tacticalOffsideVisible = !!overlayOffsideInput?.checked;
+		      tacticalZone14Visible = !!overlayZone14Input?.checked;
 		      persistTacticalPrefs();
 		      syncTacticalOverlaysUi();
 		      closeOverlaysPopover();
@@ -4607,10 +4831,10 @@
 		      setStatus('Overlays actualizados.');
 		    });
 		    const OVERLAY_PRESETS = {
-		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false },
-		      grid: { snap: true, lanes: true, sectors: true, passlines: false, superiorities: false },
-		      analysis: { snap: false, lanes: false, sectors: false, passlines: true, superiorities: true },
-		      full: { snap: true, lanes: true, sectors: true, passlines: true, superiorities: true },
+		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false, halfspaces: false, offside: false, zone14: false },
+		      grid: { snap: true, lanes: true, sectors: true, passlines: false, superiorities: false, halfspaces: true, offside: false, zone14: false },
+		      analysis: { snap: false, lanes: false, sectors: false, passlines: true, superiorities: true, halfspaces: false, offside: false, zone14: true },
+		      full: { snap: true, lanes: true, sectors: true, passlines: true, superiorities: true, halfspaces: true, offside: false, zone14: true },
 		    };
 		    overlaysPresetSelect?.addEventListener('change', () => {
 		      const key = safeText(overlaysPresetSelect.value, 'custom');
@@ -4622,6 +4846,9 @@
 		      if (overlaySectorsInput) overlaySectorsInput.checked = !!preset.sectors;
 		      if (overlayPassLinesInput) overlayPassLinesInput.checked = !!preset.passlines;
 		      if (overlaySuperioritiesInput) overlaySuperioritiesInput.checked = !!preset.superiorities;
+		      if (overlayHalfspacesInput) overlayHalfspacesInput.checked = !!preset.halfspaces;
+		      if (overlayOffsideInput) overlayOffsideInput.checked = !!preset.offside;
+		      if (overlayZone14Input) overlayZone14Input.checked = !!preset.zone14;
 		      try { overlaysApplyBtn?.click?.(); } catch (e) { /* ignore */ }
 		      setStatus('Preset aplicado.');
 		    });
@@ -17930,13 +18157,15 @@
 	    orientationToggle?.addEventListener('click', () => {
 	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
 	    });
-	    grassToggle?.addEventListener('click', () => {
-	      pitchGrassStyle = pitchGrassStyle === 'realistic' ? 'classic' : 'realistic';
-	      syncGrassUi();
-	      try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
-	      refreshLivePreview();
-	      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
-	    });
+		    grassToggle?.addEventListener('click', () => {
+		      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
+		      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
+		      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
+		      syncGrassUi();
+		      try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+		      refreshLivePreview();
+		      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+		    });
 		    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
 		    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
 		    zoomResetButton?.addEventListener('click', () => {
