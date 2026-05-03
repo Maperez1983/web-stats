@@ -145,6 +145,7 @@ from football.models import (
     VideoAiInsight,
     VideoExportAsset,
     VideoInboxItem,
+    VideoInboxComment,
     ChunkedRivalVideoUpload,
     RivalAnalysisReport,
     AnalystMatchReport,
@@ -16199,9 +16200,9 @@ def _guess_video_timeline_kind(action_type: str, result: str, observation: str) 
     return VideoTimelineEvent.KIND_TAG
 
 
-def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, action_type: str, result: str, zone: str, observation: str):
+def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, action_type: str, result: str, zone: str, observation: str) -> dict:
     if not primary_team or not match or not event:
-        return
+        return {}
     links = list(
         MatchVideoLink.objects
         .filter(team=primary_team, match=match, is_active=True)
@@ -16209,10 +16210,10 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
         .order_by('-updated_at', '-id')[:3]
     )
     if not links:
-        return
+        return {}
     link = next((l for l in links if getattr(l, 'auto_markers', False) or getattr(l, 'auto_clips', False)), None)
     if not link or not getattr(link, 'video', None):
-        return
+        return {}
 
     minute = getattr(event, 'minute', None)
     period = getattr(event, 'period', None)
@@ -16244,8 +16245,10 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
     except Exception:
         created_by = ''
 
+    out = {'video_id': int(getattr(link, 'video_id', 0) or 0), 'time_ms': int(time_ms)}
+
     if getattr(link, 'auto_markers', False):
-        VideoTimelineEvent.objects.create(
+        marker = VideoTimelineEvent.objects.create(
             team=primary_team,
             video=link.video,
             time_ms=time_ms,
@@ -16260,13 +16263,14 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
             },
             created_by=created_by,
         )
+        out['marker_id'] = int(marker.id)
 
     if getattr(link, 'auto_clips', False):
         pre_ms = int(getattr(link, 'clip_pre_ms', 0) or 0)
         post_ms = int(getattr(link, 'clip_post_ms', 0) or 0)
         in_ms = max(0, time_ms - max(0, pre_ms))
         out_ms = max(in_ms + 250, time_ms + max(0, post_ms))
-        VideoClip.objects.create(
+        clip = VideoClip.objects.create(
             team=primary_team,
             video=link.video,
             title=label[:180],
@@ -16277,6 +16281,8 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
             notes=str(observation or '').strip()[:800],
             created_by=created_by,
         )
+        out['clip_id'] = int(clip.id)
+    return out
 
 
 @authenticated_write
@@ -16373,12 +16379,17 @@ def register_match_action(request):
         raw_data={'client_event_uid': client_event_uid} if client_event_uid else {},
     )
     try:
-        _maybe_create_video_marker_for_match_action(primary_team, match=match, event=event, action_type=action_type, result=result, zone=zone, observation=observation)
+        video_link = _maybe_create_video_marker_for_match_action(primary_team, match=match, event=event, action_type=action_type, result=result, zone=zone, observation=observation)
     except Exception:
         # No bloquear el registro en vivo por fallos del módulo vídeo.
-        pass
+        video_link = {}
     _invalidate_team_dashboard_caches(primary_team)
-    return JsonResponse(_serialize_match_event(event, duplicate=False))
+    payload = _serialize_match_event(event, duplicate=False)
+    if isinstance(video_link, dict) and video_link:
+        payload['video_link'] = video_link
+        if video_link.get('clip_id'):
+            payload['video_clip_id'] = int(video_link['clip_id'])
+    return JsonResponse(payload)
 
 
 @authenticated_write
@@ -36116,6 +36127,9 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
     item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
     if not item or item.kind != VideoInboxItem.KIND_PLAYLIST:
         raise Http404('Elemento no disponible')
+    thread_key = str(getattr(item, 'thread_key', '') or '').strip()[:40]
+    if not thread_key:
+        thread_key = f'item-{int(item.id)}'
     payload = item.payload if isinstance(item.payload, dict) else {}
     video_id = _parse_int(payload.get('video_id'))
     clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
@@ -36150,6 +36164,9 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
             'team': primary_team,
             'video': video,
             'clips': items,
+            'inbox_item': item,
+            'thread_key': thread_key,
+            'comments_api_url': reverse('analysis-video-inbox-comments-api'),
         },
     )
 
@@ -36368,6 +36385,9 @@ def analysis_video_inbox_send_api(request):
     if not clean_user_ids:
         return JsonResponse({'ok': False, 'error': 'user_ids requerido.'}, status=400)
     message = _sanitize_task_text(str(data.get('message') or '').strip(), multiline=True, max_len=2000)
+    thread_key = _sanitize_task_text(str(data.get('thread_key') or '').strip(), multiline=False, max_len=40)
+    if not thread_key:
+        thread_key = uuid.uuid4().hex[:20]
 
     payload = {}
     title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
@@ -36443,12 +36463,134 @@ def analysis_video_inbox_send_api(request):
                 title=title,
                 message=message,
                 payload=payload,
+                thread_key=thread_key,
                 is_read=False,
             )
             created += 1
         except Exception:
             continue
-    return JsonResponse({'ok': True, 'created': int(created)})
+    return JsonResponse({'ok': True, 'created': int(created), 'thread_key': thread_key})
+
+
+@csrf_exempt
+@login_required
+def analysis_video_inbox_comments_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    def _thread_for_item(item_id):
+        item = VideoInboxItem.objects.filter(
+            id=int(item_id),
+            workspace=active_ws,
+            team=primary_team,
+            target_user=request.user,
+        ).first()
+        if not item:
+            return '', None
+        thread = str(getattr(item, 'thread_key', '') or '').strip()
+        if not thread:
+            # Compatibilidad: items antiguos sin thread_key.
+            thread = f'item-{int(item.id)}'
+        return thread[:40], item
+
+    def _can_access_thread(thread_key: str) -> bool:
+        if not thread_key:
+            return False
+        try:
+            return VideoInboxItem.objects.filter(
+                workspace=active_ws,
+                team=primary_team,
+                target_user=request.user,
+                thread_key=str(thread_key),
+            ).exists()
+        except Exception:
+            return False
+
+    if request.method == 'GET':
+        item_id = _parse_int(request.GET.get('item_id'))
+        thread_key = str(request.GET.get('thread_key') or '').strip()[:40]
+        if item_id:
+            thread_key, item = _thread_for_item(int(item_id))
+            if not item:
+                return JsonResponse({'ok': False, 'error': 'Elemento no disponible.'}, status=404)
+        else:
+            if not _can_access_thread(thread_key):
+                return JsonResponse({'ok': False, 'error': 'Thread no disponible.'}, status=404)
+        comments = list(
+            VideoInboxComment.objects
+            .select_related('created_by_user')
+            .filter(workspace=active_ws, team=primary_team, thread_key=thread_key)
+            .order_by('created_at', 'id')[:250]
+        )
+        items = []
+        for c in comments:
+            user = getattr(c, 'created_by_user', None)
+            label = (f'{user.first_name} {user.last_name}').strip() if user else ''
+            label = label or (user.get_username() if user else 'Staff')
+            items.append(
+                {
+                    'id': int(c.id),
+                    'user': label,
+                    'user_id': int(user.id) if user else None,
+                    'message': str(c.message or '').strip(),
+                    'created_at': c.created_at.isoformat() if getattr(c, 'created_at', None) else '',
+                }
+            )
+        return JsonResponse({'ok': True, 'thread_key': thread_key, 'items': items})
+
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no soportado.'}, status=405)
+
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    item_id = _parse_int(data.get('item_id'))
+    thread_key = str(data.get('thread_key') or '').strip()[:40]
+    if item_id:
+        thread_key, item = _thread_for_item(int(item_id))
+        if not item:
+            return JsonResponse({'ok': False, 'error': 'Elemento no disponible.'}, status=404)
+    else:
+        if not _can_access_thread(thread_key):
+            return JsonResponse({'ok': False, 'error': 'Thread no disponible.'}, status=404)
+    message = _sanitize_task_text(str(data.get('message') or '').strip(), multiline=True, max_len=1600)
+    if not message:
+        return JsonResponse({'ok': False, 'error': 'message requerido.'}, status=400)
+    try:
+        comment = VideoInboxComment.objects.create(
+            workspace=active_ws,
+            team=primary_team,
+            thread_key=thread_key,
+            created_by_user=request.user,
+            message=message,
+        )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar el comentario.'}, status=500)
+    user_label = (f'{request.user.first_name} {request.user.last_name}').strip() or request.user.get_username()
+    return JsonResponse(
+        {
+            'ok': True,
+            'thread_key': thread_key,
+            'comment': {
+                'id': int(comment.id),
+                'user': user_label,
+                'user_id': int(request.user.id),
+                'message': str(comment.message or '').strip(),
+                'created_at': comment.created_at.isoformat() if getattr(comment, 'created_at', None) else '',
+            },
+        }
+    )
 
 
 @csrf_exempt

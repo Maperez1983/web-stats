@@ -2435,6 +2435,7 @@
 		  <button type="button" id="change-half-btn" aria-label="Cambiar de parte">1ª Parte</button>
 		  <span id="offline-queue-badge" class="offline-queue-badge" hidden aria-live="polite"></span>
 		  <button type="button" id="offline-queue-sync" class="offline-queue-sync" hidden>Sincronizar</button>
+		  <a id="last-video-clip-btn" class="offline-queue-sync" href="#" hidden>🎬 Último clip</a>
 		</div>
 	              <p class="clock-note">Cronómetro en vivo · se registra el minuto en cada acción</p>
 	            </div>
@@ -3971,6 +3972,8 @@
       const eventsUrl = urlWithMatchId('{% url "match-actions-events-api" %}');
       const keepaliveUrl = '{% url "session-keepalive" %}';
       const matchdayQuickButtonsApiUrl = '{% url "matchday-quick-buttons-api" %}';
+      const analysisVideoClipUrlTemplate = '{% url "analysis-video-clip-view" 0 %}';
+      const lastVideoClipBtn = document.getElementById('last-video-clip-btn');
       const teamName = '{{ team_name|escapejs }}';
       const matchdayQuickActions = (() => {
         try {
@@ -6481,6 +6484,8 @@
         selectPlayer,
         registerLiveEvent,
         removeLiveEvent,
+        analysisVideoClipUrlTemplate,
+        lastVideoClipBtn,
         onFieldTap: handleAutoPlayerForTap,
 	        onSummaryChange: updateCloseSummary,
 	      });

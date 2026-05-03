@@ -60,6 +60,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     removeLiveEvent,
     onFieldTap,
     onSummaryChange,
+    analysisVideoClipUrlTemplate,
+    lastVideoClipBtn,
   } = options || {};
 
   const matchFinalizeButtons = (() => {
@@ -156,6 +158,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const mid = String(currentMatchId || '').trim();
     return mid ? `webstats:live:state:v1:${mid}` : '';
   })();
+  const lastClipKey = (() => {
+    const mid = String(currentMatchId || '').trim();
+    return mid ? `webstats:live:last_clip:v1:${mid}` : '';
+  })();
   const recentActionsKey = 'webstats:live:recent_actions:v1';
   const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
   const safeParseJson = (raw, fallback) => {
@@ -164,6 +170,52 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     } catch (error) {
       return fallback;
     }
+  };
+
+  const buildClipUrl = (clipId) => {
+    const id = Number(clipId) || 0;
+    if (!id || !analysisVideoClipUrlTemplate) return '';
+    const tpl = String(analysisVideoClipUrlTemplate || '').trim();
+    // reverse('analysis-video-clip-view', 0) => ".../clip/0/"
+    if (tpl.includes('/0/')) return tpl.replace('/0/', `/${id}/`);
+    return tpl.replace(/\/\d+\/?$/, `/${id}/`);
+  };
+
+  const setLastClipUi = ({ clipId, label = '' } = {}) => {
+    if (!lastVideoClipBtn) return;
+    const url = buildClipUrl(clipId);
+    if (!url) {
+      lastVideoClipBtn.hidden = true;
+      return;
+    }
+    lastVideoClipBtn.hidden = false;
+    lastVideoClipBtn.setAttribute('href', url);
+    lastVideoClipBtn.setAttribute('target', '_blank');
+    lastVideoClipBtn.setAttribute('rel', 'noopener');
+    const clean = String(label || '').trim();
+    if (clean) lastVideoClipBtn.setAttribute('title', clean);
+  };
+
+  const persistLastClip = ({ clipId, label = '' } = {}) => {
+    if (!canUseStorage || !lastClipKey) return;
+    const id = Number(clipId) || 0;
+    if (!id) return;
+    try {
+      window.localStorage.setItem(lastClipKey, JSON.stringify({ clip_id: id, label: String(label || '').slice(0, 220), at: Date.now() }));
+    } catch (e) {}
+  };
+
+  const restoreLastClip = () => {
+    if (!canUseStorage || !lastClipKey) return;
+    try {
+      const raw = window.localStorage.getItem(lastClipKey) || '';
+      const parsed = safeParseJson(raw, null);
+      if (!parsed || typeof parsed !== 'object') return;
+      const id = Number(parsed.clip_id) || 0;
+      const label = String(parsed.label || '').trim();
+      if (!id) return;
+      setLastClipUi({ clipId: id, label });
+    } catch (e) {}
   };
   const readOfflineQueue = () => {
     if (!canUseStorage) return [];
@@ -236,6 +288,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       offlineQueueSyncBtn.hidden = count <= 0;
     }
   };
+  restoreLastClip();
   const makeOfflineId = () => `${OFFLINE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const isOfflineId = (value) => String(value || '').startsWith(OFFLINE_ID_PREFIX);
   const makeClientEventUid = () => {
@@ -1509,6 +1562,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
       resetPopupForm({ preserveFields });
       emitSummaryChange();
+      try {
+        const clipId = data?.video_clip_id || data?.video_link?.clip_id;
+        if (clipId) {
+          const label = `${data.minute || getCurrentMatchMinute()}' · ${data.action || ''}`.trim();
+          setLastClipUi({ clipId, label });
+          persistLastClip({ clipId, label });
+        }
+      } catch (e) {}
       try {
         document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone } }));
       } catch (e) {}

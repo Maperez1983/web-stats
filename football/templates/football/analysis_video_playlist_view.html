@@ -25,6 +25,12 @@
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       video { display:block; width:100%; height:auto; }
       .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
+      .comments { margin-top: 1rem; display:grid; gap:0.5rem; }
+      .comment-row { border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); padding:0.6rem 0.7rem; }
+      .comment-row .who { font-weight:950; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      .comment-row .msg { margin-top:0.25rem; white-space:pre-wrap; color: rgba(248,250,252,0.92); font-weight:750; }
+      .comment-compose { display:grid; gap:0.4rem; margin-top:0.45rem; }
+      .comment-compose textarea { width:100%; min-height: 84px; resize: vertical; border-radius: 16px; border:1px solid rgba(148,163,184,0.16); background: rgba(255,255,255,0.04); color:#f1f5f9; padding:0.7rem 0.85rem; font-weight:750; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -57,6 +63,20 @@
           <div class="list" id="pl-list"></div>
         </aside>
       </div>
+
+      <section class="card comments" aria-label="Comentarios internos">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">Comentarios (staff)</div>
+          <button type="button" class="button" id="pl-comments-refresh">Actualizar</button>
+        </div>
+        <div id="pl-comments" class="list" style="margin-top:0.25rem;"></div>
+        <div class="comment-compose">
+          <textarea id="pl-comment-text" placeholder="Escribe un comentario para el staff…"></textarea>
+          <div style="display:flex; gap:0.55rem; flex-wrap:wrap; justify-content:flex-end;">
+            <button type="button" class="button primary" id="pl-comment-send">Enviar</button>
+          </div>
+        </div>
+      </section>
 
       <script>
         (function () {
@@ -151,6 +171,77 @@
               playIdx(next).finally(() => { setTimeout(() => { busy = false; }, 120); });
             }
           });
+        })();
+      </script>
+      <script>
+        (function () {
+          const threadKey = String('{{ thread_key|default:"" }}' || '').trim();
+          const inboxItemId = Number('{{ inbox_item.id|default:"0" }}' || 0) || 0;
+          const apiUrl = String('{{ comments_api_url|default:"" }}' || '').trim();
+          const list = document.getElementById('pl-comments');
+          const btnRefresh = document.getElementById('pl-comments-refresh');
+          const input = document.getElementById('pl-comment-text');
+          const btnSend = document.getElementById('pl-comment-send');
+          const safeText = (v, f='') => String(v ?? '').trim() || f;
+          const canRun = Boolean(apiUrl && (threadKey || inboxItemId));
+          if (!canRun) return;
+
+          const escapeHtml = (value) =>
+            String(value ?? '')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+          const render = (items) => {
+            const rows = (Array.isArray(items) ? items : []).slice(-120).map((c) => {
+              const who = safeText(c?.user, 'Staff');
+              const msg = safeText(c?.message, '');
+              return `<div class="comment-row"><div class="who">${escapeHtml(who)}</div><div class="msg">${escapeHtml(msg)}</div></div>`;
+            }).join('');
+            if (list) list.innerHTML = rows || '<div class="meta">Sin comentarios todavía.</div>';
+          };
+
+          const load = async () => {
+            const url = new URL(apiUrl, window.location.href);
+            if (threadKey) url.searchParams.set('thread_key', threadKey);
+            else url.searchParams.set('item_id', String(inboxItemId));
+            const resp = await fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data?.ok) return;
+            render(data.items || []);
+          };
+
+          const send = async () => {
+            const msg = safeText(input?.value || '', '');
+            if (!msg) return;
+            btnSend && (btnSend.disabled = true);
+            try {
+              const body = { message: msg };
+              if (threadKey) body.thread_key = threadKey;
+              else body.item_id = inboxItemId;
+              const resp = await fetch(apiUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                body: JSON.stringify(body),
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok || !data?.ok) return;
+              try { input.value = ''; } catch (e) {}
+              await load();
+            } finally {
+              btnSend && (btnSend.disabled = false);
+            }
+          };
+
+          btnRefresh?.addEventListener('click', load);
+          btnSend?.addEventListener('click', send);
+          input?.addEventListener('keydown', (ev) => {
+            if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+              ev.preventDefault();
+              send();
+            }
+          });
+          load();
         })();
       </script>
       {{ clips|json_script:"pl-clips" }}

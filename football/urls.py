@@ -121,6 +121,7 @@ urlpatterns = [
     path('api/analysis/video-studio/share-links/', views.analysis_video_studio_share_links_api, name='analysis-video-studio-share-links-api'),
     path('api/analysis/video-inbox/recipients/', views.analysis_video_inbox_recipients_api, name='analysis-video-inbox-recipients-api'),
     path('api/analysis/video-inbox/send/', views.analysis_video_inbox_send_api, name='analysis-video-inbox-send-api'),
+    path('api/analysis/video-inbox/comments/', views.analysis_video_inbox_comments_api, name='analysis-video-inbox-comments-api'),
     path('api/analysis/rival-videos/chunk/init/', views.analysis_rival_video_chunk_init_api, name='analysis-rival-video-chunk-init-api'),
     path('api/analysis/rival-videos/chunk/put/', views.analysis_rival_video_chunk_put_api, name='analysis-rival-video-chunk-put-api'),
     path('api/analysis/rival-videos/chunk/finish/', views.analysis_rival_video_chunk_finish_api, name='analysis-rival-video-chunk-finish-api'),

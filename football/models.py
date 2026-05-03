@@ -1601,6 +1601,12 @@ class VideoInboxItem(models.Model):
     title = models.CharField(max_length=180, blank=True)
     message = models.TextField(blank=True)
     payload = models.JSONField(default=dict, blank=True)
+    thread_key = models.CharField(
+        max_length=40,
+        blank=True,
+        db_index=True,
+        help_text='Clave compartida (entre destinatarios) para comentarios internos.',
+    )
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1615,6 +1621,36 @@ class VideoInboxItem(models.Model):
 
     def __str__(self):
         return f'{self.target_user.username} · {self.kind} · {self.created_at:%Y-%m-%d}'
+
+
+class VideoInboxComment(models.Model):
+    """
+    Comentarios internos para un elemento compartido (thread) en Bandeja de vídeo.
+
+    `thread_key` permite que varios destinatarios compartan la misma conversación.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='video_inbox_comments')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_inbox_comments')
+    thread_key = models.CharField(max_length=40, db_index=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_inbox_comments',
+    )
+    message = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['workspace', 'team', 'thread_key', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'Comentario {self.id} · {self.thread_key}'
 
 
 class ChunkedRivalVideoUpload(models.Model):
