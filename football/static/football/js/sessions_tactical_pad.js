@@ -5277,6 +5277,82 @@
 						      const balls = objects
 						        .filter((o) => safeText(o?.data?.kind) === 'ball')
 						        .slice(0, 6);
+						      const drawables = objects
+						        .filter((o) => o && !o?.data?.base && safeText(o?.data?.kind) !== 'token' && safeText(o?.data?.kind) !== 'ball')
+						        .slice(0, 220);
+
+						      const deg2rad = (deg) => (Number(deg) || 0) * (Math.PI / 180);
+						      const transformPoint2d = (localX, localY, obj) => {
+						        const sx = Number(obj?.scaleX);
+						        const sy = Number(obj?.scaleY);
+						        const scaleX = Number.isFinite(sx) ? sx : 1;
+						        const scaleY = Number.isFinite(sy) ? sy : 1;
+						        const angle = deg2rad(obj?.angle || 0);
+						        const cos = Math.cos(angle);
+						        const sin = Math.sin(angle);
+						        const x = (Number(localX) || 0) * scaleX;
+						        const y = (Number(localY) || 0) * scaleY;
+						        const rx = (x * cos) - (y * sin);
+						        const ry = (x * sin) + (y * cos);
+						        return {
+						          x: (Number(obj?.left) || 0) + rx,
+						          y: (Number(obj?.top) || 0) + ry,
+						        };
+						      };
+						      const mapPoint2dTo3d = (xPx, yPx) => map2dToPitch(xPx, yPx, sourceW, sourceH, metersW, metersH, orientation);
+
+						      const parseColorInt = (maybe) => toColorInt(safeText(maybe || ''), 0x22d3ee);
+						      const addLine3d = (p1, p2, colorInt, thickness = 0.11, opacity = 0.95) => {
+						        const a = new THREE.Vector3(p1.x, 0.08, p1.z);
+						        const b = new THREE.Vector3(p2.x, 0.08, p2.z);
+						        const len = a.distanceTo(b);
+						        if (!Number.isFinite(len) || len < 0.05) return null;
+						        const geo = new THREE.CylinderGeometry(thickness, thickness, len, 8, 1, true);
+						        const mat = new THREE.MeshStandardMaterial({
+						          color: colorInt,
+						          roughness: 0.7,
+						          metalness: 0.02,
+						          transparent: true,
+						          opacity: clamp(Number(opacity) || 0.95, 0.12, 0.98),
+						        });
+						        const mesh = new THREE.Mesh(geo, mat);
+						        const mid = a.clone().add(b).multiplyScalar(0.5);
+						        mesh.position.copy(mid);
+						        const dir = b.clone().sub(a).normalize();
+						        const up = new THREE.Vector3(0, 1, 0);
+						        mesh.quaternion.setFromUnitVectors(up, dir);
+						        root.add(mesh);
+						        return mesh;
+						      };
+						      const addConeHead3d = (at, dir2d, colorInt, size = 0.65) => {
+						        const geo = new THREE.ConeGeometry(size * 0.32, size, 12, 1);
+						        const mat = new THREE.MeshStandardMaterial({ color: colorInt, roughness: 0.65, metalness: 0.02 });
+						        const mesh = new THREE.Mesh(geo, mat);
+						        mesh.position.set(at.x, 0.18, at.z);
+						        // Align cone along direction on XZ.
+						        const dir = new THREE.Vector3(Number(dir2d?.x) || 0, 0, Number(dir2d?.z) || 0);
+						        if (dir.length() < 0.001) dir.set(1, 0, 0);
+						        dir.normalize();
+						        const up = new THREE.Vector3(0, 1, 0);
+						        // Cone points up by default; rotate so it points along dir in XZ.
+						        mesh.quaternion.setFromUnitVectors(up, dir);
+						        root.add(mesh);
+						        return mesh;
+						      };
+						      const addZonePlane3d = (center, widthMeters, heightMeters, colorInt, opacity = 0.12) => {
+						        const geo = new THREE.PlaneGeometry(widthMeters, heightMeters, 1, 1);
+						        const mat = new THREE.MeshBasicMaterial({
+						          color: colorInt,
+						          transparent: true,
+						          opacity: clamp(Number(opacity) || 0.12, 0.04, 0.45),
+						          side: THREE.DoubleSide,
+						        });
+						        const plane = new THREE.Mesh(geo, mat);
+						        plane.rotation.x = -Math.PI / 2;
+						        plane.position.set(center.x, 0.02, center.z);
+						        root.add(plane);
+						        return plane;
+						      };
 
 						      const addToken = (o) => {
 						        const data = o?.data || {};
@@ -5317,6 +5393,100 @@
 						        root.add(mesh);
 						      };
 						      balls.forEach(addBall);
+
+						      // Líneas / flechas / zonas (subset, optimizado para iPad).
+						      const addDrawable = (o) => {
+						        const type = safeText(o?.type).toLowerCase();
+						        const kind = safeText(o?.data?.kind).toLowerCase();
+						        const stroke = safeText(o?.stroke) || safeText(o?.data?.color) || '#22d3ee';
+						        const colorInt = parseColorInt(stroke);
+						        const sw = clamp(Number(o?.strokeWidth) || Number(o?.data?.stroke_width) || 3, 1, 18);
+						        const thickness = clamp(0.06 + (sw * 0.018), 0.06, 0.38);
+						        const groupWidthPx = (Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
+						        const groupHeightPx = (Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
+
+						        // Lineas simples.
+						        if (type === 'line') {
+						          const a2 = transformPoint2d(Number(o.x1) || 0, Number(o.y1) || 0, o);
+						          const b2 = transformPoint2d(Number(o.x2) || 0, Number(o.y2) || 0, o);
+						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
+						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
+						          addLine3d(a3, b3, colorInt, thickness, 0.9);
+						          return;
+						        }
+
+						        // Zonas (grupo).
+						        if (type === 'group' && (kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square')) {
+						          const wPx = Math.max(12, groupWidthPx || 0);
+						          const hPx = Math.max(12, groupHeightPx || 0);
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
+						          const ang = deg2rad(o?.angle || 0);
+						          if (plane) plane.rotation.y = -ang;
+						          return;
+						        }
+
+						        // Flechas y líneas tácticas (grupos): tratamos como “segmento” en el eje local X del grupo.
+						        if (type === 'group' && (kind.startsWith('arrow') || kind.startsWith('line_') || kind.startsWith('line-') || kind === 'line-double' || kind === 'arrow')) {
+						          const baseLenPx = kind.startsWith('line_') ? 640 : 320;
+						          const lenPx = clamp(Math.max(0, groupWidthPx || baseLenPx), 120, 1200) || baseLenPx;
+						          const half = lenPx / 2;
+						          const a2 = transformPoint2d(-half, 0, o);
+						          const b2 = transformPoint2d(half, 0, o);
+						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
+						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
+						          addLine3d(a3, b3, colorInt, thickness, 0.95);
+						          if (kind.startsWith('arrow')) {
+						            const dir = { x: b3.x - a3.x, z: b3.z - a3.z };
+						            addConeHead3d(b3, dir, colorInt, 0.7);
+						          }
+						          // Etiqueta para líneas tácticas.
+						          const label = (kind === 'line_pressure')
+						            ? 'PRESIÓN'
+						            : (kind === 'line_defensive')
+						              ? 'DEFENSA'
+						              : (kind === 'line_offside')
+						                ? 'F. JUEGO'
+						                : '';
+						          if (label && kind.startsWith('line_')) {
+						            const spr = buildTextSprite(label, { fill: '#0b1220', bg: 'rgba(248,250,252,0.82)', size: 128 });
+						            if (spr) {
+						              spr.position.set((a3.x + b3.x) / 2, 1.02, (a3.z + b3.z) / 2);
+						              root.add(spr);
+						            }
+						          }
+						          return;
+						        }
+
+						        // Zonas / rectángulos (incluye “zone”, shape-rect*, etc.).
+						        if (type === 'rect' || kind === 'zone' || kind === 'shape-rect' || kind === 'shape-rect-long' || kind === 'shape-square') {
+						          const wPx = Math.max(8, Number(o?.width) || 0) * (Number(o?.scaleX) || 1);
+						          const hPx = Math.max(8, Number(o?.height) || 0) * (Number(o?.scaleY) || 1);
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
+						          const wM = (wPx / Math.max(1, sourceW)) * metersW;
+						          const hM = (hPx / Math.max(1, sourceH)) * metersH;
+						          const plane = addZonePlane3d(center3d, wM, hM, colorInt, 0.14);
+						          // Rotación alrededor de Y según el ángulo (2D).
+						          const ang = deg2rad(o?.angle || 0);
+						          if (plane) plane.rotation.z = 0; // no-op (plane ya rotado x)
+						          if (plane) plane.rotation.y = -ang;
+						          return;
+						        }
+
+						        if (type === 'circle' || kind === 'shape-circle') {
+						          const radiusPx = Math.max(6, Number(o?.radius) || 0) * (Number(o?.scaleX) || 1);
+						          const diameterPx = radiusPx * 2;
+						          const center2d = { x: Number(o?.left) || 0, y: Number(o?.top) || 0 };
+						          const center3d = mapPoint2dTo3d(center2d.x, center2d.y);
+						          const dM = (diameterPx / Math.max(1, sourceW)) * metersW;
+						          addZonePlane3d(center3d, dM, dM, colorInt, 0.12);
+						        }
+						      };
+						      drawables.forEach(addDrawable);
 
 						      setCameraPreset(safeText(pitch3dCameraSelect?.value, 'normal'), metersW, metersH);
 						      resizePitch3d();
