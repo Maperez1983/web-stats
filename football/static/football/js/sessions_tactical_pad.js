@@ -4992,7 +4992,23 @@
 						      return { w: 105, h: 68 };
 						    };
 
-						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic') => {
+						    const __pitch3dGrassImgCache = new Map();
+						    const __pitch3dLoadGrassImg = (styleKey, fallbackUrl) => {
+						      const key = safeText(styleKey || '').toLowerCase();
+						      const cached = __pitch3dGrassImgCache.get(key);
+						      if (cached && cached.complete && (cached.naturalWidth || cached.width)) return cached;
+						      if (cached && cached.__loading) return null;
+						      const img = cached || new Image();
+						      try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+						      img.__loading = true;
+						      img.onload = () => { img.__loading = false; };
+						      img.onerror = () => { img.__loading = false; };
+						      img.src = safeText(fallbackUrl || '');
+						      __pitch3dGrassImgCache.set(key, img);
+						      return null;
+						    };
+
+						    const makePitchTexture = (metersW, metersH, grassStyle = 'classic', onAsyncUpdate) => {
 						      const w = 2048;
 						      const h = Math.round((w * metersH) / Math.max(1, metersW));
 						      const c = document.createElement('canvas');
@@ -5003,39 +5019,156 @@
 						      const style = safeText(grassStyle, 'classic').toLowerCase();
 						      const isWhiteboard = style === 'whiteboard';
 						      const isBlackboard = style === 'blackboard';
-						      const base = isWhiteboard ? '#f8fafc' : (isBlackboard ? '#0b1220' : '#2f7d32');
+						      const baseByStyle = {
+						        classic: '#2f7d32',
+						        broadcast: '#155e3a',
+						        realistic: '#4f7f3a',
+						        pro: '#2f6a3a',
+						        artificial: '#2fb46d',
+						        dry: '#6b8a3a',
+						        wet: '#1f5a46',
+						        uefa_b: '#2f6a3a',
+						      };
+						      const base = isWhiteboard ? '#f8fafc' : (isBlackboard ? '#0b1220' : (baseByStyle[style] || '#2f7d32'));
 						      ctx.fillStyle = base;
 						      ctx.fillRect(0, 0, c.width, c.height);
+
+						      const applyGrassPatternIfAny = () => {
+						        if (isWhiteboard || isBlackboard) return;
+						        let src = '';
+						        if (style === 'uefa_b') {
+						          try { src = safeText(window.__WEBSTATS_GRASS_TILES && window.__WEBSTATS_GRASS_TILES.uefa_b); } catch (e) { src = ''; }
+						          if (!src) src = '/static/football/images/surfaces/grass_uefa_b_tile.png';
+						        } else if (['broadcast', 'realistic', 'pro', 'artificial', 'dry', 'wet'].includes(style)) {
+						          // Reusa el generador 2D para mantener coherencia visual con la pizarra.
+						          try { src = safeText(__buildGrassTextureDataUrl(style)); } catch (e) { src = ''; }
+						        }
+						        if (!src) return;
+						        const img = __pitch3dLoadGrassImg(style, src);
+						        if (img && (img.naturalWidth || img.width)) {
+						          try {
+						            const pattern = ctx.createPattern(img, 'repeat');
+						            if (pattern) {
+						              ctx.save();
+						              ctx.globalAlpha = style === 'broadcast' ? 0.78 : 0.88;
+						              ctx.fillStyle = pattern;
+						              ctx.fillRect(0, 0, c.width, c.height);
+						              ctx.restore();
+						            }
+						          } catch (e) { /* ignore */ }
+						          return;
+						        }
+						        // Si todavía no está cargada, reintenta y marca la textura como dirty.
+						        if (typeof onAsyncUpdate === 'function') {
+						          const retry = () => {
+						            const loaded = __pitch3dLoadGrassImg(style, src);
+						            if (!loaded || !(loaded.naturalWidth || loaded.width)) return;
+						            try {
+						              const pattern = ctx.createPattern(loaded, 'repeat');
+						              if (pattern) {
+						                ctx.save();
+						                ctx.globalAlpha = style === 'broadcast' ? 0.78 : 0.88;
+						                ctx.fillStyle = pattern;
+						                ctx.fillRect(0, 0, c.width, c.height);
+						                ctx.restore();
+						              }
+						            } catch (e) { /* ignore */ }
+						            try { onAsyncUpdate(); } catch (e) { /* ignore */ }
+						          };
+						          try { window.setTimeout(retry, 120); } catch (e) { /* ignore */ }
+						          try { window.setTimeout(retry, 420); } catch (e) { /* ignore */ }
+						        }
+						      };
+						      applyGrassPatternIfAny();
+
 						      if (!isWhiteboard && !isBlackboard) {
 						        // Bandas sutiles.
-						        const stripes = style === 'broadcast' ? 12 : 10;
+						        const stripes = style === 'broadcast' ? 14 : 10;
 						        const stripeW = c.width / stripes;
 						        for (let i = 0; i < stripes; i += 1) {
-						          const a = style === 'broadcast' ? 0.08 : 0.05;
+						          const a = style === 'broadcast' ? 0.07 : 0.05;
 						          ctx.fillStyle = i % 2 === 0 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
 						          ctx.fillRect(i * stripeW, 0, stripeW + 1, c.height);
 						        }
 						      }
-						      // Líneas de campo (muy ligeras para no competir con la pizarra 2D).
-						      const line = isWhiteboard ? 'rgba(15,23,42,0.70)' : 'rgba(248,250,252,0.85)';
-						      ctx.strokeStyle = line;
+
+						      // Líneas de campo: más fiel (estilo broadcast/3D de competencia) pero sin saturar.
+						      const line = isWhiteboard ? 'rgba(15,23,42,0.78)' : 'rgba(248,250,252,0.88)';
+						      const soft = isWhiteboard ? 'rgba(15,23,42,0.45)' : 'rgba(248,250,252,0.55)';
+						      const margin = 36;
+						      const pxPerMeterX = (c.width - (margin * 2)) / Math.max(1, metersW);
+						      const pxPerMeterY = (c.height - (margin * 2)) / Math.max(1, metersH);
+						      const toPxX = (m) => margin + (m * pxPerMeterX);
+						      const toPxY = (m) => margin + (m * pxPerMeterY);
+						      const midX = c.width / 2;
+						      const midY = c.height / 2;
 						      ctx.lineWidth = 8;
-						      ctx.strokeRect(32, 32, c.width - 64, c.height - 64);
-						      // Línea central + círculo.
+						      ctx.strokeStyle = line;
+						      ctx.strokeRect(margin, margin, c.width - (margin * 2), c.height - (margin * 2));
+						      // Centro.
 						      ctx.beginPath();
-						      ctx.moveTo(c.width / 2, 32);
-						      ctx.lineTo(c.width / 2, c.height - 32);
+						      ctx.moveTo(midX, margin);
+						      ctx.lineTo(midX, c.height - margin);
 						      ctx.stroke();
-						      const r = (9.15 / metersW) * c.width;
+						      const centerR = Math.max(22, (9.15 * pxPerMeterX));
 						      ctx.beginPath();
-						      ctx.arc(c.width / 2, c.height / 2, Math.max(22, r), 0, Math.PI * 2);
+						      ctx.arc(midX, midY, centerR, 0, Math.PI * 2);
 						      ctx.stroke();
-						      // Áreas (solo si proporción de F11/F7).
-						      if (metersH >= 40) {
-						        const pd = (16.5 / metersW) * c.width;
-						        const ph = (40.32 / metersH) * c.height;
-						        ctx.strokeRect(32, (c.height - ph) / 2, pd, ph);
-						        ctx.strokeRect(c.width - 32 - pd, (c.height - ph) / 2, pd, ph);
+						      // Punto central.
+						      ctx.fillStyle = line;
+						      ctx.beginPath();
+						      ctx.arc(midX, midY, 6, 0, Math.PI * 2);
+						      ctx.fill();
+
+						      // Áreas (si es “campo”).
+						      if (metersH >= 30) {
+						        const penDepth = 16.5;
+						        const penWidth = 40.32;
+						        const gaDepth = 5.5;
+						        const gaWidth = 18.32;
+						        const y0 = (metersH - penWidth) / 2;
+						        const y1 = (metersH - gaWidth) / 2;
+						        // Área grande.
+						        ctx.strokeRect(toPxX(0), toPxY(y0), penDepth * pxPerMeterX, penWidth * pxPerMeterY);
+						        ctx.strokeRect(toPxX(metersW - penDepth), toPxY(y0), penDepth * pxPerMeterX, penWidth * pxPerMeterY);
+						        // Área pequeña.
+						        ctx.strokeRect(toPxX(0), toPxY(y1), gaDepth * pxPerMeterX, gaWidth * pxPerMeterY);
+						        ctx.strokeRect(toPxX(metersW - gaDepth), toPxY(y1), gaDepth * pxPerMeterX, gaWidth * pxPerMeterY);
+						        // Punto penalti.
+						        const penSpot = 11;
+						        const spotR = 5;
+						        ctx.fillStyle = line;
+						        ctx.beginPath();
+						        ctx.arc(toPxX(penSpot), midY, spotR, 0, Math.PI * 2);
+						        ctx.fill();
+						        ctx.beginPath();
+						        ctx.arc(toPxX(metersW - penSpot), midY, spotR, 0, Math.PI * 2);
+						        ctx.fill();
+						        // Semicírculo (D): 9.15m
+						        ctx.strokeStyle = soft;
+						        ctx.lineWidth = 7;
+						        const arcR = 9.15 * pxPerMeterX;
+						        ctx.beginPath();
+						        ctx.arc(toPxX(penSpot), midY, arcR, -Math.PI / 3, Math.PI / 3);
+						        ctx.stroke();
+						        ctx.beginPath();
+						        ctx.arc(toPxX(metersW - penSpot), midY, arcR, Math.PI - (Math.PI / 3), Math.PI + (Math.PI / 3));
+						        ctx.stroke();
+						        // Esquinas (1m)
+						        ctx.strokeStyle = soft;
+						        ctx.lineWidth = 7;
+						        const cornerR = Math.max(10, 1 * pxPerMeterX);
+						        const corners = [
+						          [margin, margin, 0, Math.PI / 2],
+						          [c.width - margin, margin, Math.PI / 2, Math.PI],
+						          [margin, c.height - margin, -Math.PI / 2, 0],
+						          [c.width - margin, c.height - margin, Math.PI, (3 * Math.PI) / 2],
+						        ];
+						        corners.forEach(([x, y, a0, a1]) => {
+						          ctx.beginPath();
+						          ctx.arc(x, y, cornerR, a0, a1);
+						          ctx.stroke();
+						        });
 						      }
 						      return c;
 						    };
@@ -5279,8 +5412,11 @@
 						      const sourceH = Number(options.sourceH) || (Number(worldHeight) || 720);
 
 						      // Suelo
-						      const texCanvas = makePitchTexture(metersW, metersH, grass);
-						      const tex = texCanvas ? new THREE.CanvasTexture(texCanvas) : null;
+						      let tex = null;
+						      const texCanvas = makePitchTexture(metersW, metersH, grass, () => {
+						        try { if (tex) tex.needsUpdate = true; } catch (e) { /* ignore */ }
+						      });
+						      tex = texCanvas ? new THREE.CanvasTexture(texCanvas) : null;
 						      if (tex) {
 						        tex.wrapS = THREE.ClampToEdgeWrapping;
 						        tex.wrapT = THREE.ClampToEdgeWrapping;
@@ -5298,6 +5434,56 @@
 						      ground.rotation.x = -Math.PI / 2;
 						      ground.position.y = -0.02;
 						      root.add(ground);
+
+						      // “Estadio” minimalista (como en muchos visores 3D): marco oscuro alrededor.
+						      try {
+						        const wallH = 2.4;
+						        const wallT = 1.2;
+						        const wallColor = 0x0b1020;
+						        const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 1, metalness: 0 });
+						        const pad = 3.5;
+						        const halfW = metersW / 2;
+						        const halfH = metersH / 2;
+						        const wallLong = new THREE.BoxGeometry(metersW + (pad * 2), wallH, wallT);
+						        const wallShort = new THREE.BoxGeometry(wallT, wallH, metersH + (pad * 2));
+						        const north = new THREE.Mesh(wallLong, wallMat);
+						        north.position.set(0, wallH / 2 - 0.2, -(halfH + pad));
+						        const south = new THREE.Mesh(wallLong, wallMat);
+						        south.position.set(0, wallH / 2 - 0.2, (halfH + pad));
+						        const west = new THREE.Mesh(wallShort, wallMat);
+						        west.position.set(-(halfW + pad), wallH / 2 - 0.2, 0);
+						        const east = new THREE.Mesh(wallShort, wallMat);
+						        east.position.set((halfW + pad), wallH / 2 - 0.2, 0);
+						        root.add(north, south, west, east);
+						      } catch (e) { /* ignore */ }
+
+						      // Porterías 3D sencillas (frame + red muy sutil).
+						      const addGoal3d = (xSign) => {
+						        try {
+						          const goalW = Math.min(7.32, Math.max(3.0, metersH * 0.16));
+						          const goalH = Math.max(1.6, Math.min(2.44, metersH * 0.06));
+						          const depth = 1.6;
+						          const postR = 0.08;
+						          const frameMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.02 });
+						          const mkPost = () => new THREE.Mesh(new THREE.CylinderGeometry(postR, postR, goalH, 10), frameMat);
+						          const left = mkPost();
+						          const right = mkPost();
+						          const bar = new THREE.Mesh(new THREE.CylinderGeometry(postR, postR, goalW, 10), frameMat);
+						          bar.rotation.z = Math.PI / 2;
+						          const baseZ = 0;
+						          left.position.set(xSign * (metersW / 2 + 0.05), goalH / 2, baseZ - (goalW / 2));
+						          right.position.set(xSign * (metersW / 2 + 0.05), goalH / 2, baseZ + (goalW / 2));
+						          bar.position.set(xSign * (metersW / 2 + 0.05), goalH, baseZ);
+						          root.add(left, right, bar);
+						          const netMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+						          const net = new THREE.Mesh(new THREE.PlaneGeometry(depth, goalW), netMat);
+						          net.rotation.y = xSign > 0 ? -Math.PI / 2 : Math.PI / 2;
+						          net.position.set(xSign * (metersW / 2 + (depth / 2) + 0.05), goalH / 2, baseZ);
+						          root.add(net);
+						        } catch (e) { /* ignore */ }
+						      };
+						      addGoal3d(-1);
+						      addGoal3d(1);
 
 						      // Spotlight (halo) para seguimiento / selección.
 						      try {
