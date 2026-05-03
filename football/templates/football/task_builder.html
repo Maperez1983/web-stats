@@ -3090,6 +3090,57 @@
 	      }
 	      .sim-3d-controls { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; }
 	      .sim-3d-note { opacity: 0.86; font-size: 0.92rem; }
+	      .pitch3d-hud {
+	        position: absolute;
+	        inset: 0;
+	        pointer-events: none;
+	        display: flex;
+	        align-items: flex-start;
+	        justify-content: space-between;
+	        padding: 0.85rem 0.9rem;
+	        gap: 0.85rem;
+	      }
+	      .pitch3d-hud .hud-left,
+	      .pitch3d-hud .hud-right {
+	        pointer-events: auto;
+	        display: flex;
+	        flex-direction: column;
+	        gap: 0.55rem;
+	      }
+	      .pitch3d-step {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.6rem;
+	        padding: 0.55rem 0.7rem;
+	        border-radius: 14px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(2, 6, 23, 0.52);
+	        box-shadow: rgba(0,0,0,0.35) 0 14px 40px;
+	        max-width: min(560px, 78vw);
+	      }
+	      .pitch3d-step strong { font-size: 0.95rem; }
+	      .pitch3d-step span.meta { opacity: 0.88; font-size: 0.88rem; }
+	      .pitch3d-nav {
+	        display: inline-flex;
+	        gap: 0.5rem;
+	        align-items: center;
+	      }
+	      .pitch3d-nav .button {
+	        pointer-events: auto;
+	        border-radius: 14px;
+	        padding: 0.55rem 0.7rem;
+	        font-weight: 900;
+	      }
+	      .pitch3d-nav .button.primary {
+	        background: rgba(34, 211, 238, 0.18);
+	        border-color: rgba(34, 211, 238, 0.42);
+	      }
+	      .pitch3d-hud .hud-right {
+	        align-items: flex-end;
+	      }
+	      .pitch3d-presentation .sim-3d-foot { display: none; }
+	      .pitch3d-presentation .pitch3d-step strong { font-size: 1.05rem; }
+	      .pitch3d-presentation .pitch3d-step { background: rgba(2, 6, 23, 0.58); }
 
 	      /* Video Studio (telestración) */
 	      .video-studio-card {
@@ -4258,6 +4309,22 @@
 				                        </div>
 				                        <div class="sim-3d-body">
 				                          <canvas class="sim-3d-canvas" id="task-pitch-3d-canvas"></canvas>
+				                          <div class="pitch3d-hud" id="task-pitch-3d-hud">
+				                            <div class="hud-left">
+				                              <div class="pitch3d-step" id="task-pitch-3d-step">
+				                                <strong id="task-pitch-3d-step-title">Pizarra</strong>
+				                                <span class="meta" id="task-pitch-3d-step-meta">—</span>
+				                              </div>
+				                              <div class="pitch3d-nav">
+				                                <button type="button" class="button" id="task-pitch-3d-prev" title="Paso anterior">‹</button>
+				                                <button type="button" class="button primary" id="task-pitch-3d-next" title="Siguiente paso">›</button>
+				                              </div>
+				                            </div>
+				                            <div class="hud-right">
+				                              <button type="button" class="button" id="task-pitch-3d-present" title="Modo presentación">Presentación</button>
+				                              <button type="button" class="button" id="task-pitch-3d-fullscreen" title="Pantalla completa (si el navegador lo permite)">⤢</button>
+				                            </div>
+				                          </div>
 				                        </div>
 				                        <div class="sim-3d-foot">
 				                          <div class="sim-3d-controls">
@@ -4270,6 +4337,14 @@
 				                                <option value="side">Lateral</option>
 				                                <option value="top_h">Top H</option>
 				                                <option value="top_v">Top V</option>
+				                              </select>
+				                            </label>
+				                            <label style="display:flex; gap:10px; align-items:center;">
+				                              Seguimiento
+				                              <select id="task-pitch-3d-follow">
+				                                <option value="off" selected>Off</option>
+				                                <option value="ball">Balón</option>
+				                                <option value="selected">Jugador (tap)</option>
 				                              </select>
 				                            </label>
 				                            <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>

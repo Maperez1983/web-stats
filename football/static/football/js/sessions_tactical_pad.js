@@ -1315,10 +1315,18 @@
 			    const pitch3dCloseBtn = document.getElementById('task-pitch-3d-close');
 			    const pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
 			    const pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
+			    const pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
 			    const pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
 			    const pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
 			    const pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
 			    const pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
+			    const pitch3dHud = document.getElementById('task-pitch-3d-hud');
+			    const pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title');
+			    const pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
+			    const pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
+			    const pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
+			    const pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
+			    const pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
 			    const videoLoadBtn = document.getElementById('task-video-load');
 			    const videoClearBtn = document.getElementById('task-video-clear');
 			    const videoFileInput = document.getElementById('task-video-file');
@@ -5121,10 +5129,27 @@
 						    let pitch3dOpen = false;
 						    let pitch3dOrbit = { theta: 0.9, phi: 0.9, radius: 110, targetX: 0, targetY: 0, targetZ: 0 };
 						    let pitch3dDrag = null;
-						    let pitch3dRecording = false;
-						    let pitch3dRecorder = null;
-						    let pitch3dRecordChunks = [];
-						    let pitch3dPlayback = { playing: false, t: 0, index: 0, startAt: 0, duration: 0, steps: [] };
+							    let pitch3dRecording = false;
+							    let pitch3dRecorder = null;
+							    let pitch3dRecordChunks = [];
+							    let pitch3dPlayback = { playing: false, t: 0, index: 0, startAt: 0, duration: 0, steps: [] };
+							    let pitch3dPresentation = false;
+							    let pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
+							    let pitch3dSelectedUid = '';
+							    let pitch3dRaycaster = null;
+							    let pitch3dPointer = null;
+							    let pitch3dSpotlight = null;
+							    let pitch3dCurrentStep = 0;
+
+							    const setPitch3dPresentation = (enabled) => {
+							      pitch3dPresentation = !!enabled;
+							      try { pitch3dModal?.classList?.toggle('pitch3d-presentation', pitch3dPresentation); } catch (e) { /* ignore */ }
+							      if (pitch3dPresentBtn) pitch3dPresentBtn.textContent = pitch3dPresentation ? 'Salir' : 'Presentación';
+							    };
+							    const setPitch3dHud = (title, meta) => {
+							      if (pitch3dStepTitleEl) pitch3dStepTitleEl.textContent = safeText(title, 'Pizarra');
+							      if (pitch3dStepMetaEl) pitch3dStepMetaEl.textContent = safeText(meta, '—');
+							    };
 
 						    const disposePitch3dRoot = () => {
 						      if (!pitch3dRoot || !pitch3dScene) return;
@@ -5167,11 +5192,15 @@
 						        const rim = new THREE.DirectionalLight(0xffffff, 0.35);
 						        rim.position.set(-120, 110, -90);
 						        pitch3dScene.add(rim);
+						        pitch3dRaycaster = new THREE.Raycaster();
+						        pitch3dPointer = new THREE.Vector2();
 						        return true;
 						      } catch (e) {
 						        pitch3dRenderer = null;
 						        pitch3dScene = null;
 						        pitch3dCamera = null;
+						        pitch3dRaycaster = null;
+						        pitch3dPointer = null;
 						        return false;
 						      }
 						    };
@@ -5269,6 +5298,19 @@
 						      ground.rotation.x = -Math.PI / 2;
 						      ground.position.y = -0.02;
 						      root.add(ground);
+
+						      // Spotlight (halo) para seguimiento / selección.
+						      try {
+						        const ringGeo = new THREE.RingGeometry(1.05, 1.55, 48, 1);
+						        const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+						        const ring = new THREE.Mesh(ringGeo, ringMat);
+						        ring.rotation.x = -Math.PI / 2;
+						        ring.position.y = 0.02;
+						        ring.visible = false;
+						        ring.userData = { kind: 'spotlight' };
+						        pitch3dSpotlight = ring;
+						        root.add(ring);
+						      } catch (e) { /* ignore */ }
 
 						      const objects = Array.isArray(state?.objects) ? state.objects : [];
 						      const tokens = objects
@@ -5499,6 +5541,48 @@
 						      pitch3dPlayBtn.textContent = pitch3dPlayback.playing ? '■' : '▶';
 						    };
 
+						    const syncPitch3dNavUi = (stepsLength = 0) => {
+						      const total = Math.max(0, Number(stepsLength) || 0);
+						      if (pitch3dPrevBtn) pitch3dPrevBtn.disabled = !(total > 1 && pitch3dCurrentStep > 0);
+						      if (pitch3dNextBtn) pitch3dNextBtn.disabled = !(total > 1 && pitch3dCurrentStep < (total - 1));
+						    };
+
+						    const showPitch3dStep = (index, options = {}) => {
+						      const steps = preparePitch3dSteps();
+						      if (!steps.length) {
+						        pitch3dCurrentStep = 0;
+						        syncPitch3dNavUi(0);
+						        setPitch3dHud('Pizarra', 'Sin escenarios.');
+						        buildPitch3dRoot(serializeCanvasOnly(), {
+						          preset: presetSelect?.value || 'full_pitch',
+						          orientation: pitchOrientation,
+						          grassStyle: pitchGrassStyle,
+						          sourceW: Number(worldWidth) || 1280,
+						          sourceH: Number(worldHeight) || 720,
+						        });
+						        return;
+						      }
+						      const idx = clamp(Number(index) || 0, 0, steps.length - 1);
+						      pitch3dCurrentStep = idx;
+						      stopPitch3dPlayback();
+						      updatePitch3dPlaybackButton();
+						      syncPitch3dNavUi(steps.length);
+						      const step = steps[idx];
+						      const meta = `${idx + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+						      setPitch3dHud(step.title, meta);
+						      buildPitch3dRoot(step.state, {
+						        preset: presetSelect?.value || 'full_pitch',
+						        orientation: pitchOrientation,
+						        grassStyle: pitchGrassStyle,
+						        sourceW: step.sourceW,
+						        sourceH: step.sourceH,
+						      });
+						      if (options.keepFollow !== true) {
+						        if (pitch3dFollowSelect && safeText(pitch3dFollowSelect.value) === 'selected') pitch3dFollowSelect.value = 'off';
+						        pitch3dSelectedUid = '';
+						      }
+						    };
+
 						    const preparePitch3dSteps = () => {
 						      const steps = (Array.isArray(timeline) ? timeline : []).filter(Boolean).slice(0, 24);
 						      return steps.map((s, idx) => ({
@@ -5554,7 +5638,7 @@
 
 						    const stopPitch3dPlayback = () => {
 						      pitch3dPlayback.playing = false;
-						      pitch3dPlayback.index = 0;
+						      pitch3dPlayback.index = clamp(Number(pitch3dPlayback.index) || 0, 0, Math.max(0, (pitch3dPlayback.steps?.length || 0) - 1));
 						      pitch3dPlayback.startAt = 0;
 						      pitch3dPlayback.duration = 0;
 						      updatePitch3dPlaybackButton();
@@ -5565,18 +5649,56 @@
 						      if (steps.length <= 1) return;
 						      pitch3dPlayback.steps = steps;
 						      pitch3dPlayback.playing = true;
-						      pitch3dPlayback.index = clamp(Number(activeStepIndex) || 0, 0, steps.length - 1);
+						      pitch3dPlayback.index = clamp(Number(pitch3dCurrentStep) || Number(activeStepIndex) || 0, 0, steps.length - 1);
+						      pitch3dCurrentStep = pitch3dPlayback.index;
+						      syncPitch3dNavUi(steps.length);
+						      try {
+						        const step = steps[pitch3dPlayback.index];
+						        const meta = `${pitch3dPlayback.index + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+						        setPitch3dHud(step.title, meta);
+						      } catch (e) { /* ignore */ }
 						      pitch3dPlayback.startAt = performance.now();
 						      pitch3dPlayback.duration = steps[pitch3dPlayback.index]?.duration || 3;
 						      updatePitch3dPlaybackButton();
 						    };
 
-						    const renderPitch3dFrame = (now) => {
-						      if (!pitch3dOpen || !pitch3dRenderer || !pitch3dScene || !pitch3dCamera) return;
-						      // Orbit simple (drag).
-						      const theta = pitch3dOrbit.theta;
-						      const phi = clamp(pitch3dOrbit.phi, 0.02, Math.PI - 0.02);
-						      const r = clamp(pitch3dOrbit.radius, 30, 420);
+							    const renderPitch3dFrame = (now) => {
+							      if (!pitch3dOpen || !pitch3dRenderer || !pitch3dScene || !pitch3dCamera) return;
+							      // Seguimiento (balón / jugador seleccionado) + spotlight.
+							      try {
+							        pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, pitch3dFollowMode || 'off');
+							        const mode = safeText(pitch3dFollowMode, 'off');
+							        let followNode = null;
+							        if (pitch3dRoot && (mode === 'ball' || mode === 'selected')) {
+							          const nodes = pitch3dRoot.children || [];
+							          if (mode === 'ball') followNode = nodes.find((n) => safeText(n?.userData?.kind) === 'ball') || null;
+							          if (mode === 'selected' && pitch3dSelectedUid) {
+							            followNode = nodes.find((n) => safeText(n?.userData?.kind) === 'token' && safeText(n?.userData?.uid) === pitch3dSelectedUid) || null;
+							          }
+							        }
+							        if (followNode && followNode.position) {
+							          const tx = Number(followNode.position.x) || 0;
+							          const tz = Number(followNode.position.z) || 0;
+							          const lerp = 0.16;
+							          pitch3dOrbit.targetX = pitch3dOrbit.targetX + ((tx - pitch3dOrbit.targetX) * lerp);
+							          pitch3dOrbit.targetZ = pitch3dOrbit.targetZ + ((tz - pitch3dOrbit.targetZ) * lerp);
+							          pitch3dOrbit.targetY = 0;
+							          if (pitch3dSpotlight) {
+							            pitch3dSpotlight.visible = true;
+							            pitch3dSpotlight.position.x = tx;
+							            pitch3dSpotlight.position.z = tz;
+							            const scale = safeText(followNode?.userData?.kind) === 'ball' ? 0.75 : 1.0;
+							            pitch3dSpotlight.scale.set(scale, scale, scale);
+							          }
+							        } else if (pitch3dSpotlight) {
+							          pitch3dSpotlight.visible = false;
+							        }
+							      } catch (e) { /* ignore */ }
+
+							      // Orbit simple (drag).
+							      const theta = pitch3dOrbit.theta;
+							      const phi = clamp(pitch3dOrbit.phi, 0.02, Math.PI - 0.02);
+							      const r = clamp(pitch3dOrbit.radius, 30, 420);
 						      const cx = pitch3dOrbit.targetX;
 						      const cy = pitch3dOrbit.targetY;
 						      const cz = pitch3dOrbit.targetZ;
@@ -5601,46 +5723,54 @@
 						          orientation: pitchOrientation,
 						          grassStyle: pitchGrassStyle,
 						        });
-						        if (t >= 1) {
-						          pitch3dPlayback.index = next;
-						          pitch3dPlayback.startAt = now;
-						          if (next >= steps.length - 1) {
-						            stopPitch3dPlayback();
-						          }
-						        }
+							        if (t >= 1) {
+							          pitch3dPlayback.index = next;
+							          pitch3dCurrentStep = next;
+							          syncPitch3dNavUi(steps.length);
+							          try {
+							            const step = steps[next];
+							            const meta = `${next + 1}/${steps.length} · ${Math.round((Number(step.duration) || 3) * 10) / 10}s`;
+							            setPitch3dHud(step.title, meta);
+							          } catch (e) { /* ignore */ }
+							          pitch3dPlayback.startAt = now;
+							          if (next >= steps.length - 1) {
+							            stopPitch3dPlayback();
+							          }
+							        }
 						      }
 
 						      try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
 						      pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame);
 						    };
 
-						    const openPitch3d = () => {
-						      if (!canUsePitch3d()) {
-						        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
-						        return;
-						      }
-						      if (!ensurePitch3d()) {
-						        setStatus('No se pudo inicializar la Vista 3D.', true);
-						        return;
-						      }
-						      pitch3dOpen = true;
-						      pitch3dModal.hidden = false;
-						      try { resizePitch3d(); } catch (e) { /* ignore */ }
-						      stopPitch3dPlayback();
-						      updatePitch3dPlaybackButton();
-						      buildPitch3dRoot(serializeCanvasOnly(), {
-						        preset: presetSelect?.value || 'full_pitch',
-						        orientation: pitchOrientation,
-						        grassStyle: pitchGrassStyle,
-						        sourceW: Number(worldWidth) || 1280,
-						        sourceH: Number(worldHeight) || 720,
-						      });
-						      try { pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame); } catch (e) { /* ignore */ }
-						    };
+							    const openPitch3d = () => {
+							      if (!canUsePitch3d()) {
+							        setStatus('Vista 3D no disponible en este dispositivo/navegador.', true);
+							        return;
+							      }
+							      if (!ensurePitch3d()) {
+							        setStatus('No se pudo inicializar la Vista 3D.', true);
+							        return;
+							      }
+							      pitch3dOpen = true;
+							      pitch3dModal.hidden = false;
+							      setPitch3dPresentation(false);
+							      try { resizePitch3d(); } catch (e) { /* ignore */ }
+							      stopPitch3dPlayback();
+							      updatePitch3dPlaybackButton();
+							      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : 0, { keepFollow: false }); } catch (e) { /* ignore */ }
+							      try { pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame); } catch (e) { /* ignore */ }
+							    };
 
 						    const closePitch3d = () => {
 						      pitch3dOpen = false;
 						      stopPitch3dPlayback();
+						      try { setPitch3dPresentation(false); } catch (e) { /* ignore */ }
+						      if (pitch3dRecording) {
+						        pitch3dRecording = false;
+						        try { pitch3dRecorder?.stop?.(); } catch (e) { /* ignore */ }
+						        try { pitch3dRecordBtn?.classList?.remove?.('danger'); } catch (e) { /* ignore */ }
+						      }
 						      if (pitch3dAnimFrame) {
 						        try { window.cancelAnimationFrame(pitch3dAnimFrame); } catch (e) { /* ignore */ }
 						        pitch3dAnimFrame = null;
@@ -5715,23 +5845,41 @@
 						      // Cierra al clicar fuera de la card.
 						      if (ev.target === pitch3dModal) closePitch3d();
 						    });
+						    pitch3dPresentBtn?.addEventListener('click', (ev) => {
+						      ev.preventDefault();
+						      setPitch3dPresentation(!pitch3dPresentation);
+						    });
+						    pitch3dFullscreenBtn?.addEventListener('click', async (ev) => {
+						      ev.preventDefault();
+						      const card = pitch3dModal?.querySelector?.('.sim-3d-card');
+						      try {
+						        if (!document.fullscreenElement && card?.requestFullscreen) await card.requestFullscreen();
+						        else if (document.exitFullscreen) await document.exitFullscreen();
+						      } catch (e) { /* ignore */ }
+						    });
 						    pitch3dCameraSelect?.addEventListener('change', () => {
 						      if (!pitch3dRoot) return;
 						      const meters = pitchMetersForPreset(presetSelect?.value || 'full_pitch');
 						      setCameraPreset(pitch3dCameraSelect.value, meters.w, meters.h);
 						    });
+						    pitch3dFollowSelect?.addEventListener('change', () => {
+						      pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
+						      if (pitch3dFollowMode !== 'selected') pitch3dSelectedUid = '';
+						    });
 						    pitch3dRefreshBtn?.addEventListener('click', (ev) => {
 						      ev.preventDefault();
 						      stopPitch3dPlayback();
 						      updatePitch3dPlaybackButton();
-						      buildPitch3dRoot(serializeCanvasOnly(), {
-						        preset: presetSelect?.value || 'full_pitch',
-						        orientation: pitchOrientation,
-						        grassStyle: pitchGrassStyle,
-						        sourceW: Number(worldWidth) || 1280,
-						        sourceH: Number(worldHeight) || 720,
-						      });
+						      try { showPitch3dStep(activeStepIndex >= 0 ? activeStepIndex : pitch3dCurrentStep, { keepFollow: true }); } catch (e) { /* ignore */ }
 						      setStatus('Vista 3D actualizada.');
+						    });
+						    pitch3dPrevBtn?.addEventListener('click', (ev) => {
+						      ev.preventDefault();
+						      showPitch3dStep(pitch3dCurrentStep - 1, { keepFollow: true });
+						    });
+						    pitch3dNextBtn?.addEventListener('click', (ev) => {
+						      ev.preventDefault();
+						      showPitch3dStep(pitch3dCurrentStep + 1, { keepFollow: true });
 						    });
 						    pitch3dPlayBtn?.addEventListener('click', (ev) => {
 						      ev.preventDefault();
@@ -5746,10 +5894,31 @@
 						    // Controles táctiles/ratón para orbit/zoom.
 						    const installPitch3dControls = () => {
 						      if (!pitch3dCanvasEl) return;
+						      const pickAt = (clientX, clientY) => {
+						        if (!pitch3dOpen || !pitch3dRaycaster || !pitch3dPointer || !pitch3dCamera || !pitch3dRoot) return;
+						        const rect = pitch3dCanvasEl.getBoundingClientRect();
+						        const w = Math.max(1, rect.width || 1);
+						        const h = Math.max(1, rect.height || 1);
+						        const x = ((Number(clientX) - rect.left) / w) * 2 - 1;
+						        const y = -(((Number(clientY) - rect.top) / h) * 2 - 1);
+						        pitch3dPointer.set(x, y);
+						        pitch3dRaycaster.setFromCamera(pitch3dPointer, pitch3dCamera);
+						        const tokenMeshes = (pitch3dRoot.children || []).filter((n) => safeText(n?.userData?.kind) === 'token');
+						        if (!tokenMeshes.length) return;
+						        const hits = pitch3dRaycaster.intersectObjects(tokenMeshes, false) || [];
+						        const hit = hits.find((h) => safeText(h?.object?.userData?.kind) === 'token');
+						        if (!hit) return;
+						        const uid = safeText(hit.object.userData.uid);
+						        if (!uid) return;
+						        pitch3dSelectedUid = uid;
+						        if (pitch3dFollowSelect && safeText(pitch3dFollowSelect.value) !== 'ball') pitch3dFollowSelect.value = 'selected';
+						        pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'selected');
+						        setStatus('Jugador seleccionado en Vista 3D.');
+						      };
 						      const onDown = (event) => {
 						        if (!pitch3dOpen) return;
 						        const e = event;
-						        pitch3dDrag = { x: e.clientX, y: e.clientY, theta: pitch3dOrbit.theta, phi: pitch3dOrbit.phi };
+						        pitch3dDrag = { x: e.clientX, y: e.clientY, theta: pitch3dOrbit.theta, phi: pitch3dOrbit.phi, moved: false };
 						        try { pitch3dCanvasEl.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
 						      };
 						      const onMove = (event) => {
@@ -5757,10 +5926,18 @@
 						        const e = event;
 						        const dx = (Number(e.clientX) || 0) - pitch3dDrag.x;
 						        const dy = (Number(e.clientY) || 0) - pitch3dDrag.y;
+						        if (Math.abs(dx) + Math.abs(dy) > 6) pitch3dDrag.moved = true;
 						        pitch3dOrbit.theta = pitch3dDrag.theta - (dx * 0.008);
 						        pitch3dOrbit.phi = clamp(pitch3dDrag.phi - (dy * 0.008), 0.08, Math.PI - 0.08);
 						      };
-						      const onUp = () => { pitch3dDrag = null; };
+						      const onUp = (event) => {
+						        try {
+						          if (pitch3dDrag && !pitch3dDrag.moved) {
+						            pickAt(event?.clientX, event?.clientY);
+						          }
+						        } catch (e) { /* ignore */ }
+						        pitch3dDrag = null;
+						      };
 						      const onWheel = (event) => {
 						        if (!pitch3dOpen) return;
 						        event.preventDefault();
