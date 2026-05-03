@@ -637,12 +637,8 @@
 	        overflow: hidden;
 	      }
       /* Evita que se “corten” bordes/sombras por el recorte del contenedor. */
-      .create-hero-preview { width: 100%; height: 100%; padding: 18px; }
-      .create-hero-pitch svg { width: 100%; height: 100%; display: block; overflow: visible; }
-      .create-hero-preview {
-        width: 100%;
-        height: 100%;
-      }
+      .create-hero-preview { width: 100%; height: 100%; padding: 18px; box-sizing: border-box; }
+      .create-hero-pitch svg { width: 100%; height: 100%; display: block; overflow: hidden; }
 	      .create-hero-guide {
 	        padding: 0.85rem 0.9rem 0.95rem;
 	        display: grid;
@@ -1612,9 +1608,6 @@
                                 <stop offset="0%" stop-color="#5f8f42"></stop>
                                 <stop offset="100%" stop-color="#557f3c"></stop>
                               </linearGradient>
-                              <filter id="create-token-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="rgba(2,6,23,0.35)" />
-                              </filter>
                               <marker id="create-arrow-head" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
                                 <path d="M 0 0 L 12 6 L 0 12 z" fill="rgba(248,250,252,0.92)"></path>
                               </marker>
@@ -1632,7 +1625,7 @@
                             <circle cx="912" cy="340" r="4" fill="rgba(248,250,252,0.66)"></circle>
 
                             <!-- Mini demo: tokens + flecha para que la “pizarra” se entienda de un vistazo. -->
-                            <g filter="url(#create-token-shadow)">
+                            <g>
                               <!-- Local -->
                               <circle cx="292" cy="245" r="22" fill="#0f7a35" stroke="rgba(255,255,255,0.92)" stroke-width="3"></circle>
                               <text x="292" y="252" text-anchor="middle" font-size="14" font-weight="900" fill="#ffffff" font-family="Avenir Next, Inter, system-ui">8</text>

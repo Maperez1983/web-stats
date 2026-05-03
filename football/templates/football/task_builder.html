@@ -53,8 +53,6 @@
 	           We keep landing above all by using the same max int value. */
 	        z-index: 2147483647;
 	        background: rgba(2, 6, 23, 0.58);
-	        backdrop-filter: blur(10px);
-	        -webkit-backdrop-filter: blur(10px);
 	        display: grid;
 	        place-items: center;
 	        pointer-events: auto;
@@ -63,6 +61,17 @@
 	        -webkit-transform: translateZ(0);
 	        padding: calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
 	      }
+      /* iOS/WKWebView: `backdrop-filter` sobre el contenedor puede “comerse” taps.
+         Lo movemos a un pseudo-elemento SIN pointer-events. */
+      .task-landing::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.0);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        pointer-events: none;
+      }
       /* Garantiza que `landing.hidden = true` siempre oculte el modal incluso si otro CSS pisa `[hidden]`. */
       .task-landing[hidden] {
         display: none !important;
@@ -80,6 +89,8 @@
 	        display: grid;
 	        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
 	        gap: 0;
+	        position: relative;
+	        z-index: 1;
 	      }
 	      @media (max-width: 980px) {
 	        .task-landing-card { grid-template-columns: 1fr; }
@@ -114,6 +125,8 @@
 	        display: grid;
 	        gap: 0.75rem;
 	        align-content: start;
+	        position: relative;
+	        z-index: 2;
 	      }
 	      .task-landing-actions h2 {
 	        margin: 0;
@@ -9759,6 +9772,17 @@
                 try { ev.preventDefault(); ev.stopPropagation(); ev.stopImmediatePropagation?.(); } catch (e) { /* ignore */ }
                 setSelected(btn.getAttribute('data-landing-go'));
               };
+
+              // Delegación extra (robustez iPad/WKWebView): si un overlay/blur “rompe” el tap por botón,
+              // capturamos en el contenedor y resolvemos el botón objetivo con `closest()`.
+              const delegatedChoice = (ev) => {
+                const btn = ev?.target?.closest?.('.task-landing-action[data-landing-go]');
+                if (!btn) return;
+                onChoice(btn, ev);
+              };
+              try { landing.addEventListener('pointerdown', delegatedChoice, { capture: true }); } catch (e) { /* ignore */ }
+              try { landing.addEventListener('touchstart', delegatedChoice, { capture: true, passive: false }); } catch (e) { /* ignore */ }
+              landing.addEventListener('click', delegatedChoice);
 
               choiceButtons.forEach((btn) => {
                 btn.addEventListener('click', (ev) => onChoice(btn, ev));
