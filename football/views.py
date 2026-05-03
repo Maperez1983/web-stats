@@ -45320,6 +45320,260 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     return best_text.strip()
 
 
+def _assistant__open_pil_rgb_from_bytes(image_bytes: bytes):
+    """
+    Abre una imagen en RGB desde bytes (incl. HEIC) con fallback a ImageMagick si PIL no puede.
+    """
+    if not image_bytes or Image is None:
+        return None
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        # Fallback HEIC/HEIF: algunos ficheros de iOS pueden fallar con PIL incluso con opener.
+        # Si hay ImageMagick disponible, convertimos a PNG en memoria y reintentamos.
+        try:
+            if shutil.which('magick') is not None:
+                proc = subprocess.run(
+                    ['magick', 'heic:-', 'png:-'],
+                    input=image_bytes,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=25,
+                    check=False,
+                )
+            else:
+                proc = None
+        except Exception:
+            proc = None
+        if not (proc and proc.returncode == 0 and proc.stdout):
+            return None
+        try:
+            img = Image.open(io.BytesIO(proc.stdout))
+        except Exception:
+            return None
+    try:
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        img = img.convert('RGB')
+    except Exception:
+        try:
+            img = img.convert('RGB')
+        except Exception:
+            return None
+    return img
+
+
+def _assistant__pitch_diagram_score(image_bytes: bytes) -> float:
+    """
+    Heurística rápida para detectar si una imagen parece un diagrama de campo (mucho verde).
+    Devuelve 0..1.
+    """
+    img = _assistant__open_pil_rgb_from_bytes(image_bytes)
+    if img is None:
+        return 0.0
+    try:
+        # Baja resolución para rapidez.
+        max_side = max(int(img.size[0]), int(img.size[1]))
+    except Exception:
+        max_side = 0
+    if max_side > 420:
+        try:
+            scale = 420.0 / float(max_side)
+            img = img.resize((max(64, int(img.size[0] * scale)), max(64, int(img.size[1] * scale))))
+        except Exception:
+            pass
+    try:
+        pixels = list(img.getdata())
+    except Exception:
+        return 0.0
+    if not pixels:
+        return 0.0
+    greenish = 0
+    for r, g, b in pixels[::3]:  # sample 1/3
+        try:
+            if g > 70 and g > (r + 18) and g > (b + 18):
+                greenish += 1
+        except Exception:
+            continue
+    total = max(1, len(pixels[::3]))
+    return float(greenish) / float(total)
+
+
+def _assistant_extract_canvas_state_from_pitch_diagram(image_bytes: bytes):
+    """
+    Intenta convertir un diagrama tipo libro/temario (campo verde con jugadores/líneas)
+    a `canvas_state` (Fabric) para que el Task Builder lo aplique como pizarra editable.
+
+    Devuelve (canvas_state, canvas_w, canvas_h) o (None, 0, 0).
+    """
+    try:
+        import numpy as np  # type: ignore
+        import cv2  # type: ignore
+    except Exception:
+        return None, 0, 0
+
+    img = _assistant__open_pil_rgb_from_bytes(image_bytes)
+    if img is None:
+        return None, 0, 0
+
+    # Reducimos tamaño para CV (velocidad) manteniendo detalle suficiente.
+    try:
+        max_side = max(int(img.size[0]), int(img.size[1]))
+    except Exception:
+        max_side = 0
+    if max_side > 1600:
+        try:
+            scale = 1600.0 / float(max_side)
+            img = img.resize((int(img.size[0] * scale), int(img.size[1] * scale)))
+        except Exception:
+            pass
+
+    try:
+        rgb = np.array(img)
+    except Exception:
+        return None, 0, 0
+    if rgb is None or rgb.size == 0:
+        return None, 0, 0
+
+    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+
+    lower_green = np.array([25, 25, 25], dtype=np.uint8)
+    upper_green = np.array([95, 255, 255], dtype=np.uint8)
+    mask = cv2.inRange(hsv, lower_green, upper_green)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    cnts = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = cnts[0] if len(cnts) == 2 else (cnts[1] if len(cnts) == 3 else [])
+    if not contours:
+        return None, 0, 0
+    contour = max(contours, key=cv2.contourArea)
+    area = float(cv2.contourArea(contour))
+    h_img, w_img = mask.shape[:2]
+    if area < float(w_img * h_img) * 0.20:
+        return None, 0, 0
+
+    rect = cv2.minAreaRect(contour)
+    box = cv2.boxPoints(rect)
+    box = np.array(box, dtype="float32")
+
+    def order_points(pts):
+        s = pts.sum(axis=1)
+        diff = np.diff(pts, axis=1)
+        ordered = np.zeros((4, 2), dtype="float32")
+        ordered[0] = pts[np.argmin(s)]
+        ordered[2] = pts[np.argmax(s)]
+        ordered[1] = pts[np.argmin(diff)]
+        ordered[3] = pts[np.argmax(diff)]
+        return ordered
+
+    src = order_points(box)
+    dst_w, dst_h = 1280, 720
+    dst = np.array([[0, 0], [dst_w - 1, 0], [dst_w - 1, dst_h - 1], [0, dst_h - 1]], dtype="float32")
+    M = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(bgr, M, (dst_w, dst_h))
+
+    # Detecta objetos "no campo" (jugadores + líneas) para luego separar blobs.
+    hsv_w = cv2.cvtColor(warped, cv2.COLOR_BGR2HSV)
+    mask_green_w = cv2.inRange(hsv_w, lower_green, upper_green)
+    obj_mask = cv2.bitwise_not(mask_green_w)
+    obj_mask = cv2.morphologyEx(obj_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)), iterations=1)
+
+    # Detecta jugadores por blobs (área) y color medio.
+    cnts2 = cv2.findContours(obj_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours2 = cnts2[0] if len(cnts2) == 2 else (cnts2[1] if len(cnts2) == 3 else [])
+    players = []
+    for c in contours2:
+        a = float(cv2.contourArea(c))
+        if a < 120 or a > 2200:
+            continue
+        x, y, w, h = cv2.boundingRect(c)
+        if w < 6 or h < 6:
+            continue
+        if h > 90 or w > 90:
+            continue
+        cx = x + (w / 2.0)
+        cy = y + (h / 2.0)
+        roi = hsv_w[max(0, y):min(dst_h, y + h), max(0, x):min(dst_w, x + w)]
+        if roi.size == 0:
+            continue
+        mean = cv2.mean(roi)
+        hue, sat, val = mean[0], mean[1], mean[2]
+        # Clasificación simple por color: rojo vs "otro" (normalmente verde/azul/negro).
+        is_red = (hue <= 10 or hue >= 170) and sat >= 40 and val >= 40
+        players.append({'x': float(cx), 'y': float(cy), 'is_red': bool(is_red)})
+
+    if len(players) < 4:
+        return None, 0, 0
+
+    # Detecta línea de presión (blanco alto, saturación baja) y crea un line único si encuentra segmentos.
+    white_mask = cv2.inRange(hsv_w, np.array([0, 0, 195], dtype=np.uint8), np.array([179, 70, 255], dtype=np.uint8))
+    white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 3)), iterations=1)
+    edges = cv2.Canny(white_mask, 60, 180)
+    segs = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=70, minLineLength=260, maxLineGap=35)
+    best = None
+    if segs is not None:
+        # Nos quedamos con el segmento más largo y casi horizontal.
+        best_len = 0.0
+        for seg in segs[:120]:
+            x1, y1, x2, y2 = seg[0]
+            dx = float(x2 - x1)
+            dy = float(y2 - y1)
+            length = (dx * dx + dy * dy) ** 0.5
+            if length < 280:
+                continue
+            if abs(dy) > 40:
+                continue
+            if length > best_len:
+                best_len = length
+                best = (float(x1), float(y1), float(x2), float(y2))
+
+    objects = []
+    # Línea (opcional).
+    if best:
+        x1, y1, x2, y2 = best
+        objects.append(
+            {
+                "type": "line",
+                "left": 0,
+                "top": 0,
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2,
+                "stroke": "rgba(248,250,252,0.95)",
+                "strokeWidth": 4,
+                "strokeDashArray": [16, 12],
+                "selectable": False,
+                "evented": False,
+            }
+        )
+
+    # Jugadores como círculos.
+    r = 16
+    for p in players[:40]:
+        fill = "rgba(239,68,68,0.92)" if p.get('is_red') else "rgba(34,197,94,0.92)"
+        objects.append(
+            {
+                "type": "circle",
+                "left": float(p["x"]) - r,
+                "top": float(p["y"]) - r,
+                "radius": r,
+                "fill": fill,
+                "stroke": "rgba(15,23,42,0.35)",
+                "strokeWidth": 2,
+            }
+        )
+
+    canvas_state = {"version": "5.3.0", "objects": objects}
+    return canvas_state, int(dst_w), int(dst_h)
+
+
 def _assistant_extract_bullets(text: str):
     lines = []
     try:
@@ -45403,7 +45657,27 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
     # y el OCR en bullets suele salir muy ruidoso.
     if is_image:
         try:
-            res = _assistant_create_blueprint_from_task_sheet(team, doc, text)
+            raw_bytes = b''
+            try:
+                f = getattr(doc, 'file', None)
+                if f:
+                    try:
+                        f.open('rb')
+                    except Exception:
+                        pass
+                    try:
+                        raw_bytes = f.read() or b''
+                    except Exception:
+                        raw_bytes = b''
+            except Exception:
+                raw_bytes = b''
+            res = _assistant_create_blueprint_from_task_sheet(
+                team,
+                doc,
+                text,
+                diagram_bytes=(raw_bytes if raw_bytes and _assistant__pitch_diagram_score(raw_bytes) >= 0.28 else b''),
+                diagram_doc_id=int(getattr(doc, 'id', 0) or 0),
+            )
         except Exception:
             res = {'created': 0, 'updated': 0}
         if int(res.get('created', 0) or 0) or int(res.get('updated', 0) or 0):
@@ -45790,7 +46064,13 @@ def _assistant__infer_goal_key_from_text(text: str, category_hint: str = '') -> 
     return best_key or 'auto'
 
 
-def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDocument, text: str):
+def _assistant_create_blueprint_from_task_sheet(
+    team,
+    doc: AssistantKnowledgeDocument,
+    text: str,
+    diagram_bytes: bytes = b'',
+    diagram_doc_id: int = 0,
+):
     """
     Crea 1 blueprint desde una ficha OCR (tablas tipo libros/temarios).
     """
@@ -45948,6 +46228,20 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
         'rules_html': rules_html,
         'source_name': 'Foto (OCR)',
     }
+    diagram_doc_id_clean = int(diagram_doc_id or 0)
+    if diagram_bytes:
+        try:
+            if _assistant__pitch_diagram_score(diagram_bytes) >= 0.28:
+                canvas_state, cw, ch = _assistant_extract_canvas_state_from_pitch_diagram(diagram_bytes)
+                if canvas_state and cw and ch:
+                    tpl['canvas_state'] = canvas_state
+                    tpl['canvas_width'] = int(cw)
+                    tpl['canvas_height'] = int(ch)
+                    tpl['source_name'] = 'Foto (OCR + diagrama)'
+                    if diagram_doc_id_clean <= 0:
+                        diagram_doc_id_clean = int(getattr(doc, 'id', 0) or 0)
+        except Exception:
+            pass
     payload = {
         'tpl': tpl,
         'meta': {
@@ -45957,6 +46251,7 @@ def _assistant_create_blueprint_from_task_sheet(team, doc: AssistantKnowledgeDoc
             'approach': 'auto',
             'source_doc_id': int(doc.id),
             'kind': 'task_sheet',
+            **({'diagram_doc_id': diagram_doc_id_clean} if int(diagram_doc_id_clean or 0) > 0 else {}),
         },
     }
     try:
@@ -46156,6 +46451,8 @@ def task_assistant_knowledge_upload_api(request):
     # para evitar que salgan varias plantillas parciales (título en una, reglas en otra, etc.).
     is_carousel_batch = len(uploads) >= 2 and all(_is_image_upload(u) for u in uploads)
     carousel_docs: list[AssistantKnowledgeDocument] = []
+    carousel_raw_by_id: dict[int, bytes] = {}
+    carousel_pitch_score: dict[int, float] = {}
 
     saved = 0
     skipped = 0
@@ -46212,6 +46509,14 @@ def task_assistant_knowledge_upload_api(request):
             saved += 1
             if is_carousel_batch and is_image:
                 carousel_docs.append(obj)
+                try:
+                    carousel_raw_by_id[int(obj.id)] = raw
+                except Exception:
+                    pass
+                try:
+                    carousel_pitch_score[int(obj.id)] = float(_assistant__pitch_diagram_score(raw) or 0.0)
+                except Exception:
+                    carousel_pitch_score[int(obj.id)] = 0.0
             else:
                 try:
                     result = _assistant_create_blueprints_from_document(primary_team, obj)
@@ -46229,9 +46534,20 @@ def task_assistant_knowledge_upload_api(request):
         except Exception:
             combined = ''
         if combined.strip():
+            diag_bytes = b''
+            diag_doc_id = 0
+            try:
+                if carousel_pitch_score:
+                    best_id, best_score = max(carousel_pitch_score.items(), key=lambda it: float(it[1] or 0.0))
+                    if float(best_score or 0.0) >= 0.28:
+                        diag_doc_id = int(best_id or 0)
+                        diag_bytes = carousel_raw_by_id.get(diag_doc_id, b'') or b''
+            except Exception:
+                diag_bytes = b''
+                diag_doc_id = 0
             try:
                 # Reutilizamos el primer doc como "origen" para etiquetar doc_id.
-                result = _assistant_create_blueprint_from_task_sheet(primary_team, carousel_docs[0], combined)
+                result = _assistant_create_blueprint_from_task_sheet(primary_team, carousel_docs[0], combined, diagram_bytes=diag_bytes, diagram_doc_id=diag_doc_id)
                 for key in ('created', 'updated'):
                     blueprints[key] = int(blueprints.get(key, 0) or 0) + int(result.get(key, 0) or 0)
             except Exception:
