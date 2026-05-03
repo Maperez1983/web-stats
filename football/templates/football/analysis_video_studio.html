@@ -368,11 +368,16 @@
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
-                <button type="button" class="button" id="vs-timeline-export">Export JSON</button>
-                <button type="button" class="button" id="vs-timeline-import">Import JSON</button>
+                <select id="vs-timeline-format" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+                  <option value="json" selected>JSON</option>
+                  <option value="csv">CSV</option>
+                  <option value="xml">XML</option>
+                </select>
+                <button type="button" class="button" id="vs-timeline-export">Export</button>
+                <button type="button" class="button" id="vs-timeline-import">Import</button>
                 <button type="button" class="button danger" id="vs-timeline-clear">Vaciar</button>
               </div>
-              <input type="file" id="vs-timeline-import-file" accept="application/json" hidden />
+              <input type="file" id="vs-timeline-import-file" accept="application/json,text/csv,application/xml,.json,.csv,.xml" hidden />
               <div class="list" id="vs-timeline"></div>
             </div>
 

@@ -152,6 +152,7 @@
 	    const timelineCountEl = document.getElementById('vs-timeline-count');
 	    const timelinePrevBtn = document.getElementById('vs-timeline-prev');
 	    const timelineNextBtn = document.getElementById('vs-timeline-next');
+	    const timelineFormatSelect = document.getElementById('vs-timeline-format');
 	    const timelineExportBtn = document.getElementById('vs-timeline-export');
     const timelineImportBtn = document.getElementById('vs-timeline-import');
     const timelineClearBtn = document.getElementById('vs-timeline-clear');
@@ -3184,6 +3185,89 @@
       }
     };
 
+    const exportTimelineFile = async (format) => {
+      if (!timelineExportUrl || !videoId) { setStatus('No disponible.', true); return; }
+      const fmt = safeText(format, 'csv');
+      try {
+        const resp = await fetch(
+          `${timelineExportUrl}?video_id=${encodeURIComponent(String(videoId))}&format=${encodeURIComponent(fmt)}`,
+          { credentials: 'same-origin' },
+        );
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          throw new Error(data?.error || 'error');
+        }
+        await downloadResponseBlob(resp, `timeline-${videoId}.${fmt}`);
+        setStatus(`Timeline exportada (${fmt.toUpperCase()}).`);
+      } catch (e) {
+        setStatus('No se pudo exportar timeline.', true);
+      }
+    };
+
+    const parseCsvLine = (line) => {
+      const out = [];
+      let cur = '';
+      let inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQ) {
+          if (ch === '"') {
+            if (line[i + 1] === '"') { cur += '"'; i++; continue; }
+            inQ = false;
+            continue;
+          }
+          cur += ch;
+          continue;
+        }
+        if (ch === '"') { inQ = true; continue; }
+        if (ch === ',') { out.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      out.push(cur);
+      return out;
+    };
+
+    const parseTimelineCsv = (text) => {
+      const lines = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim().length);
+      if (lines.length < 2) return [];
+      const head = parseCsvLine(lines[0]).map(h => safeText(h).trim().toLowerCase());
+      const idxTimeMs = head.indexOf('time_ms');
+      const idxKind = head.indexOf('kind');
+      const idxLabel = head.indexOf('label');
+      const idxColor = head.indexOf('color');
+      const items = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const time_ms = Number(cols[idxTimeMs] || 0) || 0;
+        const kind = safeText(cols[idxKind] || 'tag', 'tag');
+        const label = safeText(cols[idxLabel] || '', '');
+        const color = safeText(cols[idxColor] || '', '');
+        items.push({ time_ms, kind, label, color, payload: {} });
+      }
+      return items.filter(it => Number.isFinite(it.time_ms));
+    };
+
+    const parseTimelineXml = (text) => {
+      const items = [];
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(String(text || ''), 'application/xml');
+        const errs = doc.getElementsByTagName('parsererror');
+        if (errs && errs.length) return [];
+        const events = Array.from(doc.getElementsByTagName('event') || []);
+        for (const ev of events) {
+          const timeMs = Number(ev.getAttribute('time_ms') || 0) || 0;
+          const kind = safeText(ev.getAttribute('kind') || 'tag', 'tag');
+          const color = safeText(ev.getAttribute('color') || '', '');
+          let label = '';
+          const labelEl = ev.getElementsByTagName('label')?.[0];
+          if (labelEl) label = safeText(labelEl.textContent || '', '');
+          items.push({ time_ms: timeMs, kind, label, color, payload: {} });
+        }
+      } catch (e) { /* ignore */ }
+      return items;
+    };
+
     const importTimelineJson = async (payloadObj) => {
       if (!timelineImportUrl || !videoId) { setStatus('No disponible.', true); return; }
       const items = Array.isArray(payloadObj?.items) ? payloadObj.items : [];
@@ -3206,7 +3290,11 @@
       }
     };
 
-    timelineExportBtn?.addEventListener('click', exportTimelineJson);
+    timelineExportBtn?.addEventListener('click', async () => {
+      const fmt = safeText(timelineFormatSelect?.value, 'json').trim().toLowerCase();
+      if (fmt === 'csv' || fmt === 'xml') return exportTimelineFile(fmt);
+      return exportTimelineJson();
+    });
     timelineImportBtn?.addEventListener('click', () => {
       try { timelineImportFile?.click(); } catch (e) { /* ignore */ }
     });
@@ -3215,10 +3303,21 @@
       if (!file) return;
       try {
         const text = await file.text();
-        const obj = JSON.parse(text || '{}');
-        await importTimelineJson(obj);
+        const name = safeText(file.name || '', '').toLowerCase();
+        if (name.endsWith('.csv') || safeText(file.type || '', '').includes('csv')) {
+          const items = parseTimelineCsv(text);
+          if (!items.length) { setStatus('CSV sin eventos.', true); return; }
+          await importTimelineJson({ items });
+        } else if (name.endsWith('.xml') || safeText(file.type || '', '').includes('xml')) {
+          const items = parseTimelineXml(text);
+          if (!items.length) { setStatus('XML sin eventos.', true); return; }
+          await importTimelineJson({ items });
+        } else {
+          const obj = JSON.parse(text || '{}');
+          await importTimelineJson(obj);
+        }
       } catch (e) {
-        setStatus('JSON inválido.', true);
+        setStatus('Archivo inválido.', true);
       } finally {
         try { timelineImportFile.value = ''; } catch (e) { /* ignore */ }
       }
