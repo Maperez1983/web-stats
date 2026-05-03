@@ -127,6 +127,8 @@
 		    goal_3d: 'una portería 3D',
 		    goal_mini: 'una mini portería',
 		    goal_target: 'una portería con dianas',
+		    goal_popup: 'una portería pop-up',
+		    goal_futsal: 'una portería de futsal',
 		    token: 'un jugador',
 		    line: 'una línea',
 		    arrow: 'una flecha',
@@ -12801,7 +12803,11 @@
 				    };
 
 	    const buildGoalGroup = (left, top, style = 'net', options = {}) => {
-	      const stroke = safeText(options.stroke, '#f8fafc') || '#f8fafc';
+	      const defaultStrokeByStyle = {
+	        popup: '#fbbf24',
+	        futsal: '#e2e8f0',
+	      };
+	      const stroke = safeText(options.stroke, defaultStrokeByStyle[style] || '#f8fafc') || (defaultStrokeByStyle[style] || '#f8fafc');
 	      const strokeWidth = clamp(Number(options.strokeWidth) || 3, 2, 8);
 	      const baseW = Number(options.width) || 128;
 	      const baseH = Number(options.height) || 74;
@@ -12911,6 +12917,74 @@
 	        }
 	      } else if (style === 'mini') {
 	        addNetGrid(w, h, 0, 0, 22, 18, 0.16);
+	      } else if (style === 'popup') {
+	        // Portería pop-up: más redondeada y con un “marco” vistoso (amarillo).
+	        try { front.set({ rx: 18, ry: 18 }); } catch (e) { /* ignore */ }
+	        addNetGrid(w, h, 0, 0, 20, 18, 0.16);
+	        const band = new fabric.Rect({
+	          left: 0,
+	          top: (h / 2) + 6,
+	          originX: 'center',
+	          originY: 'center',
+	          width: w * 0.86,
+	          height: Math.max(6, Math.round(strokeWidth + 2)),
+	          rx: 10,
+	          ry: 10,
+	          fill: 'rgba(250,204,21,0.55)',
+	          strokeWidth: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        parts.push(band);
+	        const arcColor = 'rgba(250,204,21,0.55)';
+	        parts.push(new fabric.Path(`M ${-w * 0.44} ${h * 0.34} Q 0 ${h * 0.62} ${w * 0.44} ${h * 0.34}`, {
+	          fill: '',
+	          stroke: arcColor,
+	          strokeWidth: Math.max(2, strokeWidth - 1),
+	          selectable: false,
+	          evented: false,
+	        }));
+	      } else if (style === 'futsal') {
+	        // Portería futsal/handball: más alta y “pesada” visualmente.
+	        addNetGrid(w, h, 0, 0, 16, 14, 0.20);
+	        const postW = Math.max(4, Math.round(strokeWidth + 1));
+	        const leftPost = new fabric.Rect({
+	          left: -w / 2,
+	          top: 0,
+	          originX: 'left',
+	          originY: 'center',
+	          width: postW,
+	          height: h,
+	          fill: 'rgba(226,232,240,0.70)',
+	          strokeWidth: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const rightPost = new fabric.Rect({
+	          left: w / 2,
+	          top: 0,
+	          originX: 'right',
+	          originY: 'center',
+	          width: postW,
+	          height: h,
+	          fill: 'rgba(226,232,240,0.70)',
+	          strokeWidth: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const bar = new fabric.Rect({
+	          left: 0,
+	          top: -h / 2,
+	          originX: 'center',
+	          originY: 'top',
+	          width: w,
+	          height: postW,
+	          fill: 'rgba(226,232,240,0.70)',
+	          strokeWidth: 0,
+	          selectable: false,
+	          evented: false,
+	        });
+	        parts.push(leftPost, rightPost, bar);
 	      } else if (style === 'posts') {
 	        // Solo marco: nada de red.
 	      }
@@ -13772,6 +13846,8 @@
 	      if (kind === 'goal_posts') return (left, top) => buildGoalGroup(left, top, 'posts');
 	      if (kind === 'goal_3d') return (left, top) => buildGoalGroup(left, top, '3d');
 	      if (kind === 'goal_mini') return (left, top) => buildGoalGroup(left, top, 'mini', { width: 96, height: 56 });
+	      if (kind === 'goal_popup') return (left, top) => buildGoalGroup(left, top, 'popup', { width: 104, height: 62, stroke: '#fbbf24', strokeWidth: 4 });
+	      if (kind === 'goal_futsal') return (left, top) => buildGoalGroup(left, top, 'futsal', { width: 140, height: 92, stroke: '#e2e8f0', strokeWidth: 4 });
 		      if (kind === 'line' || kind === 'line_solid') {
 		        return (left, top) => new fabric.Line([-220, 0, 220, 0], {
 		          left, top, originX: 'center', originY: 'center',
