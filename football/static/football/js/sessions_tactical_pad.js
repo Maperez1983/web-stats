@@ -5273,6 +5273,21 @@
 							    let pitch3dPointer = null;
 							    let pitch3dSpotlight = null;
 							    let pitch3dCurrentStep = 0;
+							    let pitch3dGhostsEnabled = true;
+							    let pitch3dTrailsEnabled = true;
+							    let pitch3dGhostRoot = null;
+							    let pitch3dTrailRoot = null;
+
+							    const clearPitch3dGhosts = () => {
+							      if (!pitch3dRoot) return;
+							      try { if (pitch3dGhostRoot) pitch3dRoot.remove(pitch3dGhostRoot); } catch (e) { /* ignore */ }
+							      pitch3dGhostRoot = null;
+							    };
+							    const clearPitch3dTrails = () => {
+							      if (!pitch3dRoot) return;
+							      try { if (pitch3dTrailRoot) pitch3dRoot.remove(pitch3dTrailRoot); } catch (e) { /* ignore */ }
+							      pitch3dTrailRoot = null;
+							    };
 
 							    const setPitch3dPresentation = (enabled) => {
 							      pitch3dPresentation = !!enabled;
@@ -5401,6 +5416,12 @@
 						      const root = new THREE.Group();
 						      pitch3dRoot = root;
 						      pitch3dScene.add(root);
+						      pitch3dGhostRoot = new THREE.Group();
+						      pitch3dGhostRoot.userData = { kind: 'ghosts' };
+						      pitch3dTrailRoot = new THREE.Group();
+						      pitch3dTrailRoot.userData = { kind: 'trails' };
+						      root.add(pitch3dGhostRoot);
+						      root.add(pitch3dTrailRoot);
 
 						      const preset = safeText(options.preset, 'full_pitch');
 						      const orientation = safeText(options.orientation, 'landscape');
@@ -5792,16 +5813,64 @@
 						      const hA = Math.max(1, Number(fromStep?.sourceH) || 720);
 						      const wB = Math.max(1, Number(toStep?.sourceW) || wA);
 						      const hB = Math.max(1, Number(toStep?.sourceH) || hA);
-						      const aObjs = Array.isArray(fromStep?.state?.objects) ? fromStep.state.objects : [];
-						      const bObjs = Array.isArray(toStep?.state?.objects) ? toStep.state.objects : [];
+							      const aObjs = Array.isArray(fromStep?.state?.objects) ? fromStep.state.objects : [];
+							      const bObjs = Array.isArray(toStep?.state?.objects) ? toStep.state.objects : [];
 						      const keyFor = (o, idx) => safeText(o?.data?.playerId) || `${safeText(o?.data?.token_kind)}:${safeText(o?.data?.playerNumber)}:${idx}`;
 						      const mapB = new Map();
 						      bObjs.filter((o) => safeText(o?.data?.kind) === 'token').forEach((o, idx) => mapB.set(keyFor(o, idx), o));
 
-						      // Actualiza solo meshes de tokens/ball que ya están en la escena.
-						      pitch3dRoot.children.forEach((node) => {
-						        if (!node || !node.userData) return;
-						        if (safeText(node.userData.kind) !== 'token') return;
+							      // Ghosts (posiciones del paso anterior).
+							      try {
+							        clearPitch3dGhosts();
+							        if (pitch3dGhostsEnabled && pitch3dGhostRoot) {
+							          const aTokens = aObjs.filter((o) => safeText(o?.data?.kind) === 'token').slice(0, 60);
+							          const ghostMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.14 });
+							          const geo = new THREE.CylinderGeometry(0.72, 0.72, 0.18, 14);
+							          aTokens.forEach((o) => {
+							            const data = o?.data || {};
+							            const uid = safeText(data.playerId) || safeText(data.layer_uid) || safeText(data.playerNumber) || '';
+							            const tokenKind = safeText(data.token_kind);
+							            const c = toColorInt(safeText(data.token_stripe_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8')), 0xffffff);
+							            const mat = ghostMat.clone();
+							            mat.color = new THREE.Color(c);
+							            const mesh = new THREE.Mesh(geo, mat);
+							            const p = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
+							            mesh.position.set(p.x, 0.05, p.z);
+							            mesh.userData = { kind: 'ghost', uid };
+							            pitch3dGhostRoot.add(mesh);
+							          });
+							        }
+							      } catch (e) { /* ignore */ }
+
+							      // Trails (líneas de trayectoria entre A y B por jugador).
+							      try {
+							        clearPitch3dTrails();
+							        if (pitch3dTrailsEnabled && pitch3dTrailRoot) {
+							          const aTokens = aObjs.filter((o) => safeText(o?.data?.kind) === 'token').slice(0, 60);
+							          aTokens.forEach((o) => {
+							            const data = o?.data || {};
+							            const uid = safeText(data.playerId) || safeText(data.layer_uid) || safeText(data.playerNumber) || '';
+							            if (!uid) return;
+							            const b = bObjs.find((x) => safeText(x?.data?.kind) === 'token' && safeText(x?.data?.playerId) === uid) || null;
+							            if (!b) return;
+							            const a3 = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, wA, hA, metersW, metersH, orientation);
+							            const b3 = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
+							            const tokenKind = safeText(data.token_kind);
+							            const col = toColorInt(safeText(data.token_stripe_color || data.color || (tokenKind.includes('rival') ? '#dc2626' : '#1d4ed8')), 0xffffff);
+							            const pts = [new THREE.Vector3(a3.x, 0.03, a3.z), new THREE.Vector3(b3.x, 0.03, b3.z)];
+							            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+							            const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35 });
+							            const line = new THREE.Line(geo, mat);
+							            line.userData = { kind: 'trail', uid };
+							            pitch3dTrailRoot.add(line);
+							          });
+							        }
+							      } catch (e) { /* ignore */ }
+
+							      // Actualiza meshes de tokens/ball que ya están en la escena.
+							      pitch3dRoot.children.forEach((node) => {
+							        if (!node || !node.userData) return;
+							        if (safeText(node.userData.kind) !== 'token') return;
 						        const uid = safeText(node.userData.uid);
 						        // Buscamos por uid si hay playerId, si no, dejamos fijo.
 						        let a = null;
@@ -5817,9 +5886,30 @@
 						        if (!b) b = a;
 						        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
 						        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
-						        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
-						        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
-						      });
+							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
+							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
+							      });
+
+							      // Balón con “altura” (arco simple) si se mueve lo suficiente.
+							      try {
+							        const ballNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball');
+							        if (ballNode) {
+							          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball') || null;
+							          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball') || aBall;
+							          if (aBall && bBall) {
+							            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
+							            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
+							            const dx = pB.x - pA.x;
+							            const dz = pB.z - pA.z;
+							            const dist = Math.hypot(dx, dz);
+							            const lift = dist > 6 ? Math.min(2.8, 0.22 * dist) : 0;
+							            const arc = lift ? (Math.sin(Math.PI * alpha) * lift) : 0;
+							            ballNode.position.x = pA.x + (dx * alpha);
+							            ballNode.position.z = pA.z + (dz * alpha);
+							            ballNode.position.y = 0.35 + arc;
+							          }
+							        }
+							      } catch (e) { /* ignore */ }
 						    };
 
 						    const stopPitch3dPlayback = () => {
