@@ -45484,36 +45484,75 @@ def _assistant_extract_canvas_state_from_pitch_diagram(image_bytes: bytes):
     obj_mask = cv2.bitwise_not(mask_green_w)
     obj_mask = cv2.morphologyEx(obj_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)), iterations=1)
 
+    # Detecta líneas blancas para excluirlas del detector de fichas.
+    white_mask = cv2.inRange(hsv_w, np.array([0, 0, 195], dtype=np.uint8), np.array([179, 70, 255], dtype=np.uint8))
+    white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 3)), iterations=1)
+
+    # Máscara de posibles fichas (sin líneas blancas).
+    obj_mask_players = cv2.bitwise_and(obj_mask, cv2.bitwise_not(white_mask))
+    obj_mask_players = cv2.morphologyEx(obj_mask_players, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)), iterations=1)
+
     # Detecta jugadores por blobs (área) y color medio.
-    cnts2 = cv2.findContours(obj_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts2 = cv2.findContours(obj_mask_players, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours2 = cnts2[0] if len(cnts2) == 2 else (cnts2[1] if len(cnts2) == 3 else [])
-    players = []
+    pieces = []
     for c in contours2:
         a = float(cv2.contourArea(c))
-        if a < 120 or a > 2200:
+        if a < 90 or a > 2600:
             continue
         x, y, w, h = cv2.boundingRect(c)
         if w < 6 or h < 6:
             continue
         if h > 90 or w > 90:
             continue
+        # Filtra líneas/texto por circularidad/aspecto.
+        per = float(cv2.arcLength(c, True) or 0.0)
+        if per <= 0.0:
+            continue
+        circularity = float(4.0 * np.pi * a / (per * per))
+        aspect = float(max(w, h)) / float(max(1, min(w, h)))
+        if circularity < 0.38 or aspect > 1.65:
+            continue
+        (cx0, cy0), radius = cv2.minEnclosingCircle(c)
+        radius = float(radius or 0.0)
+        if radius < 6.0 or radius > 34.0:
+            continue
         cx = x + (w / 2.0)
         cy = y + (h / 2.0)
-        roi = hsv_w[max(0, y):min(dst_h, y + h), max(0, x):min(dst_w, x + w)]
-        if roi.size == 0:
+        # Media HSV dentro del contorno (más robusto con fondos/overlays).
+        contour_mask = np.zeros((dst_h, dst_w), dtype=np.uint8)
+        try:
+            cv2.drawContours(contour_mask, [c], -1, 255, -1)
+        except Exception:
             continue
-        mean = cv2.mean(roi)
+        mean = cv2.mean(hsv_w, mask=contour_mask)
         hue, sat, val = mean[0], mean[1], mean[2]
-        # Clasificación simple por color: rojo vs "otro" (normalmente verde/azul/negro).
-        is_red = (hue <= 10 or hue >= 170) and sat >= 40 and val >= 40
-        players.append({'x': float(cx), 'y': float(cy), 'is_red': bool(is_red)})
+        # Ignora casi blancos (texto/lineas residuales).
+        if sat < 35 and val > 175:
+            continue
 
-    if len(players) < 4:
+        kind = 'other'
+        # Rojo (fichas).
+        if (hue <= 12 or hue >= 168) and sat >= 70 and val >= 55:
+            kind = 'red'
+        # Amarillo (petos/neutral).
+        elif 15 <= hue <= 40 and sat >= 70 and val >= 60:
+            kind = 'yellow'
+        # Azul.
+        elif 88 <= hue <= 140 and sat >= 55 and val >= 45:
+            kind = 'blue'
+        else:
+            # Balón: muy pequeño y poco saturado (blanco/negro).
+            if radius <= 10.5 and sat <= 60:
+                kind = 'ball'
+
+        pieces.append({'x': float(cx0), 'y': float(cy0), 'kind': kind})
+
+    # Necesitamos al menos 4 fichas para considerarlo usable.
+    if sum(1 for p in pieces if p.get('kind') in ('red', 'blue', 'yellow', 'other')) < 4:
         return None, 0, 0
 
     # Detecta línea de presión (blanco alto, saturación baja) y crea un line único si encuentra segmentos.
-    white_mask = cv2.inRange(hsv_w, np.array([0, 0, 195], dtype=np.uint8), np.array([179, 70, 255], dtype=np.uint8))
-    white_mask = cv2.morphologyEx(white_mask, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (7, 3)), iterations=1)
     edges = cv2.Canny(white_mask, 60, 180)
     segs = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=70, minLineLength=260, maxLineGap=35)
     best = None
@@ -45556,17 +45595,30 @@ def _assistant_extract_canvas_state_from_pitch_diagram(image_bytes: bytes):
 
     # Jugadores como círculos.
     r = 16
-    for p in players[:40]:
-        fill = "rgba(239,68,68,0.92)" if p.get('is_red') else "rgba(34,197,94,0.92)"
+    for p in pieces[:48]:
+        kind = str(p.get('kind') or 'other')
+        if kind == 'red':
+            fill = "rgba(239,68,68,0.92)"
+        elif kind == 'blue':
+            fill = "rgba(59,130,246,0.92)"
+        elif kind == 'yellow':
+            fill = "rgba(234,179,8,0.92)"
+        elif kind == 'ball':
+            fill = "rgba(248,250,252,0.96)"
+        else:
+            fill = "rgba(34,197,94,0.92)"
+        radius = 8 if kind == 'ball' else r
+        stroke = "rgba(15,23,42,0.65)" if kind == 'ball' else "rgba(15,23,42,0.35)"
+        stroke_w = 2
         objects.append(
             {
                 "type": "circle",
-                "left": float(p["x"]) - r,
-                "top": float(p["y"]) - r,
-                "radius": r,
+                "left": float(p["x"]) - radius,
+                "top": float(p["y"]) - radius,
+                "radius": radius,
                 "fill": fill,
-                "stroke": "rgba(15,23,42,0.35)",
-                "strokeWidth": 2,
+                "stroke": stroke,
+                "strokeWidth": stroke_w,
             }
         )
 
