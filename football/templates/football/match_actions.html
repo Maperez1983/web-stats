@@ -2055,19 +2055,28 @@
         border-color: rgba(248, 113, 113, 0.35);
         background: rgba(127, 29, 29, 0.35);
       }
-	      .history-delete {
+      .history-actions {
         position: absolute;
         top: 0.35rem;
         right: 0.35rem;
+        display: flex;
+        gap: 0.35rem;
+        align-items: center;
+      }
+	    .history-delete,
+      .history-replay {
         width: 30px;
         height: 30px;
-	        border: none;
-	        background: rgba(255, 255, 255, 0.05);
-	        color: var(--accent);
-	        border-radius: 50%;
-	        cursor: pointer;
-	        font-size: 0.9rem;
-	      }
+	      border: none;
+	      background: rgba(255, 255, 255, 0.05);
+	      color: var(--accent);
+	      border-radius: 50%;
+	      cursor: pointer;
+	      font-size: 0.9rem;
+        display: grid;
+        place-items: center;
+	    }
+      .history-replay { color: rgba(34, 211, 238, 0.95); }
 	      .button {
         border: none;
         border-radius: 999px;
@@ -3073,7 +3082,9 @@
                 <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador"|upper }}</strong>
                 {% endwith %}
                 <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
-                <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+                <div class="history-actions">
+                  <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+                </div>
               </article>
               {% empty %}
               <article class="history-item">
@@ -6560,6 +6571,7 @@
           let links = [];
           let activeLink = null;
           let lastSeek = null;
+          let lastElapsedMs = 0;
 
           const setVideoStatus = (text) => {
             if (matchVideoStatusEl) matchVideoStatusEl.textContent = String(text || '').trim();
@@ -6596,7 +6608,15 @@
             const url = String(link.video_url || '').trim();
             if (!url) return;
             if (keepTime) {
-              try { lastSeek = Number(matchVideoEl.currentTime) || 0; } catch (e) { lastSeek = null; }
+              try {
+                const nowS = Number(matchVideoEl.currentTime) || 0;
+                const prevKickoff = Number(activeLink?.kickoff_video_ms) || 0;
+                lastElapsedMs = Math.max(0, Math.round(nowS * 1000) - prevKickoff);
+              } catch (e) { /* ignore */ }
+              try {
+                const nextKickoff = Number(link.kickoff_video_ms) || 0;
+                lastSeek = (nextKickoff + (Number(lastElapsedMs) || 0)) / 1000.0;
+              } catch (e) { lastSeek = null; }
             } else {
               lastSeek = null;
             }
@@ -6665,26 +6685,50 @@
               return 0;
             }
           };
+          const readLastVideoAnchor = () => {
+            if (!lastVideoKey) return { time_ms: 0, elapsed_ms: 0, kickoff_video_ms: 0, video_id: 0 };
+            try {
+              const raw = window.localStorage.getItem(lastVideoKey) || '';
+              const obj = JSON.parse(raw);
+              return {
+                time_ms: Number(obj?.time_ms) || 0,
+                elapsed_ms: Number(obj?.elapsed_ms) || 0,
+                kickoff_video_ms: Number(obj?.kickoff_video_ms) || 0,
+                video_id: Number(obj?.video_id) || 0,
+              };
+            } catch (e) {
+              return { time_ms: 0, elapsed_ms: 0, kickoff_video_ms: 0, video_id: 0 };
+            }
+          };
 
-          const replayLast = async () => {
-            const timeMs = readLastVideoTimeMs();
-            if (!timeMs || !activeLink) {
-              showPageStatus('No hay “último momento” todavía. Registra una acción con vídeo vinculado.', 'warning', 4200);
+          const computeTimeMsForLink = (link, { elapsedMs = 0, fallbackTimeMs = 0 } = {}) => {
+            const elapsed = Number(elapsedMs) || 0;
+            const kickoff = Number(link?.kickoff_video_ms) || 0;
+            if (elapsed > 0) return Math.max(0, kickoff + elapsed);
+            return Math.max(0, Number(fallbackTimeMs) || 0);
+          };
+
+          const replayAt = async ({ elapsedMs = 0, timeMs = 0 } = {}) => {
+            if (!activeLink) await refreshLinks();
+            if (!activeLink) {
+              showPageStatus('No hay vídeo vinculado.', 'warning', 4200);
               return;
             }
-            // Asegura que el vídeo activo corresponde al link seleccionado.
-            if (matchVideoAngleSelect.value && String(activeLink.id) !== String(matchVideoAngleSelect.value)) {
-              const id = Number(matchVideoAngleSelect.value) || 0;
-              const link = links.find((l) => Number(l.id) === id) || null;
-              if (link) await setSource(link, { keepTime: false });
+            if (Number(elapsedMs) > 0) lastElapsedMs = Number(elapsedMs) || 0;
+            // Asegura link seleccionado
+            const selectedId = Number(matchVideoAngleSelect?.value) || 0;
+            const selected = selectedId ? (links.find((l) => Number(l.id) === selectedId) || null) : null;
+            if (selected && (!activeLink || Number(activeLink.id) !== Number(selected.id))) {
+              await setSource(selected, { keepTime: false });
             }
-            const pre = Math.max(0, Number(activeLink.clip_pre_ms) || 0) / 1000.0;
-            const post = Math.max(0, Number(activeLink.clip_post_ms) || 0) / 1000.0;
-            const t = Math.max(0, (Number(timeMs) || 0) / 1000.0 - (pre || 6.0));
-            const stopAt = Math.max(t + 0.25, (Number(timeMs) || 0) / 1000.0 + (post || 6.0));
+            const safeLink = activeLink || selected;
+            const anchorTimeMs = computeTimeMsForLink(safeLink, { elapsedMs, fallbackTimeMs: timeMs });
+            const pre = Math.max(0, Number(safeLink.clip_pre_ms) || 0) / 1000.0;
+            const post = Math.max(0, Number(safeLink.clip_post_ms) || 0) / 1000.0;
+            const t = Math.max(0, (Number(anchorTimeMs) || 0) / 1000.0 - (pre || 6.0));
+            const stopAt = Math.max(t + 0.25, (Number(anchorTimeMs) || 0) / 1000.0 + (post || 6.0));
             try { matchVideoEl.currentTime = t; } catch (e) {}
             try { await matchVideoEl.play(); } catch (e) {}
-            // stop simple
             const handler = () => {
               try {
                 if ((Number(matchVideoEl.currentTime) || 0) >= stopAt - 0.03) {
@@ -6694,6 +6738,23 @@
               } catch (e) {}
             };
             matchVideoEl.addEventListener('timeupdate', handler);
+          };
+
+          const replayLast = async () => {
+            const anchor = readLastVideoAnchor();
+            const timeMs = Number(anchor.time_ms) || 0;
+            const elapsedMs = Number(anchor.elapsed_ms) || 0;
+            if ((!timeMs && !elapsedMs) || !activeLink) {
+              showPageStatus('No hay “último momento” todavía. Registra una acción con vídeo vinculado.', 'warning', 4200);
+              return;
+            }
+            // Asegura que el vídeo activo corresponde al link seleccionado.
+            if (matchVideoAngleSelect.value && String(activeLink.id) !== String(matchVideoAngleSelect.value)) {
+              const id = Number(matchVideoAngleSelect.value) || 0;
+              const link = links.find((l) => Number(l.id) === id) || null;
+              if (link) await setSource(link, { keepTime: false });
+            }
+            await replayAt({ elapsedMs, timeMs });
           };
 
           const postMarker = async ({ makeClip = false } = {}) => {
@@ -6726,6 +6787,16 @@
           matchVideoReplayBtn?.addEventListener('click', replayLast);
           matchVideoMarkBtn?.addEventListener('click', () => postMarker({ makeClip: false }));
           matchVideoClipBtn?.addEventListener('click', () => postMarker({ makeClip: true }));
+
+          // Replay por acción: al pulsar 🎬 en historial.
+          document.addEventListener('webstats:match-video:seek', async (ev) => {
+            const d = ev?.detail || {};
+            const elapsedMs = Number(d.elapsed_ms) || 0;
+            const timeMs = Number(d.time_ms) || 0;
+            try { matchVideoModal.hidden = false; } catch (e) {}
+            await refreshLinks();
+            await replayAt({ elapsedMs, timeMs });
+          });
 
           // Si llega un evento de “acción registrada” con info de vídeo, abre botón de replay más útil.
           document.addEventListener('webstats:match-actions:recorded', (ev) => {

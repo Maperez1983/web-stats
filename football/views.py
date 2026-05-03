@@ -16291,7 +16291,16 @@ def match_video_marker_api(request):
         payload={'source': 'match_actions_marker', 'match_id': int(match.id), 'link_id': int(link.id)},
         created_by=request.user.get_username(),
     )
-    out = {'ok': True, 'match_id': int(match.id), 'video_id': int(link.video_id), 'time_ms': int(time_ms), 'marker_id': int(marker.id)}
+    out = {
+        'ok': True,
+        'match_id': int(match.id),
+        'link_id': int(link.id),
+        'video_id': int(link.video_id),
+        'kickoff_video_ms': int(getattr(link, 'kickoff_video_ms', 0) or 0),
+        'elapsed_ms': int(elapsed_ms or 0),
+        'time_ms': int(time_ms),
+        'marker_id': int(marker.id),
+    }
     if make_clip:
         pre_ms = int(getattr(link, 'clip_pre_ms', 0) or 0)
         post_ms = int(getattr(link, 'clip_post_ms', 0) or 0)
@@ -16357,7 +16366,11 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
     except Exception:
         created_by = ''
 
-    out = {'video_id': int(getattr(link, 'video_id', 0) or 0), 'time_ms': int(time_ms)}
+    out = {'video_id': int(getattr(link, 'video_id', 0) or 0), 'time_ms': int(time_ms), 'kickoff_video_ms': int(getattr(link, 'kickoff_video_ms', 0) or 0)}
+    try:
+        out['elapsed_ms'] = int(elapsed_ms or 0)
+    except Exception:
+        out['elapsed_ms'] = 0
 
     if getattr(link, 'auto_markers', False):
         marker = VideoTimelineEvent.objects.create(
