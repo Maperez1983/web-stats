@@ -1877,7 +1877,6 @@
 	                  class="task task-clickable"
 	                  data-detail-url="{% url 'imported-session-file' doc.id %}"
 	                  data-pdf-viewer="1"
-	                  data-pdf-open-direct="1"
 	                  data-pdf-title="Sesión importada · {{ doc.title }}"
 	                  tabindex="0"
 	                  role="link"
@@ -3049,6 +3048,11 @@
 		          <a class="tab-link {% if library_view == 'source' and library_key == 'imported' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=imported&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importadas</a>
 		          <a class="tab-link {% if library_view == 'source' and library_key == 'created' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=created&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Creadas</a>
 		          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=drawn&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Dibujadas</a>
+              {% if library_deleted_tasks %}
+              <a class="tab-link" id="library-trash-open" href="#library-trash-details" title="Papelera biblioteca" aria-label="Papelera biblioteca">
+                🗑️ Papelera ({{ library_deleted_tasks|length }})
+              </a>
+              {% endif %}
 		          <details style="margin:0;">
 		            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
 		            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
@@ -3274,7 +3278,7 @@
           </div>
         </details>
         {% if library_deleted_tasks %}
-        <details style="margin:-0.25rem 0 0.7rem;">
+        <details id="library-trash-details" style="margin:-0.25rem 0 0.7rem;">
           <summary>Papelera biblioteca ({{ library_deleted_tasks|length }})</summary>
           <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.6rem;">
             {% for trash_task in library_deleted_tasks|slice:":20" %}
@@ -3309,6 +3313,18 @@
             {% endfor %}
           </div>
         </details>
+        <script>
+          (() => {
+            const openBtn = document.getElementById('library-trash-open');
+            const details = document.getElementById('library-trash-details');
+            if (!openBtn || !details) return;
+            openBtn.addEventListener('click', (event) => {
+              event.preventDefault();
+              try { details.open = true; } catch (e) {}
+              try { details.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { details.scrollIntoView(); }
+            });
+          })();
+        </script>
         {% endif %}
 	        {% if library_view == 'phase' and phase_group_rows %}
 	        <p class="meta" style="margin-top:-0.1rem;">
@@ -3357,7 +3373,7 @@
 			          <article
 			            class="task task-clickable"
 			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
-			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-open-direct="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
+			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
 			            tabindex="0"
 			            role="link"
 			            aria-label="Abrir tarea {{ t.title }}"
@@ -3675,11 +3691,6 @@
 		          if (!detailUrl) return;
 		          if (card && card.hasAttribute && card.hasAttribute('data-pdf-viewer')) {
 		            const title = (card.getAttribute('data-pdf-title') || '').trim() || 'PDF';
-		            const openDirect = String(card.getAttribute('data-pdf-open-direct') || '').trim() === '1';
-		            if (openDirect) {
-		              window.location.href = detailUrl;
-		              return;
-		            }
 		            window.location.href = buildPdfViewerUrl(detailUrl, title);
 		            return;
 		          }
