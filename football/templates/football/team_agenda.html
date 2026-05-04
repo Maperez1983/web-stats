@@ -200,6 +200,61 @@
 	        </div>
 	        <div class="actions">
 	          <details class="btn" style="padding:0; border:none; background:transparent;">
+	            <summary class="btn" style="list-style:none;">Alta partido</summary>
+	            <div style="position:absolute; right:1.25rem; top:4.25rem; z-index:50; width:min(420px, 92vw); padding:12px; border-radius:14px; border:1px solid rgba(148,163,184,0.22); background:rgba(15,23,42,0.92); backdrop-filter: blur(14px);">
+	              <form method="post" class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin:0;">
+	                {% csrf_token %}
+	                <input type="hidden" name="agenda_action" value="create_match" />
+	                <label style="grid-column:1/-1;">
+	                  Rival
+	                  <input type="text" name="agenda_match_opponent" maxlength="150" placeholder="Nombre del rival" required style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Fecha
+	                  <input type="date" name="agenda_match_date" value="{{ default_date|date:'Y-m-d' }}" required style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Hora
+	                  <input type="time" name="agenda_match_time" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Local/Visitante
+	                  <select name="agenda_match_home_away" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;">
+	                    <option value="home" selected>Local</option>
+	                    <option value="away">Visitante</option>
+	                  </select>
+	                </label>
+	                <label>
+	                  Contexto
+	                  <select name="agenda_match_context" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;">
+	                    <option value="league" selected>Liga</option>
+	                    <option value="tournament">Torneo</option>
+	                    <option value="friendly">Amistoso</option>
+	                  </select>
+	                </label>
+	                <label>
+	                  Jornada/Ronda
+	                  <input type="text" name="agenda_match_round" maxlength="50" placeholder="Ej. J12" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Lugar
+	                  <input type="text" name="agenda_match_location" maxlength="200" placeholder="Campo / ciudad" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label style="grid-column:1/-1;">
+	                  Torneo (opcional)
+	                  <input type="text" name="agenda_match_tournament_name" maxlength="120" placeholder="Nombre del torneo" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label style="grid-column:1/-1;">
+	                  Fase (opcional)
+	                  <input type="text" name="agenda_match_tournament_stage" maxlength="120" placeholder="Ej. semifinal" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <div style="grid-column:1/-1; display:flex; justify-content:flex-end; gap:0.5rem;">
+	                  <button type="submit" class="btn primary" style="width:auto;">Crear partido</button>
+	                </div>
+	              </form>
+	            </div>
+	          </details>
+	          <details class="btn" style="padding:0; border:none; background:transparent;">
 	            <summary class="btn primary" style="list-style:none;">Alta entreno</summary>
 	            <div style="position:absolute; right:1.25rem; top:4.25rem; z-index:50; width:min(420px, 92vw); padding:12px; border-radius:14px; border:1px solid rgba(148,163,184,0.22); background:rgba(15,23,42,0.92); backdrop-filter: blur(14px);">
 	              <form method="post" class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin:0;">

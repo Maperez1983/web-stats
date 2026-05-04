@@ -17972,6 +17972,127 @@ def team_agenda_page(request):
             base.append('show_hidden=1')
         return redirect(reverse('team-agenda') + '?' + '&'.join(base))
 
+    if request.method == 'POST' and agenda_action == 'create_match':
+        if not _can_edit_match_actions(request.user):
+            return HttpResponse('Solo el cuerpo técnico puede crear partidos.', status=403)
+        date_raw = str(request.POST.get('agenda_match_date') or '').strip()
+        if not date_raw:
+            return HttpResponse('Indica la fecha del partido.', status=400)
+        try:
+            match_date = datetime.strptime(date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            return HttpResponse('Fecha de partido no válida.', status=400)
+        time_raw = str(request.POST.get('agenda_match_time') or '').strip()
+        match_time = None
+        if time_raw:
+            try:
+                match_time = datetime.strptime(time_raw, '%H:%M').time()
+            except ValueError:
+                return HttpResponse('Hora de partido no válida.', status=400)
+
+        opponent_name = str(request.POST.get('agenda_match_opponent') or '').strip()[:150]
+        if not opponent_name:
+            return HttpResponse('Indica el rival.', status=400)
+        round_value = str(request.POST.get('agenda_match_round') or '').strip()[:50]
+        location_value = str(request.POST.get('agenda_match_location') or '').strip()[:200]
+        context_value = str(request.POST.get('agenda_match_context') or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+        if context_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+            context_value = Match.CONTEXT_LEAGUE
+        tournament_name_value = str(request.POST.get('agenda_match_tournament_name') or '').strip()[:120]
+        tournament_stage_value = str(request.POST.get('agenda_match_tournament_stage') or '').strip()[:120]
+        home_away = str(request.POST.get('agenda_match_home_away') or 'home').strip().lower()
+        if home_away not in {'home', 'away'}:
+            home_away = 'home'
+
+        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
+        if not rival_team:
+            rival_team = Team.objects.create(
+                slug=_unique_team_slug(opponent_name),
+                name=opponent_name,
+                short_name=opponent_name[:24],
+                group=primary_team.group,
+            )
+        season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
+        if not season_obj:
+            return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
+
+        home_team = primary_team if home_away == 'home' else rival_team
+        away_team = rival_team if home_away == 'home' else primary_team
+        match_obj = None
+        try:
+            qs = (
+                Match.objects
+                .filter(season=season_obj)
+                .filter(context=context_value)
+                .filter(date=match_date)
+                .filter(home_team=home_team, away_team=away_team)
+            )
+            if context_value == Match.CONTEXT_TOURNAMENT and tournament_name_value:
+                qs = qs.filter(tournament_name=tournament_name_value)
+            match_obj = qs.order_by('-id').first()
+        except Exception:
+            match_obj = None
+        if not match_obj:
+            match_obj = Match.objects.create(
+                season=season_obj,
+                group=primary_team.group,
+                home_team=home_team,
+                away_team=away_team,
+                date=match_date,
+                kickoff_time=match_time,
+                round=round_value,
+                context=context_value,
+                tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+                tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
+                location=location_value,
+            )
+        else:
+            update_fields = []
+            if match_time and match_obj.kickoff_time != match_time:
+                match_obj.kickoff_time = match_time
+                update_fields.append('kickoff_time')
+            if round_value and match_obj.round != round_value:
+                match_obj.round = round_value
+                update_fields.append('round')
+            if location_value and match_obj.location != location_value:
+                match_obj.location = location_value
+                update_fields.append('location')
+            if context_value == Match.CONTEXT_TOURNAMENT:
+                if tournament_name_value and match_obj.tournament_name != tournament_name_value:
+                    match_obj.tournament_name = tournament_name_value
+                    update_fields.append('tournament_name')
+                if tournament_stage_value and match_obj.tournament_stage != tournament_stage_value:
+                    match_obj.tournament_stage = tournament_stage_value
+                    update_fields.append('tournament_stage')
+            if update_fields:
+                match_obj.save(update_fields=update_fields)
+
+        # Si hay una convocatoria "actual" sin Match, la vinculamos si encaja por fecha.
+        try:
+            record = get_current_convocation_record(primary_team)
+            if record and not record.match_id and record.match_date and record.match_date == match_date:
+                record.match = match_obj
+                if not record.opponent_name:
+                    record.opponent_name = opponent_name
+                if match_time and not record.match_time:
+                    record.match_time = match_time
+                if location_value and not record.location:
+                    record.location = location_value
+                if round_value and not record.round:
+                    record.round = round_value
+                record.save(update_fields=['match', 'opponent_name', 'match_time', 'location', 'round'])
+        except Exception:
+            logger.exception('team_agenda_page: no se pudo vincular convocatoria al partido', extra={'team_id': getattr(primary_team, 'id', None), 'match_id': getattr(match_obj, 'id', None)})
+
+        _invalidate_team_dashboard_caches(primary_team)
+        import urllib.parse  # noqa: WPS433
+        base = [f'date={urllib.parse.quote(match_date.strftime("%Y-%m-%d"))}']
+        if request.GET.get('team'):
+            base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        if request.GET.get('show_hidden'):
+            base.append('show_hidden=1')
+        return redirect(reverse('team-agenda') + '?' + '&'.join(base))
+
     if request.method == 'POST' and agenda_action == 'create_session':
         session_date_raw = str(request.POST.get('agenda_session_date') or '').strip()
         focus = str(request.POST.get('agenda_session_focus') or '').strip()[:140]
@@ -18178,6 +18299,40 @@ def team_agenda_page(request):
                 'url': reverse('match-hub') + f'?match_id={int(m.id)}&team={int(primary_team.id)}',
             }
         )
+
+    # Si existe convocatoria manual (con fecha) pero todavía no hay Match asociado, muéstrala en Agenda.
+    try:
+        convocation_record = get_current_convocation_record(primary_team)
+        if convocation_record and not convocation_record.match_id and convocation_record.match_date:
+            if week_start <= convocation_record.match_date <= week_end:
+                conv_time = ''
+                try:
+                    if convocation_record.match_time:
+                        conv_time = convocation_record.match_time.strftime('%H:%M')
+                except Exception:
+                    conv_time = ''
+                title_bits = []
+                opponent = str(convocation_record.opponent_name or '').strip() or 'Rival por confirmar'
+                title_bits.append(f'[Convocatoria] vs {opponent}'.strip())
+                meta_bits = []
+                if conv_time:
+                    meta_bits.append(conv_time)
+                loc = str(convocation_record.location or '').strip()
+                if loc:
+                    meta_bits.append(loc)
+                rnd = str(convocation_record.round or '').strip()
+                if rnd:
+                    meta_bits.append(rnd)
+                buckets.setdefault(convocation_record.match_date, []).append(
+                    {
+                        'kind': 'match',
+                        'title': ' '.join(title_bits).strip(),
+                        'meta': ' · '.join(meta_bits) if meta_bits else '—',
+                        'url': reverse('convocation'),
+                    }
+                )
+    except Exception:
+        logger.exception('team_agenda_page: no se pudo incluir partido desde convocatoria', extra={'team_id': getattr(primary_team, 'id', None)})
     for s in sessions:
         if not s.session_date:
             continue

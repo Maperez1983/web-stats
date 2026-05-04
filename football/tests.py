@@ -5,7 +5,7 @@ import os
 import shutil
 import tempfile
 import zipfile
-from datetime import date, timedelta
+from datetime import date, timedelta, time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -903,6 +903,53 @@ class CriticalPagesSmokeTests(TestCase):
         self.assertGreaterEqual(len(marks), 2)
         statuses = {m.status for m in marks}
         self.assertEqual(statuses, {TrainingSessionAttendance.STATUS_PRESENT})
+
+    def test_team_agenda_create_match(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        match_day = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(
+            reverse('team-agenda'),
+            {
+                'agenda_action': 'create_match',
+                'agenda_match_date': match_day.strftime('%Y-%m-%d'),
+                'agenda_match_time': '12:30',
+                'agenda_match_opponent': 'Rival Agenda',
+                'agenda_match_home_away': 'away',
+                'agenda_match_context': Match.CONTEXT_LEAGUE,
+                'agenda_match_round': 'J2',
+                'agenda_match_location': 'Campo Municipal',
+            },
+            secure=True,
+        )
+        self.assertIn(response.status_code, {301, 302})
+        match_obj = Match.objects.filter(season=self.match.season, date=match_day).order_by('-id').first()
+        self.assertIsNotNone(match_obj)
+        self.assertEqual(match_obj.round, 'J2')
+        self.assertEqual(match_obj.kickoff_time.strftime('%H:%M'), '12:30')
+        self.assertEqual(match_obj.location, 'Campo Municipal')
+        # Visitante => nuestro equipo es away_team
+        self.assertEqual(match_obj.away_team_id, self.team.id)
+        self.assertIsNotNone(match_obj.home_team_id)
+
+    def test_team_agenda_shows_match_from_convocation_without_match(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        match_day = timezone.localdate() + timedelta(days=1)
+        ConvocationRecord.objects.filter(team=self.team, is_current=True).update(is_current=False)
+        conv = ConvocationRecord.objects.create(
+            team=self.team,
+            match=None,
+            opponent_name='Rival Convocatoria',
+            match_date=match_day,
+            match_time=time(hour=18, minute=0),
+            is_current=True,
+        )
+        conv.players.add(self.player)
+        response = self.client.get(f"{reverse('team-agenda')}?date={match_day.strftime('%Y-%m-%d')}", secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rival Convocatoria')
+        self.assertContains(response, 'Convocatoria')
 
     def test_team_agenda_hide_session(self):
         self.client.force_login(self.user)
