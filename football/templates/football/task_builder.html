@@ -311,9 +311,9 @@
 	        display: grid;
 	        gap: 0.75rem;
 	      }
-	      /* iPad/Safari: el backdrop (con blur) puede “tapar” el dropdown de <details> por stacking context.
-	         En tablet lo convertimos en panel fijo para asegurar visibilidad y toque fiable. */
-	      body.ui-tablet .action-menu-body {
+	      /* Safari/iOS/desktop: el backdrop (con blur) puede “tapar” el dropdown de <details> por stacking context.
+	         Fix robusto: cuando el menú está abierto, lo mostramos como panel fijo por encima del backdrop. */
+	      .action-menu[open] .action-menu-body {
 	        position: fixed;
 	        top: calc(14px + env(safe-area-inset-top));
 	        left: calc(12px + env(safe-area-inset-left));
@@ -322,18 +322,6 @@
 	        max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 	        overflow: auto;
 	        z-index: 1600;
-	      }
-	      @media (max-width: 820px) {
-	        .action-menu-body {
-	          position: fixed;
-	          top: calc(14px + env(safe-area-inset-top));
-	          left: calc(12px + env(safe-area-inset-left));
-	          right: calc(12px + env(safe-area-inset-right));
-	          width: auto;
-	          max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-	          overflow: auto;
-	          z-index: 1600;
-	        }
 	      }
       .action-menu-group {
         border: 1px solid rgba(255,255,255,0.10);
