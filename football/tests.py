@@ -6510,7 +6510,7 @@ class StaffUserLinkingTests(TestCase):
             },
         )
 
-        response = self.client.get(reverse('session-task-pdf', args=[task.id]))
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?one_page=0')
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entrega Ejercicio')
@@ -6540,7 +6540,7 @@ class StaffUserLinkingTests(TestCase):
             tactical_layout={'meta': {'scope': 'coach', 'training_type': 'Juego aplicado'}},
         )
 
-        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?style=club')
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?style=club&one_page=0')
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Planificación de tarea')
@@ -6572,7 +6572,7 @@ class StaffUserLinkingTests(TestCase):
             },
         )
 
-        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?one_page=1')
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'class="pdf-one-page"')

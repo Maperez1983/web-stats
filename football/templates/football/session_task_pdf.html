@@ -53,6 +53,16 @@
       body.pdf-one-page .uefa-box {
         padding: 9px;
       }
+      body.pdf-one-page .uefa-box {
+        min-height: 0 !important;
+      }
+      body.pdf-one-page .uefa-box[style*="min-height"] {
+        min-height: 0 !important;
+      }
+      body.pdf-one-page .uefa-long-copy {
+        font-size: 9.2px !important;
+        line-height: 1.35 !important;
+      }
       body.pdf-one-page .footer {
         padding: 6px 10px;
         font-size: 8.5px;
@@ -293,7 +303,7 @@
       }
       .uefa-long-copy {
         line-height: 1.55;
-        white-space: pre-line;
+        white-space: normal;
       }
       .rich-text {
         line-height: 1.55;

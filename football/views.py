@@ -14482,7 +14482,8 @@ def share_task_pdf_page(request, token):
     pdf_style = str(payload.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
-    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    one_page_raw = str(request.GET.get('one_page') or request.GET.get('onepage') or '')
+    one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
     if task_kind == 'session':
         task = (
             SessionTask.objects
@@ -22317,7 +22318,10 @@ def session_task_pdf(request, task_id):
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
-    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    # Por defecto imprimimos 1 página (A4) para que el botón "Imprimir" sea consistente.
+    # Si el usuario quiere el PDF largo (varias páginas), puede pedir `one_page=0`.
+    one_page_raw = str(request.GET.get('one_page') or request.GET.get('onepage') or '')
+    one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
     context = _build_task_pdf_context(
         request,
         team=team,
@@ -34110,7 +34114,8 @@ def session_task_pdf_preview(request):
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
-    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    one_page_raw = str(request.GET.get('one_page') or request.GET.get('onepage') or '')
+    one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
     context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style, one_page=one_page)
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
