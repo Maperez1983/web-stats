@@ -21462,6 +21462,19 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     pdf_text_heavy = copy_len >= 700
     pdf_text_superheavy = copy_len >= 1300
     task_drills = _task_drills_for_pdf(meta)
+    # Altura recomendada para el gráfico en PDF (px). En "1 página" intentamos aprovechar el espacio
+    # cuando el texto es corto, para que la representación se vea más grande.
+    graphic_height_px = 380
+    if one_page:
+        # Heurística: cuanto menos texto, más alto el gráfico.
+        if copy_len <= 220:
+            graphic_height_px = 360
+        elif copy_len <= 420:
+            graphic_height_px = 320
+        elif copy_len <= 700:
+            graphic_height_px = 290
+        else:
+            graphic_height_px = 260
 
     def _materials_items(raw_text: str):
         raw = str(raw_text or '').strip()
@@ -21546,6 +21559,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         task_drills = []
         pdf_text_heavy = False
         pdf_text_superheavy = False
+        # En modo compacto respetamos la heurística anterior.
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
@@ -21574,6 +21588,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'dimensions_label': dimensions_text or '-',
         'materials_label': materials_text or '-',
         'materials_items': materials_items,
+        'pdf_graphic_height_px': int(graphic_height_px),
         'game_situation_label': game_situation_label or '-',
         'structure_label': structure_label or '-',
         'dynamics_label': dynamics_label or '-',

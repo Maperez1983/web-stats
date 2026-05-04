@@ -36,8 +36,7 @@
       }
       body.pdf-one-page .preview-frame,
       body.pdf-one-page .field {
-        height: 240px !important;
-        min-height: 240px !important;
+        min-height: 240px;
       }
       body.pdf-one-page .uefa-head {
         padding: 8px 12px;
@@ -808,13 +807,13 @@
 	        </table>
 
         <div class="uefa-section">Descripción Gráfica</div>
-	        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
-	          {% if task_preview_url %}
-	          <div class="preview-frame" style="border:1px solid #d5dde7; background-image:url(&quot;{{ task_preview_url }}&quot;);" aria-label="Vista gráfica de la tarea"></div>
-          {% else %}
-          <div class="field">
-            <span class="mid-line"></span>
-            <span class="mid-circle"></span>
+		        <div class="uefa-box" style="min-height:{% if pdf_text_superheavy %}240px{% elif pdf_text_heavy %}300px{% else %}340px{% endif %};">
+		          {% if task_preview_url %}
+		          <div class="preview-frame" style="border:1px solid #d5dde7; height:{{ pdf_graphic_height_px|default:380 }}px; background-image:url(&quot;{{ task_preview_url }}&quot;);" aria-label="Vista gráfica de la tarea"></div>
+	          {% else %}
+	          <div class="field" style="height:{{ pdf_graphic_height_px|default:380 }}px;">
+	            <span class="mid-line"></span>
+	            <span class="mid-circle"></span>
             {% for token in tokens %}
             <span class="token {% if token.type == 'material' %}material {% if token.asset_url %}has-asset{% endif %}{% else %}player{% endif %}" style="left:{{ token.x }}%; top:{{ token.y }}%;" title="{{ token.title }}">
               {% if token.type == 'material' %}
