@@ -329,6 +329,13 @@
 	        position: relative;
 	        z-index: 1601;
 	      }
+	      /* El backdrop (z=80) vive fuera de `main.page`. Si la topbar crea stacking context por
+	         `backdrop-filter` (commercial.css), el menú de Opciones puede quedar “atrapado” detrás.
+	         Al abrir cualquier overlay, elevamos la topbar por encima del backdrop. */
+	      body.overlay-backdrop-open .topbar {
+	        position: relative;
+	        z-index: 1600;
+	      }
       .action-menu-group {
         border: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.03);
