@@ -16363,7 +16363,7 @@
 	      if (timelinePreviewsInput) timelinePreviewsInput.value = '';
 	      return dataUrl;
 	    };
-    const submitPrintPreview = async (style) => {
+    const submitPrintPreview = async (style, options = {}) => {
       const actionUrl = form.dataset.pdfPreviewUrl;
       if (!actionUrl) {
         setStatus('No se encontró la ruta de previsualización PDF.', true);
@@ -16484,10 +16484,21 @@
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
       // rompemos el query string y el backend no detecta el workspace, devolviendo 403.
       const targetStyle = safeText(style, 'uefa');
+      const wantOnePage = (() => {
+        try {
+          const raw = String(options?.onePage ?? options?.one_page ?? options?.onepage ?? '').trim().toLowerCase();
+          return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on' || raw === 'si' || raw === 'sí';
+        } catch (e) {
+          return false;
+        }
+      })();
       let resolvedAction = '';
       try {
         const url = new URL(actionUrl, window.location.origin);
         url.searchParams.set('style', targetStyle || 'uefa');
+        if (wantOnePage) {
+          url.searchParams.set('one_page', '1');
+        }
         // Si el editor se está usando con ?workspace=... en la URL actual, lo propagamos
         // para que el PDF preview siempre resuelva el workspace correctamente.
         const current = new URL(window.location.href);
@@ -16497,7 +16508,8 @@
         }
         resolvedAction = url.toString();
       } catch (error) {
-        resolvedAction = `${actionUrl}${actionUrl.includes('?') ? '&' : '?'}style=${encodeURIComponent(targetStyle || 'uefa')}`;
+        const sep = actionUrl.includes('?') ? '&' : '?';
+        resolvedAction = `${actionUrl}${sep}style=${encodeURIComponent(targetStyle || 'uefa')}${wantOnePage ? '&one_page=1' : ''}`;
       }
 
       // iOS/Capacitor: `window.open` crea una vista sin navegación ("página en blanco" sin salida).
@@ -18844,7 +18856,11 @@
     });
 
     Array.from(document.querySelectorAll('[data-print-style]')).forEach((button) => {
-      button.addEventListener('click', () => submitPrintPreview(button.dataset.printStyle || 'uefa'));
+      button.addEventListener('click', () => {
+        const rawOnePage = String(button.dataset.printOnePage || '').trim().toLowerCase();
+        const onePage = rawOnePage === '1' || rawOnePage === 'true' || rawOnePage === 'yes' || rawOnePage === 'on';
+        submitPrintPreview(button.dataset.printStyle || 'uefa', { onePage });
+      });
     });
 
 	    Array.from(document.querySelectorAll('.resource-strip button[data-add]')).forEach((button) => {

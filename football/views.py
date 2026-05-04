@@ -14482,6 +14482,7 @@ def share_task_pdf_page(request, token):
     pdf_style = str(payload.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
+    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     if task_kind == 'session':
         task = (
             SessionTask.objects
@@ -14502,6 +14503,7 @@ def share_task_pdf_page(request, token):
             tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
             pdf_style=pdf_style,
             preview_url=preview_url,
+            one_page=one_page,
         )
         html = render_to_string('football/session_task_pdf.html', context)
         filename = slugify(f'tarea-compartida-{task.id}-{task.title}') or f'tarea-{task.id}'
@@ -21250,7 +21252,7 @@ def _normalize_task_pdf_meta(meta):
     return meta
 
 
-def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url=''):
+def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url='', one_page: bool = False):
     def _display_pdf_value(value):
         text = str(value or '').strip()
         if not text:
@@ -21344,16 +21346,59 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     pdf_text_heavy = copy_len >= 700
     pdf_text_superheavy = copy_len >= 1300
     task_drills = _task_drills_for_pdf(meta)
+
+    objective_lines = _task_pdf_lines(getattr(task, 'objective', ''))
+    coaching_lines = _task_pdf_lines(getattr(task, 'coaching_points', ''))
+    rules_lines = _task_pdf_lines(getattr(task, 'confrontation_rules', ''))
+    description_lines = _task_pdf_lines(description_text)
+
+    if one_page:
+        def _clip_lines(lines, max_lines):
+            if not isinstance(lines, list):
+                return ['-']
+            cleaned = [str(line).strip() for line in lines if str(line).strip()]
+            if not cleaned:
+                return ['-']
+            if len(cleaned) <= max_lines:
+                return cleaned
+            clipped = cleaned[:max_lines]
+            last = clipped[-1] if clipped else ''
+            if last and not last.endswith('…') and not last.endswith('...'):
+                clipped[-1] = (last[:180] + '…') if len(last) > 180 else (last + '…')
+            return clipped
+
+        # Modo 1 página: fuerza versión compacta y evita saltos de página por texto/escenarios.
+        objective_lines = _clip_lines(objective_lines, 2)
+        description_lines = _clip_lines(description_lines, 5)
+        coaching_lines = _clip_lines(coaching_lines, 4)
+        rules_lines = _clip_lines(rules_lines, 4)
+
+        # Evita HTML rico (puede crecer sin control y romper el layout en PDF).
+        rich_description = ''
+        rich_coaching = ''
+        rich_rules = ''
+        rich_progression = ''
+        rich_regression = ''
+        rich_success = ''
+        rich_organization = ''
+
+        # Para garantizar 1 página, no imprimimos storyboard / multipizarra.
+        animation_frames = []
+        animation_frame_cards = []
+        task_drills = []
+        pdf_text_heavy = False
+        pdf_text_superheavy = False
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
         'task': task,
         'session': session,
         'microcycle': microcycle,
-        'objective_lines': _task_pdf_lines(getattr(task, 'objective', '')),
-        'coaching_lines': _task_pdf_lines(getattr(task, 'coaching_points', '')),
-        'rules_lines': _task_pdf_lines(getattr(task, 'confrontation_rules', '')),
-        'description_lines': _task_pdf_lines(description_text),
+        'pdf_one_page': bool(one_page),
+        'objective_lines': objective_lines,
+        'coaching_lines': coaching_lines,
+        'rules_lines': rules_lines,
+        'description_lines': description_lines,
         'description_rich_html': rich_description,
         'coaching_rich_html': rich_coaching,
         'rules_rich_html': rich_rules,
@@ -21394,7 +21439,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     }
 
 
-def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
+def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_page: bool = False):
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160) or 'Tarea sin título'
     objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
     coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
@@ -21560,6 +21605,7 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa'):
         tactical_layout=tactical_layout,
         pdf_style=pdf_style,
         preview_url=preview_data,
+        one_page=one_page,
     )
 
 
@@ -22271,6 +22317,7 @@ def session_task_pdf(request, task_id):
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
+    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     context = _build_task_pdf_context(
         request,
         team=team,
@@ -22283,6 +22330,7 @@ def session_task_pdf(request, task_id):
         # (`session-task-preview-file`) la imagen puede no cargarse. Empaquetamos el binario como data URL
         # para garantizar que el PDF siempre incluya la vista gráfica con la máxima calidad disponible.
         preview_url=_file_field_as_data_url(task.task_preview_image) if task.task_preview_image else '',
+        one_page=one_page,
     )
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f'tarea-{task.session.session_date}-{task.title}') or f'tarea-{task.id}'
@@ -34062,7 +34110,8 @@ def session_task_pdf_preview(request):
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club'}:
         pdf_style = 'uefa'
-    context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style)
+    one_page = str(request.GET.get('one_page') or request.GET.get('onepage') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    context = _build_task_draft_pdf_context(request, primary_team, pdf_style=pdf_style, one_page=one_page)
     html = render_to_string('football/session_task_pdf.html', context)
     filename = slugify(f"borrador-{context['task'].title}") or 'borrador-tarea'
     # Previsualización: devolver inline para que Safari/iOS WebView lo renderice en pantalla.

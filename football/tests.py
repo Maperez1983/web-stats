@@ -6548,6 +6548,39 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Formato Club')
 
     @patch('football.views.weasyprint', None)
+    def test_session_task_pdf_one_page_compacts_layout(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión base',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Resumen 1 página',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            objective='Objetivo largo que debe recortarse en modo compacto',
+            coaching_points='Consigna 1\nConsigna 2\nConsigna 3\nConsigna 4\nConsigna 5',
+            confrontation_rules='Regla 1\nRegla 2\nRegla 3\nRegla 4\nRegla 5',
+            tactical_layout={
+                'meta': {'scope': 'coach', 'training_type': 'Situaciones reducidas'},
+                'timeline': [
+                    {'title': 'Salida', 'duration': 2, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                    {'title': 'Finalización', 'duration': 4, 'canvas_state': {'version': '5.3.0', 'objects': []}},
+                ],
+            },
+        )
+
+        response = self.client.get(reverse('session-task-pdf', args=[task.id]) + '?one_page=1')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="pdf-one-page"')
+        # En modo 1 página ocultamos storyboard / secuencia animada para garantizar el layout.
+        self.assertNotContains(response, 'Secuencia animada')
+        self.assertNotContains(response, 'Paso 1')
+
+    @patch('football.views.weasyprint', None)
     def test_session_plan_pdf_renders_uefa_and_club_styles(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

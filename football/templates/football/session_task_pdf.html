@@ -16,6 +16,47 @@
         color: var(--print-ink, {{ pdf_palette.ink }});
         background: var(--print-paper, {{ pdf_palette.sheet }});
       }
+      body.pdf-one-page {
+        font-size: 9.4px;
+      }
+      body.pdf-one-page .sheet {
+        height: 297mm;
+        min-height: 297mm;
+        overflow: hidden;
+      }
+      body.pdf-one-page .brand-logo,
+      body.pdf-one-page .brand-copy {
+        padding: 7px 10px;
+      }
+      body.pdf-one-page .brand-copy h1 {
+        font-size: 15.5px;
+      }
+      body.pdf-one-page .details td {
+        padding: 6px 8px;
+      }
+      body.pdf-one-page .preview-frame,
+      body.pdf-one-page .field {
+        height: 240px !important;
+        min-height: 240px !important;
+      }
+      body.pdf-one-page .uefa-head {
+        padding: 8px 12px;
+      }
+      body.pdf-one-page .uefa-section {
+        font-size: 11.5px;
+        padding: 6px 10px;
+      }
+      body.pdf-one-page .uefa-table td {
+        padding: 5px 8px;
+        font-size: 9.4px;
+      }
+      body.pdf-one-page .uefa-box {
+        padding: 9px;
+      }
+      body.pdf-one-page .footer {
+        padding: 6px 10px;
+        font-size: 8.5px;
+      }
       .sheet {
         width: 210mm;
         min-height: 297mm;
@@ -412,7 +453,7 @@
 	      }
 	    </style>
 	  </head>
-  <body>
+  <body{% if pdf_one_page %} class="pdf-one-page"{% endif %}>
     {% if pdf_style == 'club' %}
     <section class="sheet" style="border-color:{{ pdf_palette.primary }};">
       <div style="padding:14px 16px; background:linear-gradient(135deg, {{ pdf_palette.primary }}, {{ pdf_palette.accent }}); color:#fff;">
@@ -506,7 +547,13 @@
             <td style="width:38%; vertical-align:top;">
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
                 <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Objetivo principal</div>
-                <div style="padding:10px 12px; background:#fff; font-size:13px; font-weight:700; line-height:1.35;">{{ task.objective|default:"-" }}</div>
+	                <div style="padding:10px 12px; background:#fff; font-size:13px; font-weight:700; line-height:1.35;">
+	                  {% if pdf_one_page %}
+	                  {{ objective_lines|join:" " }}
+	                  {% else %}
+	                  {{ task.objective|default:"-" }}
+	                  {% endif %}
+	                </div>
               </div>
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
                 <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Contexto</div>
@@ -721,8 +768,8 @@
 	          <tr>
 	            <td style="width:18%;">Estrategia</td>
 	            <td style="width:32%;"><div class="uefa-value">{{ strategy_label }}</div></td>
-	            <td style="width:18%;">Objetivos</td>
-	            <td style="width:32%;"><div class="uefa-value">{{ task.objective|default:"-" }}</div></td>
+		            <td style="width:18%;">Objetivos</td>
+		            <td style="width:32%;"><div class="uefa-value">{% if pdf_one_page %}{{ objective_lines|join:" " }}{% else %}{{ task.objective|default:"-" }}{% endif %}</div></td>
 	          </tr>
 	          <tr>
 	            <td>Espacio</td>
