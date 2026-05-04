@@ -18384,10 +18384,10 @@ def team_agenda_page(request):
                 'kind': 'session',
                 'title': _session_title(s),
                 'meta': _session_meta(s),
-                'url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}',
+                'url': reverse('training-session-detail', args=[int(s.id)]),
                 'attendance_label': attendance_label,
                 'attendance_state': attendance_state,
-                'attendance_url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}#planner-active-session',
+                'attendance_url': reverse('training-session-detail', args=[int(s.id)]) + '#asistencia',
                 'session_id': int(s.id),
                 'is_hidden': is_hidden,
             }
@@ -22557,6 +22557,170 @@ def session_plan_pdf(request, session_id):
     html = render_to_string('football/session_plan_pdf.html', context)
     filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename)
+
+
+@login_required
+def training_session_detail_page(request, session_id):
+    """
+    Ficha de sesión (editable) + asistencia/incidencias.
+
+    Objetivo: separar claramente creación/planificación (Sesiones) de la ficha final de la sesión,
+    con una presentación legible desde iPad/app, sin mezclar todo en el planificador.
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    session_obj = (
+        TrainingSession.objects
+        .select_related('microcycle__team')
+        .prefetch_related('tasks')
+        .filter(id=session_id, microcycle__team=primary_team)
+        .first()
+    )
+    if not session_obj:
+        raise Http404('Sesión no encontrada')
+
+    players = list(
+        Player.objects
+        .filter(team=primary_team, is_active=True)
+        .order_by('is_goalkeeper', 'name', 'id')
+    )
+    marks = {
+        int(m.player_id): m
+        for m in TrainingSessionAttendance.objects.filter(session=session_obj, player__team=primary_team)
+    }
+    attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
+    allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
+
+    plan_fields = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
+    message = ''
+    error = ''
+    if request.method == 'POST':
+        action = str(request.POST.get('action') or 'save').strip().lower()
+        if action == 'save':
+            try:
+                # Cabecera
+                focus = str(request.POST.get('focus') or '').strip()[:140]
+                if focus:
+                    session_obj.focus = focus
+                date_raw = str(request.POST.get('session_date') or '').strip()
+                if date_raw:
+                    try:
+                        session_obj.session_date = datetime.strptime(date_raw, '%Y-%m-%d').date()
+                    except ValueError:
+                        raise ValueError('Fecha no válida.')
+                time_raw = str(request.POST.get('start_time') or '').strip()
+                if time_raw:
+                    try:
+                        session_obj.start_time = datetime.strptime(time_raw, '%H:%M').time()
+                    except ValueError:
+                        raise ValueError('Hora no válida.')
+                else:
+                    session_obj.start_time = None
+                session_obj.duration_minutes = max(30, min(_parse_int(request.POST.get('duration_minutes')) or 90, 180))
+                intensity = str(request.POST.get('intensity') or session_obj.intensity or '').strip()
+                if intensity in {v for v, _ in TrainingSession.INTENSITY_CHOICES}:
+                    session_obj.intensity = intensity
+                status = str(request.POST.get('status') or session_obj.status or '').strip()
+                if status in {v for v, _ in TrainingSession.STATUS_CHOICES}:
+                    session_obj.status = status
+
+                # Campos estructurados (presentación)
+                next_fields = plan_fields.copy()
+                for key in ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes']:
+                    next_fields[key] = str(request.POST.get(key) or '').strip()
+                session_obj.content = _serialize_session_plan_fields(next_fields)
+
+                session_obj.save(update_fields=['focus', 'session_date', 'start_time', 'duration_minutes', 'intensity', 'status', 'content'])
+                plan_fields = next_fields
+                message = 'Ficha guardada.'
+            except Exception as exc:
+                error = str(exc) or 'No se pudo guardar.'
+
+        elif action == 'attendance':
+            try:
+                allowed_values = {value for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
+                now = timezone.now()
+                updated = 0
+                for p in players:
+                    status_key = str(request.POST.get(f'attendance_status_{p.id}') or '').strip()
+                    notes = str(request.POST.get(f'attendance_notes_{p.id}') or '').strip()[:180]
+                    if not status_key:
+                        continue
+                    if status_key not in allowed_values:
+                        continue
+                    existing = marks.get(int(p.id))
+                    if existing:
+                        if existing.status != status_key or (existing.notes or '') != notes:
+                            existing.status = status_key
+                            existing.notes = notes
+                            existing.marked_by = request.user
+                            existing.updated_at = now
+                            existing.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
+                            updated += 1
+                    else:
+                        obj = TrainingSessionAttendance.objects.create(
+                            session=session_obj,
+                            player=p,
+                            status=status_key,
+                            notes=notes,
+                            marked_by=request.user,
+                        )
+                        marks[int(p.id)] = obj
+                        updated += 1
+                message = f'Asistencia guardada ({updated}).' if updated else 'Sin cambios en asistencia.'
+            except Exception:
+                error = 'No se pudo guardar la asistencia.'
+
+    # Resumen asistencia
+    counts = {value: 0 for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
+    for m in marks.values():
+        counts[str(m.status or '')] = counts.get(str(m.status or ''), 0) + 1
+    total_roster = len(players)
+    summary_bits = []
+    if total_roster:
+        summary_bits.append(f'{sum(counts.values())}/{total_roster} marcados')
+    if counts.get(TrainingSessionAttendance.STATUS_ABSENT):
+        summary_bits.append(f'Aus {counts.get(TrainingSessionAttendance.STATUS_ABSENT)}')
+    if counts.get(TrainingSessionAttendance.STATUS_LATE):
+        summary_bits.append(f'Tarde {counts.get(TrainingSessionAttendance.STATUS_LATE)}')
+    if counts.get(TrainingSessionAttendance.STATUS_INJURED):
+        summary_bits.append(f'Les {counts.get(TrainingSessionAttendance.STATUS_INJURED)}')
+    if counts.get(TrainingSessionAttendance.STATUS_EXCUSED):
+        summary_bits.append(f'Just {counts.get(TrainingSessionAttendance.STATUS_EXCUSED)}')
+    attendance_summary = ' · '.join(summary_bits) if summary_bits else 'Sin asistencia marcada.'
+
+    tasks = list(session_obj.tasks.filter(deleted_at__isnull=True).order_by('block', 'order', 'id'))
+    tasks_by_block = defaultdict(list)
+    for t in tasks:
+        tasks_by_block[str(t.block or '')].append(t)
+
+    return render(
+        request,
+        'football/training_session_detail.html',
+        {
+            'session': session_obj,
+            'team': primary_team,
+            'plan_fields': plan_fields,
+            'players': players,
+            'marks': marks,
+            'attendance_rows': attendance_rows,
+            'allowed_statuses': allowed_statuses,
+            'attendance_summary': attendance_summary,
+            'tasks_by_block': tasks_by_block,
+            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
+            'session_status_choices': TrainingSession.STATUS_CHOICES,
+            'message': message,
+            'error': error,
+            'planner_url': reverse('sessions') + f'?tab=sessions&session_id={int(session_obj.id)}&team={int(primary_team.id)}',
+        },
+    )
 
 
 @login_required

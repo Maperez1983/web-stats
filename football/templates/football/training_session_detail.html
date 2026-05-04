@@ -1,0 +1,227 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Sesión · {{ session.session_date|date:"d/m/Y" }} · {{ session.focus }} · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:'Inter',system-ui,sans-serif; }
+      .page { max-width: 1160px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
+      .head { display:flex; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; align-items:flex-end; }
+      .title { margin:0; letter-spacing:0.08em; text-transform:uppercase; font-size:1.02rem; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .pill { display:inline-flex; gap:0.4rem; align-items:center; padding:0.35rem 0.6rem; border-radius:999px; border:1px solid rgba(148,163,184,0.2); background: rgba(255,255,255,0.04); font-weight:900; letter-spacing:0.06em; text-transform:uppercase; font-size:0.7rem; }
+      .grid { display:grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap:0.85rem; margin-top: 0.95rem; }
+      @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.68rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .btn.danger { background: rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.35); color:#fecaca; }
+      .btn.secondary { background: transparent; }
+      .alert { margin-top:0.75rem; border-radius:16px; padding:0.75rem 0.85rem; border:1px solid rgba(148,163,184,0.2); background: rgba(2, 6, 23, 0.35); font-weight:800; }
+      .alert.ok { border-color: rgba(34,211,238,0.35); }
+      .alert.err { border-color: rgba(239,68,68,0.35); color:#fecaca; }
+      label { display:flex; flex-direction:column; gap:0.25rem; font-size:0.78rem; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.78); }
+      input, select, textarea { border-radius:12px; border:1px solid rgba(148,163,184,0.24); background: rgba(2,6,23,0.35); color:#fff; padding:10px 12px; font-weight:800; letter-spacing:0.01em; }
+      textarea { min-height: 86px; resize: vertical; }
+      .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:0.65rem; }
+      .form-grid .full { grid-column:1/-1; }
+      @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
+      .section-title { margin:0 0 0.55rem; font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; }
+      .tasks { display:flex; flex-direction:column; gap:0.55rem; }
+      .task-row { display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.03); border-radius: 14px; padding: 0.55rem 0.65rem; }
+      .task-row strong { font-weight: 950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.8rem; }
+      table { width:100%; border-collapse:separate; border-spacing:0 0.4rem; }
+      td { padding: 0.35rem 0.35rem; vertical-align:middle; }
+      .player-cell { font-weight:950; letter-spacing:0.02em; }
+      .small { font-size:0.82rem; opacity:0.9; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <header class="head">
+        <div style="display:flex; flex-direction:column; gap:0.25rem;">
+          <h1 class="title">Sesión · {{ session.session_date|date:"d/m/Y" }}</h1>
+          <div class="meta">
+            {{ session.focus }} · {{ session.duration_minutes }}' · {{ session.get_intensity_display }} · {{ session.get_status_display }}
+            {% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
+          </div>
+          <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.3rem;">
+            <span class="pill">🧠 Ficha</span>
+            <span class="pill">👥 {{ attendance_summary }}</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
+          <a class="btn" href="{{ planner_url }}">Planificador</a>
+          <a class="btn primary" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF</a>
+        </div>
+      </header>
+
+      {% if message %}
+        <div class="alert ok">{{ message }}</div>
+      {% endif %}
+      {% if error %}
+        <div class="alert err">{{ error }}</div>
+      {% endif %}
+
+      <div class="grid">
+        <section class="card">
+          <h2 class="section-title">Ficha (editable)</h2>
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save" />
+            <label class="full">
+              Nombre / foco
+              <input type="text" name="focus" maxlength="140" value="{{ session.focus }}" required />
+            </label>
+            <label>
+              Fecha
+              <input type="date" name="session_date" value="{{ session.session_date|date:'Y-m-d' }}" required />
+            </label>
+            <label>
+              Hora (opcional)
+              <input type="time" name="start_time" value="{% if session.start_time %}{{ session.start_time|time:'H:i' }}{% endif %}" />
+            </label>
+            <label>
+              Duración (min)
+              <input type="number" name="duration_minutes" min="30" max="180" value="{{ session.duration_minutes }}" />
+            </label>
+            <label>
+              Intensidad
+              <select name="intensity">
+                {% for value, label in session_intensity_choices %}
+                  <option value="{{ value }}" {% if session.intensity == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              Estado
+              <select name="status">
+                {% for value, label in session_status_choices %}
+                  <option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="full">
+              Calentamiento
+              <textarea name="warmup" rows="3" maxlength="4000" placeholder="Ej: movilidad + rondos">{{ plan_fields.warmup }}</textarea>
+            </label>
+            <label class="full">
+              Activación
+              <textarea name="activation" rows="3" maxlength="4000" placeholder="Ej: activación con balón">{{ plan_fields.activation }}</textarea>
+            </label>
+            <label class="full">
+              Parte principal
+              <textarea name="main" rows="3" maxlength="6000" placeholder="Ej: juego posicional + finalización">{{ plan_fields.main }}</textarea>
+            </label>
+            <label class="full">
+              Vuelta a la calma
+              <textarea name="cooldown" rows="3" maxlength="4000" placeholder="Ej: estiramientos + respiración">{{ plan_fields.cooldown }}</textarea>
+            </label>
+            <label>
+              Nº jugadores (opcional)
+              <input type="text" name="player_count" maxlength="60" value="{{ plan_fields.player_count }}" placeholder="Ej: 16+2P" />
+            </label>
+            <label>
+              Materiales (opcional)
+              <input type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" placeholder="Conos, petos, porterías..." />
+            </label>
+            <label class="full">
+              Ausencias / incidencias (opcional)
+              <textarea name="absences" rows="3" maxlength="4000" placeholder="Bajas, molestias, precauciones...">{{ plan_fields.absences }}</textarea>
+            </label>
+            <label class="full">
+              Notas (opcional)
+              <textarea name="notes" rows="3" maxlength="8000" placeholder="Notas generales de la sesión">{{ plan_fields.notes }}</textarea>
+            </label>
+
+            <div class="full" style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap;">
+              <button class="btn primary" type="submit">Guardar ficha</button>
+            </div>
+          </form>
+        </section>
+
+        <aside class="card">
+          <h2 class="section-title">Tareas (resumen)</h2>
+          {% if tasks_by_block %}
+            <div class="tasks">
+              {% for block, tasks in tasks_by_block.items %}
+                <div>
+                  <div class="meta" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase; margin:0.15rem 0 0.45rem;">
+                    {{ tasks.0.get_block_display }}
+                  </div>
+                  {% for t in tasks %}
+                    <div class="task-row">
+                      <div style="min-width:0;">
+                        <strong>{{ t.title }}</strong>
+                        <div class="meta small">{{ t.duration_minutes }}' · {{ t.get_status_display }}</div>
+                      </div>
+                      <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                        <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{% url 'session-task-detail' t.id %}">Ver</a>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="meta">Sin tareas asignadas todavía. Entra en “Planificador” para añadir por bloque.</p>
+          {% endif %}
+
+          <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.9rem 0;" />
+
+          <h2 class="section-title" id="asistencia">Asistencia</h2>
+          <p class="meta" style="margin-top:-0.2rem;">Marca excepciones (ausencias, tarde, lesión…).</p>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="attendance" />
+            <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
+              <table>
+                <tbody>
+                  {% for row in attendance_rows %}
+                    {% with p=row.player mark=row.mark %}
+                    <tr>
+                      <td class="player-cell">
+                        {{ p.name }}
+                        {% if p.is_goalkeeper %}<span class="meta">· PT</span>{% endif %}
+                      </td>
+                      <td style="width:170px;">
+                        <select name="attendance_status_{{ p.id }}">
+                          {% for value, label in allowed_statuses %}
+                            {% if mark %}
+                              <option value="{{ value }}" {% if mark.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% else %}
+                              <option value="{{ value }}" {% if value == 'present' %}selected{% endif %}>{{ label }}</option>
+                            {% endif %}
+                          {% endfor %}
+                        </select>
+                      </td>
+                      <td style="width:220px;">
+                        <input
+                          type="text"
+                          name="attendance_notes_{{ p.id }}"
+                          maxlength="180"
+                          placeholder="Nota…"
+                          value="{% if mark %}{{ mark.notes }}{% endif %}"
+                        />
+                      </td>
+                    </tr>
+                    {% endwith %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap; margin-top:0.7rem;">
+              <button class="btn primary" type="submit">Guardar asistencia</button>
+            </div>
+          </form>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>

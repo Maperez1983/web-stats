@@ -210,6 +210,7 @@ urlpatterns = [
     path('coach/sesiones/sesion-importada/<int:doc_id>/preview/', views.imported_session_preview_file, name='imported-session-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/pdf/', views.session_plan_pdf, name='session-plan-pdf'),
+    path('coach/sesiones/sesion/<int:session_id>/', views.training_session_detail_page, name='training-session-detail'),
     path('coach/sesiones/microciclo/<int:microcycle_id>/presentacion/', views.microcycle_presentation_pdf, name='microcycle-presentation-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/presentacion/', views.session_presentation_pdf, name='session-presentation-pdf'),
     path('coach/sesiones/tarea/<int:task_id>/canva/', views.session_task_canva_export, name='session-task-canva-export'),

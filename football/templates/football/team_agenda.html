@@ -323,7 +323,7 @@
 	          <div class="items">
 	            {% for item in day.items %}
 	              <div class="item-wrap">
-	              <a class="item" href="{% if item.kind == 'session' and item.attendance_url %}{{ item.attendance_url }}{% else %}{{ item.url }}{% endif %}">
+	              <a class="item" href="{{ item.url }}">
 	                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">
 	                  {% if item.kind == 'match' %}
 	                    Partido
@@ -341,6 +341,9 @@
 	              </a>
 	              {% if item.kind == 'session' and item.session_id %}
 	              <div class="item-actions" aria-label="Acciones de sesión">
+                  {% if item.attendance_url %}
+                    <a class="secondary" href="{{ item.attendance_url }}" title="Asistencia" aria-label="Asistencia">👥</a>
+                  {% endif %}
 	                {% if item.is_hidden %}
 	                  <form method="post" style="margin:0;" onsubmit="return confirm('¿Volver a mostrar esta sesión en la Agenda?');">
 	                    {% csrf_token %}
