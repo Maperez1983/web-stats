@@ -18124,6 +18124,7 @@ def team_agenda_page(request):
     team_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip() or 'Equipo'
 
     def _qs_for_date(target):
+        import urllib.parse  # noqa: WPS433
         base = []
         if request.GET.get('team'):
             base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
@@ -21348,6 +21349,48 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     pdf_text_superheavy = copy_len >= 1300
     task_drills = _task_drills_for_pdf(meta)
 
+    def _materials_items(raw_text: str):
+        raw = str(raw_text or '').strip()
+        if not raw or raw == '-':
+            return []
+        # Normaliza separadores comunes (coma, punto y coma, saltos).
+        raw = raw.replace('\r', '\n').replace(';', ',')
+        parts = []
+        for chunk in raw.split('\n'):
+            for p in chunk.split(','):
+                t = str(p or '').strip()
+                if t:
+                    parts.append(t)
+
+        def _emoji_for(label: str) -> str:
+            folded = _normalize_folded_text(label)
+            if any(k in folded for k in ['balon', 'balón', 'pelota']):
+                return '⚽'
+            if any(k in folded for k in ['porter', 'porteria', 'portería', 'miniporter', 'mini port']):
+                return '🥅'
+            if any(k in folded for k in ['peto', 'petos', 'bib', 'camiseta']):
+                return '👕'
+            if any(k in folded for k in ['cono', 'conos', 'seta', 'setas']):
+                return '🔺'
+            if any(k in folded for k in ['pica', 'picas', 'bandera', 'bander']):
+                return '🚩'
+            if any(k in folded for k in ['aro', 'aros', 'ring']):
+                return '🟠'
+            if any(k in folded for k in ['escalera', 'ladder']):
+                return '🪜'
+            if any(k in folded for k in ['valla', 'vallas', 'hurdle']):
+                return '🧱'
+            if any(k in folded for k in ['cronometro', 'cronómetro', 'timer', 'tiempo']):
+                return '⏱️'
+            return '•'
+
+        items = []
+        for p in parts[:14]:
+            items.append({'emoji': _emoji_for(p), 'label': p[:120]})
+        return items
+
+    materials_items = _materials_items(materials_text)
+
     objective_lines = _task_pdf_lines(getattr(task, 'objective', ''))
     coaching_lines = _task_pdf_lines(getattr(task, 'coaching_points', ''))
     rules_lines = _task_pdf_lines(getattr(task, 'confrontation_rules', ''))
@@ -21416,6 +21459,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'space_label': space_label or '-',
         'dimensions_label': dimensions_text or '-',
         'materials_label': materials_text or '-',
+        'materials_items': materials_items,
         'game_situation_label': game_situation_label or '-',
         'structure_label': structure_label or '-',
         'dynamics_label': dynamics_label or '-',

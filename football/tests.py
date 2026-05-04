@@ -872,6 +872,12 @@ class CriticalPagesSmokeTests(TestCase):
         response = self.client.get(reverse('analysis-video-studio', args=[self.video.id]), secure=True)
         self.assertEqual(response.status_code, 200)
 
+    def test_team_agenda_renders(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        response = self.client.get(reverse('team-agenda'), secure=True)
+        self.assertEqual(response.status_code, 200)
+
 
 class DashboardSetupModeTests(TestCase):
     def setUp(self):
