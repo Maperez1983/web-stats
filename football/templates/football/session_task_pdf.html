@@ -756,11 +756,11 @@
       <div class="uefa-head">
         <table style="width:100%; border-collapse:collapse;">
           <tr>
-            <td style="width:52px; vertical-align:middle;">
-	              <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-	                <img src="{{ logo_url }}" alt="Insignia federativa" style="width:28px; height:28px; object-fit:contain; display:block;" />
-	              </div>
-            </td>
+	            <td style="width:52px; vertical-align:middle;">
+		              <div style="width:34px; height:34px; border-radius:50%; background:#ffffff; overflow:hidden; display:flex; align-items:center; justify-content:center; line-height:0;">
+		                <img src="{{ logo_url }}" alt="Insignia federativa" style="width:28px; height:28px; object-fit:contain; display:block; margin:0 auto; transform:translateY(-0.5px);" />
+		              </div>
+	            </td>
             <td style="vertical-align:middle;">
               <div style="font-size:24px; font-weight:800; letter-spacing:0.04em; text-transform:uppercase;">Entrega Ejercicio</div>
             </td>
@@ -874,38 +874,38 @@
         </div>
         {% endif %}
 
-        <div style="margin-top:12px;" class="uefa-section">Consigna / Explicación</div>
-        <div class="uefa-box uefa-long-copy" style="min-height:120px;{% if pdf_text_superheavy %} font-size:9.6px;{% elif pdf_text_heavy %} font-size:10px;{% endif %}">
-          <strong>Descripción:</strong>
-          {% if description_rich_html %}
-          <div class="rich-text">{{ description_rich_html|safe }}</div>
-          {% elif description_lines and description_lines.0 != '-' %}
-          <div class="text-block">{{ description_lines|join:"\n" }}</div>
-          {% else %}
-          <div class="text-block">-</div>
-          {% endif %}
-          {% if coaching_rich_html %}
-          <div style="margin-top:10px;">
-            <strong>Consignas:</strong>
-            <div class="rich-text">{{ coaching_rich_html|safe }}</div>
-          </div>
-          {% elif coaching_lines and coaching_lines.0 != '-' %}
-          <div style="margin-top:10px;">
-            <strong>Consignas:</strong>
-            <span>{{ coaching_lines|join:" · " }}</span>
-          </div>
-          {% endif %}
-          {% if rules_rich_html %}
-          <div style="margin-top:8px;">
-            <strong>Normas de confrontación:</strong>
-            <div class="rich-text">{{ rules_rich_html|safe }}</div>
-          </div>
-          {% elif rules_lines and rules_lines.0 != '-' %}
-          <div style="margin-top:8px;">
-            <strong>Normas de confrontación:</strong>
-            <span>{{ rules_lines|join:" · " }}</span>
-          </div>
-          {% endif %}
+	        <div style="margin-top:12px;" class="uefa-section">Contenido de la tarea</div>
+	        <div class="uefa-box uefa-long-copy" style="min-height:120px;{% if pdf_text_superheavy %} font-size:9.6px;{% elif pdf_text_heavy %} font-size:10px;{% endif %}">
+	          <strong>Descripción:</strong>
+	          {% if description_rich_html %}
+	          <div class="rich-text">{{ description_rich_html|safe }}</div>
+	          {% elif description_lines and description_lines.0 != '-' %}
+	          <div class="text-block">{{ description_lines|join:"\n" }}</div>
+	          {% else %}
+	          <div class="text-block">-</div>
+	          {% endif %}
+	          {% if coaching_rich_html %}
+	          <div style="margin-top:10px;">
+	            <strong>Consignas:</strong>
+	            <div class="rich-text">{{ coaching_rich_html|safe }}</div>
+	          </div>
+	          {% elif coaching_lines and coaching_lines.0 != '-' %}
+	          <div style="margin-top:10px;">
+	            <strong>Consignas:</strong>
+	            <div class="text-block">{{ coaching_lines|join:"\n" }}</div>
+	          </div>
+	          {% endif %}
+	          {% if rules_rich_html %}
+	          <div style="margin-top:8px;">
+	            <strong>Normas de confrontación:</strong>
+	            <div class="rich-text">{{ rules_rich_html|safe }}</div>
+	          </div>
+	          {% elif rules_lines and rules_lines.0 != '-' %}
+	          <div style="margin-top:8px;">
+	            <strong>Normas de confrontación:</strong>
+	            <div class="text-block">{{ rules_lines|join:"\n" }}</div>
+	          </div>
+	          {% endif %}
 	          {% if task_meta.progression %}
 	          <div style="margin-top:8px;">
 	            <strong>Progresión:</strong>
@@ -926,13 +926,21 @@
 	            {% endif %}
 	          </div>
 	          {% endif %}
-          {% if materials_label and materials_label != '-' %}
-          <div style="margin-top:8px;">
-            <strong>Material:</strong>
-            <span>{{ materials_label }}</span>
-          </div>
-          {% endif %}
-        </div>
+	          {% if materials_label and materials_label != '-' %}
+	          <div style="margin-top:8px;">
+	            <strong>Material:</strong>
+	            {% if materials_items %}
+	            <div class="text-block">
+	              {% for it in materials_items %}
+	                {{ it.emoji }} {{ it.label }}{% if not forloop.last %}<br />{% endif %}
+	              {% endfor %}
+	            </div>
+	            {% else %}
+	            <div class="text-block">{{ materials_label }}</div>
+	            {% endif %}
+	          </div>
+	          {% endif %}
+	        </div>
       </div>
 
 	      <div class="footer" style="background:#ffffff;">

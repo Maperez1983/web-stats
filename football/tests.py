@@ -6578,7 +6578,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Entrega Ejercicio')
         self.assertContains(response, 'Detalles del Ejercicio')
         self.assertContains(response, 'Descripción Gráfica')
-        self.assertContains(response, 'Consigna / Explicación')
+        self.assertContains(response, 'Contenido de la tarea')
         self.assertContains(response, 'Secuencia animada')
         self.assertContains(response, 'Paso 1')
         self.assertContains(response, 'Situaciones reducidas')
