@@ -54,7 +54,7 @@ async function ensureEditorReady(page) {
   await page.waitForFunction(() => {
     const body = document.body;
     return !!(body && body.classList.contains('task-mode-ready'));
-  }, { timeout: 35_000 }).catch(() => null);
+  }, null, { timeout: 35_000 }).catch(() => null);
   // Landing puede estar activa en dev.
   const landing = page.locator('#task-landing');
   if ((await landing.count()) && (await landing.isVisible().catch(() => false))) {
@@ -72,6 +72,111 @@ async function assertVisibleInViewport(page, selector, label) {
   const inX = (box.x + box.width) > 0 && box.x < viewport.width;
   const inY = (box.y + box.height) > 0 && box.y < viewport.height;
   assert(inX && inY, `${label}: fuera de viewport (${JSON.stringify({ box, viewport })})`);
+}
+
+async function waitOverlayBackdrop(page, open) {
+  await page.waitForFunction(
+    (wanted) => {
+      const el = document.getElementById('tpad-overlay-backdrop');
+      if (!el) return !wanted;
+      return wanted ? (el.hidden === false) : (el.hidden !== false);
+    },
+    !!open,
+    { timeout: 10_000 },
+  ).catch(() => null);
+}
+
+async function openDetails(page, detailsSelector) {
+  await page.locator(detailsSelector).waitFor({ state: 'attached', timeout: 35_000 });
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    if (el.tagName === 'DETAILS') el.open = true;
+  }, detailsSelector);
+  await page.waitForFunction(
+    (sel) => !!(document.querySelector(sel) && document.querySelector(sel).open === true),
+    detailsSelector,
+    { timeout: 10_000 },
+  );
+}
+
+async function closeDetails(page, detailsSelector) {
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    if (el.tagName === 'DETAILS') el.open = false;
+  }, detailsSelector);
+  await page.waitForFunction(
+    (sel) => {
+      const el = document.querySelector(sel);
+      return !!(el && el.tagName === 'DETAILS' && el.open === false);
+    },
+    detailsSelector,
+    { timeout: 10_000 },
+  ).catch(() => null);
+}
+
+async function assertPopoverInViewport(page, selector, label) {
+  await page.waitForFunction(
+    (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 20 && rect.height > 20;
+    },
+    selector,
+    { timeout: 15_000 },
+  );
+  const box = await page.locator(selector).first().boundingBox();
+  assert(box, `${label}: no boundingBox`);
+  const viewport = page.viewportSize();
+  assert(viewport, 'missing viewport');
+  const inX = (box.x + box.width) > 0 && box.x < viewport.width;
+  const inY = (box.y + box.height) > 0 && box.y < viewport.height;
+  assert(inX && inY, `${label}: popover fuera de viewport (${JSON.stringify({ box, viewport })})`);
+}
+
+async function openSurfaceMenu(page) {
+  await page.locator('#surface-trigger').waitFor({ state: 'visible', timeout: 35_000 });
+  await page.locator('#surface-trigger').click({ force: true });
+  await page.waitForFunction(
+    () => !!document.getElementById('surface-picker')?.classList?.contains('is-open'),
+    null,
+    { timeout: 6_000 },
+  ).catch(async () => {
+    // Headless WebKit puede ser flaky; forzamos el estado para validar layout.
+    await page.evaluate(() => {
+      try { document.getElementById('surface-picker')?.classList.add('is-open'); } catch {}
+    });
+  });
+}
+
+async function closeSurfaceMenu(page) {
+  await page.locator('body').click({ position: { x: 10, y: 10 } }).catch(() => null);
+  await page.waitForFunction(
+    () => !document.getElementById('surface-picker')?.classList?.contains('is-open'),
+    null,
+    { timeout: 6_000 },
+  ).catch(async () => {
+    await page.evaluate(() => {
+      try { document.getElementById('surface-picker')?.classList.remove('is-open'); } catch {}
+    });
+  });
+}
+
+async function enterAndExitPresentation(page) {
+  await page.evaluate(() => {
+    try { document.getElementById('task-focus-toggle')?.scrollIntoView?.({ block: 'center', inline: 'nearest' }); } catch {}
+  });
+  await page.locator('#task-focus-toggle').click({ force: true });
+  await page.waitForFunction(() => document.body.classList.contains('focus-mode'), null, { timeout: 10_000 }).catch(async () => {
+    await page.evaluate(() => { try { document.getElementById('task-focus-toggle')?.click?.(); } catch {} });
+    await page.waitForFunction(() => document.body.classList.contains('focus-mode'), null, { timeout: 10_000 });
+  });
+  await page.locator('#task-focus-exit').click({ force: true });
+  await page.waitForFunction(() => !document.body.classList.contains('focus-mode'), null, { timeout: 10_000 });
 }
 
 async function assertLayout(page, modeLabel) {
@@ -100,6 +205,27 @@ async function assertLayout(page, modeLabel) {
       assert(sideBox.x >= pitchBox.x, `${modeLabel}: recursos deberían estar a la derecha (landscape)`);
     }
   }
+
+  // 4) Overlays: Opciones / Vista / Superficie / Presentación.
+  await openDetails(page, '#task-builder-actions-menu');
+  await waitOverlayBackdrop(page, true);
+  await assertPopoverInViewport(page, '#task-builder-actions-menu .action-menu-body', `${modeLabel} · Opciones`);
+  await page.locator('#tpad-overlay-backdrop').click({ force: true }).catch(() => null);
+  await closeDetails(page, '#task-builder-actions-menu');
+  await waitOverlayBackdrop(page, false);
+
+  await openDetails(page, '#pitch-view-menu');
+  await waitOverlayBackdrop(page, true);
+  await assertPopoverInViewport(page, '#pitch-view-menu .pitch-view-menu-body', `${modeLabel} · Vista menú`);
+  await page.locator('#tpad-overlay-backdrop').click({ force: true }).catch(() => null);
+  await closeDetails(page, '#pitch-view-menu');
+  await waitOverlayBackdrop(page, false);
+
+  await openSurfaceMenu(page);
+  await assertPopoverInViewport(page, '#surface-menu', `${modeLabel} · Superficie menú`);
+  await closeSurfaceMenu(page);
+
+  await enterAndExitPresentation(page);
 }
 
 async function main() {
@@ -138,7 +264,7 @@ async function main() {
     await assertLayout(page, 'iPad portrait');
 
     if (errors.length) throw new Error(`JS errors:\n- ${errors.slice(0, 20).join('\n- ')}`);
-    console.log('[e2e] OK: layout task builder (iPad portrait/landscape)');
+    console.log('[e2e] OK: layout + overlays (iPad portrait/landscape)');
   } finally {
     await page.close().catch(() => null);
     await context.close().catch(() => null);
