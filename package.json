@@ -1,7 +1,8 @@
 {
   "scripts": {
     "qa": "bash scripts/qa_suite.sh",
-    "e2e:audit": "node scripts/e2e_audit_playwright.js"
+    "e2e:audit": "node scripts/e2e_audit_playwright.js",
+    "e2e:task-layout": "node scripts/e2e_task_builder_layout_smoke.mjs"
   },
   "devDependencies": {
     "playwright": "^1.58.2"
