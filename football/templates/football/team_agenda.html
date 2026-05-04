@@ -136,6 +136,8 @@
 	      .item-actions button:hover { border-color: rgba(244, 180, 0, 0.35); }
 	      .item-actions .danger { border-color: rgba(248, 113, 113, 0.35); color: rgba(254, 226, 226, 0.95); }
 	      .item-actions .danger:hover { background: rgba(127, 29, 29, 0.35); border-color: rgba(248, 113, 113, 0.55); }
+	      .item-actions .secondary { border-color: rgba(56, 189, 248, 0.35); color: rgba(224, 242, 254, 0.95); }
+	      .item-actions .secondary:hover { background: rgba(12, 74, 110, 0.35); border-color: rgba(56, 189, 248, 0.55); }
       .item:hover { border-color: rgba(244, 180, 0, 0.35); }
       .tag {
         min-width: 64px;
@@ -249,6 +251,11 @@
 	          <a class="btn" href="{{ prev_week_url }}">Semana −</a>
 	          <a class="btn" href="{{ today_url }}">Hoy</a>
 	          <a class="btn" href="{{ next_week_url }}">Semana +</a>
+	          {% if show_hidden %}
+	            <a class="btn" href="{% url 'team-agenda' %}?date={{ default_date|date:'Y-m-d' }}{% if request.GET.team %}&team={{ request.GET.team|urlencode }}{% endif %}">Ocultas ✓</a>
+	          {% else %}
+	            <a class="btn" href="{% url 'team-agenda' %}?date={{ default_date|date:'Y-m-d' }}{% if request.GET.team %}&team={{ request.GET.team|urlencode }}{% endif %}&show_hidden=1">Ver ocultas</a>
+	          {% endif %}
 	          <a class="btn primary" href="{% url 'team-calendar-ics' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">ICS</a>
 	        </div>
 	      </header>
@@ -262,7 +269,13 @@
 	            {% for item in day.items %}
 	              <div class="item-wrap">
 	              <a class="item" href="{% if item.kind == 'session' and item.attendance_url %}{{ item.attendance_url }}{% else %}{{ item.url }}{% endif %}">
-	                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">{% if item.kind == 'match' %}Partido{% else %}Entreno{% endif %}</span>
+	                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">
+	                  {% if item.kind == 'match' %}
+	                    Partido
+	                  {% else %}
+	                    Entreno{% if item.is_hidden %} (oculta){% endif %}
+	                  {% endif %}
+	                </span>
 	                <span style="min-width:0;">
 	                  <div class="title">{{ item.title }}</div>
 	                  <div class="sub">{{ item.meta }}</div>
@@ -273,12 +286,21 @@
 	              </a>
 	              {% if item.kind == 'session' and item.session_id %}
 	              <div class="item-actions" aria-label="Acciones de sesión">
-	                <form method="post" style="margin:0;" onsubmit="return confirm('¿Borrar esta sesión? Solo se puede borrar si no tiene tareas.');">
+	                {% if item.is_hidden %}
+	                  <form method="post" style="margin:0;" onsubmit="return confirm('¿Volver a mostrar esta sesión en la Agenda?');">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="agenda_action" value="unhide_session" />
+	                    <input type="hidden" name="agenda_session_id" value="{{ item.session_id }}" />
+	                    <button type="submit" class="secondary" title="Mostrar en agenda" aria-label="Mostrar en agenda">↩︎</button>
+	                  </form>
+	                {% else %}
+	                  <form method="post" style="margin:0;" onsubmit="return confirm('¿Quitar esta sesión de la Agenda? La sesión seguirá disponible en Sesiones.');">
 	                  {% csrf_token %}
-	                  <input type="hidden" name="agenda_action" value="delete_session" />
+	                  <input type="hidden" name="agenda_action" value="hide_session" />
 	                  <input type="hidden" name="agenda_session_id" value="{{ item.session_id }}" />
-	                  <button type="submit" class="danger" title="Borrar sesión" aria-label="Borrar sesión">🗑️</button>
-	                </form>
+	                  <button type="submit" class="danger" title="Quitar de agenda" aria-label="Quitar de agenda">🗑️</button>
+	                  </form>
+	                {% endif %}
 	              </div>
 	              {% endif %}
 	              </div>

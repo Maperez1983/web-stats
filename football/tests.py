@@ -904,7 +904,7 @@ class CriticalPagesSmokeTests(TestCase):
         statuses = {m.status for m in marks}
         self.assertEqual(statuses, {TrainingSessionAttendance.STATUS_PRESENT})
 
-    def test_team_agenda_delete_session(self):
+    def test_team_agenda_hide_session(self):
         self.client.force_login(self.user)
         self._activate_workspace()
         session_obj = TrainingSession.objects.create(
@@ -928,11 +928,21 @@ class CriticalPagesSmokeTests(TestCase):
         )
         response = self.client.post(
             reverse('team-agenda'),
-            {'agenda_action': 'delete_session', 'agenda_session_id': str(session_obj.id)},
+            {'agenda_action': 'hide_session', 'agenda_session_id': str(session_obj.id)},
             secure=True,
         )
         self.assertIn(response.status_code, {301, 302})
-        self.assertFalse(TrainingSession.objects.filter(id=session_obj.id).exists())
+        self.assertTrue(TrainingSession.objects.filter(id=session_obj.id).exists())
+
+        # Ya no aparece en Agenda (por defecto).
+        response = self.client.get(reverse('team-agenda'), secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Borrar en agenda')
+
+        # Pero sí aparece si pedimos ocultas.
+        response = self.client.get(f"{reverse('team-agenda')}?show_hidden=1", secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Borrar en agenda')
 
 
 class DashboardSetupModeTests(TestCase):

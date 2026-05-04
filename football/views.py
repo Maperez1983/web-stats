@@ -17944,7 +17944,7 @@ def team_agenda_page(request):
         raise Http404('Equipo no configurado')
 
     agenda_action = str(request.POST.get('agenda_action') or '').strip() if request.method == 'POST' else ''
-    if request.method == 'POST' and agenda_action == 'delete_session':
+    if request.method == 'POST' and agenda_action in {'hide_session', 'unhide_session'}:
         session_id = _parse_int(request.POST.get('agenda_session_id'))
         if not session_id:
             return HttpResponse('No se pudo identificar la sesión.', status=400)
@@ -17956,17 +17956,20 @@ def team_agenda_page(request):
         )
         if not session_obj:
             return HttpResponse('Sesión no encontrada.', status=404)
-        if session_obj.tasks.exists():
-            return HttpResponse('No puedes borrar una sesión que ya tiene tareas asociadas.', status=400)
+        existing_fields = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
+        existing_fields['agenda_hidden'] = '1' if agenda_action == 'hide_session' else ''
+        session_obj.content = _serialize_session_plan_fields(existing_fields)
         try:
             session_date = session_obj.session_date
         except Exception:
             session_date = timezone.localdate()
-        session_obj.delete()
+        session_obj.save(update_fields=['content'])
         import urllib.parse  # noqa: WPS433
         base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
         if request.GET.get('team'):
             base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        if request.GET.get('show_hidden'):
+            base.append('show_hidden=1')
         return redirect(reverse('team-agenda') + '?' + '&'.join(base))
 
     if request.method == 'POST' and agenda_action == 'create_session':
@@ -18053,6 +18056,8 @@ def team_agenda_page(request):
         base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
         if request.GET.get('team'):
             base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        if request.GET.get('show_hidden'):
+            base.append('show_hidden=1')
         return redirect(reverse('team-agenda') + '?' + '&'.join(base))
 
     raw_date = str(request.GET.get('date') or '').strip()
@@ -18064,6 +18069,7 @@ def team_agenda_page(request):
             day = None
     day = day or timezone.localdate()
     week_start, week_end = _week_bounds_for_date(day)
+    show_hidden = str(request.GET.get('show_hidden') or '').strip().lower() in {'1', 'true', 'yes', 'si'}
 
     matches = list(
         _team_match_queryset(primary_team)
@@ -18079,6 +18085,16 @@ def team_agenda_page(request):
         .exclude(status=TrainingSession.STATUS_CANCELED)
         .order_by('session_date', 'start_time', 'order', 'id')
     )
+    if sessions and not show_hidden:
+        try:
+            sessions = [
+                s
+                for s in sessions
+                if str(_parse_session_plan_fields(getattr(s, 'content', '')).get('agenda_hidden') or '').strip().lower() not in {'1', 'true', 'yes', 'si'}
+            ]
+        except Exception:
+            # Si algo falla, no ocultamos para no "perder" eventos.
+            logger.exception('team_agenda_page: fallo filtrando sesiones ocultas', extra={'team_id': getattr(primary_team, 'id', None)})
 
     roster_total = int(Player.objects.filter(team=primary_team, is_active=True).count() or 0)
     attendance_by_session_id = {}
@@ -18165,6 +18181,15 @@ def team_agenda_page(request):
     for s in sessions:
         if not s.session_date:
             continue
+        try:
+            is_hidden = (
+                str(_parse_session_plan_fields(getattr(s, 'content', '')).get('agenda_hidden') or '')
+                .strip()
+                .lower()
+                in {'1', 'true', 'yes', 'si'}
+            )
+        except Exception:
+            is_hidden = False
         counts = attendance_by_session_id.get(int(s.id)) or {}
         marked = sum(int(v or 0) for v in counts.values())
         attendance_state = 'pending'
@@ -18209,6 +18234,7 @@ def team_agenda_page(request):
                 'attendance_state': attendance_state,
                 'attendance_url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}#planner-active-session',
                 'session_id': int(s.id),
+                'is_hidden': is_hidden,
             }
         )
 
@@ -18241,6 +18267,8 @@ def team_agenda_page(request):
         base = []
         if request.GET.get('team'):
             base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        if show_hidden:
+            base.append('show_hidden=1')
         base.append('date=' + urllib.parse.quote(target.strftime('%Y-%m-%d')))
         return '?' + '&'.join(base)
 
@@ -18252,6 +18280,7 @@ def team_agenda_page(request):
             'days': days,
             'week_label': week_label,
             'default_date': day,
+            'show_hidden': show_hidden,
             'prev_week_url': reverse('team-agenda') + _qs_for_date(week_start - timedelta(days=7)),
             'next_week_url': reverse('team-agenda') + _qs_for_date(week_start + timedelta(days=7)),
             'today_url': reverse('team-agenda') + _qs_for_date(timezone.localdate()),
@@ -22179,6 +22208,7 @@ def _parse_session_plan_fields(raw_content):
         'player_count': '',
         'materials': '',
         'absences': '',
+        'agenda_hidden': '',
         'notes': content.strip(),
     }
     if not content.strip():
@@ -22188,10 +22218,22 @@ def _parse_session_plan_fields(raw_content):
         return defaults
     _, payload = content.split(marker, 1)
     parsed = defaults.copy()
-    parsed.update({'warmup': '', 'activation': '', 'main': '', 'cooldown': '', 'player_count': '', 'materials': '', 'absences': '', 'notes': ''})
+    parsed.update(
+        {
+            'warmup': '',
+            'activation': '',
+            'main': '',
+            'cooldown': '',
+            'player_count': '',
+            'materials': '',
+            'absences': '',
+            'agenda_hidden': '',
+            'notes': '',
+        }
+    )
     current_key = None
     free_lines = []
-    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes'}
+    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'agenda_hidden', 'notes'}
     for raw_line in payload.splitlines():
         line = raw_line.rstrip()
         if not line.strip():
@@ -22215,7 +22257,7 @@ def _parse_session_plan_fields(raw_content):
 
 
 def _serialize_session_plan_fields(fields):
-    keys = ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes']
+    keys = ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'agenda_hidden', 'notes']
     clean = {key: str((fields or {}).get(key) or '').strip() for key in keys}
     if not any(clean.values()):
         return ''
