@@ -23397,7 +23397,39 @@ def coach_tactics_page(request):
         return forbidden
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
-        raise Http404('Equipo principal no configurado')
+        # UX: evita 404 cuando el usuario tiene acceso a varios equipos pero aún no ha fijado uno activo.
+        try:
+            fallback_team = _team_from_request_param(request)
+        except Exception:
+            fallback_team = None
+        if not fallback_team:
+            # En workspace club: intenta con el primer equipo accesible.
+            try:
+                allowed_ids = _allowed_team_ids_for_request(request)
+            except Exception:
+                allowed_ids = set()
+            if allowed_ids:
+                fallback_team = Team.objects.filter(id__in=list(allowed_ids)).order_by('id').first()
+        if not fallback_team:
+            # Sin workspace activo: usa primer vínculo del usuario (si existe) para no romper navegación.
+            try:
+                team_ids = set(
+                    WorkspaceTeamAccess.objects
+                    .filter(user=request.user)
+                    .values_list('team_id', flat=True)
+                )
+                team_ids = {int(tid) for tid in team_ids if tid}
+                if team_ids:
+                    fallback_team = Team.objects.filter(id__in=list(team_ids)).order_by('id').first()
+            except Exception:
+                fallback_team = None
+        if fallback_team:
+            try:
+                url = reverse('coach-tactics')
+            except Exception:
+                url = '/coach/tactica/'
+            return redirect(f'{url}?team={int(fallback_team.id)}')
+        return HttpResponse('No hay equipo activo configurado para abrir Táctica. Selecciona un equipo/categoría primero.', status=400)
 
     initial = _task_builder_initial_values(None)
     # En modo táctica queremos que la multipizarra (escenarios) esté lista desde el inicio,
