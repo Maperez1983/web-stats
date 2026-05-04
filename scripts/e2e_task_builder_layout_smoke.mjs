@@ -17,8 +17,30 @@ function assert(condition, message) {
 
 async function login(page) {
   await page.goto(`${BASE_URL}/login/`, { waitUntil: 'domcontentloaded' });
-  await page.locator('input[name="username"]').fill(USERNAME);
-  await page.locator('input[name="password"]').fill(PASSWORD);
+  const usernameInput = page.locator('#id_username, input[name="username"]').first();
+  const passwordInput = page.locator('#id_password, input[name="password"]').first();
+  try {
+    await usernameInput.waitFor({ state: 'visible', timeout: 12_000 });
+    await passwordInput.waitFor({ state: 'visible', timeout: 12_000 });
+  } catch (err) {
+    const debug = String(process.env.E2E_DEBUG || '').trim() === '1';
+    if (debug) {
+      try { console.error('[e2e][debug] login url:', page.url()); } catch {}
+      try { console.error('[e2e][debug] login title:', await page.title()); } catch {}
+      try {
+        const html = await page.content();
+        console.error('[e2e][debug] login html head:', String(html || '').slice(0, 600));
+      } catch {}
+      try {
+        const shot = `/tmp/e2e-login-${Date.now()}.png`;
+        await page.screenshot({ path: shot, fullPage: true });
+        console.error('[e2e][debug] screenshot:', shot);
+      } catch {}
+    }
+    throw err;
+  }
+  await usernameInput.fill(USERNAME);
+  await passwordInput.fill(PASSWORD);
   await Promise.all([
     page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
     page.locator('button[type="submit"], input[type="submit"]').click(),
@@ -28,6 +50,11 @@ async function login(page) {
 
 async function ensureEditorReady(page) {
   await page.locator('#create-task-canvas').waitFor({ state: 'visible', timeout: 35_000 });
+  // Espera a que el modo/layout se haya aplicado (evita asserts antes de que JS añada clases).
+  await page.waitForFunction(() => {
+    const body = document.body;
+    return !!(body && body.classList.contains('task-mode-ready'));
+  }, { timeout: 35_000 }).catch(() => null);
   // Landing puede estar activa en dev.
   const landing = page.locator('#task-landing');
   if ((await landing.count()) && (await landing.isVisible().catch(() => false))) {
@@ -67,7 +94,8 @@ async function assertLayout(page, modeLabel) {
   if (pitchBox && sideBox) {
     const portrait = (page.viewportSize()?.height || 0) > (page.viewportSize()?.width || 0);
     if (portrait) {
-      assert(sideBox.y > pitchBox.y, `${modeLabel}: recursos deberían ir debajo (portrait)`);
+      // Puede ser bottom-sheet (overlay) o stack; lo importante es que sea usable en pantalla.
+      assert(sideBox.height > 120, `${modeLabel}: recursos debería tener altura visible (portrait)`);
     } else {
       assert(sideBox.x >= pitchBox.x, `${modeLabel}: recursos deberían estar a la derecha (landscape)`);
     }
@@ -122,4 +150,3 @@ main().catch((err) => {
   console.error('[e2e] FAIL:', err && err.stack ? err.stack : err);
   process.exit(1);
 });
-

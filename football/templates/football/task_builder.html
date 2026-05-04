@@ -1892,20 +1892,35 @@
       /* iPad/tablet en vertical: la biblioteca lateral roba demasiado ancho.
          Cambiamos a campo arriba + recursos abajo con scroll interno. */
       @media (orientation: portrait) {
+        /* iPad portrait: bottom sheet de Recursos (evita scroll largo y recortes). */
         body.ui-tablet .pitch-layout {
           grid-template-columns: 1fr;
-          grid-template-areas:
-            "main"
-            "side";
+          grid-template-areas: "main";
         }
+        /* El campo en portrait: que siempre quepa sin empujar UI. */
+        body.ui-tablet .pitch-stage {
+          max-height: calc(100dvh - 420px);
+        }
+        /* Panel de Recursos como bottom sheet; se abre cuando NO está colapsado. */
         body.ui-tablet .pitch-side {
-          position: relative;
-          top: auto;
-          max-height: none;
-          height: min(52vh, 520px);
+          position: fixed;
+          left: calc(12px + env(safe-area-inset-left));
+          right: calc(12px + env(safe-area-inset-right));
+          bottom: calc(98px + env(safe-area-inset-bottom)); /* deja sitio al dock inferior */
+          height: min(46vh, 520px);
+          max-height: calc(100dvh - 140px - env(safe-area-inset-bottom));
           overflow: hidden;
-          padding-right: 0;
-          padding-bottom: calc(110px + env(safe-area-inset-bottom));
+          padding: 10px;
+          border-radius: 18px;
+          border: 1px solid rgba(148,163,184,0.22);
+          background: rgba(15,23,42,0.92);
+          backdrop-filter: blur(14px);
+          z-index: 1500;
+          box-shadow: 0 18px 52px rgba(2, 6, 23, 0.45);
+          display: none;
+        }
+        body.ui-tablet:not(.library-collapsed) .pitch-side {
+          display: block;
         }
         body.ui-tablet .pitch-side .resource-details {
           display: grid;
@@ -1916,15 +1931,12 @@
         body.ui-tablet .pitch-side .library-head,
         body.ui-tablet .pitch-side .library-filter,
         body.ui-tablet .pitch-side .resource-tabs {
-          background: rgba(7, 22, 44, 0.92);
-        }
-        body.ui-tablet .pitch-side .resource-tabs {
-          padding-bottom: 0.55rem;
+          background: transparent;
         }
         body.ui-tablet .pitch-side .resource-panel.is-visible {
           overflow-y: auto;
           overflow-x: hidden;
-          padding-bottom: calc(120px + env(safe-area-inset-bottom));
+          padding-bottom: 12px;
         }
       }
       .pitch-viewport.is-hand,
@@ -5712,6 +5724,13 @@
 	          if (url.searchParams.has('device')) initialDevice = fromUrl;
 	        } catch (error) {
 	          initialDevice = 'auto';
+	        }
+	        // Auto: en iPad/táctil, por defecto aplica layout tablet sin exigir `?device=tablet`.
+	        if (initialDevice === 'auto') {
+	          try {
+	            const isCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+	            if (isCoarse) initialDevice = 'tablet';
+	          } catch (e) { /* ignore */ }
 	        }
 	        applyDevice(initialDevice);
 
