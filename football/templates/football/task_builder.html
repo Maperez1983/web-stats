@@ -469,6 +469,27 @@
         margin-bottom: 0.9rem;
         flex-wrap: wrap;
       }
+      /* Tablet: evita que la cabecera (Pizarra + Superficie/Vista/Presentación) se "corte".
+         Lo apilamos y lo alineamos a la izquierda para que quepa en iPad. */
+      body.ui-tablet .panel-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      body.ui-tablet .panel-head > div:first-child {
+        order: 2;
+      }
+      body.ui-tablet .panel-head .pitch-toolbar {
+        order: 1;
+        width: 100%;
+        justify-content: flex-start;
+        margin-bottom: 0.35rem;
+      }
+      body.ui-tablet .pitch-toolbar button,
+      body.ui-tablet .pitch-toolbar .button,
+      body.ui-tablet .pitch-toolbar .surface-trigger {
+        padding: 0.52rem 0.72rem;
+        font-size: 0.76rem;
+      }
       .panel-head h2 {
         margin: 0;
         font-size: 0.82rem;
@@ -1866,6 +1887,44 @@
           overflow-x: hidden;
           overflow-y: auto;
           padding-right: 2px;
+        }
+      }
+      /* iPad/tablet en vertical: la biblioteca lateral roba demasiado ancho.
+         Cambiamos a campo arriba + recursos abajo con scroll interno. */
+      @media (orientation: portrait) {
+        body.ui-tablet .pitch-layout {
+          grid-template-columns: 1fr;
+          grid-template-areas:
+            "main"
+            "side";
+        }
+        body.ui-tablet .pitch-side {
+          position: relative;
+          top: auto;
+          max-height: none;
+          height: min(52vh, 520px);
+          overflow: hidden;
+          padding-right: 0;
+          padding-bottom: calc(110px + env(safe-area-inset-bottom));
+        }
+        body.ui-tablet .pitch-side .resource-details {
+          display: grid;
+          grid-template-rows: auto auto auto 1fr;
+          gap: 0;
+          height: 100%;
+        }
+        body.ui-tablet .pitch-side .library-head,
+        body.ui-tablet .pitch-side .library-filter,
+        body.ui-tablet .pitch-side .resource-tabs {
+          background: rgba(7, 22, 44, 0.92);
+        }
+        body.ui-tablet .pitch-side .resource-tabs {
+          padding-bottom: 0.55rem;
+        }
+        body.ui-tablet .pitch-side .resource-panel.is-visible {
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-bottom: calc(120px + env(safe-area-inset-bottom));
         }
       }
       .pitch-viewport.is-hand,
