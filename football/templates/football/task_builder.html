@@ -323,6 +323,12 @@
 	        overflow: auto;
 	        z-index: 1600;
 	      }
+	      /* Importante: `backdrop-filter` en `.topbar` (commercial.css) crea stacking context.
+	         Subimos el contenedor cuando Opciones está abierto para que el panel pueda quedar por encima del backdrop. */
+	      .action-menu[open] {
+	        position: relative;
+	        z-index: 1601;
+	      }
       .action-menu-group {
         border: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.03);
