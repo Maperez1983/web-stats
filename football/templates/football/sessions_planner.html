@@ -2004,6 +2004,7 @@
 			                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
 			                  <button type="submit" class="secondary">Cargar</button>
 			                  {% if selected_session %}
+                        <a class="button secondary" href="{% url 'training-session-detail' selected_session.id %}" title="Ficha de sesión" aria-label="Ficha de sesión">📋 Ficha</a>
 			                  <a class="button session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' selected_session.id %}?style=uefa" target="_blank" rel="noopener">PDF UEFA</a>
 			                  <a class="button secondary session-pdf-link" data-session-pdf="1" href="{% url 'session-plan-pdf' selected_session.id %}?style=club" target="_blank" rel="noopener">PDF Club</a>
 			                  {% endif %}
