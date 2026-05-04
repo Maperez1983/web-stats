@@ -1024,6 +1024,11 @@
         top: auto;
         bottom: calc(100% + 10px);
       }
+      /* Desktop/ventana baja: si el menú se sale por abajo, JS puede añadir `.opens-up`. */
+      .command-menu.opens-up {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
       /* No dejar que estilos del autor anulen el atributo HTML `hidden`. */
       .command-menu[hidden] {
         display: none !important;
@@ -1072,6 +1077,10 @@
       }
       /* ui-tablet (no tácticas): el popover debe abrirse hacia arriba desde el dock inferior. */
       body.ui-tablet:not(.tactics-mode) .layers-popover {
+        top: auto;
+        bottom: calc(100% + 10px);
+      }
+      .layers-popover.opens-up {
         top: auto;
         bottom: calc(100% + 10px);
       }

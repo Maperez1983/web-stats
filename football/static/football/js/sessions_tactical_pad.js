@@ -1033,6 +1033,16 @@
 			    (() => {
 			      let initialFocus = false;
 			      try { initialFocus = safeText(window.localStorage.getItem(FOCUS_STORAGE_KEY)) === '1'; } catch (e) { initialFocus = false; }
+			      // En escritorio, no dejamos el modo presentación "pegado" (parece que desaparece el panel lateral).
+			      // Solo respetamos la preferencia persistida en tablet/puntero táctil.
+			      try {
+			        const forcedTablet = document.body.classList.contains('ui-tablet') || safeText(document.body?.dataset?.deviceMode) === 'tablet';
+			        const isTouch = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+			        if (!forcedTablet && !isTouch) {
+			          initialFocus = false;
+			          try { window.localStorage.setItem(FOCUS_STORAGE_KEY, '0'); } catch (e) { /* ignore */ }
+			        }
+			      } catch (e) { /* ignore */ }
 			      setFocusMode(initialFocus);
 			    })();
 			    focusToggleBtn?.addEventListener('click', (event) => {
@@ -4388,7 +4398,29 @@
 
 			    const setCommandMenuOpen = (open) => {
 			      if (!commandMenu) return;
-			      commandMenu.hidden = !open;
+			      const wantsOpen = !!open;
+			      if (wantsOpen) {
+			        try { commandMenu.classList.remove('opens-up'); } catch (e) { /* ignore */ }
+			      }
+			      commandMenu.hidden = !wantsOpen;
+			      if (wantsOpen) {
+			        try {
+			          // Ventanas bajas / scroll: si se sale por abajo, abrir hacia arriba.
+			          const rect = commandMenu.getBoundingClientRect();
+			          const margin = 12;
+			          if (rect.bottom > (window.innerHeight - margin) && rect.top > margin) {
+			            commandMenu.classList.add('opens-up');
+			          }
+			          commandMenu.style.maxHeight = `calc(100vh - ${margin * 2}px)`;
+			          commandMenu.style.overflow = 'auto';
+			        } catch (e) { /* ignore */ }
+			      } else {
+			        try {
+			          commandMenu.style.maxHeight = '';
+			          commandMenu.style.overflow = '';
+			          commandMenu.classList.remove('opens-up');
+			        } catch (e) { /* ignore */ }
+			      }
 			      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 			    };
 		    let patternMode = 'line';
@@ -4894,10 +4926,29 @@
 		    };
 			    const setLayersPopoverOpen = (open) => {
 			      if (!layersPopover) return;
-			      layersPopover.hidden = !open;
-			      if (open) {
+			      const wantsOpen = !!open;
+			      if (wantsOpen) {
+			        try { layersPopover.classList.remove('opens-up'); } catch (e) { /* ignore */ }
+			      }
+			      layersPopover.hidden = !wantsOpen;
+			      if (wantsOpen) {
 			        // Asegura que el contenido está actualizado al abrir.
 			        try { renderLayers(); } catch (error) { /* ignore */ }
+			        try {
+			          const rect = layersPopover.getBoundingClientRect();
+			          const margin = 12;
+			          if (rect.bottom > (window.innerHeight - margin) && rect.top > margin) {
+			            layersPopover.classList.add('opens-up');
+			          }
+			          layersPopover.style.maxHeight = `calc(100vh - ${margin * 2}px)`;
+			          layersPopover.style.overflow = 'auto';
+			        } catch (e) { /* ignore */ }
+			      } else {
+			        try {
+			          layersPopover.style.maxHeight = '';
+			          layersPopover.style.overflow = '';
+			          layersPopover.classList.remove('opens-up');
+			        } catch (e) { /* ignore */ }
 			      }
 			      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 			    };
