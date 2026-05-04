@@ -918,9 +918,17 @@
         position: relative;
       }
       /* iPad UX: dock fijo para no perder acciones clave al scroll. */
-      body.ui-tablet main.page {
-        padding-bottom: calc(96px + env(safe-area-inset-bottom));
-      }
+	      body.ui-tablet main.page {
+	        padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	      }
+	      /* ui-tablet: el command bar fijo puede tapar el lateral de recursos (cuando hay scroll).
+	         Aseguramos padding inferior para que nada quede “cortado” detrás del dock. */
+	      body.ui-tablet .pitch-side {
+	        padding-bottom: calc(110px + env(safe-area-inset-bottom));
+	      }
+	      body.ui-tablet .pitch-side .resource-panel.is-visible {
+	        padding-bottom: calc(120px + env(safe-area-inset-bottom));
+	      }
       body.ui-tablet .command-bar {
         position: fixed;
         left: 50%;
@@ -944,10 +952,20 @@
         width: 54px;
         height: 48px;
       }
-      body.ui-tablet .icon-btn svg {
-        width: 26px;
-        height: 26px;
-      }
+	      body.ui-tablet .icon-btn svg {
+	        width: 26px;
+	        height: 26px;
+	      }
+	      /* Viewport bajo (portátiles/ventana pequeña): compactar el rail de recursos. */
+	      @media (max-height: 820px) {
+	        .resource-tab-bar { gap: 0.5rem; margin-bottom: 0.5rem; }
+	        .library-head { margin-bottom: 0.45rem; }
+	        .library-filter { padding: 0.5rem 0.7rem; margin-bottom: 0.45rem; }
+	        .resource-tabs { gap: 0.35rem; }
+	        .resource-tab { padding: 0.5rem 0.6rem; border-radius: 14px; font-size: 0.74rem; }
+	        .resource-tab .lib-ico { width: 26px; height: 26px; border-radius: 10px; }
+	        .resource-tab .lib-ico svg { width: 16px; height: 16px; }
+	      }
       .icon-btn {
         width: 60px;
         height: 54px;
