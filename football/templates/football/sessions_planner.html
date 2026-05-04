@@ -1877,7 +1877,7 @@
                   Editor
                 </a>
               </div>
-              {% if imported_session_docs %}
+              {% if sessions_view != 'library' and imported_session_docs %}
               <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
               <div class="task-list" style="margin-bottom:0.8rem;">
                 {% for doc in imported_session_docs %}

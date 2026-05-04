@@ -22700,6 +22700,12 @@ def training_session_detail_page(request, session_id):
     tasks_by_block = defaultdict(list)
     for t in tasks:
         tasks_by_block[str(t.block or '')].append(t)
+    tasks_count = len(tasks)
+    task_minutes_total = 0
+    try:
+        task_minutes_total = sum(int(getattr(t, 'duration_minutes', 0) or 0) for t in tasks)
+    except Exception:
+        task_minutes_total = 0
 
     return render(
         request,
@@ -22714,6 +22720,8 @@ def training_session_detail_page(request, session_id):
             'allowed_statuses': allowed_statuses,
             'attendance_summary': attendance_summary,
             'tasks_by_block': tasks_by_block,
+            'tasks_count': tasks_count,
+            'task_minutes_total': task_minutes_total,
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,
             'message': message,
