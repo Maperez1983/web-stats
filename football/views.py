@@ -17943,6 +17943,92 @@ def team_agenda_page(request):
     if not primary_team:
         raise Http404('Equipo no configurado')
 
+    if request.method == 'POST' and str(request.POST.get('agenda_action') or '').strip() == 'create_session':
+        session_date_raw = str(request.POST.get('agenda_session_date') or '').strip()
+        focus = str(request.POST.get('agenda_session_focus') or '').strip()[:140]
+        if not session_date_raw or not focus:
+            return HttpResponse('Completa fecha y nombre para crear la sesión.', status=400)
+        try:
+            session_date = datetime.strptime(session_date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            return HttpResponse('Fecha de sesión no válida.', status=400)
+        start_time_raw = str(request.POST.get('agenda_session_start_time') or '').strip()
+        start_time = None
+        if start_time_raw:
+            try:
+                start_time = datetime.strptime(start_time_raw, '%H:%M').time()
+            except ValueError:
+                return HttpResponse('Hora de sesión no válida.', status=400)
+        duration_minutes = max(30, min(_parse_int(request.POST.get('agenda_session_minutes')) or 90, 180))
+        intensity = str(request.POST.get('agenda_session_intensity') or TrainingSession.INTENSITY_MEDIUM).strip()
+        if intensity not in {item[0] for item in TrainingSession.INTENSITY_CHOICES}:
+            intensity = TrainingSession.INTENSITY_MEDIUM
+        status = str(request.POST.get('agenda_session_status') or TrainingSession.STATUS_PLANNED).strip()
+        if status not in {item[0] for item in TrainingSession.STATUS_CHOICES}:
+            status = TrainingSession.STATUS_PLANNED
+
+        microcycle = (
+            TrainingMicrocycle.objects
+            .filter(team=primary_team, week_start__lte=session_date, week_end__gte=session_date)
+            .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
+            .order_by('-week_start', '-id')
+            .first()
+        )
+        if not microcycle:
+            microcycle = _get_or_create_inbox_microcycle(primary_team)
+        if not microcycle:
+            return HttpResponse('No se pudo preparar el microciclo para la sesión.', status=500)
+
+        duplicate_exists = TrainingSession.objects.filter(
+            microcycle=microcycle,
+            session_date=session_date,
+            focus__iexact=focus,
+        ).exists()
+        if duplicate_exists:
+            return HttpResponse('Ya existe una sesión con la misma fecha y nombre en este microciclo.', status=400)
+
+        next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+        session_obj = TrainingSession.objects.create(
+            microcycle=microcycle,
+            session_date=session_date,
+            start_time=start_time,
+            duration_minutes=duration_minutes,
+            intensity=intensity,
+            focus=focus,
+            content='',
+            status=status,
+            order=next_order,
+        )
+
+        # Auto-convocatoria: al crear la sesión desde Agenda, pre-marcamos la plantilla como "Presente"
+        # para que el entrenador solo tenga que desmarcar excepciones (ausencias, retrasos, lesionados...).
+        try:
+            player_ids = list(
+                Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
+            )
+            if player_ids:
+                TrainingSessionAttendance.objects.bulk_create(
+                    [
+                        TrainingSessionAttendance(
+                            session=session_obj,
+                            player_id=int(pid),
+                            status=TrainingSessionAttendance.STATUS_PRESENT,
+                            notes='',
+                            marked_by=request.user if request.user.is_authenticated else None,
+                        )
+                        for pid in player_ids
+                    ],
+                    ignore_conflicts=True,
+                )
+        except Exception:
+            logger.exception('team_agenda_page: no se pudo preconvocar asistencia', extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)})
+
+        import urllib.parse  # noqa: WPS433
+        base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
+        if request.GET.get('team'):
+            base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        return redirect(reverse('team-agenda') + '?' + '&'.join(base))
+
     raw_date = str(request.GET.get('date') or '').strip()
     day = None
     if raw_date:
@@ -18138,6 +18224,7 @@ def team_agenda_page(request):
             'team_name': team_name,
             'days': days,
             'week_label': week_label,
+            'default_date': day,
             'prev_week_url': reverse('team-agenda') + _qs_for_date(week_start - timedelta(days=7)),
             'next_week_url': reverse('team-agenda') + _qs_for_date(week_start + timedelta(days=7)),
             'today_url': reverse('team-agenda') + _qs_for_date(timezone.localdate()),
@@ -30296,6 +30383,31 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     status=status,
                     order=next_order,
                 )
+                # Auto-convocatoria (por defecto): pre-marca toda la plantilla como Presente para que el
+                # entrenador solo tenga que ajustar excepciones (ausencias, retrasos, lesionados...).
+                auto_convoke_raw = str(request.POST.get('plan_session_auto_convoke') or '').strip().lower()
+                auto_convoke = auto_convoke_raw not in {'0', 'false', 'no', 'off'}
+                if auto_convoke:
+                    try:
+                        player_ids = list(
+                            Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
+                        )
+                        if player_ids:
+                            TrainingSessionAttendance.objects.bulk_create(
+                                [
+                                    TrainingSessionAttendance(
+                                        session=session_obj,
+                                        player_id=int(pid),
+                                        status=TrainingSessionAttendance.STATUS_PRESENT,
+                                        notes='',
+                                        marked_by=request.user if request.user.is_authenticated else None,
+                                    )
+                                    for pid in player_ids
+                                ],
+                                ignore_conflicts=True,
+                            )
+                    except Exception:
+                        logger.exception('create_session_plan: no se pudo preconvocar asistencia', extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)})
                 source_task_ids = [
                     task_id
                     for task_id in (_parse_int(value) for value in request.POST.getlist('plan_session_task_ids'))
@@ -33922,9 +34034,11 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         initial = _task_builder_initial_values(None)
         error = error or 'No se pudieron preparar los datos del editor. Recarga la página.'
 
-    # Si venimos desde una sesión (Sesiones → Crear tarea) preseleccionamos la sesión destino.
+    # Si venimos desde una sesión (Sesiones → Crear tarea) preseleccionamos la sesión destino
+    # SOLO cuando se pide explícitamente. Así "Crear tarea" puede ir a biblioteca por defecto.
     try:
-        if not str(initial.get('target_session_id') or '').strip():
+        wants_assign = str(request.GET.get('assign') or request.GET.get('use_session') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si', 'sí'}
+        if wants_assign and not str(initial.get('target_session_id') or '').strip():
             forced_session_id = _parse_int(request.GET.get('session_id'))
             if forced_session_id:
                 exists = TrainingSession.objects.filter(id=forced_session_id, microcycle__team=primary_team).exists()

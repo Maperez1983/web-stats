@@ -170,18 +170,67 @@
     <div class="shell">
       {% include 'football/includes/dragon_nav.html' %}
 
-      <header class="header">
-        <div>
-          <h1>Agenda semanal</h1>
-          <p>{{ team_name }} · {{ week_label }}</p>
-        </div>
-        <div class="actions">
-          <a class="btn" href="{{ prev_week_url }}">Semana −</a>
-          <a class="btn" href="{{ today_url }}">Hoy</a>
-          <a class="btn" href="{{ next_week_url }}">Semana +</a>
-          <a class="btn primary" href="{% url 'team-calendar-ics' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">ICS</a>
-        </div>
-      </header>
+	      <header class="header">
+	        <div>
+	          <h1>Agenda semanal</h1>
+	          <p>{{ team_name }} · {{ week_label }}</p>
+	        </div>
+	        <div class="actions">
+	          <details class="btn" style="padding:0; border:none; background:transparent;">
+	            <summary class="btn primary" style="list-style:none;">Alta entreno</summary>
+	            <div style="position:absolute; right:1.25rem; top:4.25rem; z-index:50; width:min(420px, 92vw); padding:12px; border-radius:14px; border:1px solid rgba(148,163,184,0.22); background:rgba(15,23,42,0.92); backdrop-filter: blur(14px);">
+	              <form method="post" class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin:0;">
+	                {% csrf_token %}
+	                <input type="hidden" name="agenda_action" value="create_session" />
+	                <label style="grid-column:1/-1;">
+	                  Nombre
+	                  <input type="text" name="agenda_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Fecha
+	                  <input type="date" name="agenda_session_date" value="{{ default_date|date:'Y-m-d' }}" required style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Hora
+	                  <input type="time" name="agenda_session_start_time" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Minutos
+	                  <input type="number" name="agenda_session_minutes" min="30" max="180" value="90" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;" />
+	                </label>
+	                <label>
+	                  Intensidad
+	                  <select name="agenda_session_intensity" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;">
+	                    <option value="low">Baja</option>
+	                    <option value="medium" selected>Media</option>
+	                    <option value="high">Alta</option>
+	                    <option value="recovery">Recuperación</option>
+	                    <option value="matchday">Pre-partido</option>
+	                  </select>
+	                </label>
+	                <label>
+	                  Estado
+	                  <select name="agenda_session_status" style="width:100%; border-radius:10px; border:1px solid rgba(148,163,184,0.24); background:rgba(2,6,23,0.35); color:#fff; padding:8px 10px;">
+	                    <option value="planned" selected>Planificada</option>
+	                    <option value="done">Realizada</option>
+	                    <option value="canceled">Cancelada</option>
+	                  </select>
+	                </label>
+	                <div style="grid-column:1/-1; display:flex; justify-content:flex-end; gap:0.5rem;">
+	                  <button type="submit" class="btn primary" style="width:auto;">Crear y convocar</button>
+	                </div>
+	                <div style="grid-column:1/-1; color:rgba(226,232,240,0.78); font-size:0.82rem;">
+	                  Al crear desde Agenda se convoca automáticamente a la plantilla (Presente) para que solo tengas que marcar excepciones.
+	                </div>
+	              </form>
+	            </div>
+	          </details>
+	          <a class="btn" href="{{ prev_week_url }}">Semana −</a>
+	          <a class="btn" href="{{ today_url }}">Hoy</a>
+	          <a class="btn" href="{{ next_week_url }}">Semana +</a>
+	          <a class="btn primary" href="{% url 'team-calendar-ics' %}{% if request.GET.team %}?team={{ request.GET.team|urlencode }}{% endif %}">ICS</a>
+	        </div>
+	      </header>
 
       <div class="week-grid">
         {% for day in days %}

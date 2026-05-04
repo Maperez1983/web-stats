@@ -1970,12 +1970,17 @@
 		                  Lesionados / ausencias
 		                  <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
 		                </label>
-		                <label style="grid-column:1/-1;">
-		                  Notas (opcional)
-		                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
-		                </label>
-			                <div><button type="submit" class="primary">Crear sesión</button></div>
-			              </form>
+			                <label style="grid-column:1/-1;">
+			                  Notas (opcional)
+			                  <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+			                </label>
+			                <input type="hidden" name="plan_session_auto_convoke" value="0" />
+			                <label class="ui-check" style="grid-column:1/-1; margin-top:-0.2rem;">
+			                  <input type="checkbox" name="plan_session_auto_convoke" value="1" checked />
+			                  Convocar plantilla automáticamente (Presente)
+			                </label>
+				                <div><button type="submit" class="primary">Crear sesión</button></div>
+				              </form>
 			              <p class="meta" style="margin:0.55rem 0 0;">
 			                Si no eliges microciclo, la sesión queda como <strong>sesión suelta</strong> y podrás vincularla después desde Microciclos.
 			              </p>
@@ -2349,10 +2354,11 @@
 		                  <input type="checkbox" name="replace_existing" value="1" />
 		                  Reemplazar tareas existentes del bloque
 		                </label>
-			                <div style="display:flex; align-items:flex-end; gap:0.6rem;">
-			                  <button type="submit" class="secondary">Asignar</button>
-			                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&session_id={{ selected_session.id }}">Crear tarea</a>
-			                </div>
+				                <div style="display:flex; align-items:flex-end; gap:0.6rem; flex-wrap:wrap;">
+				                  <button type="submit" class="secondary">Asignar</button>
+				                  <a class="button" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}">Crear (biblioteca)</a>
+				                  <a class="button secondary" href="{% url task_builder_route_name %}?repo={{ library_repository|urlencode }}&session_id={{ selected_session.id }}&assign=1" title="Preselecciona la sesión activa para guardar la tarea directamente en el día de entreno">Crear (para esta sesión)</a>
+				                </div>
 			              </form>
 
 			              {% if section.task_rows %}

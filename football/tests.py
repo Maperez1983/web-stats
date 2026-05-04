@@ -17,7 +17,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, UserInvitation, VideoClip, VideoTimelineEvent, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -877,6 +877,32 @@ class CriticalPagesSmokeTests(TestCase):
         self._activate_workspace()
         response = self.client.get(reverse('team-agenda'), secure=True)
         self.assertEqual(response.status_code, 200)
+
+    def test_team_agenda_create_session_convoke_players(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        # Necesitamos al menos 2 jugadores activos.
+        p2 = Player.objects.create(team=self.team, name='Jugador 2', number=9, is_active=True)
+        response = self.client.post(
+            reverse('team-agenda'),
+            {
+                'agenda_action': 'create_session',
+                'agenda_session_date': timezone.localdate().strftime('%Y-%m-%d'),
+                'agenda_session_start_time': '18:00',
+                'agenda_session_focus': 'Entreno agenda',
+                'agenda_session_minutes': '90',
+                'agenda_session_intensity': TrainingSession.INTENSITY_MEDIUM,
+                'agenda_session_status': TrainingSession.STATUS_PLANNED,
+            },
+            secure=True,
+        )
+        self.assertIn(response.status_code, {301, 302})
+        session_obj = TrainingSession.objects.filter(microcycle__team=self.team, focus='Entreno agenda').order_by('-id').first()
+        self.assertIsNotNone(session_obj)
+        marks = list(TrainingSessionAttendance.objects.filter(session=session_obj))
+        self.assertGreaterEqual(len(marks), 2)
+        statuses = {m.status for m in marks}
+        self.assertEqual(statuses, {TrainingSessionAttendance.STATUS_PRESENT})
 
 
 class DashboardSetupModeTests(TestCase):
