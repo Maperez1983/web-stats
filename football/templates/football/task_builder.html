@@ -297,20 +297,44 @@
         border-color: rgba(34, 211, 238, 0.42);
         background: rgba(34, 211, 238, 0.12);
       }
-      .action-menu-body {
-        position: absolute;
-        top: calc(100% + 10px);
-        right: 0;
-        z-index: 90;
-        width: min(540px, 92vw);
-        padding: 0.75rem;
-        border-radius: 18px;
-        border: 1px solid rgba(255,255,255,0.14);
-        background: rgba(8, 18, 30, 0.96);
-        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
-        display: grid;
-        gap: 0.75rem;
-      }
+	      .action-menu-body {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        right: 0;
+	        z-index: 90;
+	        width: min(540px, 92vw);
+	        padding: 0.75rem;
+	        border-radius: 18px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(8, 18, 30, 0.96);
+	        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+	        display: grid;
+	        gap: 0.75rem;
+	      }
+	      /* iPad/Safari: el backdrop (con blur) puede “tapar” el dropdown de <details> por stacking context.
+	         En tablet lo convertimos en panel fijo para asegurar visibilidad y toque fiable. */
+	      body.ui-tablet .action-menu-body {
+	        position: fixed;
+	        top: calc(14px + env(safe-area-inset-top));
+	        left: calc(12px + env(safe-area-inset-left));
+	        right: calc(12px + env(safe-area-inset-right));
+	        width: auto;
+	        max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+	        overflow: auto;
+	        z-index: 1600;
+	      }
+	      @media (max-width: 820px) {
+	        .action-menu-body {
+	          position: fixed;
+	          top: calc(14px + env(safe-area-inset-top));
+	          left: calc(12px + env(safe-area-inset-left));
+	          right: calc(12px + env(safe-area-inset-right));
+	          width: auto;
+	          max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+	          overflow: auto;
+	          z-index: 1600;
+	        }
+	      }
       .action-menu-group {
         border: 1px solid rgba(255,255,255,0.10);
         background: rgba(255,255,255,0.03);
