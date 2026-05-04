@@ -1869,6 +1869,14 @@
 		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=sessions&library_repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Clásicas</a>
 		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=sessions&library_repo=interactive&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}">Interactivas</a>
 		          </div>
+              <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:-0.15rem 0 0.6rem;">
+                <a class="tab-link {% if sessions_view == 'library' %}is-active{% endif %}" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
+                  Biblioteca
+                </a>
+                <a class="tab-link {% if sessions_view == 'editor' %}is-active{% endif %}" href="?tab=sessions&sessions_view=editor&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}{% if selected_session_id %}&session_id={{ selected_session_id }}{% endif %}#planner-active-session">
+                  Editor
+                </a>
+              </div>
               {% if imported_session_docs %}
               <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
               <div class="task-list" style="margin-bottom:0.8rem;">
@@ -1912,6 +1920,33 @@
                 {% endfor %}
               </div>
               {% endif %}
+              {% if sessions_view == 'library' %}
+              <p class="meta" style="margin:0 0 0.65rem;">
+                Vista limpia: toca una sesión para abrir su <strong>Ficha</strong>. El editor queda en “Editor”.
+              </p>
+              {% if session_library_rows %}
+              <div class="task-list">
+                {% for row in session_library_rows %}
+                <article class="task task-clickable" data-detail-url="{{ row.url_ficha }}" tabindex="0" role="link" aria-label="Abrir ficha sesión {{ row.title }}">
+                  <div class="task-content">
+                    <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.title }}</h3>
+                    <p class="meta" style="margin:0 0 0.35rem;">
+                      <strong>{{ row.label }}</strong> · {{ row.duration }}' · {{ row.intensity }} · {{ row.status }}
+                    </p>
+                    <p class="meta" style="margin:0 0 0.55rem;">🧩 {{ row.tasks_count }} tareas · 👥 {{ row.attendance_label }}</p>
+                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                      <a class="button icon-btn" href="{{ row.url_ficha }}" title="Ficha" aria-label="Ficha">📋</a>
+                      <a class="button secondary icon-btn" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️</a>
+                      <a class="button icon-btn" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF" aria-label="PDF">📄</a>
+                    </div>
+                  </div>
+                </article>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">No hay sesiones todavía.</p>
+              {% endif %}
+              {% else %}
 			          <div class="editor-grid">
 				            <div class="editor-box" id="planner-create-session">
 				              <h3>Crear sesión</h3>
@@ -2294,9 +2329,10 @@
 		              {% else %}
 		              <p class="empty">No hay sesiones creadas todavía. Usa “Crear sesión” en esta misma pestaña.</p>
 		              {% endif %}
-		            </div>
+			            </div>
 	          </div>
 	        </section>
+              {% endif %}
 
 		        {% if selected_session %}
 			        <section class="panel" id="planner-blocks">

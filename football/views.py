@@ -32999,6 +32999,75 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     except Exception:
         imported_session_docs = []
 
+    sessions_view = str(request.GET.get('sessions_view') or request.POST.get('sessions_view') or '').strip().lower()
+    if sessions_view not in {'library', 'editor'}:
+        # Default: biblioteca (vista limpia). Si el usuario selecciona sesión o viene de un POST, mantiene editor.
+        sessions_view = 'editor' if selected_session_id or request.method == 'POST' else 'library'
+
+    session_library_rows = []
+    try:
+        recent_sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team)
+            .order_by('-session_date', '-start_time', '-id')[:60]
+        )
+        ids = [int(s.id) for s in recent_sessions]
+        tasks_count_map = {}
+        attendance_count_map = defaultdict(lambda: defaultdict(int))
+        if ids:
+            try:
+                from django.db.models import Count  # noqa: WPS433
+                tasks_counts = (
+                    SessionTask.objects
+                    .filter(session_id__in=ids, deleted_at__isnull=True)
+                    .values('session_id')
+                    .annotate(c=Count('id'))
+                )
+                tasks_count_map = {int(r['session_id']): int(r['c'] or 0) for r in tasks_counts}
+            except Exception:
+                tasks_count_map = {}
+            try:
+                from django.db.models import Count  # noqa: WPS433
+                marks_counts = (
+                    TrainingSessionAttendance.objects
+                    .filter(session_id__in=ids, player__team=primary_team)
+                    .values('session_id', 'status')
+                    .annotate(c=Count('id'))
+                )
+                for r in marks_counts:
+                    sid = int(r['session_id'])
+                    st = str(r['status'] or '').strip()
+                    attendance_count_map[sid][st] = int(r['c'] or 0)
+            except Exception:
+                attendance_count_map = defaultdict(lambda: defaultdict(int))
+        for s in recent_sessions:
+            sid = int(s.id)
+            label = f'{s.session_date:%d/%m/%Y}'
+            if s.start_time:
+                label += f' · {s.start_time:%H:%M}'
+            intensity_label = dict(TrainingSession.INTENSITY_CHOICES).get(s.intensity, s.intensity or '-')
+            status_label = dict(TrainingSession.STATUS_CHOICES).get(s.status, s.status or '-')
+            counts = attendance_count_map.get(sid) or {}
+            marked = sum(int(v or 0) for v in counts.values())
+            attendance_label = f'Asistencia {marked}' if marked else 'Sin asistencia'
+            session_library_rows.append(
+                {
+                    'id': sid,
+                    'title': str(s.focus or '').strip() or f'Sesión {sid}',
+                    'label': label,
+                    'duration': int(s.duration_minutes or 0),
+                    'intensity': intensity_label,
+                    'status': status_label,
+                    'tasks_count': int(tasks_count_map.get(sid, 0)),
+                    'attendance_label': attendance_label,
+                    'url_ficha': reverse('training-session-detail', args=[sid]),
+                    'url_editor': reverse(_sessions_scope_route_name(scope_key)) + f'?tab=sessions&sessions_view=editor&session_id={sid}&team={int(primary_team.id)}' + (f'&workspace={active_workspace_id}' if active_workspace_id else '') + '#planner-active-session',
+                }
+            )
+    except Exception:
+        session_library_rows = []
+
     try:
         cycle_templates = cycle_templates_catalog()
     except Exception:
@@ -33069,7 +33138,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 		            'selected_session_timeline_segments': selected_session_timeline_segments,
 		            'selected_session_timeline_totals': selected_session_timeline_totals,
 		            'selected_session_timeline_running': selected_session_timeline_running,
-		            'selected_session_microcycle_timeline_totals': selected_session_microcycle_timeline_totals,
+            'selected_session_microcycle_timeline_totals': selected_session_microcycle_timeline_totals,
 		            'attendance_status_choices': attendance_status_choices,
 		            'session_attendance_rows': session_attendance_rows,
 		            'session_attendance_counts': session_attendance_counts,
@@ -33088,6 +33157,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'tactical_player_catalog': tactical_player_catalog,
             'prefill_microcycle_id': prefill_microcycle_id,
             'imported_session_docs': imported_session_docs,
+            'sessions_view': sessions_view,
+            'session_library_rows': session_library_rows,
             'cycle_templates': cycle_templates,
         },
     )
