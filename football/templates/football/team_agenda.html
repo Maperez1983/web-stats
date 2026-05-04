@@ -104,17 +104,38 @@
         font-weight: 800;
       }
       .items { display: grid; gap: 0.55rem; }
-      .item {
-        display: flex;
-        gap: 0.7rem;
-        align-items: flex-start;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 16px;
-        padding: 0.75rem 0.8rem;
-        text-decoration: none;
-        color: rgba(248, 250, 252, 0.94);
-        background: rgba(255, 255, 255, 0.04);
-      }
+	      .item {
+	        display: flex;
+	        gap: 0.7rem;
+	        align-items: flex-start;
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        border-radius: 16px;
+	        padding: 0.75rem 0.8rem;
+	        text-decoration: none;
+	        color: rgba(248, 250, 252, 0.94);
+	        background: rgba(255, 255, 255, 0.04);
+	      }
+	      .item-wrap { position: relative; }
+	      .item-actions {
+	        position: absolute;
+	        right: 10px;
+	        top: 10px;
+	        display: flex;
+	        gap: 8px;
+	        z-index: 5;
+	      }
+	      .item-actions button {
+	        border-radius: 10px;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(2, 6, 23, 0.62);
+	        color: rgba(248, 250, 252, 0.95);
+	        padding: 6px 8px;
+	        cursor: pointer;
+	        font-weight: 900;
+	      }
+	      .item-actions button:hover { border-color: rgba(244, 180, 0, 0.35); }
+	      .item-actions .danger { border-color: rgba(248, 113, 113, 0.35); color: rgba(254, 226, 226, 0.95); }
+	      .item-actions .danger:hover { background: rgba(127, 29, 29, 0.35); border-color: rgba(248, 113, 113, 0.55); }
       .item:hover { border-color: rgba(244, 180, 0, 0.35); }
       .tag {
         min-width: 64px;
@@ -234,25 +255,37 @@
 
       <div class="week-grid">
         {% for day in days %}
-        <section class="day-card">
+	        <section class="day-card">
           <h2>{{ day.day_label }}</h2>
           <p class="meta">{{ day.date_label }}</p>
-          <div class="items">
-            {% for item in day.items %}
-              <a class="item" href="{% if item.kind == 'session' and item.attendance_url %}{{ item.attendance_url }}{% else %}{{ item.url }}{% endif %}">
-                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">{% if item.kind == 'match' %}Partido{% else %}Entreno{% endif %}</span>
-                <span style="min-width:0;">
-                  <div class="title">{{ item.title }}</div>
-                  <div class="sub">{{ item.meta }}</div>
-                  {% if item.kind == 'session' and item.attendance_label %}
-                    <div class="att is-{{ item.attendance_state|default:'pending' }}">{{ item.attendance_label }}</div>
-                  {% endif %}
-                </span>
-              </a>
-            {% empty %}
-              <p class="empty">Sin eventos.</p>
-            {% endfor %}
-          </div>
+	          <div class="items">
+	            {% for item in day.items %}
+	              <div class="item-wrap">
+	              <a class="item" href="{% if item.kind == 'session' and item.attendance_url %}{{ item.attendance_url }}{% else %}{{ item.url }}{% endif %}">
+	                <span class="tag {% if item.kind == 'match' %}is-match{% else %}is-session{% endif %}">{% if item.kind == 'match' %}Partido{% else %}Entreno{% endif %}</span>
+	                <span style="min-width:0;">
+	                  <div class="title">{{ item.title }}</div>
+	                  <div class="sub">{{ item.meta }}</div>
+	                  {% if item.kind == 'session' and item.attendance_label %}
+	                    <div class="att is-{{ item.attendance_state|default:'pending' }}">{{ item.attendance_label }}</div>
+	                  {% endif %}
+	                </span>
+	              </a>
+	              {% if item.kind == 'session' and item.session_id %}
+	              <div class="item-actions" aria-label="Acciones de sesión">
+	                <form method="post" style="margin:0;" onsubmit="return confirm('¿Borrar esta sesión? Solo se puede borrar si no tiene tareas.');">
+	                  {% csrf_token %}
+	                  <input type="hidden" name="agenda_action" value="delete_session" />
+	                  <input type="hidden" name="agenda_session_id" value="{{ item.session_id }}" />
+	                  <button type="submit" class="danger" title="Borrar sesión" aria-label="Borrar sesión">🗑️</button>
+	                </form>
+	              </div>
+	              {% endif %}
+	              </div>
+	            {% empty %}
+	              <p class="empty">Sin eventos.</p>
+	            {% endfor %}
+	          </div>
         </section>
         {% endfor %}
       </div>

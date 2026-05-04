@@ -904,6 +904,36 @@ class CriticalPagesSmokeTests(TestCase):
         statuses = {m.status for m in marks}
         self.assertEqual(statuses, {TrainingSessionAttendance.STATUS_PRESENT})
 
+    def test_team_agenda_delete_session(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+        session_obj = TrainingSession.objects.create(
+            microcycle=TrainingMicrocycle.objects.create(
+                team=self.team,
+                title='Micro test',
+                objective='',
+                week_start=timezone.localdate(),
+                week_end=timezone.localdate() + timedelta(days=6),
+                status=TrainingMicrocycle.STATUS_DRAFT,
+                notes='',
+            ),
+            session_date=timezone.localdate(),
+            start_time=None,
+            duration_minutes=90,
+            intensity=TrainingSession.INTENSITY_MEDIUM,
+            focus='Borrar en agenda',
+            content='',
+            status=TrainingSession.STATUS_PLANNED,
+            order=1,
+        )
+        response = self.client.post(
+            reverse('team-agenda'),
+            {'agenda_action': 'delete_session', 'agenda_session_id': str(session_obj.id)},
+            secure=True,
+        )
+        self.assertIn(response.status_code, {301, 302})
+        self.assertFalse(TrainingSession.objects.filter(id=session_obj.id).exists())
+
 
 class DashboardSetupModeTests(TestCase):
     def setUp(self):

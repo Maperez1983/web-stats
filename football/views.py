@@ -17943,7 +17943,33 @@ def team_agenda_page(request):
     if not primary_team:
         raise Http404('Equipo no configurado')
 
-    if request.method == 'POST' and str(request.POST.get('agenda_action') or '').strip() == 'create_session':
+    agenda_action = str(request.POST.get('agenda_action') or '').strip() if request.method == 'POST' else ''
+    if request.method == 'POST' and agenda_action == 'delete_session':
+        session_id = _parse_int(request.POST.get('agenda_session_id'))
+        if not session_id:
+            return HttpResponse('No se pudo identificar la sesión.', status=400)
+        session_obj = (
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(id=session_id, microcycle__team=primary_team)
+            .first()
+        )
+        if not session_obj:
+            return HttpResponse('Sesión no encontrada.', status=404)
+        if session_obj.tasks.exists():
+            return HttpResponse('No puedes borrar una sesión que ya tiene tareas asociadas.', status=400)
+        try:
+            session_date = session_obj.session_date
+        except Exception:
+            session_date = timezone.localdate()
+        session_obj.delete()
+        import urllib.parse  # noqa: WPS433
+        base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
+        if request.GET.get('team'):
+            base.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
+        return redirect(reverse('team-agenda') + '?' + '&'.join(base))
+
+    if request.method == 'POST' and agenda_action == 'create_session':
         session_date_raw = str(request.POST.get('agenda_session_date') or '').strip()
         focus = str(request.POST.get('agenda_session_focus') or '').strip()[:140]
         if not session_date_raw or not focus:
@@ -18181,7 +18207,8 @@ def team_agenda_page(request):
                 'url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}',
                 'attendance_label': attendance_label,
                 'attendance_state': attendance_state,
-                'attendance_url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}#planner-attendance',
+                'attendance_url': reverse('sessions') + f'?tab=sessions&session_id={int(s.id)}&team={int(primary_team.id)}#planner-active-session',
+                'session_id': int(s.id),
             }
         )
 
@@ -30607,7 +30634,26 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if not pid or pid not in roster_ids:
                         continue
                     status = str(value or '').strip()
-                    notes = str(request.POST.get(f'attendance_notes_{pid}') or '').strip()[:180]
+                    notes_raw = str(request.POST.get(f'attendance_notes_{pid}') or '').strip()
+                    reason = str(request.POST.get(f'attendance_reason_{pid}') or '').strip()
+                    late_minutes = _parse_int(request.POST.get(f'attendance_late_minutes_{pid}')) or 0
+
+                    reason_map = {
+                        'baja_medica': 'Baja médica',
+                        'ausencia_justificada': 'Ausencia justificada',
+                        'ausencia_sin_justificar': 'Ausencia sin justificar',
+                        'retraso': 'Retraso',
+                    }
+                    reason_label = reason_map.get(reason, '')
+
+                    note_bits = []
+                    if reason_label:
+                        note_bits.append(reason_label)
+                    if late_minutes and status == TrainingSessionAttendance.STATUS_LATE:
+                        note_bits.append(f'{late_minutes} min')
+                    if notes_raw:
+                        note_bits.append(notes_raw)
+                    notes = ' · '.join(note_bits).strip()[:180]
                     if not status:
                         delete_pids.add(pid)
                         continue
