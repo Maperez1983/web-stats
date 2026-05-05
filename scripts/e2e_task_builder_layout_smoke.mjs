@@ -206,6 +206,28 @@ async function assertLayout(page, modeLabel) {
     }
   }
 
+  // iPad portrait: Recursos (bottom-sheet) no debe tapar el dock inferior y el toggle debe abrir/cerrar.
+  const isPortrait = (page.viewportSize()?.height || 0) > (page.viewportSize()?.width || 0);
+  if (isPortrait) {
+    const okNoOverlap = await page.evaluate(() => {
+      const sheet = document.querySelector('.pitch-side');
+      const dock = document.getElementById('task-command-bar');
+      if (!sheet || !dock) return true;
+      const sheetRect = sheet.getBoundingClientRect();
+      const dockRect = dock.getBoundingClientRect();
+      if (dockRect.width < 10 || dockRect.height < 10) return true;
+      const margin = 10;
+      return sheetRect.bottom <= (dockRect.top - margin);
+    });
+    assert(okNoOverlap, `${modeLabel}: Recursos tapa el dock inferior`);
+
+    // Toggle cerrar/abrir (click DOM para evitar flakiness de WebKit con elementos fijos).
+    await page.evaluate(() => { try { document.getElementById('task-library-toggle')?.click?.(); } catch {} });
+    await page.waitForFunction(() => document.body.classList.contains('library-collapsed'), null, { timeout: 8_000 });
+    await page.evaluate(() => { try { document.getElementById('task-library-toggle')?.click?.(); } catch {} });
+    await page.waitForFunction(() => !document.body.classList.contains('library-collapsed'), null, { timeout: 8_000 });
+  }
+
   // 4) Overlays: Opciones / Vista / Superficie / Presentación.
   await openDetails(page, '#task-builder-actions-menu');
   await waitOverlayBackdrop(page, true);
