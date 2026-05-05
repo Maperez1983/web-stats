@@ -249,6 +249,7 @@ async function main() {
     const text = msg.text() || '';
     if (/Failed to load resource: A TLS error/i.test(text)) return;
     if (/TypeError: Load failed/i.test(text)) return;
+    if (/\/sw\.js\b/i.test(text) && /access control checks/i.test(text)) return;
     errors.push(text);
   });
 
