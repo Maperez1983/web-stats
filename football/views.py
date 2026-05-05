@@ -22724,6 +22724,17 @@ def training_session_detail_page(request, session_id):
     except Exception:
         task_minutes_total = 0
 
+    coach_name = (
+        request.user.get_full_name().strip()
+        if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
+        else getattr(request.user, 'username', '') or 'Entrenador'
+    )
+    pdf_palette = _team_pdf_palette(primary_team, 'club')
+    try:
+        crest_url = resolve_team_crest_url(request, primary_team, sync=True)
+    except Exception:
+        crest_url = ''
+
     return render(
         request,
         'football/training_session_detail.html',
@@ -22739,6 +22750,9 @@ def training_session_detail_page(request, session_id):
             'tasks_by_block': tasks_by_block,
             'tasks_count': tasks_count,
             'task_minutes_total': task_minutes_total,
+            'coach_name': coach_name,
+            'crest_url': crest_url,
+            'pdf_palette': pdf_palette,
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,
             'message': message,
