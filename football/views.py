@@ -22449,6 +22449,9 @@ def _parse_session_plan_fields(raw_content):
         'materials': '',
         'absences': '',
         'agenda_hidden': '',
+        'confirmed_at': '',
+        'confirmed_by': '',
+        'performed_repo_copied': '',
         'notes': content.strip(),
     }
     if not content.strip():
@@ -22468,12 +22471,28 @@ def _parse_session_plan_fields(raw_content):
             'materials': '',
             'absences': '',
             'agenda_hidden': '',
+            'confirmed_at': '',
+            'confirmed_by': '',
+            'performed_repo_copied': '',
             'notes': '',
         }
     )
     current_key = None
     free_lines = []
-    allowed_keys = {'warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'agenda_hidden', 'notes'}
+    allowed_keys = {
+        'warmup',
+        'activation',
+        'main',
+        'cooldown',
+        'player_count',
+        'materials',
+        'absences',
+        'agenda_hidden',
+        'confirmed_at',
+        'confirmed_by',
+        'performed_repo_copied',
+        'notes',
+    }
     for raw_line in payload.splitlines():
         line = raw_line.rstrip()
         if not line.strip():
@@ -22497,7 +22516,20 @@ def _parse_session_plan_fields(raw_content):
 
 
 def _serialize_session_plan_fields(fields):
-    keys = ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'agenda_hidden', 'notes']
+    keys = [
+        'warmup',
+        'activation',
+        'main',
+        'cooldown',
+        'player_count',
+        'materials',
+        'absences',
+        'agenda_hidden',
+        'confirmed_at',
+        'confirmed_by',
+        'performed_repo_copied',
+        'notes',
+    ]
     clean = {key: str((fields or {}).get(key) or '').strip() for key in keys}
     if not any(clean.values()):
         return ''
@@ -22778,6 +22810,73 @@ def training_session_detail_page(request, session_id):
                             t.save(update_fields=['tactical_layout'])
                     except Exception:
                         pass
+
+                # Persistimos confirmación en `content` (sin migraciones).
+                try:
+                    next_fields = plan_fields.copy()
+                    next_fields['confirmed_at'] = timezone.localtime().isoformat()
+                    next_fields['confirmed_by'] = str(request.user.get_username() or '').strip()
+                    session_obj.content = _serialize_session_plan_fields(next_fields)
+                    session_obj.save(update_fields=['content'])
+                    plan_fields = next_fields
+                except Exception:
+                    pass
+
+                # Repositorio “Tareas realizadas”: clonar una vez por sesión confirmada.
+                try:
+                    already_copied = str(plan_fields.get('performed_repo_copied') or '').strip() in {'1', 'true', 'yes', 'si', 'on'}
+                except Exception:
+                    already_copied = False
+                if not already_copied:
+                    try:
+                        # Inferir scope/repo desde la primera tarea (fallback: coach + traditional).
+                        scope_guess = 'coach'
+                        repo_guess = LIBRARY_REPOSITORY_TRADITIONAL
+                        first_task = session_obj.tasks.filter(deleted_at__isnull=True).order_by('id').first()
+                        if first_task and isinstance(getattr(first_task, 'tactical_layout', None), dict):
+                            meta0 = first_task.tactical_layout.get('meta') if isinstance(first_task.tactical_layout.get('meta'), dict) else {}
+                            scope_guess = str(meta0.get('scope') or '').strip() or scope_guess
+                            repo_guess = _normalize_library_repository(meta0.get('repository') or repo_guess)
+                        performed_session = _get_or_create_library_session_with_repository(primary_team, scope_guess, repository=repo_guess)
+                        performed_on_iso = session_obj.session_date.isoformat()
+                        performed_prefix = f'{session_obj.session_date:%d/%m/%Y}'
+                        for t in list(session_obj.tasks.filter(deleted_at__isnull=True).order_by('order', 'id')):
+                            cloned = _clone_session_task_to_session(
+                                t,
+                                performed_session,
+                                note=f'Realizada en sesión #{session_obj.id} ({performed_on_iso}) · tarea #{t.id}',
+                            )
+                            # En repositorio: título con fecha para encontrar rápido.
+                            cloned.title = f'{performed_prefix} · {str(t.title or "").strip()}'.strip()[:160]
+                            # Marcar como “realizada” (no afecta a creadas/importadas).
+                            try:
+                                if isinstance(cloned.tactical_layout, dict):
+                                    layout = dict(cloned.tactical_layout)
+                                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                                    meta = dict(meta)
+                                    meta['source'] = 'performed'
+                                    meta['performed_on'] = performed_on_iso
+                                    meta['performed_session_id'] = int(session_obj.id)
+                                    meta['performed_from_task_id'] = int(t.id)
+                                    meta['real_minutes'] = int(getattr(t, 'duration_minutes', 0) or 0)
+                                    layout['meta'] = meta
+                                    cloned.tactical_layout = layout
+                                    cloned.save(update_fields=['title', 'tactical_layout'])
+                                else:
+                                    cloned.save(update_fields=['title'])
+                            except Exception:
+                                try:
+                                    cloned.save(update_fields=['title'])
+                                except Exception:
+                                    pass
+                        next_fields = plan_fields.copy()
+                        next_fields['performed_repo_copied'] = '1'
+                        session_obj.content = _serialize_session_plan_fields(next_fields)
+                        session_obj.save(update_fields=['content'])
+                        plan_fields = next_fields
+                    except Exception:
+                        pass
+
                 message = f'Sesión confirmada. Minutos reales actualizados en {updated_tasks} tareas.' if updated_tasks else 'Sesión confirmada.'
             except Exception as exc:
                 error = str(exc) or 'No se pudo confirmar la sesión.'
@@ -22845,6 +22944,30 @@ def training_session_detail_page(request, session_id):
     if counts.get(TrainingSessionAttendance.STATUS_EXCUSED):
         summary_bits.append(f'Just {counts.get(TrainingSessionAttendance.STATUS_EXCUSED)}')
     attendance_summary = ' · '.join(summary_bits) if summary_bits else 'Sin asistencia marcada.'
+
+    # Informe post-sesión (para mostrar tras confirmar).
+    attendance_report = {
+        'present': [],
+        'absent': [],
+        'late': [],
+        'injured': [],
+        'excused': [],
+    }
+    try:
+        status_label_map = dict(TrainingSessionAttendance.STATUS_CHOICES)
+        for row in attendance_rows:
+            p = row.get('player')
+            mark = row.get('mark')
+            if not p:
+                continue
+            status_key = str(getattr(mark, 'status', '') or TrainingSessionAttendance.STATUS_PRESENT).strip()
+            note = str(getattr(mark, 'notes', '') or '').strip()
+            if not status_key:
+                status_key = TrainingSessionAttendance.STATUS_PRESENT
+            bucket = status_key if status_key in attendance_report else 'present'
+            attendance_report[bucket].append({'name': p.name, 'note': note, 'status_label': status_label_map.get(status_key, status_key)})
+    except Exception:
+        attendance_report = {'present': [], 'absent': [], 'late': [], 'injured': [], 'excused': []}
 
     def _season_bounds(d: date):
         try:
@@ -22962,6 +23085,12 @@ def training_session_detail_page(request, session_id):
     except Exception:
         task_minutes_total = 0
 
+    task_real_minutes_total = 0
+    try:
+        task_real_minutes_total = sum(int((getattr(t, 'duration_minutes', 0) or 0)) for t in tasks)
+    except Exception:
+        task_real_minutes_total = task_minutes_total
+
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -22988,9 +23117,11 @@ def training_session_detail_page(request, session_id):
             'attendance_rows': attendance_rows,
             'allowed_statuses': allowed_statuses,
             'attendance_summary': attendance_summary,
+            'attendance_report': attendance_report,
             'tasks_by_block': tasks_by_block,
             'tasks_count': tasks_count,
             'task_minutes_total': task_minutes_total,
+            'task_real_minutes_total': task_real_minutes_total,
             'coach_name': coach_name,
             'crest_url': crest_url,
             'pdf_palette': pdf_palette,
@@ -30260,7 +30391,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     library_key = ''
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
     library_source_tab = str(request.GET.get('library_source') or request.POST.get('library_source') or 'created').strip().lower()
-    if library_source_tab not in {'created', 'imported'}:
+    if library_source_tab not in {'created', 'imported', 'performed'}:
         library_source_tab = 'created'
     task_pick_kind = str(request.GET.get('pick_for') or request.POST.get('pick_for') or '').strip().lower()
     if task_pick_kind not in {'', 'create_session'}:
@@ -33008,21 +33139,43 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             and _is_library_session(getattr(item, 'session', None))
             and _library_repository_for_task(item) == library_repository
         ]
+        def _is_performed_task(task):
+            layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            source = str(meta.get('source') or '').strip().lower()
+            if source == 'performed':
+                return True
+            if str(meta.get('performed_on') or '').strip():
+                return True
+            return False
+        # Marca tareas "realizadas" para poder filtrarlas en template.
+        for _t in task_library:
+            try:
+                setattr(_t, 'is_performed', bool(_is_performed_task(_t)))
+            except Exception:
+                pass
         # Conteos para mostrar Biblioteca como “carpetas” (Creadas / Importadas).
         try:
             created_count = 0
             imported_count = 0
+            performed_count = 0
             for t in task_library:
-                if _is_imported_task(t):
+                if _is_performed_task(t):
+                    performed_count += 1
+                elif _is_imported_task(t):
                     imported_count += 1
                 else:
                     created_count += 1
-            library_source_counts = {'created': int(created_count), 'imported': int(imported_count)}
+            library_source_counts = {'created': int(created_count), 'imported': int(imported_count), 'performed': int(performed_count)}
         except Exception:
-            library_source_counts = {'created': 0, 'imported': 0}
-        if library_source_tab in {'created', 'imported'} and task_library:
-            want_imported = library_source_tab == 'imported'
-            task_library = [t for t in task_library if bool(_is_imported_task(t)) == want_imported]
+            library_source_counts = {'created': 0, 'imported': 0, 'performed': 0}
+        if library_source_tab in {'created', 'imported', 'performed'} and task_library:
+            if library_source_tab == 'performed':
+                task_library = [t for t in task_library if _is_performed_task(t)]
+            elif library_source_tab == 'imported':
+                task_library = [t for t in task_library if (not _is_performed_task(t)) and bool(_is_imported_task(t))]
+            else:
+                task_library = [t for t in task_library if (not _is_performed_task(t)) and (not bool(_is_imported_task(t)))]
         if request.user and request.user.is_authenticated and task_library:
             try:
                 bookmarked_task_ids = set(
@@ -33056,9 +33209,18 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             and _is_library_session(getattr(item, 'session', None))
             and _library_repository_for_task(item) == library_repository
         ]
-        if library_source_tab in {'created', 'imported'} and library_deleted_tasks:
-            want_imported = library_source_tab == 'imported'
-            library_deleted_tasks = [t for t in library_deleted_tasks if bool(_is_imported_task(t)) == want_imported]
+        for _t in library_deleted_tasks:
+            try:
+                setattr(_t, 'is_performed', bool(_is_performed_task(_t)))
+            except Exception:
+                pass
+        if library_source_tab in {'created', 'imported', 'performed'} and library_deleted_tasks:
+            if library_source_tab == 'performed':
+                library_deleted_tasks = [t for t in library_deleted_tasks if _is_performed_task(t)]
+            elif library_source_tab == 'imported':
+                library_deleted_tasks = [t for t in library_deleted_tasks if (not _is_performed_task(t)) and bool(_is_imported_task(t))]
+            else:
+                library_deleted_tasks = [t for t in library_deleted_tasks if (not _is_performed_task(t)) and (not bool(_is_imported_task(t)))]
 
     # IMPORTANTE (rendimiento): no hagas mantenimiento pesado (parseo PDF / render previews)
     # dentro de la petición de la vista. En Render esto puede bloquear varios minutos el primer acceso

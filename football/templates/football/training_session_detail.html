@@ -294,6 +294,61 @@
                   </div>
 		            {% endif %}
 		          </div>
+
+              {% if session.status == 'done' or plan_fields.confirmed_at %}
+              <div class="section-title" style="margin-top:12px;">Informe de sesión</div>
+              <div class="box">
+                <p style="margin:0 0 8px;"><strong>Estado:</strong> {{ session.get_status_display }}{% if plan_fields.confirmed_at %} · <strong>Confirmada:</strong> {{ plan_fields.confirmed_at }}{% endif %}</p>
+                <p style="margin:0 0 8px;"><strong>Tiempo real total tareas:</strong> {{ task_real_minutes_total }} min</p>
+
+                <table class="table" style="margin-top:10px;">
+                  <tr>
+                    <td style="width:50%;">
+                      <span class="k">Asistentes</span>
+                      <div class="v">
+                        {% if attendance_report.present %}
+                          {% for item in attendance_report.present %}{{ item.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% else %}—{% endif %}
+                      </div>
+                    </td>
+                    <td style="width:50%;">
+                      <span class="k">Faltas / motivos</span>
+                      <div class="v">
+                        {% if attendance_report.absent or attendance_report.late or attendance_report.injured or attendance_report.excused %}
+                          {% for item in attendance_report.absent %}Ausente: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
+                          {% for item in attendance_report.late %}Tarde: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
+                          {% for item in attendance_report.injured %}Lesión: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
+                          {% for item in attendance_report.excused %}Justificada: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                {% if plan_fields.absences %}
+                  <div style="margin-top:10px;">
+                    <span class="k">Incidencias / lesiones</span>
+                    <div class="v">{{ plan_fields.absences|linebreaksbr }}</div>
+                  </div>
+                {% endif %}
+
+                <div style="margin-top:10px;">
+                  <span class="k">Tiempo real por tarea</span>
+                  <table class="table" style="margin-top:6px;">
+                    {% for block in tasks_by_block %}
+                      {% for t in block.tasks %}
+                        <tr>
+                          <td style="width:70%;"><div class="v">{{ block.label }} · {{ t.title }}</div></td>
+                          <td style="width:30%;"><div class="v">{{ t.real_minutes }} min</div></td>
+                        </tr>
+                      {% endfor %}
+                    {% endfor %}
+                  </table>
+                </div>
+              </div>
+              {% endif %}
 	        </div>
 
 	        <div class="footer">
