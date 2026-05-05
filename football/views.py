@@ -2544,6 +2544,17 @@ def _build_public_media_url(request, raw_url):
 
 def product_landing_page(request):
     app_base = str(os.getenv('APP_PUBLIC_BASE_URL') or '').strip().rstrip('/')
+    # Robustez: si APP_PUBLIC_BASE_URL incluye path (p.ej. /2J), quedarnos con el origin.
+    if app_base:
+        try:
+            raw = app_base
+            if '://' not in raw:
+                raw = f'https://{raw}'
+            parsed = urlparse(raw)
+            if parsed.scheme and parsed.netloc:
+                app_base = f'{parsed.scheme}://{parsed.netloc}'
+        except Exception:
+            pass
     if not app_base:
         try:
             host = str(request.get_host() or '').split(':', 1)[0].strip().lower()

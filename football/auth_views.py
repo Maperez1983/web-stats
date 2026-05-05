@@ -61,6 +61,17 @@ def _guess_app_base_url_from_host(host: str) -> str:
 def _resolve_app_base_url(request) -> str:
     explicit = str(os.getenv("APP_PUBLIC_BASE_URL") or "").strip()
     if explicit:
+        # Robustez: si alguien configura APP_PUBLIC_BASE_URL con path (p.ej. https://app.x.com/2J),
+        # nos quedamos solo con el origin para evitar redirecciones rotas.
+        try:
+            raw = explicit
+            if "://" not in raw:
+                raw = f"https://{raw}"
+            parsed = urlparse(raw)
+            if parsed.scheme and parsed.netloc:
+                return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+        except Exception:
+            pass
         return explicit.rstrip("/")
     return _guess_app_base_url_from_host(_request_host(request)).rstrip("/")
 
