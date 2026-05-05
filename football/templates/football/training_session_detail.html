@@ -537,7 +537,13 @@
                     </td>
                     <td style="width:240px;">
                       <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
-                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Lesión (tipo)..." value="" style="flex:1;" />
+                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
+                          <option value="">Lesión (catálogo)…</option>
+                          {% for entry in injury_catalog_entries %}
+                            <option value="{{ entry.id }}">{{ entry.get_region_display }} · {{ entry.name }}</option>
+                          {% endfor %}
+                        </select>
+                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="" style="flex:1;" />
                         <input type="date" name="attendance_injury_return_{{ p.id }}" value="" title="Alta estimada" style="width:140px;" />
                       </div>
                     </td>

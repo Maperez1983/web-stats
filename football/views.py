@@ -22724,6 +22724,13 @@ def training_session_detail_page(request, session_id):
         .filter(team=primary_team, is_active=True)
         .order_by('name', 'id')
     )
+    injury_catalog_entries = []
+    try:
+        injury_catalog_entries = list(
+            InjuryCatalogEntry.objects.filter(is_active=True).order_by('region', 'category', 'name', 'id')[:600]
+        )
+    except Exception:
+        injury_catalog_entries = []
     try:
         players.sort(key=lambda p: (0 if _player_is_goalkeeper(p) else 1, str(getattr(p, 'name', '') or '').lower(), int(getattr(p, 'id', 0) or 0)))
     except Exception:
@@ -22910,6 +22917,7 @@ def training_session_detail_page(request, session_id):
                 for p in players:
                     status_key = str(request.POST.get(f'attendance_status_{p.id}') or '').strip()
                     notes = str(request.POST.get(f'attendance_notes_{p.id}') or '').strip()[:180]
+                    catalog_id = _parse_int(request.POST.get(f'attendance_injury_catalog_{p.id}'))
                     injury_text = str(request.POST.get(f'attendance_injury_{p.id}') or '').strip()[:180]
                     injury_return_raw = str(request.POST.get(f'attendance_injury_return_{p.id}') or '').strip()
                     injury_return_date = None
@@ -22945,12 +22953,30 @@ def training_session_detail_page(request, session_id):
                     # Si se marca "Lesionado", sincroniza con ficha del jugador y crea registro.
                     if status_key == TrainingSessionAttendance.STATUS_INJURED:
                         try:
-                            injury_name = injury_text or notes or 'Lesión'
+                            entry = None
+                            if catalog_id:
+                                entry = InjuryCatalogEntry.objects.filter(id=catalog_id, is_active=True).first()
+                            injury_name = (str(getattr(entry, 'name', '') or '').strip() if entry else '') or injury_text or notes or 'Lesión'
+                            # Si no se indica alta estimada, usa el catálogo (máximo típico).
+                            if not injury_return_date and entry and int(getattr(entry, 'typical_max_days', 0) or 0) > 0:
+                                injury_return_date = session_obj.session_date + timedelta(days=int(entry.typical_max_days))
                             if injury_name:
                                 # Actualiza campos rápidos del jugador.
                                 p.injury = injury_name[:180]
                                 p.injury_date = session_obj.session_date
-                                p.save(update_fields=['injury', 'injury_date'])
+                                if entry:
+                                    try:
+                                        p.injury_type = str(getattr(entry, 'get_category_display', lambda: '')() or '')
+                                    except Exception:
+                                        p.injury_type = str(getattr(entry, 'category', '') or '')
+                                    try:
+                                        p.injury_zone = str(getattr(entry, 'get_region_display', lambda: '')() or '')
+                                    except Exception:
+                                        p.injury_zone = str(getattr(entry, 'region', '') or '')
+                                update_fields = ['injury', 'injury_date']
+                                if entry:
+                                    update_fields += ['injury_type', 'injury_zone']
+                                p.save(update_fields=update_fields)
                                 # Crea un registro activo si no existe uno igual en la misma fecha.
                                 exists = PlayerInjuryRecord.objects.filter(
                                     player=p,
@@ -22961,7 +22987,10 @@ def training_session_detail_page(request, session_id):
                                 if not exists:
                                     PlayerInjuryRecord.objects.create(
                                         player=p,
+                                        catalog_entry=entry,
                                         injury=injury_name[:180],
+                                        injury_type=(str(getattr(entry, 'get_category_display', lambda: '')() or '') if entry else ''),
+                                        injury_zone=(str(getattr(entry, 'get_region_display', lambda: '')() or '') if entry else ''),
                                         injury_date=session_obj.session_date,
                                         estimated_return_date=injury_return_date,
                                         notes=(notes or '')[:500],
@@ -23170,6 +23199,7 @@ def training_session_detail_page(request, session_id):
             'team': primary_team,
             'plan_fields': plan_fields,
             'players': players,
+            'injury_catalog_entries': injury_catalog_entries,
             'marks': marks,
             'attendance_rows': attendance_rows,
             'allowed_statuses': allowed_statuses,
