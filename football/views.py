@@ -29337,9 +29337,12 @@ def _is_imported_task(task):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     source = str(meta.get('source') or '').strip().lower()
-    # Las tareas creadas en el editor visual siempre deben considerarse "Creadas"
-    # aunque tengan PDF asociado por otros motivos (p.ej. export o adjuntos).
+    # Por defecto, las tareas creadas en el editor visual son "Creadas".
+    # Pero si una tarea se importó desde PDF y luego se editó (source manual-studio),
+    # preservamos señales fuertes de importación para que siga apareciendo en Importadas.
     if source in {'manual-studio', 'manual', 'studio'}:
+        if bool(getattr(task, 'task_pdf', None)) or str(meta.get('pdf_source_name') or '').strip() or bool(meta.get('import_mode')):
+            return True
         return False
     if source in {'pdf_analysis', 'pdf_import', 'pdf'}:
         return True
@@ -33407,6 +33410,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     if sessions_view not in {'library', 'editor'}:
         sessions_view = 'library'
 
+    sessions_source_tab = str(request.GET.get('sessions_source') or request.POST.get('sessions_source') or 'created').strip().lower()
+    if sessions_source_tab not in {'created', 'imported'}:
+        sessions_source_tab = 'created'
+
     session_library_rows = []
     try:
         recent_sessions = list(
@@ -33568,6 +33575,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'prefill_microcycle_id': prefill_microcycle_id,
             'imported_session_docs': imported_session_docs,
             'sessions_view': sessions_view,
+            'sessions_source_tab': sessions_source_tab,
             'session_library_rows': session_library_rows,
             'cycle_templates': cycle_templates,
         },
@@ -34196,12 +34204,38 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             raw_canvas_height = None
     canvas_width = max(320, min(_parse_int(raw_canvas_width) or 1280, 3840))
     canvas_height = max(180, min(_parse_int(raw_canvas_height) or 720, 2160))
+
+    def _import_meta_preserve(task, meta_dict):
+        meta_dict = meta_dict if isinstance(meta_dict, dict) else {}
+        src = str(meta_dict.get('source') or '').strip().lower()
+        is_pdf_source = src in {'pdf_analysis', 'pdf_import', 'pdf'}
+        has_pdf_signals = bool(str(meta_dict.get('pdf_source_name') or '').strip()) or bool(getattr(task, 'task_pdf', None))
+        if not (is_pdf_source or has_pdf_signals):
+            return None
+        preserved = {}
+        preserved['source'] = src if is_pdf_source else 'pdf_import'
+        for key in (
+            'pdf_source_name',
+            'import_mode',
+            'pdf_segment_index',
+            'pdf_segments_total',
+            'pdf_segment_excerpt',
+            'pdf_split_done',
+            'original_version',
+        ):
+            if key in meta_dict:
+                preserved[key] = meta_dict.get(key)
+        preserved['edited_in_studio'] = True
+        return preserved
+
+    preserved_import_meta = _import_meta_preserve(existing_task, existing_meta) if existing_task else None
+    meta_source = (preserved_import_meta.get('source') if preserved_import_meta else 'manual-studio')
     tactical_layout = {
         'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
         'timeline': timeline,
         'meta': {
             'scope': scope_key,
-            'source': 'manual-studio',
+            'source': meta_source,
             **({'repository': library_repository} if is_target_library else {}),
             'template_key': template_key,
             'surface': selected_surface,
@@ -34260,6 +34294,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                     'materials': materials,
                 }
             },
+            **(preserved_import_meta or {}),
         }
     }
     if existing_task:
