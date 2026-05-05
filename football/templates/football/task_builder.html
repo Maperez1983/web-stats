@@ -3633,15 +3633,17 @@
         <span id="task-builder-draft-text"></span>
         <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
-				      <form
-				        method="post"
-				        id="task-builder-form"
-			        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
-			        data-scope-key="{{ scope_key }}"
-				        data-task-id="{% if task %}{{ task.id }}{% endif %}"
-				        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
-				        data-video-import-url="{{ video_import_url|default:'' }}"
-				        data-confirmed-players-api-url="{{ confirmed_players_api_url|default:'' }}"
+					      <form
+					        method="post"
+					        id="task-builder-form"
+				        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
+				        data-scope-key="{{ scope_key }}"
+				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-sim3d-src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+					        data-task-id="{% if task %}{{ task.id }}{% endif %}"
+					        data-pdf-preview-url="{{ pdf_preview_url|default:'' }}"
+					        data-video-import-url="{{ video_import_url|default:'' }}"
+					        data-confirmed-players-api-url="{{ confirmed_players_api_url|default:'' }}"
 				        data-task-create-url="{% if scope_key == 'goalkeeper' %}{% url 'sessions-goalkeeper-task-create' %}{% elif scope_key == 'fitness' %}{% url 'sessions-fitness-task-create' %}{% else %}{% url 'sessions-task-create' %}{% endif %}"
 				        data-assistant-blueprints-url="{% url 'task-assistant-blueprints-api' %}"
 			        data-assistant-blueprints-save-url="{% url 'task-assistant-blueprint-save-api' %}"
@@ -5717,10 +5719,77 @@
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
 		    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-		    <script src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-		    <script src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+		    <script>
+		      // Rendimiento: cargamos Three.js + visor 3D solo cuando el usuario lo pide.
+		      (function () {
+		        const form = document.getElementById('task-builder-form');
+		        if (!form) return;
+		        const threeSrc = String(form.dataset.threeSrc || '').trim();
+		        const sim3dSrc = String(form.dataset.sim3dSrc || '').trim();
+		        const statusEl = document.getElementById('task-builder-status');
+
+		        const setStatus = (msg) => {
+		          try { if (statusEl) statusEl.textContent = String(msg || '').trim(); } catch (e) { /* ignore */ }
+		        };
+
+		        const loadOnce = (src, key) => {
+		          if (!src) return Promise.reject(new Error('no-src'));
+		          if (window[key]) return window[key];
+		          window[key] = new Promise((resolve, reject) => {
+		            try {
+		              const existing = Array.from(document.scripts || []).find((s) => String(s.src || '').includes(src.split('?')[0]));
+		              if (existing) { resolve(true); return; }
+		            } catch (e) { /* ignore */ }
+		            const s = document.createElement('script');
+		            s.src = src;
+		            s.defer = true;
+		            s.onload = () => resolve(true);
+		            s.onerror = () => reject(new Error('load-failed'));
+		            document.head.appendChild(s);
+		          });
+		          return window[key];
+		        };
+
+		        const ensureThree = () => {
+		          try { if (window.THREE) return Promise.resolve(true); } catch (e) { /* ignore */ }
+		          return loadOnce(threeSrc, '__webstats_three_promise');
+		        };
+		        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
+
+		        const ensure3dStack = () => {
+		          setStatus('Cargando 3D…');
+		          return ensureThree()
+		            .then(() => ensureSim3d())
+		            .then(() => { setStatus(''); return true; })
+		            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
+		        };
+
+		        const hookClick = (id, needsSim3d = false) => {
+		          const el = document.getElementById(id);
+		          if (!el) return;
+		          el.addEventListener('click', async (ev) => {
+		            try {
+		              if (el.dataset.webstats3dReady === '1') return;
+		              ev.preventDefault();
+		              ev.stopPropagation();
+		              const ok = needsSim3d ? await ensure3dStack() : await ensureThree().catch(() => false);
+		              if (!ok) return;
+		              el.dataset.webstats3dReady = '1';
+		              // Re-dispara el click para que lo capture el handler real (sessions_tactical_pad / 3D viewer).
+		              try { el.click(); } catch (e) { /* ignore */ }
+		            } catch (e) { /* ignore */ }
+		          }, { capture: true });
+		        };
+
+		        // 3D de pizarra (usa Three.js en sessions_tactical_pad.js)
+		        hookClick('pitch-3d-open', false);
+		        // 3D del simulador (usa visor dedicado)
+		        hookClick('task-sim-view-3d', true);
+		        hookClick('task-playbook-open-3d', true);
+		      })();
+		    </script>
 					    <script>
 					      window.addEventListener('DOMContentLoaded', () => {
 				        const tacticsMode = document.getElementById('task-builder-form')?.dataset?.tacticsMode === '1';

@@ -1617,7 +1617,7 @@
     }
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
+  const boot = () => {
     const form = document.getElementById('task-builder-form');
     const openBtn = document.getElementById('task-sim-view-3d');
     const modal = document.getElementById('task-sim-3d-modal');
@@ -2093,5 +2093,16 @@
       if (modal.hidden) return;
       if (ev.key === 'Escape') close();
     });
-  });
+  };
+
+  // Si se carga bajo demanda (después de DOMContentLoaded), arrancamos igualmente.
+  try {
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  } catch (e) {
+    try { boot(); } catch (err) { /* ignore */ }
+  }
 })();
