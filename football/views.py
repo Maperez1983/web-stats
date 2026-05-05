@@ -30005,14 +30005,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     active_tab = 'library'  # library (tareas) / sessions / microcycles
     allowed_subtabs = {'sessions', 'microcycles', 'library'}
     allowed_main_tabs = {'create', 'library', 'import'}
-    allowed_library_views = {'overview', 'source', 'phase', 'type', 'players', 'duration', 'quality', 'date', 'favorites'}
-    library_view = str(request.GET.get('library_view') or request.POST.get('library_view') or 'overview').strip().lower()
-    if library_view not in allowed_library_views:
-        library_view = 'overview'
-    library_key = str(request.GET.get('library_key') or request.POST.get('library_key') or '').strip()
+    # UI simplificada: Biblioteca solo tiene pestañas Creadas/Importadas + cards.
+    library_view = 'overview'
+    library_key = ''
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
     library_source_tab = str(request.GET.get('library_source') or request.POST.get('library_source') or 'created').strip().lower()
-    if library_source_tab not in {'created', 'imported', 'all'}:
+    if library_source_tab not in {'created', 'imported'}:
         library_source_tab = 'created'
     task_pick_kind = str(request.GET.get('pick_for') or request.POST.get('pick_for') or '').strip().lower()
     if task_pick_kind not in {'', 'create_session'}:
@@ -32759,7 +32757,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             item for item in task_library_raw
             if _task_scope_for_item(item) == scope_key
             and _is_library_session(getattr(item, 'session', None))
-            and _library_repository_for_task(item) == library_repository
         ]
         if library_source_tab in {'created', 'imported'} and task_library:
             want_imported = library_source_tab == 'imported'
@@ -32795,7 +32792,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             item for item in deleted_candidates
             if _task_scope_for_item(item) == scope_key
             and _is_library_session(getattr(item, 'session', None))
-            and _library_repository_for_task(item) == library_repository
         ]
         if library_source_tab in {'created', 'imported'} and library_deleted_tasks:
             want_imported = library_source_tab == 'imported'
@@ -33294,11 +33290,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     continue
             except Exception:
                 continue
-            try:
-                if _library_repository_for_task(task_item) != library_repository:
-                    continue
-            except Exception:
-                continue
             # Filtrado por origen (creadas vs importadas) para reducir ruido en selectores.
             if library_source_tab in {'created', 'imported'}:
                 want_imported = library_source_tab == 'imported'
@@ -33363,7 +33354,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     try:
         imported_session_docs = list(
             ImportedSessionDocument.objects
-            .filter(team=primary_team, repository=library_repository)
+            .filter(team=primary_team)
             .order_by('-session_date', '-created_at', '-id')[:40]
         )
     except Exception:
@@ -33371,8 +33362,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     sessions_view = str(request.GET.get('sessions_view') or request.POST.get('sessions_view') or '').strip().lower()
     if sessions_view not in {'library', 'editor'}:
-        # Default: editor (la mayoría de flujos entran aquí con `session_id`).
-        sessions_view = 'editor'
+        sessions_view = 'library'
 
     session_library_rows = []
     try:
