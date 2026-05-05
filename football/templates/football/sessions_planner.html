@@ -1721,18 +1721,55 @@
                           {% endfor %}
                         </select>
                       </label>
-	                      <label>
-	                        Estado
-	                        <select name="plan_session_status">
-	                          {% for value, label in session_status_choices %}
-	                          <option value="{{ value }}">{{ label }}</option>
-	                          {% endfor %}
-	                        </select>
-	                      </label>
+		                      <label>
+		                        Estado
+		                        <select name="plan_session_status">
+		                          {% for value, label in session_status_choices %}
+		                          <option value="{{ value }}">{{ label }}</option>
+		                          {% endfor %}
+		                        </select>
+		                      </label>
+	                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
+	                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
+	                          ➕ Añadir tareas (opcional)
+	                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
+	                        </summary>
+	                        <div style="margin-top:0.65rem;">
+	                          <p class="meta" style="margin:0 0 0.55rem;">
+	                            Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
+	                          </p>
+	                          <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin:0 0 0.55rem;">
+	                            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='traditional' %}">Tradicionales</a>
+	                            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='interactive' %}">Interactivas</a>
+	                            <span style="opacity:0.55; padding:0 0.15rem;">·</span>
+	                            <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='created' %}">Creadas</a>
+	                            <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='imported' %}">Importadas</a>
+	                          </div>
+	                          <label style="display:block; margin:0 0 0.45rem;">
+	                            Buscar
+	                            <input type="text" id="create-session-task-filter" placeholder="Filtra por título o bloque…" autocomplete="off" />
+	                          </label>
+	                          <div id="create-session-task-list" style="max-height:260px; overflow:auto; border:1px solid rgba(148,163,184,0.24); border-radius:14px; padding:0.55rem;">
+	                            {% if planning_task_source_options %}
+	                              {% for opt in planning_task_source_options %}
+	                              <label class="ui-check" style="display:flex; align-items:flex-start; gap:0.55rem; padding:0.35rem 0; border-bottom:1px solid rgba(148,163,184,0.12);">
+	                                <input type="checkbox" name="plan_session_task_ids" value="{{ opt.id }}" />
+	                                <span style="display:block;">
+	                                  <strong style="display:block;">{{ opt.title }}</strong>
+	                                  <span class="meta" style="display:block; margin-top:0.15rem;">{{ opt.block_label }} · {{ opt.minutes }}'</span>
+	                                </span>
+	                              </label>
+	                              {% endfor %}
+	                            {% else %}
+	                              <p class="meta" style="margin:0;">No hay tareas disponibles en Biblioteca para este repositorio/filtro.</p>
+	                            {% endif %}
+	                          </div>
+	                        </div>
+	                      </details>
 		                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
 		                        <summary class="button secondary" style="display:inline-flex; width:max-content;">Opciones (plantilla / material / notas)</summary>
 		                        <div class="grid" style="margin-top:0.65rem;">
-	                          <input type="hidden" name="plan_session_auto_convoke" value="0" />
+		                          <input type="hidden" name="plan_session_auto_convoke" value="0" />
 	                          <label class="ui-check" style="grid-column:1/-1; margin-top:-0.1rem;">
 	                            <input type="checkbox" name="plan_session_auto_convoke" value="1" checked />
 	                            Convocar plantilla automáticamente (Presente)
@@ -1753,55 +1790,6 @@
 		                            Notas (opcional)
 		                            <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
 		                          </label>
-	                          <details style="grid-column:1/-1; margin:0;">
-	                            <summary class="button secondary" style="display:inline-flex; width:max-content;">Añadir tareas (opcional)</summary>
-	                            <div style="margin-top:0.65rem;">
-	                              <p class="meta" style="margin:0 0 0.55rem;">
-	                                Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
-	                              </p>
-	                              <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin:0 0 0.55rem;">
-	                                <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='traditional' %}">Tradicionales</a>
-	                                <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='interactive' %}">Interactivas</a>
-	                                <span style="opacity:0.55; padding:0 0.15rem;">·</span>
-	                                <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='created' %}">Creadas</a>
-	                                <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='imported' %}">Importadas</a>
-	                              </div>
-	                              <label style="display:block; margin:0 0 0.45rem;">
-	                                Buscar
-	                                <input type="text" id="create-session-task-filter" placeholder="Filtra por título o bloque…" autocomplete="off" />
-	                              </label>
-	                              <div id="create-session-task-list" style="max-height:260px; overflow:auto; border:1px solid rgba(148,163,184,0.24); border-radius:14px; padding:0.55rem;">
-	                                {% if planning_task_source_options %}
-	                                  {% for opt in planning_task_source_options %}
-	                                  <label class="ui-check" style="display:flex; align-items:flex-start; gap:0.55rem; padding:0.35rem 0; border-bottom:1px solid rgba(148,163,184,0.12);">
-	                                    <input type="checkbox" name="plan_session_task_ids" value="{{ opt.id }}" />
-	                                    <span style="display:block;">
-	                                      <strong style="display:block;">{{ opt.title }}</strong>
-	                                      <span class="meta" style="display:block; margin-top:0.15rem;">{{ opt.block_label }} · {{ opt.minutes }}'</span>
-	                                    </span>
-	                                  </label>
-	                                  {% endfor %}
-	                                {% else %}
-	                                  <p class="meta" style="margin:0;">No hay tareas disponibles en Biblioteca para este repositorio/filtro.</p>
-	                                {% endif %}
-	                              </div>
-	                              <script>
-	                                (function () {
-	                                  const input = document.getElementById('create-session-task-filter');
-	                                  const wrap = document.getElementById('create-session-task-list');
-	                                  if (!input || !wrap) return;
-	                                  const rows = Array.from(wrap.querySelectorAll('label'));
-	                                  input.addEventListener('input', () => {
-	                                    const q = String(input.value || '').trim().toLowerCase();
-	                                    rows.forEach((row) => {
-	                                      const text = String(row.textContent || '').toLowerCase();
-	                                      row.style.display = (!q || text.includes(q)) ? '' : 'none';
-	                                    });
-	                                  });
-	                                })();
-	                              </script>
-	                            </div>
-	                          </details>
 		                        </div>
 		                      </details>
 	                      <div style="display:flex; align-items:flex-end; gap:0.55rem; flex-wrap:wrap;">
@@ -1809,19 +1797,45 @@
 	                        <a class="button secondary" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver sesiones</a>
 	                      </div>
 	                    </form>
-	                    <script>
-	                      (function () {
-	                        const form = document.getElementById('create-session-form');
-	                        if (!form) return;
-	                        const dateEl = form.querySelector('input[name="plan_session_date"]');
-	                        if (!dateEl || dateEl.value) return;
-	                        const now = new Date();
-	                        const yyyy = String(now.getFullYear());
-	                        const mm = String(now.getMonth() + 1).padStart(2, '0');
-	                        const dd = String(now.getDate()).padStart(2, '0');
-	                        dateEl.value = `${yyyy}-${mm}-${dd}`;
-	                      })();
-	                    </script>
+		                    <script>
+		                      (function () {
+		                        const form = document.getElementById('create-session-form');
+		                        if (!form) return;
+		                        const dateEl = form.querySelector('input[name="plan_session_date"]');
+		                        if (!dateEl || dateEl.value) return;
+		                        const now = new Date();
+		                        const yyyy = String(now.getFullYear());
+		                        const mm = String(now.getMonth() + 1).padStart(2, '0');
+		                        const dd = String(now.getDate()).padStart(2, '0');
+		                        dateEl.value = `${yyyy}-${mm}-${dd}`;
+		                      })();
+		                    </script>
+                    <script>
+                      (function () {
+                        const input = document.getElementById('create-session-task-filter');
+                        const wrap = document.getElementById('create-session-task-list');
+                        const countEl = document.getElementById('create-session-task-selected');
+                        if (!wrap) return;
+                        const checkboxes = Array.from(wrap.querySelectorAll('input[type=\"checkbox\"][name=\"plan_session_task_ids\"]'));
+                        const rows = Array.from(wrap.querySelectorAll('label'));
+                        const updateCount = () => {
+                          if (!countEl) return;
+                          const n = checkboxes.filter((c) => c && c.checked).length;
+                          countEl.textContent = String(n);
+                        };
+                        checkboxes.forEach((c) => c.addEventListener('change', updateCount));
+                        updateCount();
+                        if (input) {
+                          input.addEventListener('input', () => {
+                            const q = String(input.value || '').trim().toLowerCase();
+                            rows.forEach((row) => {
+                              const text = String(row.textContent || '').toLowerCase();
+                              row.style.display = (!q || text.includes(q)) ? '' : 'none';
+                            });
+                          });
+                        }
+                      })();
+                    </script>
 	                    <div class="create-actions-row" style="margin-top:0.8rem;">
 	                      <a class="create-action-btn" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de sesiones <small>Solo sesiones guardadas</small> <span class="chev" aria-hidden="true">›</span></a>
 	                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>

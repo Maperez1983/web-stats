@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-29T15:06:17.458421+00:00",
+  "generated_at": "2026-05-05T10:51:16.538873+00:00",
   "resources_by_scope": {
     "coach": [
       {
@@ -8,7 +8,7 @@
         "title": "Arco precisión",
         "kind": "arc",
         "category": "finalizacion",
-        "count": 2
+        "count": 1
       },
       {
         "key": "ladder",
@@ -16,7 +16,7 @@
         "title": "Escalera coordinación",
         "kind": "ladder",
         "category": "coordinacion",
-        "count": 4
+        "count": 3
       },
       {
         "key": "cone",
@@ -32,7 +32,7 @@
         "title": "Balón",
         "kind": "ball",
         "category": "juego",
-        "count": 3
+        "count": 2
       },
       {
         "key": "medicine-ball",
@@ -40,7 +40,7 @@
         "title": "Balón medicinal",
         "kind": "medicine-ball",
         "category": "fisico",
-        "count": 2
+        "count": 1
       },
       {
         "key": "goal",
@@ -48,7 +48,7 @@
         "title": "Portería móvil",
         "kind": "goal",
         "category": "porterias",
-        "count": 2
+        "count": 1
       },
       {
         "key": "band",
