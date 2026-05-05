@@ -1680,7 +1680,7 @@
 	                  {% elif create_page == 'session' %}
 	                  <div class="create-actions-panel">
 	                    <h3>Sesión</h3>
-	                    <p class="meta">Crea una sesión rápida y pasa directamente a su <strong>Ficha</strong> (editable y clara).</p>
+	                    <p class="meta">Crea la sesión y selecciona las tareas en <strong>Biblioteca</strong> (con segmento por tarea).</p>
 	                    <form method="post" class="grid" style="margin-top:0.65rem;" id="create-session-form">
 	                      {% csrf_token %}
 	                      <input type="hidden" name="planner_action" value="create_session_plan" />
@@ -1709,15 +1709,6 @@
 	                        Tema / enfoque
 	                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
 	                      </label>
-                        {% if create_session_pick_ids %}
-                        <div class="alert ok" style="grid-column:1/-1; margin:0;">
-                          <strong>Tareas seleccionadas en Biblioteca:</strong> {{ create_session_pick_ids|length }} · se añadirán al crear la sesión.
-                        </div>
-                        {% for tid in create_session_pick_ids %}
-                        <input type="hidden" name="plan_session_task_ids" value="{{ tid }}" />
-                        {% endfor %}
-                        <input type="hidden" name="plan_session_task_assignments_csv" value="{{ create_session_pick_assignments_csv }}" />
-                        {% endif %}
 	                      <label>
 	                        Duración (min)
 	                        <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
@@ -1738,51 +1729,6 @@
 		                          {% endfor %}
 		                        </select>
 		                      </label>
-	                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
-	                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
-	                          ➕ Añadir tareas (opcional)
-	                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
-	                        </summary>
-	                        <div style="margin-top:0.65rem;">
-                            <div class="alert" style="margin:0 0 0.65rem;">
-                              Si prefieres elegirlas en pantalla completa: crea la sesión y luego pulsa <strong>“Crear y abrir Biblioteca”</strong>.
-                            </div>
-                            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0 0 0.65rem;">
-                              <a class="button secondary" href="?{% qs_replace tab='library' pick_for='create_session' library_source='created' %}" title="Abrir Biblioteca para seleccionar tareas y su segmento">
-                                Abrir Biblioteca para elegir tareas
-                              </a>
-                            </div>
-		                          <p class="meta" style="margin:0 0 0.55rem;">
-		                            Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
-		                          </p>
-	                          <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin:0 0 0.55rem;">
-	                            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='traditional' %}">Tradicionales</a>
-	                            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='interactive' %}">Interactivas</a>
-	                            <span style="opacity:0.55; padding:0 0.15rem;">·</span>
-	                            <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='created' %}">Creadas</a>
-	                            <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_source='imported' %}">Importadas</a>
-	                          </div>
-	                          <label style="display:block; margin:0 0 0.45rem;">
-	                            Buscar
-	                            <input type="text" id="create-session-task-filter" placeholder="Filtra por título o bloque…" autocomplete="off" />
-	                          </label>
-	                          <div id="create-session-task-list" style="max-height:260px; overflow:auto; border:1px solid rgba(148,163,184,0.24); border-radius:14px; padding:0.55rem;">
-	                            {% if planning_task_source_options %}
-	                              {% for opt in planning_task_source_options %}
-	                              <label class="ui-check" style="display:flex; align-items:flex-start; gap:0.55rem; padding:0.35rem 0; border-bottom:1px solid rgba(148,163,184,0.12);">
-	                                <input type="checkbox" name="plan_session_task_ids" value="{{ opt.id }}" />
-	                                <span style="display:block;">
-	                                  <strong style="display:block;">{{ opt.title }}</strong>
-	                                  <span class="meta" style="display:block; margin-top:0.15rem;">{{ opt.block_label }} · {{ opt.minutes }}'</span>
-	                                </span>
-	                              </label>
-	                              {% endfor %}
-	                            {% else %}
-	                              <p class="meta" style="margin:0;">No hay tareas disponibles en Biblioteca para este repositorio/filtro.</p>
-	                            {% endif %}
-	                          </div>
-	                        </div>
-	                      </details>
 		                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
 		                        <summary class="button secondary" style="display:inline-flex; width:max-content;">Opciones (plantilla / material / notas)</summary>
 		                        <div class="grid" style="margin-top:0.65rem;">
@@ -1815,9 +1761,7 @@
 		                        </div>
 		                      </details>
 	                      <div style="display:flex; align-items:flex-end; gap:0.55rem; flex-wrap:wrap;">
-	                        <button type="submit" class="primary" name="plan_session_next" value="library" title="Crea la sesión y abre Biblioteca para elegir tareas">Crear y abrir Biblioteca</button>
-	                        <button type="submit" class="secondary">Crear y abrir ficha</button>
-	                        <a class="button secondary" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver sesiones</a>
+	                        <button type="submit" class="primary" name="plan_session_next" value="library" title="Crea la sesión y abre Biblioteca para seleccionar tareas">Crear sesión (elegir tareas)</button>
 	                      </div>
 	                    </form>
 		                    <script>

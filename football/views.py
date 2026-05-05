@@ -30972,25 +30972,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if not attached_count
                     else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
                 )
-                # UX: por defecto vamos a la ficha de sesión; opcionalmente, abrir Biblioteca para elegir tareas.
-                next_step = str(request.POST.get('plan_session_next') or '').strip().lower()
-                if next_step in {'library', 'biblioteca', 'tasks'}:
-                    active_tab = 'library'
-                    auto_selected_session_id = int(session_obj.id)
-                else:
-                    try:
-                        detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
-                        import urllib.parse  # noqa: WPS433
-                        params = [f'team={int(primary_team.id)}']
-                        if active_workspace_id:
-                            params.append(f'workspace={int(active_workspace_id)}')
-                        if attached_count:
-                            params.append('msg=' + urllib.parse.quote(f'Tareas añadidas: {int(attached_count)}'))
-                        else:
-                            params.append('msg=' + urllib.parse.quote(f'Sesión creada: {focus}.'))
-                        return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
-                    except Exception:
-                        auto_selected_session_id = int(session_obj.id)
+                # UX: tras crear sesión, siempre pasamos a Biblioteca para seleccionar las tareas.
+                active_tab = 'library'
+                auto_selected_session_id = int(session_obj.id)
                 # Limpia picks (si venían del selector en Biblioteca para crear sesión).
                 try:
                     picks_map = request.session.get(CREATE_SESSION_TASK_PICKS_SESSION_KEY)
