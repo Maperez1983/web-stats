@@ -95,6 +95,14 @@
 	      .task-grid td { border: 1px solid var(--club-border-soft); padding: 6px 7px; vertical-align: top; }
 	      .task-grid strong { display:block; margin-bottom: 3px; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--club-primary); font-weight: 900; }
 	      .footer { display:flex; justify-content:space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--club-border); color: var(--club-muted); font-size: 10px; background:#ffffff; }
+        .player-chips { display:flex; flex-wrap:wrap; gap:6px; }
+        .player-chip { display:inline-flex; align-items:center; gap:7px; padding:4px 8px 4px 6px; border:1px solid var(--club-border-soft); border-radius:999px; background:#f8fafc; font-weight:900; font-size:11px; }
+        .player-token { width:22px; height:22px; border-radius:999px; background:#0f172a; color:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; flex:0 0 auto; }
+        .player-token img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.05) contrast(1.02); }
+        .player-token .num { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:950; text-shadow:0 2px 8px rgba(0,0,0,0.45); }
+        .player-chip small { font-weight:850; color: var(--club-muted); letter-spacing:0.02em; }
+        .player-group { margin-top:6px; }
+        .player-group .label { font-size:10px; font-weight:950; letter-spacing:0.08em; text-transform:uppercase; color: var(--club-muted); margin: 0 0 6px; }
 
       /* Editor (editable) */
       .edit-card { margin-top: 0.95rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
@@ -331,18 +339,92 @@
                       <span class="k">Asistentes</span>
                       <div class="v">
                         {% if attendance_report.present %}
-                          {% for item in attendance_report.present %}{{ item.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                        {% else %}—{% endif %}
+                          <div class="player-chips">
+                            {% for item in attendance_report.present %}
+                              <span class="player-chip">
+                                <span class="player-token" aria-hidden="true">
+                                  {% if item.photo_url %}
+                                    <img src="{{ item.photo_url }}" alt="" loading="lazy" />
+                                  {% endif %}
+                                  <span class="num">{% if item.number %}{{ item.number }}{% else %}--{% endif %}</span>
+                                </span>
+                                <span>{{ item.name }}</span>
+                              </span>
+                            {% endfor %}
+                          </div>
+                        {% else %}
+                          —
+                        {% endif %}
                       </div>
                     </td>
                     <td style="width:50%;">
                       <span class="k">Faltas / motivos</span>
                       <div class="v">
                         {% if attendance_report.absent or attendance_report.late or attendance_report.injured or attendance_report.excused %}
-                          {% for item in attendance_report.absent %}Ausente: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
-                          {% for item in attendance_report.late %}Tarde: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
-                          {% for item in attendance_report.injured %}Lesión: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
-                          {% for item in attendance_report.excused %}Justificada: {{ item.name }}{% if item.note %} ({{ item.note }}){% endif %}<br />{% endfor %}
+                          {% if attendance_report.absent %}
+                            <div class="player-group">
+                              <div class="label">❌ Ausentes</div>
+                              <div class="player-chips">
+                                {% for item in attendance_report.absent %}
+                                  <span class="player-chip">
+                                    <span class="player-token" aria-hidden="true">
+                                      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" />{% endif %}
+                                      <span class="num">{% if item.number %}{{ item.number }}{% else %}--{% endif %}</span>
+                                    </span>
+                                    <span>{{ item.name }}{% if item.note %} <small>({{ item.note }})</small>{% endif %}</span>
+                                  </span>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endif %}
+                          {% if attendance_report.late %}
+                            <div class="player-group">
+                              <div class="label">⏰ Tarde</div>
+                              <div class="player-chips">
+                                {% for item in attendance_report.late %}
+                                  <span class="player-chip">
+                                    <span class="player-token" aria-hidden="true">
+                                      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" />{% endif %}
+                                      <span class="num">{% if item.number %}{{ item.number }}{% else %}--{% endif %}</span>
+                                    </span>
+                                    <span>{{ item.name }}{% if item.note %} <small>({{ item.note }})</small>{% endif %}</span>
+                                  </span>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endif %}
+                          {% if attendance_report.injured %}
+                            <div class="player-group">
+                              <div class="label">🤕 Lesión</div>
+                              <div class="player-chips">
+                                {% for item in attendance_report.injured %}
+                                  <span class="player-chip">
+                                    <span class="player-token" aria-hidden="true">
+                                      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" />{% endif %}
+                                      <span class="num">{% if item.number %}{{ item.number }}{% else %}--{% endif %}</span>
+                                    </span>
+                                    <span>{{ item.name }}{% if item.note %} <small>({{ item.note }})</small>{% endif %}</span>
+                                  </span>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endif %}
+                          {% if attendance_report.excused %}
+                            <div class="player-group">
+                              <div class="label">✅ Justificadas</div>
+                              <div class="player-chips">
+                                {% for item in attendance_report.excused %}
+                                  <span class="player-chip">
+                                    <span class="player-token" aria-hidden="true">
+                                      {% if item.photo_url %}<img src="{{ item.photo_url }}" alt="" loading="lazy" />{% endif %}
+                                      <span class="num">{% if item.number %}{{ item.number }}{% else %}--{% endif %}</span>
+                                    </span>
+                                    <span>{{ item.name }}{% if item.note %} <small>({{ item.note }})</small>{% endif %}</span>
+                                  </span>
+                                {% endfor %}
+                              </div>
+                            </div>
+                          {% endif %}
                         {% else %}
                           —
                         {% endif %}

@@ -23058,7 +23058,25 @@ def training_session_detail_page(request, session_id):
             if not status_key:
                 status_key = TrainingSessionAttendance.STATUS_PRESENT
             bucket = status_key if status_key in attendance_report else 'present'
-            attendance_report[bucket].append({'name': p.name, 'note': note, 'status_label': status_label_map.get(status_key, status_key)})
+            try:
+                photo_url = str(resolve_player_photo_url(request, p) or '').strip()
+            except Exception:
+                photo_url = ''
+            try:
+                number = int(getattr(p, 'number', 0) or 0) or None
+            except Exception:
+                number = None
+            attendance_report[bucket].append(
+                {
+                    'id': int(getattr(p, 'id', 0) or 0) or None,
+                    'name': str(getattr(p, 'name', '') or '').strip() or 'Jugador',
+                    'number': number,
+                    'position': str(getattr(p, 'position', '') or '').strip(),
+                    'photo_url': photo_url,
+                    'note': note,
+                    'status_label': status_label_map.get(status_key, status_key),
+                }
+            )
     except Exception:
         attendance_report = {'present': [], 'absent': [], 'late': [], 'injured': [], 'excused': []}
 
