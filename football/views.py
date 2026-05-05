@@ -31373,6 +31373,137 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 feedback = f'Sesión duplicada: {duplicated_session.focus}.'
 
+            elif planner_action == 'bulk_copy_library_tasks_to_session':
+                target_session_id = _parse_int(request.POST.get('target_session_id') or request.POST.get('session_id'))
+                raw_ids = str(request.POST.get('source_task_ids_csv') or '').strip()
+                if not raw_ids:
+                    raise ValueError('Selecciona al menos una tarea.')
+                source_task_ids = []
+                for part in re.split(r'[^0-9]+', raw_ids):
+                    value = _parse_int(part)
+                    if value:
+                        source_task_ids.append(int(value))
+                source_task_ids = [x for x in source_task_ids if x]
+                if not source_task_ids:
+                    raise ValueError('Selecciona al menos una tarea.')
+
+                target_session = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=target_session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not target_session:
+                    raise ValueError('Sesión destino no válida.')
+
+                # Mantener el repo consistente con el tab actual (para evitar que “desaparezca” tras asignar).
+                repo_for_copy = _normalize_library_repository(
+                    request.POST.get('library_repo') or library_repository,
+                    fallback=LIBRARY_REPOSITORY_TRADITIONAL,
+                )
+                created_count = 0
+                skipped_count = 0
+                last_title = ''
+                for source_task_id in source_task_ids[:60]:
+                    source_task = (
+                        SessionTask.objects
+                        .select_related('session__microcycle')
+                        .filter(id=source_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                        .first()
+                    )
+                    if not source_task:
+                        skipped_count += 1
+                        continue
+                    if _task_scope_for_item(source_task) != scope_key:
+                        skipped_count += 1
+                        continue
+                    try:
+                        if not _is_library_session(getattr(source_task, 'session', None)):
+                            skipped_count += 1
+                            continue
+                    except Exception:
+                        skipped_count += 1
+                        continue
+
+                    def _matches_source_task(existing_task):
+                        if not existing_task:
+                            return False
+                        try:
+                            layout = existing_task.tactical_layout if isinstance(getattr(existing_task, 'tactical_layout', None), dict) else {}
+                            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                            if _parse_int(meta.get('library_source_task_id')) == int(source_task.id):
+                                return True
+                        except Exception:
+                            pass
+                        notes = str(getattr(existing_task, 'notes', '') or '')
+                        if f'tarea #{int(source_task.id)}' in notes:
+                            return True
+                        try:
+                            if str(existing_task.title or '').strip().casefold() == str(source_task.title or '').strip().casefold():
+                                return True
+                        except Exception:
+                            pass
+                        return False
+
+                    existing_items = list(
+                        SessionTask.objects
+                        .select_related('session__microcycle')
+                        .filter(session=target_session, deleted_at__isnull=True)
+                        .order_by('-id')[:180]
+                    )
+                    existing_items = [item for item in existing_items if _task_scope_for_item(item) == scope_key]
+                    already_assigned = next((item for item in existing_items if _matches_source_task(item)), None)
+                    if already_assigned:
+                        skipped_count += 1
+                        # Asegura repo coherente con el tab actual (por si ya estaba copiada desde otro repo).
+                        try:
+                            layout = already_assigned.tactical_layout if isinstance(getattr(already_assigned, 'tactical_layout', None), dict) else {}
+                            layout = dict(layout)
+                            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                            meta = dict(meta)
+                            meta['repository'] = repo_for_copy
+                            meta['library_source_task_id'] = int(source_task.id)
+                            layout['meta'] = meta
+                            already_assigned.tactical_layout = layout
+                            already_assigned.save(update_fields=['tactical_layout'])
+                        except Exception:
+                            pass
+                        continue
+
+                    copied = _clone_session_task_to_session(
+                        source_task,
+                        target_session,
+                        note=f'Copiada desde biblioteca (tarea #{source_task.id})',
+                    )
+                    try:
+                        layout = copied.tactical_layout if isinstance(getattr(copied, 'tactical_layout', None), dict) else {}
+                        layout = dict(layout)
+                        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                        meta = dict(meta)
+                        meta['repository'] = repo_for_copy
+                        meta['library_source_task_id'] = int(source_task.id)
+                        layout['meta'] = meta
+                        copied.tactical_layout = layout
+                        copied.save(update_fields=['tactical_layout'])
+                    except Exception:
+                        pass
+                    created_count += 1
+                    last_title = str(getattr(copied, 'title', '') or last_title)
+
+                if created_count:
+                    feedback = (
+                        f'Se copiaron {created_count} tareas a la sesión.'
+                        if created_count != 1
+                        else f'Tarea copiada a sesión: {last_title}.'
+                    )
+                    if skipped_count:
+                        feedback += f' ({skipped_count} ya estaban o no eran válidas.)'
+                else:
+                    feedback = 'No se copió ninguna tarea (ya estaban asignadas o no eran válidas).'
+
+                active_tab = 'sessions'
+                auto_selected_session_id = int(getattr(target_session, 'id', 0) or 0) or None
+
             elif planner_action == 'copy_library_task_to_session':
                 source_task_id = _parse_int(request.POST.get('source_task_id'))
                 target_session_id = _parse_int(request.POST.get('target_session_id'))

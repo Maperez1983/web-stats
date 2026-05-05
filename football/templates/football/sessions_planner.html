@@ -3548,16 +3548,49 @@
 	        {% endif %}
         {% if library_view == 'phase' and not library_key %}
         {% elif task_library_page_items %}
+        {% if session_hint_id and planning_session_items %}
+        <div class="box" style="margin:0 0 0.9rem;">
+          <form method="post" id="bulk-add-library-tasks" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="bulk_copy_library_tasks_to_session" />
+            <input type="hidden" name="planner_tab" value="library" />
+            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+            <input type="hidden" name="library_view" value="{{ library_view }}" />
+            <input type="hidden" name="library_key" value="{{ library_key }}" />
+            <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+            <input type="hidden" name="session_id" value="{{ session_hint_id }}" />
+            <input type="hidden" name="source_task_ids_csv" id="bulk-add-task-ids" value="" />
+
+            <strong style="margin-right:0.25rem;">Añadir a sesión</strong>
+            <select name="target_session_id" style="min-width:260px;">
+              {% for session_item in planning_session_items %}
+              <option value="{{ session_item.id }}" {% if session_hint_id and session_item.id == session_hint_id %}selected{% endif %}>{{ session_item.label }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="primary" id="bulk-add-submit" disabled>Añadir 0 tareas</button>
+            <button type="button" class="secondary" id="bulk-add-clear" disabled>Limpiar</button>
+            <span class="meta" style="margin-left:auto;">Marca tareas en esta página y pulsa “Añadir”.</span>
+          </form>
+        </div>
+        {% endif %}
         <div class="task-list">
           {% for t in task_library_page_items %}
 			          <article
 			            class="task task-clickable"
+			            {% if session_hint_id %}style="position:relative;"{% endif %}
 			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
 			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
 			            tabindex="0"
 			            role="link"
 			            aria-label="Abrir tarea {{ t.title }}"
 			          >
+              {% if session_hint_id %}
+              <label class="ui-check" style="position:absolute; top:0.55rem; right:0.55rem; z-index:2; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.35); padding:0.35rem 0.5rem; border-radius:999px;">
+                <input type="checkbox" class="bulk-task-select" value="{{ t.id }}" />
+                <span class="meta" style="margin-left:0.25rem;">Seleccionar</span>
+              </label>
+              {% endif %}
               <div class="task-media">
                 {% if t.task_preview_image or t.task_pdf %}
               <img src="{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
@@ -3754,6 +3787,53 @@
           </article>
           {% endfor %}
         </div>
+        {% if session_hint_id and planning_session_items %}
+        <script>
+          (function () {
+            const form = document.getElementById('bulk-add-library-tasks');
+            if (!form) return;
+            const idsInput = document.getElementById('bulk-add-task-ids');
+            const submitBtn = document.getElementById('bulk-add-submit');
+            const clearBtn = document.getElementById('bulk-add-clear');
+            const checks = Array.from(document.querySelectorAll('.bulk-task-select'));
+
+            const sync = () => {
+              const ids = checks
+                .filter((c) => c.checked)
+                .map((c) => String(c.value || '').trim())
+                .filter(Boolean);
+              const csv = ids.join(',');
+              if (idsInput) idsInput.value = csv;
+              const count = ids.length;
+              if (submitBtn) {
+                submitBtn.disabled = count === 0;
+                submitBtn.textContent = `Añadir ${count} tareas`;
+              }
+              if (clearBtn) clearBtn.disabled = count === 0;
+            };
+
+            checks.forEach((c) => {
+              c.addEventListener('click', (event) => { event.stopPropagation(); });
+              c.addEventListener('change', sync);
+            });
+
+            clearBtn?.addEventListener('click', (event) => {
+              event.preventDefault();
+              checks.forEach((c) => { c.checked = false; });
+              sync();
+            });
+
+            form.addEventListener('submit', (event) => {
+              sync();
+              if (!idsInput || !idsInput.value) {
+                event.preventDefault();
+              }
+            });
+
+            sync();
+          })();
+        </script>
+        {% endif %}
         {% if library_pages|default:1|add:0 > 1 %}
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:center; margin-top: 1rem;">
           {% if library_page|default:1|add:0 > 1 %}
