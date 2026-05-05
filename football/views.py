@@ -29337,6 +29337,10 @@ def _is_imported_task(task):
     layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
     meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
     source = str(meta.get('source') or '').strip().lower()
+    # Las tareas creadas en el editor visual siempre deben considerarse "Creadas"
+    # aunque tengan PDF asociado por otros motivos (p.ej. export o adjuntos).
+    if source in {'manual-studio', 'manual', 'studio'}:
+        return False
     if source in {'pdf_analysis', 'pdf_import', 'pdf'}:
         return True
     if str(meta.get('pdf_source_name') or '').strip():
@@ -29348,7 +29352,11 @@ def _is_imported_task(task):
         notes = str(getattr(task, 'notes', '') or '').strip().lower()
     except Exception:
         notes = ''
-    if bool(getattr(task, 'task_pdf', None)) and any(
+    # Heurística legacy: si hay PDF original en la tarea, suele venir de importación.
+    # (Las tareas creadas manualmente no adjuntan `task_pdf` por defecto).
+    if bool(getattr(task, 'task_pdf', None)):
+        # Señales fuertes en notas (legacy)
+        if any(
         token in notes
         for token in (
             'cargada desde biblioteca pdf',
@@ -29356,7 +29364,9 @@ def _is_imported_task(task):
             'extraída automáticamente desde pdf',
             'importada desde captura',
         )
-    ):
+        ):
+            return True
+        # Sin meta.source/pdf_source_name pero con PDF: tratamos como importada.
         return True
     return False
 
