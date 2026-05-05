@@ -2001,8 +2001,46 @@
                   Editor
                 </a>
               </div>
-              {% if sessions_view != 'library' and imported_session_docs %}
-              <h3 style="margin:0 0 0.55rem; font-size:0.76rem; letter-spacing:0.08em; text-transform:uppercase;">Sesiones importadas (PDF)</h3>
+              {% if sessions_view == 'library' %}
+              <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
+                <a class="tab-link {% if sessions_source_tab == 'created' %}is-active{% endif %}" href="?tab=sessions&sessions_view=library&sessions_source=created&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
+                  Creadas
+                </a>
+                <a class="tab-link {% if sessions_source_tab == 'imported' %}is-active{% endif %}" href="?tab=sessions&sessions_view=library&sessions_source=imported&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
+                  Importadas
+                </a>
+              </div>
+              <p class="meta" style="margin:0 0 0.65rem;">
+                Vista limpia: toca una sesión para abrir su <strong>Ficha</strong>. El editor queda en “Editor”.
+              </p>
+              {% if sessions_source_tab == 'created' %}
+              <p class="meta" style="margin:-0.35rem 0 0.75rem;">
+                <a class="button" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">➕ Crear sesión</a>
+              </p>
+              {% if session_library_rows %}
+              <div class="task-list">
+                {% for row in session_library_rows %}
+                <article class="task task-clickable" data-detail-url="{{ row.url_ficha }}" tabindex="0" role="link" aria-label="Abrir ficha sesión {{ row.title }}">
+                  <div class="task-content">
+                    <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.title }}</h3>
+                    <p class="meta" style="margin:0 0 0.35rem;">
+                      <strong>{{ row.label }}</strong> · {{ row.duration }}' · {{ row.intensity }} · {{ row.status }}
+                    </p>
+                    <p class="meta" style="margin:0 0 0.55rem;">🧩 {{ row.tasks_count }} tareas · 👥 {{ row.attendance_label }}</p>
+                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                      <a class="button icon-btn" href="{{ row.url_ficha }}" title="Ficha" aria-label="Ficha">📋</a>
+                      <a class="button secondary icon-btn" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️</a>
+                      <a class="button icon-btn" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF" aria-label="PDF">📄</a>
+                    </div>
+                  </div>
+                </article>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="empty">No hay sesiones todavía.</p>
+              {% endif %}
+              {% else %}
+              {% if imported_session_docs %}
               <div class="task-list" style="margin-bottom:0.8rem;">
                 {% for doc in imported_session_docs %}
 	                <article
@@ -2043,35 +2081,9 @@
                 </article>
                 {% endfor %}
               </div>
-              {% endif %}
-              {% if sessions_view == 'library' %}
-              <p class="meta" style="margin:0 0 0.65rem;">
-                Vista limpia: toca una sesión para abrir su <strong>Ficha</strong>. El editor queda en “Editor”.
-              </p>
-              <p class="meta" style="margin:-0.35rem 0 0.75rem;">
-                <a class="button" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">➕ Crear sesión</a>
-              </p>
-              {% if session_library_rows %}
-              <div class="task-list">
-                {% for row in session_library_rows %}
-                <article class="task task-clickable" data-detail-url="{{ row.url_ficha }}" tabindex="0" role="link" aria-label="Abrir ficha sesión {{ row.title }}">
-                  <div class="task-content">
-                    <h3 class="task-title" style="margin:0 0 0.35rem;">{{ row.title }}</h3>
-                    <p class="meta" style="margin:0 0 0.35rem;">
-                      <strong>{{ row.label }}</strong> · {{ row.duration }}' · {{ row.intensity }} · {{ row.status }}
-                    </p>
-                    <p class="meta" style="margin:0 0 0.55rem;">🧩 {{ row.tasks_count }} tareas · 👥 {{ row.attendance_label }}</p>
-                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
-                      <a class="button icon-btn" href="{{ row.url_ficha }}" title="Ficha" aria-label="Ficha">📋</a>
-                      <a class="button secondary icon-btn" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️</a>
-                      <a class="button icon-btn" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF" aria-label="PDF">📄</a>
-                    </div>
-                  </div>
-                </article>
-                {% endfor %}
-              </div>
               {% else %}
-              <p class="empty">No hay sesiones todavía.</p>
+              <p class="empty">No hay sesiones importadas todavía.</p>
+              {% endif %}
               {% endif %}
               {% else %}
 			          <div class="editor-grid">
@@ -2503,7 +2515,20 @@
 			              {% if section.task_rows %}
 			              <div class="task-list">
 			                {% for row in section.task_rows %}
-			                <a class="task task-clickable" href="{% url 'session-task-detail' row.obj.id %}" draggable="true" data-task-id="{{ row.obj.id }}" data-task-block="{{ row.obj.block }}">
+				                <article
+				                  class="task task-clickable session-task-card"
+				                  draggable="true"
+				                  data-task-id="{{ row.obj.id }}"
+				                  data-task-block="{{ row.obj.block }}"
+				                  data-preview-title="{{ row.sheet.title|default:''|escape }}"
+				                  data-preview-meta="{{ row.sheet.block_label|default:''|escape }} · {{ row.sheet.minutes|default:0 }}'"
+				                  data-preview-summary="{{ row.obj.objective|default:''|truncatechars:220|escape }}"
+				                  data-preview-img-url="{% if row.obj.task_preview_image or row.obj.task_pdf %}{% url 'session-task-preview-file' row.obj.id %}?v={% if row.obj.task_preview_image %}{{ row.obj.task_preview_image.name|urlencode }}{% else %}{{ row.obj.id }}{% endif %}{% endif %}"
+				                  data-preview-open-url="{% url 'session-task-detail' row.obj.id %}"
+				                  tabindex="0"
+				                  role="button"
+				                  aria-label="Vista previa de tarea {{ row.sheet.title }}"
+				                >
 			                  <button type="button" class="task-trash" data-delete-task-id="{{ row.obj.id }}" title="Quitar de la sesión" aria-label="Quitar de la sesión">
 			                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 			                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Zm-1 13h12a2 2 0 0 0 2-2V9H4v11a2 2 0 0 0 2 2Z" />
@@ -2518,9 +2543,9 @@
 	                    <h3>{{ row.sheet.title }}</h3>
 	                    <p class="meta">{{ row.sheet.block_label }} · {{ row.sheet.minutes }}'</p>
 	                  </div>
-	                </a>
-	                {% endfor %}
-	              </div>
+		                </article>
+		                {% endfor %}
+		              </div>
 			              {% else %}
 			              <p class="empty">Sin tareas en este bloque.</p>
 			              {% endif %}
@@ -2560,22 +2585,24 @@
 		              dropZones.forEach((zone) => zone.classList.remove('is-drop-target'));
 		            };
 		
-		            document.addEventListener('dragstart', (event) => {
-		              const card = event.target.closest('[data-task-id]');
-		              if (!card) return;
-		              draggingTaskId = normalize(card.dataset.taskId);
-		              draggingFromBlock = normalize(card.dataset.taskBlock);
-		              if (!draggingTaskId) return;
+			            document.addEventListener('dragstart', (event) => {
+			              const card = event.target.closest('[data-task-id]');
+			              if (!card) return;
+			              try { window.__webstatsSessionsDragging = true; } catch (e) { /* ignore */ }
+			              draggingTaskId = normalize(card.dataset.taskId);
+			              draggingFromBlock = normalize(card.dataset.taskBlock);
+			              if (!draggingTaskId) return;
 		              try { event.dataTransfer.effectAllowed = 'move'; } catch (e) {}
 		              try { event.dataTransfer.setData('text/plain', draggingTaskId); } catch (e) {}
 		              dropZones.forEach((zone) => zone.classList.add('is-drop-target'));
 		            });
 		
-		            document.addEventListener('dragend', () => {
-		              draggingTaskId = '';
-		              draggingFromBlock = '';
-		              clearHighlights();
-		            });
+			            document.addEventListener('dragend', () => {
+			              draggingTaskId = '';
+			              draggingFromBlock = '';
+			              try { window.__webstatsSessionsDragging = false; } catch (e) { /* ignore */ }
+			              clearHighlights();
+			            });
 		
 		            dropZones.forEach((zone) => {
 		              zone.addEventListener('dragover', (event) => {
@@ -3149,31 +3176,6 @@
       </div>
 
 	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" data-tab="library">
-	      <section class="panel">
-	        <h2>Acciones rápidas</h2>
-		        <div class="folder-grid" style="margin-top:0.75rem;">
-		          <a class="folder-card" href="?tab=microcycles">
-		            <strong>Ir a microciclos</strong>
-		            <span>Semana, sesiones y distribución de tareas</span>
-		          </a>
-			          <a class="folder-card" href="?tab=sessions">
-			            <strong>Editar sesión</strong>
-			            <span>Textos por bloques y tareas del día</span>
-			          </a>
-			          <a class="folder-card" href="{% url task_builder_route_name %}?repo=traditional">
-			            <strong>Crear tarea (Tradicional)</strong>
-			            <span>Se guarda en Tradicionales</span>
-			          </a>
-			          <a class="folder-card" href="{% url task_builder_route_name %}?repo=interactive">
-			            <strong>Crear tarea (Interactiva)</strong>
-			            <span>Se guarda en Interactivas</span>
-			          </a>
-			          <a class="folder-card" href="?tab=import&library_repo={{ library_repository }}">
-			            <strong>Importar</strong>
-			            <span>PDF, vídeo y sesiones</span>
-			          </a>
-			        </div>
-	      </section>
 				      <section class="panel">
 				        <h2>Biblioteca de tareas</h2>
 				        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
@@ -3181,37 +3183,7 @@
                   <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}">Creadas</a>
                   <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}">Importadas</a>
                 </div>
-	              {% if library_filters_active %}
-	              <div class="alert err" style="margin-top:0.55rem;">
-	                Hay filtros activos y pueden dejar la lista vacía.
-	                <a class="button secondary" style="margin-left:0.55rem; text-decoration:none;" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Limpiar filtros</a>
-	              </div>
-	              {% endif %}
-		        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
-		          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tradicionales</a>
-		          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Interactivas</a>
-		        </div>
-			        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
-			          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Todas</a>
-			          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Favoritas</a>
-			          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_source=created&library_repo={{ library_repository }}&library_view=source&library_key=drawn&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Dibujadas</a>
-	              {% if library_deleted_tasks %}
-	              <a class="tab-link" id="library-trash-open" href="#library-trash-details" title="Papelera biblioteca" aria-label="Papelera biblioteca">
-	                🗑️ Papelera ({{ library_deleted_tasks|length }})
-	              </a>
-	              {% endif %}
-		          <details style="margin:0;">
-		            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
-		            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
-		              <a class="tab-link {% if library_view == 'phase' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=phase&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por fase</a>
-		              <a class="tab-link {% if library_view == 'type' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=type&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por tipo</a>
-		              <a class="tab-link {% if library_view == 'players' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=players&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por jugadores</a>
-		              <a class="tab-link {% if library_view == 'duration' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=duration&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por duración</a>
-		              <a class="tab-link {% if library_view == 'date' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=date&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por fecha</a>
-		              <a class="tab-link {% if library_view == 'quality' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=quality&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Por calidad</a>
-		            </div>
-		          </details>
-		        </div>
+                <p class="meta" style="margin:-0.1rem 0 0.9rem;">Biblioteca simple: solo <strong>Creadas</strong> / <strong>Importadas</strong>.</p>
         <details style="margin:0 0 0.6rem;" {% if library_filters_active %}open{% endif %}>
           <summary class="button secondary" style="display:inline-flex; width:max-content;">
             Filtros
@@ -3939,7 +3911,7 @@
           <span id="task-preview-meta" class="meta" style="opacity:0.85;"></span>
         </div>
         <form method="dialog" style="margin:0; display:flex; gap:0.4rem;">
-          <a id="task-preview-open" class="button" href="#" style="text-decoration:none;">Abrir</a>
+	          <a id="task-preview-open" class="button" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">Abrir</a>
           <button class="secondary" value="cancel" type="submit">Cerrar</button>
         </form>
       </div>
@@ -3998,92 +3970,134 @@
 		        }
 		      })();
 
-        (() => {
-          const dialog = document.getElementById('task-preview-dialog');
-          if (!dialog) return;
-          const titleEl = document.getElementById('task-preview-title');
-          const metaEl = document.getElementById('task-preview-meta');
-          const imgEl = document.getElementById('task-preview-img');
-          const summaryEl = document.getElementById('task-preview-summary');
-          const openEl = document.getElementById('task-preview-open');
+	        (() => {
+	          const dialog = document.getElementById('task-preview-dialog');
+	          if (!dialog) return;
+	          const titleEl = document.getElementById('task-preview-title');
+	          const metaEl = document.getElementById('task-preview-meta');
+	          const imgEl = document.getElementById('task-preview-img');
+	          const summaryEl = document.getElementById('task-preview-summary');
+	          const openEl = document.getElementById('task-preview-open');
 
-          const closeIfBackdrop = (event) => {
-            const rect = dialog.getBoundingClientRect();
-            const inside =
-              event.clientX >= rect.left &&
+	          const isInteractiveTarget = (node) =>
+	            !!node.closest('a, button, input, select, textarea, form');
+
+	          const openPreview = ({ title, meta, summary, imgUrl, openUrl, relatedUrl }) => {
+	            if (titleEl) titleEl.textContent = title || 'Vista previa';
+	            if (metaEl) metaEl.textContent = meta || '';
+	            if (summaryEl) summaryEl.textContent = summary || '';
+	            if (openEl) openEl.setAttribute('href', openUrl || '#');
+	            if (imgEl) {
+	              imgEl.src = imgUrl || '';
+	              imgEl.style.display = imgUrl ? 'block' : 'none';
+	            }
+
+	            if (typeof dialog.showModal === 'function') dialog.showModal();
+	            else dialog.setAttribute('open', 'open');
+
+	            const relatedWrap = document.getElementById('task-preview-related');
+	            const relatedGrid = document.getElementById('task-preview-related-grid');
+	            if (relatedWrap) relatedWrap.style.display = 'none';
+	            if (relatedGrid) relatedGrid.innerHTML = '';
+	            if (relatedUrl) {
+	              fetch(relatedUrl, { credentials: 'same-origin' })
+	                .then((r) => r.json())
+	                .then((data) => {
+	                  const items = (data && data.items) || [];
+	                  if (!Array.isArray(items) || !items.length) return;
+	                  if (!relatedWrap || !relatedGrid) return;
+	                  items.slice(0, 6).forEach((item) => {
+	                    const card = document.createElement('a');
+	                    card.href = item.open_url || '#';
+	                    card.style.textDecoration = 'none';
+	                    card.style.color = 'inherit';
+	                    card.style.border = '1px solid rgba(148,163,184,0.18)';
+	                    card.style.borderRadius = '12px';
+	                    card.style.padding = '0.55rem';
+	                    card.style.background = 'rgba(255,255,255,0.04)';
+	                    card.innerHTML = `
+	                      <div style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase; font-size:0.78rem; margin-bottom:0.35rem;">
+	                        ${String(item.title || '').slice(0, 64)}
+	                      </div>
+	                      ${
+	                        item.img_url
+	                          ? `<img src="${item.img_url}" alt="" style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.12); object-fit:cover; background:rgba(0,0,0,0.12);" loading="lazy" />`
+	                          : `<div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.16); display:flex; align-items:center; justify-content:center; opacity:0.75;">Sin gráfico</div>`
+	                      }
+	                      <div class="meta" style="margin-top:0.4rem; font-size:0.82rem; opacity:0.85;">
+	                        ${String(item.summary || '').slice(0, 140)}
+	                      </div>
+	                    `;
+	                    relatedGrid.appendChild(card);
+	                  });
+	                  relatedWrap.style.display = 'block';
+	                })
+	                .catch(() => {});
+	            }
+	          };
+
+	          const closeIfBackdrop = (event) => {
+	            const rect = dialog.getBoundingClientRect();
+	            const inside =
+	              event.clientX >= rect.left &&
               event.clientX <= rect.right &&
               event.clientY >= rect.top &&
               event.clientY <= rect.bottom;
             if (!inside) dialog.close();
           };
-          dialog.addEventListener('click', closeIfBackdrop);
+	          dialog.addEventListener('click', closeIfBackdrop);
 
-          document.addEventListener('click', (event) => {
-            const btn = event.target.closest('.task-preview-btn');
-            if (!btn) return;
-            event.preventDefault();
-            event.stopPropagation();
+	          document.addEventListener('click', (event) => {
+	            const btn = event.target.closest('.task-preview-btn');
+	            if (!btn) return;
+	            event.preventDefault();
+	            event.stopPropagation();
 
-            const title = btn.getAttribute('data-title') || '';
-            const meta = btn.getAttribute('data-meta') || '';
-            const summary = btn.getAttribute('data-summary') || '';
-            const imgUrl = btn.getAttribute('data-img-url') || '';
-            const openUrl = btn.getAttribute('data-open-url') || '#';
-            const relatedUrl = btn.getAttribute('data-related-url') || '';
+	            openPreview({
+	              title: btn.getAttribute('data-title') || '',
+	              meta: btn.getAttribute('data-meta') || '',
+	              summary: btn.getAttribute('data-summary') || '',
+	              imgUrl: btn.getAttribute('data-img-url') || '',
+	              openUrl: btn.getAttribute('data-open-url') || '#',
+	              relatedUrl: btn.getAttribute('data-related-url') || '',
+	            });
+	          });
 
-            if (titleEl) titleEl.textContent = title || 'Vista previa';
-            if (metaEl) metaEl.textContent = meta;
-            if (summaryEl) summaryEl.textContent = summary;
-            if (openEl) openEl.setAttribute('href', openUrl);
-            if (imgEl) {
-              imgEl.src = imgUrl || '';
-              imgEl.style.display = imgUrl ? 'block' : 'none';
-            }
+	          // Sesión → Tareas por bloque: al pulsar la card no navegamos (mantiene al usuario en Sesión).
+	          // Se abre la misma Vista previa y el botón "Abrir" ya decide si entrar en la tarea.
+	          document.addEventListener('click', (event) => {
+	            const card = event.target.closest('.session-task-card');
+	            if (!card) return;
+	            if (isInteractiveTarget(event.target)) return;
+	            // Si el usuario está arrastrando, no abrir preview.
+	            try { if (window.__webstatsSessionsDragging) return; } catch (e) { /* ignore */ }
+	            event.preventDefault();
+	            event.stopPropagation();
+	            openPreview({
+	              title: card.getAttribute('data-preview-title') || '',
+	              meta: card.getAttribute('data-preview-meta') || '',
+	              summary: card.getAttribute('data-preview-summary') || '',
+	              imgUrl: card.getAttribute('data-preview-img-url') || '',
+	              openUrl: card.getAttribute('data-preview-open-url') || '#',
+	              relatedUrl: '',
+	            });
+	          }, { capture: true });
 
-            if (typeof dialog.showModal === 'function') dialog.showModal();
-            else dialog.setAttribute('open', 'open');
-
-            const relatedWrap = document.getElementById('task-preview-related');
-            const relatedGrid = document.getElementById('task-preview-related-grid');
-            if (relatedWrap) relatedWrap.style.display = 'none';
-            if (relatedGrid) relatedGrid.innerHTML = '';
-            if (relatedUrl) {
-              fetch(relatedUrl, { credentials: 'same-origin' })
-                .then((r) => r.json())
-                .then((data) => {
-                  const items = (data && data.items) || [];
-                  if (!Array.isArray(items) || !items.length) return;
-                  if (!relatedWrap || !relatedGrid) return;
-                  items.slice(0, 6).forEach((item) => {
-                    const card = document.createElement('a');
-                    card.href = item.open_url || '#';
-                    card.style.textDecoration = 'none';
-                    card.style.color = 'inherit';
-                    card.style.border = '1px solid rgba(148,163,184,0.18)';
-                    card.style.borderRadius = '12px';
-                    card.style.padding = '0.55rem';
-                    card.style.background = 'rgba(255,255,255,0.04)';
-                    card.innerHTML = `
-                      <div style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase; font-size:0.78rem; margin-bottom:0.35rem;">
-                        ${String(item.title || '').slice(0, 64)}
-                      </div>
-                      ${
-                        item.img_url
-                          ? `<img src="${item.img_url}" alt="" style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.12); object-fit:cover; background:rgba(0,0,0,0.12);" loading="lazy" />`
-                          : `<div style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px dashed rgba(255,255,255,0.16); display:flex; align-items:center; justify-content:center; opacity:0.75;">Sin gráfico</div>`
-                      }
-                      <div class="meta" style="margin-top:0.4rem; font-size:0.82rem; opacity:0.85;">
-                        ${String(item.summary || '').slice(0, 140)}
-                      </div>
-                    `;
-                    relatedGrid.appendChild(card);
-                  });
-                  relatedWrap.style.display = 'block';
-                })
-                .catch(() => {});
-            }
-          });
-        })();
+	          document.addEventListener('keydown', (event) => {
+	            const card = event.target?.closest?.('.session-task-card');
+	            if (!card) return;
+	            if (event.key !== 'Enter' && event.key !== ' ') return;
+	            event.preventDefault();
+	            openPreview({
+	              title: card.getAttribute('data-preview-title') || '',
+	              meta: card.getAttribute('data-preview-meta') || '',
+	              summary: card.getAttribute('data-preview-summary') || '',
+	              imgUrl: card.getAttribute('data-preview-img-url') || '',
+	              openUrl: card.getAttribute('data-preview-open-url') || '#',
+	              relatedUrl: '',
+	            });
+	          });
+	        })();
 
         (() => {
           const getCookie = (name) => {
