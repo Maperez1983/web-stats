@@ -1,14 +1,8 @@
 /* 2J Brand System v2 */
-/* Tipografía UI: IBM Plex Sans (fallback remoto via Google Fonts).
-   Si quieres 100% offline, añade WOFF2 a `static/football/fonts/ibm-plex-sans/`
-   y sustituye este import por @font-face locales. */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 :root {
-  /* Font stack (Plex Sans).
-     Nota: los WOFF2 se sirven desde `static/football/fonts/ibm-plex-sans/`.
-     Si no existen en un despliegue, se usará `local()` o el fallback del sistema. */
-  --prod-font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --prod-font-display: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* Font stack (system-first): evita fallos de `collectstatic` por fonts no incluidas. */
+  --prod-font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --prod-font-display: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   /* Dark (default): ligeramente más claro para mejorar legibilidad. */
   --prod-bg: #0b1626;
   --prod-bg-soft: #101f33;
@@ -49,55 +43,6 @@
   --prod-pitch: #2f7d32;
   --prod-amber: #f4b400;
   --prod-slate: #a7b6cf;
-}
-
-/* IBM Plex Sans (self-hosted, with local() fallback).
-   Archivos esperados:
-   - IBMPlexSans-Regular.woff2 (400)
-   - IBMPlexSans-Medium.woff2 (500)
-   - IBMPlexSans-SemiBold.woff2 (600)
-   - IBMPlexSans-Bold.woff2 (700)
-*/
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src:
-    local("IBM Plex Sans"),
-    local("IBMPlexSans"),
-    local("IBMPlexSans-Regular"),
-    url("../fonts/ibm-plex-sans/IBMPlexSans-Regular.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src:
-    local("IBM Plex Sans Medium"),
-    local("IBMPlexSans-Medium"),
-    url("../fonts/ibm-plex-sans/IBMPlexSans-Medium.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src:
-    local("IBM Plex Sans SemiBold"),
-    local("IBMPlexSans-SemiBold"),
-    url("../fonts/ibm-plex-sans/IBMPlexSans-SemiBold.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src:
-    local("IBM Plex Sans Bold"),
-    local("IBMPlexSans-Bold"),
-    url("../fonts/ibm-plex-sans/IBMPlexSans-Bold.woff2") format("woff2");
 }
 
 /* Light theme (optional): activado con <html data-theme="light">. */
