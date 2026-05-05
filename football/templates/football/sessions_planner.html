@@ -1,4 +1,5 @@
 {% load static %}
+{% load football_extras %}
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -1566,15 +1567,15 @@
 
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
-			        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
-			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
-			      </div>
+				        <a class="tab-link {% if main_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca</a>
+				        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
+				      </div>
 
 			      {% if main_tab == 'library' %}
 			      <div class="tabs" style="margin-top:-0.15rem;">
-			        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
-			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
-			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
+				        <a class="tab-link {% if active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_source={{ library_source_tab|default:'created' }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
+				        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
+				        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
 			      </div>
 			      {% endif %}
 
@@ -3135,30 +3136,32 @@
 			          </a>
 			        </div>
 	      </section>
-			      <section class="panel">
-			        <h2>Biblioteca de tareas</h2>
-			        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
-              {% if library_filters_active %}
-              <div class="alert err" style="margin-top:0.55rem;">
-                Hay filtros activos y pueden dejar la lista vacía.
-                <a class="button secondary" style="margin-left:0.55rem; text-decoration:none;" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Limpiar filtros</a>
-              </div>
-              {% endif %}
+				      <section class="panel">
+				        <h2>Biblioteca de tareas</h2>
+				        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
+                <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
+                  <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}">Creadas</a>
+                  <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}">Importadas</a>
+                </div>
+	              {% if library_filters_active %}
+	              <div class="alert err" style="margin-top:0.55rem;">
+	                Hay filtros activos y pueden dejar la lista vacía.
+	                <a class="button secondary" style="margin-left:0.55rem; text-decoration:none;" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Limpiar filtros</a>
+	              </div>
+	              {% endif %}
 		        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.2rem 0 0.6rem;">
 		          <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=library&library_repo=traditional&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tradicionales</a>
 		          <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=library&library_repo=interactive&library_view={{ library_view }}&library_key={{ library_key }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Interactivas</a>
 		        </div>
-		        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
-		          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Todas</a>
-		          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Favoritas</a>
-		          <a class="tab-link {% if library_view == 'source' and library_key == 'imported' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=imported&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importadas</a>
-		          <a class="tab-link {% if library_view == 'source' and library_key == 'created' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=created&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Creadas</a>
-		          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=source&library_key=drawn&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Dibujadas</a>
-              {% if library_deleted_tasks %}
-              <a class="tab-link" id="library-trash-open" href="#library-trash-details" title="Papelera biblioteca" aria-label="Papelera biblioteca">
-                🗑️ Papelera ({{ library_deleted_tasks|length }})
-              </a>
-              {% endif %}
+			        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0 0 0.6rem;">
+			          <a class="tab-link {% if library_view == 'overview' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Todas</a>
+			          <a class="tab-link {% if library_view == 'favorites' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&library_view=favorites&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Favoritas</a>
+			          <a class="tab-link {% if library_view == 'source' and library_key == 'drawn' %}is-active{% endif %}" href="?tab=library&library_source=created&library_repo={{ library_repository }}&library_view=source&library_key=drawn&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Dibujadas</a>
+	              {% if library_deleted_tasks %}
+	              <a class="tab-link" id="library-trash-open" href="#library-trash-details" title="Papelera biblioteca" aria-label="Papelera biblioteca">
+	                🗑️ Papelera ({{ library_deleted_tasks|length }})
+	              </a>
+	              {% endif %}
 		          <details style="margin:0;">
 		            <summary class="button secondary" style="display:inline-flex; width:max-content;">Más vistas</summary>
 		            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;">
@@ -4568,5 +4571,45 @@
 		        window.setInterval(updateClock, 1000);
 		      })();
 		    </script>
+        <script>
+          (function () {
+            const source = "{{ library_source_tab|default:'created'|escapejs }}";
+            if (!source) return;
+            const panel = document.querySelector('[data-tab="library"]');
+            if (!panel) return;
+
+            const normalizeHref = (rawHref) => {
+              if (!rawHref || rawHref.startsWith('#')) return null;
+              let url;
+              try {
+                url = new URL(rawHref, window.location.href);
+              } catch (e) {
+                return null;
+              }
+              if (url.origin !== window.location.origin) return null;
+              const tab = url.searchParams.get('tab') || '';
+              if (tab !== 'library') return null;
+              if (url.searchParams.has('library_source')) return null;
+              url.searchParams.set('library_source', source);
+              return url.toString();
+            };
+
+            // Normaliza todos los links existentes (soporta abrir en nueva pestaña).
+            panel.querySelectorAll('a[href]').forEach((a) => {
+              const fixed = normalizeHref(a.getAttribute('href') || '');
+              if (fixed) a.setAttribute('href', fixed);
+            });
+
+            // Fallback para elementos insertados dinámicamente.
+            panel.addEventListener('click', (ev) => {
+              const a = ev.target && ev.target.closest ? ev.target.closest('a') : null;
+              if (!a) return;
+              const fixed = normalizeHref(a.getAttribute('href') || '');
+              if (!fixed) return;
+              ev.preventDefault();
+              window.location.assign(fixed);
+            });
+          })();
+        </script>
 		  </body>
 		</html>

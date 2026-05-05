@@ -30007,6 +30007,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         library_view = 'overview'
     library_key = str(request.GET.get('library_key') or request.POST.get('library_key') or '').strip()
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
+    library_source_tab = str(request.GET.get('library_source') or request.POST.get('library_source') or 'created').strip().lower()
+    if library_source_tab not in {'created', 'imported', 'all'}:
+        library_source_tab = 'created'
 
     # Filtros combinables tipo "CoachLab": búsqueda + facetas (sin romper la vista legacy por carpetas).
     library_q = str(request.GET.get('q') or request.POST.get('q') or '').strip()
@@ -32498,6 +32501,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             and _is_library_session(getattr(item, 'session', None))
             and _library_repository_for_task(item) == library_repository
         ]
+        if library_source_tab in {'created', 'imported'} and task_library:
+            want_imported = library_source_tab == 'imported'
+            task_library = [t for t in task_library if bool(_is_imported_task(t)) == want_imported]
         if request.user and request.user.is_authenticated and task_library:
             try:
                 bookmarked_task_ids = set(
@@ -32531,6 +32537,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             and _is_library_session(getattr(item, 'session', None))
             and _library_repository_for_task(item) == library_repository
         ]
+        if library_source_tab in {'created', 'imported'} and library_deleted_tasks:
+            want_imported = library_source_tab == 'imported'
+            library_deleted_tasks = [t for t in library_deleted_tasks if bool(_is_imported_task(t)) == want_imported]
 
     # IMPORTANTE (rendimiento): no hagas mantenimiento pesado (parseo PDF / render previews)
     # dentro de la petición de la vista. En Render esto puede bloquear varios minutos el primer acceso
@@ -33159,6 +33168,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_view': library_view,
             'library_key': library_key,
             'library_repository': library_repository,
+            'library_source_tab': library_source_tab,
             'library_filters_active': library_filters_active,
             'library_q': library_q,
             'library_phase_keys': library_phase_keys,
