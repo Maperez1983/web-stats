@@ -1705,10 +1705,10 @@
 	                        Hora (opcional)
 	                        <input type="time" name="plan_session_start_time" />
 	                      </label>
-	                      <label style="grid-column:1/-1;">
-	                        Tema / enfoque
-	                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
-	                      </label>
+                      <label style="grid-column:1/-1;">
+                        Tema / enfoque
+                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
+                      </label>
 	                      <label>
 	                        Duración (min)
 	                        <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
@@ -1729,15 +1729,18 @@
 		                          {% endfor %}
 		                        </select>
 		                      </label>
-	                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
-	                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
-	                          ➕ Añadir tareas (opcional)
-	                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
-	                        </summary>
-	                        <div style="margin-top:0.65rem;">
-	                          <p class="meta" style="margin:0 0 0.55rem;">
-	                            Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
-	                          </p>
+		                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
+		                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
+		                          ➕ Añadir tareas (opcional)
+		                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
+		                        </summary>
+		                        <div style="margin-top:0.65rem;">
+                            <div class="alert" style="margin:0 0 0.65rem;">
+                              Si prefieres elegirlas en pantalla completa: crea la sesión y luego pulsa <strong>“Crear y abrir Biblioteca”</strong>.
+                            </div>
+		                          <p class="meta" style="margin:0 0 0.55rem;">
+		                            Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
+		                          </p>
 	                          <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin:0 0 0.55rem;">
 	                            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='traditional' %}">Tradicionales</a>
 	                            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?{% qs_replace tab='create' create_page='session' library_repo='interactive' %}">Interactivas</a>
@@ -1774,6 +1777,11 @@
 	                            <input type="checkbox" name="plan_session_auto_convoke" value="1" checked />
 	                            Convocar plantilla automáticamente (Presente)
 	                          </label>
+                            <input type="hidden" name="plan_session_show_in_agenda" value="0" />
+	                          <label class="ui-check" style="grid-column:1/-1; margin-top:-0.1rem;">
+	                            <input type="checkbox" name="plan_session_show_in_agenda" value="1" checked />
+	                            Incluir en Agenda (visible)
+	                          </label>
 	                          <label>
 	                            N jugadores (opcional)
 	                            <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
@@ -1793,7 +1801,8 @@
 		                        </div>
 		                      </details>
 	                      <div style="display:flex; align-items:flex-end; gap:0.55rem; flex-wrap:wrap;">
-	                        <button type="submit" class="primary">Crear sesión y abrir ficha</button>
+	                        <button type="submit" class="primary" name="plan_session_next" value="library" title="Crea la sesión y abre Biblioteca para elegir tareas">Crear y abrir Biblioteca</button>
+	                        <button type="submit" class="secondary">Crear y abrir ficha</button>
 	                        <a class="button secondary" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver sesiones</a>
 	                      </div>
 	                    </form>
@@ -3561,6 +3570,7 @@
             <input type="hidden" name="library_repo" value="{{ library_repository }}" />
             <input type="hidden" name="session_id" value="{{ session_hint_id }}" />
             <input type="hidden" name="source_task_ids_csv" id="bulk-add-task-ids" value="" />
+            <input type="hidden" name="source_task_assignments_csv" id="bulk-add-task-assignments" value="" />
 
             <strong style="margin-right:0.25rem;">Añadir a sesión</strong>
             <select name="target_session_id" style="min-width:260px;">
@@ -3570,7 +3580,7 @@
             </select>
             <button type="submit" class="primary" id="bulk-add-submit" disabled>Añadir 0 tareas</button>
             <button type="button" class="secondary" id="bulk-add-clear" disabled>Limpiar</button>
-            <span class="meta" style="margin-left:auto;">Marca tareas en esta página y pulsa “Añadir”.</span>
+            <span class="meta" style="margin-left:auto;">Marca tareas y asigna su segmento.</span>
           </form>
         </div>
         {% endif %}
@@ -3590,6 +3600,16 @@
                 <input type="checkbox" class="bulk-task-select" value="{{ t.id }}" />
                 <span class="meta" style="margin-left:0.25rem;">Seleccionar</span>
               </label>
+              <div style="position:absolute; top:0.55rem; left:0.55rem; z-index:2; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.35); padding:0.25rem 0.45rem; border-radius:999px;">
+                <select class="bulk-task-block" data-task-id="{{ t.id }}" style="background:transparent; border:none; color:inherit; font-size:0.82rem; padding:0; min-width:220px;">
+                  <option value="">Segmento: mantener</option>
+                  <option value="conditioning">Calentamiento/Preventivo</option>
+                  <option value="activation">Activación</option>
+                  <option value="main_1">Principal 1</option>
+                  <option value="main_2">Principal 2 / ABP</option>
+                  <option value="recovery">Vuelta a la calma</option>
+                </select>
+              </div>
               {% endif %}
               <div class="task-media">
                 {% if t.task_preview_image or t.task_pdf %}
@@ -3793,9 +3813,11 @@
             const form = document.getElementById('bulk-add-library-tasks');
             if (!form) return;
             const idsInput = document.getElementById('bulk-add-task-ids');
+            const assignmentsInput = document.getElementById('bulk-add-task-assignments');
             const submitBtn = document.getElementById('bulk-add-submit');
             const clearBtn = document.getElementById('bulk-add-clear');
             const checks = Array.from(document.querySelectorAll('.bulk-task-select'));
+            const blockSelects = Array.from(document.querySelectorAll('.bulk-task-block'));
 
             const sync = () => {
               const ids = checks
@@ -3804,6 +3826,20 @@
                 .filter(Boolean);
               const csv = ids.join(',');
               if (idsInput) idsInput.value = csv;
+
+              const blockById = new Map();
+              blockSelects.forEach((sel) => {
+                const tid = String(sel.dataset.taskId || '').trim();
+                if (!tid) return;
+                blockById.set(tid, String(sel.value || '').trim());
+              });
+              const assignments = ids
+                .map((id) => {
+                  const block = String(blockById.get(id) || '').trim();
+                  return block ? `${id}:${block}` : id;
+                })
+                .join(',');
+              if (assignmentsInput) assignmentsInput.value = assignments;
               const count = ids.length;
               if (submitBtn) {
                 submitBtn.disabled = count === 0;
@@ -3815,6 +3851,10 @@
             checks.forEach((c) => {
               c.addEventListener('click', (event) => { event.stopPropagation(); });
               c.addEventListener('change', sync);
+            });
+            blockSelects.forEach((sel) => {
+              sel.addEventListener('click', (event) => { event.stopPropagation(); });
+              sel.addEventListener('change', sync);
             });
 
             clearBtn?.addEventListener('click', (event) => {

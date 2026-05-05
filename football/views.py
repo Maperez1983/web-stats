@@ -30805,12 +30805,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 player_count = str(request.POST.get('plan_session_player_count') or '').strip()
                 materials = str(request.POST.get('plan_session_materials') or '').strip()
                 absences = str(request.POST.get('plan_session_absences') or '').strip()
+                show_in_agenda_raw = str(request.POST.get('plan_session_show_in_agenda') or '').strip().lower()
+                show_in_agenda = show_in_agenda_raw not in {'0', 'false', 'no', 'off'}
                 content = _serialize_session_plan_fields(
                     {
                         'player_count': player_count,
                         'materials': materials,
                         'absences': absences,
                         'notes': notes_text,
+                        # Agenda: si no se quiere mostrar aún, lo marcamos como oculto.
+                        'agenda_hidden': ('' if show_in_agenda else '1'),
                     }
                 )
                 duplicate_exists = TrainingSession.objects.filter(
@@ -30884,16 +30888,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if not attached_count
                     else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
                 )
-                # UX: tras crear sesión, ir a la ficha (clara y editable) en lugar de dejar al usuario
-                # en el planificador con demasiada información.
-                try:
-                    detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
-                    params = [f'team={int(primary_team.id)}']
-                    if active_workspace_id:
-                        params.append(f'workspace={int(active_workspace_id)}')
-                    return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
-                except Exception:
+                # UX: por defecto vamos a la ficha de sesión; opcionalmente, abrir Biblioteca para elegir tareas.
+                next_step = str(request.POST.get('plan_session_next') or '').strip().lower()
+                if next_step in {'library', 'biblioteca', 'tasks'}:
+                    active_tab = 'library'
                     auto_selected_session_id = int(session_obj.id)
+                else:
+                    try:
+                        detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                        params = [f'team={int(primary_team.id)}']
+                        if active_workspace_id:
+                            params.append(f'workspace={int(active_workspace_id)}')
+                        return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
+                    except Exception:
+                        auto_selected_session_id = int(session_obj.id)
 
             elif planner_action == 'attach_session_to_microcycle':
                 microcycle_id = _parse_int(request.POST.get('attach_microcycle_id'))
@@ -31376,6 +31384,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             elif planner_action == 'bulk_copy_library_tasks_to_session':
                 target_session_id = _parse_int(request.POST.get('target_session_id') or request.POST.get('session_id'))
                 raw_ids = str(request.POST.get('source_task_ids_csv') or '').strip()
+                raw_assignments = str(request.POST.get('source_task_assignments_csv') or '').strip()
                 if not raw_ids:
                     raise ValueError('Selecciona al menos una tarea.')
                 source_task_ids = []
@@ -31386,6 +31395,21 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 source_task_ids = [x for x in source_task_ids if x]
                 if not source_task_ids:
                     raise ValueError('Selecciona al menos una tarea.')
+
+                valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+                block_by_task_id = {}
+                if raw_assignments:
+                    for chunk in [c.strip() for c in raw_assignments.split(',') if str(c).strip()]:
+                        if ':' not in chunk:
+                            continue
+                        left, right = chunk.split(':', 1)
+                        tid = _parse_int(left)
+                        block = str(right or '').strip()
+                        if not tid or not block:
+                            continue
+                        if block not in valid_blocks:
+                            continue
+                        block_by_task_id[int(tid)] = block
 
                 target_session = (
                     TrainingSession.objects
@@ -31455,6 +31479,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     already_assigned = next((item for item in existing_items if _matches_source_task(item)), None)
                     if already_assigned:
                         skipped_count += 1
+                        desired_block = block_by_task_id.get(int(source_task.id))
+                        if desired_block and str(getattr(already_assigned, 'block', '') or '') != desired_block:
+                            already_assigned.block = desired_block
+                            already_assigned.save(update_fields=['block'])
+                            _normalize_session_task_orders(target_session)
                         # Asegura repo coherente con el tab actual (por si ya estaba copiada desde otro repo).
                         try:
                             layout = already_assigned.tactical_layout if isinstance(getattr(already_assigned, 'tactical_layout', None), dict) else {}
@@ -31475,6 +31504,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         target_session,
                         note=f'Copiada desde biblioteca (tarea #{source_task.id})',
                     )
+                    desired_block = block_by_task_id.get(int(source_task.id))
+                    if desired_block and str(getattr(copied, 'block', '') or '') != desired_block:
+                        copied.block = desired_block
+                        copied.save(update_fields=['block'])
+                        _normalize_session_task_orders(target_session)
                     try:
                         layout = copied.tactical_layout if isinstance(getattr(copied, 'tactical_layout', None), dict) else {}
                         layout = dict(layout)
