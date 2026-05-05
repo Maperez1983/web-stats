@@ -22846,6 +22846,35 @@ def training_session_detail_page(request, session_id):
         summary_bits.append(f'Just {counts.get(TrainingSessionAttendance.STATUS_EXCUSED)}')
     attendance_summary = ' · '.join(summary_bits) if summary_bits else 'Sin asistencia marcada.'
 
+    def _season_bounds(d: date):
+        try:
+            year = int(d.year)
+            month = int(d.month)
+        except Exception:
+            year = int(timezone.localdate().year)
+            month = int(timezone.localdate().month)
+        start_year = year if month >= 7 else (year - 1)
+        start = date(start_year, 7, 1)
+        end = date(start_year + 1, 6, 30)
+        label = f'{start_year % 100:02d}/{(start_year + 1) % 100:02d}'
+        return start, end, label
+
+    # Numeración dinámica por temporada: si borras una sesión, el resto se renumera automáticamente.
+    season_start, season_end, season_label = _season_bounds(session_obj.session_date)
+    session_number = 0
+    try:
+        season_ids = list(
+            TrainingSession.objects
+            .filter(microcycle__team=primary_team, session_date__gte=season_start, session_date__lte=season_end)
+            .order_by('session_date', 'start_time', 'id')
+            .values_list('id', flat=True)
+        )
+        if season_ids:
+            session_number = int(season_ids.index(int(session_obj.id)) + 1) if int(session_obj.id) in season_ids else 0
+    except Exception:
+        session_number = 0
+    session_display_title = f'{session_obj.session_date:%d/%m/%Y} · S{session_number} ({season_label}) · {session_obj.focus}'.strip()
+
     tasks = list(session_obj.tasks.filter(deleted_at__isnull=True).order_by('block', 'order', 'id'))
     # Orden estable por bloques (como en el PDF Club / flujo de entreno).
     block_order = [
@@ -22949,6 +22978,9 @@ def training_session_detail_page(request, session_id):
         'football/training_session_detail.html',
         {
             'session': session_obj,
+            'session_display_title': session_display_title,
+            'session_number': session_number,
+            'season_label': season_label,
             'team': primary_team,
             'plan_fields': plan_fields,
             'players': players,
@@ -31641,8 +31673,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 if not session_obj:
                     raise ValueError('Sesión no encontrada.')
-                if session_obj.tasks.exists():
-                    raise ValueError('No puedes borrar una sesión que ya tiene tareas asociadas.')
                 deleted_focus = session_obj.focus
                 session_obj.delete()
                 feedback = f'Sesión eliminada: {deleted_focus}.'
@@ -33603,12 +33633,42 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     session_library_rows = []
     try:
+        def _season_bounds(d: date):
+            try:
+                year = int(d.year)
+                month = int(d.month)
+            except Exception:
+                year = int(timezone.localdate().year)
+                month = int(timezone.localdate().month)
+            start_year = year if month >= 7 else (year - 1)
+            start = date(start_year, 7, 1)
+            end = date(start_year + 1, 6, 30)
+            label = f'{start_year % 100:02d}/{(start_year + 1) % 100:02d}'
+            return start, end, label
+
         recent_sessions = list(
             TrainingSession.objects
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
             .order_by('-session_date', '-start_time', '-id')[:60]
         )
+        season_index_map = {}
+        try:
+            season_bounds = set()
+            for s in recent_sessions:
+                season_bounds.add(_season_bounds(getattr(s, 'session_date', timezone.localdate()))[:2])
+            for season_start, season_end in season_bounds:
+                ids = list(
+                    TrainingSession.objects
+                    .filter(microcycle__team=primary_team, session_date__gte=season_start, session_date__lte=season_end)
+                    .order_by('session_date', 'start_time', 'id')
+                    .values_list('id', flat=True)
+                )
+                for idx, sid in enumerate(ids, start=1):
+                    season_index_map[int(sid)] = int(idx)
+        except Exception:
+            season_index_map = {}
+
         ids = [int(s.id) for s in recent_sessions]
         tasks_count_map = {}
         attendance_count_map = defaultdict(lambda: defaultdict(int))
@@ -33643,6 +33703,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             label = f'{s.session_date:%d/%m/%Y}'
             if s.start_time:
                 label += f' · {s.start_time:%H:%M}'
+            season_start, season_end, season_label = _season_bounds(getattr(s, 'session_date', timezone.localdate()))
+            seq = int(season_index_map.get(sid, 0) or 0)
             intensity_label = dict(TrainingSession.INTENSITY_CHOICES).get(s.intensity, s.intensity or '-')
             status_label = dict(TrainingSession.STATUS_CHOICES).get(s.status, s.status or '-')
             counts = attendance_count_map.get(sid) or {}
@@ -33651,7 +33713,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             session_library_rows.append(
                 {
                     'id': sid,
-                    'title': str(s.focus or '').strip() or f'Sesión {sid}',
+                    'title': f'{s.session_date:%d/%m/%Y} · S{seq} ({season_label}) · {str(s.focus or "").strip() or f"Sesión {sid}"}',
                     'label': label,
                     'duration': int(s.duration_minutes or 0),
                     'intensity': intensity_label,

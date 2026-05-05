@@ -2019,6 +2019,15 @@
                       <a class="button icon-btn" href="{{ row.url_ficha }}" title="Ficha" aria-label="Ficha">📋</a>
                       <a class="button secondary icon-btn" href="{{ row.url_editor }}" title="Editar en planificador" aria-label="Editar en planificador">✏️</a>
                       <a class="button icon-btn" href="{% url 'session-plan-pdf' row.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ row.title }}" title="PDF" aria-label="PDF">📄</a>
+                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión? (Se borrarán tareas y asistencia)');">
+                        {% csrf_token %}
+                        <input type="hidden" name="planner_action" value="delete_session_plan" />
+                        <input type="hidden" name="planner_tab" value="sessions" />
+                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                        <input type="hidden" name="delete_session_id" value="{{ row.id }}" />
+                        <button type="submit" class="button danger icon-btn" title="Eliminar" aria-label="Eliminar">🗑️</button>
+                      </form>
                     </div>
                   </div>
                 </article>

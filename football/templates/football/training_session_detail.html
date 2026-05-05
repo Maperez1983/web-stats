@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Sesión · {{ session.session_date|date:"d/m/Y" }} · {{ session.focus }} · 2J</title>
+    <title>{{ session_display_title|default:"Sesión" }} · 2J</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -149,7 +149,7 @@
 	          <table class="table" style="margin-bottom:12px;">
 	            <tr>
 	              <td style="width:18%;">Nombre</td>
-	              <td colspan="3"><div class="v">{{ session.focus }}</div></td>
+	              <td colspan="3"><div class="v">{{ session_display_title|default:session.focus }}</div></td>
 	            </tr>
 	            <tr>
 	              <td>Microciclo</td>
