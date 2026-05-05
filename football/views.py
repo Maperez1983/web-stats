@@ -32695,6 +32695,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     task_library_raw = []
     task_library = []
+    library_source_counts = {'created': 0, 'imported': 0}
     library_deleted_tasks = []
     bookmarked_task_ids = set()
     library_collections = []
@@ -32757,7 +32758,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             item for item in task_library_raw
             if _task_scope_for_item(item) == scope_key
             and _is_library_session(getattr(item, 'session', None))
+            and _library_repository_for_task(item) == library_repository
         ]
+        # Conteos para mostrar Biblioteca como “carpetas” (Creadas / Importadas).
+        try:
+            created_count = 0
+            imported_count = 0
+            for t in task_library:
+                if _is_imported_task(t):
+                    imported_count += 1
+                else:
+                    created_count += 1
+            library_source_counts = {'created': int(created_count), 'imported': int(imported_count)}
+        except Exception:
+            library_source_counts = {'created': 0, 'imported': 0}
         if library_source_tab in {'created', 'imported'} and task_library:
             want_imported = library_source_tab == 'imported'
             task_library = [t for t in task_library if bool(_is_imported_task(t)) == want_imported]
@@ -32792,6 +32806,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             item for item in deleted_candidates
             if _task_scope_for_item(item) == scope_key
             and _is_library_session(getattr(item, 'session', None))
+            and _library_repository_for_task(item) == library_repository
         ]
         if library_source_tab in {'created', 'imported'} and library_deleted_tasks:
             want_imported = library_source_tab == 'imported'
@@ -33469,11 +33484,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'date_group_rows': date_group_rows,
             'active_tab': active_tab,
             'library_view': library_view,
-            'library_key': library_key,
-            'library_repository': library_repository,
-            'library_source_tab': library_source_tab,
-            'library_filters_active': library_filters_active,
-            'library_q': library_q,
+	            'library_key': library_key,
+	            'library_repository': library_repository,
+	            'library_source_tab': library_source_tab,
+	            'library_source_counts': library_source_counts,
+	            'library_filters_active': library_filters_active,
+	            'library_q': library_q,
             'library_phase_keys': library_phase_keys,
             'library_type_keys': library_type_keys,
             'library_context_keys': library_context_keys,

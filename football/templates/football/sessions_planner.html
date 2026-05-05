@@ -3167,11 +3167,27 @@
 				      <section class="panel">
 				        <h2>Biblioteca de tareas</h2>
 				        <p class="meta" style="margin-top:0;">Tareas importadas/creadas, organizadas para reutilizar rápido.</p>
-                <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
-                  <a class="tab-link {% if library_source_tab == 'created' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}">Creadas</a>
-                  <a class="tab-link {% if library_source_tab == 'imported' %}is-active{% endif %}" href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}">Importadas</a>
-                </div>
-                <p class="meta" style="margin:-0.1rem 0 0.9rem;">Biblioteca simple: solo <strong>Creadas</strong> / <strong>Importadas</strong>.</p>
+	                <div class="folder-grid" aria-label="Carpetas de Biblioteca">
+	                  <a
+	                    class="folder-card"
+	                    href="?{% qs_replace tab='library' library_source='created' library_view='overview' library_key=None lib_page=None %}"
+	                    {% if library_source_tab == 'created' %}aria-current="page"{% endif %}
+	                  >
+	                    <strong>📝 Creadas</strong>
+	                    <span>{{ library_source_counts.created|default:0 }} tareas · editor/pizarra</span>
+	                  </a>
+	                  <a
+	                    class="folder-card"
+	                    href="?{% qs_replace tab='library' library_source='imported' library_view='overview' library_key=None lib_page=None %}"
+	                    {% if library_source_tab == 'imported' %}aria-current="page"{% endif %}
+	                  >
+	                    <strong>📥 Importadas</strong>
+	                    <span>{{ library_source_counts.imported|default:0 }} tareas · PDF tal cual</span>
+	                  </a>
+	                </div>
+	                <p class="meta" style="margin:-0.1rem 0 0.9rem;">
+	                  Estás viendo la carpeta: <strong>{% if library_source_tab == 'imported' %}Importadas{% else %}Creadas{% endif %}</strong>.
+	                </p>
 
         {% if task_library_page_items %}
         {% if task_pick_mode and task_pick_kind == 'create_session' %}
