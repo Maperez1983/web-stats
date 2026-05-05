@@ -1102,6 +1102,14 @@ def system_diagnostics(request):
     return JsonResponse(
         {
             'ok': True,
+            'request': {
+                'host': str(getattr(request, 'get_host', lambda: '')() or ''),
+                'path': str(getattr(request, 'path', '') or ''),
+                'is_secure': bool(getattr(request, 'is_secure', lambda: False)()),
+                'scheme': str(getattr(request, 'scheme', '') or ''),
+                'x_forwarded_proto': str(request.META.get('HTTP_X_FORWARDED_PROTO') or ''),
+                'cookie_present': bool(request.COOKIES.get(getattr(settings, 'SESSION_COOKIE_NAME', 'sessionid'))),
+            },
             'database': {
                 'vendor': vendor,
                 'engine': engine,
@@ -1114,10 +1122,19 @@ def system_diagnostics(request):
                 'cookie_name': str(getattr(settings, 'SESSION_COOKIE_NAME', '') or '').strip(),
                 'cookie_age': int(getattr(settings, 'SESSION_COOKIE_AGE', 0) or 0),
                 'save_every_request': bool(getattr(settings, 'SESSION_SAVE_EVERY_REQUEST', False)),
+                'cookie_domain': str(getattr(settings, 'SESSION_COOKIE_DOMAIN', '') or ''),
+                'cookie_secure': bool(getattr(settings, 'SESSION_COOKIE_SECURE', False)),
+                'cookie_samesite': str(getattr(settings, 'SESSION_COOKIE_SAMESITE', '') or ''),
+                'expire_at_browser_close': bool(getattr(settings, 'SESSION_EXPIRE_AT_BROWSER_CLOSE', False)),
+                'active_workspace_id': _parse_int(getattr(request, 'session', {}).get('active_workspace_id')) if hasattr(request, 'session') else None,
+                'active_team_id': _parse_int(getattr(request, 'session', {}).get('active_team_id')) if hasattr(request, 'session') else None,
             },
             'csrf': {
                 'cookie_name': str(getattr(settings, 'CSRF_COOKIE_NAME', '') or '').strip(),
                 'trusted_origins_count': len(getattr(settings, 'CSRF_TRUSTED_ORIGINS', []) or []),
+                'cookie_domain': str(getattr(settings, 'CSRF_COOKIE_DOMAIN', '') or ''),
+                'cookie_secure': bool(getattr(settings, 'CSRF_COOKIE_SECURE', False)),
+                'cookie_samesite': str(getattr(settings, 'CSRF_COOKIE_SAMESITE', '') or ''),
             },
         }
     )
