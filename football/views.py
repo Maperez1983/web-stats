@@ -10230,7 +10230,14 @@ def dashboard_page(request):
     # Separación de dominios:
     # - `segundajugada.es` muestra siempre la landing (aunque haya sesión iniciada)
     # - `app.segundajugada.es` entra a la app (si no hay sesión, manda al login)
-    if host in landing_hosts:
+    if host in landing_hosts and not host.startswith('app.'):
+        # Si el usuario ya tiene sesión iniciada, evitar “loops” Landing ⇄ Login ⇄ Landing:
+        # redirigir siempre a `app.<dominio>` manteniendo la ruta.
+        if request.user.is_authenticated:
+            target_host = host[4:] if host.startswith('www.') else host
+            app_url = f'https://app.{target_host}' if target_host else 'https://app.segundajugada.es'
+            next_path = request.get_full_path() or '/'
+            return redirect(f'{app_url}{next_path}')
         return product_landing_page(request)
     if not request.user.is_authenticated:
         if host in app_hosts or host.startswith('app.'):

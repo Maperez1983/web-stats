@@ -117,7 +117,7 @@ class RoleAwareLoginView(auth_views.LoginView):
             os.getenv("LANDING_HOSTS")
             or "segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com"
         )
-        if host in landing_hosts:
+        if host in landing_hosts and not host.startswith("app."):
             app_base = _resolve_app_base_url(request)
             next_url = str(request.GET.get("next") or "").strip()
             suffix = f"?next={quote(next_url)}" if next_url else ""
