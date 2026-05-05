@@ -3580,7 +3580,7 @@
 		      (() => {
 		        const cards = document.querySelectorAll('.task.task-clickable[data-detail-url]');
 		        const isInteractiveTarget = (node) =>
-		          !!node.closest('a, button, input, select, textarea, form');
+		          !!node.closest('a, button, input, select, textarea, form, summary, details, label');
 		        const buildPdfViewerUrl = (pdfUrl, title) => {
 		          const params = new URLSearchParams();
 		          let u = String(pdfUrl || '').trim() || '/';
@@ -3632,7 +3632,7 @@
 	          const openEl = document.getElementById('task-preview-open');
 
 	          const isInteractiveTarget = (node) =>
-	            !!node.closest('a, button, input, select, textarea, form');
+	            !!node.closest('a, button, input, select, textarea, form, summary, details, label');
 
 	          const openPreview = ({ title, meta, summary, imgUrl, openUrl, relatedUrl }) => {
 	            if (titleEl) titleEl.textContent = title || 'Vista previa';
