@@ -1437,26 +1437,27 @@
 	            const pct = Math.max(0, Math.min(100, Math.round((e.loaded / e.total) * 100)));
 	            setStatus(`Subiendo… ${pct}%`);
 	          });
-	          xhr.addEventListener('load', async () => {
-	            try {
-	              const data = JSON.parse(xhr.responseText || '{}');
-	              if (xhr.status >= 200 && xhr.status < 300 && data?.ok && data?.url) {
-	                const url = String(data.url);
-	                lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
-	                lastExportShareUrl = url;
-	                lastFailedExport = null;
-	                if (btnExportRetry) btnExportRetry.hidden = true;
-	                try {
-	                  if (navigator.clipboard?.writeText) {
-	                    await navigator.clipboard.writeText(url);
-	                    setStatus('Export subido. Link copiado.');
-	                  } else {
-	                    setStatus('Export subido. Copia el link.');
-	                    window.prompt('Copia este enlace:', url);
-	                  }
-	                } catch (e) {
-	                  window.prompt('Copia este enlace:', url);
-	                }
+		          xhr.addEventListener('load', async () => {
+		            try {
+		              const data = JSON.parse(xhr.responseText || '{}');
+		              if (xhr.status >= 200 && xhr.status < 300 && data?.ok && data?.url) {
+		                const url = String(data.url);
+		                const warn = safeText(data?.warning, '');
+		                lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+		                lastExportShareUrl = url;
+		                lastFailedExport = null;
+		                if (btnExportRetry) btnExportRetry.hidden = true;
+		                try {
+		                  if (navigator.clipboard?.writeText) {
+		                    await navigator.clipboard.writeText(url);
+		                    setStatus(warn ? `Export subido. Link copiado. ${warn}` : 'Export subido. Link copiado.');
+		                  } else {
+		                    setStatus(warn ? `Export subido. Copia el link. ${warn}` : 'Export subido. Copia el link.');
+		                    window.prompt('Copia este enlace:', url);
+		                  }
+		                } catch (e) {
+		                  window.prompt('Copia este enlace:', url);
+		                }
 	                refreshShareLinks();
 	                resolve(url);
 	                return;
@@ -1549,12 +1550,20 @@
 	        'video/webm',
 	      ];
 	      let mime = '';
-	      for (const cand of mimeCandidates) {
-	        try {
-	          if (MediaRecorder.isTypeSupported(cand)) { mime = cand; break; }
-	        } catch (e) { /* ignore */ }
-	      }
-	      if (!mime) mime = 'video/webm';
+      for (const cand of mimeCandidates) {
+        try {
+          if (MediaRecorder.isTypeSupported(cand)) { mime = cand; break; }
+        } catch (e) { /* ignore */ }
+      }
+      if (!mime) mime = 'video/webm';
+      const isMp4 = String(mime || '').toLowerCase().includes('mp4');
+      if (!isMp4) {
+        if (safeText(recDestination) === 'upload') {
+          setStatus('Tu navegador exporta en WebM; al subir se intentará convertir a MP4.');
+        } else {
+          setStatus('Tu navegador exporta en WebM. Para MP4 usa "Export/Compartir".');
+        }
+      }
 
       try {
         recMedia = new MediaRecorder(recStream, { mimeType: mime, videoBitsPerSecond: bps });

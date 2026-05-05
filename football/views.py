@@ -36972,11 +36972,23 @@ def analysis_video_export_stream(request, export_id):
     export = VideoExportAsset.objects.filter(id=int(export_id), team=primary_team).first()
     if not export or not getattr(export, 'file', None):
         raise Http404('Export no disponible')
+    mime = str(getattr(export, 'mime_type', '') or '').strip().lower()
+    name = str(getattr(getattr(export, 'file', None), 'name', '') or '').strip()
+    ext = ''
+    if name:
+        ext = Path(name).suffix.lower()
+    if not ext:
+        if 'webm' in mime:
+            ext = '.webm'
+        elif 'mp4' in mime:
+            ext = '.mp4'
+    if not ext:
+        ext = '.mp4'
     return _file_field_stream_with_range(
         request,
         export.file,
-        content_type=str(export.mime_type or '').strip() or 'video/mp4',
-        filename=f'export-{export.id}.mp4',
+        content_type=mime or 'video/mp4',
+        filename=f'export-{export.id}{ext}',
     )
 
 
@@ -39467,6 +39479,81 @@ def analysis_video_studio_export_package_api(request):
     return response
 
 
+def _video_studio_try_transcode_export_to_mp4(uploaded_file):
+    """
+    Convierte un export grabado en cliente (p.ej. WebM) a MP4 si hay FFmpeg disponible.
+
+    Devuelve: (file_obj, mime_type, filename, cleanup_paths)
+    - file_obj puede ser el propio `uploaded_file` o un `django.core.files.File` abierto en modo rb.
+    - cleanup_paths es una lista de paths temporales a eliminar.
+    """
+    mime_type = str(getattr(uploaded_file, 'content_type', '') or '').strip().lower()
+    name = str(getattr(uploaded_file, 'name', '') or '').strip()
+    filename = Path(name or 'video-studio-export.webm').name
+
+    # Ya es MP4.
+    if filename.lower().endswith('.mp4') or 'video/mp4' in mime_type or mime_type.endswith('/mp4'):
+        return uploaded_file, (mime_type or 'video/mp4'), filename, []
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        return uploaded_file, mime_type, filename, []
+
+    in_suffix = Path(filename).suffix or '.webm'
+    tmp_in = tempfile.NamedTemporaryFile(prefix='2j-vs-export-in-', suffix=in_suffix, delete=False)
+    in_path = tmp_in.name
+    tmp_out = tempfile.NamedTemporaryFile(prefix='2j-vs-export-out-', suffix='.mp4', delete=False)
+    out_path = tmp_out.name
+    tmp_out.close()
+
+    try:
+        with tmp_in:
+            try:
+                for chunk in uploaded_file.chunks():
+                    if chunk:
+                        tmp_in.write(chunk)
+            except Exception:
+                # Fallback: algunos UploadedFile no implementan chunks correctamente.
+                data = uploaded_file.read()  # noqa: WPS110 (data)
+                if data:
+                    tmp_in.write(data)
+
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-i',
+            in_path,
+            '-c:v',
+            'libx264',
+            '-pix_fmt',
+            'yuv420p',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+
+        from django.core.files import File  # noqa: WPS433 (lazy import)
+        handle = open(out_path, 'rb')
+        base = Path(filename).stem or 'video-studio-export'
+        out_name = f'{base}.mp4'
+        return File(handle, name=out_name), 'video/mp4', out_name, [in_path, out_path]
+    except Exception:
+        try:
+            logger.exception('Video Studio: no se pudo convertir export a MP4')
+        except Exception:
+            pass
+        return uploaded_file, mime_type, filename, [in_path, out_path]
+
+
 @login_required
 @require_POST
 def analysis_video_studio_export_upload_api(request):
@@ -39516,19 +39603,32 @@ def analysis_video_studio_export_upload_api(request):
         if clip and video and int(getattr(clip, 'video_id', 0) or 0) != int(video.id):
             clip = None
 
-    mime_type = str(getattr(blob, 'content_type', '') or '').strip().lower()
+    file_obj, mime_type, out_name, cleanup_paths = _video_studio_try_transcode_export_to_mp4(blob)
     if not mime_type:
-        mime_type = mimetypes.guess_type(str(getattr(blob, 'name', '') or ''))[0] or ''
+        mime_type = mimetypes.guess_type(str(out_name or getattr(blob, 'name', '') or ''))[0] or ''
 
-    asset = VideoExportAsset.objects.create(
-        team=primary_team,
-        video=video,
-        clip=clip,
-        title=title or (f'Export clip {clip.id}' if clip else 'Export vídeo'),
-        file=blob,
-        mime_type=mime_type[:80],
-        created_by=request.user.get_username() if request.user.is_authenticated else '',
-    )
+    try:
+        asset = VideoExportAsset.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            title=title or (f'Export clip {clip.id}' if clip else 'Export vídeo'),
+            file=file_obj,
+            mime_type=str(mime_type or '').strip().lower()[:80],
+            created_by=request.user.get_username() if request.user.is_authenticated else '',
+        )
+    finally:
+        # Limpieza de temporales (y cierre del handle de salida si aplica).
+        try:
+            if hasattr(file_obj, 'close') and file_obj is not blob:
+                file_obj.close()
+        except Exception:
+            pass
+        for p in (cleanup_paths or []):
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
 
     link = ShareLink.objects.create(
         token=ShareLink.generate_token(),
@@ -39541,7 +39641,12 @@ def analysis_video_studio_export_upload_api(request):
         is_active=True,
     )
     url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
-    return JsonResponse({'ok': True, 'id': int(asset.id), 'url': url, 'expires_at': link.expires_at})
+    mt = str(getattr(asset, 'mime_type', '') or '').strip().lower()
+    fmt = 'mp4' if ('mp4' in mt) else ('webm' if ('webm' in mt) else '')
+    warning = ''
+    if fmt and fmt != 'mp4':
+        warning = 'Export guardado en WebM (no se pudo convertir a MP4 en servidor).'
+    return JsonResponse({'ok': True, 'id': int(asset.id), 'url': url, 'expires_at': link.expires_at, 'mime_type': mt, 'format': fmt, 'warning': warning})
 
 
 @csrf_exempt
