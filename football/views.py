@@ -22572,7 +22572,8 @@ def training_session_detail_page(request, session_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
+    # Acepta `?team=<id>` además del equipo activo guardado en sesión para evitar 404 en iPad/app.
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
     if not primary_team:
         raise Http404('Equipo principal no configurado')
 
@@ -30862,7 +30863,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if not attached_count
                     else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
                 )
-                auto_selected_session_id = int(session_obj.id)
+                # UX: tras crear sesión, ir a la ficha (clara y editable) en lugar de dejar al usuario
+                # en el planificador con demasiada información.
+                try:
+                    detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                    params = [f'team={int(primary_team.id)}']
+                    if active_workspace_id:
+                        params.append(f'workspace={int(active_workspace_id)}')
+                    return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
+                except Exception:
+                    auto_selected_session_id = int(session_obj.id)
 
             elif planner_action == 'attach_session_to_microcycle':
                 microcycle_id = _parse_int(request.POST.get('attach_microcycle_id'))
@@ -33025,8 +33035,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     sessions_view = str(request.GET.get('sessions_view') or request.POST.get('sessions_view') or '').strip().lower()
     if sessions_view not in {'library', 'editor'}:
-        # Default: biblioteca (vista limpia). Si el usuario selecciona sesión o viene de un POST, mantiene editor.
-        sessions_view = 'editor' if selected_session_id or request.method == 'POST' else 'library'
+        # Default: biblioteca (vista limpia). El editor solo se abre si el usuario lo pide explícitamente.
+        sessions_view = 'library'
 
     session_library_rows = []
     try:
