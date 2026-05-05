@@ -179,7 +179,10 @@
         width: 72px;
         height: 72px;
         border-radius: 16px;
-        object-fit: cover;
+        /* Evita “fotos cortadas”: preferimos letterbox antes que recortar. */
+        object-fit: contain;
+        object-position: center;
+        padding: 2px;
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(2, 6, 23, 0.8);
       }

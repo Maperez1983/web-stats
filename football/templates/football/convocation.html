@@ -255,8 +255,10 @@
         width: 58px;
         height: 58px;
         border-radius: 12px;
-        object-fit: cover;
-        object-position: top center;
+        /* Evita recortes agresivos en fotos verticales. */
+        object-fit: contain;
+        object-position: center;
+        padding: 2px;
         border: 1px solid rgba(148, 163, 184, 0.35);
         background: rgba(7, 16, 34, 0.8);
         box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25), 0 8px 16px rgba(2, 6, 23, 0.35);
