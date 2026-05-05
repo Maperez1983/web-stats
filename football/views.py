@@ -30014,6 +30014,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     library_source_tab = str(request.GET.get('library_source') or request.POST.get('library_source') or 'created').strip().lower()
     if library_source_tab not in {'created', 'imported', 'all'}:
         library_source_tab = 'created'
+    task_pick_kind = str(request.GET.get('pick_for') or request.POST.get('pick_for') or '').strip().lower()
+    if task_pick_kind not in {'', 'create_session'}:
+        task_pick_kind = ''
+
+    CREATE_SESSION_TASK_PICKS_SESSION_KEY = 'sessions:create_session_task_picks:v1'
 
     # Filtros combinables tipo "CoachLab": búsqueda + facetas (sin romper la vista legacy por carpetas).
     library_q = str(request.GET.get('q') or request.POST.get('q') or '').strip()
@@ -30119,6 +30124,65 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         # Algunas acciones deben aterrizar en su sección natural.
         main_tab, active_tab = _nav_from_action(planner_action, main_tab, active_tab)
         try:
+            if planner_action == 'store_create_session_task_picks':
+                if task_pick_kind != 'create_session':
+                    task_pick_kind = 'create_session'
+                raw_ids = str(request.POST.get('picked_task_ids_csv') or '').strip()
+                raw_assignments = str(request.POST.get('picked_task_assignments_csv') or '').strip()
+                if not raw_ids:
+                    raise ValueError('Selecciona al menos una tarea.')
+                picked_ids = []
+                for part in re.split(r'[^0-9]+', raw_ids):
+                    val = _parse_int(part)
+                    if val:
+                        picked_ids.append(int(val))
+                picked_ids = [x for x in picked_ids if x]
+                if not picked_ids:
+                    raise ValueError('Selecciona al menos una tarea.')
+
+                # Valida: solo tareas de Biblioteca en el repositorio actual y en el scope correcto.
+                source_tasks = list(
+                    SessionTask.objects
+                    .select_related('session__microcycle')
+                    .filter(id__in=picked_ids, session__microcycle__team=primary_team, deleted_at__isnull=True)
+                    .order_by('order', 'id')
+                )
+                valid_source_ids = []
+                for item in source_tasks:
+                    if _task_scope_for_item(item) != scope_key:
+                        continue
+                    try:
+                        if not _is_library_session(getattr(item, 'session', None)):
+                            continue
+                    except Exception:
+                        continue
+                    try:
+                        if _library_repository_for_task(item) != library_repository:
+                            continue
+                    except Exception:
+                        continue
+                    valid_source_ids.append(int(item.id))
+
+                valid_source_ids = [int(x) for x in valid_source_ids if int(x)]
+                if not valid_source_ids:
+                    raise ValueError('Las tareas seleccionadas no son válidas para Biblioteca.')
+
+                # Normaliza y guarda en sesión para reaprovechar en el formulario de Crear sesión.
+                picks_map = request.session.get(CREATE_SESSION_TASK_PICKS_SESSION_KEY)
+                if not isinstance(picks_map, dict):
+                    picks_map = {}
+                picks_map[str(int(primary_team.id))] = {
+                    'scope': scope_key,
+                    'repository': str(library_repository),
+                    'source': str(library_source_tab),
+                    'ids_csv': ','.join(str(int(x)) for x in valid_source_ids[:80]),
+                    'assignments_csv': str(raw_assignments or '').strip()[:2000],
+                }
+                request.session[CREATE_SESSION_TASK_PICKS_SESSION_KEY] = picks_map
+                feedback = f'Tareas seleccionadas: {len(valid_source_ids)}. Vuelve al formulario para crear la sesión.'
+                # Aterriza en Crear > Sesión
+                main_tab, active_tab = 'create', 'library'
+
             if planner_action == 'library_upload_pdf':
                 import_mode = str(request.POST.get('pdf_import_mode') or '').strip().lower()
                 title = _sanitize_task_text((request.POST.get('pdf_task_title') or '').strip(), multiline=False, max_len=160)
@@ -30867,6 +30931,21 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     for task_id in (_parse_int(value) for value in request.POST.getlist('plan_session_task_ids'))
                     if task_id
                 ]
+                raw_task_assignments = str(request.POST.get('plan_session_task_assignments_csv') or '').strip()
+                valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
+                block_by_task_id = {}
+                if raw_task_assignments:
+                    for chunk in [c.strip() for c in raw_task_assignments.split(',') if str(c).strip()]:
+                        if ':' not in chunk:
+                            continue
+                        left, right = chunk.split(':', 1)
+                        tid = _parse_int(left)
+                        block = str(right or '').strip()
+                        if not tid or not block:
+                            continue
+                        if block not in valid_blocks:
+                            continue
+                        block_by_task_id[int(tid)] = block
                 attached_count = 0
                 if source_task_ids:
                     source_tasks = list(
@@ -30878,11 +30957,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     for source_task in source_tasks:
                         if _task_scope_for_item(source_task) != scope_key:
                             continue
-                        _clone_session_task_to_session(
+                        copied = _clone_session_task_to_session(
                             source_task,
                             session_obj,
                             note=f'Añadida al crear sesión desde tarea #{source_task.id}',
                         )
+                        desired_block = block_by_task_id.get(int(source_task.id))
+                        if desired_block and str(getattr(copied, 'block', '') or '') != desired_block:
+                            copied.block = desired_block
+                            copied.save(update_fields=['block'])
                         attached_count += 1
                 feedback = (
                     f'Sesión creada: {focus}.'
@@ -30908,6 +30991,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
                     except Exception:
                         auto_selected_session_id = int(session_obj.id)
+                # Limpia picks (si venían del selector en Biblioteca para crear sesión).
+                try:
+                    picks_map = request.session.get(CREATE_SESSION_TASK_PICKS_SESSION_KEY)
+                    if isinstance(picks_map, dict):
+                        picks_map.pop(str(int(primary_team.id)), None)
+                        request.session[CREATE_SESSION_TASK_PICKS_SESSION_KEY] = picks_map
+                except Exception:
+                    pass
 
             elif planner_action == 'attach_session_to_microcycle':
                 microcycle_id = _parse_int(request.POST.get('attach_microcycle_id'))
@@ -32561,6 +32652,15 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             except Exception:
                 pass
 
+            # Si venimos de Biblioteca en modo “selector de tareas” para crear sesión, volvemos a Crear > Sesión.
+            if planner_action == 'store_create_session_task_picks':
+                try:
+                    params['tab'] = 'create'
+                    params['create_page'] = 'session'
+                    params.pop('pick_for', None)
+                except Exception:
+                    pass
+
             # Mantener selección de sesión cuando aplique.
             session_hint = (
                 auto_selected_session_id
@@ -32963,6 +33063,29 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         session_hint_id = None
     if not session_hint_id:
         session_hint_id = selected_session_id
+    task_pick_mode = bool(session_hint_id) or task_pick_kind == 'create_session'
+
+    # Picks de Biblioteca para el formulario de Crear sesión (selección previa).
+    create_session_pick_ids = []
+    create_session_pick_assignments_csv = ''
+    try:
+        create_page = str(request.GET.get('create_page') or '').strip().lower()
+        if main_tab == 'create' and create_page == 'session':
+            picks_map = request.session.get(CREATE_SESSION_TASK_PICKS_SESSION_KEY)
+            if isinstance(picks_map, dict):
+                entry = picks_map.get(str(int(primary_team.id))) or {}
+                if isinstance(entry, dict) and str(entry.get('scope') or '') == scope_key and str(entry.get('repository') or '') == library_repository:
+                    ids_csv = str(entry.get('ids_csv') or '').strip()
+                    create_session_pick_assignments_csv = str(entry.get('assignments_csv') or '').strip()
+                    ids = []
+                    for part in re.split(r'[^0-9]+', ids_csv):
+                        val = _parse_int(part)
+                        if val:
+                            ids.append(int(val))
+                    create_session_pick_ids = [int(x) for x in ids if int(x)]
+    except Exception:
+        create_session_pick_ids = []
+        create_session_pick_assignments_csv = ''
 
     session_attendance_rows = []
     session_attendance_counts = {}
@@ -33398,6 +33521,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 		            'selected_session': selected_session,
 		            'selected_session_id': selected_session_id,
 		            'session_hint_id': session_hint_id,
+		            'task_pick_mode': task_pick_mode,
+		            'task_pick_kind': task_pick_kind,
+		            'create_session_pick_ids': create_session_pick_ids,
+		            'create_session_pick_assignments_csv': create_session_pick_assignments_csv,
 		            'selected_session_plan_fields': selected_session_plan_fields,
 		            'selected_session_task_sections': selected_session_task_sections,
 		            'selected_session_timeline_segments': selected_session_timeline_segments,

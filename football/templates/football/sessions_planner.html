@@ -1705,10 +1705,19 @@
 	                        Hora (opcional)
 	                        <input type="time" name="plan_session_start_time" />
 	                      </label>
-                      <label style="grid-column:1/-1;">
-                        Tema / enfoque
-                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
-                      </label>
+	                      <label style="grid-column:1/-1;">
+	                        Tema / enfoque
+	                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
+	                      </label>
+                        {% if create_session_pick_ids %}
+                        <div class="alert ok" style="grid-column:1/-1; margin:0;">
+                          <strong>Tareas seleccionadas en Biblioteca:</strong> {{ create_session_pick_ids|length }} · se añadirán al crear la sesión.
+                        </div>
+                        {% for tid in create_session_pick_ids %}
+                        <input type="hidden" name="plan_session_task_ids" value="{{ tid }}" />
+                        {% endfor %}
+                        <input type="hidden" name="plan_session_task_assignments_csv" value="{{ create_session_pick_assignments_csv }}" />
+                        {% endif %}
 	                      <label>
 	                        Duración (min)
 	                        <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
@@ -1729,14 +1738,19 @@
 		                          {% endfor %}
 		                        </select>
 		                      </label>
-		                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
-		                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
-		                          ➕ Añadir tareas (opcional)
-		                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
-		                        </summary>
-		                        <div style="margin-top:0.65rem;">
+	                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
+	                        <summary class="button secondary" style="display:inline-flex; width:max-content;">
+	                          ➕ Añadir tareas (opcional)
+	                          <span class="meta" style="margin-left:0.35rem;">· <span id="create-session-task-selected">0</span> seleccionadas</span>
+	                        </summary>
+	                        <div style="margin-top:0.65rem;">
                             <div class="alert" style="margin:0 0 0.65rem;">
                               Si prefieres elegirlas en pantalla completa: crea la sesión y luego pulsa <strong>“Crear y abrir Biblioteca”</strong>.
+                            </div>
+                            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0 0 0.65rem;">
+                              <a class="button secondary" href="?{% qs_replace tab='library' pick_for='create_session' library_source='created' %}" title="Abrir Biblioteca para seleccionar tareas y su segmento">
+                                Abrir Biblioteca para elegir tareas
+                              </a>
                             </div>
 		                          <p class="meta" style="margin:0 0 0.55rem;">
 		                            Selecciona tareas de Biblioteca para que se copien automáticamente a la sesión al crearla (mantienen su bloque).
@@ -3557,7 +3571,28 @@
 	        {% endif %}
         {% if library_view == 'phase' and not library_key %}
         {% elif task_library_page_items %}
-        {% if session_hint_id and planning_session_items %}
+        {% if task_pick_mode and task_pick_kind == 'create_session' %}
+        <div class="box" style="margin:0 0 0.9rem;">
+          <form method="post" id="pick-create-session-tasks" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+            {% csrf_token %}
+            <input type="hidden" name="planner_action" value="store_create_session_task_picks" />
+            <input type="hidden" name="planner_tab" value="library" />
+            <input type="hidden" name="pick_for" value="create_session" />
+            <input type="hidden" name="team" value="{{ primary_team_id }}" />
+            {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+            <input type="hidden" name="library_view" value="{{ library_view }}" />
+            <input type="hidden" name="library_key" value="{{ library_key }}" />
+            <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+            <input type="hidden" name="picked_task_ids_csv" id="pick-session-task-ids" value="" />
+            <input type="hidden" name="picked_task_assignments_csv" id="pick-session-task-assignments" value="" />
+            <strong style="margin-right:0.25rem;">Seleccionar tareas</strong>
+            <button type="submit" class="primary" id="pick-session-submit" disabled>Guardar 0 tareas</button>
+            <button type="button" class="secondary" id="pick-session-clear" disabled>Limpiar</button>
+            <a class="button secondary" href="?{% qs_replace tab='create' create_page='session' pick_for=None %}">← Volver a crear sesión</a>
+            <span class="meta" style="margin-left:auto;">Marca tareas y asigna su segmento.</span>
+          </form>
+        </div>
+        {% elif session_hint_id and planning_session_items %}
         <div class="box" style="margin:0 0 0.9rem;">
           <form method="post" id="bulk-add-library-tasks" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
             {% csrf_token %}
@@ -3588,14 +3623,14 @@
           {% for t in task_library_page_items %}
 			          <article
 			            class="task task-clickable"
-			            {% if session_hint_id %}style="position:relative;"{% endif %}
+			            {% if task_pick_mode %}style="position:relative;"{% endif %}
 			            data-detail-url="{% if t.is_imported %}{% url 'session-task-file' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
 			            {% if t.is_imported %}data-pdf-viewer="1" data-pdf-title="Tarea importada · {{ t.title }}"{% endif %}
 			            tabindex="0"
 			            role="link"
 			            aria-label="Abrir tarea {{ t.title }}"
 			          >
-              {% if session_hint_id %}
+              {% if task_pick_mode %}
               <label class="ui-check" style="position:absolute; top:0.55rem; right:0.55rem; z-index:2; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.35); padding:0.35rem 0.5rem; border-radius:999px;">
                 <input type="checkbox" class="bulk-task-select" value="{{ t.id }}" />
                 <span class="meta" style="margin-left:0.25rem;">Seleccionar</span>
@@ -3807,15 +3842,18 @@
           </article>
           {% endfor %}
         </div>
-        {% if session_hint_id and planning_session_items %}
+        {% if task_pick_mode %}
         <script>
           (function () {
-            const form = document.getElementById('bulk-add-library-tasks');
-            if (!form) return;
-            const idsInput = document.getElementById('bulk-add-task-ids');
-            const assignmentsInput = document.getElementById('bulk-add-task-assignments');
-            const submitBtn = document.getElementById('bulk-add-submit');
-            const clearBtn = document.getElementById('bulk-add-clear');
+            const addForm = document.getElementById('bulk-add-library-tasks');
+            const pickForm = document.getElementById('pick-create-session-tasks');
+
+            const idsInput = document.getElementById('bulk-add-task-ids') || document.getElementById('pick-session-task-ids');
+            const assignmentsInput = document.getElementById('bulk-add-task-assignments') || document.getElementById('pick-session-task-assignments');
+            const submitBtn = document.getElementById('bulk-add-submit') || document.getElementById('pick-session-submit');
+            const clearBtn = document.getElementById('bulk-add-clear') || document.getElementById('pick-session-clear');
+
+            if (!addForm && !pickForm) return;
             const checks = Array.from(document.querySelectorAll('.bulk-task-select'));
             const blockSelects = Array.from(document.querySelectorAll('.bulk-task-block'));
 
@@ -3843,7 +3881,7 @@
               const count = ids.length;
               if (submitBtn) {
                 submitBtn.disabled = count === 0;
-                submitBtn.textContent = `Añadir ${count} tareas`;
+                submitBtn.textContent = submitBtn.id === 'pick-session-submit' ? `Guardar ${count} tareas` : `Añadir ${count} tareas`;
               }
               if (clearBtn) clearBtn.disabled = count === 0;
             };
@@ -3863,12 +3901,14 @@
               sync();
             });
 
-            form.addEventListener('submit', (event) => {
+            const onSubmit = (event) => {
               sync();
               if (!idsInput || !idsInput.value) {
                 event.preventDefault();
               }
-            });
+            };
+            addForm?.addEventListener('submit', onSubmit);
+            pickForm?.addEventListener('submit', onSubmit);
 
             sync();
           })();
