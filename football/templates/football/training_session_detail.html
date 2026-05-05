@@ -111,8 +111,8 @@
         </div>
 	        <div class="toggle-row">
 	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
-	          <a class="btn secondary" href="{{ planner_url }}">Planificador</a>
-	          <a class="btn secondary" href="{{ planner_url }}#planner-blocks" title="Abrir planificador y bajar a tareas" aria-label="Añadir tareas">➕ Tareas</a>
+	          <a class="btn secondary" href="{{ planner_url }}">Biblioteca</a>
+	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
 	          <button type="button" class="btn primary" id="toggle-edit">✏️ Editar</button>
 	        </div>
@@ -194,52 +194,7 @@
 
 		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
                 <span>Tareas de la sesión</span>
-                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
-                  <details style="margin:0;">
-                    <summary class="btn secondary">➕ Añadir</summary>
-                    <div class="box" style="margin-top:10px;">
-                      <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom:0.55rem;">
-                        <a class="btn secondary" href="?team={{ team.id }}&library_repo=traditional&library_source={{ library_source_tab }}">Tradicionales</a>
-                        <a class="btn secondary" href="?team={{ team.id }}&library_repo=interactive&library_source={{ library_source_tab }}">Interactivas</a>
-                        <span style="opacity:0.55; padding:0 0.15rem;">·</span>
-                        <a class="btn secondary" href="?team={{ team.id }}&library_repo={{ library_repository }}&library_source=created">Creadas</a>
-                        <a class="btn secondary" href="?team={{ team.id }}&library_repo={{ library_repository }}&library_source=imported">Importadas</a>
-                        <a class="btn secondary" href="?team={{ team.id }}&library_repo={{ library_repository }}&library_source=all">Todas</a>
-                      </div>
-                      <form method="post" class="form-grid" style="margin-top:0;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="add_task_from_library" />
-                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-                        <input type="hidden" name="library_source" value="{{ library_source_tab }}" />
-                        <label class="full">
-                          Tarea (biblioteca)
-                          <select name="source_task_id" required>
-                            <option value="">Seleccionar…</option>
-                            {% for opt in library_task_options %}
-                            <option value="{{ opt.id }}">{{ opt.title }} · {{ opt.block_label }} · {{ opt.minutes }}'</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <label>
-                          Bloque (opcional)
-                          <select name="target_block">
-                            <option value="">Mantener bloque original</option>
-                            {% for value, label in task_blocks %}
-                            <option value="{{ value }}">{{ label }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-                        <div style="display:flex; align-items:flex-end; gap:0.45rem;">
-                          <button type="submit" class="btn primary">Añadir</button>
-                        </div>
-                      </form>
-                      <div style="margin-top:10px;">
-                        <a class="btn secondary" href="{{ planner_url }}#planner-blocks">Abrir planificador</a>
-                      </div>
-                    </div>
-                  </details>
-                  <a class="btn secondary" href="{{ planner_url }}#planner-blocks">Planificador</a>
-                </div>
+                <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas</a>
               </div>
 		          <div class="box" style="border-top:none; padding-top:10px;">
 		            {% if tasks_by_block %}
@@ -288,7 +243,7 @@
 		            {% else %}
 		              <span style="color:var(--club-muted);">No hay tareas guardadas para esta sesión.</span>
                   <div style="margin-top:10px;">
-                    <a class="btn secondary" href="{{ planner_url }}#planner-blocks">➕ Añadir tareas desde Biblioteca</a>
+                    <a class="btn secondary" href="{{ planner_url }}">➕ Añadir tareas desde Biblioteca</a>
                   </div>
 		            {% endif %}
 		          </div>

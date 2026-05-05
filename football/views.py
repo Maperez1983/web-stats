@@ -22616,14 +22616,8 @@ def training_session_detail_page(request, session_id):
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
 
     plan_fields = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
-    # Biblioteca: parámetros para añadir tareas desde esta ficha sin ir al planificador.
-    library_repository = _normalize_library_repository(
-        request.GET.get('library_repo') or request.POST.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL
-    )
-    library_source_tab = str(request.GET.get('library_source') or request.POST.get('library_source') or 'created').strip().lower()
-    if library_source_tab not in {'created', 'imported', 'all'}:
-        library_source_tab = 'created'
-    library_task_options = []
+    # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
+    library_repository = _normalize_library_repository(request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
     message = ''
     error = ''
@@ -22703,74 +22697,7 @@ def training_session_detail_page(request, session_id):
                 message = f'Asistencia guardada ({updated}).' if updated else 'Sin cambios en asistencia.'
             except Exception:
                 error = 'No se pudo guardar la asistencia.'
-
-        elif action == 'add_task_from_library':
-            try:
-                source_task_id = _parse_int(request.POST.get('source_task_id'))
-                if not source_task_id:
-                    raise ValueError('Selecciona una tarea de biblioteca.')
-                source_task = (
-                    SessionTask.objects
-                    .select_related('session__microcycle')
-                    .filter(id=source_task_id, session__microcycle__team=primary_team, deleted_at__isnull=True)
-                    .first()
-                )
-                if not source_task or not _is_library_session(getattr(source_task, 'session', None)):
-                    raise ValueError('La tarea seleccionada no está en Biblioteca.')
-                if _library_repository_for_task(source_task) != library_repository:
-                    raise ValueError('La tarea no pertenece al repositorio seleccionado.')
-                if _task_scope_for_item(source_task) != 'coach':
-                    raise ValueError('La tarea no pertenece a este espacio.')
-
-                cloned = _clone_session_task_to_session(
-                    source_task,
-                    session_obj,
-                    note=f'Añadida desde ficha de sesión (tarea #{source_task.id})',
-                )
-                target_block = str(request.POST.get('target_block') or '').strip()
-                if target_block and target_block in {v for v, _ in SessionTask.BLOCK_CHOICES}:
-                    cloned.block = target_block
-                    cloned.save(update_fields=['block'])
-                message = 'Tarea añadida a la sesión.'
-            except Exception as exc:
-                error = str(exc) or 'No se pudo añadir la tarea.'
-
-    # Opciones rápidas de biblioteca para selector (limitadas para no saturar la ficha).
-    try:
-        raw_candidates = list(
-            SessionTask.objects
-            .select_related('session__microcycle')
-            .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .filter(
-                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
-                | Q(session__microcycle__title__istartswith='Biblioteca ')
-            )
-            .order_by('-id')[:220]
-        )
-        filtered = []
-        for task_item in raw_candidates:
-            if _task_scope_for_item(task_item) != 'coach':
-                continue
-            if not _is_library_session(getattr(task_item, 'session', None)):
-                continue
-            if _library_repository_for_task(task_item) != library_repository:
-                continue
-            if library_source_tab in {'created', 'imported'}:
-                want_imported = library_source_tab == 'imported'
-                if bool(_is_imported_task(task_item)) != want_imported:
-                    continue
-            filtered.append(task_item)
-        for t in filtered[:90]:
-            library_task_options.append(
-                {
-                    'id': int(t.id),
-                    'title': str(t.title or '').strip() or f'Tarea {t.id}',
-                    'block_label': t.get_block_display(),
-                    'minutes': int(getattr(t, 'duration_minutes', 0) or 0),
-                }
-            )
-    except Exception:
-        library_task_options = []
+        # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).
 
     # Resumen asistencia
     counts = {value: 0 for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
@@ -22834,11 +22761,7 @@ def training_session_detail_page(request, session_id):
             'session_status_choices': TrainingSession.STATUS_CHOICES,
             'message': message,
             'error': error,
-            'planner_url': reverse('sessions') + f'?tab=sessions&session_id={int(session_obj.id)}&team={int(primary_team.id)}',
-            'library_repository': library_repository,
-            'library_source_tab': library_source_tab,
-            'library_task_options': library_task_options,
-            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'planner_url': reverse('sessions') + f'?tab=library&library_source=created&library_repo={library_repository}&session_id={int(session_obj.id)}&team={int(primary_team.id)}',
         },
     )
 
@@ -32855,6 +32778,20 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         )
                 section['task_rows'] = section_tasks
 
+    # Hint UX: si llegas a Biblioteca desde una sesión (botón ➕ Tareas), preselecciona esa sesión.
+    session_hint_id = None
+    try:
+        session_hint_id = _parse_int(
+            request.GET.get('session_id')
+            or request.POST.get('session_id')
+            or request.POST.get('target_session_id')
+            or auto_selected_session_id
+        )
+    except Exception:
+        session_hint_id = None
+    if not session_hint_id:
+        session_hint_id = selected_session_id
+
     session_attendance_rows = []
     session_attendance_counts = {}
     session_absence_rows = []
@@ -33288,6 +33225,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_task_source_options': planning_task_source_options,
 		            'selected_session': selected_session,
 		            'selected_session_id': selected_session_id,
+		            'session_hint_id': session_hint_id,
 		            'selected_session_plan_fields': selected_session_plan_fields,
 		            'selected_session_task_sections': selected_session_task_sections,
 		            'selected_session_timeline_segments': selected_session_timeline_segments,
