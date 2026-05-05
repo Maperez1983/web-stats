@@ -43,24 +43,15 @@
   };
 
   const current = safeGet();
-  if (current) {
-    apply(current);
-  } else {
-    // Default: seguir el tema del sistema si el usuario no eligió uno.
-    try {
-      const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-      apply(prefersLight ? 'light' : 'dark');
-    } catch (e) {
-      apply('dark');
-    }
-  }
+  // Default: oscuro (sin sobrescribir). El usuario puede cambiarlo desde Menú → Tema.
+  if (current) apply(current);
   const currentDensity = safeGetDensity();
   if (currentDensity) applyDensity(currentDensity);
 
   const btn = document.getElementById('webstats-theme-toggle');
   const densBtn = document.getElementById('webstats-density-toggle');
 
-  const themeLabel = (t) => ({ dark: '🌙 Oscuro', light: '☀️ Claro', hc: '🔆 HC' }[t] || '🌙 Oscuro');
+  const themeLabel = (t) => ({ dark: '🌙 Oscuro', light: '🧊 Fondo', hc: '🔆 HC' }[t] || '🌙 Oscuro');
   const update = () => {
     const t = root.getAttribute('data-theme') || 'dark';
     if (btn) {

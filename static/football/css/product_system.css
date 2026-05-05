@@ -48,20 +48,10 @@
 
 /* Light theme (optional): activado con <html data-theme="light">. */
 :root[data-theme="light"] {
-  color-scheme: light;
+  /* Fondo claro, UI oscura: mantiene la identidad (paneles/texto) y solo aclara el lienzo. */
+  color-scheme: dark;
   --prod-bg: #f4f7fb;
   --prod-bg-soft: #edf2f8;
-  --prod-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
-  --prod-panel-flat: rgba(255, 255, 255, 0.98);
-  --prod-line: rgba(15, 23, 42, 0.14);
-  --prod-line-strong: rgba(244, 180, 0, 0.32);
-  --prod-text: #0b1220;
-  --prod-muted: #475569;
-  --prod-muted-soft: #334155;
-  --prod-shadow-lg: 0 18px 44px rgba(2, 6, 23, 0.12);
-  --prod-shadow-md: 0 12px 28px rgba(2, 6, 23, 0.1);
-  --prod-midnight: #0b1220;
-  --prod-slate: #475569;
 }
 
 /* High contrast: maximiza legibilidad (iPad exterior / baja visión). */
