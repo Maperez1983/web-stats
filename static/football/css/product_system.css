@@ -1,4 +1,8 @@
 /* 2J Brand System v2 */
+/* Tipografía UI: IBM Plex Sans (fallback remoto via Google Fonts).
+   Si quieres 100% offline, añade WOFF2 a `static/football/fonts/ibm-plex-sans/`
+   y sustituye este import por @font-face locales. */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
 :root {
   /* Font stack (Plex Sans).
      Nota: los WOFF2 se sirven desde `static/football/fonts/ibm-plex-sans/`.
