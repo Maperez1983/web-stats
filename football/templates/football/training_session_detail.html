@@ -226,8 +226,19 @@
 
                           <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Consigna / explicación</div>
                           <div class="box" style="border-top:none; border-radius:0 0 12px 12px; background:#fff;">
-                            {% if t.coaching_points %}{{ t.coaching_points|linebreaksbr }}{% else %}<span style="color:var(--club-muted);">—</span>{% endif %}
-                            {% if t.sheet.description %}<div style="margin-top:8px; color:#0f172a;">{{ t.sheet.description|linebreaksbr }}</div>{% endif %}
+                            {% if t.coaching_points %}
+                              {{ t.coaching_points|linebreaksbr }}
+                            {% elif t.sheet.coaching_html %}
+                              {{ t.sheet.coaching_html|safe }}
+                            {% else %}
+                              <span style="color:var(--club-muted);">—</span>
+                            {% endif %}
+
+                            {% if t.sheet.description_html %}
+                              <div style="margin-top:10px; color:#0f172a;">{{ t.sheet.description_html|safe }}</div>
+                            {% elif t.sheet.description %}
+                              <div style="margin-top:10px; color:#0f172a;">{{ t.sheet.description|linebreaksbr }}</div>
+                            {% endif %}
                           </div>
 
                           <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Detalles del ejercicio</div>
@@ -253,7 +264,18 @@
                               <td><span class="k">Material</span><div class="v">{{ t.sheet.materials|default:"—" }}</div></td>
                             </tr>
                             <tr>
-                              <td colspan="2"><span class="k">Reglas</span><div class="v">{{ t.confrontation_rules|default:"—"|linebreaksbr }}</div></td>
+                              <td colspan="2">
+                                <span class="k">Reglas de confrontación</span>
+                                <div class="v">
+                                  {% if t.confrontation_rules %}
+                                    {{ t.confrontation_rules|linebreaksbr }}
+                                  {% elif t.sheet.rules_html %}
+                                    {{ t.sheet.rules_html|safe }}
+                                  {% else %}
+                                    —
+                                  {% endif %}
+                                </div>
+                              </td>
                             </tr>
                           </table>
 
