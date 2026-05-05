@@ -363,8 +363,8 @@ body.prod-commercial a.btn {
   text-decoration: none;
   font: inherit;
   font-size: var(--ui-btn-fs, 0.78rem);
-  font-weight: 800;
-  letter-spacing: var(--ui-btn-letter, 0.06em);
+  font-weight: 700;
+  letter-spacing: var(--ui-btn-letter, 0.045em);
   text-transform: uppercase;
   box-shadow: 0 0 0 1px rgba(2, 6, 23, 0.18) inset;
   cursor: pointer;
@@ -420,6 +420,7 @@ body.prod-commercial a.primary {
   background: linear-gradient(135deg, rgba(244, 180, 0, 0.95), rgba(47, 125, 50, 0.86)) !important;
   color: rgba(8, 17, 29, 0.98) !important;
   box-shadow: 0 12px 32px rgba(244, 180, 0, 0.18) !important;
+  font-weight: 800;
 }
 
 body.prod-commercial .button.secondary,
@@ -486,8 +487,8 @@ body.prod-commercial .tab-link {
   background: rgba(255, 255, 255, 0.04) !important;
   color: rgba(226, 232, 240, 0.92) !important;
   font-size: 0.76rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-weight: 750;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none;
 }
@@ -503,8 +504,8 @@ body.prod-commercial .module-tab {
   background: rgba(255, 255, 255, 0.04) !important;
   color: rgba(226, 232, 240, 0.92) !important;
   font-size: 0.76rem !important;
-  font-weight: 900 !important;
-  letter-spacing: 0.08em !important;
+  font-weight: 750 !important;
+  letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
   text-decoration: none !important;
 }
@@ -581,8 +582,8 @@ body.prod-commercial .badge {
   background: rgba(15, 23, 42, 0.55);
   color: rgba(226, 232, 240, 0.92);
   font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-weight: 800;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   white-space: nowrap;
 }
