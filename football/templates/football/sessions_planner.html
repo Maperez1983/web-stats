@@ -1677,37 +1677,42 @@
                       <a class="create-action-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}" title="Abrir biblioteca">📚 Biblioteca <small>Ver repositorio</small> <span class="chev" aria-hidden="true">›</span></a>
                     </div>
                   </div>
-                  {% elif create_page == 'session' %}
-                  <div class="create-actions-panel">
-                    <h3>Sesión</h3>
-                    <p class="meta">Crea una sesión rápida y pasa directamente a su <strong>Ficha</strong> (editable y clara).</p>
-                    <form method="post" class="grid" style="margin-top:0.65rem;">
-                      {% csrf_token %}
-                      <input type="hidden" name="planner_action" value="create_session_plan" />
-                      <input type="hidden" name="planner_tab" value="create" />
-                      <input type="hidden" name="team" value="{{ primary_team_id }}" />
-                      {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
-                      <label>
-                        Microciclo (opcional)
-                        <select name="plan_microcycle_id">
-                          <option value="">Sin microciclo (sesión suelta)</option>
-                          {% for item in planning_microcycles %}
-                          <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
-                          {% endfor %}
-                        </select>
-                      </label>
-                      <label>
-                        Fecha
-                        <input type="date" name="plan_session_date" required />
-                      </label>
-                      <label style="grid-column:1/-1;">
-                        Nombre de la sesión
-                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Transición + finalización" required />
-                      </label>
-                      <label>
-                        Duración (min)
-                        <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
-                      </label>
+	                  {% elif create_page == 'session' %}
+	                  <div class="create-actions-panel">
+	                    <h3>Sesión</h3>
+	                    <p class="meta">Crea una sesión rápida y pasa directamente a su <strong>Ficha</strong> (editable y clara).</p>
+	                    <form method="post" class="grid" style="margin-top:0.65rem;" id="create-session-form">
+	                      {% csrf_token %}
+	                      <input type="hidden" name="planner_action" value="create_session_plan" />
+	                      <input type="hidden" name="planner_tab" value="create" />
+	                      <input type="hidden" name="team" value="{{ primary_team_id }}" />
+	                      {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+	                      <label style="grid-column:1/-1;">
+	                        Microciclo
+	                        <select name="plan_microcycle_id">
+	                          <option value="">Sin microciclo (sesión suelta)</option>
+	                          {% for item in planning_microcycles %}
+	                          <option value="{{ item.id }}" {% if prefill_microcycle_id and item.id == prefill_microcycle_id %}selected{% endif %}>{{ item.week_start|date:"d/m" }}-{{ item.week_end|date:"d/m" }} · {{ item.title }}</option>
+	                          {% endfor %}
+	                        </select>
+	                        <small class="meta" style="display:block; margin-top:0.25rem;">Si no eliges microciclo, se guarda en <strong>Sesiones sueltas</strong>.</small>
+	                      </label>
+	                      <label>
+	                        Fecha
+	                        <input type="date" name="plan_session_date" required />
+	                      </label>
+	                      <label>
+	                        Hora (opcional)
+	                        <input type="time" name="plan_session_start_time" />
+	                      </label>
+	                      <label style="grid-column:1/-1;">
+	                        Tema / enfoque
+	                        <input type="text" name="plan_session_focus" maxlength="140" placeholder="Ej: Salida de balón + presión tras pérdida" required />
+	                      </label>
+	                      <label>
+	                        Duración (min)
+	                        <input type="number" name="plan_session_minutes" min="30" max="180" value="90" />
+	                      </label>
                       <label>
                         Intensidad
                         <select name="plan_session_intensity">
@@ -1716,23 +1721,63 @@
                           {% endfor %}
                         </select>
                       </label>
-                      <label>
-                        Estado
-                        <select name="plan_session_status">
-                          {% for value, label in session_status_choices %}
-                          <option value="{{ value }}">{{ label }}</option>
-                          {% endfor %}
-                        </select>
-                      </label>
-                      <div style="display:flex; align-items:flex-end;">
-                        <button type="submit" class="primary">Crear sesión</button>
-                      </div>
-                    </form>
-                    <div class="create-actions-row" style="margin-top:0.8rem;">
-                      <a class="create-action-btn" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de sesiones <small>Solo sesiones guardadas</small> <span class="chev" aria-hidden="true">›</span></a>
-                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
-                    </div>
-                  </div>
+	                      <label>
+	                        Estado
+	                        <select name="plan_session_status">
+	                          {% for value, label in session_status_choices %}
+	                          <option value="{{ value }}">{{ label }}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </label>
+	                      <details style="grid-column:1/-1; margin:0.1rem 0 0;">
+	                        <summary class="button secondary" style="display:inline-flex; width:max-content;">Opciones (plantilla / material / notas)</summary>
+	                        <div class="grid" style="margin-top:0.65rem;">
+	                          <input type="hidden" name="plan_session_auto_convoke" value="0" />
+	                          <label class="ui-check" style="grid-column:1/-1; margin-top:-0.1rem;">
+	                            <input type="checkbox" name="plan_session_auto_convoke" value="1" checked />
+	                            Convocar plantilla automáticamente (Presente)
+	                          </label>
+	                          <label>
+	                            N jugadores (opcional)
+	                            <input type="text" name="plan_session_player_count" maxlength="40" placeholder="Ej: 18 / 16 disponibles" />
+	                          </label>
+	                          <label style="grid-column:1/-1;">
+	                            Material (opcional)
+	                            <input type="text" name="plan_session_materials" maxlength="300" placeholder="Conos, petos, porterías..." />
+	                          </label>
+	                          <label style="grid-column:1/-1;">
+	                            Lesiones / ausencias (opcional)
+	                            <textarea name="plan_session_absences" placeholder="Bajas, molestias, precauciones..."></textarea>
+	                          </label>
+	                          <label style="grid-column:1/-1;">
+	                            Notas (opcional)
+	                            <textarea name="plan_session_content" placeholder="Notas generales de la sesión (sin pizarra)"></textarea>
+	                          </label>
+	                        </div>
+	                      </details>
+	                      <div style="display:flex; align-items:flex-end; gap:0.55rem; flex-wrap:wrap;">
+	                        <button type="submit" class="primary">Crear sesión y abrir ficha</button>
+	                        <a class="button secondary" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver sesiones</a>
+	                      </div>
+	                    </form>
+	                    <script>
+	                      (function () {
+	                        const form = document.getElementById('create-session-form');
+	                        if (!form) return;
+	                        const dateEl = form.querySelector('input[name="plan_session_date"]');
+	                        if (!dateEl || dateEl.value) return;
+	                        const now = new Date();
+	                        const yyyy = String(now.getFullYear());
+	                        const mm = String(now.getMonth() + 1).padStart(2, '0');
+	                        const dd = String(now.getDate()).padStart(2, '0');
+	                        dateEl.value = `${yyyy}-${mm}-${dd}`;
+	                      })();
+	                    </script>
+	                    <div class="create-actions-row" style="margin-top:0.8rem;">
+	                      <a class="create-action-btn" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de sesiones <small>Solo sesiones guardadas</small> <span class="chev" aria-hidden="true">›</span></a>
+	                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-sesiones">Importar sesión <small>PDF tal cual</small> <span class="chev" aria-hidden="true">›</span></a>
+	                    </div>
+	                  </div>
                   {% elif create_page == 'microcycle' %}
                   <div class="create-actions-panel">
                     <h3>Microciclo</h3>
