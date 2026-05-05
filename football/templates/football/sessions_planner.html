@@ -1668,11 +1668,11 @@
                     <h3>Tarea</h3>
                     <p class="meta">Crear y gestionar tareas (clásicas e interactivas).</p>
                     <div class="create-actions-row">
-                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional">Crear clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
-                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive">Crear interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
-                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&pane=assistant">Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
-                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
-                      <a class="create-action-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca <small>Ver repositorio</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional" title="Crear tarea clásica">🧩 Clásica <small>Pizarra + ficha</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=interactive" title="Crear tarea interactiva">🎬 Interactiva <small>Escenarios / timeline</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="{% url task_builder_route_name %}?repo=traditional&pane=assistant" title="Recomendador de tareas">🤖 Recomendador <small>Sugerir tareas</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas" title="Importar tareas">📥 Importar <small>PDF / vídeo</small> <span class="chev" aria-hidden="true">›</span></a>
+                      <a class="create-action-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}" title="Abrir biblioteca">📚 Biblioteca <small>Ver repositorio</small> <span class="chev" aria-hidden="true">›</span></a>
                     </div>
                   </div>
                   {% elif create_page == 'session' %}
