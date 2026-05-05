@@ -208,6 +208,41 @@ SESSION_ENGINE_ENV = os.getenv('SESSION_ENGINE', '').strip()
 if SESSION_ENGINE_ENV:
     SESSION_ENGINE = SESSION_ENGINE_ENV
 
+# Cookies compartidas entre subdominios (app.<dominio> / www.<dominio> / <dominio>)
+# Esto evita "saltos" al login si alguna navegación cambia de host.
+# Se puede forzar con `COOKIE_DOMAIN=.segundajugada.es` (recomendado en prod).
+def _normalize_cookie_domain(value: str) -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    if raw.startswith('http://') or raw.startswith('https://'):
+        parsed = urlparse(raw)
+        raw = parsed.netloc or parsed.path
+    raw = raw.strip().strip('/')
+    if ':' in raw:
+        raw = raw.split(':', 1)[0].strip()
+    if not raw:
+        return ''
+    # Aceptamos ".dominio.com" (wildcard) o "dominio.com" (exacto)
+    return raw
+
+COOKIE_DOMAIN = _normalize_cookie_domain(os.getenv('COOKIE_DOMAIN', ''))
+if not DEBUG and not COOKIE_DOMAIN:
+    try:
+        app_base = str(os.getenv('APP_PUBLIC_BASE_URL') or '').strip()
+        if app_base:
+            parsed = urlparse(app_base if '://' in app_base else f'https://{app_base}')
+            host = (parsed.netloc or parsed.path or '').split(':', 1)[0].strip().lower()
+            if host.startswith('app.'):
+                COOKIE_DOMAIN = f'.{host[4:]}'
+            elif host.startswith('www.'):
+                COOKIE_DOMAIN = f'.{host[4:]}'
+    except Exception:
+        COOKIE_DOMAIN = ''
+if not DEBUG and COOKIE_DOMAIN:
+    SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
+    CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
+
 # Payloads grandes (preview HD de la pizarra / vídeo / assets)
 # Por defecto Django limita el tamaño del body en memoria (≈2.5MB). Entre previews en base64 y
 # subidas de vídeo, ese límite puede romper guardados (400/413) o impedir subir archivos grandes.
