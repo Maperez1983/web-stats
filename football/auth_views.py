@@ -7,7 +7,7 @@ from urllib.parse import quote
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
 from django.shortcuts import redirect
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 
 from .models import AppUserRole
 
@@ -158,6 +158,22 @@ class RoleAwareLoginView(auth_views.LoginView):
         requested_next = self.get_redirect_url()
         if self._is_blocked_next(self.request.user, requested_next):
             return reverse("dashboard-home")
+        if requested_next:
+            # Si `next` apunta a una ruta inexistente (links viejos, errores de JS),
+            # evitamos mandar al usuario a un 404 tras loguearse.
+            try:
+                path = str(requested_next).split("?", 1)[0]
+            except Exception:
+                path = ""
+            if path and path.startswith(("/static/", "/media/")):
+                return requested_next
+            if path and path.startswith("/"):
+                try:
+                    resolve(path)
+                except Resolver404:
+                    requested_next = ""
+                except Exception:
+                    pass
         if requested_next:
             return requested_next
         # Producto: usuario de plataforma aterriza en /platform/ para elegir cliente/espacio.

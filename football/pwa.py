@@ -29,9 +29,10 @@ def pwa_manifest(request: HttpRequest) -> HttpResponse:
         "name": "Segunda Jugada",
         "short_name": "2J",
         "description": "Segunda Jugada · 2J Football Intelligence · Tareas, sesiones y análisis.",
-        # En iOS, start_url debe ser estable y preferimos entrar por login para que
-        # el modo standalone no se quede en la landing si el usuario aún no tiene sesión.
-        "start_url": "/login/?next=/",
+        # En iOS, start_url debe ser estable. Entramos por /login/ sin `next`:
+        # - Si el usuario ya tiene sesión, el LoginView redirige automáticamente.
+        # - Si no hay sesión, tras login aplicamos el enrutado por rol (Platform/Club/Jugador).
+        "start_url": "/login/",
         "scope": "/",
         "display": "standalone",
         "orientation": "any",
