@@ -133,6 +133,20 @@ class CanonicalAppBaseUrlNormalizationTests(TestCase):
         self.assertIn(response.status_code, {301, 302})
         self.assertEqual(response['Location'], 'https://app.example.com/login/')
 
+    def test_canonical_host_middleware_redirects_non_landing_hosts(self):
+        with override_settings(ALLOWED_HOSTS=['testserver', 'internal.onrender.com', 'app.example.com']):
+            with patch.dict(
+                os.environ,
+                {
+                    'APP_PUBLIC_BASE_URL': 'https://app.example.com',
+                    'LANDING_HOSTS': 'segundajugada.es,www.segundajugada.es',
+                },
+                clear=False,
+            ):
+                response = self.client.get(reverse('product-landing'), HTTP_HOST='internal.onrender.com', secure=True)
+        self.assertIn(response.status_code, {301, 302})
+        self.assertEqual(response['Location'], 'https://app.example.com/2j/')
+
 
 class LoginNextRedirectTests(TestCase):
     def setUp(self):

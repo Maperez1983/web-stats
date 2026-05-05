@@ -224,7 +224,7 @@
                               <td><span class="k">Estrategia</span><div class="v">{{ t.pdf_meta.strategy|default:"—" }}</div></td>
                             </tr>
                             <tr>
-                              <td><span class="k">Espacio</span><div class="v">{{ t.sheet.space|default:t.pdf_meta.space|default:"—" }}</div></td>
+                              <td><span class="k">Espacio</span><div class="v">{{ t.space_value }}</div></td>
                               <td><span class="k">Tiempo</span><div class="v">{{ t.minutes }}'</div></td>
                             </tr>
                             <tr>
@@ -236,7 +236,7 @@
                               <td><span class="k">Intención / acción táctica</span><div class="v">{{ t.pdf_meta.tactical_intent|default:"—" }}</div></td>
                             </tr>
                             <tr>
-                              <td><span class="k">Jugadores</span><div class="v">{{ t.sheet.players|default:t.pdf_meta.player_count|default:"—" }}</div></td>
+                              <td><span class="k">Jugadores</span><div class="v">{{ t.players_value }}</div></td>
                               <td><span class="k">Material</span><div class="v">{{ t.sheet.materials|default:"—" }}</div></td>
                             </tr>
                             <tr>

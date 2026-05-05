@@ -22895,6 +22895,10 @@ def training_session_detail_page(request, session_id):
             real_minutes = _parse_int(meta_norm.get('real_minutes')) if isinstance(meta_norm, dict) else None
             if not real_minutes:
                 real_minutes = int(getattr(t, 'duration_minutes', 0) or 0)
+            sheet_space = str(sheet.get('space') or '').strip() if isinstance(sheet, dict) else ''
+            sheet_players = str(sheet.get('players') or '').strip() if isinstance(sheet, dict) else ''
+            meta_space = str(meta_norm.get('space') or '').strip() if isinstance(meta_norm, dict) else ''
+            meta_players = str(meta_norm.get('player_count') or '').strip() if isinstance(meta_norm, dict) else ''
             rows.append(
                 {
                     'obj': t,
@@ -22910,6 +22914,9 @@ def training_session_detail_page(request, session_id):
                     'detail_url': reverse('session-task-detail', args=[int(t.id)]),
                     'pdf_meta': meta_norm,
                     'sheet': sheet,
+                    # Precomputados para evitar fallos de template al usar variables como argumento de `default:`.
+                    'space_value': sheet_space or meta_space or '—',
+                    'players_value': sheet_players or meta_players or '—',
                 }
             )
         tasks_by_block.append(
