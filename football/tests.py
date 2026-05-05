@@ -106,6 +106,33 @@ class WriteEndpointAuthTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '2J Football Intelligence')
 
+    def test_product_landing_login_url_uses_same_host_outside_landing_domains(self):
+        with override_settings(ALLOWED_HOSTS=['testserver', 'web-stats.onrender.com']):
+            response = self.client.get(reverse('product-landing'), HTTP_HOST='web-stats.onrender.com', secure=True)
+            self.assertEqual(response.status_code, 200)
+            # Robustez: extraer el href real para evitar falsos negativos por minificación/atributos.
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.content.decode('utf-8', 'ignore'), 'html.parser')
+            button = soup.select_one('a.button.primary[href]')
+            self.assertIsNotNone(button)
+            self.assertEqual(button.get('href'), 'https://web-stats.onrender.com/login/')
+
+
+class CanonicalAppBaseUrlNormalizationTests(TestCase):
+    def test_login_redirect_strips_path_from_app_public_base_url(self):
+        with override_settings(ALLOWED_HOSTS=['testserver', 'landing.example.com', 'app.example.com']):
+            with patch.dict(
+                os.environ,
+                {
+                    'APP_PUBLIC_BASE_URL': 'https://app.example.com/2J',
+                    'LANDING_HOSTS': 'landing.example.com',
+                },
+                clear=False,
+            ):
+                response = self.client.get(reverse('login'), HTTP_HOST='landing.example.com', secure=True)
+        self.assertIn(response.status_code, {301, 302})
+        self.assertEqual(response['Location'], 'https://app.example.com/login/')
+
 
 class LoginNextRedirectTests(TestCase):
     def setUp(self):

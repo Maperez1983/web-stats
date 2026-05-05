@@ -71,8 +71,7 @@
 	      .table td, .table th { border: 1px solid var(--club-border); padding: 7px 9px; vertical-align: top; background:#fff; }
 	      .box { border: 1px solid var(--club-border); padding: 12px; background: #ffffff; line-height: 1.55; }
 	      .content { padding: 12px 14px 0; background: #f1f5f9; }
-	      .tasks { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-	      @media (max-width: 980px) { .tasks { grid-template-columns: 1fr; } }
+	      .tasks { display:grid; grid-template-columns: 1fr; gap: 12px; }
 	      .task { border: 1px solid var(--club-border); border-radius: 14px; overflow:hidden; background:#ffffff; }
 	      .task-head { background: #0f172a; color:#ffffff; padding: 7px 10px; display:flex; justify-content:space-between; gap: 10px; align-items:baseline; }
 	      .task-head strong { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px; }
@@ -199,41 +198,54 @@
 		          <div class="box" style="border-top:none; padding-top:10px;">
 		            {% if tasks_by_block %}
 	              <div class="tasks">
-	                {% for block, tasks in tasks_by_block.items %}
-	                  {% for t in tasks %}
+	                {% for block in tasks_by_block %}
+	                  {% for t in block.tasks %}
 	                    <div class="task">
 	                      <div class="task-head">
-	                        <strong>{{ t.get_block_display }}</strong>
-	                        <span>{{ t.duration_minutes }}'</span>
+	                        <strong>{{ t.block_label }}</strong>
+	                        <span>{{ t.minutes }}'</span>
 	                      </div>
 	                      <div class="task-body">
 	                        <div class="task-title">{{ t.title }}</div>
-	                        <table class="task-grid">
-	                          <tr>
-	                            <td style="width:50%;">
-	                              <strong>Objetivo</strong>
-	                              {{ t.objective|default:"-" }}
-	                            </td>
-	                            <td style="width:50%;">
-	                              <strong>Estado</strong>
-	                              {{ t.get_status_display }}
-	                            </td>
-	                          </tr>
-	                          <tr>
-	                            <td colspan="2">
-	                              <strong>Consigna / explicación</strong>
-	                              {{ t.coaching_points|default:"-"|linebreaksbr }}
-	                            </td>
-	                          </tr>
-	                          <tr>
-	                            <td colspan="2">
-	                              <strong>Reglas</strong>
-	                              {{ t.confrontation_rules|default:"-"|linebreaksbr }}
-	                            </td>
-	                          </tr>
-	                        </table>
-	                        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-	                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{% url 'session-task-detail' t.id %}">Ver tarea</a>
+
+                          <div class="section-title" style="margin:10px 0 0; border-radius:10px 10px 0 0;">Descripción gráfica</div>
+                          <div class="preview-frame" style="height:280px; border-radius:0 0 12px 12px; background-image:{% if t.preview_url %}url('{{ t.preview_url }}'){% else %}none{% endif %};"></div>
+
+                          <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Consigna / explicación</div>
+                          <div class="box" style="border-top:none; border-radius:0 0 12px 12px; background:#fff;">
+                            {% if t.coaching_points %}{{ t.coaching_points|linebreaksbr }}{% else %}<span style="color:var(--club-muted);">—</span>{% endif %}
+                            {% if t.sheet.description %}<div style="margin-top:8px; color:#0f172a;">{{ t.sheet.description|linebreaksbr }}</div>{% endif %}
+                          </div>
+
+                          <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Detalles del ejercicio</div>
+                          <table class="table" style="border-top:none; border-radius:0 0 12px 12px; overflow:hidden;">
+                            <tr>
+                              <td><span class="k">Objetivo</span><div class="v">{{ t.objective|default:"—" }}</div></td>
+                              <td><span class="k">Estrategia</span><div class="v">{{ t.pdf_meta.strategy|default:"—" }}</div></td>
+                            </tr>
+                            <tr>
+                              <td><span class="k">Espacio</span><div class="v">{{ t.sheet.space|default:t.pdf_meta.space|default:"—" }}</div></td>
+                              <td><span class="k">Tiempo</span><div class="v">{{ t.minutes }}'</div></td>
+                            </tr>
+                            <tr>
+                              <td><span class="k">Situación de juego</span><div class="v">{{ t.pdf_meta.structure|default:"—" }}</div></td>
+                              <td><span class="k">Coordinación</span><div class="v">{{ t.pdf_meta.coordination|default:"—" }}</div></td>
+                            </tr>
+                            <tr>
+                              <td><span class="k">Habilidades coordinativas</span><div class="v">{{ t.pdf_meta.coordination_skills|default:"—" }}</div></td>
+                              <td><span class="k">Intención / acción táctica</span><div class="v">{{ t.pdf_meta.tactical_intent|default:"—" }}</div></td>
+                            </tr>
+                            <tr>
+                              <td><span class="k">Jugadores</span><div class="v">{{ t.sheet.players|default:t.pdf_meta.player_count|default:"—" }}</div></td>
+                              <td><span class="k">Material</span><div class="v">{{ t.sheet.materials|default:"—" }}</div></td>
+                            </tr>
+                            <tr>
+                              <td colspan="2"><span class="k">Reglas</span><div class="v">{{ t.confrontation_rules|default:"—"|linebreaksbr }}</div></td>
+                            </tr>
+                          </table>
+
+	                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+	                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{{ t.detail_url }}">✏️ Editar tarea</a>
 	                        </div>
 	                      </div>
 	                    </div>
@@ -327,6 +339,10 @@
             Ausencias / incidencias
             <textarea name="absences" rows="3" maxlength="4000">{{ plan_fields.absences }}</textarea>
           </label>
+          <label class="full" style="flex-direction:row; align-items:center; gap:0.55rem; text-transform:none;">
+            <input type="checkbox" name="show_in_agenda" value="1" {% if plan_fields.agenda_hidden != '1' %}checked{% endif %} />
+            <span style="font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.78); font-size:0.78rem;">Mostrar en agenda</span>
+          </label>
           <label class="full">
             Notas
             <textarea name="notes" rows="3" maxlength="8000">{{ plan_fields.notes }}</textarea>
@@ -334,6 +350,36 @@
           <div class="full" style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap;">
             <button class="btn primary" type="submit">Guardar ficha</button>
           </div>
+        </form>
+
+        <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.95rem 0;" />
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Confirmación</div>
+            <div class="meta">Cierra la sesión: estado Realizada + minutos reales por tarea.</div>
+          </div>
+        </div>
+        <form method="post" style="margin-top:0.7rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="confirm" />
+          <div class="form-grid" style="margin:0;">
+            {% for block in tasks_by_block %}
+              {% for t in block.tasks %}
+                <label>
+                  {{ t.block_label }} · {{ t.title|truncatechars:34 }}
+                  <input type="number" name="real_minutes_{{ t.obj.id }}" min="1" max="180" value="{{ t.real_minutes|default:t.minutes }}" />
+                </label>
+              {% endfor %}
+            {% endfor %}
+            <div class="full" style="display:flex; justify-content:flex-end; gap:0.5rem; flex-wrap:wrap;">
+              <button class="btn primary" type="submit">✅ Confirmar sesión</button>
+            </div>
+          </div>
+        </form>
+        <form method="post" style="margin-top:0.55rem; display:flex; justify-content:flex-end;" onsubmit="return confirm('¿Eliminar esta sesión por completo? Se borrarán tareas y asistencia.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_session" />
+          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Borrar sesión</button>
         </form>
 
         <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.95rem 0;" />

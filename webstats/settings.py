@@ -165,6 +165,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Fuerza host canónico para evitar mezcla de dominios (p.ej. Render hostname vs dominio público).
+    'football.middleware.CanonicalHostMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -227,24 +229,12 @@ def _normalize_cookie_domain(value: str) -> str:
     return raw
 
 COOKIE_DOMAIN = _normalize_cookie_domain(os.getenv('COOKIE_DOMAIN', ''))
-if not DEBUG:
-    # Si no se define COOKIE_DOMAIN explícitamente, intentamos derivarlo del dominio público de la app
-    # para que la sesión sea estable al navegar entre `segundajugada.es` y `app.segundajugada.es`.
-    # (En iPad es fácil “volver” a la landing por un enlace, un share o un webview).
-    if not COOKIE_DOMAIN:
-        derived = _normalize_cookie_domain(os.getenv('APP_PUBLIC_BASE_URL', '') or os.getenv('RENDER_EXTERNAL_HOSTNAME', ''))
-        derived = str(derived or '').strip()
-        derived = derived.lstrip('.')
-        if derived.startswith('app.'):
-            derived = derived[4:]
-        if derived.startswith('www.'):
-            derived = derived[4:]
-        # Evitar dominios vacíos / locales.
-        if derived and derived not in {'localhost', '127.0.0.1'}:
-            COOKIE_DOMAIN = derived
-    if COOKIE_DOMAIN:
-        SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
-        CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
+if not DEBUG and COOKIE_DOMAIN:
+    # En producción, solo compartimos cookies entre subdominios cuando se pide explícitamente.
+    # Auto-derivar puede provocar bucles de login si el usuario entra por un hostname distinto
+    # (p.ej. `*.onrender.com` vs dominio personalizado).
+    SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
+    CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
 
 # Payloads grandes (preview HD de la pizarra / vídeo / assets)
 # Por defecto Django limita el tamaño del body en memoria (≈2.5MB). Entre previews en base64 y

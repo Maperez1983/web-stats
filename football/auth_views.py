@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
@@ -72,7 +72,15 @@ def _resolve_app_base_url(request) -> str:
                 return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
         except Exception:
             pass
-        return explicit.rstrip("/")
+        # Fallback defensivo: elimina cualquier path accidental.
+        cleaned = explicit.strip().rstrip("/")
+        if "://" in cleaned:
+            scheme, rest = cleaned.split("://", 1)
+            host = rest.split("/", 1)[0]
+            cleaned = f"{scheme}://{host}"
+        else:
+            cleaned = cleaned.split("/", 1)[0]
+        return cleaned.rstrip("/")
     return _guess_app_base_url_from_host(_request_host(request)).rstrip("/")
 
 

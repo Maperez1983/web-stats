@@ -2560,12 +2560,22 @@ def product_landing_page(request):
             host = str(request.get_host() or '').split(':', 1)[0].strip().lower()
         except Exception:
             host = ''
+        landing_hosts = [
+            h.strip().lower()
+            for h in (os.getenv('LANDING_HOSTS') or 'segundajugada.es,www.segundajugada.es,segundajugada.com,www.segundajugada.com').split(',')
+            if h.strip()
+        ]
         if host.startswith('app.'):
+            # App ya está en el subdominio esperado.
             app_base = f'https://{host}'
+        elif host in landing_hosts and not host.startswith('app.'):
+            # Landing comercial: el login vive en `app.<dominio>`.
+            target_host = host[4:] if host.startswith('www.') else host
+            app_base = f'https://app.{target_host}' if target_host else 'https://app.segundajugada.es'
         else:
-            if host.startswith('www.'):
-                host = host[4:]
-            app_base = f'https://app.{host}' if host else 'https://app.segundajugada.es'
+            # Host "single-domain" (p.ej. `*.onrender.com` o dominio sin subdominio app):
+            # el login debe mantenerse en el mismo host para evitar romper cookies.
+            app_base = f'https://{host}' if host else 'https://app.segundajugada.es'
     app_login_url = f'{app_base}/login/'
     return render(
         request,
@@ -22730,6 +22740,9 @@ def training_session_detail_page(request, session_id):
                 next_fields = plan_fields.copy()
                 for key in ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes']:
                     next_fields[key] = str(request.POST.get(key) or '').strip()
+                show_in_agenda_raw = str(request.POST.get('show_in_agenda') or '').strip().lower()
+                show_in_agenda = show_in_agenda_raw in {'1', 'true', 'yes', 'on', 'si'}
+                next_fields['agenda_hidden'] = ('' if show_in_agenda else '1')
                 session_obj.content = _serialize_session_plan_fields(next_fields)
 
                 session_obj.save(update_fields=['focus', 'session_date', 'start_time', 'duration_minutes', 'intensity', 'status', 'content'])
@@ -22737,6 +22750,47 @@ def training_session_detail_page(request, session_id):
                 message = 'Ficha guardada.'
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar.'
+
+        elif action == 'confirm':
+            try:
+                # Confirmación: marca sesión como realizada y permite ajustar minutos reales por tarea.
+                session_obj.status = TrainingSession.STATUS_DONE
+                session_obj.save(update_fields=['status'])
+                updated_tasks = 0
+                for t in list(session_obj.tasks.filter(deleted_at__isnull=True).all()):
+                    raw_real = request.POST.get(f'real_minutes_{t.id}')
+                    if raw_real is None:
+                        continue
+                    real_minutes = max(1, min(_parse_int(raw_real) or int(getattr(t, 'duration_minutes', 0) or 0) or 15, 180))
+                    if int(getattr(t, 'duration_minutes', 0) or 0) != real_minutes:
+                        t.duration_minutes = real_minutes
+                        t.save(update_fields=['duration_minutes'])
+                        updated_tasks += 1
+                    # Persistencia ligera en meta (no rompe lo existente).
+                    try:
+                        if isinstance(t.tactical_layout, dict):
+                            layout = dict(t.tactical_layout)
+                            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                            meta = dict(meta)
+                            meta['real_minutes'] = real_minutes
+                            layout['meta'] = meta
+                            t.tactical_layout = layout
+                            t.save(update_fields=['tactical_layout'])
+                    except Exception:
+                        pass
+                message = f'Sesión confirmada. Minutos reales actualizados en {updated_tasks} tareas.' if updated_tasks else 'Sesión confirmada.'
+            except Exception as exc:
+                error = str(exc) or 'No se pudo confirmar la sesión.'
+
+        elif action == 'delete_session':
+            try:
+                # Borrado total (por error de creación). Cascada: tareas, asistencia, timeline...
+                redirect_url = reverse('team-agenda') + (f'?team={int(primary_team.id)}' if primary_team else '')
+                msg = quote('Sesión eliminada.')
+                session_obj.delete()
+                return redirect(f'{redirect_url}&msg={msg}' if '?' in redirect_url else f'{redirect_url}?msg={msg}')
+            except Exception as exc:
+                error = str(exc) or 'No se pudo eliminar la sesión.'
 
         elif action == 'attendance':
             try:
@@ -22793,9 +22847,78 @@ def training_session_detail_page(request, session_id):
     attendance_summary = ' · '.join(summary_bits) if summary_bits else 'Sin asistencia marcada.'
 
     tasks = list(session_obj.tasks.filter(deleted_at__isnull=True).order_by('block', 'order', 'id'))
-    tasks_by_block = defaultdict(list)
+    # Orden estable por bloques (como en el PDF Club / flujo de entreno).
+    block_order = [
+        SessionTask.BLOCK_CONDITIONING,
+        SessionTask.BLOCK_ACTIVATION,
+        SessionTask.BLOCK_MAIN_1,
+        SessionTask.BLOCK_MAIN_2,
+        SessionTask.BLOCK_SET_PIECES,
+        SessionTask.BLOCK_RECOVERY,
+        SessionTask.BLOCK_VIDEO,
+    ]
+    block_rank = {key: idx for idx, key in enumerate(block_order)}
+    tasks.sort(key=lambda t: (block_rank.get(str(getattr(t, 'block', '') or ''), 999), int(getattr(t, 'order', 0) or 0), int(getattr(t, 'id', 0) or 0)))
+
+    def _task_preview_url(task):
+        if not task:
+            return ''
+        base = reverse('session-task-preview-file', args=[int(task.id)])
+        try:
+            if getattr(task, 'task_preview_image', None):
+                v = quote(str(task.task_preview_image.name))
+                return f'{base}?v={v}'
+        except Exception:
+            pass
+        return f'{base}?v={int(getattr(task, "id", 0) or 0)}'
+
+    def _task_sheet(task):
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        normalized = _normalize_task_pdf_meta(meta)
+        analysis = normalized.get('analysis') if isinstance(normalized.get('analysis'), dict) else {}
+        sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+        return normalized, sheet
+
+    tasks_by_block = []
+    block_labels = dict(SessionTask.BLOCK_CHOICES)
+    grouped = defaultdict(list)
     for t in tasks:
-        tasks_by_block[str(t.block or '')].append(t)
+        grouped[str(t.block or '')].append(t)
+    for block_key in block_order:
+        items = grouped.get(block_key) or []
+        if not items:
+            continue
+        rows = []
+        for t in items:
+            meta_norm, sheet = _task_sheet(t)
+            real_minutes = _parse_int(meta_norm.get('real_minutes')) if isinstance(meta_norm, dict) else None
+            if not real_minutes:
+                real_minutes = int(getattr(t, 'duration_minutes', 0) or 0)
+            rows.append(
+                {
+                    'obj': t,
+                    'block_key': block_key,
+                    'block_label': block_labels.get(block_key, block_key),
+                    'minutes': int(getattr(t, 'duration_minutes', 0) or 0),
+                    'real_minutes': int(real_minutes or int(getattr(t, 'duration_minutes', 0) or 0) or 0),
+                    'title': str(getattr(t, 'title', '') or '').strip(),
+                    'objective': str(getattr(t, 'objective', '') or '').strip(),
+                    'coaching_points': str(getattr(t, 'coaching_points', '') or '').strip(),
+                    'confrontation_rules': str(getattr(t, 'confrontation_rules', '') or '').strip(),
+                    'preview_url': _task_preview_url(t),
+                    'detail_url': reverse('session-task-detail', args=[int(t.id)]),
+                    'pdf_meta': meta_norm,
+                    'sheet': sheet,
+                }
+            )
+        tasks_by_block.append(
+            {
+                'block_key': block_key,
+                'label': block_labels.get(block_key, block_key),
+                'tasks': rows,
+            }
+        )
     tasks_count = len(tasks)
     task_minutes_total = 0
     try:
