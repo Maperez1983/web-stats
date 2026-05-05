@@ -32986,16 +32986,30 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             SessionTask.objects
             .select_related('session__microcycle')
             .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
-            .order_by('-id')[:140]
+            .order_by('-id')[:220]
         )
         for task_item in source_task_candidates:
             if _task_scope_for_item(task_item) != scope_key:
+                continue
+            # Solo tareas de biblioteca (reutilizables).
+            try:
+                if not _is_library_session(getattr(task_item, 'session', None)):
+                    continue
+            except Exception:
                 continue
             try:
                 if _library_repository_for_task(task_item) != library_repository:
                     continue
             except Exception:
                 continue
+            # Filtrado por origen (creadas vs importadas) para reducir ruido en selectores.
+            if library_source_tab in {'created', 'imported'}:
+                want_imported = library_source_tab == 'imported'
+                try:
+                    if bool(_is_imported_task(task_item)) != want_imported:
+                        continue
+                except Exception:
+                    pass
             session_focus = str(getattr(getattr(task_item, 'session', None), 'focus', '') or '').strip()
             if session_focus.lower().startswith('biblioteca pdf'):
                 session_focus = 'Repositorio'
@@ -33008,6 +33022,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'session_label': session_focus or 'Repositorio',
                 }
             )
+        # Limita el selector rápido para no cargar UI enorme (la Biblioteca completa está en la pestaña Biblioteca).
+        planning_task_source_options = planning_task_source_options[:90]
     tactical_player_catalog = []
     try:
         squad_players = (
