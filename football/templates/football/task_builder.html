@@ -3638,6 +3638,8 @@
 					        id="task-builder-form"
 				        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
 				        data-scope-key="{{ scope_key }}"
+				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-sim3d-src="{% static 'football/js/tpad_sim_3d_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 					        data-task-id="{% if task %}{{ task.id }}{% endif %}"
@@ -5718,14 +5720,14 @@
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
-		    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-		    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 		    <script>
-		      // Rendimiento: cargamos Three.js + visor 3D solo cuando el usuario lo pide.
+		      // Rendimiento: cargamos Fabric + editor (TPad) + 3D SOLO cuando hace falta.
 		      (function () {
 		        const form = document.getElementById('task-builder-form');
 		        if (!form) return;
+		        const fabricSrc = String(form.dataset.fabricSrc || '').trim();
+		        const tpadSrc = String(form.dataset.tpadSrc || '').trim();
 		        const threeSrc = String(form.dataset.threeSrc || '').trim();
 		        const sim3dSrc = String(form.dataset.sim3dSrc || '').trim();
 		        const statusEl = document.getElementById('task-builder-status');
@@ -5752,11 +5754,29 @@
 		          return window[key];
 		        };
 
+		        const ensureFabric = () => {
+		          try { if (window.fabric) return Promise.resolve(true); } catch (e) { /* ignore */ }
+		          return loadOnce(fabricSrc, '__webstats_fabric_promise');
+		        };
+		        const ensureTpad = () => loadOnce(tpadSrc, '__webstats_tpad_promise');
+
 		        const ensureThree = () => {
 		          try { if (window.THREE) return Promise.resolve(true); } catch (e) { /* ignore */ }
 		          return loadOnce(threeSrc, '__webstats_three_promise');
 		        };
 		        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
+
+		        const ensureEditorStack = () => {
+		          setStatus('Cargando editor…');
+		          return ensureFabric()
+		            .then(() => ensureTpad())
+		            .then(() => {
+		              try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
+		              setStatus('');
+		              return true;
+		            })
+		            .catch(() => { setStatus('No se pudo cargar el editor.'); return false; });
+		        };
 
 		        const ensure3dStack = () => {
 		          setStatus('Cargando 3D…');
@@ -5766,28 +5786,71 @@
 		            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
 		        };
 
-		        const hookClick = (id, needsSim3d = false) => {
+		        const hookClick = (id, ensureFn, markerKey) => {
 		          const el = document.getElementById(id);
 		          if (!el) return;
+		          const key = markerKey || 'webstatsReady';
 		          el.addEventListener('click', async (ev) => {
 		            try {
-		              if (el.dataset.webstats3dReady === '1') return;
+		              if (el.dataset?.[key] === '1') return;
+		              if (typeof ensureFn !== 'function') return;
 		              ev.preventDefault();
 		              ev.stopPropagation();
-		              const ok = needsSim3d ? await ensure3dStack() : await ensureThree().catch(() => false);
+		              const ok = await ensureFn();
 		              if (!ok) return;
-		              el.dataset.webstats3dReady = '1';
-		              // Re-dispara el click para que lo capture el handler real (sessions_tactical_pad / 3D viewer).
+		              try { el.dataset[key] = '1'; } catch (e) { /* ignore */ }
+		              // Re-dispara el click para que lo capture el handler real.
 		              try { el.click(); } catch (e) { /* ignore */ }
 		            } catch (e) { /* ignore */ }
 		          }, { capture: true });
 		        };
 
-		        // 3D de pizarra (usa Three.js en sessions_tactical_pad.js)
-		        hookClick('pitch-3d-open', false);
+		        // Editor: al abrir pizarra/simulador/recursos, garantizamos Fabric+TPad.
+		        // (Sin esto, iPad se queda "pensando" porque parsea 1MB de JS aunque no lo uses.)
+		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-step-add', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-step-play', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-step-duplicate', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('task-step-remove', ensureEditorStack, 'webstatsEditorReady');
+
+		        // Heurística: si el usuario está realmente en el editor (no solo leyendo),
+		        // precargamos en idle para que el primer toque sea instantáneo.
+		        const scheduleIdle = (fn, timeoutMs = 1600) => {
+		          try {
+		            if (typeof window.requestIdleCallback === 'function') {
+		              return window.requestIdleCallback(fn, { timeout: timeoutMs });
+		            }
+		          } catch (e) { /* ignore */ }
+		          return window.setTimeout(fn, 120);
+		        };
+		        scheduleIdle(() => {
+		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
+		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
+		          const wantsEditor = !!document.querySelector('[data-pane=\"pizarra\"].is-active,[data-pane=\"animacion\"].is-active');
+		          if (hasTaskId || wantsEditor) ensureEditorStack();
+		        }, 2200);
+
+		        // 3D de pizarra (usa Three.js dentro del editor TPad).
+		        hookClick(
+		          'pitch-3d-open',
+		          () => ensureEditorStack().then((ok) => (ok ? ensureThree().then(() => true) : false)),
+		          'webstatsThreeReady'
+		        );
 		        // 3D del simulador (usa visor dedicado)
-		        hookClick('task-sim-view-3d', true);
-		        hookClick('task-playbook-open-3d', true);
+		        hookClick(
+		          'task-sim-view-3d',
+		          () => ensureEditorStack().then((ok) => (ok ? ensure3dStack() : false)),
+		          'webstats3dReady'
+		        );
+		        hookClick(
+		          'task-playbook-open-3d',
+		          () => ensureEditorStack().then((ok) => (ok ? ensure3dStack() : false)),
+		          'webstats3dReady'
+		        );
 		      })();
 		    </script>
 					    <script>
