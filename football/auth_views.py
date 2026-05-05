@@ -120,12 +120,15 @@ class RoleAwareLoginView(auth_views.LoginView):
         try:
             remember_raw = str(self.request.POST.get("remember_session") or "").strip().lower()
             remember = remember_raw in {"1", "true", "yes", "on"}
+            # Importante (iPad/WKWebView): no forzamos sesiones "de navegador" (set_expiry(0)),
+            # porque pueden perderse al cambiar de app, abrir PDFs o por presión de memoria.
+            # Si el usuario marca "Mantener sesión", extendemos explícitamente la expiración.
+            # Si no lo marca (o el campo no llega), dejamos la expiración por defecto del sistema
+            # (SESSION_COOKIE_AGE + SESSION_SAVE_EVERY_REQUEST), que ya es amplia y deslizante.
             if remember:
                 days = int(str(os.getenv("REMEMBER_SESSION_DAYS", "30") or "30").strip() or 30)
                 days = max(1, min(days, 365))
                 self.request.session.set_expiry(days * 86400)
-            else:
-                self.request.session.set_expiry(0)
         except Exception:
             pass
         return response
