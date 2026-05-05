@@ -4638,6 +4638,24 @@ def _get_active_team_for_request(request):
                 except Exception:
                     pass
             return team
+        # UX (web): si hay varios equipos accesibles pero no hay ninguno seleccionado,
+        # elegimos uno por defecto (el más reciente por id) para evitar redirecciones
+        # constantes a onboarding/selector en navegaciones por enlaces sin `?team=`.
+        # Importante: esto NO otorga acceso extra, solo fija un default dentro de `team_ids`.
+        if team_ids:
+            try:
+                fallback_team_id = max(int(tid) for tid in team_ids if tid)
+            except Exception:
+                fallback_team_id = None
+            if fallback_team_id:
+                team = Team.objects.filter(id=int(fallback_team_id)).first()
+                if team:
+                    try:
+                        if hasattr(request, 'session'):
+                            request.session['active_team_id'] = int(team.id)
+                    except Exception:
+                        pass
+                    return team
 
         # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global para roles técnicos
         # porque en multicliente eso mezclará datos entre clubes.
