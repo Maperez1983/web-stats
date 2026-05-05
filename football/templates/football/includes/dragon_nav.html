@@ -177,12 +177,19 @@
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Registro de acciones</a>
       {% endif %}
-      {% if workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
-      {% endif %}
-      {% endif %}
+	      {% if workspace_module_access.match_actions|default:True %}
+	      <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
+	      {% endif %}
+	      {% endif %}
 
-      <div class="nav-more-subtitle">Club</div>
+	      {% if workspace_module_access.sessions|default:True %}
+	      <div class="nav-more-subtitle">Entrenamiento</div>
+	      <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">Entrenamiento</a>
+	      <a href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}">Tareas (biblioteca)</a>
+	      <a href="{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">Crear tarea (pizarra)</a>
+	      {% endif %}
+
+	      <div class="nav-more-subtitle">Club</div>
       {% if workspace_module_access.players|default:True %}
         {% if can_manage_workspace or is_admin_user %}
         <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}">Jugadores · estadísticas</a>

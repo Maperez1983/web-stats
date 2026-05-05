@@ -797,17 +797,21 @@
 	              </a>
 	              {% endif %}
 
-		              {% if workspace_module_access.sessions|default:True %}
-		              <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+			              {% if workspace_module_access.sessions|default:True %}
+			              <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+			                <strong>Entrenamiento</strong>
+			                <span>Tareas · sesiones · microciclos</span>
+			              </a>
+			              <a class="quick-action is-muted" href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}">
+			                <strong>Tareas</strong>
+			                <span>Biblioteca (PDF / interactivas)</span>
+			              </a>
+		              {% else %}
+		              <a class="quick-action is-secondary is-disabled" href="#">
 		                <strong>Entrenamiento</strong>
-		                <span>Tareas · sesiones · microciclos</span>
+		                <span>Módulo desactivado</span>
 		              </a>
-	              {% else %}
-	              <a class="quick-action is-secondary is-disabled" href="#">
-	                <strong>Entrenamiento</strong>
-	                <span>Módulo desactivado</span>
-	              </a>
-		              {% endif %}
+			              {% endif %}
 
 		              <a class="quick-action is-muted" href="{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
 		                <strong>Agenda</strong>
