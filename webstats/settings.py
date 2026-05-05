@@ -227,18 +227,6 @@ def _normalize_cookie_domain(value: str) -> str:
     return raw
 
 COOKIE_DOMAIN = _normalize_cookie_domain(os.getenv('COOKIE_DOMAIN', ''))
-if not DEBUG and not COOKIE_DOMAIN:
-    try:
-        app_base = str(os.getenv('APP_PUBLIC_BASE_URL') or '').strip()
-        if app_base:
-            parsed = urlparse(app_base if '://' in app_base else f'https://{app_base}')
-            host = (parsed.netloc or parsed.path or '').split(':', 1)[0].strip().lower()
-            if host.startswith('app.'):
-                COOKIE_DOMAIN = f'.{host[4:]}'
-            elif host.startswith('www.'):
-                COOKIE_DOMAIN = f'.{host[4:]}'
-    except Exception:
-        COOKIE_DOMAIN = ''
 if not DEBUG and COOKIE_DOMAIN:
     SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
     CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
