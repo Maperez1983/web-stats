@@ -171,6 +171,10 @@
 	              <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
 	            </tr>
 	            <tr>
+	              <td>Lugar</td>
+	              <td colspan="3"><div class="v">{% if plan_fields.location %}{{ plan_fields.location }}{% else %}—{% endif %}</div></td>
+	            </tr>
+	            <tr>
 	              <td>Duración</td>
 	              <td><div class="v">{{ session.duration_minutes }} min</div></td>
 	              <td>Intensidad</td>
@@ -299,7 +303,27 @@
               <div class="section-title" style="margin-top:12px;">Informe de sesión</div>
               <div class="box">
                 <p style="margin:0 0 8px;"><strong>Estado:</strong> {{ session.get_status_display }}{% if plan_fields.confirmed_at %} · <strong>Confirmada:</strong> {{ plan_fields.confirmed_at }}{% endif %}</p>
-                <p style="margin:0 0 8px;"><strong>Tiempo real total tareas:</strong> {{ task_real_minutes_total }} min</p>
+                <p style="margin:0 0 8px;"><strong>Tiempo:</strong> Previsto {{ task_minutes_total }} min · Real {{ task_real_minutes_total }} min</p>
+
+                <div style="margin:8px 0 10px;">
+                  <div style="font-size:10px; letter-spacing:0.08em; text-transform:uppercase; font-weight:900; color:var(--club-muted);">Previsto vs real</div>
+                  <div style="margin-top:6px; display:grid; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <div style="width:90px; font-size:11px; font-weight:900; color:#0f172a;">Previsto</div>
+                      <div style="flex:1; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                        <div style="height:100%; width:100%; background:linear-gradient(135deg, var(--club-primary), var(--club-accent));"></div>
+                      </div>
+                      <div style="width:70px; text-align:right; font-weight:900;">{{ task_minutes_total }}'</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <div style="width:90px; font-size:11px; font-weight:900; color:#0f172a;">Real</div>
+                      <div style="flex:1; height:10px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+                        <div style="height:100%; width:{% if task_minutes_total %}{% widthratio task_real_minutes_total task_minutes_total 100 %}{% else %}0{% endif %}%; background:rgba(15, 23, 42, 0.85);"></div>
+                      </div>
+                      <div style="width:70px; text-align:right; font-weight:900;">{{ task_real_minutes_total }}'</div>
+                    </div>
+                  </div>
+                </div>
 
                 <table class="table" style="margin-top:10px;">
                   <tr>
@@ -422,6 +446,10 @@
             <input type="text" name="player_count" maxlength="60" value="{{ plan_fields.player_count }}" />
           </label>
           <label>
+            Lugar (opcional)
+            <input type="text" name="location" maxlength="120" value="{{ plan_fields.location }}" placeholder="Campo / pista / ciudad..." />
+          </label>
+          <label>
             Materiales (opcional)
             <input type="text" name="materials" maxlength="220" value="{{ plan_fields.materials }}" />
           </label>
@@ -494,7 +522,7 @@
                       {% if p.is_goalkeeper %}<span class="meta">· PT</span>{% endif %}
                     </td>
                     <td style="width:170px;">
-                      <select name="attendance_status_{{ p.id }}">
+                      <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
                         {% for value, label in allowed_statuses %}
                           {% if mark %}
                             <option value="{{ value }}" {% if mark.status == value %}selected{% endif %}>{{ label }}</option>
@@ -506,6 +534,12 @@
                     </td>
                     <td style="width:220px;">
                       <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% endif %}" />
+                    </td>
+                    <td style="width:240px;">
+                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
+                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Lesión (tipo)..." value="" style="flex:1;" />
+                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="" title="Alta estimada" style="width:140px;" />
+                      </div>
                     </td>
                   </tr>
                   {% endwith %}
@@ -531,6 +565,24 @@
         const showView = () => { edit.classList.add('view-hidden'); view.classList.remove('view-hidden'); try { view.scrollIntoView({ block:'start' }); } catch (e) {} };
         toEdit.addEventListener('click', showEdit);
         toView.addEventListener('click', showView);
+      })();
+
+      (() => {
+        const rows = Array.from(document.querySelectorAll('tr'));
+        if (!rows.length) return;
+        const toggleRow = (row) => {
+          const sel = row.querySelector('.js-attendance-status');
+          const wrap = row.querySelector('.js-injury-fields');
+          if (!sel || !wrap) return;
+          const isInjured = (sel.value || '') === 'injured';
+          wrap.style.display = isInjured ? 'flex' : 'none';
+        };
+        rows.forEach((row) => {
+          const sel = row.querySelector('.js-attendance-status');
+          if (!sel) return;
+          sel.addEventListener('change', () => toggleRow(row));
+          toggleRow(row);
+        });
       })();
     </script>
   </body>

@@ -405,7 +405,17 @@
 
       <section class="panel">
         <h2>{{ task.title }}</h2>
-        <p class="meta">{{ scope_title }} · {{ task.session.session_date|date:"d/m/Y" }} · {{ task.get_block_display }} · {{ task.duration_minutes }}'</p>
+        <p class="meta">
+          {{ scope_title }}
+          {% if session_context.session_date %}
+            · {{ session_context.session_date|date:"d/m/Y" }}{% if session_context.start_time %} · {{ session_context.start_time|time:"H:i" }}{% endif %}
+            {% if session_context.location %} · {{ session_context.location }}{% endif %}
+            {% if session_context.focus %} · {{ session_context.focus }}{% endif %}
+          {% else %}
+            · {{ task.session.session_date|date:"d/m/Y" }}
+          {% endif %}
+          · {{ task.get_block_display }} · {{ task.duration_minutes }}'
+        </p>
       </section>
 
       {% if is_editable_task %}

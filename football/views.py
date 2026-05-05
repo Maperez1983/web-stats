@@ -22446,6 +22446,7 @@ def _parse_session_plan_fields(raw_content):
         'main': '',
         'cooldown': '',
         'player_count': '',
+        'location': '',
         'materials': '',
         'absences': '',
         'agenda_hidden': '',
@@ -22468,6 +22469,7 @@ def _parse_session_plan_fields(raw_content):
             'main': '',
             'cooldown': '',
             'player_count': '',
+            'location': '',
             'materials': '',
             'absences': '',
             'agenda_hidden': '',
@@ -22485,6 +22487,7 @@ def _parse_session_plan_fields(raw_content):
         'main',
         'cooldown',
         'player_count',
+        'location',
         'materials',
         'absences',
         'agenda_hidden',
@@ -22522,6 +22525,7 @@ def _serialize_session_plan_fields(fields):
         'main',
         'cooldown',
         'player_count',
+        'location',
         'materials',
         'absences',
         'agenda_hidden',
@@ -22770,7 +22774,7 @@ def training_session_detail_page(request, session_id):
 
                 # Campos estructurados (presentación)
                 next_fields = plan_fields.copy()
-                for key in ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'materials', 'absences', 'notes']:
+                for key in ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'location', 'materials', 'absences', 'notes']:
                     next_fields[key] = str(request.POST.get(key) or '').strip()
                 show_in_agenda_raw = str(request.POST.get('show_in_agenda') or '').strip().lower()
                 show_in_agenda = show_in_agenda_raw in {'1', 'true', 'yes', 'on', 'si'}
@@ -22794,20 +22798,19 @@ def training_session_detail_page(request, session_id):
                     if raw_real is None:
                         continue
                     real_minutes = max(1, min(_parse_int(raw_real) or int(getattr(t, 'duration_minutes', 0) or 0) or 15, 180))
-                    if int(getattr(t, 'duration_minutes', 0) or 0) != real_minutes:
-                        t.duration_minutes = real_minutes
-                        t.save(update_fields=['duration_minutes'])
-                        updated_tasks += 1
-                    # Persistencia ligera en meta (no rompe lo existente).
+                    # Persistencia ligera del tiempo real (no pisa el planificado `duration_minutes`).
                     try:
                         if isinstance(t.tactical_layout, dict):
                             layout = dict(t.tactical_layout)
                             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
                             meta = dict(meta)
+                            before = _parse_int(meta.get('real_minutes')) or 0
                             meta['real_minutes'] = real_minutes
                             layout['meta'] = meta
                             t.tactical_layout = layout
                             t.save(update_fields=['tactical_layout'])
+                            if int(before or 0) != int(real_minutes or 0):
+                                updated_tasks += 1
                     except Exception:
                         pass
 
@@ -22841,6 +22844,13 @@ def training_session_detail_page(request, session_id):
                         performed_on_iso = session_obj.session_date.isoformat()
                         performed_prefix = f'{session_obj.session_date:%d/%m/%Y}'
                         for t in list(session_obj.tasks.filter(deleted_at__isnull=True).order_by('order', 'id')):
+                            source_real_minutes = None
+                            try:
+                                if isinstance(getattr(t, 'tactical_layout', None), dict):
+                                    tmeta = t.tactical_layout.get('meta') if isinstance(t.tactical_layout.get('meta'), dict) else {}
+                                    source_real_minutes = _parse_int(tmeta.get('real_minutes'))
+                            except Exception:
+                                source_real_minutes = None
                             cloned = _clone_session_task_to_session(
                                 t,
                                 performed_session,
@@ -22858,7 +22868,8 @@ def training_session_detail_page(request, session_id):
                                     meta['performed_on'] = performed_on_iso
                                     meta['performed_session_id'] = int(session_obj.id)
                                     meta['performed_from_task_id'] = int(t.id)
-                                    meta['real_minutes'] = int(getattr(t, 'duration_minutes', 0) or 0)
+                                    # `duration_minutes` es planificado; el real se guarda en meta.real_minutes.
+                                    meta['real_minutes'] = int(source_real_minutes or int(getattr(t, 'duration_minutes', 0) or 0) or 0)
                                     layout['meta'] = meta
                                     cloned.tactical_layout = layout
                                     cloned.save(update_fields=['title', 'tactical_layout'])
@@ -22899,6 +22910,14 @@ def training_session_detail_page(request, session_id):
                 for p in players:
                     status_key = str(request.POST.get(f'attendance_status_{p.id}') or '').strip()
                     notes = str(request.POST.get(f'attendance_notes_{p.id}') or '').strip()[:180]
+                    injury_text = str(request.POST.get(f'attendance_injury_{p.id}') or '').strip()[:180]
+                    injury_return_raw = str(request.POST.get(f'attendance_injury_return_{p.id}') or '').strip()
+                    injury_return_date = None
+                    if injury_return_raw:
+                        try:
+                            injury_return_date = datetime.strptime(injury_return_raw, '%Y-%m-%d').date()
+                        except Exception:
+                            injury_return_date = None
                     if not status_key:
                         continue
                     if status_key not in allowed_values:
@@ -22922,6 +22941,34 @@ def training_session_detail_page(request, session_id):
                         )
                         marks[int(p.id)] = obj
                         updated += 1
+
+                    # Si se marca "Lesionado", sincroniza con ficha del jugador y crea registro.
+                    if status_key == TrainingSessionAttendance.STATUS_INJURED:
+                        try:
+                            injury_name = injury_text or notes or 'Lesión'
+                            if injury_name:
+                                # Actualiza campos rápidos del jugador.
+                                p.injury = injury_name[:180]
+                                p.injury_date = session_obj.session_date
+                                p.save(update_fields=['injury', 'injury_date'])
+                                # Crea un registro activo si no existe uno igual en la misma fecha.
+                                exists = PlayerInjuryRecord.objects.filter(
+                                    player=p,
+                                    injury_date=session_obj.session_date,
+                                    injury__iexact=injury_name,
+                                    is_active=True,
+                                ).exists()
+                                if not exists:
+                                    PlayerInjuryRecord.objects.create(
+                                        player=p,
+                                        injury=injury_name[:180],
+                                        injury_date=session_obj.session_date,
+                                        estimated_return_date=injury_return_date,
+                                        notes=(notes or '')[:500],
+                                        is_active=True,
+                                    )
+                        except Exception:
+                            pass
                 message = f'Asistencia guardada ({updated}).' if updated else 'Sin cambios en asistencia.'
             except Exception:
                 error = 'No se pudo guardar la asistencia.'
@@ -23087,7 +23134,17 @@ def training_session_detail_page(request, session_id):
 
     task_real_minutes_total = 0
     try:
-        task_real_minutes_total = sum(int((getattr(t, 'duration_minutes', 0) or 0)) for t in tasks)
+        total = 0
+        for t in tasks:
+            real = None
+            try:
+                layout = t.tactical_layout if isinstance(t.tactical_layout, dict) else {}
+                meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                real = _parse_int(meta.get('real_minutes'))
+            except Exception:
+                real = None
+            total += int(real or int(getattr(t, 'duration_minutes', 0) or 0) or 0)
+        task_real_minutes_total = int(total)
     except Exception:
         task_real_minutes_total = task_minutes_total
 
@@ -36407,10 +36464,17 @@ def session_task_detail_page(request, task_id):
     error = ''
     is_editable_task = _is_task_editable(task)
     is_imported_task = _is_imported_task(task)
+    is_performed_task = False
+    try:
+        layout0 = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        meta0 = layout0.get('meta') if isinstance(layout0.get('meta'), dict) else {}
+        is_performed_task = str(meta0.get('source') or '').strip().lower() == 'performed' or bool(str(meta0.get('performed_on') or '').strip())
+    except Exception:
+        is_performed_task = False
 
     # Evita confusión: para tareas editables, "detalle" abre el mismo editor visual que se usa al crear.
     # La ficha legacy queda disponible con ?legacy=1 (útil sobre todo para tareas importadas).
-    if request.method == 'GET' and is_editable_task and not (request.GET.get('legacy') or '').strip():
+    if request.method == 'GET' and is_editable_task and not is_performed_task and not (request.GET.get('legacy') or '').strip():
         return redirect(reverse(_task_builder_edit_route_name(scope_key), args=[task.id]))
 
     if request.method == 'POST':
@@ -36447,6 +36511,43 @@ def session_task_detail_page(request, task_id):
         graphic_editor_state['timeline'] = animation_frames
     if task.task_pdf and not task.task_preview_image:
         _ensure_task_preview_image(task)
+
+    session_context = {}
+    try:
+        session_obj = getattr(task, 'session', None)
+        if session_obj:
+            plan = _parse_session_plan_fields(getattr(session_obj, 'content', '') or '')
+            session_context = {
+                'session_id': int(session_obj.id),
+                'session_date': getattr(session_obj, 'session_date', None),
+                'start_time': getattr(session_obj, 'start_time', None),
+                'focus': str(getattr(session_obj, 'focus', '') or '').strip(),
+                'location': str(plan.get('location') or '').strip(),
+            }
+        # Si es "performed", intentamos resolver la sesión real de origen.
+        if is_performed_task:
+            layoutp = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+            metap = layoutp.get('meta') if isinstance(layoutp.get('meta'), dict) else {}
+            origin_id = _parse_int(metap.get('performed_session_id'))
+            team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+            if origin_id and team:
+                origin = (
+                    TrainingSession.objects
+                    .select_related('microcycle__team')
+                    .filter(id=origin_id, microcycle__team=team)
+                    .first()
+                )
+                if origin:
+                    plan = _parse_session_plan_fields(getattr(origin, 'content', '') or '')
+                    session_context = {
+                        'session_id': int(origin.id),
+                        'session_date': getattr(origin, 'session_date', None),
+                        'start_time': getattr(origin, 'start_time', None),
+                        'focus': str(getattr(origin, 'focus', '') or '').strip(),
+                        'location': str(plan.get('location') or '').strip(),
+                    }
+    except Exception:
+        session_context = {}
 
     related_tasks = []
     try:
@@ -36514,6 +36615,8 @@ def session_task_detail_page(request, task_id):
             'original_preview_url': original_preview_url,
             'is_editable_task': is_editable_task,
             'is_imported_task': is_imported_task,
+            'is_performed_task': is_performed_task,
+            'session_context': session_context,
             'related_tasks': related_tasks,
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated
