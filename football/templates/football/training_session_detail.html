@@ -20,48 +20,69 @@
       .alert.ok { border-color: rgba(34,211,238,0.35); }
       .alert.err { border-color: rgba(239,68,68,0.35); color:#fecaca; }
 
-      /* Vista estilo “PDF Club” (adaptada a web) */
-      .sheet {
-        border: 1px solid rgba(148,163,184,0.25);
-        background: rgba(255,255,255,0.95);
-        color: #0f172a;
-        border-radius: 18px;
-        overflow: hidden;
-        box-shadow: 0 26px 70px rgba(0,0,0,0.35);
-      }
-      .head {
-        background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(99,102,241,0.9));
-        color: #ffffff;
-        padding: 14px 16px;
-      }
-      .badge { display:inline-flex; align-items:center; gap:0.35rem; border:1px solid rgba(255,255,255,0.45); border-radius:999px; padding: 6px 10px; font-weight: 950; letter-spacing:0.12em; text-transform:uppercase; font-size: 10px; background: rgba(0,0,0,0.18); }
-      .head-grid { margin-top: 10px; display:flex; justify-content:space-between; gap: 12px; flex-wrap:wrap; align-items:center; }
-      .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.9; font-weight: 900; }
-      .v { margin-top: 2px; font-size: 16px; font-weight: 950; }
-      .sub { margin-top: 3px; color: rgba(255,255,255,0.88); font-size: 11px; font-weight: 850; }
-      .layout { display:grid; grid-template-columns: 320px 1fr; gap: 12px; padding: 12px; background: #f1f5f9; }
-      @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
-      .panel { border: 1px solid rgba(51,65,85,0.55); border-radius: 14px; overflow: hidden; background: #f8fafc; }
-      .panel-head { background: #e5e7eb; padding: 7px 10px; font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.12em; color:#0f172a; }
-      .panel-body { padding: 10px; line-height: 1.45; white-space: pre-line; }
-      .facts { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      .fact { border: 1px solid rgba(107, 114, 128, 0.7); border-radius: 12px; background: #ffffff; padding: 9px 10px; }
-      .fact .k { font-size: 8.5px; opacity: 1; color:#64748b; }
-      .fact .v { font-size: 12px; margin-top: 3px; font-weight: 900; color:#0f172a; }
-      .tasks { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-      @media (max-width: 980px) { .tasks { grid-template-columns: 1fr; } }
-      .task { border: 1px solid rgba(51,65,85,0.55); border-radius: 14px; overflow:hidden; background:#ffffff; min-height: 190px; }
-      .task-head { background: #0f172a; color:#ffffff; padding: 7px 10px; display:flex; justify-content:space-between; gap: 10px; align-items:baseline; }
-      .task-head strong { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px; }
-      .task-head span { font-size: 10px; opacity: 0.92; font-weight: 850; }
-      .task-body { padding: 9px 10px 10px; }
-      .task-title { font-weight: 950; font-size: 12.5px; margin-bottom: 6px; }
-      .task-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .cell { border: 1px solid #d1d5db; border-radius: 12px; padding: 7px 8px; background: #f8fafc; }
-      .cell .k { font-size: 8px; color:#64748b; opacity: 1; }
-      .cell .val { margin-top: 3px; color: #0f172a; font-size: 10px; line-height: 1.35; font-weight: 800; }
-      .cell-wide { grid-column: 1 / -1; }
-      .footer { display:flex; justify-content:space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid #d1d5db; color:#64748b; font-size: 10px; background:#ffffff; }
+	      /* Vista estilo “PDF Club” (adaptada a web) */
+	      :root {
+	        --club-primary: {{ pdf_palette.primary|default:"#0ea5e9" }};
+	        --club-accent: {{ pdf_palette.accent|default:"#6366f1" }};
+	        --club-muted: {{ pdf_palette.muted|default:"#64748b" }};
+	        --club-border: #d5dde7;
+	        --club-border-soft: #e2e8f0;
+	      }
+	      .sheet {
+	        border: 1px solid rgba(148,163,184,0.25);
+	        background: rgba(255,255,255,0.95);
+	        color: #0f172a;
+	        border-radius: 18px;
+	        overflow: hidden;
+	        box-shadow: 0 26px 70px rgba(0,0,0,0.35);
+	      }
+	      .club-head {
+	        background: linear-gradient(135deg, var(--club-primary), var(--club-accent));
+	        border-bottom: 1px solid #b8c0cc;
+	        color: #ffffff;
+	        padding: 14px 16px;
+	      }
+	      .crest-badge {
+	        width: 62px;
+	        height: 62px;
+	        border-radius: 999px;
+	        background: rgba(255,255,255,0.92);
+	        padding: 4px;
+	        border: 1px solid rgba(255,255,255,0.55);
+	        box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+	        overflow: hidden;
+	        line-height: 0;
+	      }
+	      .crest-badge img { width:100%; height:100%; display:block; object-fit:contain; }
+	      .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--club-muted); font-weight: 900; }
+	      .v { margin-top: 3px; font-size: 12px; font-weight: 800; line-height: 1.35; }
+	      .section-title {
+	        padding: 7px 12px;
+	        font-size: 13px;
+	        font-weight: 900;
+	        text-transform: uppercase;
+	        letter-spacing: 0.05em;
+	        background: var(--club-primary);
+	        color: #ffffff;
+	        border: 1px solid var(--club-primary);
+	        border-bottom: none;
+	      }
+	      .table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+	      .table td, .table th { border: 1px solid var(--club-border); padding: 7px 9px; vertical-align: top; background:#fff; }
+	      .box { border: 1px solid var(--club-border); padding: 12px; background: #ffffff; line-height: 1.55; }
+	      .content { padding: 12px 14px 0; background: #f1f5f9; }
+	      .tasks { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+	      @media (max-width: 980px) { .tasks { grid-template-columns: 1fr; } }
+	      .task { border: 1px solid var(--club-border); border-radius: 14px; overflow:hidden; background:#ffffff; }
+	      .task-head { background: #0f172a; color:#ffffff; padding: 7px 10px; display:flex; justify-content:space-between; gap: 10px; align-items:baseline; }
+	      .task-head strong { text-transform: uppercase; letter-spacing: 0.12em; font-size: 10px; }
+	      .task-head span { font-size: 10px; opacity: 0.92; font-weight: 850; }
+	      .task-body { padding: 9px 10px 10px; }
+	      .task-title { font-weight: 950; font-size: 12.5px; margin-bottom: 6px; }
+	      .task-grid { width:100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
+	      .task-grid td { border: 1px solid var(--club-border-soft); padding: 6px 7px; vertical-align: top; }
+	      .task-grid strong { display:block; margin-bottom: 3px; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--club-primary); font-weight: 900; }
+	      .footer { display:flex; justify-content:space-between; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--club-border); color: var(--club-muted); font-size: 10px; background:#ffffff; }
 
       /* Editor (editable) */
       .edit-card { margin-top: 0.95rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
@@ -71,9 +92,10 @@
       .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:0.65rem; }
       .form-grid .full { grid-column:1/-1; }
       @media (max-width: 720px) { .form-grid { grid-template-columns: 1fr; } }
-      table { width:100%; border-collapse:separate; border-spacing:0 0.4rem; }
-      td { padding: 0.35rem 0.35rem; vertical-align:middle; }
-      .player-cell { font-weight:950; letter-spacing:0.02em; }
+	      /* Tablas SOLO para el formulario de asistencia (editable) */
+	      #session-edit table { width:100%; border-collapse:separate; border-spacing:0 0.4rem; }
+	      #session-edit td { padding: 0.35rem 0.35rem; vertical-align:middle; }
+	      #session-edit .player-cell { font-weight:950; letter-spacing:0.02em; }
       .toggle-row { display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center; }
       .view-hidden { display:none !important; }
     </style>
@@ -98,130 +120,133 @@
       {% if message %}<div class="alert ok">{{ message }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
 
-      <section class="sheet" id="session-view">
-        <div class="head">
-          <div class="badge">Sesión</div>
-          <div class="head-grid">
-            <div>
-              <div class="k">Sesión</div>
-              <div class="v">{{ session.focus }}</div>
-              <div class="sub">{{ team.name|default:"Equipo" }}</div>
-            </div>
-            <div style="text-align:right;">
-              <div class="k">Fecha</div>
-              <div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div>
-              <div class="sub">
-                Microciclo: {{ session.microcycle.title }}
-              </div>
-            </div>
-          </div>
-        </div>
+	      <section class="sheet" id="session-view">
+	        <div class="club-head">
+	          <table style="width:100%; border-collapse:collapse;">
+	            <tr>
+	              <td style="width:74px; vertical-align:top;">
+	                <div class="crest-badge">
+	                  {% if crest_url %}<img src="{{ crest_url }}" alt="Escudo {{ team.name|default:'Equipo' }}" />{% endif %}
+	                </div>
+	              </td>
+	              <td style="vertical-align:top;">
+	                <div style="font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.8;">Planificación de sesión</div>
+	                <div style="margin-top:2px; font-size:9px; letter-spacing:0.18em; text-transform:uppercase; opacity:0.85;">Formato Club</div>
+	                <div style="font-size:25px; font-weight:800; line-height:1.1; margin-top:4px;">{{ session.focus }}</div>
+	                <div style="font-size:11px; margin-top:6px; opacity:0.88;">
+	                  {{ team.name|default:"Equipo" }} · {{ coach_name|default:"Entrenador" }} · {{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}
+	                </div>
+	              </td>
+	              <td style="width:160px; text-align:right; vertical-align:top;">
+	                <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; opacity:0.85; font-weight:900;">{{ session.microcycle.title }}</div>
+	              </td>
+	            </tr>
+	          </table>
+	        </div>
 
-        <div class="layout">
-          <div>
-            <div class="panel" style="margin-bottom:10px;">
-              <div class="panel-head">Datos</div>
-              <div class="panel-body">
-                <div class="facts">
-                  <div class="fact">
-                    <div class="k">Microciclo</div>
-                    <div class="v">{{ session.microcycle.title }}</div>
-                  </div>
-                  <div class="fact">
-                    <div class="k">Intensidad</div>
-                    <div class="v">{{ session.get_intensity_display }}</div>
-                  </div>
-                  <div class="fact">
-                    <div class="k">Duración</div>
-                    <div class="v">{{ session.duration_minutes }} min</div>
-                  </div>
-                  <div class="fact">
-                    <div class="k">Tareas</div>
-                    <div class="v">{{ tasks_count }} · {{ task_minutes_total }}'</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+	        <div class="content">
+	          <div class="section-title">Detalles de la sesión</div>
+	          <table class="table" style="margin-bottom:12px;">
+	            <tr>
+	              <td style="width:18%;">Nombre</td>
+	              <td colspan="3"><div class="v">{{ session.focus }}</div></td>
+	            </tr>
+	            <tr>
+	              <td>Microciclo</td>
+	              <td><div class="v">{{ session.microcycle.title }}</div></td>
+	              <td>Fecha</td>
+	              <td><div class="v">{{ session.session_date|date:"d/m/Y" }}{% if session.start_time %} · {{ session.start_time|time:"H:i" }}{% endif %}</div></td>
+	            </tr>
+	            <tr>
+	              <td>Duración</td>
+	              <td><div class="v">{{ session.duration_minutes }} min</div></td>
+	              <td>Intensidad</td>
+	              <td><div class="v">{{ session.get_intensity_display }}</div></td>
+	            </tr>
+	            <tr>
+	              <td>Estado</td>
+	              <td><div class="v">{{ session.get_status_display }}</div></td>
+	              <td>Tareas</td>
+	              <td><div class="v">{{ tasks_count }} · {{ task_minutes_total }} min totales</div></td>
+	            </tr>
+	          </table>
 
-            <div class="panel" style="margin-bottom:10px;">
-              <div class="panel-head">Contenido / explicación</div>
-              <div class="panel-body">
-                {% if plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ plan_fields.warmup|linebreaksbr }}</p>{% endif %}
-                {% if plan_fields.activation %}<p><strong>Activación:</strong><br />{{ plan_fields.activation|linebreaksbr }}</p>{% endif %}
-                {% if plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ plan_fields.main|linebreaksbr }}</p>{% endif %}
-                {% if plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
-                {% if plan_fields.notes %}<p><strong>Notas:</strong><br />{{ plan_fields.notes|linebreaksbr }}</p>{% endif %}
-                {% if not plan_fields.warmup and not plan_fields.activation and not plan_fields.main and not plan_fields.cooldown and not plan_fields.notes %}
-                  -
-                {% endif %}
-              </div>
-            </div>
+	          <div class="section-title">Contenido / explicación</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if plan_fields.warmup %}<p><strong>Calentamiento:</strong><br />{{ plan_fields.warmup|linebreaksbr }}</p>{% endif %}
+	            {% if plan_fields.activation %}<p><strong>Activación:</strong><br />{{ plan_fields.activation|linebreaksbr }}</p>{% endif %}
+	            {% if plan_fields.main %}<p><strong>Parte principal:</strong><br />{{ plan_fields.main|linebreaksbr }}</p>{% endif %}
+	            {% if plan_fields.cooldown %}<p><strong>Vuelta a la calma:</strong><br />{{ plan_fields.cooldown|linebreaksbr }}</p>{% endif %}
+	            {% if plan_fields.notes %}<p><strong>Notas:</strong><br />{{ plan_fields.notes|linebreaksbr }}</p>{% endif %}
+	            {% if not plan_fields.warmup and not plan_fields.activation and not plan_fields.main and not plan_fields.cooldown and not plan_fields.notes %}
+	              <span style="color:var(--club-muted);">(Sin textos guardados)</span>
+	            {% endif %}
+	          </div>
 
-            <div class="panel" id="asistencia">
-              <div class="panel-head">Asistencia</div>
-              <div class="panel-body">
-                <strong>{{ attendance_summary }}</strong>
-                {% if plan_fields.absences %}
-                  <p style="margin:10px 0 0;"><strong>Incidencias:</strong><br />{{ plan_fields.absences|linebreaksbr }}</p>
-                {% endif %}
-              </div>
-            </div>
-          </div>
+	          <div class="section-title" id="asistencia">Asistencia</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            <strong>{{ attendance_summary }}</strong>
+	            {% if plan_fields.absences %}
+	              <p style="margin:10px 0 0;"><strong>Incidencias:</strong><br />{{ plan_fields.absences|linebreaksbr }}</p>
+	            {% endif %}
+	          </div>
 
-          <div>
-            <div class="panel" style="margin-bottom:10px;">
-              <div class="panel-head">Tareas</div>
-              <div class="panel-body">
-                {% if tasks_by_block %}
-                  <div class="tasks">
-                    {% for block, tasks in tasks_by_block.items %}
-                      {% for t in tasks %}
-                        <div class="task">
-                          <div class="task-head">
-                            <strong>{{ t.get_block_display }}</strong>
-                            <span>{{ t.duration_minutes }}'</span>
-                          </div>
-                          <div class="task-body">
-                            <div class="task-title">{{ t.title }}</div>
-                            <div class="task-grid">
-                              <div class="cell">
-                                <div class="k">Objetivo</div>
-                                <div class="val">{{ t.objective|default:"-" }}</div>
-                              </div>
-                              <div class="cell">
-                                <div class="k">Estado</div>
-                                <div class="val">{{ t.get_status_display }}</div>
-                              </div>
-                              <div class="cell cell-wide">
-                                <div class="k">Consigna / explicación</div>
-                                <div class="val">{{ t.coaching_points|default:"-"|linebreaksbr }}</div>
-                              </div>
-                              <div class="cell cell-wide">
-                                <div class="k">Reglas</div>
-                                <div class="val">{{ t.confrontation_rules|default:"-"|linebreaksbr }}</div>
-                              </div>
-                            </div>
-                            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                              <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{% url 'session-task-detail' t.id %}">Ver tarea</a>
-                            </div>
-                          </div>
-                        </div>
-                      {% endfor %}
-                    {% endfor %}
-                  </div>
-                {% else %}
-                  -
-                {% endif %}
-              </div>
-            </div>
-          </div>
-        </div>
+	          <div class="section-title">Tareas de la sesión</div>
+	          <div class="box" style="border-top:none; padding-top:10px;">
+	            {% if tasks_by_block %}
+	              <div class="tasks">
+	                {% for block, tasks in tasks_by_block.items %}
+	                  {% for t in tasks %}
+	                    <div class="task">
+	                      <div class="task-head">
+	                        <strong>{{ t.get_block_display }}</strong>
+	                        <span>{{ t.duration_minutes }}'</span>
+	                      </div>
+	                      <div class="task-body">
+	                        <div class="task-title">{{ t.title }}</div>
+	                        <table class="task-grid">
+	                          <tr>
+	                            <td style="width:50%;">
+	                              <strong>Objetivo</strong>
+	                              {{ t.objective|default:"-" }}
+	                            </td>
+	                            <td style="width:50%;">
+	                              <strong>Estado</strong>
+	                              {{ t.get_status_display }}
+	                            </td>
+	                          </tr>
+	                          <tr>
+	                            <td colspan="2">
+	                              <strong>Consigna / explicación</strong>
+	                              {{ t.coaching_points|default:"-"|linebreaksbr }}
+	                            </td>
+	                          </tr>
+	                          <tr>
+	                            <td colspan="2">
+	                              <strong>Reglas</strong>
+	                              {{ t.confrontation_rules|default:"-"|linebreaksbr }}
+	                            </td>
+	                          </tr>
+	                        </table>
+	                        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+	                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{% url 'session-task-detail' t.id %}">Ver tarea</a>
+	                        </div>
+	                      </div>
+	                    </div>
+	                  {% endfor %}
+	                {% endfor %}
+	              </div>
+	            {% else %}
+	              <span style="color:var(--club-muted);">No hay tareas guardadas para esta sesión.</span>
+	            {% endif %}
+	          </div>
+	        </div>
 
-        <div class="footer">
-          <div>2J · Sesión</div>
-          <div>{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</div>
-        </div>
-      </section>
+	        <div class="footer">
+	          <div>2J · Sesión</div>
+	          <div>{{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}</div>
+	        </div>
+	      </section>
 
       <section class="edit-card view-hidden" id="session-edit">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.65rem;">
@@ -367,4 +392,3 @@
     </script>
   </body>
 </html>
-
