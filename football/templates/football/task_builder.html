@@ -9779,7 +9779,31 @@
 				        };
 
             try {
-		          if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
+		          // Rendimiento (iPad/Safari): diferimos la inicialización pesada para que la página
+		          // pinte primero y el scroll/inputs respondan desde el inicio.
+		          const scheduleIdle = (fn, timeoutMs = 1400) => {
+		            try {
+		              if (typeof window.requestIdleCallback === 'function') {
+		                return window.requestIdleCallback(fn, { timeout: timeoutMs });
+		              }
+		            } catch (e) { /* ignore */ }
+		            return window.setTimeout(fn, 120);
+		          };
+
+		          try {
+		            const statusEl = document.getElementById('task-builder-status');
+		            if (statusEl && !String(statusEl.textContent || '').trim()) {
+		              statusEl.textContent = 'Cargando editor…';
+		            }
+		          } catch (e) { /* ignore */ }
+
+		          scheduleIdle(() => {
+		            try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
+		            try {
+		              const statusEl = document.getElementById('task-builder-status');
+		              if (statusEl && String(statusEl.textContent || '').trim() === 'Cargando editor…') statusEl.textContent = '';
+		            } catch (e) { /* ignore */ }
+		          }, 1800);
             } catch (e) {
               try {
                 const statusEl = document.getElementById('task-builder-status');
@@ -9787,7 +9811,8 @@
               } catch (err) { /* ignore */ }
               try { window.alert('Error al inicializar la pizarra. Envía una captura del mensaje rojo superior para diagnosticar.'); } catch (err) { /* ignore */ }
             }
-            try { initTaskAssistant(); } catch (e) { /* ignore */ }
+            // El recomendador/asistente es pesado: inicializa en idle para no bloquear la pizarra.
+            scheduleIdle(() => { try { initTaskAssistant(); } catch (e) { /* ignore */ } }, 2400);
 
             // Fallback UX (modo táctica): si el JS principal tarda en cargar o falla,
             // al pulsar “Simulador” al menos mostramos el panel del simulador.
