@@ -3568,6 +3568,47 @@
 	            <a class="button secondary" href="?tab=library&library_repo={{ library_repository }}&library_view=overview&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver todas</a>
 	          </div>
 		        {% endif %}
+
+            {% if library_deleted_tasks %}
+            <details class="box" style="margin-top:1rem;">
+              <summary style="cursor:pointer; font-weight:900;">🗑️ Papelera biblioteca ({{ library_deleted_tasks|length }})</summary>
+              <div style="display:flex; flex-direction:column; gap:0.45rem; margin-top:0.7rem;">
+                {% for trash_task in library_deleted_tasks|slice:":30" %}
+                <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,0.22); border-radius:12px; padding:0.6rem 0.75rem;">
+                  <div class="meta" style="flex:1; min-width:240px;">
+                    <strong>{{ trash_task.title|default:"(sin título)" }}</strong>
+                    · {{ trash_task.get_block_display }}
+                    · {{ trash_task.duration_minutes }}'
+                    {% if trash_task.deleted_at %}· {{ trash_task.deleted_at|date:"d/m H:i" }}{% endif %}
+                  </div>
+                  <form method="post" style="margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="restore_library_task" />
+                    <input type="hidden" name="planner_tab" value="library" />
+                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                    <button type="submit" class="secondary">Restaurar</button>
+                  </form>
+                  <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="purge_library_task" />
+                    <input type="hidden" name="planner_tab" value="library" />
+                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
+                    <button type="submit" class="danger">Eliminar definitivo</button>
+                  </form>
+                </div>
+                {% endfor %}
+                {% if library_deleted_tasks|length|add:0 > 30 %}
+                <div class="meta">Mostrando 30 de {{ library_deleted_tasks|length }}. Ajusta filtros (Creadas/Importadas/Realizadas) para encontrar más.</div>
+                {% endif %}
+              </div>
+            </details>
+            {% endif %}
 	      </section>
       </div>
 
