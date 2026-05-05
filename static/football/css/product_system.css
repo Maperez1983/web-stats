@@ -1,5 +1,6 @@
 /* 2J Brand System v2 */
 :root {
+  color-scheme: dark;
   /* Font stack (system-first): evita fallos de `collectstatic` por fonts no incluidas. */
   --prod-font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --prod-font-display: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -47,6 +48,7 @@
 
 /* Light theme (optional): activado con <html data-theme="light">. */
 :root[data-theme="light"] {
+  color-scheme: light;
   --prod-bg: #f4f7fb;
   --prod-bg-soft: #edf2f8;
   --prod-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.96));
