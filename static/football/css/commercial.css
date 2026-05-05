@@ -20,6 +20,9 @@ body.prod-commercial {
 
   color: var(--ink);
   font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+  /* Base weight: evitamos que toda la UI parezca "negrita" en iPad.
+     Las jerarquías (títulos/botones/badges) se controlan con reglas específicas más abajo. */
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: geometricPrecision;
@@ -237,6 +240,16 @@ body.prod-commercial :where(h3) {
 
 body.prod-commercial :where(p) {
   line-height: 1.45;
+}
+
+/* Texto normal: mantener lectura ligera.
+   Nota: muchos templates antiguos usan <strong> incluso para textos de apoyo; limitamos su impacto. */
+body.prod-commercial :where(p, li, span, a, label, input, select, textarea) {
+  font-weight: 500;
+}
+body.prod-commercial strong,
+body.prod-commercial b {
+  font-weight: 800;
 }
 
 /* Espaciado “default” alrededor de bloques frecuentes. */
