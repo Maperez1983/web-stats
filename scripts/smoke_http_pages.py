@@ -36,6 +36,11 @@ def _pick_team_id() -> int:
     team = Team.objects.filter(is_primary=True).order_by("id").first() or Team.objects.order_by("id").first()
     return int(getattr(team, "id", 0) or 0)
 
+def _pick_workspace():
+    from football.models import Workspace  # noqa: WPS433
+
+    return Workspace.objects.order_by("id").first()
+
 
 def _pick_user():
     from django.contrib.auth import get_user_model  # noqa: WPS433
@@ -48,6 +53,7 @@ def _urls(team_id: int) -> list[str]:
     qs = urlencode({"team": team_id})
     return [
         "/",
+        f"/coach/agenda/?{qs}",
         f"/coach/sesiones/?{qs}",
         f"/coach/sesiones/?{qs}&tab=sessions",
         f"/coach/sesiones/?{qs}&tab=library&library_view=overview",
@@ -66,7 +72,8 @@ def main() -> int:
     _setup_django()
     from django.test import Client  # noqa: WPS433
 
-    team_id = _pick_team_id()
+    ws = _pick_workspace()
+    team_id = int(getattr(getattr(ws, "primary_team", None), "id", 0) or 0) if ws else _pick_team_id()
     user = _pick_user()
     if not user:
         print("[smoke] FAIL: no hay usuarios en la base de datos", file=sys.stderr)
@@ -77,6 +84,15 @@ def main() -> int:
 
     client = Client()
     client.force_login(user)
+    # Algunos módulos dependen de workspace/team activo en sesión.
+    try:
+        sess = client.session
+        if ws and getattr(ws, "id", None):
+            sess["active_workspace_id"] = int(ws.id)
+            sess["active_team_by_workspace"] = {str(int(ws.id)): int(team_id)}
+        sess.save()
+    except Exception:
+        pass
     failed: list[tuple[str, int]] = []
     for url in _urls(team_id):
         try:
@@ -90,6 +106,28 @@ def main() -> int:
         print(f"[smoke] {status} {url}")
         if not ok:
             failed.append((url, status))
+
+    # Smoke extra: ficha de la última sesión (si existe).
+    try:
+        from football.models import TrainingSession  # noqa: WPS433
+
+        session = (
+            TrainingSession.objects
+            .filter(microcycle__team_id=int(team_id))
+            .order_by("-session_date", "-id")
+            .first()
+        )
+        if session and getattr(session, "id", None):
+            url = f"/coach/sesiones/sesion/{int(session.id)}/?team={int(team_id)}"
+            resp = client.get(url)
+            status = int(getattr(resp, "status_code", 0) or 0)
+            ok = status < 500
+            print(f"[smoke] {status} {url}")
+            if not ok:
+                failed.append((url, status))
+    except Exception as exc:  # pragma: no cover
+        print(f"[smoke] EXC /coach/sesiones/sesion/<id>: {exc}", file=sys.stderr)
+        failed.append(("/coach/sesiones/sesion/<id>", 599))
 
     if failed:
         print("[smoke] FAIL (500+):", file=sys.stderr)

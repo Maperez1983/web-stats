@@ -22586,11 +22586,27 @@ def training_session_detail_page(request, session_id):
     if not session_obj:
         raise Http404('Sesión no encontrada')
 
+    def _player_is_goalkeeper(player) -> bool:
+        pos = str(getattr(player, 'position', '') or '').strip().lower()
+        if not pos:
+            return False
+        if pos in {'por', 'pt', 'gk', 'goalkeeper', 'portero'}:
+            return True
+        # Casos típicos: "POR - ...", "Portero (1)", "PT"
+        if pos.startswith('por') or pos.startswith('pt') or 'portero' in pos:
+            return True
+        return False
+
     players = list(
         Player.objects
         .filter(team=primary_team, is_active=True)
-        .order_by('is_goalkeeper', 'name', 'id')
+        .order_by('name', 'id')
     )
+    try:
+        players.sort(key=lambda p: (0 if _player_is_goalkeeper(p) else 1, str(getattr(p, 'name', '') or '').lower(), int(getattr(p, 'id', 0) or 0)))
+    except Exception:
+        # Fallback: si algo raro falla, mantenemos el orden por nombre.
+        pass
     marks = {
         int(m.player_id): m
         for m in TrainingSessionAttendance.objects.filter(session=session_obj, player__team=primary_team)
