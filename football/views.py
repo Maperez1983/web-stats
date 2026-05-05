@@ -22619,8 +22619,8 @@ def training_session_detail_page(request, session_id):
     # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
-    message = ''
-    error = ''
+    message = str(request.GET.get('msg') or '').strip()[:220]
+    error = str(request.GET.get('err') or '').strip()[:220]
     if request.method == 'POST':
         action = str(request.POST.get('action') or 'save').strip().lower()
         if action == 'save':
@@ -30089,6 +30089,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'restore_session_task',
             'purge_session_task',
             'delete_imported_session_doc',
+            'bulk_copy_library_tasks_to_session',
         }:
             return 'library', 'sessions'
         if action_key in {'create_task_collection', 'delete_task_collection', 'add_task_to_collection', 'remove_task_from_collection'}:
@@ -30896,9 +30897,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 else:
                     try:
                         detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                        import urllib.parse  # noqa: WPS433
                         params = [f'team={int(primary_team.id)}']
                         if active_workspace_id:
                             params.append(f'workspace={int(active_workspace_id)}')
+                        if attached_count:
+                            params.append('msg=' + urllib.parse.quote(f'Tareas añadidas: {int(attached_count)}'))
+                        else:
+                            params.append('msg=' + urllib.parse.quote(f'Sesión creada: {focus}.'))
                         return redirect(detail_url + ('?' + '&'.join(params) if params else ''))
                     except Exception:
                         auto_selected_session_id = int(session_obj.id)
@@ -32575,9 +32581,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             except Exception:
                 return redirect(base_url)
     elif request.method == 'GET':
-        # Compat: antes existía `_normalize_tab` (solo sub-tabs). Ahora usamos `_normalize_nav`
-        # para pestañas principales + subtabs (biblioteca/sesiones/microciclos).
-        main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
+        # Compat: si el GET trae `tab=...`, normaliza. Si no trae tab, respeta la selección previa
+        # (p.ej. `session_id` sin tab debe aterrizar en Sesiones).
+        if str(request.GET.get('tab') or '').strip():
+            main_tab, active_tab = _normalize_nav(request.GET.get('tab') or '')
 
     all_sessions = list(
         TrainingSession.objects
@@ -33257,8 +33264,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
     sessions_view = str(request.GET.get('sessions_view') or request.POST.get('sessions_view') or '').strip().lower()
     if sessions_view not in {'library', 'editor'}:
-        # Default: biblioteca (vista limpia). El editor solo se abre si el usuario lo pide explícitamente.
-        sessions_view = 'library'
+        # Default: editor (la mayoría de flujos entran aquí con `session_id`).
+        sessions_view = 'editor'
 
     session_library_rows = []
     try:
