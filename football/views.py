@@ -4520,6 +4520,19 @@ def _get_active_team_for_request(request):
       en sesión sin afectar al equipo "principal" del cliente.
     """
     workspace = _get_active_workspace(request)
+
+    # UX (web/app): si ya hay un Team fijado en sesión y no hay workspace club activo,
+    # úsalo como equipo activo (evita 404/redirects al navegar por enlaces sin `?team=`).
+    if not workspace and request and hasattr(request, 'session') and getattr(request, 'user', None) and request.user.is_authenticated:
+        try:
+            remembered_team_id = _parse_int(request.session.get('active_team_id'))
+        except Exception:
+            remembered_team_id = None
+        if remembered_team_id:
+            remembered_team = Team.objects.filter(id=int(remembered_team_id)).first()
+            if remembered_team and _user_can_access_team(request, remembered_team):
+                return remembered_team
+
     if workspace and workspace.kind == Workspace.KIND_CLUB:
         links = _workspace_team_links_for_user(workspace, request.user)
         team_lookup = {int(link.team_id): link.team for link in links if getattr(link, 'team_id', None)}
@@ -4667,7 +4680,15 @@ def _get_active_team_for_request(request):
 
 
 def _get_primary_team_for_request(request):
-    return _get_active_team_for_request(request)
+    team = _get_active_team_for_request(request)
+    if team:
+        return team
+    # Robustez: acepta `?team=<id>` incluso si el usuario es plataforma o el contexto
+    # del workspace no está fijado (evita 404/500 al navegar por enlaces sueltos).
+    try:
+        return _team_from_request_param(request)
+    except Exception:
+        return None
 
 
 def _get_player_team_for_request(request):
@@ -19016,6 +19037,7 @@ def match_staff_report_page(request):
         return HttpResponse('No tienes acceso a este partido.', status=403)
 
     context = _match_staff_report_context(request, match=match, primary_team=primary_team)
+    import urllib.parse  # noqa: WPS433
     qs = []
     if request.GET.get('team'):
         qs.append('team=' + urllib.parse.quote(str(request.GET.get('team'))))
