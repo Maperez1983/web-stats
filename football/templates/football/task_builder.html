@@ -4900,7 +4900,13 @@
 		                </div>
 		              </div>
 		              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
-		              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+			              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+                    {% if not tactics_mode %}
+                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
+                      <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
+                      <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
+                    </div>
+                    {% endif %}
 		              <div class="simple-hint" id="task-simple-hint" hidden>
 		                <strong>Guía rápida:</strong>
 		                {% if tactics_mode %}
@@ -4978,17 +4984,20 @@
                   <h3>Base de la tarea</h3>
                   <div class="compact-grid">
                   {% if show_session_selector|default:True %}
-                  <label>
-                    Sesión
-                    <select name="draw_target_session_id" id="draw-target-session">
-                      <option value="">Biblioteca del área</option>
-                      {% for session in all_sessions %}
-                      <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:'s' %}selected{% endif %}>
-                        {{ session.session_date|date:"d/m/Y" }} · {{ session.focus|default:"Sesión" }}
-                      </option>
-                      {% endfor %}
-                    </select>
-                  </label>
+	                  <label>
+	                    Guardar en
+	                    <select name="draw_target_session_id" id="draw-target-session">
+	                      <option value="">Biblioteca (sin sesión)</option>
+	                      {% for session in all_sessions %}
+	                      <option value="{{ session.id }}" {% if initial.target_session_id == session.id|stringformat:'s' %}selected{% endif %}>
+	                        {{ session.session_date|date:"d/m/Y" }} · {{ session.focus|default:"Sesión" }}
+	                      </option>
+	                      {% endfor %}
+	                    </select>
+                      <small class="meta" style="display:block; margin-top:0.25rem;">
+                        Si eliges una sesión, al guardar la tarea quedará añadida automáticamente a ese entreno.
+                      </small>
+	                  </label>
                   {% else %}
                   <label>
                     Repositorio
@@ -5753,11 +5762,40 @@
 	            const isCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 	            if (isCoarse) initialDevice = 'tablet';
 	          } catch (e) { /* ignore */ }
-	        }
-	        applyDevice(initialDevice);
+		        }
+		        applyDevice(initialDevice);
 
-		        // Tutorial rápido (nuevos usuarios).
-		        try {
+            // UX: "Añadir a sesión" visible (muchos usuarios no encuentran el selector dentro de la ficha lateral).
+            try {
+              const openBtn = document.getElementById('task-destination-open');
+              const currentEl = document.getElementById('task-destination-current');
+              const select = document.getElementById('draw-target-session');
+              const showDestination = () => {
+                if (!currentEl) return;
+                if (!select) {
+                  currentEl.textContent = '';
+                  return;
+                }
+                const opt = select.options[select.selectedIndex];
+                const txt = (opt && opt.textContent) ? String(opt.textContent).trim() : '';
+                currentEl.textContent = select.value ? `Destino: ${txt}` : 'Destino: Biblioteca';
+              };
+              showDestination();
+              if (select) select.addEventListener('change', showDestination);
+              if (openBtn) {
+                openBtn.addEventListener('click', () => {
+                  const fichaTab = document.querySelector('.side-tab[data-pane=\"ficha\"]');
+                  if (fichaTab) fichaTab.click();
+                  if (select) {
+                    select.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    select.focus();
+                  }
+                });
+              }
+            } catch (e) {}
+
+			        // Tutorial rápido (nuevos usuarios).
+			        try {
 		          const tour = window.WebstatsTour;
 		          const tourId = 'task_builder_v1';
               const isTacticsMode = {% if tactics_mode %}true{% else %}false{% endif %};
