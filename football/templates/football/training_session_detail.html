@@ -109,13 +109,14 @@
             {{ session.session_date|date:"d/m/Y" }} · {{ session.focus }}
           </div>
         </div>
-        <div class="toggle-row">
-          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
-          <a class="btn secondary" href="{{ planner_url }}">Planificador</a>
-          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
-          <button type="button" class="btn primary" id="toggle-edit">✏️ Editar</button>
-        </div>
-      </div>
+	        <div class="toggle-row">
+	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
+	          <a class="btn secondary" href="{{ planner_url }}">Planificador</a>
+	          <a class="btn secondary" href="{{ planner_url }}#planner-blocks" title="Abrir planificador y bajar a tareas" aria-label="Añadir tareas">➕ Tareas</a>
+	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
+	          <button type="button" class="btn primary" id="toggle-edit">✏️ Editar</button>
+	        </div>
+	      </div>
 
       {% if message %}<div class="alert ok">{{ message }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
@@ -191,9 +192,12 @@
 	            {% endif %}
 	          </div>
 
-	          <div class="section-title">Tareas de la sesión</div>
-	          <div class="box" style="border-top:none; padding-top:10px;">
-	            {% if tasks_by_block %}
+		          <div class="section-title" style="display:flex; align-items:center; justify-content:space-between; gap:0.65rem; flex-wrap:wrap;">
+                <span>Tareas de la sesión</span>
+                <a class="btn secondary" href="{{ planner_url }}#planner-blocks">➕ Añadir tareas</a>
+              </div>
+		          <div class="box" style="border-top:none; padding-top:10px;">
+		            {% if tasks_by_block %}
 	              <div class="tasks">
 	                {% for block, tasks in tasks_by_block.items %}
 	                  {% for t in tasks %}
@@ -236,10 +240,13 @@
 	                  {% endfor %}
 	                {% endfor %}
 	              </div>
-	            {% else %}
-	              <span style="color:var(--club-muted);">No hay tareas guardadas para esta sesión.</span>
-	            {% endif %}
-	          </div>
+		            {% else %}
+		              <span style="color:var(--club-muted);">No hay tareas guardadas para esta sesión.</span>
+                  <div style="margin-top:10px;">
+                    <a class="btn secondary" href="{{ planner_url }}#planner-blocks">➕ Añadir tareas desde Biblioteca</a>
+                  </div>
+		            {% endif %}
+		          </div>
 	        </div>
 
 	        <div class="footer">
