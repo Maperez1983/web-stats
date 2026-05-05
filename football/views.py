@@ -1517,6 +1517,23 @@ def _is_library_session(session):
         return False
 
 
+def _exclude_library_sessions_qs(qs):
+    """
+    Las sesiones de Biblioteca (repositorio) son internas.
+    Si aparecen en selectores o como sesión por defecto, el usuario puede
+    editarlas por error y las tareas "desaparecen" de la Biblioteca.
+    """
+    try:
+        return qs.exclude(
+            Q(microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+            | Q(microcycle__notes__icontains='microciclo tecnico generado automaticamente para biblioteca')
+            | Q(microcycle__objective__iexact='Repositorio de tareas en pdf')
+            | Q(microcycle__title__istartswith='Biblioteca ')
+        )
+    except Exception:
+        return qs
+
+
 LIBRARY_REPOSITORY_TRADITIONAL = 'traditional'
 LIBRARY_REPOSITORY_INTERACTIVE = 'interactive'
 LIBRARY_REPOSITORY_CHOICES = {LIBRARY_REPOSITORY_TRADITIONAL, LIBRARY_REPOSITORY_INTERACTIVE}
@@ -31964,6 +31981,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 if not target_session:
                     raise ValueError('Sesión destino no válida.')
+                if _is_library_session(target_session):
+                    raise ValueError('No puedes copiar tareas a la Biblioteca. Elige una sesión real del microciclo.')
 
                 # Mantener el repo consistente con el tab actual (para evitar que “desaparezca” tras asignar).
                 repo_for_copy = _normalize_library_repository(
@@ -32075,6 +32094,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         if created_count != 1
                         else f'Tarea copiada a sesión: {last_title}.'
                     )
+                    feedback += ' (Las originales siguen en Biblioteca.)'
                     if skipped_count:
                         feedback += f' ({skipped_count} ya estaban o no eran válidas.)'
                 else:
@@ -32102,6 +32122,8 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 if not source_task or not target_session:
                     raise ValueError('No se pudo copiar: tarea origen o sesión destino no válidas.')
+                if _is_library_session(target_session):
+                    raise ValueError('No puedes copiar tareas a la Biblioteca. Elige una sesión real del microciclo.')
                 if _task_scope_for_item(source_task) != scope_key:
                     raise ValueError('La tarea origen no pertenece a este espacio.')
 
@@ -32224,6 +32246,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     except Exception:
                         pass
                     feedback = (f'Tarea asignada a sesión: {copied.title}.' if replace_existing else f'Tarea copiada a sesión: {copied.title}.')
+                    feedback += ' (La original sigue en Biblioteca.)'
                     # Mantener la sesión seleccionada tras asignar (si no se envía `selected_session_id`
                     # el planner puede cambiar a "la próxima sesión" y parece que no se ha asignado).
                     active_tab = 'sessions'
@@ -33138,6 +33161,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
         TrainingSession.objects
         .select_related('microcycle')
         .filter(microcycle__team=primary_team)
+        .exclude(
+            Q(microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+            | Q(microcycle__notes__icontains='microciclo tecnico generado automaticamente para biblioteca')
+            | Q(microcycle__objective__iexact='Repositorio de tareas en pdf')
+            | Q(microcycle__title__istartswith='Biblioteca ')
+        )
         .order_by('-session_date', '-id')[:150]
     ) if planner_tables_ready else []
 
@@ -33413,6 +33442,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .filter(microcycle__team=primary_team)
             .order_by('-microcycle__week_start', 'session_date', 'start_time', 'order', 'id')
         )
+        planning_session_qs = _exclude_library_sessions_qs(planning_session_qs)
         planning_sessions = list(planning_session_qs[:220])
         if inbox_microcycle:
             standalone_sessions = [
@@ -33437,6 +33467,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             .select_related('microcycle')
             .filter(microcycle__team=primary_team)
         )
+        session_qs = _exclude_library_sessions_qs(session_qs)
         if selected_session_id:
             selected_session = session_qs.filter(id=selected_session_id).first()
         if not selected_session:
