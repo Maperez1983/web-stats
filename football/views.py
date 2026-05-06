@@ -16155,15 +16155,52 @@ def coach_overview_page(request):
     elif isinstance(next_match, dict):
         next_match_date = str(next_match.get('date') or '').strip()
     hero_image_url = ''
+    hero_image_data_uri = ''
     if primary_team and getattr(primary_team, 'cover_image', None):
         try:
             updated_at = getattr(primary_team, 'cover_updated_at', None)
             version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
             hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
+            cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
+            cached_data_uri = None
+            try:
+                cached_data_uri = cache.get(cache_key)
+            except Exception:
+                cached_data_uri = None
+            if isinstance(cached_data_uri, str) and cached_data_uri.startswith('data:image/'):
+                hero_image_data_uri = cached_data_uri
+            else:
+                cover_field = getattr(primary_team, 'cover_image', None)
+                raw = b''
+                try:
+                    cover_field.open('rb')
+                    raw = cover_field.read() or b''
+                except Exception:
+                    raw = b''
+                try:
+                    cover_field.close()
+                except Exception:
+                    pass
+                if raw:
+                    ext = Path(getattr(cover_field, 'name', '') or '').suffix.lower()
+                    mime = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp'}.get(ext, 'image/jpeg')
+                    hero_image_data_uri = _image_bytes_as_small_data_uri(
+                        raw_bytes=raw,
+                        mime_type=mime,
+                        max_width=1600,
+                        max_height=900,
+                        quality=70,
+                    ) or ''
+                if hero_image_data_uri:
+                    try:
+                        cache.set(cache_key, hero_image_data_uri, timeout=60 * 60 * 24)
+                    except Exception:
+                        pass
         except Exception:
             hero_image_url = ''
     if not hero_image_url:
-        hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        active_hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
+        hero_items = active_hero_items or list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
         if hero_items and getattr(hero_items[0], 'image', None):
             try:
                 item = hero_items[0]
@@ -16265,6 +16302,7 @@ def coach_overview_page(request):
             'staff_extra_count': staff_extra_count,
             'rival_summary': rival_summary,
             'hero_image_url': hero_image_url,
+            'hero_image_data_uri': hero_image_data_uri,
             'team_display_name': team_display_name,
             'team_crest_url': team_crest_url,
             'primary_team_id': int(getattr(primary_team, 'id', 0) or 0) or None,
@@ -38816,6 +38854,12 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
     video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
     if not video:
         raise Http404('Vídeo no disponible')
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and getattr(video, 'source_url', '')
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(getattr(video, 'source_url', '') or '') if is_youtube else ''
     clips = list(
         VideoClip.objects
         .filter(team=primary_team, video_id=int(video_id), id__in=clip_ids)
@@ -38823,6 +38867,16 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
     )
     items = []
     for c in clips:
+        embed_url = ''
+        if yt_id:
+            start_s = int(max(0, float(c.in_seconds)))
+            end_s = int(max(0, float(c.out_seconds)))
+            embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+            if start_s:
+                embed_url += f'&start={start_s}'
+            if end_s and end_s > start_s:
+                embed_url += f'&end={end_s}'
+            embed_url += '&autoplay=1'
         items.append(
             {
                 'id': int(c.id),
@@ -38832,11 +38886,12 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
                 'out_s': float(c.out_seconds),
                 'tags': c.tags if isinstance(c.tags, list) else [],
                 'notes': str(c.notes or '').strip(),
+                'embed_url': embed_url,
             }
         )
     return render(
         request,
-        'football/analysis_video_playlist_view.html',
+        'football/analysis_video_playlist_view_youtube.html' if is_youtube else 'football/analysis_video_playlist_view.html',
         {
             'team': primary_team,
             'video': video,
@@ -38844,6 +38899,7 @@ def analysis_video_inbox_playlist_view_page(request, item_id):
             'inbox_item': item,
             'thread_key': thread_key,
             'comments_api_url': reverse('analysis-video-inbox-comments-api'),
+            'youtube_id': yt_id,
         },
     )
 

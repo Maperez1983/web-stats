@@ -41,7 +41,7 @@
         overflow: hidden;
         background:
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/cover no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/cover no-repeat;
         position: relative;
       }
       .hero::before {
@@ -167,7 +167,7 @@
         min-height: 280px;
         background:
           linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
-          url('{% if hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/cover no-repeat;
+          url('{% if hero_image_data_uri %}{{ hero_image_data_uri }}{% elif hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/cover no-repeat;
         display: flex;
         align-items: end;
       }
