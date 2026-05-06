@@ -106,6 +106,46 @@
         color: var(--ink);
         padding: 0.65rem 0.7rem;
       }
+      input[type="color"]{
+        padding: 0.25rem;
+        height: 46px;
+        cursor: pointer;
+      }
+      .brand-preview {
+        margin-top: 0.65rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.14);
+        overflow: hidden;
+      }
+      .brand-preview-head {
+        padding: 0.75rem 0.85rem;
+        color: rgba(15, 23, 42, 0.92);
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .brand-preview-body {
+        padding: 0.75rem 0.85rem;
+        background: rgba(2,6,23,0.25);
+        color: rgba(226,232,240,0.9);
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .chip {
+        display:inline-flex;
+        align-items:center;
+        gap:0.35rem;
+        border-radius:999px;
+        padding:0.25rem 0.6rem;
+        border:1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        font-size:0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
       .actions {
         margin-top: 1rem;
         display: flex;
@@ -357,6 +397,53 @@
             <button class="btn btn-ghost" type="submit" name="action" value="import_roster">Importar plantilla</button>
             <button class="btn btn-ghost" type="submit" name="action" value="seed_demo">Cargar datos demo</button>
             <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Volver a Home</a>
+          </div>
+        </form>
+
+        <div class="notice" style="margin-top:1rem;">
+          <strong>Identidad corporativa:</strong> define colores del sistema para el equipo activo (Home, Partido, Entreno, etc.).
+        </div>
+        <form method="post" style="margin-top:0.8rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="brand_theme" />
+          <div class="grid">
+            <div>
+              <label for="id_theme_primary">Color primario</label>
+              <input id="id_theme_primary" type="color" name="theme_primary" value="{{ theme_form.primary|default:'#2f7d32' }}" />
+            </div>
+            <div>
+              <label for="id_theme_secondary">Color secundario</label>
+              <input id="id_theme_secondary" type="color" name="theme_secondary" value="{{ theme_form.secondary|default:'#f4b400' }}" />
+            </div>
+            <div>
+              <label for="id_theme_bg">Fondo</label>
+              <input id="id_theme_bg" type="color" name="theme_bg" value="{{ theme_form.bg|default:'#08111d' }}" />
+            </div>
+            <div>
+              <label for="id_theme_text">Texto</label>
+              <input id="id_theme_text" type="color" name="theme_text" value="{{ theme_form.text|default:'#f5f7fa' }}" />
+            </div>
+            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+              <label><input type="checkbox" name="theme_use_as_default" /> Usar también como default del club (para otros equipos)</label>
+            </div>
+          </div>
+
+          <div class="brand-preview">
+            <div
+              class="brand-preview-head"
+              style="background: linear-gradient(135deg, {{ theme_form.secondary|default:'#f4b400' }}, {{ theme_form.primary|default:'#2f7d32' }});"
+            >Previsualización</div>
+            <div class="brand-preview-body">
+              <span class="chip">Primario <code style="margin-left:0.25rem;">{{ theme_form.primary|default:'#2f7d32' }}</code></span>
+              <span class="chip">Sec <code style="margin-left:0.25rem;">{{ theme_form.secondary|default:'#f4b400' }}</code></span>
+              <span class="chip">Fondo <code style="margin-left:0.25rem;">{{ theme_form.bg|default:'#08111d' }}</code></span>
+              <span class="chip">Texto <code style="margin-left:0.25rem;">{{ theme_form.text|default:'#f5f7fa' }}</code></span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Guardar identidad</button>
+            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
 

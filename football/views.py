@@ -10810,6 +10810,25 @@ def club_onboarding_page(request):
     success = ''
     universo_candidates = []
     auto_notice_parts = []
+    theme_form = {
+        'primary': '#2f7d32',
+        'secondary': '#f4b400',
+        'bg': '#08111d',
+        'text': '#f5f7fa',
+    }
+    try:
+        if workspace and primary_team:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
+            raw = pref.value if pref and isinstance(pref.value, dict) else {}
+            default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+            teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
+            override = teams.get(str(int(primary_team.id))) if isinstance(teams.get(str(int(primary_team.id))), dict) else {}
+            theme_form['primary'] = str(override.get('primary') or default.get('primary') or theme_form['primary']).strip() or theme_form['primary']
+            theme_form['secondary'] = str(override.get('secondary') or default.get('secondary') or theme_form['secondary']).strip() or theme_form['secondary']
+            theme_form['bg'] = str(override.get('bg') or default.get('bg') or theme_form['bg']).strip() or theme_form['bg']
+            theme_form['text'] = str(override.get('text') or default.get('text') or theme_form['text']).strip() or theme_form['text']
+    except Exception:
+        pass
     form = {
         'workspace_name': str(getattr(workspace, 'name', '') or '').strip() if workspace else '',
         'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else (str(getattr(workspace, 'name', '') or '').strip() if workspace else ''),
@@ -10821,6 +10840,95 @@ def club_onboarding_page(request):
     }
     if request.method == 'POST':
         action = str(request.POST.get('action') or 'save_and_sync').strip().lower()
+        if action == 'brand_theme':
+            try:
+                if not workspace or not primary_team:
+                    raise ValueError('Primero crea el club y selecciona un equipo.')
+
+                def _clean_hex(value, fallback):
+                    raw = str(value or '').strip()
+                    if not raw:
+                        return fallback
+                    if raw.startswith('#') and len(raw) == 7:
+                        return raw.lower()
+                    return fallback
+
+                primary = _clean_hex(request.POST.get('theme_primary'), theme_form.get('primary') or '#2f7d32')
+                secondary = _clean_hex(request.POST.get('theme_secondary'), theme_form.get('secondary') or '#f4b400')
+                bg = _clean_hex(request.POST.get('theme_bg'), theme_form.get('bg') or '#08111d')
+                text = _clean_hex(request.POST.get('theme_text'), theme_form.get('text') or '#f5f7fa')
+                use_as_default = str(request.POST.get('theme_use_as_default') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+
+                pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
+                raw = pref.value if pref and isinstance(pref.value, dict) else {}
+                raw = dict(raw) if isinstance(raw, dict) else {}
+                default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+                teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
+                default = dict(default)
+                teams = dict(teams)
+                if use_as_default:
+                    default.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text})
+                teams[str(int(primary_team.id))] = {'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text}
+                raw['default'] = default
+                raw['teams'] = teams
+                WorkspacePreference.objects.update_or_create(
+                    workspace=workspace,
+                    key='brand_theme:v1',
+                    defaults={'value': raw},
+                )
+                theme_form.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text})
+                success = 'Identidad corporativa guardada.'
+            except Exception as exc:
+                error = str(exc) or 'No se pudo guardar el tema.'
+
+            # Render normal (sin tocar configuración de competición).
+            if workspace and primary_team and not competition_context:
+                competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+            setup_checklist = []
+            setup_progress = {'required_total': 0, 'required_done': 0}
+            try:
+                if workspace and primary_team:
+                    active_match = None
+                    try:
+                        active_match = get_active_match(primary_team)
+                    except Exception:
+                        active_match = None
+                    convocation_record = None
+                    try:
+                        convocation_record = get_current_convocation_record(primary_team)
+                    except Exception:
+                        convocation_record = None
+                    setup_checklist = _build_team_setup_checklist(
+                        request,
+                        workspace,
+                        primary_team,
+                        match=active_match,
+                        convocation_record=convocation_record,
+                    )
+                    if isinstance(setup_checklist, list) and setup_checklist:
+                        required_items = [item for item in setup_checklist if bool(item.get('required'))]
+                        setup_progress['required_total'] = len(required_items)
+                        setup_progress['required_done'] = len([item for item in required_items if bool(item.get('ok'))])
+            except Exception:
+                setup_checklist = []
+            return render(
+                request,
+                'football/club_onboarding.html',
+                {
+                    'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
+                    'competition_context': competition_context,
+                    'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
+                    'universo_candidates': universo_candidates,
+                    'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
+                    'form': form,
+                    'theme_form': theme_form,
+                    'setup_checklist': setup_checklist or [],
+                    'setup_progress': setup_progress,
+                    'error': error,
+                    'success': success,
+                },
+                status=200,
+            )
         workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
         team_name = _sanitize_task_text((request.POST.get('team_name') or '').strip(), multiline=False, max_len=150)
         preferente_url = str(request.POST.get('preferente_url') or '').strip()[:600]
@@ -11308,6 +11416,7 @@ def club_onboarding_page(request):
             'universo_candidates': universo_candidates,
             'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
             'form': form,
+            'theme_form': theme_form,
             'setup_checklist': setup_checklist or [],
             'setup_progress': setup_progress,
             'error': error,
