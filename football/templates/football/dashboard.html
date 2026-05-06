@@ -141,6 +141,251 @@
         background: rgba(244, 180, 0, 0.14);
       }
 
+      /* Command Center (Home) */
+      .hero {
+        margin-top: 1rem;
+        display: block;
+      }
+      .dash-hero {
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(circle at 18% 22%, rgba(244, 180, 0, 0.16), transparent 42%),
+          radial-gradient(circle at 86% 8%, rgba(47, 125, 50, 0.14), transparent 46%),
+          linear-gradient(180deg, rgba(3, 9, 19, 0.14), rgba(3, 9, 19, 0.94)),
+          {% if demo_mode or setup_mode %}
+          linear-gradient(135deg, rgba(70, 211, 255, 0.12), rgba(244, 180, 0, 0.10));
+          {% else %}
+          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/var(--hero-size, cover) no-repeat;
+          {% endif %}
+        box-shadow: 0 28px 55px rgba(0, 0, 0, 0.42);
+        transition: background-image 0.4s ease;
+        position: relative;
+        isolation: isolate;
+      }
+      .dash-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(2, 6, 23, 0.40) 0%, rgba(2, 6, 23, 0.88) 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .dash-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+        padding: 1.15rem 1.15rem 1rem;
+        align-items: start;
+      }
+      .hero-card {
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(7, 16, 30, 0.62);
+        backdrop-filter: blur(6px);
+        padding: 1rem;
+      }
+      .hero-title {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+      }
+      .hero-name {
+        margin: 0;
+        font-size: 1.55rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .hero-sub {
+        margin: 0.45rem 0 0;
+        color: rgba(230, 236, 255, 0.88);
+        font-weight: 650;
+        font-size: 0.95rem;
+      }
+      .hero-rank {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.92);
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
+      }
+      .command-bar {
+        position: sticky;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        display: grid;
+        gap: 0.75rem;
+        align-content: start;
+      }
+      .cmd-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .cmd-kpi {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(7, 16, 30, 0.62);
+        backdrop-filter: blur(6px);
+        padding: 0.7rem 0.75rem;
+      }
+      .cmd-kpi span {
+        display: block;
+        font-size: 0.66rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.8);
+      }
+      .cmd-kpi strong {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 1.25rem;
+      }
+      .cmd-card {
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(7, 16, 30, 0.68);
+        backdrop-filter: blur(6px);
+        padding: 0.95rem;
+      }
+      .cmd-title {
+        margin: 0;
+        font-size: 0.78rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.78);
+      }
+      .cmd-row {
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        margin-top: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .cmd-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.33rem 0.55rem;
+        font-weight: 900;
+        font-size: 0.75rem;
+        color: rgba(245, 247, 250, 0.92);
+        letter-spacing: 0.02em;
+      }
+      .cmd-pill small {
+        opacity: 0.75;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .brief-grid {
+        display: grid;
+        gap: 0.7rem;
+      }
+      .brief-headline {
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        font-size: 1.05rem;
+        line-height: 1.25;
+      }
+      .brief-box {
+        border-radius: 18px;
+        border: 1px solid var(--paper-line);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.85rem 0.9rem;
+      }
+      .brief-box h4 {
+        margin: 0;
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.78);
+      }
+      .brief-box ul {
+        margin: 0.6rem 0 0;
+        padding-left: 1.1rem;
+        color: rgba(245, 247, 250, 0.9);
+        font-size: 0.9rem;
+      }
+      .brief-box li { margin: 0.25rem 0; }
+      .brief-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.65rem;
+      }
+      .brief-tag {
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.25);
+        background: rgba(244, 180, 0, 0.08);
+        padding: 0.35rem 0.55rem;
+        font-weight: 900;
+        font-size: 0.74rem;
+        color: rgba(255, 249, 232, 0.92);
+      }
+      .avail-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 0.85rem;
+        align-items: start;
+      }
+      .avail-list { display: grid; gap: 0.45rem; }
+      .avail-player {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.55rem 0.65rem;
+      }
+      .avail-player .avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        flex: 0 0 auto;
+        position: relative;
+      }
+      .avail-player .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .avail-player .avatar .num {
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        background: rgba(0, 0, 0, 0.58);
+        border: 1px solid rgba(255, 255, 255, 0.20);
+        border-radius: 999px;
+        padding: 1px 6px;
+        font-weight: 950;
+        font-size: 0.72rem;
+      }
+      .avail-player strong {
+        display: block;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        font-size: 0.88rem;
+      }
+      .avail-player small {
+        display: block;
+        margin-top: 0.12rem;
+        color: rgba(226, 232, 240, 0.74);
+        font-weight: 700;
+      }
+
+      @media (max-width: 740px) {
+        .dash-hero-inner { grid-template-columns: 1fr; }
+        .command-bar { position: static; }
+        .avail-grid { grid-template-columns: 1fr; }
+      }
+
       .hero {
         margin-top: 1rem;
         display: grid;
@@ -595,7 +840,7 @@
       }
       .day-plan .meta {
         font-size: 0.78rem;
-        color: rgba(71, 85, 105, 0.95);
+        color: rgba(226, 232, 240, 0.72);
       }
       .day-plan-items {
         display: grid;
@@ -604,7 +849,7 @@
       .day-plan-item {
         border-radius: 16px;
         border: 1px solid var(--paper-line);
-        background: rgba(15, 23, 42, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         padding: 0.75rem 0.8rem;
       }
       .day-plan-item strong {
@@ -615,7 +860,7 @@
       .day-plan-item span {
         display: block;
         margin-top: 0.25rem;
-        color: rgba(71, 85, 105, 0.96);
+        color: rgba(226, 232, 240, 0.72);
         font-size: 0.82rem;
       }
       .day-plan-actions {
@@ -630,9 +875,9 @@
         justify-content: center;
         border-radius: 999px;
         padding: 0.38rem 0.8rem;
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        background: rgba(15, 23, 42, 0.04);
-        color: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(245, 247, 250, 0.92);
         text-decoration: none;
         font-weight: 900;
         letter-spacing: 0.08em;
@@ -644,7 +889,7 @@
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.14), rgba(47, 125, 50, 0.10));
       }
       .day-plan-actions a:hover {
-        border-color: rgba(15, 23, 42, 0.32);
+        border-color: rgba(244, 180, 0, 0.42);
       }
 
       .standings table {
@@ -659,14 +904,14 @@
         gap: 0.5rem;
       }
       .standings-toggle {
-        border: 1px solid rgba(15, 23, 42, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.18);
         border-radius: 999px;
         padding: 0.32rem 0.75rem;
         font-size: 0.72rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.86);
-        background: rgba(15, 23, 42, 0.05);
+        color: rgba(245, 247, 250, 0.9);
+        background: rgba(255, 255, 255, 0.06);
         cursor: pointer;
       }
       .standings-toggle[hidden] {
@@ -876,6 +1121,13 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Overrides: asegurar que el Command Center gana a estilos legacy. */
+      .hero {
+        display: block !important;
+        grid-template-columns: none !important;
+        gap: 0 !important;
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -908,146 +1160,152 @@
       </header>
 
       <section class="hero">
-        <article class="team-photo" id="team-hero">
-          <div class="team-photo-content">
-            <div class="team-photo-header">
-              <img
-                id="hero-team-crest"
-                class="team-photo-crest"
-                src="{% if demo_mode or setup_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
-                alt="Escudo del equipo"
-              />
-              <h2 id="hero-team-name">
-                {% if demo_mode %}
-                  Equipo Demo
-                {% elif setup_mode %}
-                  {{ setup_workspace_name|default:"Tu club" }}
-                {% else %}
-                  C.D. Benagalbón
-                {% endif %}
-              </h2>
-            </div>
-            <p id="hero-competition-line">Competición por definir</p>
-            <p id="hero-rank-line">Puesto -</p>
+        <div class="dash-hero" id="team-hero">
+          <div class="dash-hero-inner">
+            <article class="hero-card" aria-label="Identidad del equipo">
+              <div class="hero-title">
+                <img
+                  id="hero-team-crest"
+                  class="team-photo-crest"
+                  src="{% if demo_mode or setup_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
+                  alt="Escudo del equipo"
+                />
+                <div>
+                  <h2 id="hero-team-name" class="hero-name">
+                    {% if demo_mode %}
+                      Equipo Demo
+                    {% elif setup_mode %}
+                      {{ setup_workspace_name|default:"Tu club" }}
+                    {% else %}
+                      C.D. Benagalbón
+                    {% endif %}
+                  </h2>
+                  <p id="hero-competition-line" class="hero-sub">Competición por definir</p>
+                  <p id="hero-rank-line" class="hero-rank">Puesto -</p>
+                </div>
+              </div>
+            </article>
+
+            <aside class="command-bar" aria-label="Panel de mando">
+              <div class="cmd-kpis" aria-label="KPIs">
+                <article class="cmd-kpi">
+                  <span>Posición</span>
+                  <strong id="kpi-rank">-</strong>
+                </article>
+                <article class="cmd-kpi">
+                  <span>Puntos</span>
+                  <strong id="kpi-points">-</strong>
+                </article>
+                <article class="cmd-kpi">
+                  <span>Partidos</span>
+                  <strong id="kpi-played">-</strong>
+                </article>
+              </div>
+
+              <div class="cmd-card" id="next-match" aria-live="polite">
+                <h3 class="cmd-title">Próximo partido</h3>
+                <div style="margin-top:0.55rem;">Cargando…</div>
+              </div>
+
+              <div class="cmd-card" aria-label="Accesos rápidos">
+                <h3 class="cmd-title">Accesos rápidos</h3>
+                <div class="quick-actions" style="margin-top:0.75rem;">
+                  <div class="quick-actions-grid">
+                    {% if workspace_module_access.convocation|default:True %}
+                    <a class="quick-action is-primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Partido</strong>
+                      <span>Convoca · 11 · acciones · PDFs</span>
+                    </a>
+                    {% else %}
+                    <a class="quick-action is-primary is-disabled" href="#">
+                      <strong>Partido</strong>
+                      <span>Módulo desactivado</span>
+                    </a>
+                    {% endif %}
+
+                    {% if workspace_module_access.sessions|default:True %}
+                    <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Entrenamiento</strong>
+                      <span>Tareas · sesiones · microciclos</span>
+                    </a>
+                    <a class="quick-action is-muted" href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}">
+                      <strong>Tareas</strong>
+                      <span>Biblioteca (PDF / interactivas)</span>
+                    </a>
+                    {% else %}
+                    <a class="quick-action is-secondary is-disabled" href="#">
+                      <strong>Entrenamiento</strong>
+                      <span>Módulo desactivado</span>
+                    </a>
+                    {% endif %}
+
+                    <a class="quick-action is-muted" href="{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Agenda</strong>
+                      <span>Semana (sesiones + partidos)</span>
+                    </a>
+
+                    <a class="quick-action is-muted" href="{% url 'coach-detail' %}">
+                      <strong>Entrenador</strong>
+                      <span>Accesos y gestión</span>
+                    </a>
+
+                    {% if workspace_module_access.players|default:True %}
+                    <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Jugadores</strong>
+                      <span>Fichas, licencias, KPIs</span>
+                    </a>
+                    {% endif %}
+
+                    {% if workspace_module_access.analysis|default:True %}
+                    <a class="quick-action is-muted" href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Análisis</strong>
+                      <span>Vídeos e informes</span>
+                    </a>
+                    {% endif %}
+
+                    {% if workspace_module_access.tactics|default:True %}
+                    <a class="quick-action is-muted" href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Táctica</strong>
+                      <span>Pizarra · clips · export</span>
+                    </a>
+                    {% endif %}
+
+                    {% if can_manage_workspace %}
+                    <a class="quick-action is-muted" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                      <strong>Ajustes</strong>
+                      <span>Club, competición, módulos</span>
+                    </a>
+                    {% endif %}
+                  </div>
+
+                  <details style="margin-top:0.7rem;">
+                    <summary style="cursor:pointer; color:rgba(248,250,252,0.86); font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem;">
+                      Atajos (opcional)
+                    </summary>
+                    <div class="quick-actions-grid" style="margin-top:0.7rem;">
+                      {% if workspace_module_access.match_actions|default:True %}
+                      <a class="quick-action is-muted" href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                        <strong>Registro acciones</strong>
+                        <span>Banquillo · en vivo</span>
+                      </a>
+                      {% endif %}
+                      <a class="quick-action is-muted" href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                        <strong>11 inicial</strong>
+                        <span>Organiza titulares</span>
+                      </a>
+                      {% if can_access_staff %}
+                      <a class="quick-action is-muted" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                        <strong>Staff</strong>
+                        <span>Cuerpo técnico y roles</span>
+                      </a>
+                      {% endif %}
+                    </div>
+                  </details>
+                </div>
+              </div>
+            </aside>
           </div>
-        </article>
-
-        <aside class="status-panel">
-          <h3>Estado del equipo</h3>
-          <div class="kpi-grid">
-            <article class="kpi">
-              <span>Posición</span>
-              <strong id="kpi-rank">-</strong>
-            </article>
-            <article class="kpi">
-              <span>Puntos</span>
-              <strong id="kpi-points">-</strong>
-            </article>
-            <article class="kpi">
-              <span>Partidos</span>
-              <strong id="kpi-played">-</strong>
-            </article>
-          </div>
-
-	          <div class="next-match" id="next-match">
-	            <p>Próximo rival pendiente de carga...</p>
-	          </div>
-
-	          <div class="quick-actions" aria-label="Áreas">
-	            <h4>Áreas</h4>
-	            <div class="quick-actions-grid">
-	              {% if workspace_module_access.convocation|default:True %}
-	              <a class="quick-action is-primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Partido</strong>
-	                <span>Convoca · 11 · acciones · PDFs</span>
-	              </a>
-	              {% else %}
-	              <a class="quick-action is-primary is-disabled" href="#">
-	                <strong>Partido</strong>
-	                <span>Módulo desactivado</span>
-	              </a>
-	              {% endif %}
-
-			              {% if workspace_module_access.sessions|default:True %}
-			              <a class="quick-action is-secondary" href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-			                <strong>Entrenamiento</strong>
-			                <span>Tareas · sesiones · microciclos</span>
-			              </a>
-			              <a class="quick-action is-muted" href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}">
-			                <strong>Tareas</strong>
-			                <span>Biblioteca (PDF / interactivas)</span>
-			              </a>
-		              {% else %}
-		              <a class="quick-action is-secondary is-disabled" href="#">
-		                <strong>Entrenamiento</strong>
-		                <span>Módulo desactivado</span>
-		              </a>
-			              {% endif %}
-
-		              <a class="quick-action is-muted" href="{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-		                <strong>Agenda</strong>
-		                <span>Semana (sesiones + partidos)</span>
-		              </a>
-
-		              <a class="quick-action is-muted" href="{% url 'coach-detail' %}">
-		                <strong>Entrenador</strong>
-		                <span>Accesos y gestión</span>
-		              </a>
-
-	              {% if workspace_module_access.players|default:True %}
-	              <a class="quick-action is-muted" href="{% if can_manage_workspace or is_admin_user %}{% url 'coach-roster' %}{% else %}{% url 'player-dashboard' %}{% endif %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Jugadores</strong>
-	                <span>Fichas, licencias, KPIs</span>
-	              </a>
-	              {% endif %}
-
-	              {% if workspace_module_access.analysis|default:True %}
-	              <a class="quick-action is-muted" href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Análisis</strong>
-	                <span>Vídeos e informes</span>
-	              </a>
-	              {% endif %}
-
-	              {% if workspace_module_access.tactics|default:True %}
-	              <a class="quick-action is-muted" href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Táctica</strong>
-	                <span>Pizarra · clips · export</span>
-	              </a>
-	              {% endif %}
-
-	              {% if can_manage_workspace %}
-	              <a class="quick-action is-muted" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                <strong>Ajustes</strong>
-	                <span>Club, competición, módulos</span>
-	              </a>
-	              {% endif %}
-	            </div>
-
-	            <details style="margin-top:0.7rem;">
-	              <summary style="cursor:pointer; color:rgba(248,250,252,0.86); font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem;">
-	                Atajos (opcional)
-	              </summary>
-	              <div class="quick-actions-grid" style="margin-top:0.7rem;">
-	                {% if workspace_module_access.match_actions|default:True %}
-	                <a class="quick-action is-muted" href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                  <strong>Registro acciones</strong>
-	                  <span>Banquillo · en vivo</span>
-	                </a>
-	                {% endif %}
-	                <a class="quick-action is-muted" href="{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                  <strong>11 inicial</strong>
-	                  <span>Organiza titulares</span>
-	                </a>
-	                {% if can_access_staff %}
-	                <a class="quick-action is-muted" href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-	                  <strong>Staff</strong>
-	                  <span>Cuerpo técnico y roles</span>
-	                </a>
-	                {% endif %}
-	              </div>
-	            </details>
-	          </div>
-        </aside>
+        </div>
       </section>
 
       <div class="dash-tabs" role="tablist" aria-label="Dashboard Staff">
@@ -1056,6 +1314,20 @@
       </div>
 
       <section id="setup-banner" class="setup-banner" hidden></section>
+
+      <section class="main-grid dash-panel" data-dashboard-panel="global" style="margin-top:1rem;">
+        <article class="block" id="week-brief-block">
+          <h3>Briefing semanal</h3>
+          <div class="meta">Prioridades y alertas para el microciclo.</div>
+          <div id="week-brief" style="margin-top:0.75rem;">Cargando…</div>
+        </article>
+
+        <article class="block" id="availability-block">
+          <h3>Disponibilidad</h3>
+          <div class="meta">Once probable + bajas activas (lesión / sanción).</div>
+          <div id="availability" style="margin-top:0.75rem;">Cargando…</div>
+        </article>
+      </section>
 
       <section class="main-grid dash-panel" data-dashboard-panel="global">
         <article class="block standings" id="standings-block">
@@ -1260,6 +1532,8 @@
 
           renderStandings(payload.standings, payload.team);
           renderNextMatch(payload.next_match, payload.standings);
+          renderWeekBrief(payload.weekly_staff_brief || null, payload.next_match || null);
+          renderAvailability(payload.availability_detail || null, payload.weekly_staff_brief || null);
           renderDayPlan(payload);
           renderTraining(payload.training_summary || null);
           renderWeeklyAgenda(payload.weekly_agenda || null);
@@ -1568,6 +1842,8 @@
 	              const payload = await response.json();
 	              renderStandings(payload.standings, payload.team);
               renderNextMatch(payload.next_match, payload.standings);
+              renderWeekBrief(payload.weekly_staff_brief || null, payload.next_match || null);
+              renderAvailability(payload.availability_detail || null, payload.weekly_staff_brief || null);
               const meta = payload.standings_meta || {};
               const metaEl = document.getElementById('standings-meta');
               if (metaEl) {
@@ -1657,6 +1933,174 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#039;');
+      }
+
+      function renderWeekBrief(weeklyBrief, nextMatch) {
+        const el = document.getElementById('week-brief');
+        if (!el) return;
+        const brief = weeklyBrief && typeof weeklyBrief === 'object' ? weeklyBrief : null;
+        const match = brief && typeof brief.match === 'object' ? brief.match : (nextMatch && typeof nextMatch === 'object' ? nextMatch : null);
+        let matchOpponent = '';
+        if (match) {
+          if (typeof match.opponent === 'string') {
+            matchOpponent = String(match.opponent || '').trim();
+          } else if (match.opponent && typeof match.opponent === 'object') {
+            matchOpponent = String(match.opponent.full_name || match.opponent.name || '').trim();
+          } else {
+            matchOpponent = String(match.rival || match.opponent || '').trim();
+          }
+        }
+        const matchRound = match ? String(match.round || '').trim() : '';
+        const matchDate = match ? String(match.date || '').trim() : '';
+        const matchTime = match ? String(match.time || '').trim() : '';
+        const matchLocation = match ? String(match.location || '').trim() : '';
+
+        if (!brief) {
+          el.innerHTML = '<div class="product-empty">Sin briefing todavía (faltan bajas/convocatoria/minutos).</div>';
+          return;
+        }
+
+        const headline = String(brief.headline || '').trim();
+        const alerts = Array.isArray(brief.alerts) ? brief.alerts : [];
+        const priorities = Array.isArray(brief.priorities) ? brief.priorities : [];
+        const availability = Array.isArray(brief.availability) ? brief.availability : [];
+        const preview = String(brief.probable_eleven_preview || '').trim();
+
+        const tagsHtml = availability
+          .slice(0, 6)
+          .map((item) => {
+            const label = String(item?.label || '').trim();
+            const value = item?.value ?? '';
+            if (!label) return '';
+            return `<span class="brief-tag">${escapeHtml(label)}: ${escapeHtml(value)}</span>`;
+          })
+          .join('');
+
+        const matchLineParts = [];
+        if (matchDate) matchLineParts.push(matchDate);
+        if (matchTime) matchLineParts.push(matchTime);
+        if (matchRound) matchLineParts.push(matchRound);
+        const matchLine = matchLineParts.join(' · ');
+
+        el.innerHTML = `
+          <div class="brief-grid">
+            <div class="brief-headline">${escapeHtml(headline || 'Semana en marcha')}</div>
+            <div class="brief-box">
+              <h4>Partido</h4>
+              <div style="margin-top:0.55rem; font-weight:950; letter-spacing:0.03em; text-transform:uppercase;">
+                ${escapeHtml(matchOpponent || 'Rival por confirmar')}
+              </div>
+              <div style="margin-top:0.2rem; color:rgba(226,232,240,0.76); font-weight:750;">
+                ${escapeHtml(matchLine || 'Fecha por definir')}
+              </div>
+              <div style="margin-top:0.2rem; color:rgba(226,232,240,0.72); font-weight:700;">
+                ${escapeHtml(matchLocation || 'Campo por confirmar')}
+              </div>
+              ${preview ? `<div class="brief-tags"><span class="brief-tag">Once probable: ${escapeHtml(preview)}</span></div>` : (tagsHtml ? `<div class="brief-tags">${tagsHtml}</div>` : '')}
+            </div>
+            <div class="brief-box">
+              <h4>Alertas</h4>
+              <ul>
+                ${(alerts.length ? alerts : ['Sin alertas críticas esta semana.']).slice(0, 6).map((t) => `<li>${escapeHtml(t)}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="brief-box">
+              <h4>Prioridades</h4>
+              <ul>
+                ${(priorities.length ? priorities : ['Ajustar el microciclo y cerrar convocatoria.']).slice(0, 6).map((t) => `<li>${escapeHtml(t)}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderAvailability(detail, weeklyBrief) {
+        const el = document.getElementById('availability');
+        if (!el) return;
+        const d = detail && typeof detail === 'object' ? detail : null;
+        const injured = Array.isArray(d?.injured) ? d.injured : [];
+        const sanctioned = Array.isArray(d?.sanctioned) ? d.sanctioned : [];
+        const probable = Array.isArray(d?.probable_eleven) ? d.probable_eleven : [];
+        const brief = weeklyBrief && typeof weeklyBrief === 'object' ? weeklyBrief : null;
+        const availability = Array.isArray(brief?.availability) ? brief.availability : [];
+
+        const pillsHtml = availability
+          .slice(0, 4)
+          .map((it) => {
+            const label = String(it?.label || '').trim();
+            const value = it?.value ?? '';
+            if (!label) return '';
+            return `<span class="cmd-pill"><small>${escapeHtml(label)}</small> ${escapeHtml(value)}</span>`;
+          })
+          .join('');
+
+        const listRow = (row, kindLabel) => {
+          const name = String(row?.name || '').trim();
+          if (!name) return '';
+          const pos = String(row?.position || '').trim();
+          const num = row?.number ? String(row.number) : '';
+          const photo = String(row?.photo_url || '').trim();
+          return `
+            <div class="avail-player" title="${escapeHtml(kindLabel)}">
+              <div class="avatar">
+                ${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : ''}
+                ${num ? `<span class="num">${escapeHtml(num)}</span>` : ''}
+              </div>
+              <div style="min-width:0;">
+                <strong>${escapeHtml(name)}</strong>
+                <small>${escapeHtml([kindLabel, pos].filter(Boolean).join(' · '))}</small>
+              </div>
+            </div>
+          `;
+        };
+
+        const injuredHtml = injured.slice(0, 6).map((r) => listRow(r, 'Lesión')).join('');
+        const sanctionedHtml = sanctioned.slice(0, 6).map((r) => listRow(r, 'Sanción')).join('');
+        const noAbsences = !injured.length && !sanctioned.length;
+
+        const tokens = probable.slice(0, 11).map((p) => {
+          const num = p?.number ? String(p.number) : '--';
+          const photo = String(p?.photo_url || '').trim();
+          const title = String(p?.name || '').trim();
+          const img = photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : '';
+          return `<span class="staff-token" title="${escapeHtml(title)}">${img}<span class="num">${escapeHtml(num)}</span></span>`;
+        });
+        const rows = [
+          tokens.slice(0, 1),
+          tokens.slice(1, 5),
+          tokens.slice(5, 9),
+          tokens.slice(9, 11),
+        ];
+        const pitchHtml = rows
+          .map((row) => `<div class="pitch-row">${row.join('')}</div>`)
+          .join('');
+
+        el.innerHTML = `
+          ${pillsHtml ? `<div class="cmd-row" style="margin-top:0;">${pillsHtml}</div>` : ''}
+          <div class="avail-grid" style="margin-top:0.75rem;">
+            <div>
+              <div class="brief-box">
+                <h4>Bajas activas</h4>
+                <div class="avail-list" style="margin-top:0.65rem;">
+                  ${noAbsences ? '<div class="product-empty">Sin bajas registradas.</div>' : ''}
+                  ${injuredHtml}
+                  ${sanctionedHtml}
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="brief-box">
+                <h4>Once probable</h4>
+                <div class="pitch-card" style="margin-top:0.7rem; min-height: 250px;">
+                  <div class="pitch-lines"></div>
+                  <div class="pitch-midline"></div>
+                  <div class="pitch-circle"></div>
+                  <div class="pitch-rows">${pitchHtml}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
       }
 
       function renderDayPlan(payload) {
