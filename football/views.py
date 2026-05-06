@@ -16162,7 +16162,15 @@ def coach_overview_page(request):
             hero_image_url = ''
     if not hero_image_url:
         hero_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-        hero_image_url = hero_items[0].image.url if hero_items and getattr(hero_items[0], 'image', None) else ''
+        if hero_items and getattr(hero_items[0], 'image', None):
+            try:
+                item = hero_items[0]
+                version = str(int(getattr(item, 'created_at', None).timestamp())) if getattr(item, 'created_at', None) else str(int(timezone.now().timestamp()))
+                hero_image_url = f'{reverse("home-carousel-image-file", args=[item.id])}?v={version}'
+            except Exception:
+                hero_image_url = ''
+        else:
+            hero_image_url = ''
     team_name_folded = (primary_team.name or '').strip().lower() if primary_team else ''
     highlighted_standing = None
     for row in standings:
@@ -36213,29 +36221,54 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             can_restore_original = bool(original)
     except Exception:
         can_restore_original = False
+    context_cache_seconds = 120
+    try:
+        context_cache_seconds = int(str(os.getenv('TASK_BUILDER_CONTEXT_CACHE_SECONDS', '120') or '120').strip() or 120)
+    except Exception:
+        context_cache_seconds = 120
+    context_cache_seconds = max(15, min(900, int(context_cache_seconds or 120)))
+
     all_sessions = []
     player_catalog = []
     available_players = []
     try:
-        all_sessions = list(
-            TrainingSession.objects
-            .select_related('microcycle')
-            .filter(microcycle__team=primary_team)
-            .order_by('-session_date', '-id')[:150]
-        )
+        cache_key = f'task_builder:all_sessions:{int(primary_team.id)}'
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            all_sessions = cached
+        else:
+            all_sessions = list(
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team)
+                .order_by('-session_date', '-id')[:150]
+            )
+            cache.set(cache_key, all_sessions, context_cache_seconds)
     except Exception:
         logger.exception('sessions_task_builder: no se pudieron cargar sesiones', extra={'team_id': getattr(primary_team, 'id', None)})
     try:
-        player_catalog = _build_tactical_player_catalog(request, primary_team)
+        cache_key = f'task_builder:player_catalog:{int(primary_team.id)}'
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            player_catalog = cached
+        else:
+            player_catalog = _build_tactical_player_catalog(request, primary_team)
+            cache.set(cache_key, player_catalog, context_cache_seconds)
     except Exception:
         player_catalog = []
         logger.exception('sessions_task_builder: no se pudo construir catálogo de jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
     try:
-        available_players = list(
-            Player.objects
-            .filter(team=primary_team, is_active=True)
-            .order_by('number', 'name')[:60]
-        )
+        cache_key = f'task_builder:available_players:{int(primary_team.id)}'
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            available_players = cached
+        else:
+            available_players = list(
+                Player.objects
+                .filter(team=primary_team, is_active=True)
+                .order_by('number', 'name')[:60]
+            )
+            cache.set(cache_key, available_players, context_cache_seconds)
     except Exception:
         available_players = []
         logger.exception('sessions_task_builder: no se pudieron cargar jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
@@ -36266,20 +36299,26 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     pdf_assets = []
     pdf_assets_json = '[]'
     try:
-        system_team = None
-        try:
-            system_team = Team.objects.filter(slug='pizarra').first()
-        except Exception:
+        cache_key = f"task_builder:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            pdf_assets = cached
+        else:
             system_team = None
-        assets_filter = Q(team=primary_team) | Q(owner=request.user)
-        if system_team:
-            assets_filter |= Q(team=system_team)
-        pdf_assets = list(
-            PdfGraphicAsset.objects
-            .filter(assets_filter)
-            .exclude(file='')
-            .order_by('-created_at', '-id')[:80]
-        )
+            try:
+                system_team = Team.objects.filter(slug='pizarra').first()
+            except Exception:
+                system_team = None
+            assets_filter = Q(team=primary_team) | Q(owner=request.user)
+            if system_team:
+                assets_filter |= Q(team=system_team)
+            pdf_assets = list(
+                PdfGraphicAsset.objects
+                .filter(assets_filter)
+                .exclude(file='')
+                .order_by('-created_at', '-id')[:80]
+            )
+            cache.set(cache_key, pdf_assets, context_cache_seconds)
         pdf_assets_json = json.dumps(
             [
                 {
