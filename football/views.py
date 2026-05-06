@@ -10784,15 +10784,17 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
-    # Home de staff: abrir el hub de entrenador (cuerpo técnico) por defecto.
-    # Permite forzar el dashboard nuevo con `/?home=dashboard`.
+    # Home de staff: mostrar el hub de entrenador con estilo "coach" (sin redirección),
+    # para evitar el "flash" de una pantalla y vuelta a la home anterior.
+    # Permite forzar el dashboard JS con `/?home=dashboard`.
     forced_home = str(request.GET.get('home') or '').strip().lower()
     staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
     if current_role in staff_roles and forced_home != 'dashboard':
         try:
-            return redirect('coach-detail')
+            return coach_overview_page(request)
         except Exception:
-            return redirect('/coach/')
+            # Fallback defensivo: si algo falla en coach_overview, seguir al dashboard normal.
+            pass
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         if _can_access_task_studio(request.user):
             return redirect('task-studio-home')
