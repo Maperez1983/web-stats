@@ -1071,25 +1071,40 @@
         (function () {
           const form = document.getElementById('video-youtube-form');
           if (!form) return;
-          const enabled = String(form.dataset.enabled || '') === '1';
+          const enabled = String(form.dataset && form.dataset.enabled ? form.dataset.enabled : '') === '1';
           const submit = document.getElementById('video-youtube-submit');
           const status = document.getElementById('video-youtube-status');
           const urlInput = document.getElementById('youtube_url');
           const apiUrl = "{% url 'analysis-rival-video-import-youtube-api' %}";
 
-          const getCsrf = () => {
-            const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
-            return inp ? String(inp.value || '') : '';
-          };
+          if (!enabled) {
+            if (submit) submit.disabled = true;
+            if (status) status.textContent = 'Deshabilitado en este entorno.';
+          }
 
-          form.addEventListener('submit', async (ev) => {
+          function getCsrf() {
+            const inp = form.querySelector('input[name=\"csrfmiddlewaretoken\"]');
+            return inp ? String(inp.value || '') : '';
+          }
+
+          function selectedPlayerIds() {
+            const sel = document.getElementById('assigned_player_ids');
+            if (!sel || !sel.selectedOptions) return [];
+            return Array.from(sel.selectedOptions)
+              .map((o) => String((o && o.value) || '').trim())
+              .filter(Boolean);
+          }
+
+          form.addEventListener('submit', async function (ev) {
             ev.preventDefault();
             if (!enabled) {
+              if (status) status.textContent = 'Deshabilitado en este entorno.';
               alert('Importación desde YouTube deshabilitada en este entorno.');
               return;
             }
-            const url = String(urlInput?.value || '').trim();
+            const url = String(urlInput && urlInput.value ? urlInput.value : '').trim();
             if (!url) {
+              if (status) status.textContent = 'Pega un enlace de YouTube.';
               alert('Pega un enlace de YouTube.');
               return;
             }
@@ -1097,25 +1112,27 @@
               if (submit) submit.disabled = true;
               if (status) status.textContent = 'Importando… (puede tardar)';
               const csrf = getCsrf();
+              const teamInp = document.querySelector('input[name=\"video_team_id\"]');
+              const folderEl = document.getElementById('video_folder_id');
+              const titleEl = document.getElementById('video_title');
+              const notesEl = document.getElementById('video_notes');
+              const payload = {
+                url: url,
+                video_team_id: String(teamInp && teamInp.value ? teamInp.value : '').trim(),
+                video_folder_id: String(folderEl && folderEl.value ? folderEl.value : '').trim(),
+                video_title: String(titleEl && titleEl.value ? titleEl.value : '').trim(),
+                video_notes: String(notesEl && notesEl.value ? notesEl.value : '').trim(),
+                assigned_player_ids: selectedPlayerIds(),
+              };
               const resp = await fetch(apiUrl, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
-                body: JSON.stringify({
-                  url,
-                  video_team_id: String(document.querySelector('input[name="video_team_id"]')?.value || '').trim(),
-                  video_folder_id: String(document.getElementById('video_folder_id')?.value || '').trim(),
-                  video_title: String(document.getElementById('video_title')?.value || '').trim(),
-                  video_notes: String(document.getElementById('video_notes')?.value || '').trim(),
-                  assigned_player_ids: (() => {
-                    const sel = document.getElementById('assigned_player_ids');
-                    return sel ? Array.from(sel.selectedOptions).map((o) => String(o.value || '')).filter(Boolean) : [];
-                  })(),
-                }),
+                body: JSON.stringify(payload),
               });
-              const data = await resp.json().catch(() => ({}));
-              if (!resp.ok || !data?.ok) {
-                const msg = data?.error || 'No se pudo importar.';
+              const data = await resp.json().catch(function () { return {}; });
+              if (!resp.ok || !(data && data.ok)) {
+                const msg = (data && data.error) ? data.error : 'No se pudo importar.';
                 if (status) status.textContent = msg;
                 alert(msg);
                 return;
