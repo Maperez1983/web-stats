@@ -11,6 +11,7 @@ opencv-python-headless==4.10.0.84
 pytesseract==0.3.13
 openpyxl==3.1.5
 requests==2.31.0
+yt-dlp
 beautifulsoup4==4.13.0
 weasyprint==57.0
 # Billing (Stripe)

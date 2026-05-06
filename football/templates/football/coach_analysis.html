@@ -664,6 +664,31 @@
 	                <span class="meta" id="video-upload-progress-label">0%</span>
 	              </div>
 	            </form>
+              <form
+                class="form"
+                method="post"
+                style="margin-top:0.75rem;"
+                id="video-youtube-form"
+                data-enabled="{% if youtube_import_enabled %}1{% else %}0{% endif %}"
+              >
+                {% csrf_token %}
+                <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+                <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Importar desde YouTube (beta)</div>
+                <div class="manual-grid">
+                  <div style="grid-column:1/-1;">
+                    <label for="youtube_url">Enlace</label>
+                    <input id="youtube_url" name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=…" />
+                    <div class="meta" style="margin-top:0.35rem;">
+                      Descarga el vídeo en servidor y lo guarda en el repositorio. Úsalo solo si tienes permiso para usar ese contenido.
+                    </div>
+                  </div>
+                </div>
+                <div class="actions" style="justify-content:flex-start;">
+                  <button class="button ghost" type="submit" id="video-youtube-submit">Importar de YouTube</button>
+                  <span class="meta" id="video-youtube-status" style="margin-left:0.65rem;"></span>
+                </div>
+              </form>
             {% if video_message %}
             <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
             {% endif %}
@@ -677,6 +702,7 @@
                 <p class="meta">
                   {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
                   {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
+                  {% if video.source_url %} · <a href="{{ video.source_url }}" target="_blank" rel="noopener">Origen</a>{% endif %}
                 </p>
                 <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
                   <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
@@ -1041,6 +1067,69 @@
 	          xhr.send(fd);
 	        });
 	      })();
+
+        (function () {
+          const form = document.getElementById('video-youtube-form');
+          if (!form) return;
+          const enabled = String(form.dataset.enabled || '') === '1';
+          const submit = document.getElementById('video-youtube-submit');
+          const status = document.getElementById('video-youtube-status');
+          const urlInput = document.getElementById('youtube_url');
+          const apiUrl = "{% url 'analysis-rival-video-import-youtube-api' %}";
+
+          const getCsrf = () => {
+            const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
+            return inp ? String(inp.value || '') : '';
+          };
+
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            if (!enabled) {
+              alert('Importación desde YouTube deshabilitada en este entorno.');
+              return;
+            }
+            const url = String(urlInput?.value || '').trim();
+            if (!url) {
+              alert('Pega un enlace de YouTube.');
+              return;
+            }
+            try {
+              if (submit) submit.disabled = true;
+              if (status) status.textContent = 'Importando… (puede tardar)';
+              const csrf = getCsrf();
+              const resp = await fetch(apiUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+                body: JSON.stringify({
+                  url,
+                  video_team_id: String(document.querySelector('input[name="video_team_id"]')?.value || '').trim(),
+                  video_folder_id: String(document.getElementById('video_folder_id')?.value || '').trim(),
+                  video_title: String(document.getElementById('video_title')?.value || '').trim(),
+                  video_notes: String(document.getElementById('video_notes')?.value || '').trim(),
+                  assigned_player_ids: (() => {
+                    const sel = document.getElementById('assigned_player_ids');
+                    return sel ? Array.from(sel.selectedOptions).map((o) => String(o.value || '')).filter(Boolean) : [];
+                  })(),
+                }),
+              });
+              const data = await resp.json().catch(() => ({}));
+              if (!resp.ok || !data?.ok) {
+                const msg = data?.error || 'No se pudo importar.';
+                if (status) status.textContent = msg;
+                alert(msg);
+                return;
+              }
+              if (status) status.textContent = 'OK';
+              window.location.reload();
+            } catch (e) {
+              if (status) status.textContent = 'Error importando.';
+              alert('Error importando desde YouTube.');
+            } finally {
+              if (submit) submit.disabled = false;
+            }
+          });
+        })();
 	    </script>
 	  </body>
 	</html>

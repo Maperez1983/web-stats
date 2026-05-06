@@ -7151,6 +7151,103 @@ def _build_weekly_staff_brief_context(primary_team, player_cards=None):
     )
 
 
+def _build_recent_form_payload(primary_team, limit=5):
+    """
+    Resumen compacto para Home (entrenador):
+    - últimos N partidos con marcador (liga)
+    - totales de temporada derivados de Match (si hay scores)
+    """
+    if not primary_team:
+        return None
+    try:
+        season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
+    except Exception:
+        season_obj = None
+    if not season_obj:
+        return None
+    today = timezone.localdate()
+    try:
+        matches = list(
+            Match.objects
+            .select_related('home_team', 'away_team')
+            .filter(season=season_obj, context=Match.CONTEXT_LEAGUE)
+            .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+            .filter(date__isnull=False, date__lte=today)
+            .exclude(home_score__isnull=True)
+            .exclude(away_score__isnull=True)
+            .order_by('-date', '-id')[:120]
+        )
+    except Exception:
+        matches = []
+    if not matches:
+        return {
+            'season': season_display_name(season_obj),
+            'played': 0,
+            'wins': 0,
+            'draws': 0,
+            'losses': 0,
+            'gf': 0,
+            'ga': 0,
+            'gd': 0,
+            'last': [],
+        }
+
+    played = wins = draws = losses = 0
+    gf_total = ga_total = 0
+    last_rows = []
+    for match in matches:
+        is_home = int(getattr(match, 'home_team_id', 0) or 0) == int(primary_team.id)
+        gf = int(match.home_score if is_home else match.away_score)
+        ga = int(match.away_score if is_home else match.home_score)
+        played += 1
+        gf_total += gf
+        ga_total += ga
+        if gf > ga:
+            wins += 1
+            outcome = 'W'
+        elif gf == ga:
+            draws += 1
+            outcome = 'D'
+        else:
+            losses += 1
+            outcome = 'L'
+
+        opponent = None
+        try:
+            opponent = match.away_team if is_home else match.home_team
+        except Exception:
+            opponent = None
+        opponent_name = (
+            str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip()
+            if opponent
+            else ''
+        )
+        last_rows.append(
+            {
+                'id': int(getattr(match, 'id', 0) or 0),
+                'date': match.date.isoformat() if getattr(match, 'date', None) else '',
+                'date_label': match.date.strftime('%d/%m') if getattr(match, 'date', None) else '',
+                'opponent': opponent_name or 'Rival',
+                'home': bool(is_home),
+                'gf': gf,
+                'ga': ga,
+                'outcome': outcome,
+            }
+        )
+    last_rows = list(reversed(last_rows[: max(1, int(limit or 5))]))
+    return {
+        'season': season_display_name(season_obj),
+        'played': played,
+        'wins': wins,
+        'draws': draws,
+        'losses': losses,
+        'gf': gf_total,
+        'ga': ga_total,
+        'gd': gf_total - ga_total,
+        'last': last_rows,
+    }
+
+
 def _parse_payload_date(raw):
     if not raw:
         return None
@@ -10354,6 +10451,66 @@ def dashboard_data(request):
         'player_cards': player_cards,
         'player_cards_scope': player_cards_scope,
     }
+    try:
+        weekly_staff_brief = _build_weekly_staff_brief_context(primary_team, player_cards=player_cards)
+        if isinstance(weekly_staff_brief, dict) and weekly_staff_brief:
+            payload['weekly_staff_brief'] = weekly_staff_brief
+    except Exception:
+        pass
+    # Detalle ligero para UX (listas cortas): once probable + bajas/sanciones.
+    try:
+        safe_cards = [c for c in (player_cards or []) if isinstance(c, dict)]
+        injured_rows = [c for c in safe_cards if bool(c.get('has_active_injury'))]
+        sanctioned_rows = [c for c in safe_cards if bool(c.get('is_sanctioned'))]
+        eligible = [
+            c for c in safe_cards
+            if not bool(c.get('has_active_injury')) and not bool(c.get('is_sanctioned'))
+        ]
+        probable = compute_probable_eleven(eligible)
+        payload['availability_detail'] = {
+            'injured': [
+                {
+                    'player_id': int(c.get('player_id') or 0) or None,
+                    'name': str(c.get('name') or '').strip(),
+                    'number': c.get('number'),
+                    'position': str(c.get('position') or '').strip(),
+                    'photo_url': str(c.get('photo_url') or '').strip(),
+                }
+                for c in injured_rows[:6]
+                if str(c.get('name') or '').strip()
+            ],
+            'sanctioned': [
+                {
+                    'player_id': int(c.get('player_id') or 0) or None,
+                    'name': str(c.get('name') or '').strip(),
+                    'number': c.get('number'),
+                    'position': str(c.get('position') or '').strip(),
+                    'photo_url': str(c.get('photo_url') or '').strip(),
+                }
+                for c in sanctioned_rows[:6]
+                if str(c.get('name') or '').strip()
+            ],
+            'probable_eleven': [
+                {
+                    'player_id': int(c.get('player_id') or 0) or None,
+                    'name': str(c.get('name') or '').strip(),
+                    'number': c.get('number'),
+                    'position': str(c.get('position') or '').strip(),
+                    'photo_url': str(c.get('photo_url') or '').strip(),
+                    'minutes': int(c.get('minutes') or 0),
+                }
+                for c in (probable or [])
+                if isinstance(c, dict) and str(c.get('name') or '').strip()
+            ],
+        }
+    except Exception:
+        pass
+    try:
+        recent_form = _build_recent_form_payload(primary_team, limit=5)
+        if isinstance(recent_form, dict) and recent_form:
+            payload['recent_form'] = recent_form
+    except Exception:
+        pass
     # Bloque B (UX): "Tu día" en la home (próxima sesión + acceso directo a partido/sesiones).
     # Mantenerlo ligero: sólo 1-2 queries indexadas y sin agregaciones pesadas.
     try:
@@ -21847,13 +22004,27 @@ def _team_pdf_palette(team_obj, style_key='uefa'):
     primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
     secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
     accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
-    if style_key == 'club':
+    if style_key in {'club', 'hybrid'}:
+        if _is_benagalbon_team(team_obj):
+            # Paleta corporativa C.D. Benagalbón (derivada de recursos oficiales: dragón + escudo).
+            # - Primary: verde/teal del dragón (≈ #007050)
+            # - Secondary: verde del escudo (≈ #008048)
+            # - Accent: versión más oscura para degradados/contrastes
+            return {
+                'primary': '#007050',
+                'secondary': '#008048',
+                'accent': '#063b31',
+                'panel': '#eff7f4',
+                'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
+                'ink': '#0b1f1a',
+                'muted': '#3b5a54',
+            }
         return {
             'primary': primary,
             'secondary': secondary,
             'accent': accent,
             'panel': '#f5fbf6',
-            'sheet': '#ffffff',
+            'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
             'ink': '#102734',
             'muted': '#51606f',
         }
@@ -22120,6 +22291,20 @@ def _normalize_task_pdf_meta(meta):
 
 
 def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url='', one_page: bool = False):
+    def _static_data_url(static_path: str, mime: str) -> str:
+        try:
+            from django.contrib.staticfiles import finders  # noqa: WPS433
+
+            disk_path = finders.find(static_path)
+            if not disk_path:
+                return ''
+            raw = Path(disk_path).read_bytes()
+            if not raw:
+                return ''
+            return f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+        except Exception:
+            return ''
+
     def _display_pdf_value(value):
         text = str(value or '').strip()
         if not text:
@@ -22191,7 +22376,14 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
     )
     primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
-    logo_path = 'football/images/uefa-badge.svg' if pdf_style == 'uefa' else 'football/images/cdb-logo.png'
+    uefa_badge_url = request.build_absolute_uri(static('football/images/uefa-badge.svg'))
+    team_crest_url = resolve_team_crest_url(request, team, sync=True)
+    logo_url = team_crest_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url
+    club_dragon_url = (
+        _static_data_url('football/images/cdb-dragon-watermark.png', 'image/png')
+        if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(team))
+        else ''
+    )
     rich_description = _sanitize_task_rich_html(description_html) if description_html else _rich_html_from_plain_text(description_text)
     rich_coaching = _sanitize_task_rich_html(coaching_html) if coaching_html else _rich_html_from_plain_text(getattr(task, 'coaching_points', '') or '')
     rich_rules = _sanitize_task_rich_html(rules_html) if rules_html else _rich_html_from_plain_text(getattr(task, 'confrontation_rules', '') or '')
@@ -22353,8 +22545,9 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'animation_frames_count': len(animation_frames),
-        'logo_url': request.build_absolute_uri(static(logo_path)),
+        'logo_url': logo_url,
         'brand_mark_url': request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'club_dragon_url': club_dragon_url,
         'club_logo_url': club_logo_url,
         'task_preview_url': preview_url,
         'template_bg_src': _system_pdf_template_bg_src('pdf_template_task_bg_asset_id', max_width=2200, max_height=3100, quality=72) if pdf_style == 'uefa' else '',
@@ -22616,6 +22809,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
 
     uefa_badge_url = _static_data_url('football/images/uefa-badge.svg', 'image/svg+xml') or request.build_absolute_uri(static('football/images/uefa-badge.svg'))
     brand_mark_data_url = _static_data_url('football/images/2j-mark.svg', 'image/svg+xml')
+    club_dragon_data_url = _static_data_url('football/images/cdb-dragon-watermark.png', 'image/png') if (pdf_style in {'club', 'hybrid'} and _is_benagalbon_team(team)) else ''
     task_sheets = [_build_session_task_sheet(task) for task in tasks]
 
     valid_blocks = {choice[0] for choice in SessionTask.BLOCK_CHOICES}
@@ -22907,8 +23101,9 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'pdf_style': pdf_style,
         'pdf_palette': _team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
-        'logo_url': team_logo_url if pdf_style == 'club' else uefa_badge_url,
+        'logo_url': team_logo_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url,
         'brand_mark_url': brand_mark_data_url or request.build_absolute_uri(static('football/images/2j-mark.svg')),
+        'club_dragon_url': club_dragon_data_url,
         'club_logo_url': club_logo_url,
         'generated_at': timezone.localtime(),
         'intensity_label': dict(TrainingSession.INTENSITY_CHOICES).get(session.intensity, session.intensity or '-'),
@@ -23154,7 +23349,7 @@ def session_plan_pdf(request, session_id):
         raise Http404('Sesión no encontrada')
 
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
-    if pdf_style not in {'uefa', 'club'}:
+    if pdf_style not in {'uefa', 'club', 'hybrid'}:
         pdf_style = 'uefa'
     context = _build_session_pdf_context(request, session.microcycle.team, session, pdf_style=pdf_style)
     html = render_to_string('football/session_plan_pdf.html', context)
@@ -23848,7 +24043,7 @@ def session_task_pdf(request, task_id):
 
     team = task.session.microcycle.team
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
-    if pdf_style not in {'uefa', 'club'}:
+    if pdf_style not in {'uefa', 'club', 'hybrid'}:
         pdf_style = 'uefa'
     # Por defecto imprimimos 1 página (A4) para que el botón "Imprimir" sea consistente.
     # Si el usuario quiere el PDF largo (varias páginas), puede pedir `one_page=0`.
@@ -38320,6 +38515,7 @@ def analysis_page(request):
             'match_reports': match_reports,
             'match_report_message': match_report_message,
             'match_report_error': match_report_error,
+            'youtube_import_enabled': str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
         },
     )
 
@@ -39190,6 +39386,163 @@ def analysis_rival_video_chunk_finish_api(request):
         except Exception:
             pass
     return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def analysis_rival_video_import_youtube_api(request):
+    """
+    Importa un vídeo desde YouTube descargándolo en servidor y guardándolo como `RivalVideo`.
+
+    Requisitos en entorno:
+    - `ANALYSIS_YOUTUBE_IMPORT_ENABLED=1`
+    - `yt-dlp` instalado (pip)
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    if str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+        return JsonResponse({'ok': False, 'error': 'Importación YouTube deshabilitada.'}, status=403)
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+
+    url = str(data.get('url') or data.get('youtube_url') or '').strip()
+    if not url:
+        return JsonResponse({'ok': False, 'error': 'url requerido.'}, status=400)
+
+    try:
+        from urllib.parse import urlparse  # noqa: WPS433 (lazy import)
+        parsed = urlparse(url)
+        host = (parsed.hostname or '').strip().lower()
+        if parsed.scheme not in {'http', 'https'}:
+            return JsonResponse({'ok': False, 'error': 'URL inválida.'}, status=400)
+        if host not in {'youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'}:
+            return JsonResponse({'ok': False, 'error': 'Solo enlaces de YouTube (youtube.com / youtu.be).'}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'URL inválida.'}, status=400)
+
+    requested_title = _sanitize_task_text(str(data.get('video_title') or '').strip(), multiline=False, max_len=180)
+    rival_team_id = _parse_int(data.get('video_team_id'))
+    folder_id = _parse_int(data.get('video_folder_id'))
+    notes = _sanitize_task_text(str(data.get('video_notes') or '').strip(), multiline=True, max_len=4000)
+
+    assigned = data.get('assigned_player_ids')
+    if isinstance(assigned, str):
+        try:
+            assigned = json.loads(assigned)
+        except Exception:
+            assigned = []
+    if not isinstance(assigned, list):
+        assigned = []
+    assigned_ids = []
+    for x in assigned:
+        try:
+            assigned_ids.append(int(x))
+        except Exception:
+            continue
+    assigned_ids = [x for x in assigned_ids if x > 0][:200]
+
+    rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
+    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+
+    try:
+        from yt_dlp import YoutubeDL  # type: ignore  # noqa: WPS433 (optional dep)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Dependencia faltante: instala yt-dlp para importar desde YouTube.'}, status=400)
+
+    import shutil  # noqa: WPS433 (lazy import)
+    import tempfile  # noqa: WPS433 (lazy import)
+
+    tmp_dir = tempfile.mkdtemp(prefix='2j-yt-')
+    outtmpl = os.path.join(tmp_dir, '%(title).120s-%(id)s.%(ext)s')
+    info = {}
+    downloaded_path = ''
+    try:
+        ydl_opts = {
+            'outtmpl': outtmpl,
+            'noplaylist': True,
+            'quiet': True,
+            'no_warnings': True,
+            # Preferir MP4 por compatibilidad (iOS/iPad).
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+        }
+        with YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True) or {}
+            downloaded_path = ydl.prepare_filename(info)
+            if downloaded_path and not os.path.exists(downloaded_path):
+                # Fallback: buscar el primer vídeo descargado.
+                for name in os.listdir(tmp_dir):
+                    if name.lower().endswith(('.mp4', '.webm', '.mkv', '.mov')):
+                        downloaded_path = os.path.join(tmp_dir, name)
+                        break
+    except Exception as exc:
+        try:
+            logger.exception('Import YouTube: error descargando')
+        except Exception:
+            pass
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return JsonResponse({'ok': False, 'error': f'No se pudo descargar: {exc}'[:240]}, status=400)
+
+    if not downloaded_path or not os.path.exists(downloaded_path):
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return JsonResponse({'ok': False, 'error': 'No se encontró el archivo descargado.'}, status=400)
+
+    max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
+    if max_mb:
+        try:
+            size_bytes = os.path.getsize(downloaded_path)
+        except Exception:
+            size_bytes = 0
+        if size_bytes and size_bytes > max_mb * 1024 * 1024:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return JsonResponse({'ok': False, 'error': f'El vídeo supera el límite de {max_mb}MB.'}, status=400)
+
+    title = requested_title
+    if not title:
+        try:
+            title = _sanitize_task_text(str(info.get('title') or '').strip(), multiline=False, max_len=180)
+        except Exception:
+            title = ''
+    if not title:
+        title = 'YouTube'
+
+    try:
+        from django.core.files import File  # noqa: WPS433 (lazy import)
+        base_name = Path(downloaded_path).name or 'youtube.mp4'
+        with open(downloaded_path, 'rb') as fh:
+            entry = RivalVideo.objects.create(
+                team=primary_team,
+                rival_team=rival_team,
+                folder=folder,
+                title=title[:180],
+                source=RivalVideo.SOURCE_YOUTUBE,
+                source_url=url[:600],
+                notes=str(notes or '')[:4000],
+            )
+            entry.video.save(base_name, File(fh), save=True)
+            if assigned_ids:
+                entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar el vídeo importado.'}, status=500)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return JsonResponse({'ok': True, 'video_id': int(entry.id)})
 
 
 @login_required

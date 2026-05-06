@@ -127,6 +127,7 @@ urlpatterns = [
     path('api/analysis/rival-videos/chunk/init/', views.analysis_rival_video_chunk_init_api, name='analysis-rival-video-chunk-init-api'),
     path('api/analysis/rival-videos/chunk/put/', views.analysis_rival_video_chunk_put_api, name='analysis-rival-video-chunk-put-api'),
     path('api/analysis/rival-videos/chunk/finish/', views.analysis_rival_video_chunk_finish_api, name='analysis-rival-video-chunk-finish-api'),
+    path('api/analysis/rival-videos/import-youtube/', views.analysis_rival_video_import_youtube_api, name='analysis-rival-video-import-youtube-api'),
     path('api/pdf-assets/upload/', views.pdf_graphic_asset_upload, name='pdf-graphic-asset-upload'),
     path('api/pdf-assets/delete/', views.pdf_graphic_asset_delete_api, name='pdf-graphic-asset-delete-api'),
     path('api/task-assistant/blueprints/', views.task_assistant_blueprints_api, name='task-assistant-blueprints-api'),

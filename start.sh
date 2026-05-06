@@ -6,6 +6,7 @@ set -euo pipefail
 : "${RUN_COLLECTSTATIC:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
+: "${GUNICORN_TIMEOUT:=30}"
 
 # Media root (uploads). In Render the repo path can be read-only at runtime; default to /tmp.
 MEDIA_ROOT_DIR="${MEDIA_ROOT:-media}"
@@ -31,4 +32,4 @@ if [ "${RUN_COLLECTSTATIC}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-exec gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}"
+exec gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}" --timeout "${GUNICORN_TIMEOUT}"

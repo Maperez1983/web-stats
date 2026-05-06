@@ -1330,11 +1330,13 @@ class RivalVideo(models.Model):
     SOURCE_UNIVERSO = 'universo'
     SOURCE_RFAF = 'rfaf'
     SOURCE_PREFERENTE = 'preferente'
+    SOURCE_YOUTUBE = 'youtube'
     SOURCE_MANUAL = 'manual'
     SOURCE_CHOICES = [
         (SOURCE_UNIVERSO, 'Universo RFAF'),
         (SOURCE_RFAF, 'RFAF'),
         (SOURCE_PREFERENTE, 'La Preferente'),
+        (SOURCE_YOUTUBE, 'YouTube'),
         (SOURCE_MANUAL, 'Manual'),
     ]
 
@@ -1350,6 +1352,7 @@ class RivalVideo(models.Model):
     title = models.CharField(max_length=180)
     video = models.FileField(upload_to='rival-videos/')
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
+    source_url = models.URLField(max_length=600, blank=True, help_text='URL de origen (p.ej. YouTube) si aplica.')
     notes = models.TextField(blank=True)
     assigned_players = models.ManyToManyField(Player, blank=True, related_name='assigned_analysis_videos')
     created_at = models.DateTimeField(auto_now_add=True)
