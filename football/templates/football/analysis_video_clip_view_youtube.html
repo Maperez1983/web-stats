@@ -1,0 +1,70 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Clip (YouTube) · Video Studio · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#f8fafc; font-family: Inter, system-ui, sans-serif; }
+      .page { max-width: 1180px; margin: 0 auto; padding: 1.1rem; }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:0.9rem; flex-wrap:wrap; }
+      h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; margin-top:0.25rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+      .button.ghost { background: rgba(255,255,255,0.02); }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage-inner { width:100%; aspect-ratio: 16 / 9; }
+      .stage-inner iframe { width:100%; height:100%; border:0; }
+      .grid { display:grid; gap:0.65rem; grid-template-columns: 1fr; margin-top:0.85rem; }
+      .pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.35rem 0.55rem; border-radius: 999px; border:1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight:900; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; color: rgba(226,232,240,0.92); }
+      .pill strong { color:#67e8f9; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="head">
+        <div style="display:flex; flex-direction:column; gap:0.15rem;">
+          <h1>Clip (YouTube) · {{ clip.title|default:"(sin título)" }}</h1>
+          <div class="meta">{% if team %}{{ team.display_name }}{% endif %} · {{ video.title }}</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:flex-start;">
+          <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}?clip={{ clip.id }}">Abrir en editor</a>
+          <a class="button ghost" href="{% url 'analysis' %}?tab=videos">Volver</a>
+        </div>
+      </div>
+
+      <section class="card">
+        <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-bottom:0.75rem;">
+          <span class="pill">IN <strong>{{ clip.in_seconds|floatformat:1 }}</strong>s</span>
+          <span class="pill">OUT <strong>{{ clip.out_seconds|floatformat:1 }}</strong>s</span>
+          {% if clip.collection %}<span class="pill">Colección <strong>{{ clip.collection }}</strong></span>{% endif %}
+        </div>
+        <div class="stage">
+          <div class="stage-inner">
+            <iframe
+              title="YouTube clip"
+              src="{{ youtube_embed_url }}"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+              referrerpolicy="strict-origin-when-cross-origin"
+            ></iframe>
+          </div>
+        </div>
+        <div class="grid">
+          {% if clip.tags %}
+          <div class="meta"><strong>Tags:</strong> {{ clip.tags|join:", " }}</div>
+          {% endif %}
+          {% if clip.notes %}
+          <div class="meta" style="white-space:pre-wrap;">{{ clip.notes }}</div>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+

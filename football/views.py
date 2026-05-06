@@ -38583,6 +38583,25 @@ def analysis_page(request):
     if selected_folder_id:
         rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
     rival_videos = list(rival_videos_qs[:40])
+    for v in rival_videos:
+        try:
+            is_youtube = bool(
+                getattr(v, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+                and str(getattr(v, 'source_url', '') or '').strip()
+                and not getattr(v, 'video', None)
+            )
+            if not is_youtube:
+                continue
+            yt_id = _extract_youtube_video_id(str(getattr(v, 'source_url', '') or '').strip())
+            setattr(v, 'youtube_id', yt_id)
+            if yt_id:
+                setattr(
+                    v,
+                    'youtube_embed_url',
+                    f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1',
+                )
+        except Exception:
+            continue
     analyst_players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name')) if primary_team else []
     match_options = []
     match_reports = []
@@ -38715,12 +38734,21 @@ def analysis_video_studio_page(request, video_id):
         raise Http404('Vídeo no disponible')
     if folder_team_id and folder_team_id != int(primary_team.id):
         raise Http404('Vídeo no disponible')
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and str(getattr(video, 'source_url', '') or '').strip()
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
+    initial_clip_id = _parse_int(request.GET.get('clip'))
     return render(
         request,
-        'football/analysis_video_studio.html',
+        'football/analysis_video_studio_youtube.html' if yt_id else 'football/analysis_video_studio.html',
         {
             'team': primary_team,
             'video': video,
+            'youtube_id': yt_id,
+            'initial_clip_id': int(initial_clip_id or 0),
         },
     )
 
@@ -38755,13 +38783,31 @@ def analysis_video_clip_view_page(request, clip_id):
     if folder_team_id and folder_team_id != int(primary_team.id):
         raise Http404('Clip no disponible')
 
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and str(getattr(video, 'source_url', '') or '').strip()
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
+    embed_url = ''
+    if yt_id:
+        start_s = int(max(0, float(getattr(clip, 'in_seconds', 0.0) or 0.0)))
+        end_s = int(max(0, float(getattr(clip, 'out_seconds', 0.0) or 0.0)))
+        embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+        if start_s:
+            embed_url += f'&start={start_s}'
+        if end_s and end_s > start_s:
+            embed_url += f'&end={end_s}'
+
     return render(
         request,
-        'football/analysis_video_clip_view.html',
+        'football/analysis_video_clip_view_youtube.html' if yt_id else 'football/analysis_video_clip_view.html',
         {
             'team': primary_team,
             'video': video,
             'clip': clip,
+            'youtube_id': yt_id,
+            'youtube_embed_url': embed_url,
         },
     )
 
@@ -39552,11 +39598,10 @@ def analysis_rival_video_chunk_finish_api(request):
 @require_POST
 def analysis_rival_video_import_youtube_api(request):
     """
-    Importa un vídeo desde YouTube descargándolo en servidor y guardándolo como `RivalVideo`.
+    Importa un vídeo desde YouTube como enlace (sin descargar) y lo guarda como `RivalVideo`.
 
     Requisitos en entorno:
     - `ANALYSIS_YOUTUBE_IMPORT_ENABLED=1`
-    - `yt-dlp` instalado (pip)
     """
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -39594,6 +39639,10 @@ def analysis_rival_video_import_youtube_api(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'URL inválida.'}, status=400)
 
+    yt_id = _extract_youtube_video_id(url)
+    if not yt_id:
+        return JsonResponse({'ok': False, 'error': 'No se pudo extraer el ID del vídeo de YouTube.'}, status=400)
+
     requested_title = _sanitize_task_text(str(data.get('video_title') or '').strip(), multiline=False, max_len=180)
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
@@ -39618,89 +39667,24 @@ def analysis_rival_video_import_youtube_api(request):
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
     folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
 
-    try:
-        from yt_dlp import YoutubeDL  # type: ignore  # noqa: WPS433 (optional dep)
-    except Exception:
-        return JsonResponse({'ok': False, 'error': 'Dependencia faltante: instala yt-dlp para importar desde YouTube.'}, status=400)
-
-    import shutil  # noqa: WPS433 (lazy import)
-    import tempfile  # noqa: WPS433 (lazy import)
-
-    tmp_dir = tempfile.mkdtemp(prefix='2j-yt-')
-    outtmpl = os.path.join(tmp_dir, '%(title).120s-%(id)s.%(ext)s')
-    info = {}
-    downloaded_path = ''
-    try:
-        ydl_opts = {
-            'outtmpl': outtmpl,
-            'noplaylist': True,
-            'quiet': True,
-            'no_warnings': True,
-            # Preferir MP4 por compatibilidad (iOS/iPad).
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-            'merge_output_format': 'mp4',
-        }
-        with YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True) or {}
-            downloaded_path = ydl.prepare_filename(info)
-            if downloaded_path and not os.path.exists(downloaded_path):
-                # Fallback: buscar el primer vídeo descargado.
-                for name in os.listdir(tmp_dir):
-                    if name.lower().endswith(('.mp4', '.webm', '.mkv', '.mov')):
-                        downloaded_path = os.path.join(tmp_dir, name)
-                        break
-    except Exception as exc:
-        try:
-            logger.exception('Import YouTube: error descargando')
-        except Exception:
-            pass
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        return JsonResponse({'ok': False, 'error': f'No se pudo descargar: {exc}'[:240]}, status=400)
-
-    if not downloaded_path or not os.path.exists(downloaded_path):
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        return JsonResponse({'ok': False, 'error': 'No se encontró el archivo descargado.'}, status=400)
-
-    max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
-    if max_mb:
-        try:
-            size_bytes = os.path.getsize(downloaded_path)
-        except Exception:
-            size_bytes = 0
-        if size_bytes and size_bytes > max_mb * 1024 * 1024:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            return JsonResponse({'ok': False, 'error': f'El vídeo supera el límite de {max_mb}MB.'}, status=400)
-
     title = requested_title
     if not title:
-        try:
-            title = _sanitize_task_text(str(info.get('title') or '').strip(), multiline=False, max_len=180)
-        except Exception:
-            title = ''
-    if not title:
-        title = 'YouTube'
+        title = f'YouTube · {yt_id}'
 
     try:
-        from django.core.files import File  # noqa: WPS433 (lazy import)
-        base_name = Path(downloaded_path).name or 'youtube.mp4'
-        with open(downloaded_path, 'rb') as fh:
-            entry = RivalVideo.objects.create(
-                team=primary_team,
-                rival_team=rival_team,
-                folder=folder,
-                title=title[:180],
-                source=RivalVideo.SOURCE_YOUTUBE,
-                source_url=url[:600],
-                notes=str(notes or '')[:4000],
-            )
-            entry.video.save(base_name, File(fh), save=True)
-            if assigned_ids:
-                entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
+        entry = RivalVideo.objects.create(
+            team=primary_team,
+            rival_team=rival_team,
+            folder=folder,
+            title=title[:180],
+            source=RivalVideo.SOURCE_YOUTUBE,
+            source_url=url[:600],
+            notes=str(notes or '')[:4000],
+        )
+        if assigned_ids:
+            entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
     except Exception:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        return JsonResponse({'ok': False, 'error': 'No se pudo guardar el vídeo importado.'}, status=500)
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar el enlace del vídeo.'}, status=500)
 
     return JsonResponse({'ok': True, 'video_id': int(entry.id)})
 
@@ -39769,6 +39753,62 @@ def _video_studio_resolve_video(primary_team, *, video_id: int):
     except Exception:
         pass
     return video
+
+
+def _extract_youtube_video_id(url: str) -> str:
+    """
+    Extrae el ID de vídeo de un enlace de YouTube (youtube.com / youtu.be).
+    Devuelve '' si no se puede resolver.
+    """
+    raw = str(url or '').strip()
+    if not raw:
+        return ''
+    try:
+        from urllib.parse import parse_qs, urlparse  # noqa: WPS433 (lazy import)
+    except Exception:
+        return ''
+    try:
+        parsed = urlparse(raw)
+    except Exception:
+        return ''
+
+    host = str(parsed.hostname or '').strip().lower()
+    path = str(parsed.path or '')
+    candidate = ''
+    try:
+        if host in {'youtu.be'}:
+            candidate = path.strip('/').split('/')[0]
+        elif host in {'youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'}:
+            if path == '/watch':
+                candidate = (parse_qs(parsed.query).get('v') or [''])[0]
+            elif path.startswith('/shorts/'):
+                parts = path.strip('/').split('/')
+                if len(parts) >= 2:
+                    candidate = parts[1]
+            elif path.startswith('/embed/'):
+                parts = path.strip('/').split('/')
+                if len(parts) >= 2:
+                    candidate = parts[1]
+            else:
+                candidate = (parse_qs(parsed.query).get('v') or [''])[0]
+        else:
+            candidate = ''
+    except Exception:
+        candidate = ''
+
+    candidate = str(candidate or '').strip()
+    if not candidate:
+        return ''
+
+    try:
+        import re  # noqa: WPS433 (lazy import)
+
+        m = re.search(r'([A-Za-z0-9_-]{11})', candidate)
+        if m:
+            return str(m.group(1))
+    except Exception:
+        pass
+    return ''
 
 
 def _video_ms_from_seconds(value, *, default=0) -> int:

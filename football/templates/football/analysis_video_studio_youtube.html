@@ -1,0 +1,145 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Video Studio (YouTube) · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .vs-page { max-width: 1280px; margin: 0 auto; padding: 1.1rem; }
+      .vs-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:0.9rem; flex-wrap:wrap; }
+      .vs-head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .vs-meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .vs-grid { display:grid; grid-template-columns: 1.15fr 0.85fr; gap:1rem; align-items:start; }
+      @media (max-width: 980px) { .vs-grid { grid-template-columns: 1fr; } }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .toolbar { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; justify-content:space-between; margin-bottom:0.75rem; }
+      .toolbar .left, .toolbar .right { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .button.ghost { background: rgba(255,255,255,0.02); }
+      .button:disabled { opacity:0.55; cursor:not-allowed; }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage-inner { width:100%; aspect-ratio: 16 / 9; }
+      .stage-inner iframe, .stage-inner > div { width:100%; height:100%; }
+      .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
+      .field { display:grid; gap:0.45rem; }
+      label { display:grid; gap:0.25rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      input[type="text"], input[type="number"], select, textarea {
+        width:100%; border-radius: 14px; border: 1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04);
+        color:#e7ebf3; padding:0.7rem 0.85rem; font-weight:800;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
+      .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row strong { font-weight:900; }
+      .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
+      .pill { display:inline-flex; align-items:center; gap:0.35rem; padding:0.35rem 0.55rem; border-radius: 999px; border:1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight:900; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; color: rgba(226,232,240,0.92); }
+      .pill strong { color:#67e8f9; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="vs-page">
+      <div class="vs-head">
+        <div style="display:flex; flex-direction:column; gap:0.15rem;">
+          <h1>Video Studio (YouTube) · {{ video.title }}</h1>
+          <div class="vs-meta">{% if team %}{{ team.display_name }}{% endif %} · Clips y notas (sin descarga)</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="button ghost" href="{% url 'analysis' %}?tab=videos">Volver</a>
+        </div>
+      </div>
+
+      <div class="vs-grid">
+        <section class="card">
+          <div class="toolbar">
+            <div class="left">
+              <button type="button" class="button primary" id="vs-play">Play</button>
+              <button type="button" class="button" id="vs-pause" hidden>Pausa</button>
+              <button type="button" class="button" id="vs-mark-in">IN</button>
+              <button type="button" class="button" id="vs-mark-out">OUT</button>
+              <select id="vs-speed" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+              </select>
+            </div>
+            <div class="right">
+              <span class="pill">Tiempo <strong id="vs-now">0:00</strong></span>
+              <span class="pill">IN <strong id="vs-in-label">0:00</strong></span>
+              <span class="pill">OUT <strong id="vs-out-label">0:00</strong></span>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="stage-inner" id="vs-youtube-player"></div>
+          </div>
+          <div class="status" id="vs-status">Listo.</div>
+          <div class="hint" style="margin-top:0.55rem;">
+            Consejo: marca IN/OUT en los momentos clave y guarda clips con notas/tags para el plan de partido.
+          </div>
+        </section>
+
+        <aside class="card">
+          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Crear / editar clip</div>
+          <div class="field">
+            <label>
+              Título
+              <input type="text" id="vs-clip-title" placeholder="Ej. Salida en 3 + tercer hombre" />
+            </label>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+              <label>
+                IN (s)
+                <input type="number" id="vs-in-s" min="0" step="0.1" value="0" />
+              </label>
+              <label>
+                OUT (s)
+                <input type="number" id="vs-out-s" min="0" step="0.1" value="0" />
+              </label>
+            </div>
+            <label>
+              Colección (opcional)
+              <input type="text" id="vs-clip-collection" placeholder="Ej. ABP · Presión · Transición" />
+            </label>
+            <label>
+              Tags (coma)
+              <input type="text" id="vs-clip-tags" placeholder="ABP, esquina, presión" />
+            </label>
+            <label>
+              Notas
+              <textarea id="vs-clip-notes" placeholder="Qué pasa, por qué es importante, ajuste propuesto…"></textarea>
+            </label>
+            <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-start;">
+              <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
+              <button type="button" class="button" id="vs-clip-clear">Limpiar</button>
+              <button type="button" class="button" id="vs-clip-refresh">Actualizar lista</button>
+            </div>
+            <div class="status" id="vs-clip-status"></div>
+          </div>
+
+          <div style="margin-top:1rem; padding-top:0.95rem; border-top:1px solid rgba(148,163,184,0.16);">
+            <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+            <div class="list" id="vs-clips"></div>
+          </div>
+        </aside>
+      </div>
+
+      <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
+      <input type="hidden" id="vs-youtube-id" value="{{ youtube_id|default:'' }}" />
+      <input type="hidden" id="vs-initial-clip-id" value="{{ initial_clip_id|default:0 }}" />
+      <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
+      <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
+      <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
+      <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
+
+      <script src="{% static 'football/js/analysis_video_studio_youtube.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    </main>
+  </body>
+</html>
+

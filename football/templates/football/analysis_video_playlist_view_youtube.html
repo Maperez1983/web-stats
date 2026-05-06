@@ -1,0 +1,283 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Playlist (YouTube) · Análisis</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#f8fafc; font-family: Inter, system-ui, sans-serif; }
+      .page { max-width: 1200px; margin:0 auto; padding: 1.1rem; }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .grid { display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; align-items:start; }
+      @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+      h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; margin-top:0.25rem; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .row { display:flex; align-items:center; justify-content:space-between; gap:0.6rem; padding:0.65rem 0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row strong { font-weight:900; }
+      .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .list { display:grid; gap:0.45rem; margin-top:0.6rem; }
+      .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
+      .stage-inner { width:100%; aspect-ratio: 16 / 9; }
+      .stage-inner iframe { width:100%; height:100%; border:0; }
+      .status { margin-top:0.55rem; color: rgba(226,232,240,0.72); font-weight:800; }
+      .comments { margin-top: 1rem; display:grid; gap:0.5rem; }
+      .comment-row { border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); padding:0.6rem 0.7rem; }
+      .comment-row .who { font-weight:950; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.78); }
+      .comment-row .msg { margin-top:0.25rem; white-space:pre-wrap; color: rgba(248,250,252,0.92); font-weight:750; }
+      .comment-compose { display:grid; gap:0.4rem; margin-top:0.45rem; }
+      .comment-compose textarea { width:100%; min-height: 84px; resize: vertical; border-radius: 16px; border:1px solid rgba(148,163,184,0.16); background: rgba(255,255,255,0.04); color:#f1f5f9; padding:0.7rem 0.85rem; font-weight:750; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="card" style="margin-bottom:1rem;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.8rem; flex-wrap:wrap;">
+          <div>
+            <h1>Playlist (YouTube)</h1>
+            <div class="meta">{{ video.title|default:"Vídeo" }}</div>
+          </div>
+          <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+            <a class="button" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
+            <button type="button" class="button primary" id="pl-playall">Play lista</button>
+            <button type="button" class="button" id="pl-stop">Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="card">
+          <div class="stage">
+            <div class="stage-inner">
+              <iframe
+                id="pl-iframe"
+                title="YouTube"
+                src=""
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen
+                referrerpolicy="strict-origin-when-cross-origin"
+              ></iframe>
+            </div>
+          </div>
+          <div class="status" id="pl-status">Selecciona un clip.</div>
+        </section>
+        <aside class="card">
+          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+          <div class="list" id="pl-list"></div>
+        </aside>
+      </div>
+
+      <section class="card comments" aria-label="Comentarios internos">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">Comentarios (staff)</div>
+          <button type="button" class="button" id="pl-comments-refresh">Actualizar</button>
+        </div>
+        <div id="pl-comments"></div>
+        <div class="comment-compose">
+          <textarea id="pl-comment-text" placeholder="Escribe un comentario… (Ctrl/Cmd+Enter para enviar)"></textarea>
+          <div style="display:flex; justify-content:flex-end;">
+            <button type="button" class="button primary" id="pl-comment-send">Enviar</button>
+          </div>
+        </div>
+      </section>
+
+      <script>
+        (function () {
+          function safeText(v, fallback) {
+            var s = String(v == null ? '' : v).trim();
+            return s || (fallback || '');
+          }
+          function escapeHtml(value) {
+            return String(value == null ? '' : value)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+          }
+          function fmt(sec) {
+            var s = Math.max(0, Number(sec) || 0);
+            var m = Math.floor(s / 60);
+            var r = Math.floor(s - m * 60);
+            if (r < 10) return String(m) + ':0' + String(r);
+            return String(m) + ':' + String(r);
+          }
+
+          var clipsEl = document.getElementById('pl-list');
+          var iframe = document.getElementById('pl-iframe');
+          var status = document.getElementById('pl-status');
+          var btnPlayAll = document.getElementById('pl-playall');
+          var btnStop = document.getElementById('pl-stop');
+          var raw = document.getElementById('pl-clips');
+          var clips = [];
+          try { clips = JSON.parse(raw ? raw.textContent : '[]'); } catch (e) { clips = []; }
+
+          function setStatus(t) { if (status) status.textContent = String(t || ''); }
+          function setSrc(url) { if (iframe) iframe.src = String(url || ''); }
+
+          var active = false;
+          var idx = 0;
+          var timer = 0;
+
+          function stop() {
+            active = false;
+            idx = 0;
+            try { if (timer) window.clearTimeout(timer); } catch (e) {}
+            timer = 0;
+            setStatus('Parado.');
+          }
+
+          function playIndex(i) {
+            var c = clips[i];
+            if (!c) return;
+            idx = i;
+            setSrc(String(c.embed_url || ''));
+            setStatus('Lista ' + String(i + 1) + '/' + String(clips.length));
+            var dur = Math.max(1, (Number(c.out_s || 0) || 0) - (Number(c.in_s || 0) || 0));
+            try { if (timer) window.clearTimeout(timer); } catch (e2) {}
+            timer = window.setTimeout(function () {
+              if (!active) return;
+              var next = i + 1;
+              if (next >= clips.length) {
+                active = false;
+                setStatus('Lista finalizada.');
+                return;
+              }
+              playIndex(next);
+            }, Math.round(dur * 1000) + 650);
+          }
+
+          function render() {
+            if (!clipsEl) return;
+            if (!clips.length) {
+              clipsEl.innerHTML = '<div class="meta">Sin clips.</div>';
+              return;
+            }
+            var html = '';
+            for (var i = 0; i < clips.length; i += 1) {
+              var c = clips[i] || {};
+              var title = safeText(c.title, 'Clip');
+              var meta = fmt(c.in_s) + ' → ' + (Number(c.out_s || 0) ? fmt(c.out_s) : '…');
+              html += ''
+                + '<div class="row">'
+                + '  <div style="display:flex; flex-direction:column; gap:0.15rem; min-width:0;">'
+                + '    <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(title) + '</strong>'
+                + '    <small>' + escapeHtml(meta) + '</small>'
+                + '  </div>'
+                + '  <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">'
+                + '    <button type="button" class="button" data-pl-play="' + String(i) + '">Play</button>'
+                + '  </div>'
+                + '</div>';
+            }
+            clipsEl.innerHTML = html;
+            var btns = clipsEl.querySelectorAll('[data-pl-play]');
+            for (var b = 0; b < btns.length; b += 1) {
+              (function (btn) {
+                btn.addEventListener('click', function () {
+                  var i = Number(btn.getAttribute('data-pl-play') || 0) || 0;
+                  active = false;
+                  playIndex(i);
+                });
+              })(btns[b]);
+            }
+          }
+
+          if (btnPlayAll) btnPlayAll.addEventListener('click', function () {
+            if (!clips.length) return;
+            active = true;
+            playIndex(0);
+          });
+          if (btnStop) btnStop.addEventListener('click', stop);
+
+          render();
+          if (clips.length && clips[0] && clips[0].embed_url) setSrc(String(clips[0].embed_url));
+        })();
+      </script>
+
+      <script>
+        (function () {
+          var threadKey = String('{{ thread_key|default:"" }}' || '').trim();
+          var inboxItemId = Number('{{ inbox_item.id|default:"0" }}' || 0) || 0;
+          var apiUrl = String('{{ comments_api_url|default:"" }}' || '').trim();
+          var list = document.getElementById('pl-comments');
+          var btnRefresh = document.getElementById('pl-comments-refresh');
+          var input = document.getElementById('pl-comment-text');
+          var btnSend = document.getElementById('pl-comment-send');
+          if (!apiUrl || (!threadKey && !inboxItemId)) return;
+
+          function safeText(v, fallback) {
+            var s = String(v == null ? '' : v).trim();
+            return s || (fallback || '');
+          }
+          function escapeHtml(value) {
+            return String(value == null ? '' : value)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+          }
+          function render(items) {
+            var arr = Array.isArray(items) ? items : [];
+            var html = '';
+            for (var i = Math.max(0, arr.length - 120); i < arr.length; i += 1) {
+              var c = arr[i] || {};
+              var who = safeText(c.user, 'Staff');
+              var msg = safeText(c.message, '');
+              html += '<div class="comment-row"><div class="who">' + escapeHtml(who) + '</div><div class="msg">' + escapeHtml(msg) + '</div></div>';
+            }
+            if (!html) html = '<div class="meta">Sin comentarios todavía.</div>';
+            if (list) list.innerHTML = html;
+          }
+          function load() {
+            var url = new URL(apiUrl, window.location.href);
+            if (threadKey) url.searchParams.set('thread_key', threadKey);
+            else url.searchParams.set('item_id', String(inboxItemId));
+            return fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+              .then(function (resp) {
+                return resp.json().catch(function () { return {}; }).then(function (data) {
+                  if (!resp.ok || !data || !data.ok) return;
+                  render(data.items || []);
+                });
+              });
+          }
+          function send() {
+            var msg = safeText(input ? input.value : '', '');
+            if (!msg) return;
+            if (btnSend) btnSend.disabled = true;
+            var body = { message: msg };
+            if (threadKey) body.thread_key = threadKey;
+            else body.item_id = inboxItemId;
+            return fetch(apiUrl, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify(body),
+            }).then(function (resp) {
+              return resp.json().catch(function () { return {}; }).then(function (data) {
+                if (!resp.ok || !data || !data.ok) return;
+                try { if (input) input.value = ''; } catch (e) {}
+                return load();
+              });
+            }).finally(function () {
+              if (btnSend) btnSend.disabled = false;
+            });
+          }
+          if (btnRefresh) btnRefresh.addEventListener('click', load);
+          if (btnSend) btnSend.addEventListener('click', send);
+          if (input) input.addEventListener('keydown', function (ev) {
+            if ((ev.ctrlKey || ev.metaKey) && String(ev.key || '') === 'Enter') {
+              ev.preventDefault();
+              send();
+            }
+          });
+          load();
+        })();
+      </script>
+
+      {{ clips|json_script:"pl-clips" }}
+    </main>
+  </body>
+</html>
+
