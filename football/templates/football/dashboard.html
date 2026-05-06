@@ -190,6 +190,52 @@
         flex-direction: column;
         justify-content: flex-start;
       }
+      .team-hero-card {
+        padding: 0;
+        overflow: hidden;
+        min-height: 320px;
+      }
+      .team-hero-media {
+        height: 100%;
+        min-height: 320px;
+        background:
+          linear-gradient(180deg, rgba(3, 7, 18, 0.10), rgba(3, 7, 18, 0.92)),
+          var(--hero-image, url('{% static "football/campo-futbol.jpg" %}')) center/cover no-repeat;
+        display: flex;
+        align-items: end;
+      }
+      .team-hero-copy {
+        width: 100%;
+        padding: 1.05rem 1.05rem 0.95rem;
+        background: linear-gradient(180deg, rgba(3, 7, 18, 0.06), rgba(3, 7, 18, 0.88));
+      }
+      .hero-kicker {
+        display: inline-flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.65rem;
+      }
+      .hero-kicker span {
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        background: rgba(244, 180, 0, 0.10);
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        color: rgba(255, 249, 232, 0.92);
+        font-size: 0.74rem;
+        font-weight: 850;
+        letter-spacing: 0.04em;
+      }
+      .hero-titleline {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .hero-titleline .team-photo-crest {
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        flex: 0 0 auto;
+      }
       .hero-title {
         display: flex;
         align-items: center;
@@ -389,6 +435,7 @@
         .dash-hero-inner { grid-template-columns: 1fr; }
         .command-bar { position: static; }
         .avail-grid { grid-template-columns: 1fr; }
+        .team-hero-media { min-height: 240px; }
       }
 
       .hero {
