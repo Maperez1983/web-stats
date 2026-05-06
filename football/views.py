@@ -27909,8 +27909,12 @@ def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, sca
 
 def _default_task_preview_payload():
     try:
-        fallback_path = Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol.jpg'
-        if not fallback_path.exists() or not fallback_path.is_file():
+        fallback_candidates = [
+            Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol-fallback.jpg',
+            Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol.jpg',
+        ]
+        fallback_path = next((p for p in fallback_candidates if p.exists() and p.is_file()), None)
+        if not fallback_path:
             return None
         raw = fallback_path.read_bytes()
         if Image is not None:
@@ -27972,6 +27976,14 @@ def _ensure_library_task_preview(task, force=False, prefer_render=False):
     if not task:
         return False
     current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+    # Si ya existe un preview, evitamos sobreescribirlo salvo que tengamos una fuente mejor (PDF).
+    # Esto previene "degradar" previews reales (capturados del editor) a un placeholder genérico.
+    if current_name and not getattr(task, 'task_pdf', None):
+        try:
+            if default_storage.exists(current_name):
+                return True
+        except Exception:
+            return True
     if current_name and not force:
         try:
             if default_storage.exists(current_name):
@@ -37628,10 +37640,60 @@ def session_task_preview_file(request, task_id):
     if not task.task_preview_image:
         if not _ensure_library_task_preview(task):
             raise Http404('Imagen de tarea no disponible')
+    def _task_has_drawn_state(task_obj) -> bool:
+        """
+        True si hay estado gráfico que merezca un render (pizarra con objetos o timeline).
+        """
+        try:
+            layout = task_obj.tactical_layout if isinstance(getattr(task_obj, 'tactical_layout', None), dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
+            objects = canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else []
+            if objects:
+                return True
+            timeline = canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else []
+            for step in timeline:
+                st = step.get('canvas_state') if isinstance(step, dict) else None
+                objs = st.get('objects') if isinstance(st, dict) and isinstance(st.get('objects'), list) else []
+                if objs:
+                    return True
+        except Exception:
+            return False
+        return False
+
+    def _preview_looks_like_pitch_only(raw_bytes: bytes) -> bool:
+        """
+        Heurística: algunos previews acaban guardados como "solo césped" (sin overlay) cuando falló la exportación.
+        En ese caso intentamos re-render server-side (Playwright) para recuperar la representación real.
+        """
+        metrics = _analyze_preview_image_bytes(raw_bytes)
+        if not metrics:
+            return False
+        green_ratio = float(metrics.get('green_ratio') or 0.0)
+        white_ratio = float(metrics.get('white_ratio') or 0.0)
+        dark_ratio = float(metrics.get('dark_ratio') or 0.0)
+        # Césped casi puro + muy poco blanco (líneas) suele indicar preview vacío.
+        return green_ratio >= 0.88 and white_ratio <= 0.18 and dark_ratio <= 0.35
+
     # Refresca previews de baja calidad (una vez cada varias horas) para mantener nitidez en cards/PDF.
+    # Importante: solo lo hacemos cuando hay una fuente mejor para regenerar (PDF) o cuando detectamos
+    # un preview "vacío" pero la tarea sí tiene pizarra guardada.
     try:
-        if _task_preview_needs_refresh(task):
+        if getattr(task, 'task_pdf', None) and _task_preview_needs_refresh(task):
             _ensure_library_task_preview(task, force=True, prefer_render=True)
+        elif task.task_preview_image and _task_has_drawn_state(task):
+            # Si el preview existente parece "solo césped", intenta regenerar HD (no depende de `task_pdf`).
+            try:
+                task.task_preview_image.open('rb')
+                raw_preview = task.task_preview_image.read() or b''
+            finally:
+                try:
+                    task.task_preview_image.close()
+                except Exception:
+                    pass
+            if raw_preview and _preview_looks_like_pitch_only(raw_preview):
+                _maybe_render_task_preview_server_side(task, force=True)
     except Exception:
         pass
     file_field = task.task_preview_image
