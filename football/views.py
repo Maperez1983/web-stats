@@ -16155,17 +16155,9 @@ def coach_overview_page(request):
     hero_image_url = ''
     if primary_team and getattr(primary_team, 'cover_image', None):
         try:
-            hero_image_url = str(primary_team.cover_image.url or '').strip()
-            version = ''
-            try:
-                updated_at = getattr(primary_team, 'cover_updated_at', None)
-                if updated_at:
-                    version = str(int(updated_at.timestamp()))
-            except Exception:
-                version = ''
-            if version and hero_image_url:
-                joiner = '&' if '?' in hero_image_url else '?'
-                hero_image_url = f'{hero_image_url}{joiner}v={version}'
+            updated_at = getattr(primary_team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
+            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
         except Exception:
             hero_image_url = ''
     if not hero_image_url:
