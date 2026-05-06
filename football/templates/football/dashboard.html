@@ -1186,32 +1186,41 @@
         </div>
       </header>
 
-      <section class="hero">
-        <div class="dash-hero" id="team-hero">
-          <div class="dash-hero-inner">
-            <article class="hero-card" aria-label="Identidad del equipo">
-              <div class="hero-title">
-                <img
-                  id="hero-team-crest"
-                  class="team-photo-crest"
-                  src="{% if demo_mode or setup_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
-                  alt="Escudo del equipo"
-                />
-                <div>
-                  <h2 id="hero-team-name" class="hero-name">
-                    {% if demo_mode %}
-                      Equipo Demo
-                    {% elif setup_mode %}
-                      {{ setup_workspace_name|default:"Tu club" }}
-                    {% else %}
-                      C.D. Benagalbón
-                    {% endif %}
-                  </h2>
-                  <p id="hero-competition-line" class="hero-sub">Competición por definir</p>
-                  <p id="hero-rank-line" class="hero-rank">Puesto -</p>
-                </div>
-              </div>
-            </article>
+	      <section class="hero">
+	        <div class="dash-hero" id="team-hero">
+	          <div class="dash-hero-inner">
+	            <article class="hero-card team-hero-card" aria-label="Portada">
+	              <div class="team-hero-media">
+	                <div class="team-hero-copy">
+	                  <div class="hero-kicker">
+	                    <span id="hero-competition-line">Competición por definir</span>
+	                    <span id="hero-rank-line">Puesto -</span>
+	                  </div>
+	                  <div class="hero-titleline">
+	                    <img
+	                      id="hero-team-crest"
+	                      class="team-photo-crest"
+	                      src="{% if demo_mode or setup_mode %}{% static 'football/images/player-avatar.svg' %}{% else %}{% static 'football/images/cdb-logo.png' %}{% endif %}"
+	                      alt="Escudo del equipo"
+	                    />
+	                    <div>
+	                      <h2 id="hero-team-name" class="hero-name" style="margin:0;">
+	                        {% if demo_mode %}
+	                          Equipo Demo
+	                        {% elif setup_mode %}
+	                          {{ setup_workspace_name|default:"Tu club" }}
+	                        {% else %}
+	                          C.D. Benagalbón
+	                        {% endif %}
+	                      </h2>
+	                      <p class="hero-sub" style="margin:0.35rem 0 0; color:rgba(226,232,240,0.84); font-weight:750;">
+	                        Segunda Jugada · 2J Club
+	                      </p>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+	            </article>
 
             <aside class="command-bar" aria-label="Panel de mando">
               <div class="cmd-kpis" aria-label="KPIs">
