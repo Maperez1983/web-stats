@@ -128,6 +128,40 @@ if RENDER_HOSTNAME:
     if render_origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(render_origin)
 
+# Algunos despliegues usan un host público canónico (p.ej. app.segundajugada.es) y, además,
+# sirven la landing/comercial en `www.segundajugada.es`. Si esos hosts no están en ALLOWED_HOSTS,
+# Django responde 400 (DisallowedHost) incluso antes de que `CanonicalHostMiddleware` pueda redirigir.
+_app_public_base_url = str(os.getenv('APP_PUBLIC_BASE_URL') or '').strip()
+_canonical_norm = ''
+if _app_public_base_url:
+    try:
+        _raw = _app_public_base_url if '://' in _app_public_base_url else f'https://{_app_public_base_url}'
+        _parsed = urlparse(_raw)
+        _canonical_host = str((_parsed.netloc or '').split(':', 1)[0]).strip()
+    except Exception:
+        _canonical_host = ''
+    _canonical_norm = _normalize_allowed_host(_canonical_host)
+    if _canonical_norm and _canonical_norm not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_canonical_norm)
+
+_landing_hosts_raw = [
+    h.strip()
+    for h in str(os.getenv('LANDING_HOSTS') or '').split(',')
+    if h.strip()
+]
+# Solo añadimos defaults si el despliegue parece de Segunda Jugada.
+if not _landing_hosts_raw:
+    _is_2j = any(str(h).endswith('segundajugada.es') or str(h).endswith('segundajugada.com') for h in ALLOWED_HOSTS)
+    if _canonical_norm and (_canonical_norm.endswith('segundajugada.es') or _canonical_norm.endswith('segundajugada.com')):
+        _is_2j = True
+    if _is_2j:
+        _landing_hosts_raw = ['segundajugada.es', 'www.segundajugada.es', 'segundajugada.com', 'www.segundajugada.com']
+
+for _h in _landing_hosts_raw:
+    _norm = _normalize_allowed_host(_h)
+    if _norm and _norm not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_norm)
+
 # En despliegues con dominio personalizado, el Origin/Referer puede no coincidir con RENDER_EXTERNAL_HOSTNAME.
 # Para evitar 403 por CSRF al guardar tareas/acciones, añadimos automáticamente los hosts permitidos como orígenes confiables.
 for _host_raw in list(ALLOWED_HOSTS):
@@ -349,7 +383,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
@@ -421,6 +455,18 @@ if USE_S3_MEDIA:
             f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
             f'{AWS_MEDIA_LOCATION}/'
         )
+elif not DEBUG:
+    # Staticfiles en producción: siempre usa hashes + compresión (gzip/brotli via Whitenoise).
+    # Nota: si defines STORAGES parcialmente Django reemplaza el dict completo, así que
+    # incluimos también el backend por defecto (media local).
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
