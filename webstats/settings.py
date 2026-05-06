@@ -273,6 +273,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'football.context_processors.build_meta',
                 'football.context_processors.workspace_access',
+                'football.context_processors.brand_theme',
             ],
         },
     },

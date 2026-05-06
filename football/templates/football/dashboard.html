@@ -11,14 +11,14 @@
     <style>
       :root {
         /* Mantener identidad visual consistente con Área Entrenador (coach_overview). */
-        --bg: #08111d;
+        --bg: var(--prod-bg, #08111d);
         --panel: rgba(11, 19, 33, 0.95);
-        --panel-soft: rgba(15, 23, 39, 0.84);
-        --line: rgba(148, 163, 184, 0.18);
-        --ink: #f5f7fa;
-        --muted: rgba(226, 232, 240, 0.74);
-        --pitch: #2f7d32;
-        --amber: #f4b400;
+        --panel-soft: var(--prod-panel-flat, rgba(15, 23, 39, 0.84));
+        --line: var(--prod-line, rgba(148, 163, 184, 0.18));
+        --ink: var(--prod-text, #f5f7fa);
+        --muted: var(--prod-muted, rgba(226, 232, 240, 0.74));
+        --pitch: var(--prod-primary, #2f7d32);
+        --amber: var(--prod-secondary, #f4b400);
 
         /* Legacy tokens usados por este dashboard (antes "paper" claro). */
         --paper: var(--panel-soft);

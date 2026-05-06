@@ -22,6 +22,93 @@ def build_meta(request):
     }
 
 
+def brand_theme(request):
+    """
+    Paleta corporativa por equipo (sin romper nada):
+    - Fuente: WorkspacePreference key `brand_theme:v1`
+    - Se aplica como CSS variables `--prod-*` (fallback seguro a defaults).
+
+    Schema esperado:
+    {
+      "default": {"primary":"#2f7d32","secondary":"#f4b400","bg":"#08111d",...},
+      "teams": {"<team_id>": {"primary":"#...", "secondary":"#..." }}
+    }
+    """
+    try:
+        from football.views import _get_active_workspace, _get_active_team_for_request  # noqa: WPS433 (lazy import)
+        from football.models import WorkspacePreference  # noqa: WPS433 (lazy import)
+    except Exception:
+        return {}
+
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return {}
+
+    workspace = None
+    team = None
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    try:
+        team = _get_active_team_for_request(request)
+    except Exception:
+        team = None
+    if not workspace:
+        return {}
+
+    pref = None
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
+    except Exception:
+        pref = None
+    raw = pref.value if pref and isinstance(pref.value, dict) else {}
+    default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+    teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
+    team_key = str(getattr(team, 'id', '') or '').strip()
+    override = teams.get(team_key) if team_key and isinstance(teams.get(team_key), dict) else {}
+
+    def _color(value: str, fallback: str) -> str:
+        text = str(value or '').strip()
+        if not text:
+            return fallback
+        # Basic guardrail: allow #RGB/#RRGGBB and rgba()/rgb().
+        if text.startswith('#') and len(text) in {4, 7, 9}:
+            return text
+        if text.lower().startswith('rgb'):
+            return text
+        return fallback
+
+    theme = {
+        'primary': _color(override.get('primary') or default.get('primary'), '#2f7d32'),
+        'secondary': _color(override.get('secondary') or default.get('secondary'), '#f4b400'),
+        'bg': _color(override.get('bg') or default.get('bg'), '#08111d'),
+        'text': _color(override.get('text') or default.get('text'), '#f5f7fa'),
+        'muted': _color(override.get('muted') or default.get('muted'), 'rgba(226, 232, 240, 0.74)'),
+        'line': _color(override.get('line') or default.get('line'), 'rgba(144, 161, 185, 0.22)'),
+        'panel_flat': _color(override.get('panel_flat') or default.get('panel_flat'), 'rgba(14, 23, 39, 0.96)'),
+        'info': _color(override.get('info') or default.get('info'), '#22d3ee'),
+    }
+
+    css_vars = {
+        '--prod-primary': theme['primary'],
+        '--prod-secondary': theme['secondary'],
+        '--prod-bg': theme['bg'],
+        '--prod-text': theme['text'],
+        '--prod-muted': theme['muted'],
+        '--prod-line': theme['line'],
+        '--prod-panel-flat': theme['panel_flat'],
+        '--prod-info': theme['info'],
+    }
+    return {
+        'brand_theme': {
+            **theme,
+            'css_vars': css_vars,
+            'team_id': int(getattr(team, 'id', 0) or 0) if team else None,
+            'workspace_id': int(getattr(workspace, 'id', 0) or 0),
+        }
+    }
+
+
 def workspace_access(request):
     """
     Contexto global para plantillas:
