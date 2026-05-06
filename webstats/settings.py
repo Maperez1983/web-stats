@@ -212,7 +212,18 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     # Mantiene el equipo activo al navegar por enlaces/botones sin `?team=`.
     'football.middleware.StickyTeamContextMiddleware',
+    # Diagnóstico (opcional): log de requests lentas, activable con `PERF_SLOW_REQUEST_MS`.
+    'football.middleware.SlowRequestLoggingMiddleware',
 ]
+
+# Rendimiento en producción: comprime HTML/JSON (Cloudflare suele hacerlo, pero esto ayuda si se accede
+# directo al origin o si no hay compresión en el borde).
+if not DEBUG:
+    try:
+        if 'django.middleware.gzip.GZipMiddleware' not in MIDDLEWARE:
+            MIDDLEWARE.insert(1, 'django.middleware.gzip.GZipMiddleware')
+    except Exception:
+        pass
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'DENY'
@@ -314,6 +325,24 @@ TEMPLATES = [
         },
     },
 ]
+
+# Rendimiento en producción: cached template loader (reduce filesystem stats + parsing).
+if not DEBUG:
+    try:
+        tmpl0 = TEMPLATES[0]
+        options = tmpl0.setdefault('OPTIONS', {})
+        options['loaders'] = [
+            (
+                'django.template.loaders.cached.Loader',
+                [
+                    'django.template.loaders.filesystem.Loader',
+                    'django.template.loaders.app_directories.Loader',
+                ],
+            )
+        ]
+        tmpl0['APP_DIRS'] = False
+    except Exception:
+        pass
 
 WSGI_APPLICATION = 'webstats.wsgi.application'
 

@@ -9,11 +9,12 @@ from datetime import date, timedelta, time
 from pathlib import Path
 from types import SimpleNamespace
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
-from django.test import TestCase, TransactionTestCase
+from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -7670,3 +7671,35 @@ class SessionsPlannerLoadPastSessionTests(TestCase):
         self.assertIn('data-tab=\"sessions\"', html)
         self.assertIn('tab-panel is-active', html)
         self.assertIn('Sesión activa', html)
+
+
+class StaticAssetBudgetTests(SimpleTestCase):
+    def test_team_hero_images_are_reasonable_size(self):
+        base = Path(settings.BASE_DIR)
+        targets = [
+            base / 'static' / 'football' / 'images' / 'team-01.jpg',
+            base / 'static' / 'football' / 'images' / 'team-02.jpg',
+            base / 'static' / 'football' / 'images' / 'team-03.jpg',
+        ]
+        for p in targets:
+            self.assertTrue(p.exists(), f"Missing static asset: {p}")
+            size = p.stat().st_size
+            self.assertLess(
+                size,
+                650_000,
+                f"{p} is too large ({size} bytes). Optimize it (e.g. scripts/optimize_static_assets.py).",
+            )
+
+    def test_player_pngs_are_reasonable_size(self):
+        base = Path(settings.BASE_DIR)
+        players_dir = base / 'static' / 'football' / 'images' / 'players'
+        self.assertTrue(players_dir.exists(), f"Missing static dir: {players_dir}")
+        offenders = []
+        for p in sorted(players_dir.glob('*.png')):
+            try:
+                size = p.stat().st_size
+            except Exception:
+                continue
+            if size > 1_000_000:
+                offenders.append((p.name, size))
+        self.assertFalse(offenders, f"Large player PNGs (>1MB): {offenders}")

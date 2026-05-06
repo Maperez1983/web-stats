@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import time
+import logging
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -157,3 +159,51 @@ class StickyTeamContextMiddleware(MiddlewareMixin):
         except Exception:
             return None
         return None
+
+
+class SlowRequestLoggingMiddleware:
+    """
+    Log de requests lentas (para diagnóstico en Render).
+
+    - Activa con `PERF_SLOW_REQUEST_MS` (milisegundos).
+    - Evita estáticos/media para no ensuciar logs.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.logger = logging.getLogger("webstats.perf")
+        try:
+            self.threshold_ms = int(float(os.getenv("PERF_SLOW_REQUEST_MS", "0") or 0))
+        except Exception:
+            self.threshold_ms = 0
+
+    def __call__(self, request):
+        if not self.threshold_ms:
+            return self.get_response(request)
+
+        started = time.perf_counter()
+        response = self.get_response(request)
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        if elapsed_ms < self.threshold_ms:
+            return response
+
+        try:
+            path = str(getattr(request, "path", "") or "")
+            static_url = str(getattr(settings, "STATIC_URL", "/static/") or "/static/")
+            media_url = str(getattr(settings, "MEDIA_URL", "/media/") or "/media/")
+            if path.startswith(static_url) or path.startswith(media_url):
+                return response
+            method = str(getattr(request, "method", "") or "").upper()
+            status = int(getattr(response, "status_code", 0) or 0)
+            user_id = getattr(getattr(request, "user", None), "id", None)
+            self.logger.warning(
+                "slow_request ms=%s status=%s method=%s path=%s user_id=%s",
+                elapsed_ms,
+                status,
+                method,
+                path,
+                user_id,
+            )
+        except Exception:
+            pass
+        return response
