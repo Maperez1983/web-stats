@@ -1350,7 +1350,7 @@ class RivalVideo(models.Model):
         related_name='videos',
     )
     title = models.CharField(max_length=180)
-    video = models.FileField(upload_to='rival-videos/')
+    video = models.FileField(upload_to='rival-videos/', blank=True, null=True)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     source_url = models.URLField(max_length=600, blank=True, help_text='URL de origen (p.ej. YouTube) si aplica.')
     notes = models.TextField(blank=True)
