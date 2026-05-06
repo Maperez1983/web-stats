@@ -1138,12 +1138,14 @@
         const urlParams = new URLSearchParams(window.location.search || '');
         const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
         const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
+        const effectiveHome = String(urlParams.get('home') || '').trim();
 		      let standingsExpanded = false;
 
         function buildDashboardUrl({ fresh = false } = {}) {
           const params = new URLSearchParams();
           if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
           if (effectiveTeamId) params.set('team', effectiveTeamId);
+          if (effectiveHome) params.set('home', effectiveHome);
           if (fresh) {
             params.set('fresh', '1');
             params.set('ts', String(Date.now()));
@@ -1156,6 +1158,7 @@
           const params = new URLSearchParams();
           if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
           if (effectiveTeamId) params.set('team', effectiveTeamId);
+          if (effectiveHome) params.set('home', effectiveHome);
           params.set('ts', String(Date.now()));
           const qs = params.toString();
           return `/api/dashboard/refresh/${qs ? `?${qs}` : ''}`;

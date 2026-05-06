@@ -4430,6 +4430,27 @@ def _get_active_workspace(request):
             return workspace
         request.session.pop('active_workspace_id', None)
     if _can_access_platform(request.user):
+        # Si un usuario plataforma entra forzando "home club" sin contexto, elegimos un club por defecto
+        # para evitar que el dashboard quede vacío (clasificación/rival).
+        try:
+            wants_club_home = str(request.GET.get('home') or '').strip().lower() == 'club'
+        except Exception:
+            wants_club_home = False
+        if wants_club_home:
+            try:
+                club_qs = available_qs.filter(kind=Workspace.KIND_CLUB, is_active=True)
+                # Preferir clubs donde el usuario es owner, luego donde es miembro.
+                preferred = (
+                    club_qs.filter(owner_user=request.user).order_by('id').first()
+                    or club_qs.filter(memberships__user=request.user).order_by('id').first()
+                    or club_qs.order_by('id').first()
+                )
+                if preferred:
+                    request.session['active_workspace_id'] = preferred.id
+                    return preferred
+            except Exception:
+                pass
+
         # Si el usuario "plataforma" solo tiene 1 club disponible (por membresía),
         # lo fijamos como contexto activo para que las vistas de producto (sesiones, partido, etc.)
         # no queden en estado "sin club" y devuelvan 302/400/404 en app/webview.
@@ -9856,6 +9877,8 @@ def dashboard_data(request):
             return JsonResponse(_build_demo_dashboard_payload(request))
     except Exception:
         pass
+    # Para usuarios plataforma que abren `/?home=club`, el frontend envía `home=club` también a la API.
+    # Esto permite autoseleccionar un workspace club por defecto si no hay contexto.
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         # Workspace sin configurar: devolvemos datos simulados (avatar + clasificación random)
@@ -9885,6 +9908,20 @@ def dashboard_data(request):
             # Contexto auto-resuelto: continuar normalmente.
             pass
         else:
+            # En modo plataforma: guiar explícitamente a seleccionar cliente si no hay contexto.
+            try:
+                if request and getattr(request, 'user', None) and request.user.is_authenticated and _can_access_platform(request.user):
+                    return JsonResponse(
+                        {
+                            'setup_required': True,
+                            'setup_url': reverse('platform-overview'),
+                            'setup_message_title': 'Selecciona un club',
+                            'setup_message_body': 'No hay un club activo en esta sesión. Entra en Plataforma y elige el cliente para cargar clasificación y próximo rival.',
+                            'setup_action_label': 'Ir a Plataforma',
+                        }
+                    )
+            except Exception:
+                pass
             if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
                 return JsonResponse(_build_first_run_dashboard_payload(request))
             if workspace and _workspace_needs_setup(workspace):

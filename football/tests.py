@@ -199,6 +199,42 @@ class DashboardPlatformAutoselectWorkspaceTests(TestCase):
         payload = json.loads(response.content.decode('utf-8'))
         self.assertEqual(int(payload.get('team', {}).get('id') or 0), team.id)
 
+    def test_home_club_param_autoselects_owner_workspace_when_multiple(self):
+        team1 = Team.objects.create(name='T1', slug='dash-t1', short_name='T1', is_primary=True)
+        team2 = Team.objects.create(name='T2', slug='dash-t2', short_name='T2', is_primary=True)
+        user = get_user_model().objects.create_user(username='dash-owner', password='pass-1234', is_staff=True)
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_ADMIN)
+        ws_owned = Workspace.objects.create(
+            name='Club owned',
+            slug='club-owned',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=team1,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        ws_other = Workspace.objects.create(
+            name='Club other',
+            slug='club-other',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=team2,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=ws_owned, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceMembership.objects.create(workspace=ws_other, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=ws_owned, team=team1, is_default=True)
+        WorkspaceTeam.objects.create(workspace=ws_other, team=team2, is_default=True)
+
+        self.client.force_login(user)
+        response = self.client.get(f"{reverse('dashboard-data')}?home=club", secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content.decode('utf-8'))
+        self.assertEqual(int(payload.get('team', {}).get('id') or 0), team1.id)
+
 
 class LoginNextRedirectTests(TestCase):
     def setUp(self):
