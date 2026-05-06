@@ -10784,6 +10784,15 @@ def dashboard_page(request):
         if current_player:
             return redirect('player-detail', player_id=current_player.id)
         return redirect('player-dashboard')
+    # Home de staff: abrir el hub de entrenador (cuerpo técnico) por defecto.
+    # Permite forzar el dashboard nuevo con `/?home=dashboard`.
+    forced_home = str(request.GET.get('home') or '').strip().lower()
+    staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
+    if current_role in staff_roles and forced_home != 'dashboard':
+        try:
+            return redirect('coach-detail')
+        except Exception:
+            return redirect('/coach/')
     if current_role in {AppUserRole.ROLE_TASK_STUDIO, AppUserRole.ROLE_GUEST}:
         if _can_access_task_studio(request.user):
             return redirect('task-studio-home')
@@ -16205,34 +16214,34 @@ def coach_overview_page(request):
             pending_items.append('No hay disponibilidad consolidada del equipo.')
     module_hub = [
         {
-            'title': 'Portada',
-            'description': 'Contexto competitivo, home visual y alertas rápidas del cliente.',
-            'url': reverse('dashboard-home'),
-        },
-        {
-            'title': 'Estadísticas',
-            'description': 'KPIs, seguimiento individual y soporte manual de temporada.',
-            'url': reverse('coach-role-trainer'),
-        },
-        {
-            'title': 'Cuerpo técnico',
-            'description': 'Hub del staff, plantilla técnica y accesos por área.',
-            'url': reverse('coach-cards'),
-        },
-        {
             'title': 'Partido',
-            'description': 'Convocatoria, 11 inicial y registro live de matchday.',
-            'url': reverse('convocation'),
+            'description': 'Convoca · 11 · acciones · PDFs',
+            'url': reverse('match-hub'),
         },
         {
             'title': 'Entrenamiento',
-            'description': 'Sesiones, tareas, porteros, físico y ABP.',
+            'description': 'Tareas · sesiones · microciclos',
             'url': reverse('sessions'),
         },
         {
+            'title': 'Agenda',
+            'description': 'Semana (sesiones + partidos)',
+            'url': reverse('team-agenda'),
+        },
+        {
+            'title': 'Jugadores',
+            'description': 'Fichas, licencias, KPIs',
+            'url': reverse('coach-roster'),
+        },
+        {
             'title': 'Análisis',
-            'description': 'Rival, scouting, vídeo e informes tácticos.',
+            'description': 'Vídeos e informes',
             'url': reverse('analysis'),
+        },
+        {
+            'title': 'Táctica',
+            'description': 'Pizarra · clips · export',
+            'url': reverse('coach-tactics'),
         },
     ]
     probable_eleven_names = []

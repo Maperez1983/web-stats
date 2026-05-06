@@ -36,9 +36,24 @@
       .hero {
         border-radius: 28px;
         border: 1px solid var(--line);
-        background: var(--panel);
         padding: 1.6rem;
         box-shadow: 0 30px 68px rgba(0, 0, 0, 0.38);
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(3, 7, 18, 0.16), rgba(3, 7, 18, 0.88)),
+          url('{% if hero_image_url %}{{ hero_image_url|default_if_none:"" }}{% else %}{% static "football/campo-futbol.jpg" %}{% endif %}') center/cover no-repeat;
+        position: relative;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(8, 17, 29, 0.55), rgba(8, 17, 29, 0.92));
+        pointer-events: none;
+      }
+      .hero > * {
+        position: relative;
+        z-index: 1;
       }
       .club-row {
         display: flex;
@@ -77,6 +92,7 @@
         background: var(--panel-soft);
         padding: 1.2rem;
         min-height: 210px;
+        backdrop-filter: blur(6px);
       }
       .card.compact {
         min-height: 0;
@@ -231,6 +247,9 @@
         gap: 0.65rem;
         margin-top: 0.85rem;
       }
+      .hub-grid.areas-grid {
+        margin-top: 0.95rem;
+      }
       .hub-link {
         display: grid;
         gap: 0.2rem;
@@ -246,6 +265,10 @@
         transform: translateY(-1px);
         border-color: rgba(244, 180, 0, 0.22);
         background: rgba(244, 180, 0, 0.06);
+      }
+      .hub-link.is-primary {
+        border-color: rgba(244, 180, 0, 0.28);
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.12), rgba(47, 125, 50, 0.07));
       }
       .hub-link strong {
         font-size: 0.86rem;
@@ -351,7 +374,7 @@
         {% if can_access_platform %}
         <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'platform-overview' %}">Ir a plataforma</a>
         {% else %}
-        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'dashboard-home' %}">Volver al panel</a>
+        <a class="product-pill-cta" style="padding:0.68rem 1rem;" href="{% url 'dashboard-home' %}?home=dashboard">Panel (dashboard)</a>
         {% endif %}
       </header>
 
@@ -367,10 +390,10 @@
 
           <section class="card compact" aria-label="Áreas principales">
             <h3>Áreas</h3>
-            <p class="muted" style="margin:0;">Entra por módulos (partido, entrenamiento, análisis…).</p>
-            <div class="hub-grid">
+            <p class="muted" style="margin:0;">Accesos rápidos con lo importante siempre a mano.</p>
+            <div class="hub-grid areas-grid">
               {% for item in module_hub %}
-              <a class="hub-link" href="{{ item.url }}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">
+              <a class="hub-link {% if forloop.counter <= 2 %}is-primary{% endif %}" href="{{ item.url }}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">
                 <strong>{{ item.title }}</strong>
                 <span>{{ item.description }}</span>
               </a>
