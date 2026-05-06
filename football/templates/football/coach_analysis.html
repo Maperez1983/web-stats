@@ -884,8 +884,9 @@
 	        const btn = document.getElementById('rival-report-to-tasks');
 	        const status = document.getElementById('rival-report-to-tasks-status');
 	        if (!btn) return;
-	        const csrf = document.querySelector('input[name=\"csrfmiddlewaretoken\"]')?.value || '';
-	        const apiUrl = \"{% url 'analysis-rival-report-to-blueprints-api' %}\";
+	        const csrfInp = document.querySelector('input[name="csrfmiddlewaretoken"]');
+	        const csrf = csrfInp ? String(csrfInp.value || '') : '';
+	        const apiUrl = "{% url 'analysis-rival-report-to-blueprints-api' %}";
 	        btn.addEventListener('click', async () => {
 	          try {
 	            btn.disabled = true;
@@ -1083,7 +1084,7 @@
           }
 
           function getCsrf() {
-            const inp = form.querySelector('input[name=\"csrfmiddlewaretoken\"]');
+            const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
             return inp ? String(inp.value || '') : '';
           }
 
@@ -1112,7 +1113,7 @@
               if (submit) submit.disabled = true;
               if (status) status.textContent = 'Importando… (puede tardar)';
               const csrf = getCsrf();
-              const teamInp = document.querySelector('input[name=\"video_team_id\"]');
+              const teamInp = document.querySelector('input[name="video_team_id"]');
               const folderEl = document.getElementById('video_folder_id');
               const titleEl = document.getElementById('video_title');
               const notesEl = document.getElementById('video_notes');
