@@ -30,8 +30,24 @@ def brand_theme(request):
 
     Schema esperado:
     {
-      "default": {"primary":"#2f7d32","secondary":"#f4b400","bg":"#08111d",...},
-      "teams": {"<team_id>": {"primary":"#...", "secondary":"#..." }}
+      "default": {
+        "primary":"#2f7d32",
+        "secondary":"#f4b400",
+        "bg":"#08111d",
+        "text":"#f5f7fa",
+        "ui":"dark|light|hc",
+        "bg_light":"#f4f7fb",
+        "text_light":"#0f172a"
+      },
+      "teams": {
+        "<team_id>": {
+          "primary":"#...",
+          "secondary":"#...",
+          "ui":"dark|light|hc",
+          "bg_light":"#...",
+          "text_light":"#..."
+        }
+      }
     }
     """
     try:
@@ -87,7 +103,12 @@ def brand_theme(request):
         'line': _color(override.get('line') or default.get('line'), 'rgba(144, 161, 185, 0.22)'),
         'panel_flat': _color(override.get('panel_flat') or default.get('panel_flat'), 'rgba(14, 23, 39, 0.96)'),
         'info': _color(override.get('info') or default.get('info'), '#22d3ee'),
+        'ui': str(override.get('ui') or default.get('ui') or 'dark').strip().lower(),
+        'bg_light': _color(override.get('bg_light') or default.get('bg_light'), '#f4f7fb'),
+        'text_light': _color(override.get('text_light') or default.get('text_light'), '#0f172a'),
     }
+    if theme['ui'] not in {'dark', 'light', 'hc'}:
+        theme['ui'] = 'dark'
 
     css_vars = {
         '--prod-primary': theme['primary'],
@@ -99,10 +120,20 @@ def brand_theme(request):
         '--prod-panel-flat': theme['panel_flat'],
         '--prod-info': theme['info'],
     }
+    css_vars_light = {
+        '--prod-bg': theme['bg_light'],
+        '--prod-text': theme['text_light'],
+        # En tema claro, el muted debe oscurecerse para ser legible.
+        '--prod-muted': 'rgba(15, 23, 42, 0.72)',
+        '--prod-muted-soft': 'rgba(15, 23, 42, 0.82)',
+        '--prod-line': 'rgba(15, 23, 42, 0.14)',
+        '--prod-panel-flat': 'rgba(255, 255, 255, 0.92)',
+    }
     return {
         'brand_theme': {
             **theme,
             'css_vars': css_vars,
+            'css_vars_light': css_vars_light,
             'team_id': int(getattr(team, 'id', 0) or 0) if team else None,
             'workspace_id': int(getattr(workspace, 'id', 0) or 0),
         }

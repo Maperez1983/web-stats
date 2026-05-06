@@ -67,6 +67,33 @@
         flex-wrap: wrap;
         justify-content: flex-end;
       }
+      .theme-toggle {
+        appearance: none;
+        cursor: pointer;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        border-radius: 999px;
+        padding: 0.55rem 0.8rem;
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(245, 247, 250, 0.92);
+        font-size: 0.72rem;
+        line-height: 1.1;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 850;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .theme-toggle:hover {
+        border-color: rgba(244, 180, 0, 0.5);
+        color: #fff9e8;
+        transform: translateY(-1px);
+      }
+      :root[data-theme="light"] .theme-toggle {
+        background: rgba(255, 255, 255, 0.82);
+        color: rgba(15, 23, 42, 0.9);
+        border-color: rgba(15, 23, 42, 0.16);
+      }
       .team-switcher {
         display: inline-flex;
         align-items: center;
@@ -860,8 +887,11 @@
 	            <h1>Segunda Jugada · 2J Club</h1>
           </div>
         </div>
-        {% if active_team_options and active_team_options|length > 1 and team_switcher_enabled %}
         <div class="topbar-right">
+          <button class="theme-toggle" type="button" data-ui-theme-toggle title="📰 Modo Presentación (claro) / 🏟️ Entreno (oscuro)">
+            📰 <span data-ui-theme-label>Oscuro</span>
+          </button>
+          {% if active_team_options and active_team_options|length > 1 and team_switcher_enabled %}
           <form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
             {% csrf_token %}
             <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
@@ -873,8 +903,8 @@
             </select>
             <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
           </form>
+          {% endif %}
         </div>
-        {% endif %}
       </header>
 
       <section class="hero">

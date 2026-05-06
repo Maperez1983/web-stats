@@ -10839,6 +10839,9 @@ def club_onboarding_page(request):
         'secondary': '#f4b400',
         'bg': '#08111d',
         'text': '#f5f7fa',
+        'ui': 'dark',
+        'bg_light': '#f4f7fb',
+        'text_light': '#0f172a',
     }
     try:
         if workspace and primary_team:
@@ -10851,6 +10854,9 @@ def club_onboarding_page(request):
             theme_form['secondary'] = str(override.get('secondary') or default.get('secondary') or theme_form['secondary']).strip() or theme_form['secondary']
             theme_form['bg'] = str(override.get('bg') or default.get('bg') or theme_form['bg']).strip() or theme_form['bg']
             theme_form['text'] = str(override.get('text') or default.get('text') or theme_form['text']).strip() or theme_form['text']
+            theme_form['ui'] = str(override.get('ui') or default.get('ui') or theme_form['ui']).strip().lower() or theme_form['ui']
+            theme_form['bg_light'] = str(override.get('bg_light') or default.get('bg_light') or theme_form['bg_light']).strip() or theme_form['bg_light']
+            theme_form['text_light'] = str(override.get('text_light') or default.get('text_light') or theme_form['text_light']).strip() or theme_form['text_light']
     except Exception:
         pass
     form = {
@@ -10881,6 +10887,11 @@ def club_onboarding_page(request):
                 secondary = _clean_hex(request.POST.get('theme_secondary'), theme_form.get('secondary') or '#f4b400')
                 bg = _clean_hex(request.POST.get('theme_bg'), theme_form.get('bg') or '#08111d')
                 text = _clean_hex(request.POST.get('theme_text'), theme_form.get('text') or '#f5f7fa')
+                ui = str(request.POST.get('theme_ui') or theme_form.get('ui') or 'dark').strip().lower()
+                if ui not in {'dark', 'light', 'hc'}:
+                    ui = 'dark'
+                bg_light = _clean_hex(request.POST.get('theme_bg_light'), theme_form.get('bg_light') or '#f4f7fb')
+                text_light = _clean_hex(request.POST.get('theme_text_light'), theme_form.get('text_light') or '#0f172a')
                 use_as_default = str(request.POST.get('theme_use_as_default') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
 
                 pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
@@ -10891,8 +10902,8 @@ def club_onboarding_page(request):
                 default = dict(default)
                 teams = dict(teams)
                 if use_as_default:
-                    default.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text})
-                teams[str(int(primary_team.id))] = {'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text}
+                    default.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light})
+                teams[str(int(primary_team.id))] = {'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light}
                 raw['default'] = default
                 raw['teams'] = teams
                 WorkspacePreference.objects.update_or_create(
@@ -10900,7 +10911,7 @@ def club_onboarding_page(request):
                     key='brand_theme:v1',
                     defaults={'value': raw},
                 )
-                theme_form.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text})
+                theme_form.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light})
                 success = 'Identidad corporativa guardada.'
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar el tema.'

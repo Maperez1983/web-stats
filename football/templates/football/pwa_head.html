@@ -16,6 +16,73 @@
   }
 </style>
 {% endif %}
+{% if brand_theme and brand_theme.css_vars_light %}
+<style id="brand-theme-vars-light">
+  :root[data-theme="light"] {
+  {% for key, value in brand_theme.css_vars_light.items %}
+    {{ key }}: {{ value }};
+  {% endfor %}
+  }
+</style>
+{% endif %}
+{% if brand_theme and brand_theme.ui %}
+<script>
+  (function () {
+    try {
+      // Tema global del producto:
+      // - Si el usuario eligió tema desde Menú → Tema, manda `localStorage['2j_theme']`.
+      // - Si no hay preferencia del usuario, usamos la preferencia del club/equipo (`brand_theme.ui`).
+      var key = "2j_theme";
+      var stored = "";
+      try { stored = (window.localStorage && window.localStorage.getItem(key)) || ""; } catch (e) {}
+      var mode = (stored || "{{ brand_theme.ui|default:'dark' }}").toString().trim().toLowerCase();
+      if (!mode) mode = "dark";
+      if (mode !== "light" && mode !== "hc" && mode !== "dark") mode = "dark";
+      if (mode === "dark") {
+        document.documentElement.removeAttribute("data-theme");
+      } else {
+        document.documentElement.setAttribute("data-theme", mode);
+      }
+
+      // Helper global: permite toggles en cualquier página sin duplicar JS.
+      window.__toggleUiTheme = function (next) {
+        try {
+          var current = (document.documentElement.getAttribute("data-theme") || "dark").toLowerCase();
+          var target = next || (current === "light" ? "dark" : "light");
+          if (target !== "light" && target !== "hc" && target !== "dark") target = "dark";
+          if (target === "dark") {
+            document.documentElement.removeAttribute("data-theme");
+          } else {
+            document.documentElement.setAttribute("data-theme", target);
+          }
+          try { window.localStorage && window.localStorage.setItem(key, target); } catch (e) {}
+          return target;
+        } catch (e) { return "dark"; }
+      };
+
+      // Auto-bind: cualquier botón con `data-ui-theme-toggle` alterna dark/light.
+      document.addEventListener("DOMContentLoaded", function () {
+        try {
+          var nodes = document.querySelectorAll("[data-ui-theme-toggle]");
+          if (!nodes || !nodes.length) return;
+          nodes.forEach(function (node) {
+            node.addEventListener("click", function (ev) {
+              try { ev.preventDefault(); } catch (e) {}
+              var desired = node.getAttribute("data-ui-theme-toggle") || "";
+              var applied = window.__toggleUiTheme(desired || undefined);
+              // Opcional: actualizar texto visible si el botón tiene data-ui-theme-label.
+              try {
+                var labelNode = node.querySelector("[data-ui-theme-label]");
+                if (labelNode) labelNode.textContent = (applied === "light") ? "Claro" : "Oscuro";
+              } catch (e) {}
+            });
+          });
+        } catch (e) {}
+      });
+    } catch (e) {}
+  })();
+</script>
+{% endif %}
 <script src="{% static 'football/js/pdf_viewer.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 {% if request.user.is_authenticated %}
 <script>

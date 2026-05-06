@@ -423,6 +423,23 @@
               <label for="id_theme_text">Texto</label>
               <input id="id_theme_text" type="color" name="theme_text" value="{{ theme_form.text|default:'#f5f7fa' }}" />
             </div>
+            <div style="grid-column: 1 / -1;">
+              <label for="id_theme_ui">Tema por defecto</label>
+              <select id="id_theme_ui" name="theme_ui">
+                <option value="dark" {% if theme_form.ui|default:'dark' == 'dark' %}selected{% endif %}>🌙 Oscuro (recomendado)</option>
+                <option value="light" {% if theme_form.ui|default:'' == 'light' %}selected{% endif %}>📰 Presentación (claro)</option>
+                <option value="hc" {% if theme_form.ui|default:'' == 'hc' %}selected{% endif %}>🔆 Alto contraste</option>
+              </select>
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Puedes alternarlo en cualquier momento desde Menú → Tema (o en la Home con 📰).</p>
+            </div>
+            <div>
+              <label for="id_theme_bg_light">Fondo claro (presentación)</label>
+              <input id="id_theme_bg_light" type="color" name="theme_bg_light" value="{{ theme_form.bg_light|default:'#f4f7fb' }}" />
+            </div>
+            <div>
+              <label for="id_theme_text_light">Texto en claro</label>
+              <input id="id_theme_text_light" type="color" name="theme_text_light" value="{{ theme_form.text_light|default:'#0f172a' }}" />
+            </div>
             <div class="field is-checkbox" style="grid-column: 1 / -1;">
               <label><input type="checkbox" name="theme_use_as_default" /> Usar también como default del club (para otros equipos)</label>
             </div>
@@ -438,6 +455,7 @@
               <span class="chip">Sec <code style="margin-left:0.25rem;">{{ theme_form.secondary|default:'#f4b400' }}</code></span>
               <span class="chip">Fondo <code style="margin-left:0.25rem;">{{ theme_form.bg|default:'#08111d' }}</code></span>
               <span class="chip">Texto <code style="margin-left:0.25rem;">{{ theme_form.text|default:'#f5f7fa' }}</code></span>
+              <span class="chip">Claro <code style="margin-left:0.25rem;">{{ theme_form.bg_light|default:'#f4f7fb' }}</code></span>
             </div>
           </div>
 
