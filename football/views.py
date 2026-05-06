@@ -39,7 +39,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, default_storage, storages
 from django.db import connections
 from django.db import transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect
@@ -7165,6 +7165,153 @@ def _payload_opponent_name(payload):
     return str(payload.get('rival') or '').strip()
 
 
+def _season_bounds_for_date(d: date):
+    """
+    Temporada tipo España: 1 julio → 30 junio.
+    """
+    try:
+        year = int(d.year)
+        month = int(d.month)
+    except Exception:
+        today = timezone.localdate()
+        year = int(today.year)
+        month = int(today.month)
+    start_year = year if month >= 7 else (year - 1)
+    return date(start_year, 7, 1), date(start_year + 1, 6, 30), f'{start_year % 100:02d}/{(start_year + 1) % 100:02d}'
+
+
+def _player_role_bucket(player) -> str:
+    pos = str(getattr(player, 'position', '') or '').strip().lower()
+    if not pos:
+        return 'other'
+    if pos in {'por', 'pt', 'gk', 'goalkeeper', 'portero'} or pos.startswith('por') or pos.startswith('pt') or 'portero' in pos:
+        return 'gk'
+    # Heurística básica por letras comunes en España.
+    if any(key in pos for key in ('df', 'def', 'lateral', 'central', 'ld', 'li')):
+        return 'def'
+    if any(key in pos for key in ('mc', 'md', 'mi', 'medi', 'mcd', 'mco', 'interior', 'pivote')):
+        return 'mid'
+    if any(key in pos for key in ('dl', 'dc', 'ext', 'ei', 'ed', 'del', 'punta', '9')):
+        return 'fwd'
+    return 'other'
+
+
+def _build_weekly_agenda_payload(primary_team, *, reference_date=None):
+    if not primary_team:
+        return []
+    today = reference_date or timezone.localdate()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    def _day_label(d):
+        names = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        try:
+            return names[int(d.weekday())]
+        except Exception:
+            return 'Día'
+
+    sessions = []
+    try:
+        sessions = list(
+            TrainingSession.objects
+            .select_related('microcycle')
+            .filter(microcycle__team=primary_team, session_date__gte=week_start, session_date__lte=week_end)
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+            .order_by('session_date', 'start_time', 'order', 'id')
+        )
+    except Exception:
+        sessions = []
+
+    matches = []
+    try:
+        season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
+        if season_obj:
+            matches = list(
+                Match.objects
+                .select_related('home_team', 'away_team')
+                .filter(season=season_obj, date__gte=week_start, date__lte=week_end)
+                .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                .order_by('date', 'kickoff_time', 'id')
+            )
+    except Exception:
+        matches = []
+
+    buckets = {}
+    for s in sessions:
+        if not getattr(s, 'session_date', None):
+            continue
+        label_bits = []
+        if getattr(s, 'start_time', None):
+            try:
+                label_bits.append(s.start_time.strftime('%H:%M'))
+            except Exception:
+                pass
+        label_bits.append(str(getattr(s, 'focus', '') or '').strip() or 'Sesión')
+        buckets.setdefault(s.session_date, []).append(
+            {
+                'kind': 'session',
+                'title': ' · '.join([b for b in label_bits if b]).strip(),
+                'meta': str(getattr(s, 'get_intensity_display', lambda: '')() or '').strip() or 'Entreno',
+                'url': reverse('training-session-detail', args=[int(s.id)]),
+                'id': int(s.id),
+                'status': str(getattr(s, 'status', '') or '').strip(),
+            }
+        )
+    for m in matches:
+        if not getattr(m, 'date', None):
+            continue
+        opponent = None
+        try:
+            if m.home_team_id == primary_team.id:
+                opponent = getattr(m, 'away_team', None)
+                home_away = 'Casa'
+            elif m.away_team_id == primary_team.id:
+                opponent = getattr(m, 'home_team', None)
+                home_away = 'Fuera'
+            else:
+                opponent = getattr(m, 'away_team', None)
+                home_away = ''
+        except Exception:
+            opponent = None
+            home_away = ''
+        opponent_name = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() if opponent else 'Rival'
+        time_label = ''
+        try:
+            if getattr(m, 'kickoff_time', None):
+                time_label = m.kickoff_time.strftime('%H:%M')
+        except Exception:
+            time_label = ''
+        title = f'{time_label} · vs {opponent_name}'.strip(' ·')
+        meta_bits = [home_away] if home_away else []
+        rnd = str(getattr(m, 'round', '') or '').strip()
+        if rnd:
+            meta_bits.append(rnd)
+        buckets.setdefault(m.date, []).append(
+            {
+                'kind': 'match',
+                'title': title,
+                'meta': ' · '.join(meta_bits) if meta_bits else 'Partido',
+                'url': f"{reverse('match-hub')}?match_id={int(m.id)}",
+                'id': int(m.id),
+                'status': 'match',
+            }
+        )
+
+    days = []
+    for d in [week_start + timedelta(days=i) for i in range(7)]:
+        items = list(buckets.get(d) or [])
+        items.sort(key=lambda it: (0 if it.get('kind') == 'match' else 1, str(it.get('title') or '')))
+        days.append(
+            {
+                'date': d.isoformat(),
+                'day_label': _day_label(d),
+                'date_label': d.strftime('%d/%m/%Y'),
+                'items': items,
+            }
+        )
+    return days
+
+
 def _opponent_in_standings_rows(opponent_name: str, standings_rows) -> bool:
     """
     Guardrail anti-mezcla (Senior vs Prebenjamín):
@@ -10234,6 +10381,127 @@ def dashboard_data(request):
             pass
     if debug_payload:
         payload['debug'] = debug_payload
+
+    # Dashboard Staff: resumen de entreno + agenda semanal (ligero, sin bloquear UI).
+    try:
+        today = timezone.localdate()
+        season_start, season_end, season_label = _season_bounds_for_date(today)
+        sessions_qs = (
+            TrainingSession.objects
+            .filter(microcycle__team=primary_team, session_date__gte=season_start, session_date__lte=season_end)
+            .exclude(status=TrainingSession.STATUS_CANCELED)
+        )
+        sessions_total = int(sessions_qs.count())
+        sessions_done_qs = sessions_qs.filter(status=TrainingSession.STATUS_DONE)
+        sessions_done = list(sessions_done_qs.values_list('id', flat=True)[:520])
+        done_count = int(len(sessions_done))
+        planned_minutes_total = int(sessions_done_qs.aggregate(total=Sum('duration_minutes')).get('total') or 0)
+        # Real: preferir timeline segments (si existen). Fallback: minutos planificados.
+        real_by_session = {}
+        try:
+            seg_rows = (
+                TrainingSessionTimelineSegment.objects
+                .filter(session_id__in=sessions_done)
+                .values('session_id')
+                .annotate(total=Sum('duration_minutes'))
+            )
+            for row in seg_rows:
+                sid = int(row.get('session_id') or 0)
+                total = int(row.get('total') or 0)
+                if sid and total:
+                    real_by_session[sid] = total
+        except Exception:
+            real_by_session = {}
+        real_minutes_total = 0
+        if sessions_done:
+            # Para sesiones sin segmentos, usar duración planificada.
+            session_minutes_rows = (
+                TrainingSession.objects
+                .filter(id__in=sessions_done)
+                .values('id', 'duration_minutes')
+            )
+            for row in session_minutes_rows:
+                sid = int(row.get('id') or 0)
+                planned = int(row.get('duration_minutes') or 0)
+                real_minutes_total += int(real_by_session.get(sid) or planned or 0)
+
+        # Líderes por “minutos entreno” (asistencia).
+        leaders = []
+        try:
+            player_map = {
+                int(p.id): p
+                for p in Player.objects.filter(team=primary_team, is_active=True).order_by('id')
+            }
+            # cache sesiones reales para ponderar asistencia
+            real_minutes_for_session = {}
+            for row in TrainingSession.objects.filter(id__in=sessions_done).values('id', 'duration_minutes'):
+                sid = int(row.get('id') or 0)
+                real_minutes_for_session[sid] = int(real_by_session.get(sid) or int(row.get('duration_minutes') or 0) or 0)
+
+            minutes_by_player = {}
+            sessions_by_player = {}
+            marks = list(
+                TrainingSessionAttendance.objects
+                .filter(session_id__in=sessions_done, player__team=primary_team)
+                .values('player_id', 'session_id', 'status')
+            )
+            for row in marks:
+                pid = int(row.get('player_id') or 0)
+                sid = int(row.get('session_id') or 0)
+                status = str(row.get('status') or '').strip()
+                if not pid or not sid:
+                    continue
+                base = int(real_minutes_for_session.get(sid) or 0)
+                if base <= 0:
+                    continue
+                add = 0
+                if status == TrainingSessionAttendance.STATUS_PRESENT:
+                    add = base
+                elif status == TrainingSessionAttendance.STATUS_LATE:
+                    add = int(round(base * 0.75))
+                else:
+                    add = 0
+                if add:
+                    minutes_by_player[pid] = int(minutes_by_player.get(pid, 0) + add)
+                    sessions_by_player[pid] = int(sessions_by_player.get(pid, 0) + 1)
+
+            def _leader_row(pid, minutes):
+                p = player_map.get(pid)
+                if not p:
+                    return None
+                try:
+                    photo_url = str(resolve_player_photo_url(request, p) or '').strip()
+                except Exception:
+                    photo_url = ''
+                return {
+                    'player_id': int(p.id),
+                    'name': str(p.name or '').strip(),
+                    'number': int(getattr(p, 'number', 0) or 0) or None,
+                    'position': str(getattr(p, 'position', '') or '').strip(),
+                    'role': _player_role_bucket(p),
+                    'photo_url': photo_url,
+                    'minutes': int(minutes or 0),
+                    'sessions': int(sessions_by_player.get(pid, 0) or 0),
+                }
+
+            for pid, minutes in sorted(minutes_by_player.items(), key=lambda it: int(it[1] or 0), reverse=True)[:14]:
+                row = _leader_row(pid, minutes)
+                if row:
+                    leaders.append(row)
+        except Exception:
+            leaders = []
+
+        payload['training_summary'] = {
+            'season_label': season_label,
+            'sessions_total': sessions_total,
+            'sessions_done': done_count,
+            'planned_minutes_total': planned_minutes_total,
+            'real_minutes_total': real_minutes_total,
+            'leaders': leaders,
+        }
+        payload['weekly_agenda'] = _build_weekly_agenda_payload(primary_team, reference_date=today)
+    except Exception:
+        pass
     cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
     response = JsonResponse(payload)
     if force_fresh:
