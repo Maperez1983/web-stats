@@ -10883,6 +10883,22 @@ def club_onboarding_page(request):
     try:
         if workspace and primary_team:
             pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
+            # Si aún no hay identidad definida y el equipo es Benagalbón, sugerimos paleta real (cartel/póster).
+            if not pref:
+                try:
+                    team_name = str(getattr(primary_team, 'name', '') or '').casefold()
+                except Exception:
+                    team_name = ''
+                if 'benagal' in team_name:
+                    theme_form.update({
+                        'primary': '#06814d',
+                        'secondary': '#0e6f67',
+                        'bg': '#08111d',
+                        'text': '#f5f7fa',
+                        'ui': 'dark',
+                        'bg_light': '#f2f0e9',
+                        'text_light': '#0f172a',
+                    })
             raw = pref.value if pref and isinstance(pref.value, dict) else {}
             default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
             teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
