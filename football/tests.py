@@ -148,6 +148,33 @@ class CanonicalAppBaseUrlNormalizationTests(TestCase):
         self.assertEqual(response['Location'], 'https://app.example.com/2j/')
 
 
+class CookieDomainSanitizerMiddlewareTests(TestCase):
+    def test_strips_session_cookie_domain_when_host_mismatches(self):
+        # Simula mala config: cookie_domain fija a segundajugada.es pero el usuario entra por onrender.
+        user = get_user_model().objects.create_user(username='cookie-mismatch', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        self.client.force_login(user)
+        with override_settings(ALLOWED_HOSTS=['testserver', 'web-stats.onrender.com', 'segundajugada.es']):
+            with override_settings(SESSION_COOKIE_DOMAIN='.segundajugada.es'):
+                response = self.client.get(reverse('session-keepalive'), HTTP_HOST='web-stats.onrender.com', secure=True)
+        self.assertEqual(response.status_code, 200)
+        cookie = response.cookies.get('webstats_sessionid') or response.cookies.get('sessionid')
+        self.assertIsNotNone(cookie)
+        self.assertFalse(bool(cookie.get('domain')))
+
+    def test_strips_cookie_domain_for_onrender_public_suffix(self):
+        user = get_user_model().objects.create_user(username='cookie-onrender', password='pass-1234')
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_COACH)
+        self.client.force_login(user)
+        with override_settings(ALLOWED_HOSTS=['testserver', 'web-stats.onrender.com']):
+            with override_settings(SESSION_COOKIE_DOMAIN='.onrender.com'):
+                response = self.client.get(reverse('session-keepalive'), HTTP_HOST='web-stats.onrender.com', secure=True)
+        self.assertEqual(response.status_code, 200)
+        cookie = response.cookies.get('webstats_sessionid') or response.cookies.get('sessionid')
+        self.assertIsNotNone(cookie)
+        self.assertFalse(bool(cookie.get('domain')))
+
+
 class LoginNextRedirectTests(TestCase):
     def setUp(self):
         self.player_user = get_user_model().objects.create_user(

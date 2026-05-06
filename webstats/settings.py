@@ -168,6 +168,8 @@ MIDDLEWARE = [
     # Fuerza host canónico para evitar mezcla de dominios (p.ej. Render hostname vs dominio público).
     'football.middleware.CanonicalHostMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    # Sanitiza Domain en cookies de sesión/CSRF para evitar bucles de login (especialmente en *.onrender.com).
+    'football.middleware.CookieDomainSanitizerMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
