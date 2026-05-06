@@ -10548,9 +10548,9 @@ def dashboard_page(request):
     # porque suelen ser internos (staff) y eso rompe el acceso a la plataforma.
     if current_role is None:
         current_role = AppUserRole.ROLE_COACH
-    # Product rule: si el usuario tiene acceso a Platform, la entrada por defecto en app.*
-    # debe ser Platform (para elegir cliente/contexto). Se puede forzar el home club con `?home=club`.
-    if _can_access_platform(request.user) and (host in app_hosts or host.startswith('app.')):
+    # Product rule (ajustada): Platform es SOLO para admin. Para staff/coach la home es el dashboard del club.
+    # Se puede forzar el home club con `?home=club`.
+    if _is_admin_user(request.user) and _can_access_platform(request.user) and (host in app_hosts or host.startswith('app.')):
         forced_home = str(request.GET.get('home') or '').strip().lower()
         if forced_home != 'club':
             # Si el usuario ya tiene un cliente activo (workspace) no lo mandamos a Platform en cada arranque.
@@ -10596,7 +10596,7 @@ def dashboard_page(request):
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
-    can_access_platform = _can_access_platform(request.user)
+    can_access_platform = bool(_is_admin_user(request.user) and _can_access_platform(request.user))
     workspace_links = _workspace_links_for_user(request.user)
     active_workspace = _build_active_workspace_badge(request)
     demo_mode = False
@@ -41768,7 +41768,10 @@ def player_detail_page(request, player_id):
             }
         except Exception:
             player_percentiles = {}
-        active_tab = (request.GET.get('tab') or 'general').strip().lower()
+        tab_raw = str(request.GET.get('tab') or '').strip().lower()
+        if not tab_raw and is_player_readonly:
+            tab_raw = 'performance'
+        active_tab = tab_raw or 'general'
         physical_metrics = player.physical_metrics.all()[:20]
         latest_physical_metric = physical_metrics[0] if physical_metrics else None
         communications = player.communications.select_related('match').all()[:20]

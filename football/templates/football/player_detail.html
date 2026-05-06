@@ -514,6 +514,10 @@
 	        .general-crest img { width: 74px; height: 74px; }
 	      }
 
+	      /* Player home mode: para rol jugador, priorizar mapa de calor (sin ruido). */
+        body.is-player-home .performance-radar,
+        body.is-player-home #radar-trends { display:none !important; }
+
 	      /* Player presentation mode (broadcast-like): hide chrome, focus on rendimiento. */
 	      body.is-player-present { padding: 0.8rem; }
 	      body.is-player-present .container { max-width: none; }
@@ -528,7 +532,7 @@
 	      body.is-player-present .radar-figure svg { width: min(520px, 100%); }
 	    </style>
   </head>
-  <body class="prod-commercial">
+  <body class="prod-commercial{% if is_player_readonly %} is-player-home{% endif %}">
     <div class="container">
       <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.55rem; text-decoration:none; color:inherit;">
 	        <div class="product-brand-strip-copy">
@@ -538,7 +542,15 @@
       </a>
       {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=True hide_dragon_logo=False %}
       <header>
-        <div>
+        <div style="display:flex; gap:0.9rem; align-items:flex-start; flex-wrap:wrap;">
+          <div class="player-photo-card" style="padding:0.35rem; border-radius:1rem; border:1px solid rgba(144,161,185,0.22); background:rgba(2,6,23,0.22);">
+            {% if player_photo_url %}
+              <img src="{{ player_photo_url }}" alt="{{ player.name }}" style="width:84px;height:84px;border-radius:0.85rem;object-fit:cover;display:block;" loading="lazy" />
+            {% else %}
+              <img src="{% static 'football/images/player-avatar.svg' %}" alt="{{ player.name }}" style="width:84px;height:84px;border-radius:0.85rem;object-fit:contain;display:block;background:rgba(15,23,42,0.45);" loading="lazy" />
+            {% endif %}
+          </div>
+          <div style="min-width:240px; flex:1;">
           <p style="margin:0;" class="subtle">Jugador · {{ player.team.display_name }}</p>
           <h1>
             {{ player.name }}
@@ -553,6 +565,7 @@
             <p style="margin:0.35rem 0 0;" class="subtle">Convocatoria activa: {{ current_convocation.round|default:"Sin jornada" }} · {{ current_convocation.opponent_name|default:"Rival pendiente" }}</p>
           {% endif %}
 	        </div>
+          </div>
 		        <div style="display:flex;gap:1rem;">
 		          {% if can_preview_player_view and player_view_preview %}
 		          <a class="btn alt" href="{% url 'player-detail' player.id %}{% if active_tab %}?tab={{ active_tab }}{% endif %}">Volver a edición staff</a>
