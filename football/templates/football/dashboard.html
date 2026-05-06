@@ -1104,12 +1104,16 @@
 	          ];
         const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
         const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
-	      let standingsExpanded = false;
+        // Fallback: si el contexto no está fijado en sesión, usa los params de la URL actual.
+        const urlParams = new URLSearchParams(window.location.search || '');
+        const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
+        const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
+		      let standingsExpanded = false;
 
         function buildDashboardUrl({ fresh = false } = {}) {
           const params = new URLSearchParams();
-          if (activeWorkspaceId) params.set('workspace', activeWorkspaceId);
-          if (activeTeamId) params.set('team', activeTeamId);
+          if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
+          if (effectiveTeamId) params.set('team', effectiveTeamId);
           if (fresh) {
             params.set('fresh', '1');
             params.set('ts', String(Date.now()));
@@ -1120,8 +1124,9 @@
 
         function buildDashboardRefreshUrl() {
           const params = new URLSearchParams();
-          if (activeWorkspaceId) params.set('workspace', activeWorkspaceId);
-          if (activeTeamId) params.set('team', activeTeamId);
+          if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
+          if (effectiveTeamId) params.set('team', effectiveTeamId);
+          params.set('ts', String(Date.now()));
           const qs = params.toString();
           return `/api/dashboard/refresh/${qs ? `?${qs}` : ''}`;
         }
@@ -1156,11 +1161,13 @@
         }
       }
 
-	      async function renderDashboard() {
-	        try {
-	          const response = await fetch(buildDashboardUrl());
-	          if (!response.ok) throw new Error('No se pudo cargar la dashboard');
-	          const payload = await response.json();
+		      async function renderDashboard() {
+		        try {
+		          const response = await fetch(buildDashboardUrl(), { credentials: 'same-origin' });
+              const ctype = String(response.headers.get('content-type') || '');
+		          if (!response.ok) throw new Error(`DASH_HTTP_${response.status}`);
+              if (!ctype.includes('application/json')) throw new Error('DASH_NO_JSON');
+		          const payload = await response.json();
 
           const setupBanner = document.getElementById('setup-banner');
           if (setupBanner) {
@@ -1231,11 +1238,17 @@
             const provider = String(meta.provider || '').trim();
             metaEl.textContent = updated ? `Actualizado: ${updated}${provider ? ` · ${provider}` : ''}` : '';
           }
-        } catch (error) {
-          console.error(error);
-          document.getElementById('standings').textContent = 'Error al cargar';
-        }
-      }
+		        } catch (error) {
+		          console.error(error);
+		          const standingsEl = document.getElementById('standings');
+              if (standingsEl) standingsEl.textContent = 'Error al cargar';
+              // Si la API devolvió HTML (login/landing), forzamos navegación a login para evitar pantalla vacía.
+              if (String(error?.message || '').includes('DASH_NO_JSON')) {
+                const next = encodeURIComponent(window.location.pathname + window.location.search);
+                window.location.assign(`/login/?next=${next}`);
+              }
+		        }
+		      }
 
       function renderTraining(summary) {
         const metaEl = document.getElementById('training-meta');

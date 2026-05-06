@@ -9861,11 +9861,35 @@ def dashboard_data(request):
         # Workspace sin configurar: devolvemos datos simulados (avatar + clasificación random)
         # y permitimos que la UI guíe al onboarding.
         workspace = _get_active_workspace(request)
-        if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-            return JsonResponse(_build_first_run_dashboard_payload(request))
-        if workspace and _workspace_needs_setup(workspace):
-            return JsonResponse(_build_setup_dashboard_payload(request, workspace))
-        return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+
+        # Platform/admin: si no hay workspace activo pero el sistema solo tiene un club,
+        # lo fijamos automáticamente para que el dashboard pueda cargar clasificación/rival.
+        if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated:
+            try:
+                if _can_access_platform(request.user):
+                    club_ws = list(
+                        Workspace.objects
+                        .filter(kind=Workspace.KIND_CLUB, is_active=True)
+                        .order_by('id')[:2]
+                    )
+                    if len(club_ws) == 1:
+                        workspace = club_ws[0]
+                        if hasattr(request, 'session'):
+                            request.session['active_workspace_id'] = workspace.id
+                        # Reintenta ahora que hay workspace.
+                        primary_team = _get_primary_team_for_request(request)
+            except Exception:
+                pass
+
+        if primary_team:
+            # Contexto auto-resuelto: continuar normalmente.
+            pass
+        else:
+            if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
+                return JsonResponse(_build_first_run_dashboard_payload(request))
+            if workspace and _workspace_needs_setup(workspace):
+                return JsonResponse(_build_setup_dashboard_payload(request, workspace))
+            return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
 
     workspace = _get_active_workspace(request)
     setup_banner = {}

@@ -175,6 +175,31 @@ class CookieDomainSanitizerMiddlewareTests(TestCase):
         self.assertFalse(bool(cookie.get('domain')))
 
 
+class DashboardPlatformAutoselectWorkspaceTests(TestCase):
+    def test_platform_admin_without_context_gets_single_club_team_payload(self):
+        team = Team.objects.create(name='Equipo dashboard', slug='equipo-dashboard', short_name='Dash', is_primary=True)
+        user = get_user_model().objects.create_user(username='dash-admin', password='pass-1234', is_staff=True)
+        AppUserRole.objects.create(user=user, role=AppUserRole.ROLE_ADMIN)
+        workspace = Workspace.objects.create(
+            name='Club único',
+            slug='club-unico',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=team,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
+
+        self.client.force_login(user)
+        response = self.client.get(reverse('dashboard-data'), secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = json.loads(response.content.decode('utf-8'))
+        self.assertEqual(int(payload.get('team', {}).get('id') or 0), team.id)
+
+
 class LoginNextRedirectTests(TestCase):
     def setUp(self):
         self.player_user = get_user_model().objects.create_user(
