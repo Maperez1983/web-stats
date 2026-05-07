@@ -10877,28 +10877,31 @@ def dashboard_page(request):
             except Exception:
                 pass
         return forbidden
-    return render(
-        request,
-        'football/dashboard_v2.html',
-        {
-            'scrape_sources': sources,
-            'hero_image_candidates': hero_image_candidates,
-            'demo_mode': demo_mode,
-            'setup_mode': setup_mode,
-            'setup_workspace_name': setup_workspace_name,
-            'current_role': current_role,
-            'current_role_label': role_labels.get(current_role, 'Jugador'),
-            'can_access_admin': can_access_admin,
-            'can_access_sessions': can_access_sessions,
-            'can_access_platform': can_access_platform,
-            'workspace_links': workspace_links,
-            'active_workspace': active_workspace,
-            'dashboard_focus_items': dashboard_focus_items,
-            'dashboard_pending_items': dashboard_pending_items,
-            'dashboard_pending_cards': dashboard_pending_cards,
-            'dashboard_recent_activity': dashboard_recent_activity,
-        },
-    )
+    ctx = {
+        'scrape_sources': sources,
+        'hero_image_candidates': hero_image_candidates,
+        'demo_mode': demo_mode,
+        'setup_mode': setup_mode,
+        'setup_workspace_name': setup_workspace_name,
+        'current_role': current_role,
+        'current_role_label': role_labels.get(current_role, 'Jugador'),
+        'can_access_admin': can_access_admin,
+        'can_access_sessions': can_access_sessions,
+        'can_access_platform': can_access_platform,
+        'workspace_links': workspace_links,
+        'active_workspace': active_workspace,
+        'dashboard_focus_items': dashboard_focus_items,
+        'dashboard_pending_items': dashboard_pending_items,
+        'dashboard_pending_cards': dashboard_pending_cards,
+        'dashboard_recent_activity': dashboard_recent_activity,
+    }
+    from django.template.exceptions import TemplateDoesNotExist  # noqa: WPS433 (local import)
+
+    try:
+        return render(request, 'football/dashboard_v2.html', ctx)
+    except TemplateDoesNotExist:
+        # Safety: avoid 500 if the v2 template is missing in a deploy (fallback to legacy dashboard).
+        return render(request, 'football/dashboard.html', ctx)
 
 
 def _public_signup_enabled() -> bool:
