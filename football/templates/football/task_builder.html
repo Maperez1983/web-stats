@@ -5805,6 +5805,10 @@
 		            .catch(() => { setStatus('No se pudo cargar la Vista 3D.'); return false; });
 		        };
 
+            // Expose minimal hooks for other inline scripts (landing / mode switchers).
+            // Keeps lazy-loading while ensuring the pitch is available when user chooses "Pizarra".
+            try { window.__webstatsEnsureEditorStack = ensureEditorStack; } catch (e) { /* ignore */ }
+
 		        const hookClick = (id, ensureFn, markerKey) => {
 		          const el = document.getElementById(id);
 		          if (!el) return;
@@ -5849,8 +5853,10 @@
 		        scheduleIdle(() => {
 		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
 		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
-		          const wantsEditor = !!document.querySelector('[data-pane=\"pizarra\"].is-active,[data-pane=\"animacion\"].is-active');
-		          if (hasTaskId || wantsEditor) ensureEditorStack();
+		          const wantsBoard = !!document.querySelector('#task-mode-tabs [data-task-mode=\"board\"].is-active,#task-mode-tabs [data-task-mode=\"both\"].is-active');
+		          // Nota: en esta página la pizarra es el modo por defecto; si el usuario está en "Pizarra",
+		          // precargamos siempre para que la superficie aparezca sin clicks extra.
+		          if (hasTaskId || wantsBoard) ensureEditorStack();
 		        }, 2200);
 
 		        // 3D de pizarra (usa Three.js dentro del editor TPad).
@@ -10042,6 +10048,13 @@
 	              const closeLanding = () => {
 	                try { landing.hidden = true; } catch (e) { /* ignore */ }
 	                clearLandingParam();
+                  // Si estamos en modo pizarra, garantiza que el editor se cargue al cerrar.
+                  try {
+                    const wantsBoard = !!document.querySelector('#task-mode-tabs [data-task-mode=\"board\"].is-active,#task-mode-tabs [data-task-mode=\"both\"].is-active');
+                    if (wantsBoard && typeof window.__webstatsEnsureEditorStack === 'function') {
+                      window.__webstatsEnsureEditorStack();
+                    }
+                  } catch (e) { /* ignore */ }
 	              };
 
               const clickFirst = (selector) => {
@@ -10131,6 +10144,7 @@
                   return;
                 }
 	                // board: solo entra.
+                  try { if (typeof window.__webstatsEnsureEditorStack === 'function') window.__webstatsEnsureEditorStack(); } catch (e) { /* ignore */ }
 	                closeLanding();
 	              };
 
