@@ -5419,6 +5419,12 @@ class MatchActionWorkflowTests(TestCase):
         self.assertLess(content.find(marker), style_end)
         self.assertEqual(content.find(marker, style_end), -1)
 
+    def test_match_actions_page_payload_under_budget(self):
+        # Guardrail: evita reintroducir megabytes de JS inline en HTML.
+        response = self.client.get(reverse('match-action-page'))
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(len(response.content or b''), 220_000)
+
 
 class PlayerDashboardViewTests(TestCase):
     def setUp(self):
