@@ -10879,7 +10879,7 @@ def dashboard_page(request):
         return forbidden
     return render(
         request,
-        'football/dashboard.html',
+        'football/dashboard_v2.html',
         {
             'scrape_sources': sources,
             'hero_image_candidates': hero_image_candidates,
@@ -37933,15 +37933,29 @@ def session_task_preview_file(request, task_id):
     try:
         file_field.open('rb')
     except Exception:
-        # If stored preview is broken/missing, try to regenerate from PDF on the fly.
-        if _ensure_library_task_preview(task):
-            file_field = task.task_preview_image
-            try:
+        opened = False
+        # Si la preview existe en DB pero el fichero no, en Render/producción esto puede pasar si el storage
+        # no es persistente o si hay varias instancias. En ese caso, intentamos re-render server-side usando
+        # el estado de la pizarra (si existe) antes de degradar a placeholder.
+        try:
+            if _task_has_drawn_state(task) and _throttled_server_render(task, "missing_file"):
+                task.refresh_from_db(fields=['task_preview_image'])
+                file_field = task.task_preview_image
                 file_field.open('rb')
-            except Exception:
+                opened = True
+        except Exception:
+            opened = False
+
+        # If stored preview is broken/missing, try to regenerate from PDF on the fly.
+        if not opened:
+            if _ensure_library_task_preview(task):
+                file_field = task.task_preview_image
+                try:
+                    file_field.open('rb')
+                except Exception:
+                    return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
+            else:
                 return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
-        else:
-            return HttpResponse('No se pudo abrir la imagen de la tarea.', status=500)
     extension = Path(file_field.name).suffix.lower()
     content_type = {
         '.png': 'image/png',
