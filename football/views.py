@@ -37922,22 +37922,13 @@ def session_task_preview_file(request, task_id):
         True si hay estado gráfico que merezca un render (pizarra con objetos o timeline).
         """
         try:
-            layout = task_obj.tactical_layout if isinstance(getattr(task_obj, 'tactical_layout', None), dict) else {}
-            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-            graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-            canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else {}
-            objects = canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else []
-            if objects:
-                return True
-            timeline = canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else []
-            for step in timeline:
-                st = step.get('canvas_state') if isinstance(step, dict) else None
-                objs = st.get('objects') if isinstance(st, dict) and isinstance(st.get('objects'), list) else []
-                if objs:
-                    return True
+            canvas_state, _, _ = _extract_canvas_state_for_preview(task_obj)
+            if not isinstance(canvas_state, dict):
+                return False
+            objs = canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else []
+            return bool(objs)
         except Exception:
             return False
-        return False
 
     def _throttled_server_render(task_obj, reason: str) -> bool:
         """
