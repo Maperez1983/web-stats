@@ -5125,6 +5125,32 @@ def _build_active_workspace_badge(request):
     }
 
 
+def _should_use_team_cover_image(request, workspace, team) -> bool:
+    """
+    Decide si debe usarse `Team.cover_image` como "hero" en la UI.
+
+    Problema real: en setups multi-categoría es habitual clonar una categoría desde Senior y
+    quedarse con la misma portada, lo que hace que "da igual el equipo que elijas" se vea la foto
+    del Senior. Para evitarlo, en multi-equipo solo usamos la portada si fue subida explícitamente
+    (indicada por `cover_updated_at`).
+    """
+    if not team or not getattr(team, 'cover_image', None):
+        return False
+    try:
+        if getattr(team, 'cover_updated_at', None):
+            return True
+    except Exception:
+        pass
+    # Backcompat: si no es un workspace club (o solo hay un equipo), permitimos usar la portada igualmente.
+    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+        return True
+    try:
+        other_links_exist = WorkspaceTeam.objects.filter(workspace=workspace).exclude(team=team).exists()
+    except Exception:
+        other_links_exist = False
+    return not bool(other_links_exist)
+
+
 def _unique_workspace_slug(base_text, *, exclude_id=None):
     base_slug = slugify(base_text or 'workspace') or 'workspace'
     candidate = base_slug
@@ -10936,7 +10962,7 @@ def dashboard_page(request):
     dashboard_pending_cards = []
     dashboard_recent_activity = []
     primary_team = _get_primary_team_for_request(request)
-    if primary_team and getattr(primary_team, 'cover_image', None):
+    if primary_team and _should_use_team_cover_image(request, active_workspace_obj, primary_team):
         try:
             # Servimos la portada a través de la app para evitar 403 de S3 cuando el bucket no es público.
             updated_at = getattr(primary_team, 'cover_updated_at', None)
@@ -16267,7 +16293,7 @@ def coach_overview_page(request):
         next_match_date = str(next_match.get('date') or '').strip()
     hero_image_url = ''
     hero_image_data_uri = ''
-    if primary_team and getattr(primary_team, 'cover_image', None):
+    if primary_team and _should_use_team_cover_image(request, workspace, primary_team):
         try:
             updated_at = getattr(primary_team, 'cover_updated_at', None)
             version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
