@@ -9,10 +9,27 @@ set -euo pipefail
 : "${GUNICORN_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
 
-# Optional: ensure Playwright Chromium exists at runtime (idempotent).
+# Ensure Playwright Chromium exists at runtime (idempotent).
+# Render instances are ephemeral; even if Chromium was installed manually in a previous shell,
+# a restart/deploy can land on a fresh instance where `.local-browsers/` doesn't exist.
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
 _pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_should_install_pw="false"
 if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
-  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+  _should_install_pw="true"
+else
+  # Auto-repair: if Playwright is installed but Chromium isn't present, download it.
+  python - <<'PY' >/dev/null 2>&1 || _should_install_pw="true"
+import os
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", os.getenv("PLAYWRIGHT_BROWSERS_PATH", "0"))
+from playwright.sync_api import sync_playwright
+p = sync_playwright().start()
+b = p.chromium.launch(args=["--no-sandbox"])
+b.close()
+p.stop()
+PY
+fi
+if [ "${_should_install_pw}" = "true" ]; then
   python -m playwright install chromium || true
 fi
 
@@ -40,4 +57,3 @@ exec gunicorn webstats.asgi:application \
   -k uvicorn.workers.UvicornWorker \
   --bind "0.0.0.0:${PORT}" \
   --timeout "${GUNICORN_TIMEOUT}"
-
