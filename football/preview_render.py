@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import os
 import threading
 from pathlib import Path
 
@@ -12,6 +13,10 @@ from django.conf import settings
 _PW_LOCK = threading.Lock()
 _PW_HANDLE = None
 _PW_BROWSER = None
+
+# Render: ensure Playwright browsers are looked up from the "hermetic" install location (bundled with
+# the app) instead of a per-user cache that may not persist between build/runtime or across instances.
+os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
 
 
 def _reset_playwright():

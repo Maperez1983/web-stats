@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 
@@ -29,6 +31,31 @@ def _preview_missing_or_broken(name: str) -> bool:
         return not bool(default_storage.exists(name))
     except Exception:
         return True
+
+
+def _check_playwright_chromium() -> str | None:
+    """
+    Returns an error string if Playwright Chromium cannot be launched, otherwise None.
+    """
+    os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        return f"Playwright no importable: {exc!r}"
+    pw = None
+    try:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(args=["--no-sandbox"])
+        browser.close()
+        pw.stop()
+        return None
+    except Exception as exc:
+        try:
+            if pw:
+                pw.stop()
+        except Exception:
+            pass
+        return str(exc)
 
 
 class Command(BaseCommand):
@@ -84,6 +111,16 @@ class Command(BaseCommand):
                 return
             self.stdout.write(f"Equipo: #{team.id} {team.name}")
 
+        playwright_error = _check_playwright_chromium()
+        if playwright_error:
+            self.stdout.write(
+                self.style.WARNING(
+                    "Playwright/Chromium no disponible (se usará fallback desde PDF si existe). "
+                    "En Render: activa `INSTALL_PLAYWRIGHT_BROWSERS=true` y despliega con `PLAYWRIGHT_BROWSERS_PATH=0`. "
+                    f"Error: {playwright_error}"
+                )
+            )
+
         scanned = 0
         regenerated = 0
         skipped = 0
@@ -117,10 +154,11 @@ class Command(BaseCommand):
                 continue
 
             ok = False
-            try:
-                ok = bool(_maybe_render_task_preview_server_side(task, force=True))
-            except Exception:
-                ok = False
+            if not playwright_error:
+                try:
+                    ok = bool(_maybe_render_task_preview_server_side(task, force=True))
+                except Exception:
+                    ok = False
 
             if not ok and getattr(task, "task_pdf", None):
                 try:
@@ -138,4 +176,3 @@ class Command(BaseCommand):
                 f"Regenerate previews: regenerated={regenerated} scanned={scanned} skipped={skipped} failed={failed} dry_run={dry_run}"
             )
         )
-

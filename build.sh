@@ -51,7 +51,12 @@ pip install -r requirements.txt
 # Enable in Render env with INSTALL_PLAYWRIGHT_BROWSERS=true (or 1/yes/on).
 _pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
-  python -m playwright install chromium
+  # Important: in platforms like Render, the default Playwright cache path may not persist between
+  # build/runtime or across instances. Default to an "hermetic" install path bundled with the app.
+  #
+  # Users can override by explicitly setting PLAYWRIGHT_BROWSERS_PATH in the service env.
+  echo "Instalando Chromium (Playwright) con PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-0} ..."
+  PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}" python -m playwright install chromium
 fi
 
 python manage.py migrate --noinput
