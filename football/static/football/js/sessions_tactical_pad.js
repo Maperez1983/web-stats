@@ -40,6 +40,11 @@
   const parseColorToHex = (value, fallback = '#22d3ee') => {
     const color = String(value || '').trim();
     if (!color) return fallback;
+    // Permite escribir HEX sin "#" (mejor UX en móvil/iPad al copiar/pegar).
+    if (/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(color)) {
+      const rgb = hexToRgb(color);
+      return rgb ? rgbToHex(rgb.r, rgb.g, rgb.b) : fallback;
+    }
     if (color.startsWith('#')) {
       const rgb = hexToRgb(color);
       return rgb ? rgbToHex(rgb.r, rgb.g, rgb.b) : fallback;
@@ -838,6 +843,7 @@
     const scaleYInput = document.getElementById('task-scale-y');
 	    const rotationInput = document.getElementById('task-rotation');
 	    const colorInput = document.getElementById('task-style-color');
+	    const colorHexInput = document.getElementById('task-style-color-hex');
 	    const scalePresetsRow = document.getElementById('task-scale-presets');
 	    const tokenSizePresetsRow = document.getElementById('task-token-size-presets');
 	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
@@ -853,7 +859,9 @@
     // cuando el usuario abre el asistente o usa acciones que lo requieren.
 		    const tokenColorGrid = document.getElementById('task-token-color-grid');
 		    const tokenBaseColorInput = document.getElementById('task-token-base-color');
+		    const tokenBaseColorHexInput = document.getElementById('task-token-base-color-hex');
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
+		    const tokenStripeColorHexInput = document.getElementById('task-token-stripe-color-hex');
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
@@ -3762,6 +3770,9 @@
 		        scaleYInput.value = '100';
 	        rotationInput.value = '0';
 	        colorInput.value = '#22d3ee';
+	        if (colorHexInput) {
+	          try { colorHexInput.value = '#22d3ee'; } catch (e) { /* ignore */ }
+	        }
 		        if (strokeWidthRow) strokeWidthRow.hidden = true;
 		        if (strokePresetsRow) strokePresetsRow.hidden = true;
 		        if (strokeWidthInput) strokeWidthInput.value = '3';
@@ -3776,6 +3787,7 @@
 	      const canColor = isColorizableObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
 	      colorInput.disabled = !canColor;
+	      if (colorHexInput) colorHexInput.disabled = !canColor;
 	      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
 	      selectionSummary.textContent = `Ajustando ${objectLabel(active)} seleccionado.`;
 	      try {
@@ -3787,6 +3799,9 @@
 	      scaleYInput.value = String(Math.round((Number(active.scaleY) || 1) * 100));
       rotationInput.value = String(Math.round(Number(active.angle) || 0));
       colorInput.value = objectPreferredColor(active);
+      if (colorHexInput) {
+        try { colorHexInput.value = String(colorInput.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
+      }
 	      const strokeWidth = getObjectStrokeWidth(active);
 	      if (strokeWidthRow && strokeWidthInput) {
 	        const canStroke = strokeWidth > 0;
@@ -18248,8 +18263,27 @@
 		      applyToActiveFlexibleObject((active) => {
 		        applyObjectColor(active, colorInput.value || '#22d3ee');
 		      }, 'Color actualizado.');
+		      if (colorHexInput) {
+		        try { colorHexInput.value = String(colorInput.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
+		      }
 		      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
 		        try { canvas.freeDrawingBrush.color = colorInput.value || '#22d3ee'; } catch (e) { /* ignore */ }
+		      }
+		    });
+		    colorHexInput?.addEventListener('change', () => {
+		      const hex = parseColorToHex(colorHexInput.value, '');
+		      if (!hex) {
+		        try { colorHexInput.value = String(colorInput?.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
+		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
+		        return;
+		      }
+		      if (colorInput) colorInput.value = hex;
+		      try { colorHexInput.value = hex; } catch (e) { /* ignore */ }
+		      applyToActiveFlexibleObject((active) => {
+		        applyObjectColor(active, hex);
+		      }, 'Color actualizado.');
+		      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
+		        try { canvas.freeDrawingBrush.color = hex; } catch (e) { /* ignore */ }
 		      }
 		    });
 		    tokenBaseColorInput?.addEventListener('input', () => {
@@ -18257,11 +18291,45 @@
 		        if (!isTokenGroup(active)) return;
 		        applyTokenPalette(active, { base: tokenBaseColorInput.value });
 		      }, 'Base actualizada.');
+		      if (tokenBaseColorHexInput && tokenBaseColorInput) {
+		        try { tokenBaseColorHexInput.value = String(tokenBaseColorInput.value || '').trim() || '#ffffff'; } catch (e) { /* ignore */ }
+		      }
+		    });
+		    tokenBaseColorHexInput?.addEventListener('change', () => {
+		      const hex = parseColorToHex(tokenBaseColorHexInput.value, '');
+		      if (!hex) {
+		        try { tokenBaseColorHexInput.value = String(tokenBaseColorInput?.value || '').trim() || '#ffffff'; } catch (e) { /* ignore */ }
+		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
+		        return;
+		      }
+		      if (tokenBaseColorInput) tokenBaseColorInput.value = hex;
+		      try { tokenBaseColorHexInput.value = hex; } catch (e) { /* ignore */ }
+		      applyToActiveFlexibleObject((active) => {
+		        if (!isTokenGroup(active)) return;
+		        applyTokenPalette(active, { base: hex });
+		      }, 'Base actualizada.');
 		    });
 		    tokenStripeColorInput?.addEventListener('input', () => {
 		      applyToActiveFlexibleObject((active) => {
 		        if (!isTokenGroup(active)) return;
 		        applyTokenPalette(active, { stripe: tokenStripeColorInput.value });
+		      }, 'Franjas actualizadas.');
+		      if (tokenStripeColorHexInput && tokenStripeColorInput) {
+		        try { tokenStripeColorHexInput.value = String(tokenStripeColorInput.value || '').trim() || '#0f7a35'; } catch (e) { /* ignore */ }
+		      }
+		    });
+		    tokenStripeColorHexInput?.addEventListener('change', () => {
+		      const hex = parseColorToHex(tokenStripeColorHexInput.value, '');
+		      if (!hex) {
+		        try { tokenStripeColorHexInput.value = String(tokenStripeColorInput?.value || '').trim() || '#0f7a35'; } catch (e) { /* ignore */ }
+		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
+		        return;
+		      }
+		      if (tokenStripeColorInput) tokenStripeColorInput.value = hex;
+		      try { tokenStripeColorHexInput.value = hex; } catch (e) { /* ignore */ }
+		      applyToActiveFlexibleObject((active) => {
+		        if (!isTokenGroup(active)) return;
+		        applyTokenPalette(active, { stripe: hex });
 		      }, 'Franjas actualizadas.');
 		    });
 		    strokeWidthInput?.addEventListener('input', () => {
@@ -19042,8 +19110,14 @@
 		        if (tokenBaseColorInput) {
 		          try { tokenBaseColorInput.value = parseColorToHex(active?.data?.token_base_color, '#ffffff'); } catch (e) { /* ignore */ }
 		        }
+		        if (tokenBaseColorHexInput && tokenBaseColorInput) {
+		          try { tokenBaseColorHexInput.value = String(tokenBaseColorInput.value || '').trim() || '#ffffff'; } catch (e) { /* ignore */ }
+		        }
 		        if (tokenStripeColorInput) {
 		          try { tokenStripeColorInput.value = parseColorToHex(active?.data?.token_stripe_color, objectPreferredColor(active)); } catch (e) { /* ignore */ }
+		        }
+		        if (tokenStripeColorHexInput && tokenStripeColorInput) {
+		          try { tokenStripeColorHexInput.value = String(tokenStripeColorInput.value || '').trim() || '#0f7a35'; } catch (e) { /* ignore */ }
 		        }
 		        if (tokenPatternActions) {
 		          const pattern = normalizeTokenPattern(active?.data?.token_pattern);

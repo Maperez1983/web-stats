@@ -4708,7 +4708,21 @@
                         </label>
                         <label style="grid-column:1 / -1;">
                           Color
-                          <input type="color" id="task-style-color" value="#22d3ee" />
+                          <div style="display:flex; gap:0.6rem; align-items:center;">
+                            <input type="color" id="task-style-color" value="#22d3ee" />
+                            <input
+                              type="text"
+                              id="task-style-color-hex"
+                              value="#22d3ee"
+                              inputmode="text"
+                              autocomplete="off"
+                              autocapitalize="off"
+                              spellcheck="false"
+                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+                              placeholder="#RRGGBB"
+                              aria-label="Color (hex)"
+                            />
+                          </div>
                         </label>
 	                        <label style="grid-column:1 / -1;" id="task-stroke-width-row" hidden>
 	                          Grosor de línea
@@ -4757,11 +4771,39 @@
 	                      <div class="selection-grid" id="task-token-color-grid" hidden style="grid-template-columns: 1fr 1fr;">
 	                        <label>
 	                          Base
-	                          <input type="color" id="task-token-base-color" value="#ffffff" />
+	                          <div style="display:flex; gap:0.55rem; align-items:center;">
+	                            <input type="color" id="task-token-base-color" value="#ffffff" />
+	                            <input
+	                              type="text"
+	                              id="task-token-base-color-hex"
+	                              value="#ffffff"
+	                              inputmode="text"
+	                              autocomplete="off"
+	                              autocapitalize="off"
+	                              spellcheck="false"
+	                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+	                              placeholder="#RRGGBB"
+	                              aria-label="Color base (hex)"
+	                            />
+	                          </div>
 	                        </label>
 	                        <label>
 	                          Franjas
-	                          <input type="color" id="task-token-stripe-color" value="#0f7a35" />
+	                          <div style="display:flex; gap:0.55rem; align-items:center;">
+	                            <input type="color" id="task-token-stripe-color" value="#0f7a35" />
+	                            <input
+	                              type="text"
+	                              id="task-token-stripe-color-hex"
+	                              value="#0f7a35"
+	                              inputmode="text"
+	                              autocomplete="off"
+	                              autocapitalize="off"
+	                              spellcheck="false"
+	                              style="flex:1; min-width:0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"
+	                              placeholder="#RRGGBB"
+	                              aria-label="Color franjas (hex)"
+	                            />
+	                          </div>
 	                        </label>
 	                      </div>
 	                      <div class="selection-actions" id="task-token-pattern-actions" hidden>
