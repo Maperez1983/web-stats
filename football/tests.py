@@ -2742,6 +2742,37 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.json()['team']['name'], self.alt_team.name)
         self.assertEqual(response.json()['team']['crest_url'], 'https://example.com/cliente-alternativo.png')
 
+    def test_dashboard_data_accepts_team_id_param_and_persists_active_team_mapping(self):
+        workspace = Workspace.objects.create(
+            name='Cliente multicategoria',
+            slug='cliente-multicategoria',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        pre_team = Team.objects.create(
+            name='Benagalbón',
+            slug='benagalbon-pre-dashboard',
+            short_name='Benagalbón',
+            group=self.team.group,
+            is_primary=False,
+            category='Prebenjamín',
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        WorkspaceTeam.objects.create(workspace=workspace, team=pre_team, is_default=False)
+
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'), {'team_id': pre_team.id})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(int(payload.get('team', {}).get('id') or 0), int(pre_team.id))
+        mapping = self.client.session.get('active_team_by_workspace') or {}
+        self.assertEqual(int(mapping.get(str(workspace.id)) or 0), int(pre_team.id))
+
     @patch('football.views.load_cached_next_match')
     @patch('football.views.load_universo_snapshot')
     def test_dashboard_data_ignores_global_snapshot_for_other_club_workspace(self, mock_snapshot, mock_cached_next):

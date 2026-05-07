@@ -4631,14 +4631,29 @@ def _get_active_team_for_request(request):
         links = _workspace_team_links_for_user(workspace, request.user)
         team_lookup = {int(link.team_id): link.team for link in links if getattr(link, 'team_id', None)}
         # Importante en app/webview: algunos POST pueden llegar sin querystring.
-        desired_team_id = _parse_int(request.GET.get('team') or request.POST.get('team'))
+        desired_team_id = _parse_int(
+            request.GET.get('team')
+            or request.GET.get('team_id')
+            or request.GET.get('active_team_id')
+            or request.POST.get('team')
+            or request.POST.get('team_id')
+            or request.POST.get('active_team_id')
+        )
         mapping = request.session.get('active_team_by_workspace') if request and hasattr(request, 'session') else None
         if not desired_team_id and isinstance(mapping, dict):
             desired_team_id = _parse_int(mapping.get(str(workspace.id)) or mapping.get(workspace.id))
 
         if desired_team_id and int(desired_team_id) in team_lookup:
             # Permite fijar desde querystring (solo si es válido).
-            if request and request.GET.get('team') and hasattr(request, 'session'):
+            explicit_team_param = bool(
+                request
+                and (
+                    request.GET.get('team')
+                    or request.GET.get('team_id')
+                    or request.GET.get('active_team_id')
+                )
+            )
+            if explicit_team_param and hasattr(request, 'session'):
                 try:
                     if not isinstance(mapping, dict):
                         mapping = {}
@@ -10837,10 +10852,9 @@ def dashboard_page(request):
             return redirect(target_url)
 
     sources = list(ScrapeSource.objects.filter(is_active=True))
-    active_items = list(HomeCarouselImage.objects.filter(is_active=True).order_by('order', '-created_at', '-id'))
-    all_items = list(HomeCarouselImage.objects.order_by('order', '-created_at', '-id'))
-    candidates = active_items if active_items else all_items
-    hero_image_candidates = [reverse('home-carousel-image-file', args=[item.id]) for item in candidates if item.image]
+    # Dashboard (app autenticada): por defecto NO usamos el carrusel comercial como "portada del equipo".
+    # Si no hay `cover_image` en el equipo seleccionado, la UI aplicará su fallback (imágenes genéricas).
+    hero_image_candidates = []
     role_labels = dict(AppUserRole.ROLE_CHOICES)
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
