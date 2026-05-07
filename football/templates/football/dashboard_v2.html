@@ -47,6 +47,24 @@
         letter-spacing: 0.005em;
       }
 
+      @keyframes sj-pop {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.99);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .topbar,
+      .tabs,
+      .hero-photo,
+      .card {
+        animation: sj-pop 420ms ease both;
+      }
+
       a {
         color: inherit;
         text-decoration: none;
