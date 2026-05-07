@@ -197,7 +197,61 @@
 	              <td>Tareas</td>
 	              <td><div class="v">{{ tasks_count }} · {{ task_minutes_total }} min totales</div></td>
 	            </tr>
+	            <tr>
+	              <td>Workflow</td>
+	              <td>
+	                <div class="v">
+	                  {{ session.get_workflow_status_display|default:"—" }}
+	                  {% if session.workflow_updated_at %}
+	                    <span style="color:var(--club-muted);">· {{ session.workflow_updated_at|date:"d/m H:i" }}</span>
+	                  {% endif %}
+	                </div>
+	              </td>
+	              <td>Carga (RPE)</td>
+	              <td>
+	                <div class="v">
+	                  {% if workload_points %}
+	                    {{ workload_points }} ({{ workload_rpe }}×{{ workload_minutes }}')
+	                  {% else %}
+	                    —
+	                  {% endif %}
+	                </div>
+	              </td>
+	            </tr>
 	          </table>
+
+	          <div class="section-title">Post-sesión (60s)</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if review %}
+	              <div style="display:flex; gap:14px; flex-wrap:wrap;">
+	                <div><span class="k">Duración real</span><div class="v">{% if review.actual_duration_minutes %}{{ review.actual_duration_minutes }} min{% else %}—{% endif %}</div></div>
+	                <div><span class="k">RPE</span><div class="v">{% if review.rpe %}{{ review.rpe }}/10{% else %}—{% endif %}</div></div>
+	              </div>
+	              {% if review.what_worked %}<p style="margin-top:10px;"><strong>Qué funcionó:</strong><br />{{ review.what_worked|linebreaksbr }}</p>{% endif %}
+	              {% if review.what_failed %}<p style="margin-top:10px;"><strong>Qué falló:</strong><br />{{ review.what_failed|linebreaksbr }}</p>{% endif %}
+	              {% if review.next_adjustment %}<p style="margin-top:10px;"><strong>Ajuste siguiente:</strong><br />{{ review.next_adjustment|linebreaksbr }}</p>{% endif %}
+	              {% if review.evidence_url %}<p style="margin-top:10px;"><strong>Evidencia:</strong><br /><a href="{{ review.evidence_url }}" target="_blank" rel="noopener noreferrer">{{ review.evidence_url }}</a></p>{% endif %}
+	            {% else %}
+	              <span style="color:var(--club-muted);">(Sin post-sesión guardada)</span>
+	            {% endif %}
+	          </div>
+
+	          <div class="section-title">Historial</div>
+	          <div class="box" style="margin-bottom:12px;">
+	            {% if audit_entries %}
+	              <ul style="margin:0; padding-left:18px;">
+	                {% for row in audit_entries %}
+	                  <li style="margin:6px 0;">
+	                    <strong>{{ row.created_at|date:"d/m H:i" }}</strong>
+	                    {% if row.actor %}· {{ row.actor.get_full_name|default:row.actor.username }}{% endif %}
+	                    · {{ row.action }}{% if row.message %}: {{ row.message }}{% endif %}
+	                  </li>
+	                {% endfor %}
+	              </ul>
+	            {% else %}
+	              <span style="color:var(--club-muted);">(Sin entradas de auditoría)</span>
+	            {% endif %}
+	          </div>
 
 	          <div class="section-title">Contenido / explicación</div>
 	          <div class="box" style="margin-bottom:12px;">
@@ -502,18 +556,59 @@
               {% endfor %}
             </select>
           </label>
-          <label>
-            Estado
-            <select name="status">
-              {% for value, label in session_status_choices %}
-                <option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label class="full">
-            Calentamiento
-            <textarea name="warmup" rows="3" maxlength="4000">{{ plan_fields.warmup }}</textarea>
-          </label>
+	          <label>
+	            Estado
+	            <select name="status">
+	              {% for value, label in session_status_choices %}
+	                <option value="{{ value }}" {% if session.status == value %}selected{% endif %}>{{ label }}</option>
+	              {% endfor %}
+	            </select>
+	          </label>
+	          <label>
+	            Workflow
+	            <select name="workflow_status">
+	              {% for value, label in workflow_status_choices %}
+	                <option value="{{ value }}" {% if session.workflow_status == value %}selected{% endif %}>{{ label }}</option>
+	              {% endfor %}
+	            </select>
+	          </label>
+	          <label class="full">
+	            Motivo workflow (opcional)
+	            <input type="text" name="workflow_reason" maxlength="220" value="{{ session.workflow_reason }}" placeholder="Ej: Ajuste por carga / decisión staff / lluvia..." />
+	          </label>
+	          <div class="full" style="margin-top:2px; padding:0.6rem 0.7rem; border-radius:14px; border:1px solid rgba(148,163,184,0.16); background:rgba(255,255,255,0.02);">
+	            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.78rem; margin-bottom:0.4rem;">Post-sesión (60s)</div>
+	            <div class="form-grid" style="margin:0;">
+	              <label>
+	                Duración real (min)
+	                <input type="number" name="review_actual_duration_minutes" min="1" max="240" value="{% if review and review.actual_duration_minutes %}{{ review.actual_duration_minutes }}{% endif %}" />
+	              </label>
+	              <label>
+	                RPE (1-10)
+	                <input type="number" name="review_rpe" min="1" max="10" value="{% if review and review.rpe %}{{ review.rpe }}{% endif %}" />
+	              </label>
+	              <label class="full">
+	                Qué funcionó
+	                <textarea name="review_what_worked" rows="2" maxlength="4000">{% if review %}{{ review.what_worked }}{% endif %}</textarea>
+	              </label>
+	              <label class="full">
+	                Qué falló
+	                <textarea name="review_what_failed" rows="2" maxlength="4000">{% if review %}{{ review.what_failed }}{% endif %}</textarea>
+	              </label>
+	              <label class="full">
+	                Ajuste siguiente
+	                <textarea name="review_next_adjustment" rows="2" maxlength="4000">{% if review %}{{ review.next_adjustment }}{% endif %}</textarea>
+	              </label>
+	              <label class="full">
+	                Evidencia (URL)
+	                <input type="url" name="review_evidence_url" maxlength="4000" value="{% if review %}{{ review.evidence_url }}{% endif %}" placeholder="https://..." />
+	              </label>
+	            </div>
+	          </div>
+	          <label class="full">
+	            Calentamiento
+	            <textarea name="warmup" rows="3" maxlength="4000">{{ plan_fields.warmup }}</textarea>
+	          </label>
           <label class="full">
             Activación
             <textarea name="activation" rows="3" maxlength="4000">{{ plan_fields.activation }}</textarea>

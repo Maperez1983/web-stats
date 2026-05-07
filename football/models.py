@@ -3,6 +3,8 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 import secrets
 import hashlib
 import uuid
@@ -930,6 +932,36 @@ class TrainingSession(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PLANNED)
     order = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    WORKFLOW_DRAFT = 'draft'
+    WORKFLOW_PROPOSED = 'proposed'
+    WORKFLOW_APPROVED = 'approved'
+    WORKFLOW_LOCKED = 'locked'
+    WORKFLOW_STATUS_CHOICES = [
+        (WORKFLOW_DRAFT, 'Borrador'),
+        (WORKFLOW_PROPOSED, 'Propuesta'),
+        (WORKFLOW_APPROVED, 'Aprobada'),
+        (WORKFLOW_LOCKED, 'Bloqueada'),
+    ]
+    workflow_status = models.CharField(max_length=20, choices=WORKFLOW_STATUS_CHOICES, default=WORKFLOW_DRAFT)
+    workflow_reason = models.CharField(max_length=220, blank=True, default='')
+    workflow_updated_at = models.DateTimeField(null=True, blank=True)
+    workflow_updated_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='training_session_workflow_updates',
+    )
+    locked_at = models.DateTimeField(null=True, blank=True)
+    locked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='locked_training_sessions',
+    )
 
     class Meta:
         ordering = ['session_date', 'start_time', 'order', 'id']
@@ -945,6 +977,71 @@ class TrainingSession(models.Model):
     def __str__(self):
         return f'{self.session_date:%d/%m} · {self.focus}'
 
+
+class TrainingSessionReview(models.Model):
+    """
+    Post-sesión rápido (60s): lo mínimo para aprender y ajustar el microciclo.
+    """
+
+    session = models.OneToOneField(TrainingSession, on_delete=models.CASCADE, related_name='review')
+    actual_duration_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    rpe = models.PositiveSmallIntegerField(null=True, blank=True, help_text='RPE 1-10')
+    what_worked = models.TextField(blank=True, default='')
+    what_failed = models.TextField(blank=True, default='')
+    next_adjustment = models.TextField(blank=True, default='')
+    evidence_url = models.URLField(blank=True, default='')
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='training_session_reviews',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+
+    def __str__(self):
+        return f'Post-sesión · {self.session}'
+
+
+class AuditLogEntry(models.Model):
+    """
+    Auditoría ligera: quién cambió qué y cuándo, para sesiones/tareas (staff).
+    """
+
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_STATUS = 'status'
+    ACTION_DELETE = 'delete'
+    ACTION_CHOICES = [
+        (ACTION_CREATE, 'Crear'),
+        (ACTION_UPDATE, 'Actualizar'),
+        (ACTION_STATUS, 'Estado/Workflow'),
+        (ACTION_DELETE, 'Borrar'),
+    ]
+
+    target_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    target_object_id = models.PositiveIntegerField(db_index=True)
+    target = GenericForeignKey('target_content_type', 'target_object_id')
+
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, default=ACTION_UPDATE)
+    message = models.CharField(max_length=240, blank=True, default='')
+    meta = models.JSONField(default=dict, blank=True)
+    actor = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='audit_log_entries')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['target_content_type', 'target_object_id', '-created_at']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_action_display()} · {self.target_content_type_id}:{self.target_object_id}'
 
 class TrainingSessionAttendance(models.Model):
     STATUS_PRESENT = 'present'

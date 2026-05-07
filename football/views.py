@@ -33,6 +33,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import login as auth_login, update_session_auth_hash, logout as auth_logout
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
@@ -132,8 +133,10 @@ from football.models import (
 		    WorkspacePreference,
 			    TrainingMicrocycle,
 			    TrainingSession,
+			    TrainingSessionReview,
 			    TrainingSessionAttendance,
 			    TrainingSessionTimelineSegment,
+			    AuditLogEntry,
 			    ConvocationRecord,
 	    RivalConvocationRecord,
     HomeCarouselImage,
@@ -23631,12 +23634,54 @@ def training_session_detail_page(request, session_id):
     # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
+    session_ct = None
+    try:
+        session_ct = ContentType.objects.get_for_model(TrainingSession)
+    except Exception:
+        session_ct = None
+
+    def _audit_session(action, message_text='', meta=None):
+        if not session_ct:
+            return
+        try:
+            AuditLogEntry.objects.create(
+                target_content_type=session_ct,
+                target_object_id=int(session_obj.id),
+                action=str(action or AuditLogEntry.ACTION_UPDATE).strip()[:20],
+                message=str(message_text or '').strip()[:240],
+                meta=(meta if isinstance(meta, dict) else {}),
+                actor=request.user if request.user and request.user.is_authenticated else None,
+            )
+        except Exception:
+            return
+
+    review_obj = None
+    try:
+        review_obj = TrainingSessionReview.objects.filter(session=session_obj).first()
+    except Exception:
+        review_obj = None
+
+    audit_entries = []
+    try:
+        if session_ct:
+            audit_entries = list(
+                AuditLogEntry.objects
+                .filter(target_content_type=session_ct, target_object_id=int(session_obj.id))
+                .select_related('actor')
+                .order_by('-created_at', '-id')[:30]
+            )
+    except Exception:
+        audit_entries = []
+
     message = str(request.GET.get('msg') or '').strip()[:220]
     error = str(request.GET.get('err') or '').strip()[:220]
     if request.method == 'POST':
         action = str(request.POST.get('action') or 'save').strip().lower()
         if action == 'save':
             try:
+                old_workflow_status = str(getattr(session_obj, 'workflow_status', '') or '').strip()
+                old_workflow_reason = str(getattr(session_obj, 'workflow_reason', '') or '').strip()
+
                 # Cabecera
                 focus = str(request.POST.get('focus') or '').strip()[:140]
                 if focus:
@@ -23672,9 +23717,88 @@ def training_session_detail_page(request, session_id):
                 next_fields['agenda_hidden'] = ('' if show_in_agenda else '1')
                 session_obj.content = _serialize_session_plan_fields(next_fields)
 
-                session_obj.save(update_fields=['focus', 'session_date', 'start_time', 'duration_minutes', 'intensity', 'status', 'content'])
+                # Workflow (staff)
+                wf_status = str(request.POST.get('workflow_status') or '').strip()
+                wf_reason = str(request.POST.get('workflow_reason') or '').strip()[:220]
+                if wf_status in {v for v, _ in getattr(TrainingSession, 'WORKFLOW_STATUS_CHOICES', [])}:
+                    session_obj.workflow_status = wf_status
+                session_obj.workflow_reason = wf_reason
+                if str(getattr(session_obj, 'workflow_status', '') or '').strip() != old_workflow_status or wf_reason != old_workflow_reason:
+                    session_obj.workflow_updated_by = request.user if request.user and request.user.is_authenticated else None
+                    session_obj.workflow_updated_at = timezone.now()
+                    if str(getattr(session_obj, 'workflow_status', '') or '') == getattr(TrainingSession, 'WORKFLOW_LOCKED', 'locked'):
+                        session_obj.locked_by = request.user if request.user and request.user.is_authenticated else None
+                        session_obj.locked_at = timezone.now()
+                    else:
+                        if old_workflow_status == getattr(TrainingSession, 'WORKFLOW_LOCKED', 'locked'):
+                            session_obj.locked_by = None
+                            session_obj.locked_at = None
+
+                update_fields = [
+                    'focus',
+                    'session_date',
+                    'start_time',
+                    'duration_minutes',
+                    'intensity',
+                    'status',
+                    'content',
+                    'updated_at',
+                    'workflow_status',
+                    'workflow_reason',
+                    'workflow_updated_at',
+                    'workflow_updated_by',
+                    'locked_at',
+                    'locked_by',
+                ]
+                session_obj.save(update_fields=update_fields)
+
+                # Post-sesión (60s)
+                review_payload = {
+                    'actual_duration_minutes': _parse_int(request.POST.get('review_actual_duration_minutes')),
+                    'rpe': _parse_int(request.POST.get('review_rpe')),
+                    'what_worked': str(request.POST.get('review_what_worked') or '').strip(),
+                    'what_failed': str(request.POST.get('review_what_failed') or '').strip(),
+                    'next_adjustment': str(request.POST.get('review_next_adjustment') or '').strip(),
+                    'evidence_url': str(request.POST.get('review_evidence_url') or '').strip(),
+                }
+                has_any_review = any(
+                    bool(str(v or '').strip())
+                    for v in [
+                        review_payload.get('actual_duration_minutes'),
+                        review_payload.get('rpe'),
+                        review_payload.get('what_worked'),
+                        review_payload.get('what_failed'),
+                        review_payload.get('next_adjustment'),
+                        review_payload.get('evidence_url'),
+                    ]
+                )
+                if has_any_review:
+                    if not review_obj:
+                        review_obj = TrainingSessionReview(
+                            session=session_obj,
+                            created_by=request.user if request.user and request.user.is_authenticated else None,
+                        )
+                    if review_payload.get('actual_duration_minutes') is not None:
+                        review_obj.actual_duration_minutes = max(1, min(int(review_payload.get('actual_duration_minutes') or 0), 240))
+                    if review_payload.get('rpe') is not None:
+                        review_obj.rpe = max(1, min(int(review_payload.get('rpe') or 0), 10))
+                    review_obj.what_worked = review_payload.get('what_worked')[:4000]
+                    review_obj.what_failed = review_payload.get('what_failed')[:4000]
+                    review_obj.next_adjustment = review_payload.get('next_adjustment')[:4000]
+                    review_obj.evidence_url = review_payload.get('evidence_url')[:4000]
+                    review_obj.save()
+
                 plan_fields = next_fields
                 message = 'Ficha guardada.'
+
+                if str(getattr(session_obj, 'workflow_status', '') or '').strip() != old_workflow_status:
+                    _audit_session(
+                        AuditLogEntry.ACTION_STATUS,
+                        f'Workflow: {old_workflow_status or "-"} → {str(getattr(session_obj, "workflow_status", "") or "-")}',
+                        meta={'old': old_workflow_status, 'new': str(getattr(session_obj, 'workflow_status', '') or '').strip()},
+                    )
+                if has_any_review:
+                    _audit_session(AuditLogEntry.ACTION_UPDATE, 'Post-sesión actualizada', meta={'kind': 'review'})
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar.'
 
@@ -23887,6 +24011,22 @@ def training_session_detail_page(request, session_id):
                 error = 'No se pudo guardar la asistencia.'
         # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).
 
+    # Refresca post-sesión / auditoría tras POST.
+    try:
+        review_obj = TrainingSessionReview.objects.filter(session=session_obj).first()
+    except Exception:
+        review_obj = None
+    try:
+        if session_ct:
+            audit_entries = list(
+                AuditLogEntry.objects
+                .filter(target_content_type=session_ct, target_object_id=int(session_obj.id))
+                .select_related('actor')
+                .order_by('-created_at', '-id')[:30]
+            )
+    except Exception:
+        audit_entries = audit_entries or []
+
     # Resumen asistencia
     counts = {value: 0 for value, _ in TrainingSessionAttendance.STATUS_CHOICES}
     for m in marks.values():
@@ -24090,6 +24230,27 @@ def training_session_detail_page(request, session_id):
     except Exception:
         crest_url = ''
 
+    workflow_status_choices = list(getattr(TrainingSession, 'WORKFLOW_STATUS_CHOICES', []) or [])
+    workload_minutes = None
+    workload_rpe = None
+    workload_points = None
+    try:
+        if review_obj and getattr(review_obj, 'actual_duration_minutes', None):
+            workload_minutes = int(review_obj.actual_duration_minutes or 0) or None
+        else:
+            workload_minutes = int(getattr(session_obj, 'duration_minutes', 0) or 0) or None
+    except Exception:
+        workload_minutes = None
+    try:
+        workload_rpe = int(getattr(review_obj, 'rpe', 0) or 0) or None
+    except Exception:
+        workload_rpe = None
+    try:
+        if workload_minutes and workload_rpe:
+            workload_points = int(workload_minutes) * int(workload_rpe)
+    except Exception:
+        workload_points = None
+
     return render(
         request,
         'football/training_session_detail.html',
@@ -24116,6 +24277,12 @@ def training_session_detail_page(request, session_id):
             'pdf_palette': pdf_palette,
             'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
             'session_status_choices': TrainingSession.STATUS_CHOICES,
+            'workflow_status_choices': workflow_status_choices,
+            'review': review_obj,
+            'audit_entries': audit_entries,
+            'workload_minutes': workload_minutes,
+            'workload_rpe': workload_rpe,
+            'workload_points': workload_points,
             'message': message,
             'error': error,
             'planner_url': reverse('sessions') + f'?tab=library&library_source=created&library_repo={library_repository}&session_id={int(session_obj.id)}&team={int(primary_team.id)}',
