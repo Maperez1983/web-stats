@@ -16055,6 +16055,22 @@ def coach_overview_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='portada staff')
     if forbidden:
         return forbidden
+    # UX: la "portada" principal del staff es el dashboard (/) para evitar dos home distintos.
+    # Mantener esta vista accesible con `?view=legacy` (comparación/fallback).
+    try:
+        view = str(request.GET.get('view') or '').strip().lower()
+    except Exception:
+        view = ''
+    if view not in {'legacy', 'overview'}:
+        try:
+            target = reverse('dashboard-home')
+        except Exception:
+            target = '/'
+        try:
+            qs = str(getattr(request, 'META', {}).get('QUERY_STRING') or '').strip()
+        except Exception:
+            qs = ''
+        return redirect(f'{target}?{qs}' if qs else target)
     sources = list(ScrapeSource.objects.filter(is_active=True))
     workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
