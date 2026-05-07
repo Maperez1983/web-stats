@@ -48,8 +48,9 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 # Optional: install Playwright browsers for server-side rendering / scraping.
-# Enable in Render env with INSTALL_PLAYWRIGHT_BROWSERS=true.
-if [ "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" = "true" ]; then
+# Enable in Render env with INSTALL_PLAYWRIGHT_BROWSERS=true (or 1/yes/on).
+_pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
   python -m playwright install chromium
 fi
 
