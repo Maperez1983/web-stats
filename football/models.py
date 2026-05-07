@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.contrib.auth.models import User
 import secrets
@@ -932,6 +933,14 @@ class TrainingSession(models.Model):
 
     class Meta:
         ordering = ['session_date', 'start_time', 'order', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                'microcycle',
+                'session_date',
+                Lower('focus'),
+                name='uniq_training_session_microcycle_date_focus_ci',
+            )
+        ]
 
     def __str__(self):
         return f'{self.session_date:%d/%m} · {self.focus}'

@@ -1794,6 +1794,23 @@
 		                        dateEl.value = `${yyyy}-${mm}-${dd}`;
 		                      })();
 		                    </script>
+		                    <script>
+		                      (function () {
+		                        const form = document.getElementById('create-session-form');
+		                        if (!form) return;
+		                        let locked = false;
+		                        form.addEventListener('submit', () => {
+		                          if (locked) return;
+		                          locked = true;
+		                          const submits = Array.from(form.querySelectorAll('button[type=\"submit\"], input[type=\"submit\"]'));
+		                          submits.forEach((btn) => {
+		                            try { btn.disabled = true; } catch (e) { /* ignore */ }
+		                            try { btn.classList.add('is-loading'); } catch (e) { /* ignore */ }
+		                            try { if (btn.tagName === 'BUTTON') btn.textContent = 'Creando...'; } catch (e) { /* ignore */ }
+		                          });
+		                        });
+		                      })();
+		                    </script>
                     <script>
                       (function () {
                         const input = document.getElementById('create-session-task-filter');
