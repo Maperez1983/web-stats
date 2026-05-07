@@ -200,6 +200,7 @@
 
       <nav class="admin-tabs">
         <a class="admin-tab {% if active_tab == 'roster' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=roster">Plantilla</a>
+        <a class="admin-tab {% if active_tab == 'tasks' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks">Tareas recientes</a>
         {% if can_manage_workspace or is_admin_user %}
         <a class="admin-tab {% if active_tab == 'teams' %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=teams">Categorías</a>
         {% endif %}
@@ -210,6 +211,51 @@
         <a class="admin-tab" href="{% url 'manual-player-stats' %}">Estadísticas manuales</a>
         {% endif %}
       </nav>
+
+      {% if active_tab == 'tasks' %}
+      <section class="block">
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+          <div>
+            <h2 style="margin:0 0 0.35rem;">Tareas recientes</h2>
+            <p style="margin:0;color:rgba(203,213,225,0.78);">Útil para localizar tareas creadas en iPad aunque no aparezcan donde esperabas.</p>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a class="module-tab {% if tasks_days == 1 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=1">Hoy</a>
+            <a class="module-tab {% if tasks_days == 7 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=7">7 días</a>
+            <a class="module-tab {% if tasks_days == 30 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=30">30 días</a>
+          </div>
+        </div>
+        {% if tasks_message %}
+        <p style="color:#86efac;">{{ tasks_message }}</p>
+        {% endif %}
+        {% if tasks_error %}
+        <p style="color:#fecaca;">{{ tasks_error }}</p>
+        {% endif %}
+        {% if recent_tasks %}
+          <div class="roster-list" style="margin-top:0.9rem;">
+            {% for t in recent_tasks %}
+            <div class="roster-item" style="grid-template-columns:minmax(0,1fr) auto auto; align-items:start;">
+              <div>
+                <div style="font-weight:800;">#{{ t.id }} · {{ t.title }}</div>
+                <div class="meta" style="margin-top:0.15rem; opacity:0.88;">
+                  {{ t.created_at|date:"d/m/Y H:i" }}
+                  {% if t.admin_dest_label %} · {{ t.admin_dest_label }}{% endif %}
+                </div>
+              </div>
+              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
+                <a class="pill-button icon-action" style="text-decoration:none;" href="{% url 'session-task-detail' t.id %}">Abrir</a>
+                {% if t.admin_dest_url %}
+                <a class="pill-button icon-action" style="text-decoration:none;" href="{{ t.admin_dest_url }}">Ver lista</a>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p style="margin:0.85rem 0 0;color:rgba(203,213,225,0.78);">No hay tareas creadas en este rango.</p>
+        {% endif %}
+      </section>
+      {% endif %}
 
       {% if active_tab == 'actions' and is_admin_user %}
       <section class="block">

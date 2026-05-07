@@ -13402,11 +13402,16 @@ def admin_page(request):
     actions_error = ''
     teams_message = ''
     teams_error = ''
+    tasks_message = ''
+    tasks_error = ''
+    recent_tasks = []
+    tasks_days = _parse_int(request.GET.get('days') or request.POST.get('days')) or 1
+    tasks_days = max(1, min(int(tasks_days), 60))
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
     if active_tab in {'carousel', 'users'}:
         target_anchor = '#home-global' if active_tab == 'carousel' else '#usuarios-club'
         return redirect(f"{reverse('platform-overview')}{target_anchor}")
-    if active_tab not in {'roster', 'actions', 'teams'}:
+    if active_tab not in {'roster', 'actions', 'teams', 'tasks'}:
         active_tab = 'roster'
 
     if request.method == 'POST':
@@ -14570,6 +14575,75 @@ def admin_page(request):
                 continue
             seen_zone_labels.add(label)
             admin_zone_choices.append(label)
+
+    if active_tab == 'tasks' and primary_team:
+        try:
+            start_date = timezone.localdate() - timedelta(days=int(tasks_days) - 1)
+        except Exception:
+            start_date = timezone.localdate()
+        try:
+            qs = (
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
+                .filter(created_at__date__gte=start_date)
+                .order_by('-created_at', '-id')[:200]
+            )
+            scope_label = {
+                'coach': 'Entrenador',
+                'goalkeeper': 'Porteros',
+                'fitness': 'Preparación física',
+            }
+            for t in qs:
+                try:
+                    scope_key = _task_scope_for_item(t)
+                except Exception:
+                    scope_key = 'coach'
+                try:
+                    is_library = _is_library_session(getattr(t, 'session', None))
+                except Exception:
+                    is_library = False
+                repo = ''
+                if is_library:
+                    try:
+                        repo = _library_repository_for_task(t)
+                    except Exception:
+                        repo = LIBRARY_REPOSITORY_TRADITIONAL
+                repo_label = 'Interactivas' if repo == LIBRARY_REPOSITORY_INTERACTIVE else ('Tradicionales' if repo else '')
+                dest_label = ''
+                dest_url = ''
+                try:
+                    if is_library:
+                        params = {
+                            'tab': 'library',
+                            'library_repo': repo or LIBRARY_REPOSITORY_TRADITIONAL,
+                            'library_source': 'created',
+                            'team': int(primary_team.id),
+                        }
+                        if workspace and getattr(workspace, 'id', None):
+                            params['workspace'] = int(workspace.id)
+                        dest_url = f"{reverse(_sessions_scope_route_name(scope_key))}?{urlencode(params)}"
+                        dest_label = f"Biblioteca · {repo_label or 'Tareas'} · {scope_label.get(scope_key, scope_key)}"
+                    else:
+                        if getattr(t, 'session_id', None):
+                            dest_url = reverse('training-session-detail', args=[int(t.session_id)])
+                        session_obj = getattr(t, 'session', None)
+                        if session_obj and getattr(session_obj, 'session_date', None):
+                            dest_label = f"Sesión {session_obj.session_date.strftime('%d/%m/%Y')} · {str(getattr(session_obj, 'focus', '') or '').strip() or 'Sesión'}"
+                        else:
+                            dest_label = 'Sesión'
+                except Exception:
+                    dest_url = ''
+                try:
+                    setattr(t, 'admin_scope_label', scope_label.get(scope_key, scope_key))
+                    setattr(t, 'admin_repo_label', repo_label)
+                    setattr(t, 'admin_dest_label', dest_label)
+                    setattr(t, 'admin_dest_url', dest_url)
+                except Exception:
+                    pass
+                recent_tasks.append(t)
+        except Exception:
+            tasks_error = 'No se pudieron cargar las tareas recientes.'
     return render(
         request,
         'football/admin.html',
@@ -14586,6 +14660,10 @@ def admin_page(request):
             'workspace_team_links': workspace_team_links,
             'teams_message': teams_message,
             'teams_error': teams_error,
+            'tasks_message': tasks_message,
+            'tasks_error': tasks_error,
+            'tasks_days': tasks_days,
+            'recent_tasks': recent_tasks,
             'workspace_members': workspace_members,
             # (debug/plantilla) el acceso ya va anexado en cada link.access_rows
             'workspace_team_access_map': workspace_team_access_map,
