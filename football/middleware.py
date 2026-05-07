@@ -176,16 +176,67 @@ class SlowRequestLoggingMiddleware:
             self.threshold_ms = int(float(os.getenv("PERF_SLOW_REQUEST_MS", "0") or 0))
         except Exception:
             self.threshold_ms = 0
+        try:
+            self.sql_threshold_ms = int(float(os.getenv("PERF_SLOW_SQL_MS", "0") or 0))
+        except Exception:
+            self.sql_threshold_ms = 0
 
     def __call__(self, request):
-        if not self.threshold_ms:
+        if not self.threshold_ms and not self.sql_threshold_ms:
             return self.get_response(request)
 
         started = time.perf_counter()
-        response = self.get_response(request)
+        slow_sql_rows = []
+
+        def _sql_wrapper(execute, sql, params, many, context):  # pragma: no cover
+            if not self.sql_threshold_ms:
+                return execute(sql, params, many, context)
+            t0 = time.perf_counter()
+            try:
+                return execute(sql, params, many, context)
+            finally:
+                dt_ms = int((time.perf_counter() - t0) * 1000)
+                if dt_ms >= self.sql_threshold_ms:
+                    try:
+                        sql_preview = str(sql or "").replace("\n", " ").strip()
+                        sql_preview = (sql_preview[:220] + "…") if len(sql_preview) > 220 else sql_preview
+                        slow_sql_rows.append((dt_ms, sql_preview))
+                    except Exception:
+                        slow_sql_rows.append((dt_ms, "<sql>"))
+
+        try:
+            from django.db import connections
+        except Exception:  # pragma: no cover
+            connections = None
+
+        if connections and self.sql_threshold_ms:
+            try:
+                managers = []
+                for conn in connections.all():
+                    try:
+                        managers.append(conn.execute_wrapper(_sql_wrapper))
+                    except Exception:
+                        continue
+                # Enter wrappers.
+                for m in managers:
+                    try:
+                        m.__enter__()
+                    except Exception:
+                        pass
+                response = self.get_response(request)
+            finally:
+                # Exit wrappers.
+                try:
+                    for m in reversed(managers):
+                        try:
+                            m.__exit__(None, None, None)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+        else:
+            response = self.get_response(request)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
-        if elapsed_ms < self.threshold_ms:
-            return response
 
         try:
             path = str(getattr(request, "path", "") or "")
@@ -196,14 +247,23 @@ class SlowRequestLoggingMiddleware:
             method = str(getattr(request, "method", "") or "").upper()
             status = int(getattr(response, "status_code", 0) or 0)
             user_id = getattr(getattr(request, "user", None), "id", None)
-            self.logger.warning(
-                "slow_request ms=%s status=%s method=%s path=%s user_id=%s",
-                elapsed_ms,
-                status,
-                method,
-                path,
-                user_id,
-            )
+            if self.threshold_ms and elapsed_ms >= self.threshold_ms:
+                self.logger.warning(
+                    "slow_request ms=%s status=%s method=%s path=%s user_id=%s",
+                    elapsed_ms,
+                    status,
+                    method,
+                    path,
+                    user_id,
+                )
+            if slow_sql_rows:
+                worst = sorted(slow_sql_rows, key=lambda it: int(it[0]), reverse=True)[:3]
+                self.logger.warning(
+                    "slow_sql path=%s count=%s worst=%s",
+                    path,
+                    len(slow_sql_rows),
+                    worst,
+                )
         except Exception:
             pass
         return response
