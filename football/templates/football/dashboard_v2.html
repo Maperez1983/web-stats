@@ -34,18 +34,19 @@
         box-sizing: border-box;
       }
 
-      body {
-        margin: 0;
-        min-height: 100vh;
-        color: var(--ink);
-        background:
-          radial-gradient(circle at top left, rgba(244, 180, 0, 0.09), transparent 26%),
-          radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 22%),
-          linear-gradient(180deg, #050c17 0%, #08111d 100%);
-        font-family: "IBM Plex Sans", var(--prod-font-ui);
-        font-weight: 500;
-        letter-spacing: 0.005em;
-      }
+	      html,
+	      body {
+	        margin: 0;
+	        min-height: 100vh;
+	        color: var(--ink);
+	        background:
+	          radial-gradient(circle at top left, rgba(244, 180, 0, 0.09), transparent 26%),
+	          radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 22%),
+	          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+	        font-family: "IBM Plex Sans", var(--prod-font-ui) !important;
+	        font-weight: 500;
+	        letter-spacing: 0.005em;
+	      }
 
       @keyframes sj-pop {
         from {
@@ -360,16 +361,16 @@
 	        min-width: 0;
 	      }
 
-	      .hero-head-left {
-	        min-width: 0;
-	        max-width: 58%;
-	        padding: 0.75rem 0.85rem;
-	        border-radius: 22px;
-	        border: 1px solid rgba(255, 255, 255, 0.14);
-	        background: rgba(8, 14, 24, 0.38);
-	        backdrop-filter: blur(10px);
-	        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
-	      }
+		      .hero-head-left {
+		        min-width: 0;
+		        max-width: 52%;
+		        padding: 0.65rem 0.75rem;
+		        border-radius: 22px;
+		        border: 1px solid rgba(255, 255, 255, 0.14);
+		        background: rgba(8, 14, 24, 0.26);
+		        backdrop-filter: blur(10px);
+		        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+		      }
 
 	      .hero-lower {
 	        display: flex;
@@ -435,36 +436,48 @@
 	        color: rgba(245, 247, 250, 0.92);
 	      }
 
-	      .hero-float {
-	        position: absolute;
-	        top: 1.05rem;
-	        right: 1.05rem;
-	        width: min(390px, 38%);
-	        z-index: 3;
+		      .hero-float {
+		        position: absolute;
+		        top: 1.05rem;
+		        right: 1.05rem;
+		        width: min(360px, 34%);
+		        z-index: 3;
+		      }
+
+	      .hero-chips {
+	        display: flex;
+	        flex-wrap: nowrap;
+	        gap: 0.4rem;
+	        margin-bottom: 0.45rem;
+	        overflow-x: auto;
+	        overscroll-behavior-x: contain;
+	        -webkit-overflow-scrolling: touch;
+	        scrollbar-width: none;
 	      }
 
-      .hero-chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-bottom: 0.5rem;
-      }
+	      .hero-chips::-webkit-scrollbar {
+	        display: none;
+	      }
 
-      .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.6rem;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(15, 23, 42, 0.45);
-        color: rgba(226, 232, 240, 0.88);
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        font-size: 0.66rem;
-        backdrop-filter: blur(8px);
-      }
+	      .chip {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.35rem;
+	        padding: 0.35rem 0.6rem;
+	        border-radius: 999px;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(15, 23, 42, 0.45);
+	        color: rgba(226, 232, 240, 0.88);
+	        font-weight: 700;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	        font-size: 0.66rem;
+	        backdrop-filter: blur(8px);
+	        max-width: 42ch;
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	      }
 
       .hero-team {
         display: flex;
@@ -489,13 +502,13 @@
         padding: 6px;
       }
 
-      .hero-team h2 {
-        margin: 0;
-        font-size: 1.35rem;
-        letter-spacing: 0.02em;
-        font-weight: 800;
-        text-shadow: 0 16px 55px rgba(0, 0, 0, 0.6);
-      }
+	      .hero-team h2 {
+	        margin: 0;
+	        font-size: 1.22rem;
+	        letter-spacing: 0.02em;
+	        font-weight: 800;
+	        text-shadow: 0 16px 55px rgba(0, 0, 0, 0.6);
+	      }
 
       .hero-line {
         margin-top: 0.25rem;
