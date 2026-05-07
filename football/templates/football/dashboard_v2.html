@@ -172,6 +172,43 @@
         border-color: rgba(255, 255, 255, 0.14);
       }
 
+      .net-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid rgba(228, 88, 88, 0.35);
+        background: rgba(228, 88, 88, 0.12);
+        color: rgba(255, 235, 235, 0.95);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.68rem;
+        white-space: nowrap;
+      }
+
+      .net-badge .dot {
+        width: 9px;
+        height: 9px;
+        margin: 0;
+        border-radius: 999px;
+        background: rgba(228, 88, 88, 0.92);
+        box-shadow: 0 0 0 3px rgba(228, 88, 88, 0.16);
+        flex: 0 0 auto;
+      }
+
+      .net-badge.ok {
+        border-color: rgba(47, 125, 50, 0.32);
+        background: rgba(47, 125, 50, 0.12);
+        color: rgba(226, 255, 232, 0.92);
+      }
+
+      .net-badge.ok .dot {
+        background: rgba(47, 125, 50, 0.95);
+        box-shadow: 0 0 0 3px rgba(47, 125, 50, 0.16);
+      }
+
       .tabs {
         margin-top: 0.85rem;
         border: 1px solid var(--line);
@@ -1173,6 +1210,7 @@
           </div>
         </div>
         <div class="top-actions">
+          <span id="net-badge" class="net-badge" hidden><span class="dot"></span><span>Offline</span></span>
           <button id="refresh-btn" class="pill-btn secondary" type="button">Actualizar</button>
           <button id="theme-btn" class="pill-btn" type="button">Oscuro</button>
         </div>
@@ -1414,6 +1452,43 @@
           .replaceAll('\"', '&quot;')
           .replaceAll("'", '&#39;');
       }
+
+      const dashLastOkKey = 'sj_dash_last_ok';
+      let dashLastSource = 'network';
+
+      function formatAgo(tsMs) {
+        const ts = clampNumber(tsMs, 0);
+        if (!ts) return '';
+        const diff = Math.max(0, Date.now() - ts);
+        const mins = Math.round(diff / 60000);
+        if (mins < 1) return 'hace unos segundos';
+        if (mins === 1) return 'hace 1 min';
+        if (mins < 60) return `hace ${mins} min`;
+        const hours = Math.round(mins / 60);
+        if (hours === 1) return 'hace 1 h';
+        if (hours < 24) return `hace ${hours} h`;
+        const days = Math.round(hours / 24);
+        return days === 1 ? 'hace 1 día' : `hace ${days} días`;
+      }
+
+      function setNetBadge({ offline = false, cached = false } = {}) {
+        const badge = document.getElementById('net-badge');
+        if (!badge) return;
+        if (!offline) {
+          badge.hidden = true;
+          badge.classList.remove('ok');
+          return;
+        }
+        const lastOk = clampNumber(window.localStorage.getItem(dashLastOkKey), 0);
+        const ago = formatAgo(lastOk);
+        const msg = cached ? `Offline · últimos datos ${ago || ''}`.trim() : 'Offline';
+        badge.hidden = false;
+        badge.classList.remove('ok');
+        badge.innerHTML = `<span class="dot"></span><span>${escapeHtml(msg)}</span>`;
+      }
+
+      window.addEventListener('online', () => setNetBadge({ offline: false }));
+      window.addEventListener('offline', () => setNetBadge({ offline: true, cached: true }));
 
       function preloadImage(src) {
         return new Promise((resolve) => {
@@ -1920,10 +1995,15 @@
         }
         try {
           const response = await fetch(buildDashboardUrl({ fresh }), { credentials: 'same-origin' });
+          dashLastSource = (String(response.headers.get('x-webstats-cache') || '').trim() === '1') ? 'cache' : 'network';
           const ctype = String(response.headers.get('content-type') || '');
           if (!response.ok) throw new Error(`DASH_HTTP_${response.status}`);
           if (!ctype.includes('application/json')) throw new Error('DASH_NO_JSON');
           const payload = await response.json();
+          if (dashLastSource === 'network') {
+            window.localStorage.setItem(dashLastOkKey, String(Date.now()));
+          }
+          setNetBadge({ offline: !navigator.onLine, cached: dashLastSource === 'cache' });
 
           renderSetupBanner(payload);
           const teamName = String(payload?.team?.name || '').trim();
@@ -1941,6 +2021,7 @@
 
           if (loading) loading.hidden = true;
         } catch (err) {
+          setNetBadge({ offline: !navigator.onLine, cached: dashLastSource === 'cache' });
           if (loading) {
             loading.hidden = false;
             loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';

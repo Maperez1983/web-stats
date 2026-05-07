@@ -146,7 +146,19 @@ self.addEventListener('fetch', (event) => {{
         return resp;
       }} catch (e) {{
         const cached = await cache.match(req);
-        if (cached) return cached;
+        if (cached) {{
+          try {{
+            const cloned = cached.clone();
+            const body = await cloned.text();
+            const headers = new Headers(cloned.headers);
+            headers.set('X-Webstats-Cache', '1');
+            // Evita caches intermedias y ayuda a debug.
+            headers.set('Cache-Control', 'no-store');
+            return new Response(body, {{ status: cloned.status || 200, headers }});
+          }} catch (e2) {{
+            return cached;
+          }}
+        }}
         return new Response(JSON.stringify({{ error: 'offline', cached: false }}), {{
           status: 503,
           headers: {{ 'content-type': 'application/json; charset=utf-8' }},
