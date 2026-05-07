@@ -23180,7 +23180,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                     pitch_zoom=pitch_zoom,
                     world_width=canvas_width,
                     world_height=canvas_height,
-                    max_side=2600,
+                    max_side=3200,
                 )
                 if png_bytes:
                     return _autocrop_preview_data_url("data:image/png;base64," + base64.b64encode(png_bytes).decode("ascii"))

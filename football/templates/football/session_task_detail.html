@@ -742,7 +742,7 @@
             <div style="margin-top:0.45rem;">
               {% if rel.task_preview_image or rel.task_pdf %}
               <img
-                src="{% url 'session-task-preview-file' rel.id %}{% if rel.task_preview_image %}?v={{ rel.task_preview_image.name|urlencode }}{% endif %}"
+                src="{% url 'session-task-preview-file' rel.id %}?hd=1&amp;v={% if rel.task_preview_image %}{{ rel.task_preview_image.name|urlencode }}{% else %}{{ rel.id }}{% endif %}"
                 alt="Vista previa de {{ rel.title }}"
                 style="width:100%; aspect-ratio:16/9; border-radius:10px; border:1px solid rgba(255,255,255,0.14); object-fit:cover; background:rgba(255,255,255,0.05);"
                 loading="lazy"
