@@ -6,6 +6,7 @@ from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 
 from football.models import SessionTask, TaskStudioTask, Team
+from football.preview_render import shutdown_preview_renderer
 from football.views import (
     _analyze_preview_image_bytes,
     _ensure_library_task_preview,
@@ -79,6 +80,7 @@ class Command(BaseCommand):
         limit = max(1, int(options.get("limit") or 500))
         force = bool(options.get("force"))
         dry_run = bool(options.get("dry_run"))
+        verbosity = int(options.get("verbosity") or 1)
 
         if scope not in {"any", "coach", "goalkeeper", "fitness", "abp"}:
             self.stdout.write(self.style.WARNING(f"Scope inválido: {scope}. Usando any."))
@@ -126,50 +128,64 @@ class Command(BaseCommand):
         skipped = 0
         failed = 0
 
-        for kind, task in iter_targets():
-            scanned += 1
-            preview_field = getattr(task, "task_preview_image", None)
-            preview_name = str(getattr(preview_field, "name", "") or "").strip()
+        try:
+            for kind, task in iter_targets():
+                scanned += 1
+                preview_field = getattr(task, "task_preview_image", None)
+                preview_name = str(getattr(preview_field, "name", "") or "").strip()
 
-            needs = force or _preview_missing_or_broken(preview_name)
-            pitch_only = False
-            if not needs and preview_name:
-                try:
-                    with default_storage.open(preview_name, "rb") as handle:
-                        raw = handle.read() or b""
-                    if raw and _looks_like_pitch_only_preview(raw):
+                needs = force or _preview_missing_or_broken(preview_name)
+                pitch_only = False
+                if not needs and preview_name:
+                    try:
+                        with default_storage.open(preview_name, "rb") as handle:
+                            raw = handle.read() or b""
+                        if raw and _looks_like_pitch_only_preview(raw):
+                            needs = True
+                            pitch_only = True
+                    except Exception:
                         needs = True
-                        pitch_only = True
-                except Exception:
-                    needs = True
 
-            if not needs:
-                skipped += 1
-                continue
+                if not needs:
+                    skipped += 1
+                    continue
 
-            label = f"{kind}#{int(getattr(task, 'id', 0) or 0)}"
-            reason = "force" if force else ("missing" if not preview_name else ("pitch_only" if pitch_only else "broken"))
-            self.stdout.write(f"- {label}: regenerate ({reason})")
-            if dry_run:
-                continue
+                label = f"{kind}#{int(getattr(task, 'id', 0) or 0)}"
+                reason = "force" if force else ("missing" if not preview_name else ("pitch_only" if pitch_only else "broken"))
+                self.stdout.write(f"- {label}: regenerate ({reason})")
+                if dry_run:
+                    continue
 
-            ok = False
-            if not playwright_error:
-                try:
-                    ok = bool(_maybe_render_task_preview_server_side(task, force=True))
-                except Exception:
-                    ok = False
+                ok = False
+                render_err = None
 
-            if not ok and getattr(task, "task_pdf", None):
-                try:
-                    ok = bool(_ensure_library_task_preview(task, force=True, prefer_render=True))
-                except Exception:
-                    ok = False
+                if not playwright_error:
+                    try:
+                        ok = bool(_maybe_render_task_preview_server_side(task, force=True))
+                    except Exception as exc:
+                        render_err = exc
+                        ok = False
+                    if not ok and verbosity >= 2:
+                        if render_err:
+                            self.stdout.write(self.style.WARNING(f"  render error: {render_err!r}"))
+                        else:
+                            self.stdout.write(self.style.WARNING("  render: no output (¿sin canvas_state o fallo en Playwright?)"))
 
-            if ok:
-                regenerated += 1
-            else:
-                failed += 1
+                if not ok and getattr(task, "task_pdf", None):
+                    try:
+                        ok = bool(_ensure_library_task_preview(task, force=True, prefer_render=True))
+                    except Exception as exc:
+                        if verbosity >= 2:
+                            self.stdout.write(self.style.WARNING(f"  pdf fallback error: {exc!r}"))
+                        ok = False
+
+                if ok:
+                    regenerated += 1
+                else:
+                    failed += 1
+        finally:
+            # Avoid leaving an internal asyncio loop running (can crash Django teardown in manage.py).
+            shutdown_preview_renderer()
 
         self.stdout.write(
             self.style.SUCCESS(

@@ -36,6 +36,19 @@ def _reset_playwright():
         _PW_HANDLE = None
 
 
+def shutdown_preview_renderer() -> None:
+    """
+    Best-effort shutdown for Playwright resources.
+
+    Playwright's sync API uses an internal asyncio loop; keeping the browser handle alive can cause
+    Django management commands to be seen as "async context" at teardown (SynchronousOnlyOperation).
+    """
+    try:
+        _reset_playwright()
+    except Exception:
+        pass
+
+
 def _guess_mime(path_or_url: str) -> str:
     mime, _ = mimetypes.guess_type(path_or_url)
     return mime or "application/octet-stream"
