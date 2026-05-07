@@ -1,0 +1,1668 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Segunda Jugada · 2J Club</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      :root {
+        --bg: var(--prod-bg, #08111d);
+        --line: var(--prod-line, rgba(148, 163, 184, 0.18));
+        --line-2: rgba(148, 163, 184, 0.12);
+        --ink: var(--prod-text, rgba(245, 247, 250, 0.95));
+        --muted: var(--prod-muted, rgba(226, 232, 240, 0.72));
+        --amber: var(--prod-secondary, #f4b400);
+        --green: var(--prod-primary, #2f7d32);
+        --red: #e45858;
+        --radius-xl: 26px;
+        --radius-lg: 20px;
+        --shadow: 0 30px 90px rgba(0, 0, 0, 0.35);
+        --hero-image: none;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top left, rgba(244, 180, 0, 0.09), transparent 26%),
+          radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 22%),
+          linear-gradient(180deg, #050c17 0%, #08111d 100%);
+        font-family: "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .page {
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 1.25rem;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        padding: 0.9rem 1rem;
+        background: rgba(7, 16, 30, 0.78);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        min-width: 0;
+      }
+
+      .brand-crest {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+
+      .brand-crest img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .brand-copy {
+        min-width: 0;
+      }
+
+      .brand-title {
+        font-weight: 920;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.74rem;
+        color: rgba(245, 247, 250, 0.9);
+      }
+
+      .brand-subtitle {
+        margin-top: 0.18rem;
+        color: rgba(226, 232, 240, 0.7);
+        font-weight: 700;
+        font-size: 0.92rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .top-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .pill-btn {
+        appearance: none;
+        cursor: pointer;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        border-radius: 999px;
+        padding: 0.55rem 0.8rem;
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(245, 247, 250, 0.92);
+        font-size: 0.72rem;
+        line-height: 1.1;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 880;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        transition: transform 120ms ease, border-color 120ms ease;
+      }
+
+      .pill-btn:hover {
+        border-color: rgba(244, 180, 0, 0.55);
+        transform: translateY(-1px);
+      }
+
+      .pill-btn.secondary {
+        border-color: rgba(255, 255, 255, 0.14);
+      }
+
+      .tabs {
+        margin-top: 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(7, 16, 30, 0.62);
+        backdrop-filter: blur(8px);
+        padding: 0.3rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+        position: sticky;
+        top: 0.65rem;
+        z-index: 20;
+      }
+
+      .tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.55rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        color: rgba(226, 232, 240, 0.8);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+      }
+
+      .tab:hover {
+        color: rgba(255, 255, 255, 0.94);
+        border-color: rgba(244, 180, 0, 0.28);
+      }
+
+      .tab.active {
+        color: #0b1321;
+        background: linear-gradient(135deg, rgba(244, 180, 0, 0.96), rgba(244, 180, 0, 0.74));
+        border-color: rgba(255, 255, 255, 0.16);
+      }
+
+      .setup-banner {
+        margin-top: 0.95rem;
+        border: 1px solid rgba(244, 180, 0, 0.22);
+        border-radius: var(--radius-xl);
+        padding: 1.05rem 1.1rem;
+        background: rgba(25, 17, 2, 0.54);
+        backdrop-filter: blur(10px);
+      }
+
+      .setup-banner-row {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+
+      .setup-banner-title {
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.78rem;
+        color: rgba(255, 248, 225, 0.95);
+      }
+
+      .setup-banner-body {
+        margin-top: 0.35rem;
+        color: rgba(255, 248, 225, 0.78);
+        font-weight: 650;
+        line-height: 1.35;
+      }
+
+      .setup-banner-action {
+        flex: 0 0 auto;
+        padding: 0.7rem 0.95rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.35);
+        background: rgba(244, 180, 0, 0.22);
+        color: rgba(255, 255, 255, 0.95);
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+
+      .hero {
+        margin-top: 1.05rem;
+        display: grid;
+        grid-template-columns: 1.25fr 0.95fr;
+        gap: 1rem;
+        align-items: stretch;
+      }
+
+      .hero-photo {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        position: relative;
+        min-height: 410px;
+        box-shadow: var(--shadow);
+        background:
+          linear-gradient(180deg, rgba(5, 12, 23, 0.2), rgba(5, 12, 23, 0.9)),
+          var(--hero-image);
+        background-size: cover;
+        background-position: center;
+      }
+
+      .hero-photo::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0) 0%,
+          rgba(0, 0, 0, 0.62) 74%,
+          rgba(0, 0, 0, 0.88) 100%
+        );
+        pointer-events: none;
+      }
+
+      .hero-photo-overlay {
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        z-index: 2;
+      }
+
+      .hero-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(15, 23, 42, 0.45);
+        color: rgba(226, 232, 240, 0.88);
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.66rem;
+        backdrop-filter: blur(8px);
+      }
+
+      .hero-team {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .hero-team-crest {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.86);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+
+      .hero-team-crest img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 6px;
+      }
+
+      .hero-team h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: 0.02em;
+        font-weight: 950;
+        text-shadow: 0 16px 55px rgba(0, 0, 0, 0.6);
+      }
+
+      .hero-line {
+        margin-top: 0.25rem;
+        color: rgba(226, 232, 240, 0.8);
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .hero-side {
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+        gap: 1rem;
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.7rem;
+      }
+
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 0.85rem 0.9rem;
+        background: rgba(9, 16, 28, 0.7);
+        backdrop-filter: blur(8px);
+        min-height: 84px;
+      }
+
+      .kpi-label {
+        color: rgba(226, 232, 240, 0.68);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.67rem;
+      }
+
+      .kpi-value {
+        margin-top: 0.3rem;
+        font-size: 1.55rem;
+        font-weight: 980;
+        letter-spacing: 0.02em;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-xl);
+        background: rgba(7, 16, 30, 0.62);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+      }
+
+      .card-inner {
+        padding: 1rem 1.05rem;
+      }
+
+      .card-title {
+        margin: 0;
+        font-weight: 980;
+        font-size: 0.86rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.88);
+      }
+
+      .card-subtitle {
+        margin-top: 0.35rem;
+        color: rgba(226, 232, 240, 0.68);
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .next-match-row {
+        margin-top: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+      }
+
+      .opponent-crest {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+
+      .opponent-crest img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .opponent-name {
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        font-size: 1.05rem;
+        margin: 0;
+      }
+
+      .meta-grid {
+        margin-top: 0.7rem;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.4rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-weight: 700;
+      }
+
+      .meta-row {
+        display: flex;
+        align-items: baseline;
+        gap: 0.55rem;
+      }
+
+      .meta-row strong {
+        display: inline-block;
+        min-width: 7.4rem;
+        color: rgba(226, 232, 240, 0.62);
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.65rem;
+      }
+
+      .form-strip {
+        margin-top: 0.7rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .form-badges {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+
+      .badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        font-size: 0.72rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(15, 23, 42, 0.55);
+      }
+
+      .badge.w {
+        border-color: rgba(47, 125, 50, 0.55);
+        color: rgba(226, 255, 232, 0.95);
+        background: rgba(47, 125, 50, 0.18);
+      }
+
+      .badge.d {
+        border-color: rgba(244, 180, 0, 0.55);
+        color: rgba(255, 249, 230, 0.96);
+        background: rgba(244, 180, 0, 0.16);
+      }
+
+      .badge.l {
+        border-color: rgba(228, 88, 88, 0.55);
+        color: rgba(255, 230, 230, 0.96);
+        background: rgba(228, 88, 88, 0.14);
+      }
+
+      .sparkline {
+        flex: 0 0 auto;
+        width: 130px;
+        height: 34px;
+        border-radius: 14px;
+        background: rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 6px 8px;
+      }
+
+      .main {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        align-items: start;
+      }
+
+      .span-2 {
+        grid-column: 1 / -1;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .list {
+        margin: 0.85rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.55rem;
+      }
+
+      .list li {
+        display: flex;
+        gap: 0.55rem;
+        align-items: flex-start;
+        color: rgba(226, 232, 240, 0.82);
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        margin-top: 0.35rem;
+        border-radius: 999px;
+        background: rgba(244, 180, 0, 0.8);
+        box-shadow: 0 0 0 3px rgba(244, 180, 0, 0.16);
+        flex: 0 0 auto;
+      }
+
+      .agenda-days {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .agenda-day {
+        border: 1px solid var(--line-2);
+        border-radius: 18px;
+        padding: 0.8rem 0.85rem;
+        background: rgba(0, 0, 0, 0.14);
+      }
+
+      .agenda-day-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-bottom: 0.55rem;
+      }
+
+      .agenda-day-title {
+        font-weight: 950;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        color: rgba(226, 232, 240, 0.86);
+      }
+
+      .agenda-day-date {
+        color: rgba(226, 232, 240, 0.58);
+        font-weight: 750;
+        font-size: 0.8rem;
+      }
+
+      .agenda-items {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .agenda-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.6rem 0.65rem;
+        background: rgba(15, 23, 42, 0.22);
+      }
+
+      .agenda-item .left {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        min-width: 0;
+      }
+
+      .agenda-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        font-size: 0.72rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.9);
+        flex: 0 0 auto;
+      }
+
+      .agenda-icon.match {
+        border-color: rgba(244, 180, 0, 0.42);
+        background: rgba(244, 180, 0, 0.12);
+      }
+
+      .agenda-icon.session {
+        border-color: rgba(47, 125, 50, 0.42);
+        background: rgba(47, 125, 50, 0.12);
+      }
+
+      .agenda-text {
+        min-width: 0;
+      }
+
+      .agenda-title {
+        font-weight: 900;
+        color: rgba(226, 232, 240, 0.92);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .agenda-meta {
+        margin-top: 0.12rem;
+        color: rgba(226, 232, 240, 0.6);
+        font-weight: 750;
+        font-size: 0.86rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.65rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.35);
+        background: rgba(244, 180, 0, 0.18);
+        color: rgba(255, 255, 255, 0.95);
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+      }
+
+      .availability-grid {
+        margin-top: 0.85rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+      }
+
+      .player-row {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.65rem 0.7rem;
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      .player-photo {
+        width: 46px;
+        height: 46px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+
+      .player-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: 50% 18%;
+      }
+
+      .player-copy {
+        min-width: 0;
+      }
+
+      .player-name {
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .player-meta {
+        margin-top: 0.12rem;
+        color: rgba(226, 232, 240, 0.62);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+
+      .broadcast {
+        margin-top: 0.85rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .broadcast-line {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 0.8rem 0.85rem;
+        background: rgba(0, 0, 0, 0.14);
+      }
+
+      .broadcast-title {
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.55rem;
+      }
+
+      .broadcast-players {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+
+      .broadcast-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.6rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.25);
+        color: rgba(226, 232, 240, 0.9);
+        font-weight: 880;
+        font-size: 0.82rem;
+        min-width: 0;
+      }
+
+      .broadcast-pill strong {
+        color: rgba(244, 180, 0, 0.92);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+      }
+
+      .standings-table {
+        margin-top: 0.85rem;
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .standings-table th,
+      .standings-table td {
+        padding: 0.55rem 0.6rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        text-align: left;
+      }
+
+      .standings-table th {
+        color: rgba(226, 232, 240, 0.58);
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.64rem;
+      }
+
+      .standings-table td {
+        color: rgba(226, 232, 240, 0.86);
+        font-weight: 750;
+      }
+
+      .standings-table td.num,
+      .standings-table th.num {
+        text-align: right;
+      }
+
+      .standings-table tr.highlight td {
+        color: rgba(255, 249, 230, 0.96);
+        font-weight: 950;
+      }
+
+      .standings-table tr.highlight td:first-child {
+        color: rgba(244, 180, 0, 0.95);
+      }
+
+      .loading {
+        margin-top: 1rem;
+        border: 1px dashed rgba(255, 255, 255, 0.16);
+        border-radius: var(--radius-xl);
+        padding: 1rem 1.05rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 750;
+      }
+
+      @media (max-width: 980px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+        .main {
+          grid-template-columns: 1fr;
+        }
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+        .kpis {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .tabs {
+          position: static;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .page {
+          padding: 1rem;
+        }
+        .kpis {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .hero-photo {
+          min-height: 360px;
+        }
+        .setup-banner-row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .setup-banner-action {
+          width: 100%;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-crest">
+            <img id="top-crest" alt="Escudo" src="{% static 'football/images/app-icon-192.png' %}" />
+          </div>
+          <div class="brand-copy">
+            <div class="brand-title">Segunda Jugada · 2J Club</div>
+            <div id="top-subtitle" class="brand-subtitle">{{ current_role_label|default:"Entrenador" }}</div>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button id="refresh-btn" class="pill-btn secondary" type="button">Actualizar</button>
+          <button id="theme-btn" class="pill-btn" type="button">Oscuro</button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Áreas">
+        <a class="tab active" href="{% url 'dashboard-home' %}">Portada</a>
+        <a class="tab" href="{% url 'match-hub' %}">Partido</a>
+        <a class="tab" href="{% url 'sessions' %}">Entrenamiento</a>
+        <a class="tab" href="{% url 'team-agenda' %}">Agenda</a>
+        <a class="tab" href="{% url 'coach-roster' %}">Jugadores</a>
+        <a class="tab" href="{% url 'analysis' %}">Análisis</a>
+        <a class="tab" href="{% url 'coach-tactics' %}">Táctica</a>
+        <a class="tab" href="{% url 'kpi-dashboard' %}">KPIs</a>
+        {% if can_access_platform %}
+          <a class="tab" href="{% url 'platform-overview' %}">Ajustes</a>
+        {% else %}
+          <a class="tab" href="{% url 'account-page' %}">Ajustes</a>
+        {% endif %}
+      </nav>
+
+      <section id="setup-banner" class="setup-banner" hidden></section>
+
+      <section class="hero">
+        <div id="team-hero" class="hero-photo" role="img" aria-label="Portada del equipo">
+          <div class="hero-photo-overlay">
+            <div style="min-width:0;">
+              <div id="hero-chips" class="hero-chips"></div>
+              <div class="hero-team">
+                <div class="hero-team-crest">
+                  <img id="hero-crest" alt="Escudo del equipo" src="{% static 'football/images/app-icon-192.png' %}" />
+                </div>
+                <div style="min-width:0;">
+                  <h2 id="hero-team-name">Equipo</h2>
+                  <div id="hero-line" class="hero-line">Cargando…</div>
+                </div>
+              </div>
+            </div>
+            <a id="hero-cta" class="cta" href="{% url 'match-hub' %}">Ir a Partido</a>
+          </div>
+        </div>
+
+        <aside class="hero-side">
+          <div class="kpis">
+            <div class="kpi">
+              <div class="kpi-label">Posición</div>
+              <div id="kpi-position" class="kpi-value">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Puntos</div>
+              <div id="kpi-points" class="kpi-value">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">Partidos</div>
+              <div id="kpi-played" class="kpi-value">—</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi-label">DG</div>
+              <div id="kpi-gd" class="kpi-value">—</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <h3 class="card-title">Próximo rival</h3>
+              <div id="next-match-subtitle" class="card-subtitle">Partido y contexto competitivo.</div>
+              <div class="next-match-row">
+                <div class="opponent-crest">
+                  <img id="next-opponent-crest" alt="Escudo rival" src="" />
+                </div>
+                <div style="min-width:0;">
+                  <p id="next-opponent" class="opponent-name">—</p>
+                  <div id="next-round" class="card-subtitle" style="margin-top:0.1rem;">—</div>
+                </div>
+              </div>
+              <div class="meta-grid" id="next-match-meta"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <h3 class="card-title">Forma reciente</h3>
+              <div id="form-subtitle" class="card-subtitle">Últimos partidos con marcador.</div>
+              <div class="form-strip">
+                <div id="form-badges" class="form-badges"></div>
+                <div class="sparkline">
+                  <svg id="form-sparkline" width="100%" height="100%" viewBox="0 0 120 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="main">
+        <div class="card">
+          <div class="card-inner">
+            <h3 class="card-title">Briefing semanal</h3>
+            <div id="briefing-headline" class="card-subtitle">Prioridades y alertas para el microciclo.</div>
+            <ul id="briefing-alerts" class="list"></ul>
+            <div style="margin-top:0.9rem;">
+              <h4 class="card-title" style="margin:0;">Prioridades</h4>
+              <ul id="briefing-priorities" class="list"></ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-inner">
+              <h3 class="card-title">Entrenamiento</h3>
+              <div id="training-subtitle" class="card-subtitle">Siguiente sesión planificada.</div>
+              <div id="training-next" style="margin-top:0.9rem;"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-inner">
+              <h3 class="card-title">Agenda semanal</h3>
+              <div class="card-subtitle">Sesiones + partidos de la semana.</div>
+              <div id="weekly-agenda" class="agenda-days"></div>
+              <div style="margin-top:0.9rem;">
+                <a class="cta" href="{% url 'team-agenda' %}">Abrir agenda completa</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-inner">
+            <h3 class="card-title">Disponibilidad</h3>
+            <div class="card-subtitle">Once probable + bajas activas (broadcast).</div>
+            <div id="availability-broadcast" class="broadcast"></div>
+            <div class="availability-grid">
+              <div>
+                <h4 class="card-title" style="margin:0;">Bajas</h4>
+                <div id="availability-out" style="margin-top:0.8rem; display:grid; gap:0.55rem;"></div>
+              </div>
+              <div>
+                <h4 class="card-title" style="margin:0;">Once probable</h4>
+                <div id="availability-xi" style="margin-top:0.8rem; display:grid; gap:0.55rem;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card span-2">
+          <div class="card-inner">
+            <h3 class="card-title">Clasificación</h3>
+            <div id="standings-subtitle" class="card-subtitle">Tabla y contexto de temporada.</div>
+            <div style="overflow:auto;">
+              <table class="standings-table">
+                <thead>
+                  <tr>
+                    <th class="num">#</th>
+                    <th>Equipo</th>
+                    <th class="num">PTS</th>
+                    <th class="num">PJ</th>
+                    <th class="num">DG</th>
+                  </tr>
+                </thead>
+                <tbody id="standings-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="loading" class="loading span-2">Cargando datos del dashboard…</div>
+      </section>
+    </div>
+
+    {{ hero_image_candidates|json_script:"hero-images-json" }}
+    <script>
+      const demoMode = {% if demo_mode %}true{% else %}false{% endif %};
+      const setupMode = {% if setup_mode %}true{% else %}false{% endif %};
+      const heroElement = document.getElementById('team-hero');
+      const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
+      const heroFallbackCandidates = demoMode
+        ? []
+        : [
+            '{% static "football/images/team-01.jpg" %}',
+            '{% static "football/campo-futbol.jpg" %}',
+          ];
+      const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
+      const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
+      const urlParams = new URLSearchParams(window.location.search || '');
+      const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
+      const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
+      const effectiveHome = String(urlParams.get('home') || '').trim();
+
+      function buildDashboardUrl({ fresh = false } = {}) {
+        const params = new URLSearchParams();
+        if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
+        if (effectiveTeamId) params.set('team', effectiveTeamId);
+        if (effectiveHome) params.set('home', effectiveHome);
+        if (fresh) {
+          params.set('fresh', '1');
+          params.set('ts', String(Date.now()));
+        }
+        const qs = params.toString();
+        return `/api/dashboard/${qs ? `?${qs}` : ''}`;
+      }
+
+      function buildDashboardRefreshUrl() {
+        const params = new URLSearchParams();
+        if (effectiveWorkspaceId) params.set('workspace', effectiveWorkspaceId);
+        if (effectiveTeamId) params.set('team', effectiveTeamId);
+        if (effectiveHome) params.set('home', effectiveHome);
+        params.set('ts', String(Date.now()));
+        const qs = params.toString();
+        return `/api/dashboard/refresh/${qs ? `?${qs}` : ''}`;
+      }
+
+      function clampNumber(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function setText(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = String(value ?? '').trim();
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('\"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+
+      function preloadImage(src) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(src);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        });
+      }
+
+      function setHeroImage(src) {
+        if (!heroElement) return;
+        heroElement.style.setProperty('--hero-image', `url('${src}')`);
+      }
+
+      async function initHeroImage() {
+        if (demoMode || setupMode) return;
+        const candidates = [...(managedHeroImages || []), ...heroFallbackCandidates]
+          .map((src) => String(src || '').trim())
+          .filter(Boolean);
+        for (const candidate of candidates) {
+          const loaded = await preloadImage(candidate);
+          if (loaded) {
+            setHeroImage(loaded);
+            return;
+          }
+        }
+      }
+
+      function initTheme() {
+        const btn = document.getElementById('theme-btn');
+        const stored = String(window.localStorage.getItem('sj_theme') || '').trim();
+        const theme = stored === 'light' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        if (btn) btn.textContent = theme === 'light' ? 'Claro' : 'Oscuro';
+        btn?.addEventListener('click', () => {
+          const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+          document.documentElement.dataset.theme = next;
+          window.localStorage.setItem('sj_theme', next);
+          btn.textContent = next === 'light' ? 'Claro' : 'Oscuro';
+        });
+      }
+
+      function normalizeKey(value) {
+        const raw = String(value ?? '').trim().toLowerCase();
+        if (!raw) return '';
+        return raw
+          .normalize('NFKD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim();
+      }
+
+      function getRowField(row, keys, fallback = '') {
+        if (!row || typeof row !== 'object') return fallback;
+        for (const key of keys) {
+          if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+            return row[key];
+          }
+        }
+        return fallback;
+      }
+
+      function findStandingRow(standings, teamName) {
+        const rows = Array.isArray(standings) ? standings : [];
+        const key = normalizeKey(teamName);
+        if (!key) return { row: null, idx: -1, key: '' };
+        for (let i = 0; i < rows.length; i += 1) {
+          const row = rows[i];
+          if (!row || typeof row !== 'object') continue;
+          const candidate = String(row.full_name || row.team || row.name || '').trim();
+          const candidateKey = normalizeKey(candidate);
+          if (!candidateKey) continue;
+          if (candidateKey === key) return { row, idx: i, key };
+          if (candidateKey.includes(key) || key.includes(candidateKey)) return { row, idx: i, key };
+        }
+        return { row: null, idx: -1, key };
+      }
+
+      function renderSetupBanner(payload) {
+        const banner = document.getElementById('setup-banner');
+        if (!banner) return;
+        const setupRequired = Boolean(payload && payload.setup_required);
+        if (!setupRequired) {
+          banner.hidden = true;
+          banner.innerHTML = '';
+          return;
+        }
+        const url = String(payload.setup_url || '/onboarding/').trim() || '/onboarding/';
+        const title = String(payload.setup_message_title || '').trim();
+        const body = String(payload.setup_message_body || '').trim();
+        const actionLabel = String(payload.setup_action_label || '').trim();
+        banner.hidden = false;
+        banner.innerHTML = `
+          <div class="setup-banner-row">
+            <div>
+              <div class="setup-banner-title">${escapeHtml(title || 'Checklist de activación')}</div>
+              <div class="setup-banner-body">${escapeHtml(body || 'Completa los pasos para evitar mezclas de datos y activar KPIs/PDFs.')}</div>
+            </div>
+            <a class="setup-banner-action" href="${escapeHtml(url)}">${escapeHtml(actionLabel || 'Abrir configuración')}</a>
+          </div>
+        `;
+      }
+
+      function renderHero(payload, standingInfo) {
+        const team = payload?.team || {};
+        const teamName = String(team.name || 'Equipo').trim() || 'Equipo';
+        const corporate = String(team.corporate_line || team.group || '').trim();
+        setText('hero-team-name', teamName);
+        setText('hero-line', corporate || 'Temporada en curso');
+        if (corporate) setText('top-subtitle', corporate);
+
+        const crestUrl = String(team.crest_url || '').trim();
+        if (crestUrl) {
+          const heroCrest = document.getElementById('hero-crest');
+          const topCrest = document.getElementById('top-crest');
+          if (heroCrest) heroCrest.src = crestUrl;
+          if (topCrest) topCrest.src = crestUrl;
+        }
+
+        const chips = [];
+        const group = String(team.group || '').trim();
+        const season = String(team.season || '').trim();
+        const competition = String(team.competition || '').trim();
+        const category = String(team.category || '').trim();
+        if (competition) chips.push(competition);
+        if (season) chips.push(season);
+        if (group && !chips.includes(group)) chips.push(group);
+        if (category) chips.push(category);
+        const row = standingInfo?.row;
+        const pos = getRowField(row, ['pos', 'position', '#'], '');
+        const posLabel = String(pos || '').trim();
+        if (posLabel) chips.push(`Puesto ${posLabel}`);
+
+        const heroChips = document.getElementById('hero-chips');
+        if (heroChips) {
+          heroChips.innerHTML = chips.slice(0, 4).map((label) => `<span class="chip">${escapeHtml(label)}</span>`).join('');
+        }
+
+        const heroCta = document.getElementById('hero-cta');
+        const activeMatch = payload?.active_match;
+        if (heroCta && activeMatch && String(activeMatch.url || '').trim()) {
+          heroCta.href = String(activeMatch.url).trim();
+          heroCta.textContent = 'Abrir partido';
+        } else if (heroCta) {
+          heroCta.href = '{% url "match-hub" %}';
+          heroCta.textContent = 'Ir a Partido';
+        }
+      }
+
+      function renderKPIs(standingInfo) {
+        const row = standingInfo?.row;
+        const idx = clampNumber(standingInfo?.idx, -1);
+        const position = getRowField(row, ['pos', 'position', '#'], idx >= 0 ? idx + 1 : '—');
+        const points = getRowField(row, ['pts', 'points', 'PTS'], '—');
+        const played = getRowField(row, ['pj', 'played', 'PJ'], '—');
+        const gd = getRowField(row, ['dg', 'gd', 'DG'], '—');
+        setText('kpi-position', position);
+        setText('kpi-points', points);
+        setText('kpi-played', played);
+        setText('kpi-gd', gd);
+      }
+
+      function renderStandings(payload, standingInfo) {
+        const tbody = document.getElementById('standings-body');
+        if (!tbody) return;
+        const standings = Array.isArray(payload?.standings) ? payload.standings : [];
+        const limit = Math.max(12, Math.min(standings.length, 18));
+        const key = standingInfo?.key || '';
+        tbody.innerHTML = standings.slice(0, limit).map((row, i) => {
+          const name = String(getRowField(row, ['team', 'full_name', 'name'], '')).trim() || 'Equipo';
+          const pos = getRowField(row, ['pos', 'position', '#'], i + 1);
+          const pts = getRowField(row, ['pts', 'points', 'PTS'], '');
+          const pj = getRowField(row, ['pj', 'played', 'PJ'], '');
+          const dg = getRowField(row, ['dg', 'gd', 'DG'], '');
+          const highlight = key && normalizeKey(name) === key ? 'highlight' : '';
+          return `
+            <tr class="${highlight}">
+              <td class="num">${escapeHtml(pos)}</td>
+              <td>${escapeHtml(name)}</td>
+              <td class="num">${escapeHtml(pts)}</td>
+              <td class="num">${escapeHtml(pj)}</td>
+              <td class="num">${escapeHtml(dg)}</td>
+            </tr>
+          `;
+        }).join('');
+        const meta = payload?.standings_meta || {};
+        const provider = String(meta.provider || '').trim();
+        const updated = String(meta.last_updated || '').trim();
+        const group = String(meta.group || '').trim();
+        const season = String(meta.season || '').trim();
+        const parts = [];
+        if (group) parts.push(group);
+        if (season && !parts.includes(season)) parts.push(season);
+        if (provider) parts.push(provider);
+        if (updated) parts.push(`Actualizado: ${updated.split('T')[0]}`);
+        setText('standings-subtitle', parts.length ? parts.join(' · ') : 'Tabla y contexto de temporada.');
+      }
+
+      function renderNextMatch(payload, standings) {
+        const match = payload?.next_match;
+        const teamName = String(payload?.team?.name || '').trim();
+        const opponentNode = document.getElementById('next-opponent');
+        const roundNode = document.getElementById('next-round');
+        const crestNode = document.getElementById('next-opponent-crest');
+        const metaNode = document.getElementById('next-match-meta');
+        if (!opponentNode || !roundNode || !metaNode || !crestNode) return;
+
+        if (!match || typeof match !== 'object') {
+          opponentNode.textContent = 'Rival por confirmar';
+          roundNode.textContent = '—';
+          metaNode.innerHTML = '';
+          crestNode.removeAttribute('src');
+          return;
+        }
+
+        const opponent = match.opponent && typeof match.opponent === 'object' ? match.opponent : {};
+        const opponentName = String(opponent.full_name || opponent.name || match.rival || 'Rival').trim() || 'Rival';
+        const crest = String(opponent.crest_url || '').trim();
+        const round = String(match.round || '').trim();
+        const date = String(match.date || '').trim();
+        const time = String(match.time || '').trim();
+        const location = String(match.location || match.field || '').trim();
+
+        opponentNode.textContent = opponentName;
+        roundNode.textContent = round || 'Próxima jornada';
+        if (crest) crestNode.src = crest;
+        else crestNode.removeAttribute('src');
+
+        const opponentStanding = findStandingRow(standings, opponentName);
+        const opponentPosRaw = getRowField(opponentStanding?.row, ['pos', 'position', '#'], '');
+        const opponentPos = String(opponentPosRaw || '').trim();
+
+        const rows = [];
+        if (date) rows.push(`<div class="meta-row"><strong>Fecha</strong><span>${escapeHtml(date)}</span></div>`);
+        if (time) rows.push(`<div class="meta-row"><strong>Hora</strong><span>${escapeHtml(time)}</span></div>`);
+        if (location) rows.push(`<div class="meta-row"><strong>Campo</strong><span>${escapeHtml(location)}</span></div>`);
+        if (opponentPos) rows.push(`<div class="meta-row"><strong>Posición</strong><span>${escapeHtml(opponentPos)}</span></div>`);
+        metaNode.innerHTML = rows.join('');
+
+        const subtitleParts = [];
+        if (teamName) subtitleParts.push(teamName);
+        if (opponentName) subtitleParts.push(opponentName);
+        setText('next-match-subtitle', subtitleParts.length ? subtitleParts.join(' · ') : 'Partido y contexto competitivo.');
+      }
+
+      function renderSparkline(svgEl, values) {
+        if (!svgEl) return;
+        const v = Array.isArray(values) ? values.map((x) => clampNumber(x, 0)) : [];
+        if (v.length < 2) {
+          svgEl.innerHTML = '';
+          return;
+        }
+        const max = Math.max(...v);
+        const min = Math.min(...v);
+        const span = Math.max(1, max - min);
+        const w = 120;
+        const h = 22;
+        const step = w / Math.max(1, v.length - 1);
+        const points = v.map((val, idx) => {
+          const x = idx * step;
+          const y = h - ((val - min) / span) * (h - 2) - 1;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        svgEl.innerHTML = `<polyline fill="none" stroke="rgba(244, 180, 0, 0.92)" stroke-width="2" points="${points}"></polyline>`;
+      }
+
+      function renderRecentForm(payload) {
+        const form = payload?.recent_form;
+        const badgesEl = document.getElementById('form-badges');
+        const svgEl = document.getElementById('form-sparkline');
+        if (!badgesEl || !svgEl) return;
+        if (!form || typeof form !== 'object') {
+          badgesEl.innerHTML = '';
+          svgEl.innerHTML = '';
+          return;
+        }
+        const last = Array.isArray(form.last) ? form.last : [];
+        const pointsSeries = [];
+        let cum = 0;
+        badgesEl.innerHTML = last.slice(-5).map((row) => {
+          const outcome = String(row.outcome || '').trim().toUpperCase();
+          const cls = outcome === 'W' ? 'w' : outcome === 'D' ? 'd' : 'l';
+          const pts = outcome === 'W' ? 3 : outcome === 'D' ? 1 : 0;
+          cum += pts;
+          pointsSeries.push(cum);
+          const title = `${row.date_label || ''} · ${row.opponent || ''} · ${row.gf ?? ''}-${row.ga ?? ''}`.trim();
+          return `<span class="badge ${cls}" title="${escapeHtml(title)}">${escapeHtml(outcome || '·')}</span>`;
+        }).join('');
+        renderSparkline(svgEl, pointsSeries.length ? pointsSeries : [0, 0]);
+        const subtitleParts = [];
+        const season = String(form.season || '').trim();
+        if (season) subtitleParts.push(`Temp ${season}`);
+        subtitleParts.push(`${clampNumber(form.wins, 0)}V · ${clampNumber(form.draws, 0)}E · ${clampNumber(form.losses, 0)}D`);
+        setText('form-subtitle', subtitleParts.join(' · '));
+      }
+
+      function renderBriefing(payload) {
+        const brief = payload?.weekly_staff_brief;
+        const headlineEl = document.getElementById('briefing-headline');
+        const alertsEl = document.getElementById('briefing-alerts');
+        const prioEl = document.getElementById('briefing-priorities');
+        if (!headlineEl || !alertsEl || !prioEl) return;
+        if (!brief || typeof brief !== 'object') {
+          headlineEl.textContent = 'Prioridades y alertas para el microciclo.';
+          alertsEl.innerHTML = '';
+          prioEl.innerHTML = '';
+          return;
+        }
+        headlineEl.textContent = String(brief.headline || 'Briefing semanal').trim();
+        const alerts = Array.isArray(brief.alerts) ? brief.alerts : [];
+        alertsEl.innerHTML = alerts.slice(0, 6).map((txt) => `<li><span class="dot"></span><span>${escapeHtml(txt)}</span></li>`).join('');
+        const priorities = Array.isArray(brief.priorities) ? brief.priorities : [];
+        prioEl.innerHTML = priorities.slice(0, 6).map((txt) => `<li><span class="dot"></span><span>${escapeHtml(txt)}</span></li>`).join('');
+      }
+
+      function renderTraining(payload) {
+        const next = payload?.next_session;
+        const summary = payload?.training_summary || {};
+        const wrap = document.getElementById('training-next');
+        if (!wrap) return;
+        const seasonLabel = String(summary.season_label || '').trim();
+        const done = clampNumber(summary.sessions_done, 0);
+        const total = Math.max(0, clampNumber(summary.sessions_total, 0));
+        const planned = clampNumber(summary.planned_minutes_total, 0);
+        const real = clampNumber(summary.real_minutes_total, 0);
+        const subtitleBits = [];
+        if (seasonLabel) subtitleBits.push(`Temp ${seasonLabel}`);
+        if (total) subtitleBits.push(`${done}/${total} sesiones confirmadas`);
+        subtitleBits.push(`${planned}' previsto`);
+        subtitleBits.push(`${real}' real`);
+        setText('training-subtitle', subtitleBits.join(' · '));
+
+        if (!next || typeof next !== 'object') {
+          wrap.innerHTML = `
+            <div class="agenda-item">
+              <div class="left">
+                <div class="agenda-icon session">TR</div>
+                <div class="agenda-text">
+                  <div class="agenda-title">Sin sesión planificada</div>
+                  <div class="agenda-meta">Crea la próxima sesión del microciclo.</div>
+                </div>
+              </div>
+              <a class="cta" href="{% url 'sessions' %}">Abrir sesiones</a>
+            </div>
+          `;
+          return;
+        }
+
+        const focus = String(next.focus || 'Sesión').trim() || 'Sesión';
+        const date = String(next.date || '').trim();
+        const time = String(next.time || '').trim();
+        const intensity = String(next.intensity_label || next.intensity || '').trim();
+        const dur = clampNumber(next.duration_minutes, 0);
+        const url = String(next.url || '{% url "sessions" %}').trim() || '{% url "sessions" %}';
+        const progress = total ? Math.max(0, Math.min(1, done / total)) : 0;
+        const bar = `<div style="margin-top:0.55rem;height:8px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;width:${(progress * 100).toFixed(0)}%;background:linear-gradient(90deg, rgba(47,125,50,0.9), rgba(244,180,0,0.75));"></div></div>`;
+        wrap.innerHTML = `
+          <a class="agenda-item" href="${escapeHtml(url)}">
+            <div class="left">
+              <div class="agenda-icon session">TR</div>
+              <div class="agenda-text">
+                <div class="agenda-title">${escapeHtml(focus)}</div>
+                <div class="agenda-meta">${escapeHtml([date, time, intensity, dur ? `${dur} min` : ''].filter(Boolean).join(' · '))}</div>
+                ${bar}
+              </div>
+            </div>
+            <span class="cta">Ver</span>
+          </a>
+        `;
+      }
+
+      function renderAgenda(payload) {
+        const days = Array.isArray(payload?.weekly_agenda) ? payload.weekly_agenda : [];
+        const wrap = document.getElementById('weekly-agenda');
+        if (!wrap) return;
+        if (!days.length) {
+          wrap.innerHTML = '<div class="agenda-day"><div class="agenda-day-title">Sin agenda</div></div>';
+          return;
+        }
+        wrap.innerHTML = days.map((day) => {
+          const items = Array.isArray(day?.items) ? day.items : [];
+          const itemsHtml = items.slice(0, 4).map((it) => {
+            const kind = String(it.kind || '').trim();
+            const icon = kind === 'match' ? 'PM' : 'TR';
+            const cls = kind === 'match' ? 'match' : 'session';
+            const title = String(it.title || '').trim() || (kind === 'match' ? 'Partido' : 'Sesión');
+            const meta = String(it.meta || '').trim();
+            const url = String(it.url || '').trim() || '#';
+            return `
+              <a class="agenda-item" href="${escapeHtml(url)}">
+                <div class="left">
+                  <div class="agenda-icon ${cls}">${escapeHtml(icon)}</div>
+                  <div class="agenda-text">
+                    <div class="agenda-title">${escapeHtml(title)}</div>
+                    <div class="agenda-meta">${escapeHtml(meta)}</div>
+                  </div>
+                </div>
+                <span style="opacity:.65;font-weight:900;letter-spacing:.12em;">›</span>
+              </a>
+            `;
+          }).join('');
+          const empty = items.length ? '' : '<div class="agenda-meta">—</div>';
+          return `
+            <div class="agenda-day">
+              <div class="agenda-day-head">
+                <div class="agenda-day-title">${escapeHtml(day.day_label || 'Día')}</div>
+                <div class="agenda-day-date">${escapeHtml(day.date_label || '')}</div>
+              </div>
+              <div class="agenda-items">${itemsHtml || empty}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function bucketRole(position) {
+        const pos = normalizeKey(position);
+        if (!pos) return 'other';
+        if (pos.includes('portero') || pos === 'por' || pos === 'pt' || pos.includes('gk')) return 'gk';
+        if (pos.includes('def')) return 'def';
+        if (pos.includes('medio') || pos.includes('centro')) return 'mid';
+        if (pos.includes('delan') || pos.includes('extremo') || pos.includes('punta')) return 'fwd';
+        return 'other';
+      }
+
+      function renderAvailability(payload) {
+        const detail = payload?.availability_detail || {};
+        const injured = Array.isArray(detail.injured) ? detail.injured : [];
+        const sanctioned = Array.isArray(detail.sanctioned) ? detail.sanctioned : [];
+        const eleven = Array.isArray(detail.probable_eleven) ? detail.probable_eleven : [];
+
+        const outWrap = document.getElementById('availability-out');
+        const xiWrap = document.getElementById('availability-xi');
+        const broadcastWrap = document.getElementById('availability-broadcast');
+        if (!outWrap || !xiWrap || !broadcastWrap) return;
+
+        const outs = [...injured.map((p) => ({ ...p, reason: 'Lesión' })), ...sanctioned.map((p) => ({ ...p, reason: 'Sanción' }))];
+        outWrap.innerHTML = (outs.length ? outs.slice(0, 8) : [{ name: 'Sin bajas activas', position: '', photo_url: '', reason: '' }]).map((p) => {
+          const photo = String(p.photo_url || '').trim();
+          return `
+            <div class="player-row">
+              <div class="player-photo">${photo ? `<img alt="" src="${escapeHtml(photo)}" />` : ''}</div>
+              <div class="player-copy">
+                <div class="player-name">${escapeHtml(p.name || 'Jugador')}</div>
+                <div class="player-meta">${escapeHtml([p.reason || '', p.position || ''].filter(Boolean).join(' · '))}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        xiWrap.innerHTML = (eleven.length ? eleven.slice(0, 8) : [{ name: 'Sin once probable', position: '', photo_url: '' }]).map((p) => {
+          const photo = String(p.photo_url || '').trim();
+          const minutes = clampNumber(p.minutes, 0);
+          return `
+            <div class="player-row">
+              <div class="player-photo">${photo ? `<img alt="" src="${escapeHtml(photo)}" />` : ''}</div>
+              <div class="player-copy">
+                <div class="player-name">${escapeHtml(p.name || 'Jugador')}</div>
+                <div class="player-meta">${escapeHtml([p.position || '', minutes ? `${minutes}'` : ''].filter(Boolean).join(' · '))}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        const groups = { gk: [], def: [], mid: [], fwd: [], other: [] };
+        for (const p of eleven) groups[bucketRole(p.position)].push(p);
+        const labels = [
+          ['gk', 'Portero'],
+          ['def', 'Defensas'],
+          ['mid', 'Medios'],
+          ['fwd', 'Delanteros'],
+        ];
+        broadcastWrap.innerHTML = labels.map(([key, label]) => {
+          const players = groups[key] || [];
+          if (!players.length) return '';
+          const pills = players.slice(0, 6).map((p) => {
+            const number = p.number ? `<strong>${escapeHtml(p.number)}</strong>` : '<strong>·</strong>';
+            return `<span class="broadcast-pill">${number}<span>${escapeHtml(p.name || 'Jugador')}</span></span>`;
+          }).join('');
+          return `
+            <div class="broadcast-line">
+              <div class="broadcast-title">${escapeHtml(label)}</div>
+              <div class="broadcast-players">${pills}</div>
+            </div>
+          `;
+        }).filter(Boolean).join('') || '<div class="broadcast-line"><div class="broadcast-title">Once probable</div><div class="card-subtitle">Pendiente de carga de minutos.</div></div>';
+      }
+
+      async function renderDashboard({ fresh = false } = {}) {
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.hidden = false;
+          loading.textContent = 'Cargando datos del dashboard…';
+        }
+        try {
+          const response = await fetch(buildDashboardUrl({ fresh }), { credentials: 'same-origin' });
+          const ctype = String(response.headers.get('content-type') || '');
+          if (!response.ok) throw new Error(`DASH_HTTP_${response.status}`);
+          if (!ctype.includes('application/json')) throw new Error('DASH_NO_JSON');
+          const payload = await response.json();
+
+          renderSetupBanner(payload);
+          const teamName = String(payload?.team?.name || '').trim();
+          const standings = Array.isArray(payload?.standings) ? payload.standings : [];
+          const standingInfo = findStandingRow(standings, teamName);
+          renderHero(payload, standingInfo);
+          renderKPIs(standingInfo);
+          renderNextMatch(payload, standings);
+          renderRecentForm(payload);
+          renderBriefing(payload);
+          renderTraining(payload);
+          renderAgenda(payload);
+          renderAvailability(payload);
+          renderStandings(payload, standingInfo);
+
+          if (loading) loading.hidden = true;
+        } catch (err) {
+          if (loading) {
+            loading.hidden = false;
+            loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';
+          }
+          console.error(err);
+        }
+      }
+
+      function initRefresh() {
+        const btn = document.getElementById('refresh-btn');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await fetch(buildDashboardRefreshUrl(), { credentials: 'same-origin' });
+          } catch (err) {
+            console.warn(err);
+          }
+          await renderDashboard({ fresh: true });
+          btn.disabled = false;
+        });
+      }
+
+      initTheme();
+      initRefresh();
+      initHeroImage();
+      renderDashboard();
+    </script>
+  </body>
+</html>
