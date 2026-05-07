@@ -18727,11 +18727,12 @@
 					        } catch (e) { /* ignore */ }
 					        try { sc.renderAll(); } catch (e) { /* ignore */ }
 					        let url = '';
-					        try {
-					          url = sc.toDataURL({ format: 'png', multiplier: 2 });
-					        } catch (e) {
-					          url = '';
-					        }
+						        try {
+						          const dpr = Math.min(2, window.devicePixelRatio || 1);
+						          url = sc.toDataURL({ format: 'png', multiplier: Math.max(2, dpr * 2) });
+						        } catch (e) {
+						          url = '';
+						        }
 					        try { sc.dispose(); } catch (e) { /* ignore */ }
 					        return url;
 					      };
@@ -18824,10 +18825,11 @@
 				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 					    });
 
-					    // Ejecutar al final para que `simpleFactory` y `playerTokenFactory` estén listos.
-					    runWhenIdle(() => {
-					      try { renderResourceButtonPreviews(); } catch (e) { /* ignore */ }
-					    }, 240);
+						    // Ejecutar al final para que `simpleFactory` y `playerTokenFactory` estén listos.
+						    try { renderResourceButtonPreviews(); } catch (e) { /* ignore */ }
+						    runWhenIdle(() => {
+						      try { renderResourceButtonPreviews(); } catch (e) { /* ignore */ }
+						    }, 240);
 
 				    libraryPane?.addEventListener('click', (event) => {
 				      const templateBtn = event.target.closest('button[data-template]');

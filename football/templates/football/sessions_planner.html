@@ -2084,7 +2084,7 @@
 	                  aria-label="Abrir sesión importada {{ doc.title }}"
 	                >
                   <div class="task-media">
-                    <img src="{% url 'imported-session-preview-file' doc.id %}{% if doc.preview_image %}?v={{ doc.preview_image.name|urlencode }}{% endif %}" alt="Sesión importada {{ doc.title }}" loading="lazy" />
+                    <img src="{% url 'imported-session-preview-file' doc.id %}?hd=1{% if doc.preview_image %}&amp;v={{ doc.preview_image.name|urlencode }}{% endif %}" alt="Sesión importada {{ doc.title }}" loading="lazy" />
                   </div>
                   <div class="task-content">
                     <h3 class="task-title">{{ doc.title }}</h3>

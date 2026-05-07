@@ -26831,7 +26831,7 @@ def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False
             pdf_file,
             max_images=max_images_int,
             max_pages=10,
-            scale_to=2400,
+            scale_to=3000,
         )
         if rendered_payloads:
             return rendered_payloads
@@ -38384,9 +38384,51 @@ def imported_session_preview_file(request, doc_id):
     doc = ImportedSessionDocument.objects.filter(id=doc_id, team=primary_team).first()
     if not doc:
         raise Http404('Imagen de sesión no disponible')
+    hd = str(request.GET.get('hd') or request.GET.get('hires') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+
+    def _preview_is_low_res(raw_bytes: bytes, *, min_side: int = 2200) -> bool:
+        if not raw_bytes:
+            return False
+        metrics = _analyze_preview_image_bytes(raw_bytes)
+        if not metrics:
+            return False
+        try:
+            w = int(metrics.get('width') or 0)
+            h = int(metrics.get('height') or 0)
+        except Exception:
+            w, h = 0, 0
+        return max(w, h) > 0 and max(w, h) < int(min_side)
+
+    def _throttled_regen(reason: str) -> bool:
+        key = f"imported_session_preview:regen:{reason}:{int(getattr(doc, 'id', 0) or 0)}"
+        try:
+            if cache.get(key):
+                return False
+            cache.set(key, True, 6 * 3600)
+        except Exception:
+            pass
+        try:
+            return bool(_ensure_imported_session_preview(doc, force=True, prefer_render=True))
+        except Exception:
+            return False
     if not doc.preview_image:
         if not _ensure_imported_session_preview(doc, force=True, prefer_render=True):
             raise Http404('Imagen de sesión no disponible')
+    # Si se pide HD y el preview actual es low-res, intenta regenerar (throttled) desde el PDF.
+    if hd and doc.preview_image:
+        try:
+            tmp_field = doc.preview_image
+            tmp_field.open('rb')
+            raw = tmp_field.read() or b''
+            try:
+                tmp_field.close()
+            except Exception:
+                pass
+            if _preview_is_low_res(raw):
+                if _throttled_regen("hd_lowres"):
+                    doc.refresh_from_db(fields=['preview_image'])
+        except Exception:
+            pass
     file_field = doc.preview_image
     try:
         file_field.open('rb')
