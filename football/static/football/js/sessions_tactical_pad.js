@@ -799,12 +799,14 @@
 	    const surfaceMenu = document.getElementById('surface-menu');
 	    const surfaceTriggerLabel = document.getElementById('surface-trigger-label');
 	    const pitchResizeHandle = document.getElementById('pitch-resize-handle');
-    const orientationInput = document.getElementById('draw-task-pitch-orientation');
-    const grassStyleInput = document.getElementById('draw-task-pitch-grass-style');
-    const orientationToggle = document.getElementById('pitch-orientation-toggle');
-    const orientationLabel = document.getElementById('pitch-orientation-label');
-    const grassToggle = document.getElementById('pitch-grass-toggle');
-    const grassLabel = document.getElementById('pitch-grass-label');
+	    const orientationInput = document.getElementById('draw-task-pitch-orientation');
+	    const grassStyleInput = document.getElementById('draw-task-pitch-grass-style');
+	    const orientationToggle = document.getElementById('pitch-orientation-toggle');
+	    const orientationLabel = document.getElementById('pitch-orientation-label');
+	    const orientationToggleQuick = document.getElementById('pitch-orientation-toggle-quick');
+	    const orientationLabelQuick = document.getElementById('pitch-orientation-label-quick');
+	    const grassToggle = document.getElementById('pitch-grass-toggle');
+	    const grassLabel = document.getElementById('pitch-grass-label');
     const viewportEl = document.getElementById('task-pitch-viewport');
     const zoomInput = document.getElementById('draw-task-pitch-zoom');
 	    const zoomOutButton = document.getElementById('pitch-zoom-out');
@@ -12249,9 +12251,11 @@
 	    const syncOrientationUi = () => {
 	      if (orientationInput) orientationInput.value = pitchOrientation;
 	      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
+	      if (orientationLabelQuick) orientationLabelQuick.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
 	      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
 	      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
 	      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
+	      orientationToggleQuick?.classList.toggle('is-active', pitchOrientation === 'portrait');
 	    };
 	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
 	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
@@ -19965,9 +19969,11 @@
       });
     });
 	    presetSelect.addEventListener('change', () => setPreset(presetSelect.value || 'full_pitch'));
-	    orientationToggle?.addEventListener('click', () => {
+	    const togglePitchOrientation = () => {
 	      applyPitchOrientation(pitchOrientation === 'portrait' ? 'landscape' : 'portrait', { preserveObjects: true, pushHistory: true });
-	    });
+	    };
+	    orientationToggle?.addEventListener('click', togglePitchOrientation);
+	    orientationToggleQuick?.addEventListener('click', togglePitchOrientation);
 		    grassToggle?.addEventListener('click', () => {
 		      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
 		      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
