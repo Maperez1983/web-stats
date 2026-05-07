@@ -57,7 +57,8 @@ def pwa_service_worker(request: HttpRequest) -> HttpResponse:
     build = _build_id()
     offline_url = reverse("pwa-offline")
     # Nota: mantenemos el SW lo más conservador posible para no cachear HTML autenticado
-    # de forma agresiva. Cachea estáticos y ofrece fallback offline para navegación.
+    # de forma agresiva. Cachea estáticos, da fallback offline para navegación y
+    # conserva la última respuesta de APIs clave (ej. dashboard) para poder consultar offline.
     script = f"""/* web-stats service worker (build {build}) */
 const BUILD = {json.dumps(build)};
 const STATIC_CACHE = `webstats-static-${{BUILD}}`;
@@ -105,11 +106,19 @@ const isCacheableStatic = (url) => {{
   return url.pathname.startsWith('/static/') || url.pathname.startsWith('/media/');
 }};
 
+const isDashboardApi = (url) => {{
+  return url.pathname === '/api/dashboard/' || url.pathname === '/api/dashboard';
+}};
+
+const isImage = (req) => {{
+  return req && (req.destination === 'image' || req.headers.get('accept') || '').includes('image');
+}};
+
 self.addEventListener('fetch', (event) => {{
   const req = event.request;
   if (!req || req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;
+  const sameOrigin = url.origin === self.location.origin;
 
   // Navegación: network-first con fallback offline.
   if (req.mode === 'navigate') {{
@@ -125,8 +134,30 @@ self.addEventListener('fetch', (event) => {{
     return;
   }}
 
+  // APIs clave (dashboard): network-first con fallback a caché.
+  if (sameOrigin && isDashboardApi(url)) {{
+    event.respondWith((async () => {{
+      const cache = await caches.open(RUNTIME_CACHE);
+      try {{
+        const resp = await fetch(req, {{ cache: 'no-store', credentials: 'include' }});
+        if (resp && resp.ok) {{
+          cache.put(req, resp.clone()).catch(() => {{}});
+        }}
+        return resp;
+      }} catch (e) {{
+        const cached = await cache.match(req);
+        if (cached) return cached;
+        return new Response(JSON.stringify({{ error: 'offline', cached: false }}), {{
+          status: 503,
+          headers: {{ 'content-type': 'application/json; charset=utf-8' }},
+        }});
+      }}
+    }})());
+    return;
+  }}
+
   // Estáticos: cache-first.
-  if (isCacheableStatic(url)) {{
+  if (sameOrigin && isCacheableStatic(url)) {{
     event.respondWith((async () => {{
       const cached = await caches.match(req);
       if (cached) return cached;
@@ -140,6 +171,39 @@ self.addEventListener('fetch', (event) => {{
       }} catch (e) {{
         return cached || new Response('', {{ status: 504 }});
       }}
+    }})());
+    return;
+  }}
+
+  // Imágenes (incluye /team/<id>/cover/): cache-first en runtime.
+  if (sameOrigin && isImage(req)) {{
+    event.respondWith((async () => {{
+      const cache = await caches.open(RUNTIME_CACHE);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {{
+        const resp = await fetch(req);
+        if (resp && resp.ok) {{
+          cache.put(req, resp.clone()).catch(() => {{}});
+        }}
+        return resp;
+      }} catch (e) {{
+        return cached || new Response('', {{ status: 504 }});
+      }}
+    }})());
+    return;
+  }}
+
+  // Fonts (Google Fonts): stale-while-revalidate para soportar offline tipografía.
+  if (!sameOrigin && (url.hostname.includes('fonts.googleapis.com') || url.hostname.includes('fonts.gstatic.com'))) {{
+    event.respondWith((async () => {{
+      const cache = await caches.open(RUNTIME_CACHE);
+      const cached = await cache.match(req);
+      const fetchPromise = fetch(req).then((resp) => {{
+        if (resp && resp.ok) cache.put(req, resp.clone()).catch(() => {{}});
+        return resp;
+      }}).catch(() => null);
+      return cached || (await fetchPromise) || new Response('', {{ status: 504 }});
     }})());
     return;
   }}
