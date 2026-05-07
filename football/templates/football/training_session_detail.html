@@ -90,6 +90,9 @@
 	        background-position: center center;
 	        background-repeat: no-repeat;
 	        overflow: hidden;
+          aspect-ratio: 105 / 68;
+          min-height: 280px;
+          cursor: zoom-in;
 	      }
 	      .task-grid { width:100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
 	      .task-grid td { border: 1px solid var(--club-border-soft); padding: 6px 7px; vertical-align: top; }
@@ -234,7 +237,7 @@
 	                        <div class="task-title">{{ t.title }}</div>
 
                           <div class="section-title" style="margin:10px 0 0; border-radius:10px 10px 0 0;">Descripción gráfica</div>
-                          <div class="preview-frame" style="height:280px; border-radius:0 0 12px 12px; background-image:{% if t.preview_url %}url('{{ t.preview_url }}'){% else %}none{% endif %};"></div>
+                          <a class="preview-frame" href="{{ t.detail_url }}" title="Abrir tarea" style="border-radius:0 0 12px 12px; background-image:{% if t.preview_url %}url('{{ t.preview_url }}&amp;hd=1'){% else %}none{% endif %};"></a>
 
                           <div class="section-title" style="margin:12px 0 0; border-radius:10px 10px 0 0;">Consigna / explicación</div>
                           <div class="box" style="border-top:none; border-radius:0 0 12px 12px; background:#fff;">

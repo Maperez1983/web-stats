@@ -38180,6 +38180,7 @@ def session_task_preview_file(request, task_id):
     )
     if not task:
         raise Http404('Imagen de tarea no disponible')
+    hd = str(request.GET.get('hd') or request.GET.get('hires') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     def _task_has_drawn_state(task_obj) -> bool:
         """
         True si hay estado gráfico que merezca un render (pizarra con objetos o timeline).
@@ -38212,17 +38213,38 @@ def session_task_preview_file(request, task_id):
         except Exception:
             return False
 
+    def _preview_is_low_res(raw_bytes: bytes, *, min_side: int = 2200) -> bool:
+        if not raw_bytes:
+            return False
+        metrics = _analyze_preview_image_bytes(raw_bytes)
+        if not metrics:
+            return False
+        try:
+            w = int(metrics.get('width') or 0)
+            h = int(metrics.get('height') or 0)
+        except Exception:
+            w, h = 0, 0
+        return max(w, h) > 0 and max(w, h) < int(min_side)
+
     # Si no hay preview guardada, intenta reconstruirla:
     # 1) render WYSIWYG server-side (si hay pizarra guardada) para no quedarnos en placeholder
     # 2) si no, extraer desde PDF / placeholder legacy.
     if not task.task_preview_image:
-        embedded = _embedded_preview_bytes_from_task(task)
-        if embedded:
-            raw, mime = embedded
-            resp = HttpResponse(raw, content_type=mime or 'image/jpeg')
-            resp['Content-Disposition'] = f'inline; filename="task-{int(task.id)}-preview-embedded.jpg"'
-            resp['Cache-Control'] = 'private, max-age=0, must-revalidate'
-            return resp
+        # Si el usuario pide HD, priorizamos intentar render server-side antes de devolver el embedded (suele ser 1280px).
+        if hd:
+            try:
+                if _task_has_drawn_state(task) and _throttled_server_render(task, "hd_missing"):
+                    task.refresh_from_db(fields=['task_preview_image'])
+            except Exception:
+                pass
+        if not task.task_preview_image:
+            embedded = _embedded_preview_bytes_from_task(task)
+            if embedded:
+                raw, mime = embedded
+                resp = HttpResponse(raw, content_type=mime or 'image/jpeg')
+                resp['Content-Disposition'] = f'inline; filename="task-{int(task.id)}-preview-embedded.jpg"'
+                resp['Cache-Control'] = 'private, max-age=0, must-revalidate'
+                return resp
         try:
             if _task_has_drawn_state(task) and _throttled_server_render(task, "missing"):
                 task.refresh_from_db(fields=['task_preview_image'])
@@ -38264,6 +38286,13 @@ def session_task_preview_file(request, task_id):
                     pass
             if raw_preview and _preview_looks_like_pitch_only(raw_preview):
                 if _throttled_server_render(task, "pitch_only"):
+                    try:
+                        task.refresh_from_db(fields=['task_preview_image'])
+                    except Exception:
+                        pass
+            # Petición explícita de HD (ficha): si la preview es pequeña, intenta regenerar nítida (una vez cada horas).
+            if hd and raw_preview and _preview_is_low_res(raw_preview, min_side=2200):
+                if _throttled_server_render(task, "hd_lowres"):
                     try:
                         task.refresh_from_db(fields=['task_preview_image'])
                     except Exception:
