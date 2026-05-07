@@ -12226,7 +12226,10 @@ def platform_overview_page(request):
         workspaces_qs = (
             Workspace.objects
             .select_related('owner_user', 'primary_team')
-            .annotate(member_count=Count('memberships', distinct=True))
+            .annotate(
+                member_count=Count('memberships', distinct=True),
+                primary_player_count=Count('primary_team__players', distinct=True),
+            )
         )
         if active_tab == 'clients':
             if clients_query:
