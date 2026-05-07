@@ -25,5 +25,9 @@ EXPOSE 8000
 
 RUN chmod +x /app/start.sh
 
+# Playwright browsers: keep them bundled inside the image for predictable server-side rendering.
+ENV PLAYWRIGHT_BROWSERS_PATH=0
+RUN python -m playwright install chromium
+
 # Render/Heroku-style platforms provide $PORT at runtime. Default to 8000 for local Docker usage.
 CMD ["/app/start.sh"]

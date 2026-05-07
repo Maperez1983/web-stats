@@ -7,6 +7,16 @@ set -euo pipefail
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${GUNICORN_TIMEOUT:=30}"
+: "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
+
+# Optional: ensure Playwright Chromium exists at runtime.
+# In platforms like Render, the build step might not run `./build.sh` (or caches may be ephemeral).
+# When enabled, we install browsers at boot if needed (idempotent).
+_pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
+  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+  python -m playwright install chromium || true
+fi
 
 # Media root (uploads). In Render the repo path can be read-only at runtime; default to /tmp.
 MEDIA_ROOT_DIR="${MEDIA_ROOT:-media}"
