@@ -27797,7 +27797,9 @@ def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
             preview_src = reverse('session-task-preview-file', args=[task.id])
             preview_name = str(getattr(getattr(task, 'task_preview_image', None), 'name', '') or '').strip()
             if preview_name:
-                preview_src = f'{preview_src}?v={quote(preview_name)}'
+                preview_src = f'{preview_src}?hd=1&v={quote(preview_name)}'
+            else:
+                preview_src = f"{preview_src}?hd=1&v={int(getattr(task, 'id', 0) or 0)}"
         except Exception:
             preview_src = ''
         if not preview_src:
@@ -36837,7 +36839,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 	            'back_label': back_label,
 	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
 	            'video_import_url': reverse('sessions-task-video-import'),
-	            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
+		            'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
 	            'show_session_selector': True,
 	            'show_dragon_nav': True,
 	            'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
@@ -38002,7 +38004,9 @@ def session_task_related_api(request, task_id):
             if getattr(rel, 'task_preview_image', None) or getattr(rel, 'task_pdf', None):
                 img_url = reverse('session-task-preview-file', args=[rel_id])
                 if getattr(rel, 'task_preview_image', None):
-                    img_url = f"{img_url}?v={quote(str(rel.task_preview_image.name or ''))}"
+                    img_url = f"{img_url}?hd=1&v={quote(str(rel.task_preview_image.name or ''))}"
+                else:
+                    img_url = f"{img_url}?hd=1&v={int(rel_id)}"
         except Exception:
             img_url = ''
         items.append(
