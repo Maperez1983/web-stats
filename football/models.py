@@ -1160,6 +1160,9 @@ class PdfGraphicAsset(models.Model):
     title = models.CharField(max_length=160, blank=True)
     sha256 = models.CharField(max_length=64, db_index=True)
     file = models.ImageField(upload_to='pdf-graphic-assets/')
+    # Fallback persistente para hosts con FS efímero (Render free): una versión compacta embebida en BD.
+    # Se usa cuando `file` no existe o no se puede abrir.
+    embedded_data_url = models.TextField(blank=True, default='')
     width = models.PositiveIntegerField(null=True, blank=True)
     height = models.PositiveIntegerField(null=True, blank=True)
     source_pdf_name = models.CharField(max_length=220, blank=True)

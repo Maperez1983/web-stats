@@ -3517,44 +3517,80 @@ def pdf_graphic_asset_file(request, asset_id):
     # Permisos por alcance: equipo (coach/club) o owner (Task Studio).
     if asset.team_id:
         # Repositorio global del sistema (uso interno): accesible desde cualquier equipo.
-        try:
-            if getattr(asset.team, 'slug', '') == 'pizarra':
-                pass
-            else:
-                # En workspace club, los recursos del club deben ser accesibles desde cualquier equipo
-                # al que el usuario tenga acceso (evita que el catálogo "se rompa" al cambiar de categoría).
-                allowed_ids = set()
-                try:
-                    allowed_ids = _allowed_team_ids_for_request(request) or set()
-                except Exception:
-                    allowed_ids = set()
-                if allowed_ids and int(asset.team_id) in {int(x) for x in allowed_ids if x}:
-                    pass
-                else:
-                    primary_team = _get_primary_team_for_request(request)
-                    if not primary_team or int(primary_team.id) != int(asset.team_id):
-                        return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
-        except Exception:
-            allowed_ids = set()
-            try:
-                allowed_ids = _allowed_team_ids_for_request(request) or set()
-            except Exception:
-                allowed_ids = set()
-            if allowed_ids and int(asset.team_id) in {int(x) for x in allowed_ids if x}:
-                pass
-            else:
-                primary_team = _get_primary_team_for_request(request)
-                if not primary_team or int(primary_team.id) != int(asset.team_id):
-                    return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+        if getattr(asset.team, 'slug', '') != 'pizarra':
+            if not _user_can_access_team(request, asset.team):
+                return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
     elif asset.owner_id:
         if int(getattr(request.user, 'id', 0) or 0) != int(asset.owner_id) and not _is_admin_user(request.user):
             return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
     else:
         return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+
+    def _embedded_asset_bytes():
+        try:
+            data_url = str(getattr(asset, 'embedded_data_url', '') or '').strip()
+        except Exception:
+            data_url = ''
+        if not (data_url.startswith('data:image/') and ';base64,' in data_url):
+            return None
+        try:
+            header, payload = data_url.split(';base64,', 1)
+            mime = header.split(':', 1)[1].strip().lower()
+            raw = base64.b64decode(payload.encode('ascii'))
+            if not raw:
+                return None
+            return raw, (mime or 'image/jpeg')
+        except Exception:
+            return None
+
     try:
         asset.file.open('rb')
     except Exception:
-        return HttpResponse('No se pudo abrir el recurso.', status=500)
+        embedded = _embedded_asset_bytes()
+        if embedded:
+            raw, mime = embedded
+            resp = HttpResponse(raw, content_type=mime)
+            resp['Cache-Control'] = 'private, max-age=86400'
+            return resp
+        # Evita tiles rotos en la UI: devolvemos un placeholder "missing".
+        placeholder = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200" viewBox="0 0 320 200">'
+            '<rect width="320" height="200" rx="14" fill="#1b2437"/>'
+            '<rect x="18" y="18" width="284" height="164" rx="10" fill="#0f1726" stroke="#2b3b5f" stroke-width="2"/>'
+            '<text x="160" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto" '
+            'font-size="16" fill="#cbd5e1">Recurso no disponible</text>'
+            '<text x="160" y="120" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto" '
+            'font-size="12" fill="#94a3b8">Reimporta el PDF / sube de nuevo</text>'
+            '</svg>'
+        )
+        resp = HttpResponse(placeholder, content_type='image/svg+xml')
+        resp['Cache-Control'] = 'private, max-age=300'
+        return resp
+
+    # En hosts con FS efímero, guardamos un fallback embebido la primera vez que lo podamos abrir.
+    try:
+        if not str(getattr(asset, 'embedded_data_url', '') or '').strip():
+            try:
+                raw_bytes = asset.file.read() or b''
+            except Exception:
+                raw_bytes = b''
+            try:
+                asset.file.seek(0)
+            except Exception:
+                pass
+            if raw_bytes:
+                embedded = _build_embedded_preview_data_url(raw_bytes, max_w=1100, max_h=1100)
+                if embedded:
+                    try:
+                        PdfGraphicAsset.objects.filter(id=asset.id, embedded_data_url='').update(embedded_data_url=embedded)
+                        asset.embedded_data_url = embedded
+                    except Exception:
+                        pass
+    except Exception:
+        try:
+            asset.file.seek(0)
+        except Exception:
+            pass
     extension = Path(asset.file.name).suffix.lower()
     content_type = {
         '.png': 'image/png',
@@ -3650,6 +3686,18 @@ def pdf_graphic_asset_upload(request):
             return
         sha = hashlib.sha256(data).hexdigest()
         if _already_exists(sha):
+            # Si ya existía pero no tiene fallback embebido, lo rellenamos.
+            try:
+                embedded = _build_embedded_preview_data_url(data, max_w=1100, max_h=1100)
+                if embedded:
+                    qs = PdfGraphicAsset.objects.filter(sha256=sha)
+                    if team:
+                        qs = qs.filter(team=team)
+                    if owner:
+                        qs = qs.filter(owner=owner)
+                    qs.filter(embedded_data_url='').update(embedded_data_url=embedded)
+            except Exception:
+                pass
             skipped += 1
             return
         width = None
@@ -3672,11 +3720,13 @@ def pdf_graphic_asset_upload(request):
             ext = 'png'
         filename = f'asset-{sha[:16]}.{ext}'
         try:
+            embedded = _build_embedded_preview_data_url(data, max_w=1100, max_h=1100)
             obj = PdfGraphicAsset(
                 team=team,
                 owner=owner,
                 sha256=sha,
                 title=str(title_hint or '').strip()[:160],
+                embedded_data_url=embedded,
                 width=width,
                 height=height,
                 source_pdf_name='',
@@ -26907,12 +26957,14 @@ def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None,
             continue
         filename = f'pdf-asset-{sha[:16]}.{ext if ext != "jpeg" else "jpg"}'
         try:
+            embedded = _build_embedded_preview_data_url(raw, max_w=1100, max_h=1100)
             obj = PdfGraphicAsset(
                 team=team,
                 owner=owner,
                 sha256=sha,
                 title=(Path(name_hint).stem if name_hint else '')[:160],
                 source_pdf_name=str(source_pdf_name or '')[:220],
+                embedded_data_url=embedded,
                 width=int(item.get('width') or 0) or None,
                 height=int(item.get('height') or 0) or None,
             )
@@ -26928,6 +26980,12 @@ def _save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None,
                 if owner:
                     existing = existing.filter(owner=owner)
                 if existing.exists():
+                    # Asegura fallback embebido aunque el fichero no persista (Render FS efímero).
+                    try:
+                        if embedded and existing.filter(embedded_data_url='').exists():
+                            existing.filter(embedded_data_url='').update(embedded_data_url=embedded)
+                    except Exception:
+                        pass
                     skipped += 1
                     continue
             except Exception:
