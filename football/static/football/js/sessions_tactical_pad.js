@@ -175,12 +175,14 @@
     emoji_hurdle: 'una valla emoji',
     emoji_bib: 'un peto emoji',
     emoji_mannequin: 'un maniquí emoji',
-    emoji_wall: 'un muro emoji',
-    emoji_goal: 'una portería emoji',
-    emoji_mini_goal: 'una mini portería emoji',
-    emoji_whistle: 'un silbato emoji',
-    emoji_stopwatch: 'un cronómetro emoji',
-  };
+	    emoji_wall: 'un muro emoji',
+	    emoji_goal: 'una portería emoji',
+	    emoji_mini_goal: 'una mini portería emoji',
+	    emoji_coach: 'un entrenador emoji',
+	    emoji_staff: 'un staff emoji',
+	    emoji_whistle: 'un silbato emoji',
+	    emoji_stopwatch: 'un cronómetro emoji',
+	  };
   const EMOJI_LIBRARY = {
     emoji_ball: '⚽',
     emoji_cone: '🔺',
@@ -190,12 +192,14 @@
     emoji_hurdle: '🚧',
     emoji_bib: '🦺',
     emoji_mannequin: '🧍',
-    emoji_wall: '🧱',
-    emoji_goal: '🥅',
-    emoji_mini_goal: '🥅',
-    emoji_whistle: '📣',
-    emoji_stopwatch: '⏱️',
-  };
+	    emoji_wall: '🧱',
+	    emoji_goal: '🥅',
+	    emoji_mini_goal: '🥅',
+	    emoji_coach: '🧑‍🏫',
+	    emoji_staff: '👥',
+	    emoji_whistle: '📣',
+	    emoji_stopwatch: '⏱️',
+	  };
 
   const createSvgNode = (doc, tag, attrs) => {
     const node = doc.createElementNS('http://www.w3.org/2000/svg', tag);
