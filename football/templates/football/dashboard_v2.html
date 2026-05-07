@@ -258,27 +258,35 @@
         font-size: 0.72rem;
       }
 
-      .hero {
-        margin-top: 1.05rem;
-        display: grid;
-        grid-template-columns: 1.25fr 0.95fr;
-        gap: 1rem;
-        align-items: stretch;
-      }
+	      .hero {
+	        margin-top: 1.05rem;
+	        display: block;
+	      }
 
-      .hero-photo {
+	      .hero-photo {
         border: 1px solid var(--line);
         border-radius: var(--radius-xl);
         overflow: hidden;
         position: relative;
-        min-height: 410px;
+	        min-height: 520px;
         box-shadow: var(--shadow);
         background:
           linear-gradient(180deg, rgba(5, 12, 23, 0.2), rgba(5, 12, 23, 0.9)),
           var(--hero-image);
         background-size: cover;
         background-position: center;
-      }
+	      }
+
+	      .hero-photo::before {
+	        content: "";
+	        position: absolute;
+	        inset: 0;
+	        background:
+	          radial-gradient(circle at 14% 18%, rgba(244, 180, 0, 0.2), transparent 46%),
+	          radial-gradient(circle at 86% 20%, rgba(47, 125, 50, 0.18), transparent 44%),
+	          linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.28));
+	        pointer-events: none;
+	      }
 
       .hero-photo::after {
         content: "";
@@ -293,17 +301,107 @@
         pointer-events: none;
       }
 
-      .hero-photo-overlay {
-        position: absolute;
-        left: 1rem;
-        right: 1rem;
-        bottom: 1rem;
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 1rem;
-        z-index: 2;
-      }
+	      .hero-photo-overlay {
+	        position: absolute;
+	        inset: 0;
+	        padding: 1.05rem;
+	        display: grid;
+	        grid-template-rows: auto 1fr auto;
+	        align-content: space-between;
+	        gap: 0.9rem;
+	        z-index: 2;
+	      }
+
+	      .hero-head {
+	        display: flex;
+	        align-items: flex-start;
+	        justify-content: space-between;
+	        gap: 1rem;
+	        min-width: 0;
+	      }
+
+	      .hero-head-left {
+	        min-width: 0;
+	        max-width: 58%;
+	        padding: 0.75rem 0.85rem;
+	        border-radius: 22px;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(8, 14, 24, 0.38);
+	        backdrop-filter: blur(10px);
+	        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+	      }
+
+	      .hero-lower {
+	        display: flex;
+	        align-items: flex-end;
+	        justify-content: space-between;
+	        gap: 0.9rem;
+	        flex-wrap: wrap;
+	      }
+
+	      .kpi-ribbon {
+	        display: grid;
+	        grid-template-columns: repeat(4, minmax(0, 1fr));
+	        gap: 0.6rem;
+	        padding: 0.65rem;
+	        border-radius: 22px;
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        background: rgba(8, 14, 24, 0.44);
+	        backdrop-filter: blur(10px);
+	        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+	        min-width: min(620px, 100%);
+	        flex: 1 1 520px;
+	      }
+
+	      .kpi-pill {
+	        border: 1px solid rgba(255, 255, 255, 0.1);
+	        border-radius: 18px;
+	        padding: 0.75rem 0.85rem;
+	        background: rgba(255, 255, 255, 0.04);
+	        min-height: 76px;
+	      }
+
+	      .kpi-pill .label {
+	        color: rgba(226, 232, 240, 0.7);
+	        font-weight: 700;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        font-size: 0.66rem;
+	      }
+
+	      .kpi-pill .value {
+	        margin-top: 0.28rem;
+	        font-size: 1.5rem;
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	      }
+
+	      .form-mini {
+	        flex: 0 0 auto;
+	        padding: 0.8rem 0.9rem;
+	        border-radius: 22px;
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        background: rgba(8, 14, 24, 0.42);
+	        backdrop-filter: blur(10px);
+	        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+	        min-width: min(320px, 100%);
+	      }
+
+	      .form-mini-title {
+	        font-weight: 800;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        font-size: 0.7rem;
+	        color: rgba(245, 247, 250, 0.92);
+	      }
+
+	      .hero-float {
+	        position: absolute;
+	        top: 1.05rem;
+	        right: 1.05rem;
+	        width: min(390px, 38%);
+	        z-index: 3;
+	      }
 
       .hero-chips {
         display: flex;
@@ -369,11 +467,9 @@
         text-overflow: ellipsis;
       }
 
-      .hero-side {
-        display: grid;
-        grid-template-rows: auto auto 1fr;
-        gap: 1rem;
-      }
+	      .hero-side {
+	        display: none;
+	      }
 
       .kpis {
         display: grid;
@@ -431,6 +527,50 @@
         color: rgba(226, 232, 240, 0.68);
         font-weight: 600;
         line-height: 1.35;
+      }
+
+      details.accordion {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius-xl);
+        background: rgba(7, 16, 30, 0.54);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.18);
+        overflow: hidden;
+      }
+
+      details.accordion summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.9rem 1.05rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        color: rgba(245, 247, 250, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      details.accordion summary::-webkit-details-marker {
+        display: none;
+      }
+
+      details.accordion summary::after {
+        content: "▸";
+        opacity: 0.8;
+        transform: rotate(0deg);
+        transition: transform 160ms ease;
+        font-weight: 900;
+      }
+
+      details.accordion[open] summary::after {
+        transform: rotate(90deg);
+      }
+
+      .accordion-body {
+        padding: 0 1.05rem 1.05rem;
       }
 
       .next-match-row {
@@ -611,7 +751,7 @@
       }
 
       .agenda-day-title {
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.1em;
         text-transform: uppercase;
         font-size: 0.72rem;
@@ -620,7 +760,7 @@
 
       .agenda-day-date {
         color: rgba(226, 232, 240, 0.58);
-        font-weight: 750;
+        font-weight: 600;
         font-size: 0.8rem;
       }
 
@@ -653,7 +793,7 @@
         border-radius: 10px;
         display: grid;
         place-items: center;
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.12em;
         font-size: 0.72rem;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -677,7 +817,7 @@
       }
 
       .agenda-title {
-        font-weight: 900;
+        font-weight: 800;
         color: rgba(226, 232, 240, 0.92);
         white-space: nowrap;
         overflow: hidden;
@@ -687,11 +827,113 @@
       .agenda-meta {
         margin-top: 0.12rem;
         color: rgba(226, 232, 240, 0.6);
-        font-weight: 750;
+        font-weight: 600;
         font-size: 0.86rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+
+      .training-card {
+        display: block;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.22);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .training-card::before {
+        content: "";
+        position: absolute;
+        inset: -40px -40px auto -40px;
+        height: 140px;
+        background:
+          radial-gradient(circle at 20% 30%, rgba(47, 125, 50, 0.22), transparent 58%),
+          radial-gradient(circle at 75% 35%, rgba(244, 180, 0, 0.18), transparent 62%);
+        pointer-events: none;
+      }
+
+      .training-card-body {
+        position: relative;
+        padding: 0.85rem 0.9rem;
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        gap: 0.85rem;
+      }
+
+      .training-kicker {
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.66rem;
+        color: rgba(226, 232, 240, 0.68);
+      }
+
+      .training-focus {
+        margin-top: 0.4rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        font-size: 1.05rem;
+        color: rgba(245, 247, 250, 0.94);
+      }
+
+      .training-meta {
+        margin-top: 0.22rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 600;
+        line-height: 1.35;
+      }
+
+      .training-pitch {
+        width: 170px;
+        flex: 0 0 auto;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background:
+          linear-gradient(180deg, rgba(8, 22, 18, 0.95), rgba(7, 16, 30, 0.85));
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .training-pitch::after {
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border-radius: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        opacity: 0.55;
+      }
+
+      .training-pitch::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.55);
+        opacity: 0.55;
+        transform: translateX(-1px);
+      }
+
+      .training-pill {
+        position: absolute;
+        left: 12px;
+        bottom: 12px;
+        right: 12px;
+        padding: 0.45rem 0.55rem;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.18);
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.66rem;
+        text-align: center;
       }
 
       .cta {
@@ -740,7 +982,7 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        object-position: 50% 18%;
+        object-position: 50% 8%;
       }
 
       .player-copy {
@@ -859,21 +1101,28 @@
         border-radius: var(--radius-xl);
         padding: 1rem 1.05rem;
         color: rgba(226, 232, 240, 0.72);
-        font-weight: 750;
+        font-weight: 600;
       }
 
       @media (max-width: 980px) {
-        .hero {
-          grid-template-columns: 1fr;
+        .hero-float {
+          position: static;
+          width: 100%;
+        }
+        .hero-photo-overlay {
+          padding: 0.95rem;
+        }
+        .hero-head-left {
+          max-width: 100%;
+        }
+        .kpi-ribbon {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .main {
           grid-template-columns: 1fr;
         }
         .grid-2 {
           grid-template-columns: 1fr;
-        }
-        .kpis {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
         }
         .tabs {
           position: static;
@@ -884,8 +1133,15 @@
         .page {
           padding: 1rem;
         }
-        .kpis {
+        .kpi-ribbon {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+          padding: 0.55rem;
+        }
+        .form-mini {
+          width: 100%;
+        }
+        .training-pitch {
+          display: none;
         }
         .hero-photo {
           min-height: 360px;
@@ -939,44 +1195,7 @@
 
       <section class="hero">
         <div id="team-hero" class="hero-photo" role="img" aria-label="Portada del equipo">
-          <div class="hero-photo-overlay">
-            <div style="min-width:0;">
-              <div id="hero-chips" class="hero-chips"></div>
-              <div class="hero-team">
-                <div class="hero-team-crest">
-                  <img id="hero-crest" alt="Escudo del equipo" src="{% static 'football/pwa/icons/icon-192.png' %}" />
-                </div>
-                <div style="min-width:0;">
-                  <h2 id="hero-team-name">Equipo</h2>
-                  <div id="hero-line" class="hero-line">Cargando…</div>
-                </div>
-              </div>
-            </div>
-            <a id="hero-cta" class="cta" href="{% url 'match-hub' %}">Ir a Partido</a>
-          </div>
-        </div>
-
-        <aside class="hero-side">
-          <div class="kpis">
-            <div class="kpi">
-              <div class="kpi-label">Posición</div>
-              <div id="kpi-position" class="kpi-value">—</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">Puntos</div>
-              <div id="kpi-points" class="kpi-value">—</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">Partidos</div>
-              <div id="kpi-played" class="kpi-value">—</div>
-            </div>
-            <div class="kpi">
-              <div class="kpi-label">DG</div>
-              <div id="kpi-gd" class="kpi-value">—</div>
-            </div>
-          </div>
-
-          <div class="card">
+          <div class="hero-float card">
             <div class="card-inner">
               <h3 class="card-title">Próximo rival</h3>
               <div id="next-match-subtitle" class="card-subtitle">Partido y contexto competitivo.</div>
@@ -990,60 +1209,107 @@
                 </div>
               </div>
               <div class="meta-grid" id="next-match-meta"></div>
+              <div style="margin-top:0.9rem;">
+                <a id="next-match-cta" class="cta" href="{% url 'match-hub' %}">Abrir partido</a>
+              </div>
             </div>
           </div>
-
-          <div class="card">
-            <div class="card-inner">
-              <h3 class="card-title">Forma reciente</h3>
-              <div id="form-subtitle" class="card-subtitle">Últimos partidos con marcador.</div>
-              <div class="form-strip">
-                <div id="form-badges" class="form-badges"></div>
-                <div class="sparkline">
-                  <svg id="form-sparkline" width="100%" height="100%" viewBox="0 0 120 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="hero-photo-overlay">
+            <div class="hero-head">
+              <div class="hero-head-left">
+                <div id="hero-chips" class="hero-chips"></div>
+                <div class="hero-team">
+                  <div class="hero-team-crest">
+                    <img id="hero-crest" alt="Escudo del equipo" src="{% static 'football/pwa/icons/icon-192.png' %}" />
+                  </div>
+                  <div style="min-width:0;">
+                    <h2 id="hero-team-name">Equipo</h2>
+                    <div id="hero-line" class="hero-line">Cargando…</div>
+                  </div>
+                </div>
+              </div>
+              <a id="hero-cta" class="cta" href="{% url 'match-hub' %}">Abrir partido</a>
+            </div>
+            <div></div>
+            <div class="hero-lower">
+              <div class="kpi-ribbon" aria-label="KPIs">
+                <div class="kpi-pill">
+                  <div class="label">Posición</div>
+                  <div id="kpi-position" class="value">—</div>
+                </div>
+                <div class="kpi-pill">
+                  <div class="label">Puntos</div>
+                  <div id="kpi-points" class="value">—</div>
+                </div>
+                <div class="kpi-pill">
+                  <div class="label">Partidos</div>
+                  <div id="kpi-played" class="value">—</div>
+                </div>
+                <div class="kpi-pill">
+                  <div class="label">DG</div>
+                  <div id="kpi-gd" class="value">—</div>
+                </div>
+              </div>
+              <div class="form-mini">
+                <div class="form-mini-title">Forma</div>
+                <div id="form-subtitle" class="card-subtitle" style="margin-top:0.3rem;">Últimos partidos con marcador.</div>
+                <div class="form-strip" style="margin-top:0.55rem;">
+                  <div id="form-badges" class="form-badges"></div>
+                  <div class="sparkline">
+                    <svg id="form-sparkline" width="100%" height="100%" viewBox="0 0 120 22" preserveAspectRatio="none" aria-hidden="true"></svg>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </aside>
+        </div>
       </section>
 
       <section class="main">
-        <div class="card">
+        <div class="card span-2">
           <div class="card-inner">
             <h3 class="card-title">Briefing semanal</h3>
             <div id="briefing-headline" class="card-subtitle">Prioridades y alertas para el microciclo.</div>
-            <ul id="briefing-alerts" class="list"></ul>
-            <div style="margin-top:0.9rem;">
-              <h4 class="card-title" style="margin:0;">Prioridades</h4>
-              <ul id="briefing-priorities" class="list"></ul>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-inner">
-              <h3 class="card-title">Entrenamiento</h3>
-              <div id="training-subtitle" class="card-subtitle">Siguiente sesión planificada.</div>
-              <div id="training-next" style="margin-top:0.9rem;"></div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-inner">
-              <h3 class="card-title">Agenda semanal</h3>
-              <div class="card-subtitle">Sesiones + partidos de la semana.</div>
-              <div id="weekly-agenda" class="agenda-days"></div>
-              <div style="margin-top:0.9rem;">
-                <a class="cta" href="{% url 'team-agenda' %}">Abrir agenda completa</a>
+            <details class="accordion" style="margin-top:0.85rem;">
+              <summary>Ver detalles</summary>
+              <div class="accordion-body">
+                <div class="grid-2">
+                  <div>
+                    <h4 class="card-title" style="margin:0;">Alertas</h4>
+                    <ul id="briefing-alerts" class="list"></ul>
+                  </div>
+                  <div>
+                    <h4 class="card-title" style="margin:0;">Prioridades</h4>
+                    <ul id="briefing-priorities" class="list"></ul>
+                  </div>
+                </div>
               </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <h3 class="card-title">Entrenamiento</h3>
+            <div id="training-subtitle" class="card-subtitle">Siguiente sesión planificada.</div>
+            <div id="training-next" style="margin-top:0.9rem;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <h3 class="card-title">Agenda (próximos días)</h3>
+            <div class="card-subtitle">Sesiones + partidos más inmediatos.</div>
+            <div id="weekly-agenda" class="agenda-days"></div>
+            <div style="margin-top:0.9rem;">
+              <a class="cta" href="{% url 'team-agenda' %}">Abrir agenda completa</a>
             </div>
           </div>
         </div>
 
-        <div class="card span-2">
-          <div class="card-inner">
-            <h3 class="card-title">Disponibilidad</h3>
+        <details class="accordion span-2">
+          <summary>Disponibilidad y once probable</summary>
+          <div class="accordion-body">
             <div class="card-subtitle">Once probable + bajas activas (broadcast).</div>
             <div id="availability-broadcast" class="broadcast"></div>
             <div class="availability-grid">
@@ -1057,13 +1323,13 @@
               </div>
             </div>
           </div>
-        </div>
+        </details>
 
-        <div class="card span-2">
-          <div class="card-inner">
-            <h3 class="card-title">Clasificación</h3>
+        <details class="accordion span-2">
+          <summary>Clasificación (tabla completa)</summary>
+          <div class="accordion-body">
             <div id="standings-subtitle" class="card-subtitle">Tabla y contexto de temporada.</div>
-            <div style="overflow:auto;">
+            <div style="overflow:auto; margin-top:0.7rem;">
               <table class="standings-table">
                 <thead>
                   <tr>
@@ -1078,7 +1344,7 @@
               </table>
             </div>
           </div>
-        </div>
+        </details>
 
         <div id="loading" class="loading span-2">Cargando datos del dashboard…</div>
       </section>
@@ -1291,7 +1557,7 @@
           heroCta.textContent = 'Abrir partido';
         } else if (heroCta) {
           heroCta.href = '{% url "match-hub" %}';
-          heroCta.textContent = 'Ir a Partido';
+          heroCta.textContent = 'Abrir partido';
         }
       }
 
@@ -1351,6 +1617,7 @@
         const roundNode = document.getElementById('next-round');
         const crestNode = document.getElementById('next-opponent-crest');
         const metaNode = document.getElementById('next-match-meta');
+        const ctaNode = document.getElementById('next-match-cta');
         if (!opponentNode || !roundNode || !metaNode || !crestNode) return;
 
         if (!match || typeof match !== 'object') {
@@ -1358,6 +1625,7 @@
           roundNode.textContent = '—';
           metaNode.innerHTML = '';
           crestNode.removeAttribute('src');
+          if (ctaNode) ctaNode.href = '{% url "match-hub" %}';
           return;
         }
 
@@ -1368,11 +1636,13 @@
         const date = String(match.date || '').trim();
         const time = String(match.time || '').trim();
         const location = String(match.location || match.field || '').trim();
+        const matchUrl = String(match.url || '').trim();
 
         opponentNode.textContent = opponentName;
         roundNode.textContent = round || 'Próxima jornada';
         if (crest) crestNode.src = crest;
         else crestNode.removeAttribute('src');
+        if (ctaNode) ctaNode.href = matchUrl || '{% url "match-hub" %}';
 
         const opponentStanding = findStandingRow(standings, opponentName);
         const opponentPosRaw = getRowField(opponentStanding?.row, ['pos', 'position', '#'], '');
@@ -1480,16 +1750,18 @@
 
         if (!next || typeof next !== 'object') {
           wrap.innerHTML = `
-            <div class="agenda-item">
-              <div class="left">
-                <div class="agenda-icon session">TR</div>
-                <div class="agenda-text">
-                  <div class="agenda-title">Sin sesión planificada</div>
-                  <div class="agenda-meta">Crea la próxima sesión del microciclo.</div>
+            <a class="training-card" href="{% url 'sessions' %}">
+              <div class="training-card-body">
+                <div style="min-width:0;">
+                  <div class="training-kicker">Siguiente sesión</div>
+                  <div class="training-focus">Sin sesión planificada</div>
+                  <div class="training-meta">Crea la próxima sesión del microciclo.</div>
+                </div>
+                <div class="training-pitch" aria-hidden="true">
+                  <div class="training-pill">Crear sesión</div>
                 </div>
               </div>
-              <a class="cta" href="{% url 'sessions' %}">Abrir sesiones</a>
-            </div>
+            </a>
           `;
           return;
         }
@@ -1501,33 +1773,37 @@
         const dur = clampNumber(next.duration_minutes, 0);
         const url = String(next.url || '{% url "sessions" %}').trim() || '{% url "sessions" %}';
         const progress = total ? Math.max(0, Math.min(1, done / total)) : 0;
-        const bar = `<div style="margin-top:0.55rem;height:8px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;width:${(progress * 100).toFixed(0)}%;background:linear-gradient(90deg, rgba(47,125,50,0.9), rgba(244,180,0,0.75));"></div></div>`;
+        const bar = `<div style="margin-top:0.65rem;height:8px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);overflow:hidden;"><div style="height:100%;width:${(progress * 100).toFixed(0)}%;background:linear-gradient(90deg, rgba(47,125,50,0.9), rgba(244,180,0,0.75));"></div></div>`;
+        const metaLine = [date, time, intensity, dur ? `${dur} min` : ''].filter(Boolean).join(' · ');
         wrap.innerHTML = `
-          <a class="agenda-item" href="${escapeHtml(url)}">
-            <div class="left">
-              <div class="agenda-icon session">TR</div>
-              <div class="agenda-text">
-                <div class="agenda-title">${escapeHtml(focus)}</div>
-                <div class="agenda-meta">${escapeHtml([date, time, intensity, dur ? `${dur} min` : ''].filter(Boolean).join(' · '))}</div>
+          <a class="training-card" href="${escapeHtml(url)}">
+            <div class="training-card-body">
+              <div style="min-width:0;">
+                <div class="training-kicker">Siguiente sesión</div>
+                <div class="training-focus">${escapeHtml(focus)}</div>
+                <div class="training-meta">${escapeHtml(metaLine || 'Sesión planificada')}</div>
                 ${bar}
               </div>
+              <div class="training-pitch" aria-hidden="true">
+                <div class="training-pill">${escapeHtml(intensity || 'Sesión')}</div>
+              </div>
             </div>
-            <span class="cta">Ver</span>
           </a>
         `;
       }
 
       function renderAgenda(payload) {
-        const days = Array.isArray(payload?.weekly_agenda) ? payload.weekly_agenda : [];
+        const daysRaw = Array.isArray(payload?.weekly_agenda) ? payload.weekly_agenda : [];
         const wrap = document.getElementById('weekly-agenda');
         if (!wrap) return;
+        const days = daysRaw.filter((d) => Array.isArray(d?.items) && d.items.length).slice(0, 4);
         if (!days.length) {
           wrap.innerHTML = '<div class="agenda-day"><div class="agenda-day-title">Sin agenda</div></div>';
           return;
         }
         wrap.innerHTML = days.map((day) => {
           const items = Array.isArray(day?.items) ? day.items : [];
-          const itemsHtml = items.slice(0, 4).map((it) => {
+          const itemsHtml = items.slice(0, 2).map((it) => {
             const kind = String(it.kind || '').trim();
             const icon = kind === 'match' ? 'PM' : 'TR';
             const cls = kind === 'match' ? 'match' : 'session';
@@ -1543,7 +1819,7 @@
                     <div class="agenda-meta">${escapeHtml(meta)}</div>
                   </div>
                 </div>
-                <span style="opacity:.65;font-weight:900;letter-spacing:.12em;">›</span>
+                <span style="opacity:.65;font-weight:800;letter-spacing:.12em;">›</span>
               </a>
             `;
           }).join('');
