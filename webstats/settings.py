@@ -214,6 +214,8 @@ MIDDLEWARE = [
     'football.middleware.StickyTeamContextMiddleware',
     # Diagnóstico (opcional): log de requests lentas, activable con `PERF_SLOW_REQUEST_MS`.
     'football.middleware.SlowRequestLoggingMiddleware',
+    # Diagnóstico (opcional): Server-Timing (Network panel), activable con `PERF_SERVER_TIMING`.
+    'football.middleware.ServerTimingMiddleware',
 ]
 
 # Rendimiento en producción: comprime HTML/JSON (Cloudflare suele hacerlo, pero esto ayuda si se accede

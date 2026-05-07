@@ -4792,7 +4792,7 @@
 	                  {% if pdf_assets %}
 	                  <div class="meta" style="margin:0.5rem 0 0.35rem;">Recursos extraídos de PDFs</div>
 	                  <div class="resource-strip pdf-assets-strip">
-	                    {% for asset in pdf_assets %}
+	                    {% for asset in pdf_assets|slice:":24" %}
 	                      {% if asset.file %}
 	                        <button
 	                          type="button"
@@ -4806,12 +4806,17 @@
 	                      {% endif %}
 	                    {% endfor %}
 	                  </div>
+                    {% if pdf_assets|length > 24 %}
+                      <div class="meta" style="margin-top:0.4rem;">
+                        Mostrando 24 de {{ pdf_assets|length }}.
+                      </div>
+                    {% endif %}
 	                  {% endif %}
 
 	                  {% if ppt_icons %}
 	                  <div class="meta" style="margin:0.7rem 0 0.35rem;">Iconos (catálogo PPT)</div>
 	                  <div class="resource-strip pdf-assets-strip">
-	                    {% for icon in ppt_icons %}
+	                    {% for icon in ppt_icons|slice:":24" %}
 	                      <button
 	                        type="button"
 	                        class="pdf-asset-btn"
@@ -4823,6 +4828,11 @@
 	                      </button>
 	                    {% endfor %}
 	                  </div>
+                    {% if ppt_icons|length > 24 %}
+                      <div class="meta" style="margin-top:0.4rem;">
+                        Mostrando 24 de {{ ppt_icons|length }}.
+                      </div>
+                    {% endif %}
 	                  {% endif %}
 	                </div>
 	                <div class="resource-panel" data-panel="trazos" hidden>

@@ -267,3 +267,78 @@ class SlowRequestLoggingMiddleware:
         except Exception:
             pass
         return response
+
+
+class ServerTimingMiddleware:
+    """
+    Añade cabecera `Server-Timing` para diagnosticar tiempos en el navegador (Network panel).
+
+    - Activa con `PERF_SERVER_TIMING=1`.
+    - Incluye `total` y, opcionalmente, `db` (tiempo acumulado en SQL) si `PERF_SERVER_TIMING_DB=1`.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.logger = logging.getLogger("webstats.perf")
+        self.enabled = str(os.getenv("PERF_SERVER_TIMING", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
+        self.db_enabled = str(os.getenv("PERF_SERVER_TIMING_DB", "0") or "").strip().lower() in {"1", "true", "yes", "on"}
+
+    def __call__(self, request):
+        if not self.enabled:
+            return self.get_response(request)
+
+        started = time.perf_counter()
+        db_ms = 0
+        db_queries = 0
+
+        def _sql_wrapper(execute, sql, params, many, context):  # pragma: no cover
+            nonlocal db_ms, db_queries
+            if not self.db_enabled:
+                return execute(sql, params, many, context)
+            t0 = time.perf_counter()
+            try:
+                return execute(sql, params, many, context)
+            finally:
+                db_queries += 1
+                db_ms += int((time.perf_counter() - t0) * 1000)
+
+        managers = []
+        if self.db_enabled:
+            try:
+                from django.db import connections
+            except Exception:  # pragma: no cover
+                connections = None
+            if connections:
+                for conn in connections.all():
+                    try:
+                        managers.append(conn.execute_wrapper(_sql_wrapper))
+                    except Exception:
+                        continue
+
+        try:
+            for m in managers:
+                try:
+                    m.__enter__()
+                except Exception:
+                    pass
+            response = self.get_response(request)
+        finally:
+            for m in reversed(managers):
+                try:
+                    m.__exit__(None, None, None)
+                except Exception:
+                    pass
+
+        total_ms = int((time.perf_counter() - started) * 1000)
+        try:
+            parts = [f"total;dur={total_ms}"]
+            if self.db_enabled:
+                parts.append(f"db;dur={int(db_ms)}")
+                parts.append(f"dbq;desc=\\\"db queries: {int(db_queries)}\\\";dur=0")
+            response["Server-Timing"] = ", ".join(parts)
+        except Exception:
+            try:
+                self.logger.debug("server_timing_failed")
+            except Exception:
+                pass
+        return response

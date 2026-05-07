@@ -36296,16 +36296,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     all_sessions = []
     player_catalog = []
     try:
-        cache_key = f'task_builder:all_sessions:{int(primary_team.id)}'
+        cache_key = f'task_builder:v2:all_sessions:{int(primary_team.id)}'
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             all_sessions = cached
         else:
             all_sessions = list(
                 TrainingSession.objects
-                .select_related('microcycle')
                 .filter(microcycle__team=primary_team)
-                .only('id', 'session_date', 'focus')
+                .values('id', 'session_date', 'focus')
                 .order_by('-session_date', '-id')[:150]
             )
             cache.set(cache_key, all_sessions, context_cache_seconds)
@@ -36347,9 +36346,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     # - assets globales del sistema (team slug="pizarra")
     # - assets privados del usuario (owner=request.user), útil si los subió en Task Studio.
     pdf_assets = []
-    pdf_assets_json = '[]'
     try:
-        cache_key = f"task_builder:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
+        cache_key = f"task_builder:v2:pdf_assets:{int(primary_team.id)}:{int(getattr(request.user, 'id', 0) or 0)}"
         cached = cache.get(cache_key)
         if isinstance(cached, list):
             pdf_assets = cached
@@ -36366,55 +36364,53 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 PdfGraphicAsset.objects
                 .filter(assets_filter)
                 .exclude(file='')
+                .values('id', 'title', 'width', 'height', 'file')
                 .order_by('-created_at', '-id')[:80]
             )
             cache.set(cache_key, pdf_assets, context_cache_seconds)
-        pdf_assets_json = json.dumps(
-            [
-                {
-                    'id': int(item.id),
-                    'title': str(item.title or '').strip(),
-                    'url': reverse('pdf-graphic-asset-file', args=[item.id]),
-                    'width': int(item.width or 0),
-                    'height': int(item.height or 0),
-                }
-                for item in pdf_assets
-                if getattr(item, 'file', None)
-            ],
-            ensure_ascii=False,
-        )
     except Exception:
         pdf_assets = []
-        pdf_assets_json = '[]'
         logger.exception('sessions_task_builder: no se pudieron cargar assets PDF', extra={'team_id': getattr(primary_team, 'id', None)})
     ppt_icons = []
     try:
-        if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
-            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
-            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
-            files = sorted(files, key=lambda p: p.name.lower())[:90]
-            for p in files:
-                ppt_icons.append(
-                    {
-                        'label': str(p.stem or '').strip()[:80],
-                        'static_path': f'football/images/task-materials/ppt/{p.name}',
-                    }
-                )
+        cache_key = "task_builder:v2:ppt_icons"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            ppt_icons = cached
+        else:
+            if TASK_MATERIAL_PPT_DIR and TASK_MATERIAL_PPT_DIR.exists():
+                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+                files = sorted(files, key=lambda p: p.name.lower())[:90]
+                for p in files:
+                    ppt_icons.append(
+                        {
+                            'label': str(p.stem or '').strip()[:80],
+                            'static_path': f'football/images/task-materials/ppt/{p.name}',
+                        }
+                    )
+            cache.set(cache_key, ppt_icons, context_cache_seconds)
     except Exception:
         ppt_icons = []
     drills_catalog = []
     try:
-        drills_catalog = [
-            {
-                'id': item.id,
-                'label': item.label,
-                'category': item.category,
-                'icon_static_path': item.icon_static_path,
-                'age_min': item.age_min,
-                'age_max': item.age_max,
-            }
-            for item in DRILL_CATALOG
-        ]
+        cache_key = "task_builder:v2:drills_catalog"
+        cached = cache.get(cache_key)
+        if isinstance(cached, list):
+            drills_catalog = cached
+        else:
+            drills_catalog = [
+                {
+                    'id': item.id,
+                    'label': item.label,
+                    'category': item.category,
+                    'icon_static_path': item.icon_static_path,
+                    'age_min': item.age_min,
+                    'age_max': item.age_max,
+                }
+                for item in DRILL_CATALOG
+            ]
+            cache.set(cache_key, drills_catalog, context_cache_seconds)
     except Exception:
         drills_catalog = []
         logger.exception('sessions_task_builder: no se pudo construir catálogo de drills', extra={'team_id': getattr(primary_team, 'id', None)})
@@ -36473,7 +36469,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'confirmed_player_ids': confirmed_player_ids,
             'confirmed_only_default': confirmed_only_default,
             'pdf_assets': pdf_assets,
-            'pdf_assets_json': pdf_assets_json,
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,

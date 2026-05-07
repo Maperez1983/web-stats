@@ -849,7 +849,8 @@
 				    const tokenStyleActions = document.getElementById('task-token-style-actions');
 
     // Cargamos en segundo plano para que el parser (guion natural) tenga keywords disponibles.
-    try { void loadCoachDictionary(); } catch (e) { /* ignore */ }
+    // Rendimiento: no precargamos el diccionario al iniciar. Se carga bajo demanda
+    // cuando el usuario abre el asistente o usa acciones que lo requieren.
 		    const tokenColorGrid = document.getElementById('task-token-color-grid');
 		    const tokenBaseColorInput = document.getElementById('task-token-base-color');
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
