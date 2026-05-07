@@ -24,7 +24,7 @@ from pathlib import Path
 import unicodedata
 import re
 from types import SimpleNamespace
-from urllib.parse import quote, urlparse, parse_qs
+from urllib.parse import quote, urlparse, parse_qs, urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -36424,11 +36424,38 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         # Soft warning: evita 500 por fallos parciales y da pista al usuario.
         error = 'El editor cargó, pero faltan datos (sesiones/jugadores/recursos). Recarga la página o revisa permisos/configuración del equipo.'
 
-    back_url = reverse(_sessions_scope_route_name(scope_key))
-    back_label = 'Volver a entrenos'
+    def _sessions_library_back_url(*, source: str = '') -> str:
+        base = reverse(_sessions_scope_route_name(scope_key))
+        src = str(source or '').strip().lower()
+        if src not in {'created', 'imported', 'performed'}:
+            src = ''
+        if not src:
+            try:
+                if task and _is_library_session(getattr(task, 'session', None)):
+                    if _is_imported_task(task):
+                        src = 'imported'
+                    else:
+                        src = 'created'
+            except Exception:
+                src = ''
+        src = src or 'created'
+        params = {
+            'tab': 'library',
+            'library_repo': library_repository,
+            'library_source': src,
+            'team': int(getattr(primary_team, 'id', 0) or 0),
+        }
+        ws = str(request.GET.get('workspace') or '').strip()
+        if ws:
+            params['workspace'] = ws
+        return f'{base}?{urlencode(params)}'
+
+    back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
+    back_label = 'Volver a biblioteca'
     try:
         from_session_id = _parse_int(request.GET.get('from_session') or request.GET.get('session_id'))
-        if not from_session_id and task:
+        # Ojo: tareas de Biblioteca viven en una "sesión interna". No debemos usar `task.session_id` como back.
+        if not from_session_id and task and not _is_library_session(getattr(task, 'session', None)):
             from_session_id = _parse_int(getattr(task, 'session_id', None))
         if from_session_id:
             session_obj = (
@@ -36441,8 +36468,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 back_url = reverse('training-session-detail', args=[int(session_obj.id)])
                 back_label = 'Volver al entreno'
     except Exception:
-        back_url = reverse(_sessions_scope_route_name(scope_key))
-        back_label = 'Volver a entrenos'
+        back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
+        back_label = 'Volver a biblioteca'
     return render(
         request,
         'football/task_builder.html',
@@ -37315,11 +37342,45 @@ def session_task_detail_page(request, task_id):
         'fitness': 'Sesiones · Preparacion fisica',
     }.get(scope_key, 'Sesiones')
 
-    back_url = reverse(scope_route_name)
-    back_label = 'Volver a entrenos'
+    def _sessions_library_back_url(*, source: str = '') -> str:
+        base = reverse(scope_route_name)
+        src = str(source or '').strip().lower()
+        if src not in {'created', 'imported', 'performed'}:
+            src = ''
+        if not src:
+            try:
+                if _is_library_session(getattr(task, 'session', None)):
+                    if _is_imported_task(task):
+                        src = 'imported'
+                    else:
+                        src = 'created'
+            except Exception:
+                src = ''
+        src = src or 'created'
+        repo = ''
+        try:
+            repo = _library_repository_for_task(task)
+        except Exception:
+            repo = ''
+        params = {
+            'tab': 'library',
+            'library_repo': repo or LIBRARY_REPOSITORY_TRADITIONAL,
+            'library_source': src,
+        }
+        team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+        if team:
+            params['team'] = int(getattr(team, 'id', 0) or 0)
+        ws = str(request.GET.get('workspace') or '').strip()
+        if ws:
+            params['workspace'] = ws
+        return f'{base}?{urlencode(params)}'
+
+    back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
+    back_label = 'Volver a biblioteca'
     try:
         from_session_id = _parse_int(request.GET.get('from_session') or request.GET.get('session_id'))
-        if not from_session_id:
+        # Si estamos en Biblioteca, nunca usamos la sesión interna como back. Solo si viene explícito.
+        if not from_session_id and not _is_library_session(getattr(task, 'session', None)):
             from_session_id = _parse_int(getattr(task, 'session_id', None))
         team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
         if from_session_id and team:
@@ -37333,8 +37394,8 @@ def session_task_detail_page(request, task_id):
                 back_url = reverse('training-session-detail', args=[int(origin.id)])
                 back_label = 'Volver al entreno'
     except Exception:
-        back_url = reverse(scope_route_name)
-        back_label = 'Volver a entrenos'
+        back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
+        back_label = 'Volver a biblioteca'
 
     feedback = ''
     error = ''
