@@ -86,7 +86,12 @@ except Exception:  # pragma: no cover
     pytesseract = None
 
 try:
-    import weasyprint
+    # WeasyPrint puede emitir warnings ruidosos en import si faltan libs nativas.
+    # No queremos contaminar logs ni penalizar arranque: suprimimos stderr durante el import.
+    import contextlib
+    import io as _io
+    with contextlib.redirect_stderr(_io.StringIO()):
+        import weasyprint
 except Exception:  # pragma: no cover
     weasyprint = None
 
@@ -3499,6 +3504,84 @@ def team_cover_image_file(request, team_id):
         file_field.open('rb')
     except Exception:
         return HttpResponse('No se pudo abrir la imagen.', status=500)
+
+    # Optimización (rendimiento): permitir servir una versión "ligera" para hero/portada.
+    # Útil en iPad/móvil y en redes lentas.
+    try:
+        w = int(str(request.GET.get('w') or '').strip() or 0)
+    except Exception:
+        w = 0
+    try:
+        h = int(str(request.GET.get('h') or '').strip() or 0)
+    except Exception:
+        h = 0
+    try:
+        q = int(str(request.GET.get('q') or '').strip() or 0)
+    except Exception:
+        q = 0
+    w = max(0, min(int(w or 0), 4096))
+    h = max(0, min(int(h or 0), 4096))
+    q = max(0, min(int(q or 0), 92))
+
+    cover_updated_at = getattr(team, 'cover_updated_at', None)
+    version = str(int(cover_updated_at.timestamp())) if cover_updated_at else ''
+    if (w or h) and Image is not None:
+        # Cachear bytes redimensionados (CPU → cache) por equipo+versión+tamaño.
+        cache_key = f'team-cover:optimized:{int(team.id)}:{version}:{w or 0}x{h or 0}:q{q or 72}'
+        cached = None
+        try:
+            cached = cache.get(cache_key)
+        except Exception:
+            cached = None
+        if isinstance(cached, (bytes, bytearray)) and cached:
+            resp = HttpResponse(bytes(cached), content_type='image/jpeg')
+            resp['Cache-Control'] = 'private, max-age=86400'
+            if version:
+                resp['ETag'] = f'W/\"{cache_key}\"'
+            return resp
+        try:
+            raw = file_field.read() or b''
+        except Exception:
+            raw = b''
+        try:
+            file_field.close()
+        except Exception:
+            pass
+        if raw:
+            try:
+                with Image.open(io.BytesIO(raw)) as img:
+                    if ImageOps is not None:
+                        try:
+                            img = ImageOps.exif_transpose(img)
+                        except Exception:
+                            pass
+                    normalized = img.convert('RGB')
+                    target_w = int(w or 1600)
+                    target_h = int(h or 900)
+                    normalized.thumbnail((target_w, target_h))
+                    buf = io.BytesIO()
+                    normalized.save(buf, format='JPEG', optimize=True, quality=int(q or 72))
+                out = buf.getvalue()
+                if out:
+                    try:
+                        cache.set(cache_key, out, timeout=60 * 60 * 24)
+                    except Exception:
+                        pass
+                    resp = HttpResponse(out, content_type='image/jpeg')
+                    resp['Cache-Control'] = 'private, max-age=86400'
+                    if version:
+                        resp['ETag'] = f'W/\"{cache_key}\"'
+                    return resp
+            except Exception:
+                # Fallback a fichero original.
+                pass
+
+        # Si falló el pipeline de optimización, re-abrimos para FileResponse original.
+        try:
+            file_field.open('rb')
+        except Exception:
+            return HttpResponse('No se pudo abrir la imagen.', status=500)
+
     extension = Path(file_field.name).suffix.lower()
     content_type = {
         '.png': 'image/png',
@@ -3508,7 +3591,7 @@ def team_cover_image_file(request, team_id):
         '.gif': 'image/gif',
     }.get(extension, 'application/octet-stream')
     response = FileResponse(file_field, content_type=content_type)
-    response['Content-Disposition'] = f'inline; filename="{Path(file_field.name).name}"'
+    response['Content-Disposition'] = f'inline; filename=\"{Path(file_field.name).name}\"'
     response['Cache-Control'] = 'private, max-age=3600'
     return response
 
@@ -10077,6 +10160,9 @@ def _build_demo_dashboard_payload(request):
 @login_required
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
+    def _json(obj, *, status=200):
+        return JsonResponse(obj, status=status, json_dumps_params={'separators': (',', ':')})
+
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
@@ -10084,7 +10170,7 @@ def dashboard_data(request):
     # devolvemos datos simulados (sin foto/escudo real, clasificación y próximo rival ficticios).
     try:
         if _is_demo_mode_for_request(request):
-            return JsonResponse(_build_demo_dashboard_payload(request))
+            return _json(_build_demo_dashboard_payload(request))
     except Exception:
         pass
     # Para usuarios plataforma que abren `/?home=club`, el frontend envía `home=club` también a la API.
@@ -10121,22 +10207,23 @@ def dashboard_data(request):
             # En modo plataforma: guiar explícitamente a seleccionar cliente si no hay contexto.
             try:
                 if request and getattr(request, 'user', None) and request.user.is_authenticated and _can_access_platform(request.user):
-                    return JsonResponse(
-                        {
-                            'setup_required': True,
-                            'setup_url': reverse('platform-overview'),
-                            'setup_message_title': 'Selecciona un club',
-                            'setup_message_body': 'No hay un club activo en esta sesión. Entra en Plataforma y elige el cliente para cargar clasificación y próximo rival.',
-                            'setup_action_label': 'Ir a Plataforma',
-                        }
-                    )
+                        return _json(
+                            {
+                                'setup_required': True,
+                                'setup_url': reverse('platform-overview'),
+                                'setup_message_title': 'Selecciona un club',
+                                'setup_message_body': 'No hay un club activo en esta sesión. Entra en Plataforma y elige el cliente para cargar clasificación y próximo rival.',
+                                'setup_action_label': 'Ir a Plataforma',
+                            },
+                            status=200,
+                        )
             except Exception:
                 pass
             if not workspace and request and getattr(request, 'user', None) and request.user.is_authenticated and not _can_access_platform(request.user):
-                return JsonResponse(_build_first_run_dashboard_payload(request))
+                return _json(_build_first_run_dashboard_payload(request))
             if workspace and _workspace_needs_setup(workspace):
-                return JsonResponse(_build_setup_dashboard_payload(request, workspace))
-            return JsonResponse({'error': 'No hay equipo principal configurado'}, status=400)
+                return _json(_build_setup_dashboard_payload(request, workspace))
+            return _json({'error': 'No hay equipo principal configurado'}, status=400)
 
     workspace = _get_active_workspace(request)
     setup_banner = {}
@@ -10272,7 +10359,7 @@ def dashboard_data(request):
                         'url': f"{reverse('match-hub')}?match_id={int(active_match_guardrail.id)}",
                         'stats_url': reverse('match-stats', args=[int(active_match_guardrail.id)]),
                     }
-                return JsonResponse(payload)
+                return _json(payload)
     except Exception:
         pass
 
@@ -10347,7 +10434,7 @@ def dashboard_data(request):
                 'url': f"{reverse('match-hub')}?match_id={int(active_match_empty.id)}",
                 'stats_url': reverse('match-stats', args=[int(active_match_empty.id)]),
             }
-        return JsonResponse(payload)
+        return _json(payload)
 
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     cache_key = _dashboard_cache_key(primary_team.id)
@@ -10431,7 +10518,7 @@ def dashboard_data(request):
                 cached_payload = enriched
             except Exception:
                 pass
-            return JsonResponse(cached_payload)
+            return _json(cached_payload)
 
     refresh_roster_on_load = str(
         os.getenv('PREFERENTE_ROSTER_REFRESH_ON_LOAD', '0')
@@ -10834,7 +10921,7 @@ def dashboard_data(request):
     except Exception:
         pass
     cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
-    response = JsonResponse(payload)
+    response = _json(payload)
     if force_fresh:
         response['Cache-Control'] = 'no-store'
     return response
@@ -10971,7 +11058,7 @@ def dashboard_page(request):
             # Servimos la portada a través de la app para evitar 403 de S3 cuando el bucket no es público.
             updated_at = getattr(primary_team, 'cover_updated_at', None)
             version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
-            cover_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
+            cover_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
             if not demo_mode:
                 hero_image_candidates = [cover_url] + list(hero_image_candidates or [])
         except Exception:
@@ -13405,6 +13492,7 @@ def admin_page(request):
     tasks_message = ''
     tasks_error = ''
     recent_tasks = []
+    restored_task_ids = []
     tasks_days = _parse_int(request.GET.get('days') or request.POST.get('days')) or 1
     tasks_days = max(1, min(int(tasks_days), 60))
     active_tab = (request.GET.get('tab') or request.POST.get('active_tab') or 'roster').strip().lower()
@@ -13607,6 +13695,163 @@ def admin_page(request):
                 roster_error = str(exc)
             except Exception:
                 roster_error = 'No se pudo guardar la plantilla.'
+        elif form_action in {'tasks_restore_from_backups'}:
+            active_tab = 'tasks'
+            if not primary_team:
+                tasks_error = 'No hay equipo activo.'
+            else:
+                try:
+                    actor = request.user.username if request.user and request.user.is_authenticated else ''
+                except Exception:
+                    actor = ''
+
+                def _parse_backup_ts(name: str):
+                    base = str(name or '').strip().split('_', 1)[0]
+                    try:
+                        return timezone.make_aware(datetime.strptime(base, '%Y%m%dT%H%M%S'))
+                    except Exception:
+                        return None
+
+                def _restore_from_backup_payload(payload: dict, *, session_obj: TrainingSession):
+                    task_data = payload.get('task') if isinstance(payload, dict) else None
+                    if not isinstance(task_data, dict):
+                        return None
+                    title = str(task_data.get('title') or '').strip()
+                    if not title:
+                        return None
+                    block = str(task_data.get('block') or SessionTask.BLOCK_MAIN_1).strip() or SessionTask.BLOCK_MAIN_1
+                    duration = int(task_data.get('duration_minutes') or 0) or 15
+                    objective = str(task_data.get('objective') or '').strip()
+                    coaching_points = str(task_data.get('coaching_points') or '').strip()
+                    confrontation_rules = str(task_data.get('confrontation_rules') or '').strip()
+                    notes = str(task_data.get('notes') or '').strip()
+                    status = str(task_data.get('status') or SessionTask.STATUS_PLANNED).strip() or SessionTask.STATUS_PLANNED
+                    order_val = int(task_data.get('order') or 0) if str(task_data.get('order') or '').strip() else 0
+                    layout = task_data.get('tactical_layout') if isinstance(task_data.get('tactical_layout'), dict) else {}
+                    layout = dict(layout) if isinstance(layout, dict) else {}
+                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                    meta = dict(meta) if isinstance(meta, dict) else {}
+                    # Asegura scope si falta.
+                    if not str(meta.get('scope') or '').strip():
+                        meta['scope'] = 'coach'
+                    layout['meta'] = meta
+
+                    new_task = SessionTask.objects.create(
+                        session=session_obj,
+                        title=title[:160],
+                        block=block[:30],
+                        duration_minutes=max(1, min(240, int(duration))),
+                        objective=objective[:180],
+                        coaching_points=coaching_points,
+                        confrontation_rules=confrontation_rules,
+                        notes=notes,
+                        status=status,
+                        order=int(order_val or 0),
+                        tactical_layout=layout,
+                    )
+                    # Intenta restaurar adjuntos si siguen en storage.
+                    try:
+                        pdf_name = str(task_data.get('task_pdf') or '').strip()
+                        if pdf_name and default_storage.exists(pdf_name):
+                            new_task.task_pdf.name = pdf_name
+                        img_name = str(task_data.get('task_preview_image') or '').strip()
+                        if img_name and default_storage.exists(img_name):
+                            new_task.task_preview_image.name = img_name
+                        if (pdf_name and default_storage.exists(pdf_name)) or (img_name and default_storage.exists(img_name)):
+                            new_task.save(update_fields=['task_pdf', 'task_preview_image'])
+                    except Exception:
+                        pass
+                    try:
+                        write_task_backup(
+                            new_task,
+                            kind='session_task',
+                            reason='restore_from_backup',
+                            actor_username=actor,
+                        )
+                    except Exception:
+                        pass
+                    return new_task
+
+                # Restauración: busca backups recientes de este usuario que ya no existan en DB.
+                cutoff = timezone.now() - timedelta(days=int(tasks_days))
+                prefix = 'backups/tasks/session_task'
+                try:
+                    dirs, _ = default_storage.listdir(prefix)
+                except Exception:
+                    dirs = []
+                task_ids = []
+                for d in dirs or []:
+                    d_str = str(d or '').strip().strip('/')
+                    if d_str.isdigit():
+                        try:
+                            task_ids.append(int(d_str))
+                        except Exception:
+                            pass
+                task_ids = sorted(task_ids, reverse=True)[:2000]
+
+                # Destino: biblioteca tradicional (para no requerir repo).
+                try:
+                    library_session = _get_or_create_library_session_with_repository(
+                        primary_team,
+                        'coach',
+                        repository=LIBRARY_REPOSITORY_TRADITIONAL,
+                    )
+                except Exception:
+                    library_session = _get_or_create_library_session(primary_team, 'coach')
+
+                restored = 0
+                scanned = 0
+                restored_task_ids = []
+                for task_id in task_ids:
+                    if restored >= 25:
+                        break
+                    # Si ya existe, no restaurar.
+                    if SessionTask.objects.filter(id=int(task_id)).exists():
+                        continue
+                    scanned += 1
+                    try:
+                        _, files = default_storage.listdir(f'{prefix}/{task_id}')
+                    except Exception:
+                        continue
+                    json_files = sorted([f for f in (files or []) if str(f).endswith('.json')], reverse=True)
+                    if not json_files:
+                        continue
+                    candidate = json_files[0]
+                    ts = _parse_backup_ts(candidate)
+                    if ts and ts < cutoff:
+                        continue
+                    try:
+                        with default_storage.open(f'{prefix}/{task_id}/{candidate}', 'rb') as fh:
+                            raw = fh.read()
+                        payload = json.loads(raw.decode('utf-8', errors='ignore') or '{}')
+                    except Exception:
+                        continue
+                    if actor and str(payload.get('actor') or '').strip() != actor:
+                        continue
+                    try:
+                        created_at = payload.get('captured_at')
+                        # captured_at es ISO string en payload; si existe, úsalo como filtro adicional.
+                        if created_at:
+                            try:
+                                captured_dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+                                if timezone.is_naive(captured_dt):
+                                    captured_dt = timezone.make_aware(captured_dt)
+                                if captured_dt < cutoff:
+                                    continue
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                    new_task = _restore_from_backup_payload(payload, session_obj=library_session)
+                    if new_task:
+                        restored += 1
+                        restored_task_ids.append(int(new_task.id))
+
+                if restored:
+                    tasks_message = f'Restauradas {restored} tareas desde backups. (IDs: {", ".join(str(x) for x in restored_task_ids[:10])}{"…" if len(restored_task_ids) > 10 else ""})'
+                else:
+                    tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
+
         elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace'}:
             active_tab = 'teams'
             if not workspace or workspace.kind != Workspace.KIND_CLUB:
@@ -14664,6 +14909,7 @@ def admin_page(request):
             'tasks_error': tasks_error,
             'tasks_days': tasks_days,
             'recent_tasks': recent_tasks,
+            'restored_task_ids': restored_task_ids,
             'workspace_members': workspace_members,
             # (debug/plantilla) el acceso ya va anexado en cada link.access_rows
             'workspace_team_access_map': workspace_team_access_map,
@@ -16379,7 +16625,7 @@ def coach_overview_page(request):
         try:
             updated_at = getattr(primary_team, 'cover_updated_at', None)
             version = str(int(updated_at.timestamp())) if updated_at else str(int(timezone.now().timestamp()))
-            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}'
+            hero_image_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
             cache_key = f'coach-overview:hero-data-uri:{int(primary_team.id)}:{version}'
             cached_data_uri = None
             try:
@@ -33189,6 +33435,34 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 if not session_obj:
                     raise ValueError('Sesión no encontrada.')
+                if _is_library_session(session_obj):
+                    raise ValueError(
+                        'Esa sesión pertenece a la Biblioteca (repositorio) y no se puede eliminar. '
+                        'Si la ves duplicada, avísanos: la ocultamos/limpiamos sin perder tareas.'
+                    )
+                # Seguridad: antes de borrar una sesión (hard delete), guarda backups de sus tareas.
+                # Esto evita pérdidas irreversibles si el usuario elimina por error.
+                try:
+                    actor = request.user.username if request and getattr(request, 'user', None) and request.user.is_authenticated else ''
+                except Exception:
+                    actor = ''
+                try:
+                    for task_obj in (
+                        SessionTask.objects
+                        .filter(session=session_obj)
+                        .order_by('id')[:600]
+                    ):
+                        try:
+                            write_task_backup(
+                                task_obj,
+                                kind='session_task',
+                                reason=f'session_delete_{int(session_obj.id)}',
+                                actor_username=actor,
+                            )
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
                 deleted_focus = session_obj.focus
                 session_obj.delete()
                 feedback = f'Sesión eliminada: {deleted_focus}.'
@@ -35224,10 +35498,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             return start, end, label
 
         recent_sessions = list(
-            TrainingSession.objects
-            .select_related('microcycle')
-            .filter(microcycle__team=primary_team)
-            .order_by('-session_date', '-start_time', '-id')[:60]
+            _exclude_library_sessions_qs(
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(microcycle__team=primary_team)
+                .order_by('-session_date', '-start_time', '-id')
+            )[:60]
         )
         season_index_map = {}
         try:
