@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
+from pathlib import Path
 
 
-def build_meta(request):
+@lru_cache(maxsize=1)
+def _static_build_id() -> str:
     """
-    Metadatos para cache-busting de estáticos.
+    Cache-busting para estáticos.
 
     Render suele exponer `RENDER_GIT_COMMIT` (o variables similares). Si no existe,
-    devolvemos vacío para no añadir querystrings.
+    usamos un fallback local (mtime de `sessions_tactical_pad.js`) para evitar que Safari/iPad
+    se quede enganchado a un JS antiguo.
     """
     build_id = (
         os.getenv('RENDER_GIT_COMMIT')
@@ -17,8 +21,24 @@ def build_meta(request):
         or os.getenv('GIT_SHA')
         or ''
     ).strip()
+    if build_id:
+        return build_id
+    try:
+        base_dir = Path(__file__).resolve().parent.parent
+        js_path = base_dir / 'football' / 'static' / 'football' / 'js' / 'sessions_tactical_pad.js'
+        if js_path.exists():
+            return str(int(js_path.stat().st_mtime))
+    except Exception:
+        return ''
+    return ''
+
+
+def build_meta(request):
+    """
+    Metadatos para cache-busting de estáticos.
+    """
     return {
-        'static_build_id': build_id,
+        'static_build_id': _static_build_id(),
     }
 
 

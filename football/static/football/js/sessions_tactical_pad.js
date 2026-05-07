@@ -16000,17 +16000,31 @@
 				    const buildPreviewData = (options = {}) => new Promise((resolve) => {
 			      const sourceWidth = Math.round(canvas.getWidth());
 			      const sourceHeight = Math.round(canvas.getHeight());
-			      // En iPad conviene limitar el tamaño para que no bloquee el hilo principal.
-			      const maxPreviewWidth = clamp(Number(options.maxWidth) || 720, 480, 4096);
+			      // En iPad/Safari hay límites duros de canvas (área/dimensiones). Si solo limitamos por ancho,
+			      // en vertical podemos terminar exportando una imagen altísima y la exportación falla o devuelve
+			      // previews "vacías" (solo césped). Por eso limitamos por el lado mayor + área.
+			      const maxPreviewSide = clamp(Number(options.maxSide) || Number(options.maxWidth) || 720, 480, 4096);
 			      // Para PDF necesitamos HD real: si el lienzo en pantalla mide 1200-1800px, queremos
 			      // generar una imagen de 3200-4096px (ratio > 1). Con Fabric, usamos `multiplier`
 			      // para renderizar nítido (no un simple upscale).
-			      const ratio = clamp((maxPreviewWidth / Math.max(1, sourceWidth)), 0.25, 4);
+			      const baseDim = Math.max(1, Math.max(sourceWidth, sourceHeight));
+			      const ratio = clamp((maxPreviewSide / baseDim), 0.25, 4);
 			      const mime = safeText(options.mime, 'image/png').toLowerCase();
 			      const quality = clamp(Number(options.quality) || 0.92, 0.5, 0.98);
 		      const output = document.createElement('canvas');
-		      output.width = Math.max(320, Math.round(sourceWidth * ratio));
-		      output.height = Math.max(180, Math.round(sourceHeight * ratio));
+		      // Clamp por área para evitar "data:," o drawImage fallando silenciosamente en iOS.
+		      // (16,777,216 px es un límite común en Safari iOS; usamos un margen).
+		      let outW = Math.max(320, Math.round(sourceWidth * ratio));
+		      let outH = Math.max(180, Math.round(sourceHeight * ratio));
+		      const maxArea = 16000000;
+		      const area = outW * outH;
+		      if (area > maxArea) {
+		        const scale = Math.sqrt(maxArea / Math.max(1, area));
+		        outW = Math.max(320, Math.round(outW * scale));
+		        outH = Math.max(180, Math.round(outH * scale));
+		      }
+		      output.width = outW;
+		      output.height = outH;
 	      const context = output.getContext('2d');
 	      if (!context) {
 	        resolve('');

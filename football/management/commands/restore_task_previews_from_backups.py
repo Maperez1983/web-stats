@@ -70,6 +70,50 @@ def _looks_like_image(raw: bytes) -> bool:
         return False
 
 
+def _looks_like_pitch_only_preview(raw: bytes) -> bool:
+    """
+    Detecta previews "solo césped" (sin overlay) aunque no coincidan exactamente con el JPG placeholder.
+
+    Heurística conservadora: casi todo verde/blanco y muy poco "otro" color.
+    """
+    if Image is None or not raw:
+        return False
+    try:
+        import io
+
+        with Image.open(io.BytesIO(raw)) as img:
+            rgb = img.convert("RGB")
+            sample = rgb.copy()
+            sample.thumbnail((128, 128))
+            pixels = list(sample.getdata())
+            total = max(1, len(pixels))
+            greenish = 0
+            whitish = 0
+            darkish = 0
+            other = 0
+            for r, g, b in pixels:
+                if g > 70 and g > (r + 14) and g > (b + 10):
+                    greenish += 1
+                elif r > 232 and g > 232 and b > 232:
+                    whitish += 1
+                elif r < 30 and g < 30 and b < 30:
+                    darkish += 1
+                else:
+                    other += 1
+            green_ratio = greenish / total
+            white_ratio = whitish / total
+            dark_ratio = darkish / total
+            other_ratio = other / total
+            return (
+                green_ratio >= 0.70
+                and other_ratio <= 0.06
+                and white_ratio <= 0.38
+                and dark_ratio <= 0.55
+            )
+    except Exception:
+        return False
+
+
 def _load_backup_candidates(kind: str, task_id: int) -> list[dict]:
     prefix = f"backups/tasks/{kind}/{task_id}"
     try:
@@ -126,12 +170,18 @@ class Command(BaseCommand):
         parser.add_argument("--task-id", type=int, default=0, help="Procesa solo este ID (según --only).")
         parser.add_argument("--dry-run", action="store_true", help="No guarda cambios, solo informa.")
         parser.add_argument("--limit", type=int, default=0, help="Límite de tareas a procesar (0 = sin límite).")
+        parser.add_argument(
+            "--also-pitch-only",
+            action="store_true",
+            help="Trata como placeholder previews que parecen 'solo césped' aunque no coincidan por hash.",
+        )
 
     def handle(self, *args, **options):
         only = str(options.get("only") or "all").strip()
         task_id = int(options.get("task_id") or 0)
         dry_run = bool(options.get("dry_run"))
         limit = int(options.get("limit") or 0)
+        also_pitch_only = bool(options.get("also_pitch_only"))
 
         fallback_hashes = _build_default_fallback_hashes()
         if not fallback_hashes:
@@ -177,6 +227,8 @@ class Command(BaseCommand):
                 if not _looks_like_image(current_raw):
                     is_placeholder = True
                 if current_raw == b"preview-image":
+                    is_placeholder = True
+                if also_pitch_only and _looks_like_pitch_only_preview(current_raw):
                     is_placeholder = True
 
             if not is_placeholder:
@@ -240,4 +292,3 @@ class Command(BaseCommand):
                 f"Restore previews: restored={restored} scanned={scanned} skipped={skipped} dry_run={dry_run}"
             )
         )
-

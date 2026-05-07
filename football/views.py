@@ -37776,9 +37776,6 @@ def session_task_preview_file(request, task_id):
     )
     if not task:
         raise Http404('Imagen de tarea no disponible')
-    if not task.task_preview_image:
-        if not _ensure_library_task_preview(task):
-            raise Http404('Imagen de tarea no disponible')
     def _task_has_drawn_state(task_obj) -> bool:
         """
         True si hay estado gráfico que merezca un render (pizarra con objetos o timeline).
@@ -37800,6 +37797,38 @@ def session_task_preview_file(request, task_id):
         except Exception:
             return False
         return False
+
+    def _throttled_server_render(task_obj, reason: str) -> bool:
+        """
+        Evita que el endpoint de imagen dispare renders server-side continuamente
+        (p.ej. cuando se cargan muchas cards a la vez).
+        """
+        if not task_obj:
+            return False
+        key = f"task_preview:server_render:{reason}:{int(getattr(task_obj, 'id', 0) or 0)}"
+        try:
+            if cache.get(key):
+                return False
+            cache.set(key, True, 6 * 3600)
+        except Exception:
+            pass
+        try:
+            return bool(_maybe_render_task_preview_server_side(task_obj, force=True))
+        except Exception:
+            return False
+
+    # Si no hay preview guardada, intenta reconstruirla:
+    # 1) render WYSIWYG server-side (si hay pizarra guardada) para no quedarnos en placeholder
+    # 2) si no, extraer desde PDF / placeholder legacy.
+    if not task.task_preview_image:
+        try:
+            if _task_has_drawn_state(task) and _throttled_server_render(task, "missing"):
+                task.refresh_from_db(fields=['task_preview_image'])
+        except Exception:
+            pass
+        if not task.task_preview_image:
+            if not _ensure_library_task_preview(task):
+                raise Http404('Imagen de tarea no disponible')
 
     def _preview_looks_like_pitch_only(raw_bytes: bytes) -> bool:
         """
@@ -37832,7 +37861,11 @@ def session_task_preview_file(request, task_id):
                 except Exception:
                     pass
             if raw_preview and _preview_looks_like_pitch_only(raw_preview):
-                _maybe_render_task_preview_server_side(task, force=True)
+                if _throttled_server_render(task, "pitch_only"):
+                    try:
+                        task.refresh_from_db(fields=['task_preview_image'])
+                    except Exception:
+                        pass
     except Exception:
         pass
     file_field = task.task_preview_image

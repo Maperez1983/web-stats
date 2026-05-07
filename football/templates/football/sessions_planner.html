@@ -3285,7 +3285,7 @@
               {% endif %}
               <div class="task-media">
                 {% if t.task_preview_image or t.task_pdf %}
-              <img src="{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
+              <img src="{% url 'session-task-preview-file' t.id %}?v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
               {% else %}
               <div class="task-media-fallback">Sin representacion grafica<br />{{ t.get_block_display }}</div>
               {% endif %}
@@ -3327,7 +3327,7 @@
                     data-title="{{ t.title|escapejs }}"
                     data-summary="{{ t.objective_summary|escapejs }}"
                     data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
-                    data-img-url="{% if t.task_preview_image or t.task_pdf %}{% url 'session-task-preview-file' t.id %}?v={{ t.task_preview_image.name|urlencode }}{% endif %}"
+                    data-img-url="{% if t.task_preview_image or t.task_pdf %}{% url 'session-task-preview-file' t.id %}?v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}{% endif %}"
                     data-open-url="{% if t.is_imported %}{% url 'session-task-detail' t.id %}{% else %}{% url task_builder_edit_route_name t.id %}{% endif %}"
                     data-related-url="{% url 'session-task-related' t.id %}"
                     title="Vista previa"
