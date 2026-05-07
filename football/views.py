@@ -10789,7 +10789,8 @@ def dashboard_page(request):
     # Permite forzar el dashboard JS con `/?home=dashboard`.
     forced_home = str(request.GET.get('home') or '').strip().lower()
     staff_roles = {AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}
-    if current_role in staff_roles and forced_home != 'dashboard':
+    # Nuevo default: staff aterriza en el dashboard "pro" (JS) y puede alternar a vista compacta con `?home=club`.
+    if current_role in staff_roles and forced_home in {'club', 'compact', 'overview'}:
         try:
             return coach_overview_page(request)
         except Exception:
@@ -10869,6 +10870,12 @@ def dashboard_page(request):
         pass
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
+        # Si el dashboard está deshabilitado en el cliente, staff puede seguir usando la vista compacta.
+        if current_role in staff_roles:
+            try:
+                return coach_overview_page(request)
+            except Exception:
+                pass
         return forbidden
     return render(
         request,
