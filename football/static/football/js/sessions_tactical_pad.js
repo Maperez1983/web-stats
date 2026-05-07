@@ -16046,9 +16046,19 @@
 	          multiplier: ratio,
 	          enableRetinaScaling: false,
 	        });
-	      } catch (error) {
-	        overlayUrl = '';
-	      }
+		      } catch (error) {
+		        overlayUrl = '';
+		      }
+		      // Safari/iOS: a veces `toDataURL()` devuelve "data:," / "data:;" o URLs demasiado cortas
+		      // cuando el canvas es grande. Esto acaba generando previews "vacías" (solo césped).
+		      // Si detectamos un dataURL inválido, forzamos el fallback al canvas visible en `finish()`.
+		      try {
+		        const url = String(overlayUrl || '');
+		        const looksEmpty = !url || url === 'data:,' || url === 'data:;' || url.endsWith(';base64,') || url.length < 64 || !url.startsWith('data:image/');
+		        if (looksEmpty) overlayUrl = '';
+		      } catch (e) {
+		        overlayUrl = '';
+		      }
 
 		      // Clona el SVG y fija width/height al tamaño final de exportación.
 		      // Importante: en el editor, el SVG en vertical usa `slice` para evitar “barras”, pero en exportación
@@ -16542,11 +16552,11 @@
         overlay.style.display = 'flex';
       };
 
-			      await syncHiddenBuilderFields({
-			        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
-			        previewOptions: { maxWidth: 4096, mime: 'image/png', quality: 0.98 },
-			        applyLivePreview: false,
-			      });
+				      await syncHiddenBuilderFields({
+				        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
+				        previewOptions: { maxSide: 2600, mime: 'image/png', quality: 0.98 },
+				        applyLivePreview: false,
+				      });
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
       // rompemos el query string y el backend no detecta el workspace, devolviendo 403.
       const targetStyle = safeText(style, 'uefa');
@@ -19967,12 +19977,12 @@
 	        }
 	      }
 		      isSubmitting = true;
-					      // Enviar preview HD al guardar (se usa también en la card y en el PDF).
-					      // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
-					      await syncHiddenBuilderFields({
-					        previewOptions: { maxWidth: 4096, mime: 'image/png', quality: 0.98 },
-					        applyLivePreview: false,
-					      });
+						      // Enviar preview HD al guardar (se usa también en la card y en el PDF).
+						      // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
+						      await syncHiddenBuilderFields({
+						        previewOptions: { maxSide: 2600, mime: 'image/png', quality: 0.98 },
+						        applyLivePreview: false,
+						      });
 			      form.dataset.previewReady = '1';
 		      isSubmitting = false;
 			      form.requestSubmit();

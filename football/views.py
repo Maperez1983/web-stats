@@ -31002,6 +31002,53 @@ def _decode_canvas_data_url(data_url):
     return raw_bytes, extension
 
 
+def _build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:
+    """
+    Build a small, DB-embeddable preview data URL from PNG/JPEG/WEBP bytes.
+
+    Motivation: on some hosts (Render free/ephemeral FS), ImageField-backed previews can disappear.
+    Storing a compact data URL inside `tactical_layout.meta` keeps cards/PDFs stable.
+    """
+    if Image is None or not raw_bytes:
+        return ''
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            rgb = img.convert('RGB')
+            rgb.thumbnail((max(320, int(max_w)), max(180, int(max_h))))
+            out = io.BytesIO()
+            rgb.save(out, format='JPEG', quality=82, optimize=True, progressive=True)
+            payload = base64.b64encode(out.getvalue()).decode('ascii')
+            return 'data:image/jpeg;base64,' + payload
+    except Exception:
+        return ''
+
+
+def _embedded_preview_bytes_from_task(task_obj):
+    """
+    Return (raw_bytes, mime) from `tactical_layout.meta.preview_data_embedded_v1` when present.
+    """
+    if not task_obj:
+        return None
+    try:
+        layout = getattr(task_obj, 'tactical_layout', None)
+        if isinstance(layout, str):
+            layout = _coerce_json_dict(layout) or {}
+        if not isinstance(layout, dict):
+            return None
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        data_url = str(meta.get('preview_data_embedded_v1') or '').strip()
+        if not data_url.startswith('data:image/') or ';base64,' not in data_url:
+            return None
+        header, payload = data_url.split(';base64,', 1)
+        mime = header.split(':', 1)[1].strip().lower()
+        raw = base64.b64decode(payload.encode('ascii'))
+        if not raw:
+            return None
+        return raw, mime
+    except Exception:
+        return None
+
+
 def _coerce_json_dict(value):
     if isinstance(value, dict):
         return value
@@ -33469,6 +33516,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if preview_data:
                     raw_bytes, extension = _decode_canvas_data_url(preview_data)
                     if raw_bytes and extension:
+                        update_fields = []
                         try:
                             if getattr(task, 'task_preview_image', None):
                                 task.task_preview_image.delete(save=False)
@@ -33476,7 +33524,22 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             pass
                         filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
                         task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
-                        task.save(update_fields=['task_preview_image'])
+                        update_fields.append('task_preview_image')
+                        try:
+                            embedded = _build_embedded_preview_data_url(raw_bytes)
+                            if embedded:
+                                layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+                                layout = dict(layout)
+                                meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                                meta = dict(meta)
+                                meta['preview_data_embedded_v1'] = embedded
+                                layout['meta'] = meta
+                                task.tactical_layout = layout
+                                update_fields.append('tactical_layout')
+                        except Exception:
+                            pass
+                        if update_fields:
+                            task.save(update_fields=sorted(set(update_fields)))
                 # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
                 try:
                     _maybe_render_task_preview_server_side(task)
@@ -35828,6 +35891,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     if preview_data:
         raw_bytes, extension = _decode_canvas_data_url(preview_data)
         if raw_bytes and extension:
+            update_fields = []
             try:
                 if getattr(task, 'task_preview_image', None):
                     task.task_preview_image.delete(save=False)
@@ -35835,7 +35899,22 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                 pass
             filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
-            task.save(update_fields=['task_preview_image'])
+            update_fields.append('task_preview_image')
+            try:
+                embedded = _build_embedded_preview_data_url(raw_bytes)
+                if embedded:
+                    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+                    layout = dict(layout)
+                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                    meta = dict(meta)
+                    meta['preview_data_embedded_v1'] = embedded
+                    layout['meta'] = meta
+                    task.tactical_layout = layout
+                    update_fields.append('tactical_layout')
+            except Exception:
+                pass
+            if update_fields:
+                task.save(update_fields=sorted(set(update_fields)))
     # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
     try:
         _maybe_render_task_preview_server_side(task)
@@ -36242,6 +36321,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     if preview_data:
         raw_bytes, extension = _decode_canvas_data_url(preview_data)
         if raw_bytes and extension:
+            update_fields = []
             try:
                 if getattr(task, 'task_preview_image', None):
                     task.task_preview_image.delete(save=False)
@@ -36249,7 +36329,22 @@ def _save_task_studio_entry(request, owner, existing_task=None):
                 pass
             filename = f'task-studio-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
-            task.save(update_fields=['task_preview_image'])
+            update_fields.append('task_preview_image')
+            try:
+                embedded = _build_embedded_preview_data_url(raw_bytes)
+                if embedded:
+                    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+                    layout = dict(layout)
+                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                    meta = dict(meta)
+                    meta['preview_data_embedded_v1'] = embedded
+                    layout['meta'] = meta
+                    task.tactical_layout = layout
+                    update_fields.append('tactical_layout')
+            except Exception:
+                pass
+            if update_fields:
+                task.save(update_fields=sorted(set(update_fields)))
     # Si está activado, reemplaza la preview con un render HD server-side (Playwright).
     try:
         _maybe_render_task_preview_server_side(task)
@@ -37819,6 +37914,16 @@ def save_session_task_graphic(request, task_id):
             filename = f'task-{task.id}-graphic-{uuid.uuid4().hex[:10]}{extension}'
             task.task_preview_image.save(filename, ContentFile(raw_bytes), save=False)
             update_fields.append('task_preview_image')
+            try:
+                embedded = _build_embedded_preview_data_url(raw_bytes)
+                if embedded:
+                    meta['preview_data_embedded_v1'] = embedded
+                    layout['meta'] = meta
+                    task.tactical_layout = layout
+                    if 'tactical_layout' not in update_fields:
+                        update_fields.append('tactical_layout')
+            except Exception:
+                pass
 
     task.save(update_fields=update_fields)
     return JsonResponse({'saved': True, 'task_id': task.id})
@@ -37953,6 +38058,13 @@ def session_task_preview_file(request, task_id):
     # 1) render WYSIWYG server-side (si hay pizarra guardada) para no quedarnos en placeholder
     # 2) si no, extraer desde PDF / placeholder legacy.
     if not task.task_preview_image:
+        embedded = _embedded_preview_bytes_from_task(task)
+        if embedded:
+            raw, mime = embedded
+            resp = HttpResponse(raw, content_type=mime or 'image/jpeg')
+            resp['Content-Disposition'] = f'inline; filename="task-{int(task.id)}-preview-embedded.jpg"'
+            resp['Cache-Control'] = 'private, max-age=0, must-revalidate'
+            return resp
         try:
             if _task_has_drawn_state(task) and _throttled_server_render(task, "missing"):
                 task.refresh_from_db(fields=['task_preview_image'])
@@ -38005,6 +38117,13 @@ def session_task_preview_file(request, task_id):
         file_field.open('rb')
     except Exception:
         opened = False
+        embedded = _embedded_preview_bytes_from_task(task)
+        if embedded:
+            raw, mime = embedded
+            resp = HttpResponse(raw, content_type=mime or 'image/jpeg')
+            resp['Content-Disposition'] = f'inline; filename="task-{int(task.id)}-preview-embedded.jpg"'
+            resp['Cache-Control'] = 'private, max-age=0, must-revalidate'
+            return resp
         # Si la preview existe en DB pero el fichero no, en Render/producción esto puede pasar si el storage
         # no es persistente o si hay varias instancias. En ese caso, intentamos re-render server-side usando
         # el estado de la pizarra (si existe) antes de degradar a placeholder.
