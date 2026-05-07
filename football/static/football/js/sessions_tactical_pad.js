@@ -958,10 +958,57 @@
 				        } catch (e) { /* ignore */ }
 				      }
 				    };
-				    try {
-				      syncCommandBarDock();
-				      window.addEventListener('webstats:tpad:device-change', syncCommandBarDock);
-				    } catch (e) { /* ignore */ }
+					    try {
+					      syncCommandBarDock();
+					      window.addEventListener('webstats:tpad:device-change', syncCommandBarDock);
+					    } catch (e) { /* ignore */ }
+
+					    // Inspector flotante (selección): en tablet evitamos el scroll del panel lateral.
+					    const selectionDockEl = document.getElementById('task-selection-dock');
+					    const selectionDockState = (() => {
+					      if (!selectionDockEl || !selectionToolbar) return null;
+					      return {
+					        originalParent: selectionToolbar.parentElement,
+					        originalNext: selectionToolbar.nextElementSibling,
+					      };
+					    })();
+					    const shouldDockSelectionInspector = () => {
+					      try {
+					        const raw = safeText(document.body?.dataset?.deviceMode);
+					        if (raw === 'desktop') return false;
+					        if (raw === 'tablet') return true;
+					      } catch (e) { /* ignore */ }
+					      try { if (document.body.classList.contains('ui-tablet')) return true; } catch (e) { /* ignore */ }
+					      // Auto fallback: pantallas pequeñas + puntero táctil.
+					      try {
+					        const small = !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches);
+					        const coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+					        return small && coarse;
+					      } catch (e) {
+					        return false;
+					      }
+					    };
+					    const syncSelectionInspectorDock = () => {
+					      if (!selectionDockEl || !selectionToolbar || !selectionDockState) return;
+					      const wantsDock = shouldDockSelectionInspector();
+					      if (wantsDock) {
+					        if (selectionToolbar.parentElement !== selectionDockEl) {
+					          try { selectionDockEl.appendChild(selectionToolbar); } catch (e) { /* ignore */ }
+					        }
+					        return;
+					      }
+					      // Undock: devolver el inspector a su padre original (side panel).
+					      if (selectionToolbar.parentElement === selectionDockEl && selectionDockState.originalParent) {
+					        try {
+					          selectionDockState.originalParent.insertBefore(selectionToolbar, selectionDockState.originalNext || null);
+					        } catch (e) { /* ignore */ }
+					      }
+					      try { selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+					    };
+					    try {
+					      syncSelectionInspectorDock();
+					      window.addEventListener('webstats:tpad:device-change', syncSelectionInspectorDock);
+					    } catch (e) { /* ignore */ }
 
 				    const setTacticsPanelOpen = (open) => {
 				      if (!isTacticsMode) return;
@@ -3855,14 +3902,17 @@
 		        if (strokePresetsRow) strokePresetsRow.hidden = true;
 		        if (strokeWidthInput) strokeWidthInput.value = '3';
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
-		        if (tokenColorGrid) tokenColorGrid.hidden = true;
-		        if (tokenPatternActions) tokenPatternActions.hidden = true;
-		        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
-		        if (zoneStyleActions) zoneStyleActions.hidden = true;
-		        return;
-		      }
-	      selectionToolbar.hidden = false;
-	      const canColor = isColorizableObject(active);
+			        if (tokenColorGrid) tokenColorGrid.hidden = true;
+			        if (tokenPatternActions) tokenPatternActions.hidden = true;
+			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
+			        if (zoneStyleActions) zoneStyleActions.hidden = true;
+			        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+			        return;
+			      }
+		      selectionToolbar.hidden = false;
+		      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
+		      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
+		      const canColor = isColorizableObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
 	      colorInput.disabled = !canColor;
 	      if (colorHexInput) colorHexInput.disabled = !canColor;
@@ -18754,33 +18804,36 @@
 				    // Históricamente solo se atendía `#task-basic-tools`; esto hacía que "líneas" fuese poco usable.
 					    const resourceSection = document.querySelector('.resource-section');
 
-					    // Renderiza mini-previews reales (Fabric) en los botones de recursos para evitar emojis confusos.
-					    // Esto hace que el icono del botón sea exactamente la representación gráfica que se inserta.
-					    const renderResourceButtonPreviews = () => {
-					      if (!resourceSection || !fabricLib || typeof fabricLib.StaticCanvas !== 'function') return;
-					      const sizeByButton = (button) => {
-					        try {
-					          if (document.body.classList.contains('is-compact')) return 44;
-					        } catch (e) { /* ignore */ }
+						    // Renderiza mini-previews reales (Fabric) en los botones de recursos para evitar emojis confusos.
+						    // Esto hace que el icono del botón sea exactamente la representación gráfica que se inserta.
+						    const renderResourceButtonPreviews = () => {
+						      const CanvasCtor = fabricLib ? (fabricLib.StaticCanvas || fabricLib.Canvas) : null;
+						      if (!resourceSection || !CanvasCtor || typeof CanvasCtor !== 'function') return;
+						      const sizeByButton = (button) => {
+						        try {
+						          if (document.body.classList.contains('is-compact')) return 44;
+						        } catch (e) { /* ignore */ }
 					        try {
 					          if (button && button.closest && button.closest('.resource-strip') && button.classList.contains('tool-icon')) return 50;
 					        } catch (e) { /* ignore */ }
 					        return 50;
 					      };
-					      const toDataUrlForFactory = (factory, size) => {
-					        if (!factory) return '';
-					        const s = clamp(Number(size) || 50, 40, 64);
-					        const off = document.createElement('canvas');
-					        off.width = s;
-					        off.height = s;
-					        const sc = new fabricLib.StaticCanvas(off, {
-					          width: s,
-					          height: s,
-					          backgroundColor: 'transparent',
-					          renderOnAddRemove: false,
-					          enableRetinaScaling: true,
-					        });
-					        let obj = null;
+						      const toDataUrlForFactory = (factory, size) => {
+						        if (!factory) return '';
+						        const s = clamp(Number(size) || 50, 40, 64);
+						        const off = document.createElement('canvas');
+						        off.width = s;
+						        off.height = s;
+						        const sc = new CanvasCtor(off, {
+						          width: s,
+						          height: s,
+						          backgroundColor: 'transparent',
+						          renderOnAddRemove: false,
+						          enableRetinaScaling: true,
+						        });
+						        try { sc.selection = false; } catch (e) { /* ignore */ }
+						        try { sc.skipTargetFind = true; } catch (e) { /* ignore */ }
+						        let obj = null;
 					        try {
 					          obj = factory(s / 2, s / 2);
 					        } catch (e) {
@@ -20178,13 +20231,14 @@
       if (kind.startsWith('emoji_')) return 'emoji';
       return 'base';
     };
-    const dockInspectorIntoPanel = (panelKey) => {
-      if (!selectionToolbar) return;
-      const slot = inspectorSlots.get(panelKey);
-      if (!slot) return;
-      if (selectionToolbar.parentElement !== slot) slot.appendChild(selectionToolbar);
-      activateResourcePanel(panelKey);
-    };
+	    const dockInspectorIntoPanel = (panelKey) => {
+	      if (!selectionToolbar) return;
+	      try { if (typeof shouldDockSelectionInspector === 'function' && shouldDockSelectionInspector()) return; } catch (e) { /* ignore */ }
+	      const slot = inspectorSlots.get(panelKey);
+	      if (!slot) return;
+	      if (selectionToolbar.parentElement !== slot) slot.appendChild(selectionToolbar);
+	      activateResourcePanel(panelKey);
+	    };
 
 	    let resizeTimer = null;
 	    let resizeBaseline = null;

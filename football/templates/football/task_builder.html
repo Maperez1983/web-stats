@@ -243,15 +243,26 @@
       body.mode-insert .mode-pill .dot { background: rgba(34, 211, 238, 0.95); }
       body.mode-draw .mode-pill .dot { background: rgba(56, 189, 248, 0.95); }
       body.mode-move .mode-pill .dot { background: rgba(74, 222, 128, 0.95); }
-      /* En modo táctica mantenemos accesos rápidos (capas/escenarios/simulador) para no perder operatividad. */
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
-      }
+	      /* En modo táctica mantenemos accesos rápidos (capas/escenarios/simulador) para no perder operatividad. */
+	      .topbar {
+	        display: flex;
+	        justify-content: space-between;
+	        align-items: flex-start;
+	        gap: 1rem;
+	        margin-bottom: 1rem;
+	        flex-wrap: wrap;
+	      }
+	      body.ui-tablet .topbar {
+	        position: sticky;
+	        top: 0;
+	        z-index: 1200;
+	        padding-top: calc(0.65rem + env(safe-area-inset-top));
+	        padding-bottom: 0.65rem;
+	        background: rgba(2, 6, 23, 0.72);
+	        backdrop-filter: blur(10px);
+	        -webkit-backdrop-filter: blur(10px);
+	        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	      }
       .topbar h1 {
         margin: 0;
         font-size: 1.12rem;
@@ -2721,15 +2732,35 @@
         gap: 0.55rem;
         flex-wrap: wrap;
       }
-      .selection-toolbar {
-        margin-top: 0.9rem;
-        padding: 0.9rem 1rem;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        display: grid;
-        gap: 0.85rem;
-      }
+	      .selection-toolbar {
+	        margin-top: 0.9rem;
+	        padding: 0.9rem 1rem;
+	        border-radius: 16px;
+	        border: 1px solid rgba(255, 255, 255, 0.08);
+	        background: rgba(255, 255, 255, 0.03);
+	        display: grid;
+	        gap: 0.85rem;
+	      }
+	      .selection-dock {
+	        position: fixed;
+	        left: calc(12px + env(safe-area-inset-left));
+	        bottom: calc(90px + env(safe-area-inset-bottom));
+	        width: min(460px, calc(100vw - 24px));
+	        max-height: min(62vh, calc(100dvh - 180px));
+	        overflow: auto;
+	        z-index: 1100;
+	        pointer-events: auto;
+	      }
+	      .selection-dock .selection-toolbar {
+	        margin: 0;
+	      }
+	      body.ui-tablet .selection-dock {
+	        bottom: calc(96px + env(safe-area-inset-bottom));
+	        width: min(520px, calc(100vw - 24px));
+	      }
+	      body.ui-tablet.library-collapsed .selection-dock {
+	        left: calc(12px + env(safe-area-inset-left));
+	      }
       .selection-toolbar h3 {
         margin: 0;
         font-size: 0.95rem;
@@ -3563,13 +3594,14 @@
 	        font-size: 0.92rem;
 	      }
 	    </style>
-  </head>
-  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
-    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
-    <main class="page">
-      {% if show_dragon_nav|default:True %}
-      {% include 'football/includes/dragon_nav.html' %}
-      {% endif %}
+	  </head>
+	  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
+	    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
+	    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
+	    <main class="page">
+	      {% if show_dragon_nav|default:True %}
+	      {% include 'football/includes/dragon_nav.html' %}
+	      {% endif %}
       <div class="topbar">
         <div>
           <h1>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
