@@ -67,11 +67,17 @@
       }
       [data-tab] { display: block; }
       body[data-active-tab="reports"] [data-tab="videos"],
-      body[data-active-tab="reports"] [data-tab="insights"] { display: none; }
+      body[data-active-tab="reports"] [data-tab="insights"],
+      body[data-active-tab="reports"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="videos"] [data-tab="reports"],
-      body[data-active-tab="videos"] [data-tab="insights"] { display: none; }
+      body[data-active-tab="videos"] [data-tab="insights"],
+      body[data-active-tab="videos"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="insights"] [data-tab="reports"],
-      body[data-active-tab="insights"] [data-tab="videos"] { display: none; }
+      body[data-active-tab="insights"] [data-tab="videos"],
+      body[data-active-tab="insights"] [data-tab="rivals"] { display: none; }
+      body[data-active-tab="rivals"] [data-tab="reports"],
+      body[data-active-tab="rivals"] [data-tab="videos"],
+      body[data-active-tab="rivals"] [data-tab="insights"] { display: none; }
       .grid {
         display: grid;
         gap: 1rem;
@@ -348,6 +354,23 @@
       .report-row a:hover {
         text-decoration: underline;
       }
+      .standings-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .standings-table th,
+      .standings-table td {
+        padding: 0.55rem 0.6rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: left;
+        vertical-align: top;
+      }
+      .standings-table th {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+      }
     </style>
   </head>
   <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
@@ -366,6 +389,7 @@
           <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
           <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
           <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
+          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
         </nav>
 
         <div data-tab="reports">
@@ -921,6 +945,102 @@
           </div>
         </div>
         {% endif %}
+        </div>
+
+        <div data-tab="rivals">
+          <div class="grid" style="margin-top:1rem;">
+            <div class="item item-wide">
+              <h3>Biblioteca de rivales (plantillas)</h3>
+              <p class="meta" style="margin:0.35rem 0 0;">
+                Estado de las plantillas guardadas para scouting. Esto evita depender de bloqueos externos el día de partido.
+              </p>
+              <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="rivals_seed_from_standings" />
+                  <button class="button ghost" type="submit">Crear rivales desde clasificación</button>
+                </form>
+              </div>
+              {% if rivals_message %}<p class="ok">{{ rivals_message }}</p>{% endif %}
+              {% if rivals_error %}<p class="error">{{ rivals_error }}</p>{% endif %}
+            </div>
+
+            <div class="item item-wide">
+              {% if rivals_library %}
+                <div class="meta" style="margin:0 0 0.65rem;">
+                  Liga detectada: {{ rivals_library|length }} equipos (desde clasificación).
+                </div>
+                <div style="overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px;">
+                  <table class="standings-table" style="margin:0; min-width:820px;">
+                    <thead>
+                      <tr>
+                        <th>Pos</th>
+                        <th>Equipo</th>
+                        <th>En sistema</th>
+                        <th>Plantilla</th>
+                        <th>Jug.</th>
+                        <th>Actualizado</th>
+                        <th>Fuente</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for row in rivals_library %}
+                      <tr>
+                        <td>{{ row.rank }}</td>
+                        <td>
+                          <div style="display:flex; align-items:center; gap:0.55rem;">
+                            {% if row.crest_url %}
+                              <img src="{{ row.crest_url }}" alt="" style="width:26px; height:26px; border-radius:8px; border:1px solid rgba(255,255,255,0.14); object-fit:cover;" loading="lazy" />
+                            {% else %}
+                              <span style="width:26px; height:26px; border-radius:8px; border:1px solid rgba(255,255,255,0.14); display:inline-grid; place-items:center; opacity:0.85; font-weight:900;">—</span>
+                            {% endif %}
+                            <div>
+                              <div style="font-weight:900; letter-spacing:0.02em;">{{ row.full_name }}</div>
+                              <div class="meta" style="margin-top:0.12rem;">{{ row.points }} pts · {{ row.played }} PJ · {{ row.goals_for }}-{{ row.goals_against }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{% if row.team_id %}<span class="ok">Sí</span>{% else %}<span class="meta">No</span>{% endif %}</td>
+                        <td>
+                          {% if row.snapshot_ok %}
+                            <span class="ok">OK</span>
+                          {% elif row.snapshot_exists %}
+                            <span class="meta">Antigua</span>
+                          {% else %}
+                            <span class="meta">Falta</span>
+                          {% endif %}
+                        </td>
+                        <td class="meta">{{ row.snapshot_count|default:"-" }}</td>
+                        <td class="meta">{{ row.snapshot_updated|default:"-" }}</td>
+                        <td class="meta">{{ row.snapshot_provider|default:"-" }}</td>
+                        <td style="text-align:right;">
+                          <div class="video-actions" style="justify-content:flex-end;">
+                            {% if row.team_id %}
+                              <a class="button ghost" href="?tab=reports&team_id={{ row.team_id }}">Abrir</a>
+                              <form method="post" style="margin:0;">
+                                {% csrf_token %}
+                                <input type="hidden" name="form_action" value="rivals_refresh_snapshot" />
+                                <input type="hidden" name="rival_team_id" value="{{ row.team_id }}" />
+                                <button class="button ghost" type="submit">Actualizar</button>
+                              </form>
+                            {% else %}
+                              <span class="meta">Crea el rival primero</span>
+                            {% endif %}
+                          </div>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="meta" style="margin:0;">
+                  No hay clasificación cargada para construir la liga. Configura Universo RFAF o añade una clasificación al snapshot.
+                </p>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </article>
     </div>

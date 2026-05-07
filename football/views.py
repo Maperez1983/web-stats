@@ -38718,7 +38718,7 @@ def analysis_page(request):
         return forbidden
     primary_team = _get_primary_team_for_request(request)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'reports'
-    if active_tab not in {'reports', 'videos', 'insights'}:
+    if active_tab not in {'reports', 'videos', 'insights', 'rivals'}:
         active_tab = 'reports'
     def _tab_link(tab_name):
         params = request.GET.copy()
@@ -38745,6 +38745,9 @@ def analysis_page(request):
     manual_report_message = ''
     match_report_error = ''
     match_report_message = ''
+    rivals_error = ''
+    rivals_message = ''
+    rivals_library = []
     extracted = {}
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team) or {}
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
@@ -38971,6 +38974,148 @@ def analysis_page(request):
                         pass
                     report.delete()
                     match_report_message = 'Informe eliminado.'
+        elif form_action == 'rivals_seed_from_standings':
+            if not primary_team:
+                rivals_error = 'No hay equipo principal configurado.'
+            else:
+                snapshot = load_universo_snapshot() or {}
+                standings_rows = _serialize_universo_standings(snapshot) or _serialize_universo_live_classification(snapshot)
+                if not standings_rows:
+                    rivals_error = 'No hay clasificación disponible para crear rivales.'
+                else:
+                    created = 0
+                    updated = 0
+                    skipped = 0
+                    primary_keys = {
+                        _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+                        _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+                    }
+                    for row in standings_rows:
+                        if not isinstance(row, dict):
+                            continue
+                        full_name = str(row.get('full_name') or row.get('team') or '').strip()
+                        if not full_name:
+                            continue
+                        if _normalize_team_lookup_key(full_name) in primary_keys:
+                            skipped += 1
+                            continue
+                        team_code = str(row.get('team_code') or '').strip()
+                        crest_url = str(row.get('crest_url') or '').strip()
+                        team_obj = None
+                        if team_code:
+                            team_obj = Team.objects.filter(external_id=team_code).first()
+                        if not team_obj:
+                            team_obj = Team.objects.filter(
+                                Q(name__iexact=full_name)
+                                | Q(short_name__iexact=full_name)
+                                | Q(slug__iexact=slugify(full_name))
+                            ).first()
+                        if not team_obj:
+                            try:
+                                team_obj = Team.objects.create(
+                                    name=full_name[:150],
+                                    slug=_unique_team_slug(full_name),
+                                    external_id=team_code[:120] if team_code else '',
+                                    crest_url=crest_url[:600] if crest_url else '',
+                                    is_primary=False,
+                                )
+                                created += 1
+                            except Exception:
+                                skipped += 1
+                                continue
+                        else:
+                            changed = False
+                            if team_code and (team_obj.external_id or '').strip() != team_code:
+                                team_obj.external_id = team_code[:120]
+                                changed = True
+                            if crest_url and not (team_obj.crest_url or '').strip():
+                                team_obj.crest_url = crest_url[:600]
+                                changed = True
+                            if changed:
+                                try:
+                                    team_obj.save(update_fields=['external_id', 'crest_url'])
+                                    updated += 1
+                                except Exception:
+                                    pass
+                            else:
+                                skipped += 1
+                    rivals_message = f'Rivales listos. Creados: {created}, actualizados: {updated}, sin cambios: {skipped}.'
+        elif form_action == 'rivals_refresh_snapshot':
+            target_id = _parse_int(request.POST.get('rival_team_id'))
+            if not primary_team:
+                rivals_error = 'No hay equipo principal configurado.'
+            elif not target_id:
+                rivals_error = 'Equipo rival no válido.'
+            else:
+                team_obj = Team.objects.filter(id=int(target_id)).first()
+                if not team_obj:
+                    rivals_error = 'Equipo rival no encontrado.'
+                else:
+                    roster_rows = []
+                    roster_provider = ''
+                    source_url = ''
+                    fetch_error = ''
+                    # 1) Preferimos Universo si hay código.
+                    universo_team_code = str(getattr(team_obj, 'external_id', '') or '').strip()
+                    if universo_team_code and universo_team_code.isdigit():
+                        try:
+                            roster_rows = fetch_universo_team_roster(universo_team_code)
+                            roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+                            source_url = f'https://www.universorfaf.es/team/{universo_team_code}'
+                        except Exception as exc:
+                            fetch_error = str(exc) or 'No se pudo cargar la plantilla desde Universo.'
+                            roster_rows = []
+                    # 2) Fallback LaPreferente.
+                    if not roster_rows:
+                        candidate_url = str(getattr(team_obj, 'preferente_url', '') or '').strip()
+                        if not candidate_url:
+                            try:
+                                candidate_url = find_preferente_team_url(team_obj.name)
+                            except Exception:
+                                candidate_url = ''
+                            if candidate_url:
+                                try:
+                                    team_obj.preferente_url = candidate_url
+                                    team_obj.save(update_fields=['preferente_url'])
+                                except Exception:
+                                    pass
+                        if candidate_url:
+                            try:
+                                roster_rows = fetch_preferente_team_roster(candidate_url)
+                                roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                                source_url = candidate_url
+                                fetch_error = ''
+                            except Exception as exc:
+                                fetch_error = str(exc) or 'No se pudo cargar La Preferente.'
+                                roster_rows = []
+                    if roster_rows:
+                        try:
+                            TeamRosterSnapshot.objects.update_or_create(
+                                team=team_obj,
+                                provider=roster_provider or TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                                defaults={
+                                    'roster_payload': roster_rows,
+                                    'source_url': str(source_url or '').strip(),
+                                    'error': '',
+                                },
+                            )
+                            rivals_message = f'Plantilla actualizada: {team_obj.name} ({len(roster_rows)} jugadores).'
+                        except Exception:
+                            rivals_error = 'No se pudo guardar la plantilla en caché.'
+                    else:
+                        # Conserva el roster anterior y registra el error.
+                        try:
+                            TeamRosterSnapshot.objects.update_or_create(
+                                team=team_obj,
+                                provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                                defaults={
+                                    'error': (fetch_error or 'No se pudo actualizar la plantilla.')[:240],
+                                    'source_url': str(source_url or '').strip(),
+                                },
+                            )
+                        except Exception:
+                            pass
+                        rivals_error = fetch_error or 'No se pudo actualizar la plantilla.'
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()
@@ -39266,6 +39411,74 @@ def analysis_page(request):
         'next_match_location': preferred_next.get('location') if isinstance(preferred_next, dict) else '',
         'preferente_url': selected_team.preferente_url if selected_team else '',
     }
+
+    if active_tab == 'rivals':
+        try:
+            cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
+        except Exception:
+            cache_days = 14
+        threshold = timezone.now() - timedelta(days=cache_days)
+        standings_rows = _serialize_universo_standings(universe) or _serialize_universo_live_classification(universe)
+        code_rows = [str(r.get('team_code') or '').strip() for r in standings_rows if isinstance(r, dict)]
+        code_rows = [c for c in code_rows if c]
+        teams_by_code = {}
+        if code_rows:
+            try:
+                teams_by_code = {str(t.external_id or '').strip(): t for t in Team.objects.filter(external_id__in=code_rows)}
+            except Exception:
+                teams_by_code = {}
+        primary_keys = {
+            _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+            _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+        } if primary_team else set()
+        for row in standings_rows:
+            if not isinstance(row, dict):
+                continue
+            full_name = str(row.get('full_name') or row.get('team') or '').strip()
+            if not full_name:
+                continue
+            if _normalize_team_lookup_key(full_name) in primary_keys:
+                continue
+            team_code = str(row.get('team_code') or '').strip()
+            team_obj = teams_by_code.get(team_code) if team_code else None
+            if not team_obj:
+                team_obj = Team.objects.filter(
+                    Q(name__iexact=full_name)
+                    | Q(short_name__iexact=full_name)
+                    | Q(slug__iexact=slugify(full_name))
+                ).first()
+            snapshot = None
+            if team_obj:
+                try:
+                    snapshot = (
+                        TeamRosterSnapshot.objects.filter(team=team_obj)
+                        .order_by('-updated_at', '-id')
+                        .first()
+                    )
+                except Exception:
+                    snapshot = None
+            snap_payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+            snap_count = len(snap_payload) if snap_payload else 0
+            snap_ok = bool(snapshot and snapshot.updated_at and snapshot.updated_at >= threshold and snap_count > 0 and not (snapshot.error or '').strip())
+            rivals_library.append(
+                {
+                    'rank': _safe_int(row.get('rank'), default=0),
+                    'full_name': full_name,
+                    'team_code': team_code,
+                    'crest_url': str(row.get('crest_url') or getattr(team_obj, 'crest_url', '') or '').strip(),
+                    'played': _safe_int(row.get('played'), default=0),
+                    'points': _safe_int(row.get('points'), default=0),
+                    'goals_for': _safe_int(row.get('goals_for'), default=0),
+                    'goals_against': _safe_int(row.get('goals_against'), default=0),
+                    'team_id': int(team_obj.id) if team_obj else 0,
+                    'snapshot_exists': bool(snapshot and snap_count > 0),
+                    'snapshot_ok': snap_ok,
+                    'snapshot_count': snap_count or '',
+                    'snapshot_updated': snapshot.updated_at.strftime('%d/%m/%Y') if snapshot and snapshot.updated_at else '',
+                    'snapshot_provider': snapshot.get_provider_display() if snapshot else '',
+                }
+            )
+        rivals_library.sort(key=lambda x: (x.get('rank', 0) <= 0, int(x.get('rank', 0) or 0), x.get('full_name') or ''))
     manual_report_latest = None
     manual_reports = []
     if primary_team:
@@ -39401,6 +39614,7 @@ def analysis_page(request):
             'tab_link_reports': _tab_link('reports'),
             'tab_link_videos': _tab_link('videos'),
             'tab_link_insights': _tab_link('insights'),
+            'tab_link_rivals': _tab_link('rivals'),
             'teams': Team.objects.order_by('name'),
             'raw_text': raw_text,
             'roster': roster,
@@ -39433,6 +39647,9 @@ def analysis_page(request):
             'match_reports': match_reports,
             'match_report_message': match_report_message,
             'match_report_error': match_report_error,
+            'rivals_message': rivals_message,
+            'rivals_error': rivals_error,
+            'rivals_library': rivals_library,
             'youtube_import_enabled': str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
         },
     )
