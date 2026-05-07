@@ -36729,6 +36729,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 
     feedback = ''
     error = ''
+    saved_task_info = None
     if request.method == 'GET':
         if str(request.GET.get('board_recreated') or '').strip() == '1':
             feedback = 'Pizarra reconstruida desde el PDF. Revisa la tarea y guarda.'
@@ -36752,6 +36753,45 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             else:
                 task = _save_task_builder_entry(request, primary_team, scope_key, existing_task=task)
                 feedback = 'Tarea guardada correctamente.'
+                try:
+                    dest_session = getattr(task, 'session', None)
+                    is_library = _is_library_session(dest_session)
+                    dest_hint = 'Guardada en Biblioteca' if is_library else 'Guardada en una sesión'
+                    dest_url = ''
+                    if is_library:
+                        repo = LIBRARY_REPOSITORY_TRADITIONAL
+                        try:
+                            repo = _library_repository_for_task(task) or LIBRARY_REPOSITORY_TRADITIONAL
+                        except Exception:
+                            repo = LIBRARY_REPOSITORY_TRADITIONAL
+                        params = {
+                            'tab': 'library',
+                            'library_repo': repo,
+                            'library_source': 'created',
+                            'team': int(primary_team.id),
+                        }
+                        ws = str(request.GET.get('workspace') or '').strip()
+                        if ws:
+                            params['workspace'] = ws
+                        dest_url = f"{reverse(_sessions_scope_route_name(scope_key))}?{urlencode(params)}"
+                    else:
+                        try:
+                            if getattr(task, 'session_id', None):
+                                dest_url = reverse('training-session-detail', args=[int(task.session_id)])
+                        except Exception:
+                            dest_url = ''
+                        try:
+                            if dest_session and getattr(dest_session, 'session_date', None):
+                                dest_hint = f"Guardada en sesión {dest_session.session_date.strftime('%d/%m/%Y')}"
+                        except Exception:
+                            pass
+                    saved_task_info = {
+                        'id': int(getattr(task, 'id', 0) or 0),
+                        'dest_hint': dest_hint,
+                        'url': dest_url,
+                    }
+                except Exception:
+                    saved_task_info = None
         except ValueError as exc:
             error = str(exc)
         except Exception:
@@ -37005,12 +37045,13 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
 	            'back_url': back_url,
 	            'back_label': back_label,
 	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
-	            'video_import_url': reverse('sessions-task-video-import'),
+            'video_import_url': reverse('sessions-task-video-import'),
 		            'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
-	            'show_session_selector': True,
-	            'show_dragon_nav': True,
-	            'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
-	        },
+            'show_session_selector': True,
+            'saved_task_info': saved_task_info,
+            'show_dragon_nav': True,
+            'confirmed_players_api_url': reverse('sessions-confirmed-players-api'),
+        },
     )
 
 
@@ -37763,6 +37804,187 @@ def sessions_page(request):
     if response is None:
         return HttpResponse('Error interno: la vista de sesiones no devolvió respuesta.', status=500)
     return response
+
+
+_AI_TRAINER_COACH_DICT_CACHE = None
+
+
+def _ai_trainer_normalize_text(value: str) -> str:
+    raw = str(value or '')
+    if not raw:
+        return ''
+    raw = unicodedata.normalize('NFKD', raw)
+    raw = ''.join([c for c in raw if not unicodedata.combining(c)])
+    raw = raw.lower()
+    raw = raw.replace('_', ' ').replace('-', ' ')
+    raw = ' '.join([chunk for chunk in raw.split() if chunk])
+    return raw
+
+
+def _ai_trainer_load_coach_dictionary():
+    global _AI_TRAINER_COACH_DICT_CACHE  # noqa: PLW0603
+    if _AI_TRAINER_COACH_DICT_CACHE is not None:
+        return _AI_TRAINER_COACH_DICT_CACHE
+    try:
+        base = Path(__file__).resolve().parent
+        path = base / 'static' / 'football' / 'data' / 'coach_dictionary_es_v1.json'
+        blob = path.read_text(encoding='utf-8')
+        data = json.loads(blob) if blob else {}
+        if not isinstance(data, dict):
+            data = {}
+    except Exception:
+        data = {}
+    _AI_TRAINER_COACH_DICT_CACHE = data
+    return data
+
+
+def _ai_trainer_match_section(section: dict, text_norm: str, *, limit: int = 10):
+    if not isinstance(section, dict) or not text_norm:
+        return []
+    out = []
+    for key, item in section.items():
+        if len(out) >= limit:
+            break
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get('label') or key).strip()
+        keywords = item.get('keywords') if isinstance(item.get('keywords'), list) else []
+        hit = False
+        for kw in keywords:
+            kw_norm = _ai_trainer_normalize_text(str(kw or ''))
+            if kw_norm and kw_norm in text_norm:
+                hit = True
+                break
+        if hit:
+            out.append({'key': str(key), 'label': label})
+    return out
+
+
+def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals: dict):
+    principles = signals.get('principles') if isinstance(signals.get('principles'), list) else []
+    zones = signals.get('zones') if isinstance(signals.get('zones'), list) else []
+    figures = signals.get('figures') if isinstance(signals.get('figures'), list) else []
+    phases = signals.get('phases') if isinstance(signals.get('phases'), list) else []
+
+    focus_bits = []
+    if phase:
+        focus_bits.append(phase)
+    if phases:
+        focus_bits += [p.get('label') for p in phases[:2] if isinstance(p, dict) and p.get('label')]
+    if principles:
+        focus_bits += [p.get('label') for p in principles[:2] if isinstance(p, dict) and p.get('label')]
+    focus_label = ' · '.join([b for b in focus_bits if b]) or 'Objetivo libre'
+
+    def _coach_points():
+        pts = []
+        for p in principles[:4]:
+            if not isinstance(p, dict):
+                continue
+            key = str(p.get('key') or '').strip()
+            if not key:
+                continue
+            # Recupera puntos desde diccionario (si están).
+            try:
+                dictionary = _ai_trainer_load_coach_dictionary()
+                entry = (dictionary.get('principles') or {}).get(key) if isinstance(dictionary.get('principles'), dict) else None
+                cp = entry.get('coaching_points') if isinstance(entry, dict) else None
+                if isinstance(cp, list):
+                    pts.extend([str(x) for x in cp[:3] if str(x or '').strip()])
+            except Exception:
+                continue
+        # Limpia duplicados
+        clean = []
+        seen = set()
+        for it in pts:
+            k = _ai_trainer_normalize_text(it)
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            clean.append(it)
+        return clean[:6]
+
+    # Ajustes por perfil: cantera es más guiada por “habilidad + juego”, senior por “principio + fase”.
+    profile_norm = str(profile or '').strip().lower()
+    is_youth = profile_norm in {'cantera', 'youth', 'base'}
+    blocks = [
+        {'title': 'Activación', 'minutes': 12 if is_youth else 10, 'body': 'Rondo / coordinación + primer contacto + orientación corporal.'},
+        {'title': 'Parte principal', 'minutes': 26 if is_youth else 30, 'body': 'SSG direccional con reglas para forzar el principio (tercer hombre, fijar-soltar, etc.).'},
+        {'title': 'Condicionado', 'minutes': 14 if is_youth else 12, 'body': 'Juego condicionado por zona/carril + transición (6–8s) para castigar.'},
+        {'title': 'Vuelta a la calma', 'minutes': 8, 'body': 'Recuperación + 2 consignas clave + 1 ajuste para el próximo entreno.'},
+    ]
+    overlays = []
+    if zones:
+        overlays.append('5 carriles + 3 tercios (zonas)')
+    if any('Zona 14' in str(z.get('label') or '') for z in zones if isinstance(z, dict)):
+        overlays.append('Zona 14 / entre líneas')
+    if not overlays:
+        overlays.append('Campo completo / medio campo (según tarea)')
+    patterns = []
+    if figures:
+        patterns = [f.get('label') for f in figures[:3] if isinstance(f, dict) and f.get('label')]
+
+    base = {
+        'title': f'{focus_label}',
+        'goal': goal,
+        'overlays': overlays,
+        'patterns': patterns,
+        'coach_points': _coach_points(),
+        'blocks': blocks,
+    }
+    # Tres opciones: A (más juego), B (más analítica), C (mixta).
+    return [
+        {**base, 'variant': 'A', 'subtitle': 'Más juego (SSG + transiciones)'},
+        {**base, 'variant': 'B', 'subtitle': 'Más analítica (relaciones + automatismos)'},
+        {**base, 'variant': 'C', 'subtitle': 'Mixta (equilibrio carga/idea)'},
+    ]
+
+
+@login_required
+@ensure_csrf_cookie
+def ai_trainer_page(request):
+    if not _can_access_sessions_workspace(request.user):
+        return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    if forbidden:
+        return forbidden
+
+    team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not team:
+        return HttpResponse('Equipo no configurado.', status=400)
+
+    dictionary = _ai_trainer_load_coach_dictionary()
+
+    profile = str(request.GET.get('profile') or '').strip() or 'hybrid'
+    phase = str(request.GET.get('phase') or '').strip()
+    goal = str(request.GET.get('goal') or '').strip()
+    proposals = []
+    signals = {}
+
+    if request.method == 'POST':
+        profile = str(request.POST.get('profile') or profile).strip() or 'hybrid'
+        phase = str(request.POST.get('phase') or phase).strip()
+        goal = str(request.POST.get('goal') or goal).strip()
+        text_norm = _ai_trainer_normalize_text(goal)
+        signals = {
+            'principles': _ai_trainer_match_section(dictionary.get('principles') if isinstance(dictionary.get('principles'), dict) else {}, text_norm, limit=8),
+            'zones': _ai_trainer_match_section(dictionary.get('zones') if isinstance(dictionary.get('zones'), dict) else {}, text_norm, limit=6),
+            'phases': _ai_trainer_match_section(dictionary.get('phases') if isinstance(dictionary.get('phases'), dict) else {}, text_norm, limit=5),
+            'figures': _ai_trainer_match_section(dictionary.get('figures') if isinstance(dictionary.get('figures'), dict) else {}, text_norm, limit=5),
+        }
+        proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals)
+
+    return render(
+        request,
+        'football/ai_trainer.html',
+        {
+            'team': team,
+            'profile': profile,
+            'phase': phase,
+            'goal': goal,
+            'signals': signals,
+            'proposals': proposals,
+        },
+    )
 
 
 @csrf_exempt

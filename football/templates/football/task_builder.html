@@ -3678,7 +3678,15 @@
 	        </div>
 	      </div>
 
-      {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
+      {% if saved_task_info %}
+      <div class="alert ok" style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+        <span>{{ saved_task_info.dest_hint }} · ID #{{ saved_task_info.id }}</span>
+        {% if saved_task_info.url %}
+          <a class="button" href="{{ saved_task_info.url }}">Ver en lista</a>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if feedback and not saved_task_info %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
       <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
         <span id="task-builder-draft-text"></span>
