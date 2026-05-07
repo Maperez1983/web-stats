@@ -419,6 +419,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 
+# WhiteNoise: by default, Manifest storage is strict and will raise (500) when a referenced static
+# asset is missing from the manifest. Allow relaxing this in emergencies (avoids downtime).
+WHITENOISE_MANIFEST_STRICT = os.getenv('WHITENOISE_MANIFEST_STRICT', 'true').strip().lower() == 'true'
+
 # Media (uploads)
 # - En Render, el árbol del repo puede ser de solo lectura en runtime. Para evitar 500 al subir/leer
 #   fotos/licencias o al generar PDFs, usamos `/tmp` por defecto si no hay S3.
