@@ -3521,13 +3521,31 @@ def pdf_graphic_asset_file(request, asset_id):
             if getattr(asset.team, 'slug', '') == 'pizarra':
                 pass
             else:
+                # En workspace club, los recursos del club deben ser accesibles desde cualquier equipo
+                # al que el usuario tenga acceso (evita que el catálogo "se rompa" al cambiar de categoría).
+                allowed_ids = set()
+                try:
+                    allowed_ids = _allowed_team_ids_for_request(request) or set()
+                except Exception:
+                    allowed_ids = set()
+                if allowed_ids and int(asset.team_id) in {int(x) for x in allowed_ids if x}:
+                    pass
+                else:
+                    primary_team = _get_primary_team_for_request(request)
+                    if not primary_team or int(primary_team.id) != int(asset.team_id):
+                        return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
+        except Exception:
+            allowed_ids = set()
+            try:
+                allowed_ids = _allowed_team_ids_for_request(request) or set()
+            except Exception:
+                allowed_ids = set()
+            if allowed_ids and int(asset.team_id) in {int(x) for x in allowed_ids if x}:
+                pass
+            else:
                 primary_team = _get_primary_team_for_request(request)
                 if not primary_team or int(primary_team.id) != int(asset.team_id):
                     return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
-        except Exception:
-            primary_team = _get_primary_team_for_request(request)
-            if not primary_team or int(primary_team.id) != int(asset.team_id):
-                return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
     elif asset.owner_id:
         if int(getattr(request.user, 'id', 0) or 0) != int(asset.owner_id) and not _is_admin_user(request.user):
             return HttpResponse('No tienes permisos para acceder a este recurso.', status=403)
