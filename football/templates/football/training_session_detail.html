@@ -292,10 +292,10 @@
                           </table>
 
 	                        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-	                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{{ t.detail_url }}">✏️ Editar tarea</a>
-	                        </div>
-	                      </div>
-	                    </div>
+		                          <a class="btn secondary" style="padding:0.45rem 0.7rem;" href="{{ t.detail_url }}?from_session={{ session.id }}">✏️ Editar tarea</a>
+		                        </div>
+		                      </div>
+		                    </div>
 	                  {% endfor %}
 	                {% endfor %}
 	              </div>

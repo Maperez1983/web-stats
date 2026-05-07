@@ -6,8 +6,10 @@ from urllib.parse import quote, urlparse
 
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.forms import AuthenticationForm
+from django.http import HttpResponse
 from django.shortcuts import redirect
 from django.urls import Resolver404, resolve, reverse
+from django.utils.html import escape
 
 from .models import AppUserRole
 
@@ -84,6 +86,37 @@ def _resolve_app_base_url(request) -> str:
     return _guess_app_base_url_from_host(_request_host(request)).rstrip("/")
 
 
+def _is_safari_user_agent(ua: str) -> bool:
+    ua = str(ua or "").strip().lower()
+    if not ua or "safari" not in ua:
+        return False
+    blocked_markers = ("chrome", "chromium", "crios", "fxios", "edg", "opr", "opera")
+    if any(marker in ua for marker in blocked_markers):
+        return False
+    return True
+
+
+def _should_login_js_redirect(request) -> bool:
+    """
+    Workaround para WebKit/Safari: en algunos entornos el navegador puede ignorar el Set-Cookie
+    en una respuesta 302 tras un POST de login, provocando loop /login/ (la sesión no persiste).
+
+    - LOGIN_JS_REDIRECT=true: fuerza siempre.
+    - LOGIN_JS_REDIRECT=false: desactiva siempre.
+    - (por defecto): auto → solo Safari.
+    """
+    mode = str(os.getenv("LOGIN_JS_REDIRECT") or "").strip().lower()
+    if mode in {"0", "false", "no", "off"}:
+        return False
+    if mode in {"1", "true", "yes", "on"}:
+        return True
+    try:
+        ua = str(getattr(request, "META", {}).get("HTTP_USER_AGENT") or "")
+    except Exception:
+        ua = ""
+    return _is_safari_user_agent(ua)
+
+
 class RoleAwareLoginView(auth_views.LoginView):
     """
     LoginView con redirección post-login "segura" por rol.
@@ -143,13 +176,59 @@ class RoleAwareLoginView(auth_views.LoginView):
             # porque pueden perderse al cambiar de app, abrir PDFs o por presión de memoria.
             # Si el usuario marca "Mantener sesión", extendemos explícitamente la expiración.
             # Si no lo marca (o el campo no llega), dejamos la expiración por defecto del sistema
-            # (SESSION_COOKIE_AGE + SESSION_SAVE_EVERY_REQUEST), que ya es amplia y deslizante.
+            # (SESSION_COOKIE_AGE), que ya es amplia (y puede ser deslizante si se configura SESSION_SAVE_EVERY_REQUEST).
             if remember:
                 days = int(str(os.getenv("REMEMBER_SESSION_DAYS", "30") or "30").strip() or 30)
                 days = max(1, min(days, 365))
                 self.request.session.set_expiry(days * 86400)
         except Exception:
             pass
+
+        # Safari/WebKit: evita loop de login si el navegador ignora Set-Cookie en 302.
+        # En lugar de redirigir con 302, devolvemos 200 + JS/meta refresh (manteniendo cookies).
+        try:
+            if not _should_login_js_redirect(self.request):
+                return response
+            target = ""
+            try:
+                target = str(getattr(response, "url", "") or response.get("Location") or "").strip()
+            except Exception:
+                target = ""
+            if not target:
+                target = str(self.get_success_url() or "").strip()
+            if not target:
+                return response
+            safe_target = escape(target)
+            html = (
+                "<!doctype html><html lang=\"es\"><head>"
+                "<meta charset=\"utf-8\"/>"
+                "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>"
+                f"<meta http-equiv=\"refresh\" content=\"0;url={safe_target}\"/>"
+                "<title>Entrando…</title>"
+                "</head><body style=\"font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;\">"
+                "<p>Entrando…</p>"
+                f"<p><a href=\"{safe_target}\">Continuar</a></p>"
+                f"<script>window.location.replace({target!r});</script>"
+                "</body></html>"
+            )
+            js_response = HttpResponse(html, status=200)
+            js_response["Cache-Control"] = "no-store"
+            try:
+                original_cookies = getattr(response, "cookies", None)
+                if original_cookies:
+                    for name, morsel in original_cookies.items():
+                        try:
+                            js_response.cookies[name] = morsel.value
+                            for k, v in morsel.items():
+                                if v not in (None, "", False):
+                                    js_response.cookies[name][k] = v
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+            return js_response
+        except Exception:
+            return response
         return response
 
     def _is_blocked_next(self, user, next_url: str) -> bool:

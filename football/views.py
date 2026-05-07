@@ -36427,6 +36427,26 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     if not error and (not all_sessions or not available_players):
         # Soft warning: evita 500 por fallos parciales y da pista al usuario.
         error = 'El editor cargó, pero faltan datos (sesiones/jugadores/recursos). Recarga la página o revisa permisos/configuración del equipo.'
+
+    back_url = reverse(_sessions_scope_route_name(scope_key))
+    back_label = 'Volver a entrenos'
+    try:
+        from_session_id = _parse_int(request.GET.get('from_session') or request.GET.get('session_id'))
+        if not from_session_id and task:
+            from_session_id = _parse_int(getattr(task, 'session_id', None))
+        if from_session_id:
+            session_obj = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(id=int(from_session_id), microcycle__team=primary_team)
+                .first()
+            )
+            if session_obj:
+                back_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                back_label = 'Volver al entreno'
+    except Exception:
+        back_url = reverse(_sessions_scope_route_name(scope_key))
+        back_label = 'Volver a entrenos'
     return render(
         request,
         'football/task_builder.html',
@@ -36459,8 +36479,8 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'drills_catalog': drills_catalog,
             'initial': initial,
             'library_repository': library_repository,
-	            'back_url': reverse(_sessions_scope_route_name(scope_key)),
-	            'back_label': 'Volver a sesiones',
+	            'back_url': back_url,
+	            'back_label': back_label,
 	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
 	            'video_import_url': reverse('sessions-task-video-import'),
 	            'task_preview_url': (reverse('session-task-preview-file', args=[task.id]) if task and task.task_preview_image else ''),
@@ -37301,6 +37321,27 @@ def session_task_detail_page(request, task_id):
         'fitness': 'Sesiones · Preparacion fisica',
     }.get(scope_key, 'Sesiones')
 
+    back_url = reverse(scope_route_name)
+    back_label = 'Volver a entrenos'
+    try:
+        from_session_id = _parse_int(request.GET.get('from_session') or request.GET.get('session_id'))
+        if not from_session_id:
+            from_session_id = _parse_int(getattr(task, 'session_id', None))
+        team = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+        if from_session_id and team:
+            origin = (
+                TrainingSession.objects
+                .select_related('microcycle')
+                .filter(id=int(from_session_id), microcycle__team=team)
+                .first()
+            )
+            if origin:
+                back_url = reverse('training-session-detail', args=[int(origin.id)])
+                back_label = 'Volver al entreno'
+    except Exception:
+        back_url = reverse(scope_route_name)
+        back_label = 'Volver a entrenos'
+
     feedback = ''
     error = ''
     is_editable_task = _is_task_editable(task)
@@ -37316,7 +37357,19 @@ def session_task_detail_page(request, task_id):
     # Evita confusión: para tareas editables, "detalle" abre el mismo editor visual que se usa al crear.
     # La ficha legacy queda disponible con ?legacy=1 (útil sobre todo para tareas importadas).
     if request.method == 'GET' and is_editable_task and not is_performed_task and not (request.GET.get('legacy') or '').strip():
-        return redirect(reverse(_task_builder_edit_route_name(scope_key), args=[task.id]))
+        target = reverse(_task_builder_edit_route_name(scope_key), args=[task.id])
+        try:
+            params = request.GET.copy()
+            if not str(params.get('from_session') or '').strip():
+                forced = _parse_int(params.get('session_id')) or _parse_int(getattr(task, 'session_id', None))
+                if forced:
+                    params['from_session'] = str(int(forced))
+            encoded = params.urlencode()
+            if encoded:
+                return redirect(f"{target}?{encoded}")
+        except Exception:
+            pass
+        return redirect(target)
 
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
@@ -37441,6 +37494,8 @@ def session_task_detail_page(request, task_id):
             'scope_key': scope_key,
             'scope_title': scope_title,
             'scope_route_name': scope_route_name,
+            'back_url': back_url,
+            'back_label': back_label,
             'analysis_meta': analysis_meta,
             'task_sheet': task_sheet,
             'pdf_excerpt': pdf_excerpt,

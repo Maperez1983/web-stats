@@ -256,6 +256,50 @@ class LoginNextRedirectTests(TestCase):
         self.assertEqual(response['Location'], reverse('dashboard-home'))
 
 
+class LoginSafariJsRedirectTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='safari-user',
+            email='safari-user@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        try:
+            self.client.logout()
+        except Exception:
+            pass
+
+    def test_safari_user_agent_uses_js_redirect_and_sets_session_cookie(self):
+        safari_ua = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+        )
+        with patch.dict(os.environ, {'LOGIN_JS_REDIRECT': 'auto'}, clear=False):
+            response = self.client.post(
+                reverse('login'),
+                {'username': 'safari-user', 'password': 'pass-1234'},
+                secure=True,
+                HTTP_USER_AGENT=safari_ua,
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'window.location.replace')
+        self.assertIn(getattr(settings, 'SESSION_COOKIE_NAME', 'sessionid'), response.cookies)
+
+    def test_login_js_redirect_can_be_disabled(self):
+        safari_ua = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+        )
+        with patch.dict(os.environ, {'LOGIN_JS_REDIRECT': 'false'}, clear=False):
+            response = self.client.post(
+                reverse('login'),
+                {'username': 'safari-user', 'password': 'pass-1234'},
+                secure=True,
+                HTTP_USER_AGENT=safari_ua,
+            )
+        self.assertIn(response.status_code, {301, 302})
+
+
 class TacticsLandingModalFallbackTests(TestCase):
     def setUp(self):
         self.team = Team.objects.create(

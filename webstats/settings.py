@@ -244,9 +244,9 @@ AUTHENTICATION_BACKENDS = [
 # Sesiones (login)
 # - SESSION_COOKIE_AGE: segundos (por defecto Django: 1209600 = 2 semanas)
 # - SESSION_SAVE_EVERY_REQUEST: renueva caducidad en cada request (expiración "deslizante")
-# Nota: en producción preferimos caducidad más amplia y deslizante para evitar perder trabajo por expiración.
+# Nota: en producción preferimos caducidad más amplia para evitar perder trabajo por expiración.
 SESSION_COOKIE_AGE = _env_int('SESSION_COOKIE_AGE', 2592000)  # 30 días
-SESSION_SAVE_EVERY_REQUEST = _env_bool('SESSION_SAVE_EVERY_REQUEST', True)
+SESSION_SAVE_EVERY_REQUEST = _env_bool('SESSION_SAVE_EVERY_REQUEST', False)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = _env_bool('SESSION_EXPIRE_AT_BROWSER_CLOSE', False)
 SESSION_COOKIE_NAME = (os.getenv('SESSION_COOKIE_NAME') or 'webstats_sessionid').strip() or 'webstats_sessionid'
 # Por compatibilidad: el frontend usa `csrftoken` (nombre estándar de Django) en fetch/XHR.

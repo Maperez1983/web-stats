@@ -3575,7 +3575,7 @@
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
-		          <a href="{{ back_url|default:'#' }}" class="button" onclick="return window.__webstatsTaskLandingGo(this.href)">{{ back_label|default:'Volver a sesiones' }}</a>
+		          <a href="{{ back_url|default:'#' }}" class="button" onclick="return window.__webstatsTaskLandingGo(this.href)">{{ back_label|default:'Volver a entrenos' }}</a>
 			          <button type="button" class="button" id="task-builder-help" title="Ver tutorial rápido">Ayuda</button>
 			          <button type="button" class="button" id="task-builder-simple-toggle" aria-pressed="false" title="Muestra una guía rápida en pantalla">Guía</button>
 		          <button type="button" class="button" id="task-builder-compact-toggle" aria-pressed="false">Vista compacta</button>

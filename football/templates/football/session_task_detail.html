@@ -380,7 +380,7 @@
       <header class="top">
         <h1>Detalle de tarea</h1>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-          <a class="button" href="{% url scope_route_name %}">Volver</a>
+	          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
           <button
             type="button"
             class="button secondary"
