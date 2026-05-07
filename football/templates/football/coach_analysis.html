@@ -250,6 +250,39 @@
       .manual-grid .wide {
         grid-column: 1 / -1;
       }
+      details.collapsible {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        background: rgba(2, 6, 23, 0.28);
+        padding: 0.75rem 0.9rem;
+      }
+      details.collapsible[open] {
+        background: rgba(2, 6, 23, 0.18);
+      }
+      details.collapsible summary {
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+      details.collapsible summary::-webkit-details-marker {
+        display: none;
+      }
+      details.collapsible summary::after {
+        content: '▾';
+        opacity: 0.7;
+        font-weight: 900;
+      }
+      details.collapsible[open] summary::after {
+        content: '▴';
+      }
+      .collapsible-body {
+        margin-top: 0.75rem;
+      }
       .ok {
         color: #86efac;
         margin-top: 0.55rem;
@@ -356,14 +389,19 @@
               {% endfor %}
             </select>
           </div>
-          <div>
-            <label for="team_url">URL del rival (Universo RFAF o LaPreferente)</label>
-            <input id="team_url" name="team_url" type="text" value="{{ team_url }}" />
-          </div>
-          <div>
-            <label for="raw_text">Pega aquí el texto/HTML (solo si LaPreferente bloquea)</label>
-            <textarea id="raw_text" name="raw_text">{{ raw_text }}</textarea>
-          </div>
+          <details class="collapsible" {% if team_url or raw_text %}open{% endif %}>
+            <summary>Opciones avanzadas (URL / texto HTML)</summary>
+            <div class="collapsible-body">
+              <div>
+                <label for="team_url">URL del rival (Universo RFAF o LaPreferente)</label>
+                <input id="team_url" name="team_url" type="text" value="{{ team_url }}" />
+              </div>
+              <div style="margin-top:0.75rem;">
+                <label for="raw_text">Pega aquí el texto/HTML (solo si LaPreferente bloquea)</label>
+                <textarea id="raw_text" name="raw_text">{{ raw_text }}</textarea>
+              </div>
+            </div>
+          </details>
           <div class="actions">
             <button class="button" type="submit">Analizar rival</button>
           </div>
@@ -373,245 +411,287 @@
         </form>
         <div class="grid" style="margin-top:1rem;">
           <div class="item item-wide">
-            <h3>Componentes extraídos del rival</h3>
-            <ul class="list">
-              <li><strong>Prioridad de fuente:</strong> <span class="meta">{{ extracted.source_priority }}</span></li>
-              <li><strong>Rival:</strong> <span class="meta">{{ extracted.rival_name }}</span></li>
-              <li><strong>Código rival (RFAF):</strong> <span class="meta">{{ extracted.rival_team_code|default:"-" }}</span></li>
-              <li><strong>Sesión Universo RFAF:</strong> <span class="meta">{{ extracted.universo_session|default:"-" }}</span></li>
-              <li><strong>Plantilla:</strong> <span class="meta">{{ extracted.roster_source|default:"-" }}</span></li>
-              <li><strong>Jornada:</strong> <span class="meta">{{ extracted.next_match_round|default:"-" }}</span></li>
-              <li><strong>Fecha/Hora:</strong> <span class="meta">{{ extracted.next_match_date|default:"-" }} {{ extracted.next_match_time|default:"" }}</span></li>
-              <li><strong>Campo:</strong> <span class="meta">{{ extracted.next_match_location|default:"-" }}</span></li>
-              <li><strong>Tabla cargada:</strong> <span class="meta">{{ extracted.standings_count }} equipos</span></li>
-              <li><strong>URL Preferente:</strong> <span class="meta">{{ extracted.preferente_url|default:"No definida" }}</span></li>
-            </ul>
-          </div>
-          <div class="item item-wide">
-            <h3>Informe manual de analista (plan partido)</h3>
-            <form class="form" method="post" style="margin-top:0.35rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="save_manual_report" />
-              <input type="hidden" name="team_id" value="{{ team_id }}" />
-              <div class="manual-grid">
-                <div>
-                  <label for="manual_report_title">Título informe</label>
-                  <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
+            <h3>Rival (datos extraídos)</h3>
+            {% if extracted.rival_name or extracted.preferente_url or extracted.rival_team_code %}
+              <p class="meta" style="margin:0.25rem 0 0.75rem;">
+                {% if extracted.rival_name %}<strong>{{ extracted.rival_name }}</strong>{% else %}<strong>Rival</strong>{% endif %}
+                {% if extracted.next_match_round or extracted.next_match_date %} · {{ extracted.next_match_round|default:"Próx." }} · {{ extracted.next_match_date|default:"" }} {{ extracted.next_match_time|default:"" }}{% endif %}
+              </p>
+              <details class="collapsible">
+                <summary>Ver todos los campos</summary>
+                <div class="collapsible-body">
+                  <ul class="list">
+                    <li><strong>Prioridad de fuente:</strong> <span class="meta">{{ extracted.source_priority }}</span></li>
+                    <li><strong>Rival:</strong> <span class="meta">{{ extracted.rival_name }}</span></li>
+                    <li><strong>Código rival (RFAF):</strong> <span class="meta">{{ extracted.rival_team_code|default:"-" }}</span></li>
+                    <li><strong>Sesión Universo RFAF:</strong> <span class="meta">{{ extracted.universo_session|default:"-" }}</span></li>
+                    <li><strong>Plantilla:</strong> <span class="meta">{{ extracted.roster_source|default:"-" }}</span></li>
+                    <li><strong>Jornada:</strong> <span class="meta">{{ extracted.next_match_round|default:"-" }}</span></li>
+                    <li><strong>Fecha/Hora:</strong> <span class="meta">{{ extracted.next_match_date|default:"-" }} {{ extracted.next_match_time|default:"" }}</span></li>
+                    <li><strong>Campo:</strong> <span class="meta">{{ extracted.next_match_location|default:"-" }}</span></li>
+                    <li><strong>Tabla cargada:</strong> <span class="meta">{{ extracted.standings_count }} equipos</span></li>
+                    <li><strong>URL Preferente:</strong> <span class="meta">{{ extracted.preferente_url|default:"No definida" }}</span></li>
+                  </ul>
                 </div>
-                <div>
-                  <label for="manual_rival_name">Rival</label>
-                  <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
-                </div>
-                <div>
-                  <label for="manual_match_round">Jornada</label>
-                  <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
-                </div>
-                <div>
-                  <label for="manual_match_date">Fecha/Hora</label>
-                  <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
-                </div>
-                <div class="wide">
-                  <label for="manual_match_location">Campo</label>
-                  <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
-                </div>
-                <div>
-                  <label for="manual_tactical_system">Sistema rival</label>
-                  <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
-                </div>
-                <div>
-                  <label for="manual_confidence">Nivel confianza (1-5)</label>
-                  <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
-                </div>
-                <div>
-                  <label for="manual_status">Estado</label>
-                  <select id="manual_status" name="manual_status">
-                    {% for value,label in manual_report_status_choices %}
-                    <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="wide">
-                  <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
-                  <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:96px;">{{ manual_initial.attacking_patterns }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
-                  <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:96px;">{{ manual_initial.defensive_patterns }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_transitions">Transiciones (OF/DEF)</label>
-                  <textarea id="manual_transitions" name="manual_transitions" style="min-height:96px;">{{ manual_initial.transitions }}</textarea>
-                </div>
-                <div>
-                  <label for="manual_set_pieces_for">ABP ofensivas rival</label>
-                  <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:90px;">{{ manual_initial.set_pieces_for }}</textarea>
-                </div>
-                <div>
-                  <label for="manual_set_pieces_against">ABP defensivas rival</label>
-                  <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:90px;">{{ manual_initial.set_pieces_against }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_key_players">Jugadores clave rival</label>
-                  <textarea id="manual_key_players" name="manual_key_players" style="min-height:88px;">{{ manual_initial.key_players }}</textarea>
-                </div>
-                <div>
-                  <label for="manual_weaknesses">Debilidades detectadas</label>
-                  <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:92px;">{{ manual_initial.weaknesses }}</textarea>
-                </div>
-                <div>
-                  <label for="manual_opportunities">Oportunidades para atacarles</label>
-                  <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:92px;">{{ manual_initial.opportunities }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_match_plan">Plan de partido propuesto</label>
-                  <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:110px;">{{ manual_initial.match_plan }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
-                  <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:110px;">{{ manual_initial.individual_tasks }}</textarea>
-                </div>
-                <div class="wide">
-                  <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
-                  <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:90px;">{{ manual_initial.alert_notes }}</textarea>
-                </div>
-              </div>
-              <div class="actions">
-                <button class="button" type="submit">Guardar informe manual</button>
-                <button class="button ghost" type="button" id="rival-report-to-tasks" data-report-id="{{ manual_report_latest_id|default:0 }}">Crear tareas (biblioteca)</button>
-              </div>
-              <p class="meta" id="rival-report-to-tasks-status" style="margin:0.35rem 0 0;">Convierte el último informe guardado en plantillas reutilizables.</p>
-              {% if manual_report_message %}
-              <p class="ok">{{ manual_report_message }}</p>
-              {% endif %}
-              {% if manual_report_error %}
-              <p class="error">{{ manual_report_error }}</p>
-              {% endif %}
-            </form>
-            {% if manual_reports %}
-            <div style="margin-top:0.85rem;">
-              <h3 style="margin:0 0 0.35rem;">Histórico informes (últimos)</h3>
-              <ul class="list">
-                {% for report in manual_reports %}
-                <li>
-                  <strong>{{ report.report_title|default:"Informe sin título" }}</strong>
-                  <span class="meta"> · {{ report.rival_name }} · {{ report.get_status_display }} · {{ report.updated_at|date:"d/m/Y H:i" }}</span>
-                </li>
-                {% endfor %}
-              </ul>
-            </div>
+              </details>
+            {% else %}
+              <p class="meta">Aún no hay datos extraídos. Selecciona un rival y pulsa “Analizar rival”.</p>
             {% endif %}
           </div>
           <div class="item item-wide">
-            <h3>Repositorio de informes de partido (archivo)</h3>
-            <p class="meta">Sube PDFs/JPG/PNG del analista para cada partido.</p>
-            <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.35rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="upload_match_report" />
-              <div class="manual-grid">
-                <div class="wide">
-                  <label for="match_report_match_id">Partido (opcional)</label>
-                  <select id="match_report_match_id" name="match_report_match_id">
-                    <option value="">Selecciona un partido</option>
-                    {% for opt in match_options %}
-                    <option value="{{ opt.id }}">{{ opt.label }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div>
-                  <label for="match_report_title">Título</label>
-                  <input id="match_report_title" name="match_report_title" type="text" placeholder="Ej. Informe J25" />
-                </div>
-                <div>
-                  <label for="match_report_opponent">Rival (si no hay partido)</label>
-                  <input id="match_report_opponent" name="match_report_opponent" type="text" placeholder="Ej. C.D. Torre del Mar" />
-                </div>
-                <div>
-                  <label for="match_report_date">Fecha (si no hay partido)</label>
-                  <input id="match_report_date" name="match_report_date" type="text" placeholder="dd/mm/aaaa" />
-                </div>
-                <div class="wide">
-                  <label for="match_report_file">Archivo</label>
-                  <input id="match_report_file" name="match_report_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" required />
-                </div>
-                <div class="wide">
-                  <label for="match_report_notes">Notas (opcional)</label>
-                  <textarea id="match_report_notes" name="match_report_notes" placeholder="Resumen, conclusiones, puntos clave..."></textarea>
-                </div>
-              </div>
-              <div class="actions">
-                <button class="button" type="submit">Subir informe</button>
-              </div>
-              {% if match_report_message %}<p class="ok">{{ match_report_message }}</p>{% endif %}
-              {% if match_report_error %}<p class="error">{{ match_report_error }}</p>{% endif %}
-            </form>
-            <div style="margin-top:0.85rem;">
-              {% for report in match_reports %}
-                <div class="report-row">
-                  <div>
-                    <a href="{% url 'analysis-match-report-file' report_id=report.id %}" target="_blank" rel="noopener">
-                      {{ report.title|default:"Informe" }}
-                    </a>
-                    <div class="meta">
-                      {% if report.match %}{{ report.match.round|default:"Partido" }}{% endif %}
-                      {% if report.opponent_name %} · {{ report.opponent_name }}{% endif %}
-                      {% if report.match_date %} · {{ report.match_date }}{% endif %}
-                      · {{ report.created_at|date:"d/m/Y H:i" }}
+            <h3>Informe manual de analista (plan partido)</h3>
+            <details class="collapsible" {% if manual_report_message or manual_report_error or manual_initial.report_title or manual_initial.rival_name %}open{% endif %}>
+              <summary>
+                Editar informe manual
+                {% if manual_reports %}<span class="meta" style="font-weight:600;">· {{ manual_reports|length }} en histórico</span>{% endif %}
+              </summary>
+              <div class="collapsible-body">
+                <form class="form" method="post">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="save_manual_report" />
+                  <input type="hidden" name="team_id" value="{{ team_id }}" />
+                  <div class="manual-grid">
+                    <div>
+                      <label for="manual_report_title">Título informe</label>
+                      <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
                     </div>
-                    {% if report.notes %}<div class="meta" style="margin-top:0.25rem;">{{ report.notes }}</div>{% endif %}
+                    <div>
+                      <label for="manual_rival_name">Rival</label>
+                      <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
+                    </div>
+                    <div>
+                      <label for="manual_match_round">Jornada</label>
+                      <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
+                    </div>
+                    <div>
+                      <label for="manual_match_date">Fecha/Hora</label>
+                      <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
+                    </div>
+                    <div class="wide">
+                      <label for="manual_match_location">Campo</label>
+                      <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
+                    </div>
+                    <div>
+                      <label for="manual_tactical_system">Sistema rival</label>
+                      <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
+                    </div>
+                    <div>
+                      <label for="manual_confidence">Nivel confianza (1-5)</label>
+                      <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
+                    </div>
+                    <div>
+                      <label for="manual_status">Estado</label>
+                      <select id="manual_status" name="manual_status">
+                        {% for value,label in manual_report_status_choices %}
+                        <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
+                      <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:96px;">{{ manual_initial.attacking_patterns }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
+                      <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:96px;">{{ manual_initial.defensive_patterns }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_transitions">Transiciones (OF/DEF)</label>
+                      <textarea id="manual_transitions" name="manual_transitions" style="min-height:96px;">{{ manual_initial.transitions }}</textarea>
+                    </div>
+                    <div>
+                      <label for="manual_set_pieces_for">ABP ofensivas rival</label>
+                      <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:90px;">{{ manual_initial.set_pieces_for }}</textarea>
+                    </div>
+                    <div>
+                      <label for="manual_set_pieces_against">ABP defensivas rival</label>
+                      <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:90px;">{{ manual_initial.set_pieces_against }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_key_players">Jugadores clave rival</label>
+                      <textarea id="manual_key_players" name="manual_key_players" style="min-height:88px;">{{ manual_initial.key_players }}</textarea>
+                    </div>
+                    <div>
+                      <label for="manual_weaknesses">Debilidades detectadas</label>
+                      <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:92px;">{{ manual_initial.weaknesses }}</textarea>
+                    </div>
+                    <div>
+                      <label for="manual_opportunities">Oportunidades para atacarles</label>
+                      <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:92px;">{{ manual_initial.opportunities }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_match_plan">Plan de partido propuesto</label>
+                      <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:110px;">{{ manual_initial.match_plan }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
+                      <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:110px;">{{ manual_initial.individual_tasks }}</textarea>
+                    </div>
+                    <div class="wide">
+                      <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
+                      <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:90px;">{{ manual_initial.alert_notes }}</textarea>
+                    </div>
                   </div>
-                  <form method="post" style="margin:0;">
-                    {% csrf_token %}
-                    <input type="hidden" name="form_action" value="delete_match_report" />
-                    <input type="hidden" name="match_report_id" value="{{ report.id }}" />
-                    <button class="button ghost" type="submit">Eliminar</button>
-                  </form>
+                  <div class="actions">
+                    <button class="button" type="submit">Guardar informe manual</button>
+                    <button class="button ghost" type="button" id="rival-report-to-tasks" data-report-id="{{ manual_report_latest_id|default:0 }}">Crear tareas (biblioteca)</button>
+                  </div>
+                  <p class="meta" id="rival-report-to-tasks-status" style="margin:0.35rem 0 0;">Convierte el último informe guardado en plantillas reutilizables.</p>
+                  {% if manual_report_message %}
+                  <p class="ok">{{ manual_report_message }}</p>
+                  {% endif %}
+                  {% if manual_report_error %}
+                  <p class="error">{{ manual_report_error }}</p>
+                  {% endif %}
+                </form>
+                {% if manual_reports %}
+                <details class="collapsible" style="margin-top:0.75rem;">
+                  <summary>Histórico informes (últimos)</summary>
+                  <div class="collapsible-body">
+                    <ul class="list">
+                      {% for report in manual_reports %}
+                      <li>
+                        <strong>{{ report.report_title|default:"Informe sin título" }}</strong>
+                        <span class="meta"> · {{ report.rival_name }} · {{ report.get_status_display }} · {{ report.updated_at|date:"d/m/Y H:i" }}</span>
+                      </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </details>
+                {% endif %}
+              </div>
+            </details>
+          </div>
+          <div class="item item-wide">
+            <h3>Repositorio de informes de partido (archivo)</h3>
+            <details class="collapsible" {% if match_report_message or match_report_error %}open{% endif %}>
+              <summary>
+                Abrir archivo de informes
+                {% if match_reports %}<span class="meta" style="font-weight:600;">· {{ match_reports|length }} subidos</span>{% endif %}
+              </summary>
+              <div class="collapsible-body">
+                <p class="meta" style="margin-top:0;">Sube PDFs/JPG/PNG del analista para cada partido.</p>
+                <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.35rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="upload_match_report" />
+                  <div class="manual-grid">
+                    <div class="wide">
+                      <label for="match_report_match_id">Partido (opcional)</label>
+                      <select id="match_report_match_id" name="match_report_match_id">
+                        <option value="">Selecciona un partido</option>
+                        {% for opt in match_options %}
+                        <option value="{{ opt.id }}">{{ opt.label }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div>
+                      <label for="match_report_title">Título</label>
+                      <input id="match_report_title" name="match_report_title" type="text" placeholder="Ej. Informe J25" />
+                    </div>
+                    <div>
+                      <label for="match_report_opponent">Rival (si no hay partido)</label>
+                      <input id="match_report_opponent" name="match_report_opponent" type="text" placeholder="Ej. C.D. Torre del Mar" />
+                    </div>
+                    <div>
+                      <label for="match_report_date">Fecha (si no hay partido)</label>
+                      <input id="match_report_date" name="match_report_date" type="text" placeholder="dd/mm/aaaa" />
+                    </div>
+                    <div class="wide">
+                      <label for="match_report_file">Archivo</label>
+                      <input id="match_report_file" name="match_report_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" required />
+                    </div>
+                    <div class="wide">
+                      <label for="match_report_notes">Notas (opcional)</label>
+                      <textarea id="match_report_notes" name="match_report_notes" placeholder="Resumen, conclusiones, puntos clave..."></textarea>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <button class="button" type="submit">Subir informe</button>
+                  </div>
+                  {% if match_report_message %}<p class="ok">{{ match_report_message }}</p>{% endif %}
+                  {% if match_report_error %}<p class="error">{{ match_report_error }}</p>{% endif %}
+                </form>
+                <div style="margin-top:0.85rem;">
+                  {% for report in match_reports %}
+                    <div class="report-row">
+                      <div>
+                        <a href="{% url 'analysis-match-report-file' report_id=report.id %}" target="_blank" rel="noopener">
+                          {{ report.title|default:"Informe" }}
+                        </a>
+                        <div class="meta">
+                          {% if report.match %}{{ report.match.round|default:"Partido" }}{% endif %}
+                          {% if report.opponent_name %} · {{ report.opponent_name }}{% endif %}
+                          {% if report.match_date %} · {{ report.match_date }}{% endif %}
+                          · {{ report.created_at|date:"d/m/Y H:i" }}
+                        </div>
+                        {% if report.notes %}<div class="meta" style="margin-top:0.25rem;">{{ report.notes }}</div>{% endif %}
+                      </div>
+                      <form method="post" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="delete_match_report" />
+                        <input type="hidden" name="match_report_id" value="{{ report.id }}" />
+                        <button class="button ghost" type="submit">Eliminar</button>
+                      </form>
+                    </div>
+                  {% empty %}
+                    <p class="meta">Todavía no hay informes subidos.</p>
+                  {% endfor %}
                 </div>
-              {% empty %}
-                <p class="meta">Todavía no hay informes subidos.</p>
-              {% endfor %}
-            </div>
+              </div>
+            </details>
           </div>
         </div>
         </div>
 
         <div data-tab="videos">
         <div class="grid" style="margin-top:1rem;">
-          <div class="item item-wide">
-            <h3>Repositorio vídeos rival</h3>
-            <form class="form" method="post" style="margin-top:0.5rem;">
-              {% csrf_token %}
-              <input type="hidden" name="form_action" value="create_video_folder" />
-              <input type="hidden" name="video_team_id" value="{{ team_id }}" />
-              <div class="manual-grid">
-                <div>
-                  <label for="folder_name">Nueva carpeta</label>
-                  <input id="folder_name" name="folder_name" type="text" placeholder="Ej. J24 · Transiciones / ABP / Clips DC" />
-                </div>
-                <div class="actions" style="align-items:flex-end;justify-content:flex-start;margin-top:1.4rem;">
-                  <button class="button ghost" type="submit">Crear carpeta</button>
-                </div>
-              </div>
-              {% if folder_message %}<p class="ok">{{ folder_message }}</p>{% endif %}
-              {% if folder_error %}<p class="error">{{ folder_error }}</p>{% endif %}
-            </form>
-            {% if video_folders %}
-            <div class="folder-list">
-              <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?{% if team_id %}team_id={{ team_id }}{% endif %}">Todas</a>
-              {% for folder in video_folders %}
-              <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?{% if team_id %}team_id={{ team_id }}&{% endif %}folder={{ folder.id }}">
-                {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
-              </a>
-              {% endfor %}
-            </div>
-            {% endif %}
-	            <form
-	              class="form"
-	              method="post"
-	              enctype="multipart/form-data"
-	              style="margin-top:0.5rem;"
-	              id="video-upload-form"
-	              data-max-mb="{{ analysis_video_max_upload_mb|default:'' }}"
-	            >
+	          <div class="item item-wide">
+	            <h3>Repositorio vídeos rival</h3>
+	            <details class="collapsible" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
+	              <summary>
+	                Carpetas y filtro
+	                {% if selected_folder_id %}<span class="meta" style="font-weight:600;">· filtro activo</span>{% endif %}
+	              </summary>
+	              <div class="collapsible-body">
+	                <form class="form" method="post">
+	                  {% csrf_token %}
+	                  <input type="hidden" name="form_action" value="create_video_folder" />
+	                  <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+	                  <div class="manual-grid">
+	                    <div>
+	                      <label for="folder_name">Nueva carpeta</label>
+	                      <input id="folder_name" name="folder_name" type="text" placeholder="Ej. J24 · Transiciones / ABP / Clips DC" />
+	                    </div>
+	                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;margin-top:1.4rem;">
+	                      <button class="button ghost" type="submit">Crear carpeta</button>
+	                    </div>
+	                  </div>
+	                  {% if folder_message %}<p class="ok">{{ folder_message }}</p>{% endif %}
+	                  {% if folder_error %}<p class="error">{{ folder_error }}</p>{% endif %}
+	                </form>
+	                {% if video_folders %}
+	                <div class="folder-list">
+	                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
+	                  {% for folder in video_folders %}
+	                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
+	                    {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
+	                  </a>
+	                  {% endfor %}
+	                </div>
+	                {% endif %}
+	              </div>
+	            </details>
+	
+	            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
+	              <summary>Añadir vídeo (archivo / YouTube)</summary>
+	              <div class="collapsible-body">
+		            <form
+		              class="form"
+		              method="post"
+		              enctype="multipart/form-data"
+		              id="video-upload-form"
+		              data-max-mb="{{ analysis_video_max_upload_mb|default:'' }}"
+		            >
 	              {% csrf_token %}
 	              <input type="hidden" name="form_action" value="upload_video" />
 	              <input type="hidden" name="video_team_id" value="{{ team_id }}" />
@@ -659,11 +739,11 @@
 	              <div class="actions">
 	                <button class="button" type="submit" id="video-upload-submit">Subir vídeo</button>
 	              </div>
-	              <div class="upload-progress" id="video-upload-progress">
-	                <progress id="video-upload-progress-bar" value="0" max="100"></progress>
-	                <span class="meta" id="video-upload-progress-label">0%</span>
-	              </div>
-	            </form>
+		              <div class="upload-progress" id="video-upload-progress">
+		                <progress id="video-upload-progress-bar" value="0" max="100"></progress>
+		                <span class="meta" id="video-upload-progress-label">0%</span>
+		              </div>
+		            </form>
               <form
                 class="form"
                 method="post"
@@ -688,15 +768,17 @@
                   <button class="button ghost" type="submit" id="video-youtube-submit">Importar de YouTube</button>
                   <span class="meta" id="video-youtube-status" style="margin-left:0.65rem;"></span>
                 </div>
-              </form>
-            {% if video_message %}
-            <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
-            {% endif %}
-            {% if video_error %}
-            <p class="error">{{ video_error }}</p>
-            {% endif %}
-            <div class="grid">
-              {% for video in rival_videos %}
+	              </form>
+	              {% if video_message %}
+	              <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
+	              {% endif %}
+	              {% if video_error %}
+	              <p class="error">{{ video_error }}</p>
+	              {% endif %}
+	              </div>
+	            </details>
+	            <div class="grid">
+	              {% for video in rival_videos %}
               <article class="item video-item">
                 <h4>{{ video.title }}</h4>
                 <p class="meta">
@@ -725,38 +807,43 @@
                 {% else %}
                 <p class="error" style="margin:0;">Vídeo no disponible (sin archivo y sin enlace).</p>
                 {% endif %}
-                {% if video.notes %}
-                <p class="meta" style="margin-top:0.55rem;">{{ video.notes }}</p>
-                {% endif %}
-                <form method="post" class="form" style="margin-top:0.65rem;">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="assign_video_players" />
-                  <input type="hidden" name="video_id" value="{{ video.id }}" />
-                  <input type="hidden" name="video_team_id" value="{{ team_id }}" />
-                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
-                  <div>
-                    <label for="video-folder-{{ video.id }}">Carpeta</label>
-                    <select id="video-folder-{{ video.id }}" name="video_folder_id">
-                      <option value="">Sin carpeta</option>
-                      {% for folder in video_folders %}
-                      <option value="{{ folder.id }}" {% if video.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  <div>
-                    <label for="video-players-{{ video.id }}">Jugadores asignados</label>
-                    <select id="video-players-{{ video.id }}" class="multi-select" name="assigned_player_ids" multiple>
-                      {% for player in analyst_players %}
-                      <option value="{{ player.id }}" {% if player in video.assigned_players.all %}selected{% endif %}>
-                        {% if player.number %}{{ player.number }} · {% endif %}{{ player.name }}
-                      </option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  <div class="actions" style="justify-content:flex-start;">
-                    <button class="button ghost" type="submit">Guardar asignación</button>
-                  </div>
-                </form>
+	                {% if video.notes %}
+	                <p class="meta" style="margin-top:0.55rem;">{{ video.notes }}</p>
+	                {% endif %}
+	                <details class="collapsible" style="margin-top:0.65rem;">
+	                  <summary>Asignación (carpeta / jugadores)</summary>
+	                  <div class="collapsible-body">
+	                    <form method="post" class="form" style="margin:0;">
+	                      {% csrf_token %}
+	                      <input type="hidden" name="form_action" value="assign_video_players" />
+	                      <input type="hidden" name="video_id" value="{{ video.id }}" />
+	                      <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+	                      <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+	                      <div>
+	                        <label for="video-folder-{{ video.id }}">Carpeta</label>
+	                        <select id="video-folder-{{ video.id }}" name="video_folder_id">
+	                          <option value="">Sin carpeta</option>
+	                          {% for folder in video_folders %}
+	                          <option value="{{ folder.id }}" {% if video.folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
+	                          {% endfor %}
+	                        </select>
+	                      </div>
+	                      <div style="margin-top:0.75rem;">
+	                        <label for="video-players-{{ video.id }}">Jugadores asignados</label>
+	                        <select id="video-players-{{ video.id }}" class="multi-select" name="assigned_player_ids" multiple>
+	                          {% for player in analyst_players %}
+	                          <option value="{{ player.id }}" {% if player in video.assigned_players.all %}selected{% endif %}>
+	                            {% if player.number %}{{ player.number }} · {% endif %}{{ player.name }}
+	                          </option>
+	                          {% endfor %}
+	                        </select>
+	                      </div>
+	                      <div class="actions" style="justify-content:flex-start;">
+	                        <button class="button ghost" type="submit">Guardar asignación</button>
+	                      </div>
+	                    </form>
+	                  </div>
+	                </details>
                 <form method="post" style="margin-top:0.55rem;">
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="delete_video" />
