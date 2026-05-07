@@ -263,19 +263,22 @@
 	        display: block;
 	      }
 
-	      .hero-photo {
-        border: 1px solid var(--line);
-        border-radius: var(--radius-xl);
-        overflow: hidden;
-        position: relative;
-	        min-height: 520px;
-        box-shadow: var(--shadow);
-        background:
-          linear-gradient(180deg, rgba(5, 12, 23, 0.2), rgba(5, 12, 23, 0.9)),
-          var(--hero-image);
-        background-size: cover;
-        background-position: center;
-	      }
+		      .hero-photo {
+	        border: 1px solid var(--line);
+	        border-radius: var(--radius-xl);
+	        overflow: hidden;
+	        position: relative;
+		        min-height: 520px;
+	        box-shadow: var(--shadow);
+	        background-color: #050c17;
+	        background-image:
+	          linear-gradient(180deg, rgba(5, 12, 23, 0.28), rgba(5, 12, 23, 0.92)),
+	          var(--hero-image),
+	          var(--hero-image);
+	        background-size: cover, contain, cover;
+	        background-position: center, center, center;
+	        background-repeat: no-repeat, no-repeat, no-repeat;
+		      }
 
 	      .hero-photo::before {
 	        content: "";
