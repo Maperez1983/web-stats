@@ -7874,3 +7874,58 @@ class TeamCoverGuardrailTests(TestCase):
                 self.assertTrue(football_views._should_use_team_cover_image(None, workspace, team1))
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
+
+
+class AiTrainerLibraryTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(name='Equipo IA', slug='equipo-ia', short_name='IA', is_primary=True)
+        self.user = get_user_model().objects.create_user(
+            username='coach-ia',
+            email='coach-ia@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.workspace = Workspace.objects.create(
+            name='WS IA',
+            slug='ws-ia',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'sessions': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+
+    def _activate_workspace(self):
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session.save()
+
+    def test_ai_trainer_can_save_task_to_separate_repository(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+
+        url = reverse('ai-trainer') + f'?team={self.team.id}'
+        response = self.client.post(
+            url,
+            data={
+                'action': 'save_task',
+                'variant': 'A',
+                'profile': 'hybrid',
+                'phase': 'Ataque',
+                'goal': 'Trabajar 3er hombre y ocupar 5 carriles atacando zona 14.',
+            },
+            secure=True,
+        )
+        self.assertIn(response.status_code, {301, 302})
+
+        task = (
+            SessionTask.objects
+            .filter(session__microcycle__team=self.team, deleted_at__isnull=True, title__startswith='IA ·')
+            .order_by('-id')
+            .first()
+        )
+        self.assertIsNotNone(task)
+        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        self.assertEqual(str(meta.get('repository') or ''), 'ai_trainer')

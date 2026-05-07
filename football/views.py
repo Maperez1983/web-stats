@@ -1545,7 +1545,8 @@ def _exclude_library_sessions_qs(qs):
 
 LIBRARY_REPOSITORY_TRADITIONAL = 'traditional'
 LIBRARY_REPOSITORY_INTERACTIVE = 'interactive'
-LIBRARY_REPOSITORY_CHOICES = {LIBRARY_REPOSITORY_TRADITIONAL, LIBRARY_REPOSITORY_INTERACTIVE}
+LIBRARY_REPOSITORY_AI_TRAINER = 'ai_trainer'
+LIBRARY_REPOSITORY_CHOICES = {LIBRARY_REPOSITORY_TRADITIONAL, LIBRARY_REPOSITORY_INTERACTIVE, LIBRARY_REPOSITORY_AI_TRAINER}
 
 
 def _normalize_library_repository(value, *, fallback=LIBRARY_REPOSITORY_TRADITIONAL):
@@ -1554,6 +1555,8 @@ def _normalize_library_repository(value, *, fallback=LIBRARY_REPOSITORY_TRADITIO
         return LIBRARY_REPOSITORY_TRADITIONAL
     if raw in {'interactiva', 'interactivas'}:
         return LIBRARY_REPOSITORY_INTERACTIVE
+    if raw in {'ia', 'ai', 'iatrainer', 'ia-trainer', 'ia_trainer'}:
+        return LIBRARY_REPOSITORY_AI_TRAINER
     if raw in LIBRARY_REPOSITORY_CHOICES:
         return raw
     return fallback
@@ -1565,6 +1568,8 @@ def _library_repository_for_session(session):
     focus = str(getattr(session, 'focus', '') or '').strip().lower()
     if 'biblioteca interactiva' in focus:
         return LIBRARY_REPOSITORY_INTERACTIVE
+    if 'biblioteca ia' in focus or 'biblioteca ai' in focus:
+        return LIBRARY_REPOSITORY_AI_TRAINER
     return LIBRARY_REPOSITORY_TRADITIONAL
 
 
@@ -14854,7 +14859,12 @@ def admin_page(request):
                         repo = _library_repository_for_task(t)
                     except Exception:
                         repo = LIBRARY_REPOSITORY_TRADITIONAL
-                repo_label = 'Interactivas' if repo == LIBRARY_REPOSITORY_INTERACTIVE else ('Tradicionales' if repo else '')
+                if repo == LIBRARY_REPOSITORY_INTERACTIVE:
+                    repo_label = 'Interactivas'
+                elif repo == LIBRARY_REPOSITORY_AI_TRAINER:
+                    repo_label = 'IA‑Trainer'
+                else:
+                    repo_label = 'Tradicionales' if repo else ''
                 dest_label = ''
                 dest_url = ''
                 try:
@@ -30855,7 +30865,11 @@ def _get_or_create_library_session_with_repository(team, scope_key, *, repositor
         'fitness': 'Preparacion fisica',
     }.get(scope_key, 'Staff')
     repository = _normalize_library_repository(repository, fallback=LIBRARY_REPOSITORY_TRADITIONAL)
-    repo_label = 'Interactiva' if repository == LIBRARY_REPOSITORY_INTERACTIVE else 'PDF'
+    repo_label = {
+        LIBRARY_REPOSITORY_TRADITIONAL: 'PDF',
+        LIBRARY_REPOSITORY_INTERACTIVE: 'Interactiva',
+        LIBRARY_REPOSITORY_AI_TRAINER: 'IA‑Trainer',
+    }.get(repository, 'PDF')
 
     microcycle, _ = TrainingMicrocycle.objects.get_or_create(
         team=team,
@@ -30863,7 +30877,7 @@ def _get_or_create_library_session_with_repository(team, scope_key, *, repositor
         defaults={
             'week_end': week_end,
             'title': f'Biblioteca {scope_label}',
-            'objective': 'Repositorio de tareas (tradicionales e interactivas)',
+            'objective': 'Repositorio de tareas (tradicionales, interactivas e IA‑Trainer)',
             'status': TrainingMicrocycle.STATUS_DRAFT,
             'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
         },
@@ -38293,6 +38307,98 @@ def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals:
     ]
 
 
+def _ai_trainer_suggest_library_tasks(team, *, text_norm: str, signals: dict, limit: int = 8):
+    if not team or not text_norm:
+        return []
+
+    tokens = set()
+    try:
+        for item in re.split(r'[^a-z0-9áéíóúüñ]+', text_norm, flags=re.IGNORECASE):
+            t = str(item or '').strip().lower()
+            if len(t) >= 4:
+                tokens.add(t)
+    except Exception:
+        tokens = set()
+
+    for key in ['principles', 'zones', 'phases', 'figures']:
+        for it in (signals.get(key) or []):
+            if not isinstance(it, dict):
+                continue
+            label = _ai_trainer_normalize_text(str(it.get('label') or ''))
+            if label and len(label) >= 4:
+                tokens.add(label)
+
+    tokens_list = [t for t in list(tokens)[:24] if t]
+    if not tokens_list:
+        return []
+
+    try:
+        candidates = list(
+            SessionTask.objects
+            .select_related('session__microcycle')
+            .filter(session__microcycle__team=team, deleted_at__isnull=True)
+            .filter(
+                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(session__microcycle__title__istartswith='Biblioteca ')
+            )
+            .order_by('-id')[:600]
+        )
+    except Exception:
+        return []
+
+    def _task_text(task):
+        chunks = [
+            str(getattr(task, 'title', '') or ''),
+            str(getattr(task, 'objective', '') or ''),
+            str(getattr(task, 'coaching_points', '') or ''),
+            str(getattr(task, 'confrontation_rules', '') or ''),
+        ]
+        try:
+            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+            summary = str(analysis.get('summary') or '')
+            if summary:
+                chunks.append(summary)
+        except Exception:
+            pass
+        return _ai_trainer_normalize_text(' '.join([c for c in chunks if c]))
+
+    scored = []
+    for task in candidates:
+        try:
+            blob = _task_text(task)
+            if not blob:
+                continue
+            score = 0
+            for tok in tokens_list:
+                if tok and tok in blob:
+                    score += 1
+            if score <= 0:
+                continue
+            repo = ''
+            try:
+                repo = _library_repository_for_task(task)
+            except Exception:
+                repo = LIBRARY_REPOSITORY_TRADITIONAL
+            scored.append((score, int(getattr(task, 'id', 0) or 0), task, repo))
+        except Exception:
+            continue
+
+    scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    out = []
+    for score, _, task, repo in scored[: max(1, int(limit or 8))]:
+        task.ai_trainer_score = int(score)
+        task.ai_trainer_repo = str(repo or '')
+        task.ai_trainer_repo_label = {
+            LIBRARY_REPOSITORY_TRADITIONAL: 'Clásicas',
+            LIBRARY_REPOSITORY_INTERACTIVE: 'Interactivas',
+            LIBRARY_REPOSITORY_AI_TRAINER: 'IA‑Trainer',
+        }.get(str(repo or ''), str(repo or ''))
+        out.append(task)
+    return out
+
+
 @login_required
 @ensure_csrf_cookie
 def ai_trainer_page(request):
@@ -38306,15 +38412,17 @@ def ai_trainer_page(request):
     if not team:
         return HttpResponse('Equipo no configurado.', status=400)
 
-    dictionary = _ai_trainer_load_coach_dictionary()
-
     profile = str(request.GET.get('profile') or '').strip() or 'hybrid'
     phase = str(request.GET.get('phase') or '').strip()
     goal = str(request.GET.get('goal') or '').strip()
     proposals = []
     signals = {}
+    suggestions = []
+
+    dictionary = _ai_trainer_load_coach_dictionary()
 
     if request.method == 'POST':
+        post_action = str(request.POST.get('action') or '').strip().lower() or 'generate'
         profile = str(request.POST.get('profile') or profile).strip() or 'hybrid'
         phase = str(request.POST.get('phase') or phase).strip()
         goal = str(request.POST.get('goal') or goal).strip()
@@ -38326,6 +38434,81 @@ def ai_trainer_page(request):
             'figures': _ai_trainer_match_section(dictionary.get('figures') if isinstance(dictionary.get('figures'), dict) else {}, text_norm, limit=5),
         }
         proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals)
+        suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
+
+        if post_action == 'save_task':
+            variant = str(request.POST.get('variant') or '').strip().upper()
+            selected = next((p for p in proposals if str(p.get('variant') or '').strip().upper() == variant), None)
+            if not selected:
+                return HttpResponse('Propuesta no válida.', status=400)
+
+            # Guarda en una biblioteca separada ("repo" IA‑Trainer) para no mezclar con el histórico.
+            target_session = _get_or_create_library_session_with_repository(team, 'coach', repository=LIBRARY_REPOSITORY_AI_TRAINER)
+            title_base = str(selected.get('title') or '').strip() or 'Propuesta IA'
+            if goal and len(goal) <= 64:
+                title_base = goal
+            title = f'IA · {title_base}'.strip()[:160]
+
+            coaching_points = '\n'.join([str(x) for x in (selected.get('coach_points') or []) if str(x or '').strip()])
+            rules = ''
+            try:
+                overlays = [str(x) for x in (selected.get('overlays') or []) if str(x or '').strip()]
+                patterns = [str(x) for x in (selected.get('patterns') or []) if str(x or '').strip()]
+                if overlays or patterns:
+                    rules = '\n'.join(
+                        [f'Overlays: {", ".join(overlays)}' if overlays else '', f'Patrones: {", ".join(patterns)}' if patterns else '']
+                    ).strip()
+            except Exception:
+                rules = ''
+
+            duration = 15
+            try:
+                blocks = selected.get('blocks') if isinstance(selected.get('blocks'), list) else []
+                if blocks:
+                    duration = int(sum(int(b.get('minutes') or 0) for b in blocks if isinstance(b, dict)) or 15)
+            except Exception:
+                duration = 15
+            duration = max(5, min(duration, 90))
+
+            tactical_layout = {
+                'meta': {
+                    'repository': LIBRARY_REPOSITORY_AI_TRAINER,
+                    'ai_trainer': {
+                        'profile': profile,
+                        'phase': phase,
+                        'goal': goal,
+                        'variant': variant,
+                        'signals': signals,
+                    },
+                }
+            }
+            try:
+                analysis_meta = tactical_layout['meta'].setdefault('analysis', {})
+                analysis_meta['summary'] = str(goal or '').strip()[:900]
+                analysis_meta['task_sheet'] = {
+                    'description': str(goal or '').strip()[:1200],
+                }
+            except Exception:
+                pass
+
+            SessionTask.objects.create(
+                session=target_session,
+                title=title,
+                block=SessionTask.BLOCK_MAIN_1,
+                duration_minutes=duration,
+                objective=str(selected.get('goal') or goal or '').strip()[:180],
+                coaching_points=coaching_points,
+                confrontation_rules=rules,
+                tactical_layout=tactical_layout,
+            )
+            params = {'tab': 'library', 'library_repo': LIBRARY_REPOSITORY_AI_TRAINER, 'library_source': 'created', 'team': int(team.id)}
+            try:
+                workspace = _get_active_workspace(request)
+                if workspace and getattr(workspace, 'id', None):
+                    params['workspace'] = int(workspace.id)
+            except Exception:
+                pass
+            return redirect(f"{reverse('sessions')}?{urlencode(params)}")
 
     return render(
         request,
@@ -38337,6 +38520,7 @@ def ai_trainer_page(request):
             'goal': goal,
             'signals': signals,
             'proposals': proposals,
+            'suggestions': suggestions,
         },
     )
 

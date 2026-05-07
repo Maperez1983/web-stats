@@ -120,7 +120,18 @@
                 <article class="proposal" data-proposal="{{ p.variant }}">
                   <div style="display:flex; justify-content:space-between; gap:0.7rem; flex-wrap:wrap; align-items:baseline;">
                     <h3>{{ p.variant }} · {{ p.subtitle }}</h3>
-                    <button type="button" class="btn" data-copy="{{ p.variant }}">Copiar</button>
+                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                      <button type="button" class="btn" data-copy="{{ p.variant }}">Copiar</button>
+                      <form method="post" action="?team={{ team.id }}" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save_task" />
+                        <input type="hidden" name="variant" value="{{ p.variant }}" />
+                        <input type="hidden" name="profile" value="{{ profile }}" />
+                        <input type="hidden" name="phase" value="{{ phase }}" />
+                        <input type="hidden" name="goal" value="{{ goal }}" />
+                        <button type="submit" class="btn primary" title="Guardar en Biblioteca IA‑Trainer">Guardar</button>
+                      </form>
+                    </div>
                   </div>
                   <p><strong>{{ p.title }}</strong>{% if p.goal %}<br /><span class="muted">{{ p.goal }}</span>{% endif %}</p>
                   <div class="blocks">
@@ -151,6 +162,23 @@
             </div>
           {% else %}
             <p class="muted">Escribe tu objetivo y pulsa “Generar propuestas”.</p>
+          {% endif %}
+
+          {% if suggestions %}
+            <div style="margin-top:0.9rem;">
+              <div class="section-title">Sugerencias de tu biblioteca</div>
+              <div class="blocks">
+                {% for t in suggestions %}
+                  <div class="block">
+                    <strong>{{ t.ai_trainer_repo_label|default:"Biblioteca" }} · score {{ t.ai_trainer_score|default:0 }}</strong>
+                    <span>
+                      <a href="{% url 'session-task-detail' t.id %}" class="mono" style="color:inherit; text-decoration:underline;">{{ t.title }}</a>
+                      {% if t.objective %}<span class="muted"> — {{ t.objective }}</span>{% endif %}
+                    </span>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
           {% endif %}
         </section>
       </div>
@@ -212,4 +240,3 @@
     </script>
   </body>
 </html>
-

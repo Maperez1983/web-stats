@@ -1996,6 +1996,7 @@
 		                  <select name="library_repo">
 		                    <option value="traditional" {% if library_repository == 'traditional' %}selected{% endif %}>Clásicas</option>
 		                    <option value="interactive" {% if library_repository == 'interactive' %}selected{% endif %}>Interactivas</option>
+		                    <option value="ai_trainer" {% if library_repository == 'ai_trainer' %}selected{% endif %}>IA‑Trainer</option>
 		                  </select>
 		                </label>
 		                <label>
@@ -2673,6 +2674,7 @@
 	          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
 	            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=microcycles&library_repo=traditional">Clásicas</a>
 	            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=microcycles&library_repo=interactive">Interactivas</a>
+	            <a class="tab-link {% if library_repository == 'ai_trainer' %}is-active{% endif %}" href="?tab=microcycles&library_repo=ai_trainer">IA‑Trainer</a>
 	          </div>
 	          <div class="grid">
 	            <div class="editor-box">
