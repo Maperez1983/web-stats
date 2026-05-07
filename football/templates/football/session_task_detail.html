@@ -672,40 +672,41 @@
       </section>
       {% endif %}
 
-      <section class="panel">
-        <h2>Datos extraídos</h2>
-        <p><strong>Objetivo:</strong> {{ task.objective|default:"-" }}</p>
-        {% if task_sheet.description %}
-        <p><strong>Descripción:</strong></p>
-        <pre>{{ task_sheet.description }}</pre>
-        {% endif %}
-        <p><strong>Consignas:</strong></p>
-        <pre>{{ task.coaching_points|default:"-" }}</pre>
-        <p style="margin-top:0.55rem;"><strong>Reglas de confrontación:</strong></p>
-        <pre>{{ task.confrontation_rules|default:"-" }}</pre>
-      </section>
+	      <section class="panel">
+	        <h2>Datos extraídos</h2>
+	        <p><strong>Objetivo:</strong> {{ task.objective|default:"-" }}</p>
+	        {% firstof task_sheet.description task.tactical_layout.meta.organization "" as task_description_value %}
+	        {% if task_description_value %}
+	        <p><strong>Descripción:</strong></p>
+	        <pre>{{ task_description_value }}</pre>
+	        {% endif %}
+	        <p><strong>Consignas:</strong></p>
+	        <pre>{{ task.coaching_points|default:"-" }}</pre>
+	        <p style="margin-top:0.55rem;"><strong>Reglas de confrontación:</strong></p>
+	        <pre>{{ task.confrontation_rules|default:"-" }}</pre>
+	      </section>
 
-      <section class="panel">
-        <h2>Ficha de la tarea (extraída del PDF)</h2>
-        <div class="sheet-grid">
-          <div class="sheet-item">
-            <strong>Jugadores</strong>
-            <span>{{ task_sheet.players|default:"-" }}</span>
-          </div>
-          <div class="sheet-item">
-            <strong>Espacio</strong>
-            <span>{{ task_sheet.space|default:"-" }}</span>
-          </div>
-          <div class="sheet-item">
-            <strong>Medidas</strong>
-            <span>{{ task_sheet.dimensions|default:"-" }}</span>
-          </div>
-          <div class="sheet-item">
-            <strong>Elementos</strong>
-            <span>{{ task_sheet.materials|default:"-" }}</span>
-          </div>
-        </div>
-      </section>
+	      <section class="panel">
+	        <h2>Ficha de la tarea (extraída del PDF)</h2>
+	        <div class="sheet-grid">
+	          <div class="sheet-item">
+	            <strong>Jugadores</strong>
+	            <span>{% firstof task_sheet.players task.tactical_layout.meta.player_count "-" %}</span>
+	          </div>
+	          <div class="sheet-item">
+	            <strong>Espacio</strong>
+	            <span>{% firstof task_sheet.space task.tactical_layout.meta.space "-" %}</span>
+	          </div>
+	          <div class="sheet-item">
+	            <strong>Medidas</strong>
+	            <span>{{ task_sheet.dimensions|default:"-" }}</span>
+	          </div>
+	          <div class="sheet-item">
+	            <strong>Elementos</strong>
+	            <span>{% firstof task_sheet.materials task.tactical_layout.meta.resources_summary "-" %}</span>
+	          </div>
+	        </div>
+	      </section>
 
       {% if analysis_meta %}
       <section class="panel">

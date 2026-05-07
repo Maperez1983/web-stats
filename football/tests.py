@@ -6993,6 +6993,52 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'Paso 1')
         self.assertContains(response, 'Reproducir')
 
+    def test_session_task_detail_sheet_falls_back_to_meta_space_and_update_syncs_meta_space(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión ficha',
+            duration_minutes=90,
+        )
+        # Caso legacy real: `meta.space` existe pero `analysis.task_sheet.space` no.
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea ficha legacy',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={
+                'meta': {
+                    'scope': 'coach',
+                    'space': 'Medio campo',
+                    'analysis': {'task_sheet': {'description': 'Desc', 'dimensions': '40x30', 'materials': 'Conos'}},
+                    'graphic_editor': {'canvas_state': {'version': '5.3.0', 'objects': []}},
+                }
+            },
+        )
+
+        url = reverse('session-task-detail', args=[task.id]) + '?legacy=1'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Medio campo')
+
+        response = self.client.post(
+            url,
+            {
+                'detail_action': 'update_task_detail',
+                'task_title': 'Tarea ficha legacy',
+                'task_block': SessionTask.BLOCK_MAIN_1,
+                'task_minutes': '18',
+                'task_sheet_space': 'Zona central',
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        task.refresh_from_db()
+        meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {}
+        analysis = meta.get('analysis') if isinstance(meta, dict) else {}
+        sheet = analysis.get('task_sheet') if isinstance(analysis, dict) else {}
+        self.assertEqual(str(meta.get('space') or '').strip(), 'Zona central')
+        self.assertEqual(str(sheet.get('space') or '').strip(), 'Zona central')
+
     def test_library_task_can_be_copied_to_session(self):
         library_session = TrainingSession.objects.create(
             microcycle=self.microcycle,

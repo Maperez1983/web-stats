@@ -38,6 +38,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage, default_storage, storages
 from django.db import connections
+from django.db import IntegrityError
 from django.db import transaction
 from django.db.models import Count, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
@@ -19046,41 +19047,58 @@ def team_agenda_page(request):
         if duplicate_exists:
             return HttpResponse('Ya existe una sesión con la misma fecha y nombre en este microciclo.', status=400)
 
-        next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
-        session_obj = TrainingSession.objects.create(
-            microcycle=microcycle,
-            session_date=session_date,
-            start_time=start_time,
-            duration_minutes=duration_minutes,
-            intensity=intensity,
-            focus=focus,
-            content='',
-            status=status,
-            order=next_order,
-        )
+        session_obj = None
+        created = False
+        try:
+            # Protege contra doble-submit / reintentos: el constraint DB es la última barrera.
+            with transaction.atomic():
+                next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+                session_obj = TrainingSession.objects.create(
+                    microcycle=microcycle,
+                    session_date=session_date,
+                    start_time=start_time,
+                    duration_minutes=duration_minutes,
+                    intensity=intensity,
+                    focus=focus,
+                    content='',
+                    status=status,
+                    order=next_order,
+                )
+                created = True
+        except IntegrityError:
+            # Ya creada en paralelo (doble click / retry). Consideramos OK e ignoramos el duplicado.
+            session_obj = TrainingSession.objects.filter(
+                microcycle=microcycle,
+                session_date=session_date,
+                focus__iexact=focus,
+            ).order_by('-id').first()
+            created = False
+        if not session_obj:
+            return HttpResponse('No se pudo crear la sesión.', status=500)
 
         # Auto-convocatoria: al crear la sesión desde Agenda, pre-marcamos la plantilla como "Presente"
         # para que el entrenador solo tenga que desmarcar excepciones (ausencias, retrasos, lesionados...).
-        try:
-            player_ids = list(
-                Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
-            )
-            if player_ids:
-                TrainingSessionAttendance.objects.bulk_create(
-                    [
-                        TrainingSessionAttendance(
-                            session=session_obj,
-                            player_id=int(pid),
-                            status=TrainingSessionAttendance.STATUS_PRESENT,
-                            notes='',
-                            marked_by=request.user if request.user.is_authenticated else None,
-                        )
-                        for pid in player_ids
-                    ],
-                    ignore_conflicts=True,
+        if created:
+            try:
+                player_ids = list(
+                    Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
                 )
-        except Exception:
-            logger.exception('team_agenda_page: no se pudo preconvocar asistencia', extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)})
+                if player_ids:
+                    TrainingSessionAttendance.objects.bulk_create(
+                        [
+                            TrainingSessionAttendance(
+                                session=session_obj,
+                                player_id=int(pid),
+                                status=TrainingSessionAttendance.STATUS_PRESENT,
+                                notes='',
+                                marked_by=request.user if request.user.is_authenticated else None,
+                            )
+                            for pid in player_ids
+                        ],
+                        ignore_conflicts=True,
+                    )
+            except Exception:
+                logger.exception('team_agenda_page: no se pudo preconvocar asistencia', extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)})
 
         import urllib.parse  # noqa: WPS433
         base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
@@ -30591,6 +30609,7 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
         'task_sheet_materials': 'materials',
     }
     task_sheet_touched = False
+    touched_space = False
     for post_key, sheet_key in sheet_field_map.items():
         if post_key in post_data:
             task_sheet[sheet_key] = _polish_spanish_text(
@@ -30598,8 +30617,12 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
                 multiline=(sheet_key == 'description'),
             )
             task_sheet_touched = True
+            if sheet_key == 'space':
+                touched_space = True
     if task_sheet_touched:
         analysis_meta['task_sheet'] = task_sheet
+        if touched_space:
+            meta['space'] = str(task_sheet.get('space') or '').strip()
         meta['analysis'] = analysis_meta
         layout['meta'] = meta
         task.tactical_layout = layout
@@ -32364,23 +32387,39 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 ).exists()
                 if duplicate_exists:
                     raise ValueError('Ya existe una sesión con la misma fecha y nombre en este microciclo.')
-                next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
-                session_obj = TrainingSession.objects.create(
-                    microcycle=microcycle,
-                    session_date=session_date,
-                    start_time=start_time,
-                    duration_minutes=duration_minutes,
-                    intensity=intensity,
-                    focus=focus,
-                    content=content,
-                    status=status,
-                    order=next_order,
-                )
+                session_obj = None
+                created = False
+                try:
+                    # Protege contra doble-submit / reintentos: el constraint DB es la última barrera.
+                    with transaction.atomic():
+                        next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+                        session_obj = TrainingSession.objects.create(
+                            microcycle=microcycle,
+                            session_date=session_date,
+                            start_time=start_time,
+                            duration_minutes=duration_minutes,
+                            intensity=intensity,
+                            focus=focus,
+                            content=content,
+                            status=status,
+                            order=next_order,
+                        )
+                        created = True
+                except IntegrityError:
+                    # Ya creada en paralelo (doble click / retry). Consideramos OK e ignoramos el duplicado.
+                    session_obj = TrainingSession.objects.filter(
+                        microcycle=microcycle,
+                        session_date=session_date,
+                        focus__iexact=focus,
+                    ).order_by('-id').first()
+                    created = False
+                if not session_obj:
+                    raise ValueError('No se pudo crear la sesión.')
                 # Auto-convocatoria (por defecto): pre-marca toda la plantilla como Presente para que el
                 # entrenador solo tenga que ajustar excepciones (ausencias, retrasos, lesionados...).
                 auto_convoke_raw = str(request.POST.get('plan_session_auto_convoke') or '').strip().lower()
                 auto_convoke = auto_convoke_raw not in {'0', 'false', 'no', 'off'}
-                if auto_convoke:
+                if auto_convoke and created:
                     try:
                         player_ids = list(
                             Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
@@ -32422,7 +32461,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             continue
                         block_by_task_id[int(tid)] = block
                 attached_count = 0
-                if source_task_ids:
+                if source_task_ids and created:
                     source_tasks = list(
                         SessionTask.objects
                         .select_related('session__microcycle')
@@ -32442,11 +32481,14 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             copied.block = desired_block
                             copied.save(update_fields=['block'])
                         attached_count += 1
-                feedback = (
-                    f'Sesión creada: {focus}.'
-                    if not attached_count
-                    else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
-                )
+                if not created:
+                    feedback = f'Sesión ya estaba creada: {focus}. (Se evitó duplicado por doble envío.)'
+                else:
+                    feedback = (
+                        f'Sesión creada: {focus}.'
+                        if not attached_count
+                        else f'Sesión creada: {focus}. Tareas añadidas: {attached_count}.'
+                    )
                 # UX: tras crear sesión, siempre pasamos a Biblioteca para seleccionar las tareas.
                 active_tab = 'library'
                 auto_selected_session_id = int(session_obj.id)
