@@ -34891,16 +34891,31 @@ def _build_tactical_player_catalog(request, primary_team):
     players = (
         Player.objects
         .filter(team=primary_team, is_active=True)
+        .only('id', 'name', 'number', 'position', 'photo_updated_at')
         .order_by('number', 'name')[:60]
     )
     for player in players:
+        # Rendimiento: evitar `default_storage.exists()` / metadatos de storage por jugador aquí.
+        photo_url = ''
+        try:
+            updated_at = getattr(player, 'photo_updated_at', None)
+            if updated_at:
+                photo_url = reverse('player-photo-file', args=[int(player.id)])
+                try:
+                    version = str(int(updated_at.timestamp()))
+                    if version:
+                        photo_url = f'{photo_url}?v={version}'
+                except Exception:
+                    pass
+        except Exception:
+            photo_url = ''
         catalog.append(
             {
                 'id': int(player.id),
                 'name': str(player.name or '').strip(),
                 'number': _parse_int(player.number) or '',
                 'position': str(player.position or '').strip(),
-                'photo_url': str(resolve_player_photo_url(request, player) or '').strip(),
+                'photo_url': str(photo_url or '').strip(),
             }
         )
     return catalog
@@ -36271,16 +36286,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             can_restore_original = bool(original)
     except Exception:
         can_restore_original = False
-    context_cache_seconds = 120
+    context_cache_seconds = 600
     try:
-        context_cache_seconds = int(str(os.getenv('TASK_BUILDER_CONTEXT_CACHE_SECONDS', '120') or '120').strip() or 120)
+        context_cache_seconds = int(str(os.getenv('TASK_BUILDER_CONTEXT_CACHE_SECONDS', '600') or '600').strip() or 600)
     except Exception:
-        context_cache_seconds = 120
+        context_cache_seconds = 600
     context_cache_seconds = max(15, min(900, int(context_cache_seconds or 120)))
 
     all_sessions = []
     player_catalog = []
-    available_players = []
     try:
         cache_key = f'task_builder:all_sessions:{int(primary_team.id)}'
         cached = cache.get(cache_key)
@@ -36291,6 +36305,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 TrainingSession.objects
                 .select_related('microcycle')
                 .filter(microcycle__team=primary_team)
+                .only('id', 'session_date', 'focus')
                 .order_by('-session_date', '-id')[:150]
             )
             cache.set(cache_key, all_sessions, context_cache_seconds)
@@ -36307,21 +36322,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         player_catalog = []
         logger.exception('sessions_task_builder: no se pudo construir catálogo de jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
-    try:
-        cache_key = f'task_builder:available_players:{int(primary_team.id)}'
-        cached = cache.get(cache_key)
-        if isinstance(cached, list):
-            available_players = cached
-        else:
-            available_players = list(
-                Player.objects
-                .filter(team=primary_team, is_active=True)
-                .order_by('number', 'name')[:60]
-            )
-            cache.set(cache_key, available_players, context_cache_seconds)
-    except Exception:
-        available_players = []
-        logger.exception('sessions_task_builder: no se pudieron cargar jugadores', extra={'team_id': getattr(primary_team, 'id', None)})
 
     confirmed_player_ids = []
     confirmed_only_default = False
@@ -36424,7 +36424,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             library_repository = _library_repository_for_task(task)
     except Exception:
         pass
-    if not error and (not all_sessions or not available_players):
+    if not error and (not all_sessions):
         # Soft warning: evita 500 por fallos parciales y da pista al usuario.
         error = 'El editor cargó, pero faltan datos (sesiones/jugadores/recursos). Recarga la página o revisa permisos/configuración del equipo.'
 
@@ -36470,7 +36470,6 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'task_structure_choices': TASK_STRUCTURE_CHOICES,
             'task_coordination_choices': TASK_COORDINATION_CHOICES,
             'tactical_player_catalog': player_catalog,
-            'available_players': available_players,
             'confirmed_player_ids': confirmed_player_ids,
             'confirmed_only_default': confirmed_only_default,
             'pdf_assets': pdf_assets,
