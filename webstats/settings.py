@@ -575,12 +575,27 @@ LOGGING = {
             'filename': BASE_DIR / 'django_error.log',
             'formatter': 'verbose',
         },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['file'],
+        'console': {
             'level': 'ERROR',
-            'propagate': True,
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
+    'loggers': {
+        'django': {'handlers': ['file'], 'level': 'ERROR', 'propagate': True},
+        'django.request': {'handlers': ['file'], 'level': 'ERROR', 'propagate': True},
+    },
 }
+
+# In Render (and most container platforms), stdout/stderr is where logs are collected.
+# Also keep file logging to allow quick `tail django_error.log` in shells.
+_log_to_stdout = os.getenv('LOG_TO_STDOUT', '').strip().lower() in {'1', 'true', 'yes', 'on'}
+_is_render = bool((os.getenv('RENDER') or os.getenv('RENDER_GIT_COMMIT') or os.getenv('RENDER_SERVICE_ID') or '').strip())
+if _log_to_stdout or _is_render:
+    try:
+        for key in ('django', 'django.request'):
+            handlers = LOGGING.get('loggers', {}).get(key, {}).get('handlers', [])
+            if 'console' not in handlers:
+                handlers.append('console')
+    except Exception:
+        pass
