@@ -6,6 +6,7 @@ import mimetypes
 import os
 import threading
 from pathlib import Path
+from urllib.parse import urlparse
 
 from django.conf import settings
 
@@ -109,10 +110,20 @@ def _url_to_data_url(url: str) -> str | None:
     if not raw or raw.startswith("data:"):
         return None
     candidates: list[Path] = []
-    if "/static/" in raw or raw.startswith("/static/") or raw.startswith("static/"):
-        candidates.extend(_static_candidates_for_url(raw))
-    if "/media/" in raw or raw.startswith("/media/") or raw.startswith("media/"):
-        candidates.extend(_media_candidates_for_url(raw))
+
+    path_hint = raw
+    if raw.startswith("http://") or raw.startswith("https://"):
+        try:
+            parsed = urlparse(raw)
+            if parsed and parsed.path:
+                path_hint = parsed.path
+        except Exception:
+            path_hint = raw
+
+    if "/static/" in path_hint or path_hint.startswith("/static/") or path_hint.startswith("static/"):
+        candidates.extend(_static_candidates_for_url(path_hint))
+    if "/media/" in path_hint or path_hint.startswith("/media/") or path_hint.startswith("media/"):
+        candidates.extend(_media_candidates_for_url(path_hint))
     for path in candidates:
         try:
             if not path.exists() or not path.is_file():
@@ -332,6 +343,13 @@ def render_task_preview_png(
             device_scale_factor=float(dpr),
         )
         page = context.new_page()
+        # Avoid external network hangs when Fabric tries to load remote images.
+        # We inline local /static and /media URLs into data: URLs before rendering.
+        # Any other remote requests are aborted quickly.
+        try:
+            page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+        except Exception:
+            pass
         page.set_content(html, wait_until="load")
 
         if fabric_path.exists():
