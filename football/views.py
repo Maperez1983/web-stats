@@ -23009,9 +23009,12 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         if preview:
             return _autocrop_preview_data_url(preview)
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
+        if isinstance(layout, str):
+            layout = _coerce_json_dict(layout) or {}
+        if not isinstance(layout, dict):
+            layout = {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-        canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
+        canvas_state, canvas_width, canvas_height = _extract_canvas_state_for_preview(task)
         # 2) Render server-side desde canvas_state (más robusto que depender de ficheros).
         if canvas_state and isinstance(canvas_state, dict) and canvas_state.get('objects'):
             try:
@@ -23022,8 +23025,8 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
                     pitch_grass_style = 'classic'
                 # En PDF no queremos recortes por zoom: forzamos a 1.0.
                 pitch_zoom = 1.0
-                canvas_width = max(320, min(_parse_int(graphic.get('canvas_width')) or 1280, 3840))
-                canvas_height = max(180, min(_parse_int(graphic.get('canvas_height')) or 720, 2160))
+                canvas_width = max(320, min(_parse_int(canvas_width) or 1280, 3840))
+                canvas_height = max(180, min(_parse_int(canvas_height) or 720, 2160))
                 png_bytes = render_task_preview_png(
                     canvas_state=canvas_state,
                     pitch_preset=pitch_preset,
@@ -30980,6 +30983,59 @@ def _decode_canvas_data_url(data_url):
     return raw_bytes, extension
 
 
+def _coerce_json_dict(value):
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+def _extract_canvas_state_for_preview(task):
+    """
+    Best-effort extraction of a Fabric canvas_state dict from a task.
+
+    Older/newer versions may store the graphic state in different places:
+    - meta.graphic_editor.canvas_state (dict or JSON string)
+    - timeline[0].canvas_state (multi-board / multi-step)
+    """
+    if not task:
+        return None, 0, 0
+    layout = task.tactical_layout
+    if isinstance(layout, str):
+        layout = _coerce_json_dict(layout) or {}
+    if not isinstance(layout, dict):
+        layout = {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+
+    canvas_state = _coerce_json_dict(graphic.get("canvas_state"))
+    world_w = _parse_int(graphic.get("canvas_width")) or 0
+    world_h = _parse_int(graphic.get("canvas_height")) or 0
+    if isinstance(canvas_state, dict) and isinstance(canvas_state.get("objects"), list) and canvas_state.get("objects"):
+        return canvas_state, world_w, world_h
+
+    timeline = layout.get("timeline") if isinstance(layout.get("timeline"), list) else []
+    for frame in timeline[:20]:
+        if not isinstance(frame, dict):
+            continue
+        frame_state = _coerce_json_dict(frame.get("canvas_state"))
+        if not (isinstance(frame_state, dict) and isinstance(frame_state.get("objects"), list) and frame_state.get("objects")):
+            continue
+        fw = _parse_int(frame.get("canvas_width")) or 0
+        fh = _parse_int(frame.get("canvas_height")) or 0
+        return frame_state, fw, fh
+
+    return None, 0, 0
+
+
 def _maybe_render_task_preview_server_side(task, *, force=False):
     """
     Replace/refresh task.task_preview_image using Playwright WYSIWYG rendering.
@@ -30999,13 +31055,18 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
                 # Si no podemos evaluar, intentamos renderizar (mejor tener HD que nada).
                 pass
     layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    if isinstance(layout, str):
+        layout = _coerce_json_dict(layout) or {}
+    if not isinstance(layout, dict):
+        layout = {}
     meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
-    canvas_state = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else None
-    if not canvas_state:
+    canvas_state, world_w, world_h = _extract_canvas_state_for_preview(task)
+    if not isinstance(canvas_state, dict):
         return False
-    world_w = _parse_int(graphic.get("canvas_width")) or 1280
-    world_h = _parse_int(graphic.get("canvas_height")) or 720
+    if not world_w:
+        world_w = 1280
+    if not world_h:
+        world_h = 720
     pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
     pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
     pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
