@@ -28,7 +28,23 @@
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
       }
       .page { max-width: 1660px; margin: 0 auto; padding: 1.25rem; }
-      .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        position: sticky;
+        top: calc(0.75rem + env(safe-area-inset-top));
+        z-index: 1200;
+        padding: 0.75rem 0.85rem;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        backdrop-filter: blur(10px) saturate(1.12);
+        -webkit-backdrop-filter: blur(10px) saturate(1.12);
+        box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
       .top h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.08em; text-transform: uppercase; }
       .button {
         display: inline-flex; text-decoration: none; align-items: center; justify-content: center;
@@ -1536,6 +1552,7 @@
 		      <div class="top" id="planner-top">
 		        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
             <div style="display:flex; gap:0.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+              <button type="button" class="button primary" id="planner-save-top" disabled title="Guardar (sección activa)">Guardar</button>
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
@@ -3639,6 +3656,88 @@
       window.sessionsPlannerBoot = {
         primaryTeamId: {{ primary_team_id|default:0 }},
       };
+    </script>
+    <script>
+      (function () {
+        const topSaveBtn = document.getElementById('planner-save-top');
+        if (!topSaveBtn) return;
+
+        const isElementVisible = (el) => {
+          if (!el) return false;
+          if (el.disabled) return false;
+          const style = window.getComputedStyle(el);
+          if (!style || style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+          const rect = el.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        };
+
+        const findActivePanel = () => (
+          document.querySelector('.tab-panel.is-active')
+          || document.querySelector('main.page')
+          || document.body
+        );
+
+        const findSubmitInForm = (form) => {
+          if (!form) return null;
+          const btn = form.querySelector('button[type="submit"], input[type="submit"]');
+          if (!btn || !isElementVisible(btn)) return null;
+          return btn;
+        };
+
+        const findBestSubmitButton = () => {
+          // 1) Si el usuario está editando dentro de un form, guarda ese form.
+          try {
+            const active = document.activeElement;
+            const form = active && active.closest ? active.closest('form') : null;
+            const submit = findSubmitInForm(form);
+            if (submit) return submit;
+          } catch (e) { /* ignore */ }
+
+          // 2) Fallback: el primer submit "Guardar*" visible en el panel activo.
+          const scope = findActivePanel();
+          const candidates = Array.from(
+            scope.querySelectorAll('button[type="submit"].primary, button[type="submit"].button.primary, input[type="submit"].primary')
+          ).filter(isElementVisible);
+          if (!candidates.length) return null;
+          const byGuardar = candidates.find((el) => String(el.textContent || '').toLowerCase().includes('guardar'));
+          return byGuardar || candidates[0];
+        };
+
+        const syncTopSaveState = () => {
+          const target = findBestSubmitButton();
+          if (!target) {
+            topSaveBtn.disabled = true;
+            topSaveBtn.textContent = 'Guardar';
+            return;
+          }
+          topSaveBtn.disabled = false;
+          const label = String(target.textContent || '').trim();
+          topSaveBtn.textContent = label && label.length <= 32 ? label : 'Guardar';
+        };
+
+        topSaveBtn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          const target = findBestSubmitButton();
+          if (!target) return;
+          try {
+            const form = target.form || (target.closest ? target.closest('form') : null);
+            if (form && form.requestSubmit) {
+              form.requestSubmit(target);
+              return;
+            }
+          } catch (e) { /* ignore */ }
+          try { target.click(); } catch (e) { /* ignore */ }
+        });
+
+        // Mantiene el botón actualizado al cambiar de pestaña o al enfocar inputs.
+        document.addEventListener('focusin', syncTopSaveState, { passive: true });
+        document.addEventListener('click', () => window.setTimeout(syncTopSaveState, 0), { passive: true });
+        document.addEventListener('keydown', () => window.setTimeout(syncTopSaveState, 0), { passive: true });
+        window.addEventListener('hashchange', syncTopSaveState);
+        window.addEventListener('popstate', syncTopSaveState);
+        window.addEventListener('load', syncTopSaveState);
+        window.setTimeout(syncTopSaveState, 300);
+      })();
     </script>
     <script src="{% static 'football/js/sessions_planner_page.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
         <script>

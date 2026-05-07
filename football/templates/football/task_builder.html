@@ -3572,6 +3572,15 @@
           </p>
         </div>
 		        <div class="actions">
+              {% if not tactics_mode %}
+              <button
+                type="button"
+                class="button primary"
+                id="task-builder-save-top"
+                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
+                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+              {% endif %}
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
@@ -5713,7 +5722,7 @@
 
               {% if not tactics_mode %}
               <div class="submit-row">
-                <button type="submit" class="primary">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+                <button type="submit" class="button primary" id="task-submit-btn">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
               </div>
               {% else %}
               <div class="submit-row" style="justify-content:flex-end;">

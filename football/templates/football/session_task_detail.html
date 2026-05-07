@@ -381,6 +381,14 @@
         <h1>Detalle de tarea</h1>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
 	          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
+          {% if is_editable_task %}
+          <button
+            type="button"
+            class="button primary"
+            title="Guardar cambios de la tarea"
+            onclick="try{var f=document.getElementById('task-detail-form');if(!f)return;var b=f.querySelector('button[type=submit],input[type=submit]');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+          >Guardar cambios</button>
+          {% endif %}
           <button
             type="button"
             class="button secondary"
@@ -435,7 +443,7 @@
 
         <section class="panel">
           <h2>Editar tarea y ficha interior</h2>
-          <form method="post" class="grid">
+          <form method="post" class="grid" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
             <label>
