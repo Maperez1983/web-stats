@@ -212,25 +212,35 @@
         {% endif %}
       </nav>
 
-      {% if active_tab == 'tasks' %}
-      <section class="block">
-        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
-          <div>
-            <h2 style="margin:0 0 0.35rem;">Tareas recientes</h2>
-            <p style="margin:0;color:rgba(203,213,225,0.78);">Útil para localizar tareas creadas en iPad aunque no aparezcan donde esperabas.</p>
-          </div>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <a class="module-tab {% if tasks_days == 1 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=1">Hoy</a>
-            <a class="module-tab {% if tasks_days == 7 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=7">7 días</a>
-            <a class="module-tab {% if tasks_days == 30 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=30">30 días</a>
-          </div>
-        </div>
-        {% if tasks_message %}
-        <p style="color:#86efac;">{{ tasks_message }}</p>
-        {% endif %}
-        {% if tasks_error %}
-        <p style="color:#fecaca;">{{ tasks_error }}</p>
-        {% endif %}
+	      {% if active_tab == 'tasks' %}
+	      <section class="block">
+	        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+	          <div>
+	            <h2 style="margin:0 0 0.35rem;">Tareas recientes</h2>
+	            <p style="margin:0;color:rgba(203,213,225,0.78);">Útil para localizar tareas creadas en iPad aunque no aparezcan donde esperabas.</p>
+	          </div>
+	          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+	            <a class="module-tab {% if tasks_days == 1 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=1">Hoy</a>
+	            <a class="module-tab {% if tasks_days == 7 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=7">7 días</a>
+	            <a class="module-tab {% if tasks_days == 30 %}is-active{% endif %}" href="{% url 'admin-page' %}?tab=tasks&days=30">30 días</a>
+	          </div>
+	        </div>
+	        <form method="post" style="margin-top:0.85rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+	          {% csrf_token %}
+	          <input type="hidden" name="form_action" value="tasks_restore_from_backups" />
+	          <input type="hidden" name="active_tab" value="tasks" />
+	          <input type="hidden" name="days" value="{{ tasks_days }}" />
+	          <button class="button-danger" type="submit" onclick="return confirm('Esto intentará restaurar tareas recientes desde backups (solo de tu usuario) a la Biblioteca. ¿Continuar?');">
+	            Restaurar tareas perdidas
+	          </button>
+	          <span class="meta" style="opacity:0.85;">Úsalo si borraste una sesión “duplicada” y desaparecieron tareas de la Biblioteca.</span>
+	        </form>
+	        {% if tasks_message %}
+	        <p style="color:#86efac;">{{ tasks_message }}</p>
+	        {% endif %}
+	        {% if tasks_error %}
+	        <p style="color:#fecaca;">{{ tasks_error }}</p>
+	        {% endif %}
         {% if recent_tasks %}
           <div class="roster-list" style="margin-top:0.9rem;">
             {% for t in recent_tasks %}
