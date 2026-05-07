@@ -18662,8 +18662,139 @@
 	
 				    // Clicks en otros paneles de recursos (líneas, figuras, etc.).
 				    // Históricamente solo se atendía `#task-basic-tools`; esto hacía que "líneas" fuese poco usable.
-				    const resourceSection = document.querySelector('.resource-section');
-				    resourceSection?.addEventListener('click', (event) => {
+					    const resourceSection = document.querySelector('.resource-section');
+
+					    // Renderiza mini-previews reales (Fabric) en los botones de recursos para evitar emojis confusos.
+					    // Esto hace que el icono del botón sea exactamente la representación gráfica que se inserta.
+					    const renderResourceButtonPreviews = () => {
+					      if (!resourceSection || !fabricLib || typeof fabricLib.StaticCanvas !== 'function') return;
+					      const sizeByButton = (button) => {
+					        try {
+					          if (document.body.classList.contains('is-compact')) return 44;
+					        } catch (e) { /* ignore */ }
+					        try {
+					          if (button && button.closest && button.closest('.resource-strip') && button.classList.contains('tool-icon')) return 50;
+					        } catch (e) { /* ignore */ }
+					        return 50;
+					      };
+					      const toDataUrlForFactory = (factory, size) => {
+					        if (!factory) return '';
+					        const s = clamp(Number(size) || 50, 40, 64);
+					        const off = document.createElement('canvas');
+					        off.width = s;
+					        off.height = s;
+					        const sc = new fabricLib.StaticCanvas(off, {
+					          width: s,
+					          height: s,
+					          backgroundColor: 'transparent',
+					          renderOnAddRemove: false,
+					          enableRetinaScaling: true,
+					        });
+					        let obj = null;
+					        try {
+					          obj = factory(s / 2, s / 2);
+					        } catch (e) {
+					          obj = null;
+					        }
+					        if (!obj) {
+					          try { sc.dispose(); } catch (e) { /* ignore */ }
+					          return '';
+					        }
+					        try {
+					          // Asegura que la preview sea ligera (no cachés) y editable.
+					          try { obj.objectCaching = false; } catch (e) { /* ignore */ }
+					          try { obj.noScaleCache = true; } catch (e) { /* ignore */ }
+					        } catch (e) { /* ignore */ }
+					        sc.add(obj);
+					        try { obj.setCoords(); } catch (e) { /* ignore */ }
+					        const pad = 6;
+					        try {
+					          const bbox = obj.getBoundingRect(true, true);
+					          const bw = Math.max(1, Number(bbox?.width) || 1);
+					          const bh = Math.max(1, Number(bbox?.height) || 1);
+					          const maxW = Math.max(10, s - pad * 2);
+					          const maxH = Math.max(10, s - pad * 2);
+					          const scale = Math.min(maxW / bw, maxH / bh);
+					          if (isFinite(scale) && scale > 0 && scale < 1) {
+					            obj.scale((Number(obj.scaleX) || 1) * scale);
+					            try { obj.setCoords(); } catch (e) { /* ignore */ }
+					          }
+					        } catch (e) { /* ignore */ }
+					        try {
+					          // Re-centrar por si el bbox tenía offsets.
+					          obj.set({ left: s / 2, top: s / 2, originX: 'center', originY: 'center' });
+					          obj.setCoords();
+					        } catch (e) { /* ignore */ }
+					        try { sc.renderAll(); } catch (e) { /* ignore */ }
+					        let url = '';
+					        try {
+					          url = sc.toDataURL({ format: 'png', multiplier: 2 });
+					        } catch (e) {
+					          url = '';
+					        }
+					        try { sc.dispose(); } catch (e) { /* ignore */ }
+					        return url;
+					      };
+
+					      const buttons = Array.from(resourceSection.querySelectorAll('button.tool-icon[data-add]') || []);
+					      buttons.forEach((button) => {
+					        const add = safeText(button?.dataset?.add);
+					        if (!add) return;
+					        const holder = button.querySelector('.tool-emoji');
+					        if (!holder) return;
+					        // Evita re-render duplicado.
+					        if (holder.querySelector('img.tool-preview-img')) return;
+					        // Solo sustituimos los emojis "base" más confusos (equipamiento / recursos).
+					        const isCandidate = (
+					          add === 'pole_marker'
+					          || add === 'ladder'
+					          || add === 'ladder_L'
+					          || add === 'ladder_zigzag'
+					          || add === 'hurdle'
+					          || add === 'mini_hurdle'
+					          || add === 'tape'
+					          || add === 'gate'
+					          || add === 'rebounder'
+					          || add === 'barrier'
+					          || add === 'goal_posts'
+					          || add === 'goal_3d'
+					          || add === 'goal_target'
+					          || add === 'goal_popup'
+					          || add === 'goal_futsal'
+					          || add === 'cone'
+					          || add === 'cone_striped'
+					          || add === 'ring'
+					          || add === 'zone'
+					          || add === 'mannequin'
+					          || add === 'wall'
+					          || add === 'ball'
+					          || add === 'goal'
+					          || add === 'goal_mini'
+					          || add === 'goalkeeper_local'
+					          || add === 'player_local'
+					          || add === 'player_rival'
+					          || add === 'player_away'
+					        );
+					        if (!isCandidate) return;
+					        const factory = (add === 'player_local' || add === 'player_rival' || add === 'player_away' || add === 'goalkeeper_local')
+					          ? playerTokenFactory(add, null)
+					          : simpleFactory(add);
+					        const url = toDataUrlForFactory(factory, sizeByButton(button));
+					        if (!url) return;
+					        try { holder.textContent = ''; } catch (e) { /* ignore */ }
+					        try {
+					          const img = document.createElement('img');
+					          img.className = 'tool-preview-img';
+					          img.alt = '';
+					          img.setAttribute('aria-hidden', 'true');
+					          img.decoding = 'async';
+					          img.loading = 'lazy';
+					          img.src = url;
+					          holder.appendChild(img);
+					        } catch (e) { /* ignore */ }
+					      });
+					    };
+					    resourceSection?.addEventListener('click', (event) => {
 				      const button = event.target.closest('.resource-panel button');
 				      if (!button) return;
 				      if (button.closest('#task-basic-tools')) return;
@@ -18691,7 +18822,12 @@
 				      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
 				      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
 				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
-				    });
+					    });
+
+					    // Ejecutar al final para que `simpleFactory` y `playerTokenFactory` estén listos.
+					    runWhenIdle(() => {
+					      try { renderResourceButtonPreviews(); } catch (e) { /* ignore */ }
+					    }, 240);
 
 				    libraryPane?.addEventListener('click', (event) => {
 				      const templateBtn = event.target.closest('button[data-template]');
