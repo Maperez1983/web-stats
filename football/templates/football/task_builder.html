@@ -4734,11 +4734,15 @@
                             />
                           </div>
                         </label>
-	                        <label style="grid-column:1 / -1;" id="task-stroke-width-row" hidden>
-	                          Grosor de línea
-	                          <input type="range" id="task-stroke-width" min="1" max="14" step="1" value="3" />
-	                        </label>
-	                      </div>
+		                        <label style="grid-column:1 / -1;" id="task-stroke-width-row" hidden>
+		                          Grosor de línea
+		                          <input type="range" id="task-stroke-width" min="1" max="14" step="1" value="3" />
+		                        </label>
+		                        <div class="selection-actions" id="task-curve-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+		                          <span class="preset-label">Curva</span>
+		                          <button type="button" id="task-curve-flip" title="Cambiar lado de la curva (flecha/curva seleccionada)">Cambiar lado</button>
+		                        </div>
+		                      </div>
 	                      <div class="selection-actions" id="task-scale-presets">
 	                        <span class="preset-label">Tamaño</span>
 	                        <button type="button" data-scale-preset="80">S</button>

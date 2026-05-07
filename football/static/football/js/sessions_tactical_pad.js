@@ -845,11 +845,13 @@
 	    const colorInput = document.getElementById('task-style-color');
 	    const colorHexInput = document.getElementById('task-style-color-hex');
 	    const scalePresetsRow = document.getElementById('task-scale-presets');
-	    const tokenSizePresetsRow = document.getElementById('task-token-size-presets');
-	    const strokeWidthRow = document.getElementById('task-stroke-width-row');
-		    const strokeWidthInput = document.getElementById('task-stroke-width');
-		    const strokePresetsRow = document.getElementById('task-stroke-presets');
-		    const tokenMetaRow = document.getElementById('task-token-meta');
+		    const tokenSizePresetsRow = document.getElementById('task-token-size-presets');
+		    const strokeWidthRow = document.getElementById('task-stroke-width-row');
+			    const strokeWidthInput = document.getElementById('task-stroke-width');
+			    const curveActionsRow = document.getElementById('task-curve-actions');
+			    const curveFlipBtn = document.getElementById('task-curve-flip');
+			    const strokePresetsRow = document.getElementById('task-stroke-presets');
+			    const tokenMetaRow = document.getElementById('task-token-meta');
 		    const tokenNameInput = document.getElementById('task-token-name');
 				    const tokenNumberInput = document.getElementById('task-token-number');
 				    const tokenStyleActions = document.getElementById('task-token-style-actions');
@@ -3077,9 +3079,9 @@
       }
       return 0;
     };
-    const applyObjectStrokeWidth = (object, strokeWidth) => {
-      if (!object) return;
-      const width = clamp(Number(strokeWidth) || 3, 1, 14);
+	    const applyObjectStrokeWidth = (object, strokeWidth) => {
+	      if (!object) return;
+	      const width = clamp(Number(strokeWidth) || 3, 1, 14);
       const kind = safeText(object?.data?.kind);
       // Zona: solo aplica a borde (no a hatch interno).
       if (kind === 'zone' && Array.isArray(object._objects)) {
@@ -3107,12 +3109,81 @@
         });
         object.dirty = true;
       }
-      setObjectData(object, { stroke_width: width });
-    };
-    const activeInspectableObject = () => canvas.getActiveObject() || null;
-    const setObjectData = (object, patch) => {
-      if (!object || typeof object !== 'object') return;
-      object.data = { ...(object.data || {}), ...(patch || {}) };
+	      setObjectData(object, { stroke_width: width });
+	    };
+
+	    const flipFabricPathY = (path) => {
+	      if (!Array.isArray(path)) return path;
+	      const out = [];
+	      for (const seg of path) {
+	        if (!Array.isArray(seg) || !seg.length) {
+	          out.push(seg);
+	          continue;
+	        }
+	        const cmd = safeText(seg[0]).toUpperCase();
+	        const next = seg.slice();
+	        if (cmd === 'M' || cmd === 'L') {
+	          if (next.length >= 3) next[2] = -(Number(next[2]) || 0);
+	        } else if (cmd === 'Q') {
+	          if (next.length >= 5) {
+	            next[2] = -(Number(next[2]) || 0);
+	            next[4] = -(Number(next[4]) || 0);
+	          }
+	        } else if (cmd === 'C') {
+	          if (next.length >= 7) {
+	            next[2] = -(Number(next[2]) || 0);
+	            next[4] = -(Number(next[4]) || 0);
+	            next[6] = -(Number(next[6]) || 0);
+	          }
+	        }
+	        out.push(next);
+	      }
+	      return out;
+	    };
+
+	    const flipCurveSideForObject = (object) => {
+	      if (!object) return false;
+	      const kind = safeText(object?.data?.kind).toLowerCase();
+	      if (kind === 'line-curve' && object.type === 'path' && Array.isArray(object.path)) {
+	        const current = (Number(object?.data?.curve_sign) === -1) ? -1 : 1;
+	        const nextSign = current === 1 ? -1 : 1;
+	        setObjectData(object, { curve_sign: nextSign });
+	        try { object.path = flipFabricPathY(object.path); } catch (e) { /* ignore */ }
+	        object.dirty = true;
+	        return true;
+	      }
+	      if (kind === 'arrow-curve' && Array.isArray(object._objects)) {
+	        const current = (Number(object?.data?.curve_sign) === -1) ? -1 : 1;
+	        const nextSign = current === 1 ? -1 : 1;
+	        setObjectData(object, { curve_sign: nextSign });
+	        object._objects.forEach((child) => {
+	          if (!child) return;
+	          if (child.type === 'path' && Array.isArray(child.path)) {
+	            try { child.path = flipFabricPathY(child.path); } catch (e) { /* ignore */ }
+	            try { child.set({ top: -(Number(child.top) || 0) }); } catch (e) { /* ignore */ }
+	            child.dirty = true;
+	            return;
+	          }
+	          if (child.type === 'triangle') {
+	            const nextTop = -(Number(child.top) || 0);
+	            const nextAngle = ((360 - (Number(child.angle) || 0)) % 360);
+	            try { child.set({ top: nextTop, angle: nextAngle }); } catch (e) { /* ignore */ }
+	            child.dirty = true;
+	            return;
+	          }
+	          // Otros elementos: espejo vertical simple.
+	          try { child.set({ top: -(Number(child.top) || 0) }); } catch (e) { /* ignore */ }
+	          child.dirty = true;
+	        });
+	        object.dirty = true;
+	        return true;
+	      }
+	      return false;
+	    };
+	    const activeInspectableObject = () => canvas.getActiveObject() || null;
+	    const setObjectData = (object, patch) => {
+	      if (!object || typeof object !== 'object') return;
+	      object.data = { ...(object.data || {}), ...(patch || {}) };
     };
     const objectPreferredColor = (object) => {
       if (!object) return '#22d3ee';
@@ -3770,10 +3841,11 @@
 		        scaleYInput.value = '100';
 	        rotationInput.value = '0';
 	        colorInput.value = '#22d3ee';
-	        if (colorHexInput) {
-	          try { colorHexInput.value = '#22d3ee'; } catch (e) { /* ignore */ }
-	        }
+		        if (colorHexInput) {
+		          try { colorHexInput.value = '#22d3ee'; } catch (e) { /* ignore */ }
+		        }
 		        if (strokeWidthRow) strokeWidthRow.hidden = true;
+		        if (curveActionsRow) curveActionsRow.hidden = true;
 		        if (strokePresetsRow) strokePresetsRow.hidden = true;
 		        if (strokeWidthInput) strokeWidthInput.value = '3';
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
@@ -3803,16 +3875,20 @@
         try { colorHexInput.value = String(colorInput.value || '').trim() || '#22d3ee'; } catch (e) { /* ignore */ }
       }
 	      const strokeWidth = getObjectStrokeWidth(active);
-	      if (strokeWidthRow && strokeWidthInput) {
-	        const canStroke = strokeWidth > 0;
-	        strokeWidthRow.hidden = !canStroke;
-	        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
-	        strokeWidthInput.disabled = !canStroke;
-	        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
-	      }
-		      const isToken = safeText(active?.data?.kind) === 'token';
-		      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
-		      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
+		      if (strokeWidthRow && strokeWidthInput) {
+		        const canStroke = strokeWidth > 0;
+		        strokeWidthRow.hidden = !canStroke;
+		        if (strokePresetsRow) strokePresetsRow.hidden = !canStroke;
+		        strokeWidthInput.disabled = !canStroke;
+		        if (canStroke) strokeWidthInput.value = String(Math.round(strokeWidth));
+		      }
+		      if (curveActionsRow) {
+		        const k = safeText(active?.data?.kind).toLowerCase();
+		        curveActionsRow.hidden = !(k === 'arrow-curve' || k === 'line-curve');
+		      }
+			      const isToken = safeText(active?.data?.kind) === 'token';
+			      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
+			      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
 		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
 		      if (tokenNameTagActions) {
 		        const hasNameTag = isToken ? tokenHasNameTagBg(active) : false;
@@ -5800,12 +5876,13 @@
 						          const b2 = transformPoint2d(half, 0, o);
 						          const a3 = mapPoint2dTo3d(a2.x, a2.y);
 						          const b3 = mapPoint2dTo3d(b2.x, b2.y);
-						          if (kind === 'arrow-curve') {
-						            const curv = Math.max(18, Math.min(120, (groupHeightPx || 80) * 0.6));
-						            const c2 = transformPoint2d(0, -curv, o);
-						            const c3 = mapPoint2dTo3d(c2.x, c2.y);
-						            addCurve3d(a3, b3, c3, colorInt, Math.max(0.08, thickness * 0.95), 0.92);
-						          } else {
+							          if (kind === 'arrow-curve') {
+							            const curv = Math.max(18, Math.min(120, (groupHeightPx || 80) * 0.6));
+							            const curveSign = (Number(o?.data?.curve_sign) === -1) ? -1 : 1;
+							            const c2 = transformPoint2d(0, -curv * curveSign, o);
+							            const c3 = mapPoint2dTo3d(c2.x, c2.y);
+							            addCurve3d(a3, b3, c3, colorInt, Math.max(0.08, thickness * 0.95), 0.92);
+							          } else {
 						            addLine3d(a3, b3, colorInt, thickness, 0.95);
 						          }
 						          if (kind.startsWith('arrow')) {
@@ -15349,22 +15426,22 @@
 	      if (kind === 'arrow_dot') {
 	        return (left, top) => buildArrowGroup(left, top, { kind: 'arrow-dot', dash: [2, 10], cap: 'round' });
 	      }
-	      if (kind === 'arrow_curve') {
-	        return (left, top) => new fabric.Group([
-	          new fabric.Path('M -50 22 Q -8 -30 46 10', {
-            left: 0,
-            top: 0,
-            originX: 'center',
-            originY: 'center',
-            stroke: '#22d3ee',
-            fill: '',
-            strokeWidth: 4,
-            strokeLineCap: 'round',
-            strokeLineJoin: 'round',
-          }),
-          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
-        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve' } });
-      }
+		      if (kind === 'arrow_curve') {
+		        return (left, top) => new fabric.Group([
+		          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+	            left: 0,
+	            top: 0,
+	            originX: 'center',
+	            originY: 'center',
+	            stroke: '#22d3ee',
+	            fill: '',
+	            strokeWidth: 4,
+	            strokeLineCap: 'round',
+	            strokeLineJoin: 'round',
+	          }),
+	          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+	        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
+	      }
       if (kind === 'shape_circle') {
         return (left, top) => new fabric.Circle({
           left, top, originX: 'center', originY: 'center',
@@ -18332,17 +18409,22 @@
 		        applyTokenPalette(active, { stripe: hex });
 		      }, 'Franjas actualizadas.');
 		    });
-		    strokeWidthInput?.addEventListener('input', () => {
+			    strokeWidthInput?.addEventListener('input', () => {
+			      applyToActiveFlexibleObject((active) => {
+			        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
+			      }, 'Grosor actualizado.');
+		      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
+		        try { canvas.freeDrawingBrush.width = clamp(Number(strokeWidthInput.value) || 4, 1, 26); } catch (e) { /* ignore */ }
+		      }
+		    });
+		    curveFlipBtn?.addEventListener('click', () => {
 		      applyToActiveFlexibleObject((active) => {
-		        applyObjectStrokeWidth(active, Number(strokeWidthInput.value) || 3);
-		      }, 'Grosor actualizado.');
-	      if (freeDrawMode && canvas && canvas.freeDrawingBrush) {
-	        try { canvas.freeDrawingBrush.width = clamp(Number(strokeWidthInput.value) || 4, 1, 26); } catch (e) { /* ignore */ }
-	      }
-	    });
-		    selectionToolbar?.addEventListener('click', (event) => {
-		      const button = event.target.closest('button');
-		      if (!button) return;
+		        flipCurveSideForObject(active);
+		      }, 'Curva: lado cambiado.');
+		    });
+			    selectionToolbar?.addEventListener('click', (event) => {
+			      const button = event.target.closest('button');
+			      if (!button) return;
 		      const inspectorAction = safeText(button.dataset.inspectorAction);
 		      if (inspectorAction === 'duplicate') {
 		        duplicateActiveObject();
