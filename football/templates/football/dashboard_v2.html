@@ -5,6 +5,12 @@
     <meta charset="UTF-8" />
     <title>Segunda Jugada · 2J Club</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -36,7 +42,9 @@
           radial-gradient(circle at top left, rgba(244, 180, 0, 0.09), transparent 26%),
           radial-gradient(circle at top right, rgba(47, 125, 50, 0.09), transparent 22%),
           linear-gradient(180deg, #050c17 0%, #08111d 100%);
-        font-family: "Avenir Next", "Inter", "Segoe UI", system-ui, sans-serif;
+        font-family: "IBM Plex Sans", var(--prod-font-ui);
+        font-weight: 500;
+        letter-spacing: 0.005em;
       }
 
       a {
@@ -92,7 +100,7 @@
       }
 
       .brand-title {
-        font-weight: 920;
+        font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.74rem;
@@ -102,7 +110,7 @@
       .brand-subtitle {
         margin-top: 0.18rem;
         color: rgba(226, 232, 240, 0.7);
-        font-weight: 700;
+        font-weight: 600;
         font-size: 0.92rem;
         white-space: nowrap;
         overflow: hidden;
@@ -130,7 +138,7 @@
         line-height: 1.1;
         letter-spacing: 0.12em;
         text-transform: uppercase;
-        font-weight: 880;
+        font-weight: 700;
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
@@ -170,7 +178,7 @@
         border-radius: 999px;
         border: 1px solid transparent;
         color: rgba(226, 232, 240, 0.8);
-        font-weight: 900;
+        font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.7rem;
@@ -205,7 +213,7 @@
       }
 
       .setup-banner-title {
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.78rem;
@@ -215,7 +223,7 @@
       .setup-banner-body {
         margin-top: 0.35rem;
         color: rgba(255, 248, 225, 0.78);
-        font-weight: 650;
+        font-weight: 600;
         line-height: 1.35;
       }
 
@@ -226,7 +234,7 @@
         border: 1px solid rgba(244, 180, 0, 0.35);
         background: rgba(244, 180, 0, 0.22);
         color: rgba(255, 255, 255, 0.95);
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.72rem;
@@ -295,7 +303,7 @@
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(15, 23, 42, 0.45);
         color: rgba(226, 232, 240, 0.88);
-        font-weight: 850;
+        font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.66rem;
@@ -329,14 +337,14 @@
         margin: 0;
         font-size: 1.35rem;
         letter-spacing: 0.02em;
-        font-weight: 950;
+        font-weight: 800;
         text-shadow: 0 16px 55px rgba(0, 0, 0, 0.6);
       }
 
       .hero-line {
         margin-top: 0.25rem;
         color: rgba(226, 232, 240, 0.8);
-        font-weight: 700;
+        font-weight: 600;
         letter-spacing: 0.01em;
         white-space: nowrap;
         overflow: hidden;
@@ -366,7 +374,7 @@
 
       .kpi-label {
         color: rgba(226, 232, 240, 0.68);
-        font-weight: 900;
+        font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.67rem;
@@ -375,7 +383,7 @@
       .kpi-value {
         margin-top: 0.3rem;
         font-size: 1.55rem;
-        font-weight: 980;
+        font-weight: 800;
         letter-spacing: 0.02em;
       }
 
@@ -393,7 +401,7 @@
 
       .card-title {
         margin: 0;
-        font-weight: 980;
+        font-weight: 800;
         font-size: 0.86rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -403,7 +411,7 @@
       .card-subtitle {
         margin-top: 0.35rem;
         color: rgba(226, 232, 240, 0.68);
-        font-weight: 700;
+        font-weight: 600;
         line-height: 1.35;
       }
 
@@ -431,7 +439,7 @@
       }
 
       .opponent-name {
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.02em;
         font-size: 1.05rem;
         margin: 0;
@@ -443,7 +451,7 @@
         grid-template-columns: 1fr;
         gap: 0.4rem;
         color: rgba(226, 232, 240, 0.78);
-        font-weight: 700;
+        font-weight: 600;
       }
 
       .meta-row {
@@ -456,7 +464,7 @@
         display: inline-block;
         min-width: 7.4rem;
         color: rgba(226, 232, 240, 0.62);
-        font-weight: 900;
+        font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.65rem;
@@ -483,7 +491,7 @@
         border-radius: 10px;
         display: grid;
         place-items: center;
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.12em;
         font-size: 0.72rem;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -677,7 +685,7 @@
         border: 1px solid rgba(244, 180, 0, 0.35);
         background: rgba(244, 180, 0, 0.18);
         color: rgba(255, 255, 255, 0.95);
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.7rem;
@@ -722,7 +730,7 @@
       }
 
       .player-name {
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.02em;
         white-space: nowrap;
         overflow: hidden;
@@ -732,7 +740,7 @@
       .player-meta {
         margin-top: 0.12rem;
         color: rgba(226, 232, 240, 0.62);
-        font-weight: 800;
+        font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.72rem;
@@ -752,7 +760,7 @@
       }
 
       .broadcast-title {
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         font-size: 0.7rem;
@@ -775,7 +783,7 @@
         border: 1px solid rgba(255, 255, 255, 0.12);
         background: rgba(15, 23, 42, 0.25);
         color: rgba(226, 232, 240, 0.9);
-        font-weight: 880;
+        font-weight: 700;
         font-size: 0.82rem;
         min-width: 0;
       }
@@ -802,7 +810,7 @@
 
       .standings-table th {
         color: rgba(226, 232, 240, 0.58);
-        font-weight: 950;
+        font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
         font-size: 0.64rem;
@@ -810,7 +818,7 @@
 
       .standings-table td {
         color: rgba(226, 232, 240, 0.86);
-        font-weight: 750;
+        font-weight: 600;
       }
 
       .standings-table td.num,
@@ -820,7 +828,7 @@
 
       .standings-table tr.highlight td {
         color: rgba(255, 249, 230, 0.96);
-        font-weight: 950;
+        font-weight: 800;
       }
 
       .standings-table tr.highlight td:first-child {
