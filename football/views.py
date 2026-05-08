@@ -22200,8 +22200,52 @@ def save_convocation(request):
         context_value = Match.CONTEXT_LEAGUE
 
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
-    blocked_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
-    players = players.exclude(id__in=blocked_injury_ids)
+    # Convocatoria (partido): bloquea solo lesiones que impiden competir.
+    # Nota: una lesión activa puede permitir entrenar, pero no competir; por eso no filtramos por "lesión activa" a secas.
+    active_injury_ids = get_active_injury_player_ids(players.values_list('id', flat=True))
+    blocked_injury_ids = set()
+    if active_injury_ids:
+        today = timezone.localdate()
+        try:
+            qs = (
+                PlayerInjuryRecord.objects
+                .filter(player_id__in=list(active_injury_ids), is_active=True)
+                .filter(Q(return_date__isnull=True) | Q(return_date__gt=today))
+                .order_by('player_id', '-injury_date', '-id')
+            )
+            seen = set()
+
+            def _norm(value):
+                raw = str(value or '').strip().lower()
+                return (
+                    raw.replace('á', 'a').replace('é', 'e').replace('í', 'i')
+                    .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
+                )
+
+            for rec in qs:
+                pid = int(getattr(rec, 'player_id', 0) or 0)
+                if not pid or pid in seen:
+                    continue
+                seen.add(pid)
+                can_play = False
+                rtp = getattr(rec, 'return_to_play_on', None)
+                if rtp and rtp <= today:
+                    can_play = True
+                else:
+                    rd = getattr(rec, 'return_date', None)
+                    if rd and rd <= today:
+                        can_play = True
+                    else:
+                        status = _norm(getattr(rec, 'training_status', '') or '')
+                        if status and any(tok in status for tok in ['disponible', 'apto', 'ok']):
+                            can_play = True
+                if not can_play:
+                    blocked_injury_ids.add(pid)
+        except Exception:
+            # Fallback conservador: si no podemos calcular "apto para competir", bloqueamos por lesión activa.
+            blocked_injury_ids = set(active_injury_ids)
+    if blocked_injury_ids:
+        players = players.exclude(id__in=list(blocked_injury_ids))
     allowed_player_ids = set(players.values_list('id', flat=True))
     has_match_context = any([round_value, location_value, opponent_value, date_value_raw, time_value_raw])
     if not players.exists() and not has_match_context:
