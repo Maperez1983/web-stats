@@ -41156,6 +41156,26 @@ def analysis_page(request):
         except Exception:
             pass
 
+    # Si acabamos de vincular el código Universo, intentamos cargar la plantilla (sin depender de La Preferente).
+    # Importante: primero usamos snapshot en BD (ya hecho arriba). Aquí solo probamos Universo directo como fallback.
+    if selected_team and not roster and (auto_team_name or auto_loaded):
+        try:
+            code = str(getattr(selected_team, 'external_id', '') or '').strip()
+            if code.isdigit():
+                roster = fetch_universo_team_roster(code)
+                probable_eleven = compute_probable_eleven(roster)
+                insights = build_rival_insights(roster)
+                formation = compute_formation(probable_eleven)
+                lineup = assign_lineup_slots(probable_eleven, formation)
+                if roster:
+                    auto_loaded = True
+                    roster_source = 'Universo RFAF'
+                    extracted['roster_source'] = roster_source
+                    if error and 'no tiene URL de La Preferente ni código RFAF' in str(error):
+                        error = ''
+        except Exception:
+            pass
+
     if active_tab == 'rivals':
         try:
             cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))

@@ -1,20 +1,23 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <title>{{ section_title }} · Cuerpo técnico</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    {% include 'football/pwa_head.html' %}
-    <style>
-      body {
-        margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
-        background: linear-gradient(180deg, #020417 0%, #050b1c 100%);
-        color: #f8fafc;
-      }
+	  <head>
+	    <meta charset="UTF-8" />
+	    <title>{{ section_title }} · Cuerpo técnico</title>
+	    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+	    <link rel="preconnect" href="https://fonts.googleapis.com" />
+	    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    {% include 'football/pwa_head.html' %}
+	    <style>
+	      body {
+	        margin: 0;
+	        font-family: 'IBM Plex Sans', var(--prod-font-ui, system-ui), sans-serif;
+	        background: linear-gradient(180deg, #020417 0%, #050b1c 100%);
+	        color: #f8fafc;
+	      }
       .page {
         max-width: 1100px;
         margin: 0 auto;
@@ -60,11 +63,134 @@
         background: rgba(2, 6, 23, 0.35);
         font-weight: 800;
       }
-      .tab-nav a.is-active {
-        border-color: rgba(56, 189, 248, 0.55);
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
-        background: rgba(56, 189, 248, 0.12);
-      }
+	      .tab-nav a.is-active {
+	        border-color: rgba(56, 189, 248, 0.55);
+	        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
+	        background: rgba(56, 189, 248, 0.12);
+	      }
+
+	      .analysis-summary {
+	        margin-top: 1rem;
+	        display: grid;
+	        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+	        gap: 1rem;
+	        border-radius: 20px;
+	        border: 1px solid rgba(255, 255, 255, 0.08);
+	        background: linear-gradient(180deg, rgba(2, 6, 23, 0.55), rgba(2, 6, 23, 0.32));
+	        padding: 1rem 1.05rem;
+	        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+	        overflow: hidden;
+	      }
+
+	      .analysis-summary-main {
+	        display: flex;
+	        gap: 0.9rem;
+	        align-items: center;
+	        min-width: 0;
+	      }
+
+	      .analysis-summary-crest {
+	        width: 52px;
+	        height: 52px;
+	        border-radius: 18px;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(255, 255, 255, 0.06);
+	        display: grid;
+	        place-items: center;
+	        overflow: hidden;
+	        flex: 0 0 auto;
+	      }
+
+	      .analysis-summary-crest img {
+	        width: 100%;
+	        height: 100%;
+	        object-fit: cover;
+	      }
+
+	      .analysis-summary-title {
+	        font-size: 1.05rem;
+	        font-weight: 900;
+	        letter-spacing: 0.02em;
+	        text-transform: uppercase;
+	        margin: 0;
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	      }
+
+	      .analysis-summary-sub {
+	        margin-top: 0.18rem;
+	        color: rgba(226, 232, 240, 0.76);
+	        font-weight: 600;
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	      }
+
+	      .analysis-chip-row {
+	        margin-top: 0.6rem;
+	        display: flex;
+	        flex-wrap: wrap;
+	        gap: 0.45rem;
+	      }
+
+	      .analysis-chip {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.35rem;
+	        border-radius: 999px;
+	        padding: 0.35rem 0.6rem;
+	        border: 1px solid rgba(255, 255, 255, 0.14);
+	        background: rgba(2, 6, 23, 0.35);
+	        font-weight: 800;
+	        letter-spacing: 0.08em;
+	        text-transform: uppercase;
+	        font-size: 0.68rem;
+	        color: rgba(226, 232, 240, 0.9);
+	        max-width: 44ch;
+	        white-space: nowrap;
+	        overflow: hidden;
+	        text-overflow: ellipsis;
+	      }
+
+	      .analysis-summary-side {
+	        display: grid;
+	        gap: 0.6rem;
+	        grid-template-columns: repeat(3, minmax(0, 1fr));
+	        align-content: start;
+	      }
+
+	      .analysis-metric {
+	        border-radius: 16px;
+	        border: 1px solid rgba(255, 255, 255, 0.1);
+	        background: rgba(15, 23, 42, 0.65);
+	        padding: 0.7rem 0.75rem;
+	        min-height: 68px;
+	      }
+
+	      .analysis-metric .label {
+	        font-size: 0.66rem;
+	        letter-spacing: 0.14em;
+	        text-transform: uppercase;
+	        color: rgba(226, 232, 240, 0.68);
+	        font-weight: 800;
+	      }
+
+	      .analysis-metric .value {
+	        margin-top: 0.25rem;
+	        font-size: 1.25rem;
+	        font-weight: 900;
+	        letter-spacing: 0.01em;
+	      }
+
+	      @media (max-width: 920px) {
+	        .analysis-summary {
+	          grid-template-columns: 1fr;
+	        }
+	        .analysis-summary-side {
+	          grid-template-columns: repeat(3, minmax(0, 1fr));
+	        }
+	      }
       [data-tab] { display: block; }
       body[data-active-tab="reports"] [data-tab="videos"],
       body[data-active-tab="reports"] [data-tab="insights"],
@@ -385,16 +511,78 @@
       </header>
       <article class="panel">
         <p>{{ description }}</p>
-        <nav class="tab-nav" aria-label="Secciones análisis">
-          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
-          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
-          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
-          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
-        </nav>
+	        <nav class="tab-nav" aria-label="Secciones análisis">
+	          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
+	          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+	          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
+	          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
+	        </nav>
 
-        <div data-tab="reports">
-        <form class="form" method="post">
-          {% csrf_token %}
+	        <section class="analysis-summary" aria-label="Resumen rival">
+	          <div class="analysis-summary-main">
+	            <div class="analysis-summary-crest">
+	              {% if extracted.rival_crest_url %}
+	                <img alt="" src="{{ extracted.rival_crest_url }}" loading="lazy" />
+	              {% endif %}
+	            </div>
+	            <div style="min-width:0;">
+	              <h2 class="analysis-summary-title">{% if extracted.rival_name %}{{ extracted.rival_name }}{% else %}Rival{% endif %}</h2>
+	              <div class="analysis-summary-sub">
+	                {% if extracted.next_match_date or extracted.next_match_round %}
+	                  Próximo partido · {{ extracted.next_match_date|default:"-" }}{% if extracted.next_match_time %} · {{ extracted.next_match_time }}{% endif %}{% if extracted.next_match_round %} · {{ extracted.next_match_round }}{% endif %}
+	                {% else %}
+	                  Indicadores, vídeo e informe táctico del rival.
+	                {% endif %}
+	              </div>
+	              <div class="analysis-chip-row">
+	                {% if extracted.rival_team_code %}<span class="analysis-chip">Universo · {{ extracted.rival_team_code }}</span>{% endif %}
+	                {% if extracted.preferente_url %}<span class="analysis-chip">Preferente · vinculada</span>{% endif %}
+	                {% if extracted.roster_source %}<span class="analysis-chip">Plantilla · {{ extracted.roster_source }}</span>{% endif %}
+	                {% if extracted.universo_session %}<span class="analysis-chip">Sesión Universo · {{ extracted.universo_session }}</span>{% endif %}
+	              </div>
+	            </div>
+	          </div>
+	          <div class="analysis-summary-side">
+	            <div class="analysis-metric">
+	              <div class="label">Posición</div>
+	              <div class="value">{% if extracted.rival_rank %}{{ extracted.rival_rank }}{% else %}—{% endif %}</div>
+	            </div>
+	            <div class="analysis-metric">
+	              <div class="label">Puntos</div>
+	              <div class="value">{% if extracted.rival_points %}{{ extracted.rival_points }}{% else %}—{% endif %}</div>
+	            </div>
+	            <div class="analysis-metric">
+	              <div class="label">DG</div>
+	              <div class="value">
+	                {% if extracted.rival_gd != "" %}
+	                  {% if extracted.rival_gd|add:0 > 0 %}+{{ extracted.rival_gd }}{% else %}{{ extracted.rival_gd }}{% endif %}
+	                {% else %}
+	                  —
+	                {% endif %}
+	              </div>
+	            </div>
+	            <div class="analysis-metric">
+	              <div class="label">PJ</div>
+	              <div class="value">{% if extracted.rival_played %}{{ extracted.rival_played }}{% else %}—{% endif %}</div>
+	            </div>
+	            <div class="analysis-metric">
+	              <div class="label">V/E/D</div>
+	              <div class="value">
+	                {% if extracted.rival_wins != "" %}{{ extracted.rival_wins }}{% else %}—{% endif %}·{% if extracted.rival_draws != "" %}{{ extracted.rival_draws }}{% else %}—{% endif %}·{% if extracted.rival_losses != "" %}{{ extracted.rival_losses }}{% else %}—{% endif %}
+	              </div>
+	            </div>
+	            <div class="analysis-metric">
+	              <div class="label">GF/GC</div>
+	              <div class="value">
+	                {% if extracted.rival_gf != "" %}{{ extracted.rival_gf }}{% else %}—{% endif %}/{% if extracted.rival_ga != "" %}{{ extracted.rival_ga }}{% else %}—{% endif %}
+	              </div>
+	            </div>
+	          </div>
+	        </section>
+	
+	        <div data-tab="reports">
+	        <form class="form" method="post">
+	          {% csrf_token %}
           <input type="hidden" name="form_action" value="analyze" />
           {% if home_rival_name %}
           <p class="meta" style="margin:0;">Rival marcado en Home: <strong>{{ home_rival_name }}</strong></p>
