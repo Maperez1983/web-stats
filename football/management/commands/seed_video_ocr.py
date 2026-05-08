@@ -185,8 +185,8 @@ def _stable_goal_events(samples: list[ScoreSample]) -> list[dict]:
 
     Criterio:
     - cambio de marcador válido = +1 en uno de los dos equipos
-    - exige 3 samples seguidos con el nuevo marcador antes de aceptarlo
-    - aplica smoothing por mayoría en ventana de 5
+    - exige 2 samples seguidos con el nuevo marcador antes de aceptarlo
+    - aplica smoothing por mayoría en ventana de 3 (más reactivo con OCR intermitente)
     """
     parsed = [
         s
@@ -200,7 +200,7 @@ def _stable_goal_events(samples: list[ScoreSample]) -> list[dict]:
     smoothed: list[tuple[ScoreSample, tuple[int, int]]] = []
     for s in parsed:
         window.append((int(s.ascore or 0), int(s.bscore or 0)))
-        window = window[-5:]
+        window = window[-3:]
         best = Counter(window).most_common(1)[0][0]
         smoothed.append((s, best))
 
@@ -217,7 +217,7 @@ def _stable_goal_events(samples: list[ScoreSample]) -> list[dict]:
         else:
             pending = (score, 1, s)
 
-        if pending[1] >= 3:
+        if pending[1] >= 2:
             prev = cur_score
             cur = pending[0]
             da = cur[0] - prev[0]
@@ -399,4 +399,3 @@ class Command(BaseCommand):
                 f"OK: RivalVideo #{video.id} · timeline_events +{created_events} · clips +{created_clips}"
             )
         )
-

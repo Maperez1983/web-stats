@@ -41082,6 +41082,123 @@ def analysis_page(request):
                         except Exception:
                             pass
                         rivals_error = fetch_error or 'No se pudo actualizar la plantilla.'
+        elif form_action == 'rivals_autolink_preferente':
+            if not primary_team:
+                rivals_error = 'No hay equipo principal configurado.'
+            else:
+                snapshot = load_universo_snapshot() or {}
+                standings_rows = _resolve_standings_for_team(primary_team, snapshot=snapshot)
+                if not standings_rows:
+                    rivals_error = 'No hay clasificación disponible para detectar rivales.'
+                else:
+                    found = 0
+                    already = 0
+                    created = 0
+                    updated = 0
+                    missing = 0
+                    crest_updated = 0
+                    code_updated = 0
+                    primary_keys = {
+                        _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+                        _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+                    }
+
+                    def _try_preferente_variants(name_value: str) -> str:
+                        base = str(name_value or '').strip()
+                        if not base:
+                            return ''
+                        try:
+                            url_value = find_preferente_team_url(base)
+                        except Exception:
+                            url_value = ''
+                        if url_value:
+                            return url_value
+                        simplified = base
+                        for token in ('C.D.', 'C.F.', 'F.C.', 'U.D.', 'A.D.', 'C.P.', 'S.A.D.', 'SAD'):
+                            simplified = simplified.replace(token, ' ')
+                        simplified = ' '.join(simplified.split()).strip()
+                        if simplified and simplified.lower() != base.lower():
+                            try:
+                                return find_preferente_team_url(simplified)
+                            except Exception:
+                                return ''
+                        return ''
+
+                    try:
+                        import time as _time  # noqa: WPS433
+                    except Exception:  # pragma: no cover
+                        _time = None
+
+                    for row in standings_rows:
+                        if not isinstance(row, dict):
+                            continue
+                        full_name = str(row.get('full_name') or row.get('team') or '').strip()
+                        if not full_name:
+                            continue
+                        if _normalize_team_lookup_key(full_name) in primary_keys:
+                            continue
+                        team_code = str(row.get('team_code') or '').strip()
+                        crest_url = str(row.get('crest_url') or '').strip()
+
+                        team_obj = None
+                        if team_code:
+                            team_obj = Team.objects.filter(external_id=team_code).first()
+                        if not team_obj:
+                            team_obj = Team.objects.filter(Q(name__iexact=full_name) | Q(short_name__iexact=full_name)).first()
+
+                        if not team_obj:
+                            team_obj = Team.objects.create(
+                                name=full_name[:150],
+                                slug=_unique_team_slug(full_name),
+                                short_name=full_name[:60],
+                                group=getattr(primary_team, 'group', None),
+                                external_id=team_code[:120] if team_code else '',
+                                crest_url=crest_url[:600] if crest_url else '',
+                                is_primary=False,
+                            )
+                            created += 1
+                        else:
+                            changed_fields = []
+                            if team_code and not (team_obj.external_id or '').strip():
+                                team_obj.external_id = team_code[:120]
+                                changed_fields.append('external_id')
+                                code_updated += 1
+                            if crest_url and not (team_obj.crest_url or '').strip():
+                                team_obj.crest_url = crest_url[:600]
+                                changed_fields.append('crest_url')
+                                crest_updated += 1
+                            if changed_fields:
+                                try:
+                                    team_obj.save(update_fields=changed_fields)
+                                    updated += 1
+                                except Exception:
+                                    pass
+
+                        if (team_obj.preferente_url or '').strip():
+                            already += 1
+                            continue
+
+                        preferente_url = _try_preferente_variants(full_name)
+                        if preferente_url:
+                            try:
+                                team_obj.preferente_url = preferente_url
+                                team_obj.save(update_fields=['preferente_url'])
+                            except Exception:
+                                pass
+                            found += 1
+                        else:
+                            missing += 1
+
+                        if _time:
+                            try:
+                                _time.sleep(0.25)
+                            except Exception:
+                                pass
+
+                    rivals_message = (
+                        f'Preferente enlazada: {found} · ya tenían URL: {already} · no encontrada: {missing} · '
+                        f'equipos creados: {created} · actualizados: {updated} · códigos/escudos: {code_updated}/{crest_updated}.'
+                    )
         team_url = (request.POST.get('team_url') or '').strip()
         team_id = (request.POST.get('team_id') or '').strip()
         raw_text = (request.POST.get('raw_text') or '').strip()

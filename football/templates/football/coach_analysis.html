@@ -1290,6 +1290,11 @@
                   <input type="hidden" name="form_action" value="rivals_seed_from_standings" />
                   <button class="button ghost" type="submit">Crear rivales desde clasificación</button>
                 </form>
+                <form method="post" style="margin:0;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="rivals_autolink_preferente" />
+                  <button class="button ghost" type="submit">Buscar enlaces La Preferente</button>
+                </form>
               </div>
               {% if rivals_message %}<p class="ok">{{ rivals_message }}</p>{% endif %}
               {% if rivals_error %}<p class="error">{{ rivals_error }}</p>{% endif %}
