@@ -176,6 +176,9 @@ from football.models import (
     InjuryCatalogEntry,
     TacticalPlaybookClip,
     TacticalPlaybookClipFavorite,
+    AiTrainerEvent,
+    AiTrainerTaskIndex,
+    AiTrainerTokenWeight,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -38292,6 +38295,154 @@ def _ai_trainer_normalize_text(value: str) -> str:
     return raw
 
 
+def _ai_trainer_tokenize(text_norm: str, *, limit: int = 96) -> list:
+    text = str(text_norm or '').strip().lower()
+    if not text:
+        return []
+    try:
+        parts = re.split(r'[^a-z0-9áéíóúüñ]+', text, flags=re.IGNORECASE)
+    except Exception:
+        parts = text.split()
+    stop = {
+        'para', 'pero', 'porque', 'como', 'cuando', 'donde', 'desde', 'hasta',
+        'con', 'sin', 'sobre', 'entre', 'tras', 'ante', 'por', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una',
+        'y', 'o', 'u', 'a', 'en', 'al', 'se', 'su', 'sus', 'que', 'qué',
+        'trabajar', 'mejorar', 'hacer', 'quiero', 'hoy',
+    }
+    out = []
+    seen = set()
+    for raw in parts:
+        tok = str(raw or '').strip().lower()
+        if not tok or len(tok) < 3:
+            continue
+        if tok in stop:
+            continue
+        if tok.isdigit():
+            continue
+        if tok in seen:
+            continue
+        seen.add(tok)
+        out.append(tok)
+        if len(out) >= max(8, int(limit or 96)):
+            break
+    return out
+
+
+def _ai_trainer_log_event(request, team, *, event_type: str, meta: dict = None):
+    if not request or not team:
+        return
+    try:
+        if not isinstance(meta, dict):
+            meta = {}
+        workspace = None
+        try:
+            workspace = _get_active_workspace(request)
+        except Exception:
+            workspace = None
+        session_key = ''
+        try:
+            session_key = str(getattr(request.session, 'session_key', '') or '')
+            if not session_key:
+                request.session.save()
+                session_key = str(getattr(request.session, 'session_key', '') or '')
+        except Exception:
+            session_key = ''
+        AiTrainerEvent.objects.create(
+            team=team,
+            workspace=workspace,
+            user=(request.user if getattr(request, 'user', None) and request.user.is_authenticated else None),
+            event_type=str(event_type or '').strip()[:32] or AiTrainerEvent.EVENT_GENERATE,
+            meta=meta,
+            session_key=session_key[:80],
+        )
+    except Exception:
+        return
+
+
+def _ai_trainer_index_task(task, *, team=None):
+    if not task:
+        return None
+    team = team or getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+    if not team:
+        return None
+    try:
+        repo = _library_repository_for_task(task)
+    except Exception:
+        repo = ''
+
+    chunks = [
+        str(getattr(task, 'title', '') or ''),
+        str(getattr(task, 'objective', '') or ''),
+        str(getattr(task, 'coaching_points', '') or ''),
+        str(getattr(task, 'confrontation_rules', '') or ''),
+    ]
+    try:
+        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+        summary = str(analysis.get('summary') or '')
+        if summary:
+            chunks.append(summary)
+    except Exception:
+        pass
+
+    content = ' '.join([c for c in chunks if str(c or '').strip()]).strip()[:20000]
+    content_norm = _ai_trainer_normalize_text(content)[:20000]
+    tokens = _ai_trainer_tokenize(content_norm, limit=128)
+    try:
+        idx, _ = AiTrainerTaskIndex.objects.update_or_create(
+            task=task,
+            defaults={
+                'team': team,
+                'repository': str(repo or '')[:32],
+                'content': content,
+                'content_norm': content_norm,
+                'tokens': tokens,
+            },
+        )
+        return idx
+    except Exception:
+        return None
+
+
+def _ai_trainer_adjust_token_weights(team, *, workspace=None, tokens=None, delta: float = 1.0):
+    if not team or not tokens:
+        return
+    try:
+        clean_tokens = [t for t in (tokens or []) if isinstance(t, str) and t.strip()]
+        clean_tokens = clean_tokens[:48]
+        for tok in clean_tokens:
+            token = tok.strip().lower()[:64]
+            if not token:
+                continue
+            row, _ = AiTrainerTokenWeight.objects.get_or_create(team=team, workspace=workspace, token=token)
+            row.weight = float(row.weight or 0.0) + float(delta or 0.0)
+            # Guardrails: evita explosión.
+            row.weight = max(-25.0, min(25.0, float(row.weight)))
+            row.save(update_fields=['weight', 'updated_at'])
+    except Exception:
+        return
+
+
+def _ai_trainer_token_weight_map(team, *, workspace=None, limit: int = 240) -> dict:
+    if not team:
+        return {}
+    try:
+        qs = AiTrainerTokenWeight.objects.filter(team=team)
+        if workspace:
+            qs = qs.filter(Q(workspace=workspace) | Q(workspace__isnull=True))
+        rows = list(qs.order_by('-updated_at', '-id')[: max(40, int(limit or 240))])
+        out = {}
+        for r in rows:
+            tok = str(getattr(r, 'token', '') or '').strip().lower()
+            if not tok:
+                continue
+            out[tok] = float(getattr(r, 'weight', 0.0) or 0.0)
+        return out
+    except Exception:
+        return {}
+
+
 def _ai_trainer_load_coach_dictionary():
     global _AI_TRAINER_COACH_DICT_CACHE  # noqa: PLW0603
     if _AI_TRAINER_COACH_DICT_CACHE is not None:
@@ -38414,69 +38565,87 @@ def _ai_trainer_suggest_library_tasks(team, *, text_norm: str, signals: dict, li
     if not team or not text_norm:
         return []
 
-    tokens = set()
-    try:
-        for item in re.split(r'[^a-z0-9áéíóúüñ]+', text_norm, flags=re.IGNORECASE):
-            t = str(item or '').strip().lower()
-            if len(t) >= 4:
-                tokens.add(t)
-    except Exception:
-        tokens = set()
-
+    tokens = list(_ai_trainer_tokenize(text_norm, limit=32))
     for key in ['principles', 'zones', 'phases', 'figures']:
         for it in (signals.get(key) or []):
             if not isinstance(it, dict):
                 continue
             label = _ai_trainer_normalize_text(str(it.get('label') or ''))
-            if label and len(label) >= 4:
-                tokens.add(label)
+            tokens.extend(_ai_trainer_tokenize(label, limit=6))
 
-    tokens_list = [t for t in list(tokens)[:24] if t]
+    # De-dup manteniendo orden
+    seen = set()
+    tokens_list = []
+    for t in tokens:
+        tok = str(t or '').strip().lower()
+        if not tok or tok in seen:
+            continue
+        seen.add(tok)
+        tokens_list.append(tok)
+        if len(tokens_list) >= 24:
+            break
     if not tokens_list:
         return []
 
-    try:
-        candidates = list(
-            SessionTask.objects
-            .select_related('session__microcycle')
-            .filter(session__microcycle__team=team, deleted_at__isnull=True)
-            .filter(
-                Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
-                | Q(session__microcycle__title__istartswith='Biblioteca ')
-            )
-            .order_by('-id')[:600]
-        )
-    except Exception:
-        return []
+    weights = _ai_trainer_token_weight_map(team, workspace=None, limit=240)
 
-    def _task_text(task):
-        chunks = [
-            str(getattr(task, 'title', '') or ''),
-            str(getattr(task, 'objective', '') or ''),
-            str(getattr(task, 'coaching_points', '') or ''),
-            str(getattr(task, 'confrontation_rules', '') or ''),
-        ]
+    try:
+        # Si hay índice RAG, úsalo (más rápido y más estable).
+        q = Q()
+        for tok in tokens_list[:6]:
+            q |= Q(content_norm__icontains=tok)
+        indexed = list(
+            AiTrainerTaskIndex.objects
+            .select_related('task', 'task__session__microcycle')
+            .filter(team=team)
+            .filter(q)
+            .order_by('-updated_at', '-id')[:700]
+        )
+        candidates = [(idx.task, idx) for idx in indexed if idx and idx.task]
+    except Exception:
+        candidates = []
+
+    if not candidates:
         try:
-            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-            analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-            summary = str(analysis.get('summary') or '')
-            if summary:
-                chunks.append(summary)
+            raw = list(
+                SessionTask.objects
+                .select_related('session__microcycle')
+                .filter(session__microcycle__team=team, deleted_at__isnull=True)
+                .filter(
+                    Q(session__microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                    | Q(session__microcycle__title__istartswith='Biblioteca ')
+                )
+                .order_by('-id')[:600]
+            )
+            candidates = [(t, None) for t in raw]
         except Exception:
-            pass
-        return _ai_trainer_normalize_text(' '.join([c for c in chunks if c]))
+            return []
+
+    def _task_text(task, idx=None):
+        if idx and isinstance(getattr(idx, 'content_norm', ''), str) and idx.content_norm:
+            return str(idx.content_norm or '')
+        return _ai_trainer_normalize_text(
+            ' '.join(
+                [
+                    str(getattr(task, 'title', '') or ''),
+                    str(getattr(task, 'objective', '') or ''),
+                    str(getattr(task, 'coaching_points', '') or ''),
+                    str(getattr(task, 'confrontation_rules', '') or ''),
+                ]
+            )
+        )
 
     scored = []
-    for task in candidates:
+    for task, idx in candidates:
         try:
-            blob = _task_text(task)
+            blob = _task_text(task, idx=idx)
             if not blob:
                 continue
             score = 0
             for tok in tokens_list:
                 if tok and tok in blob:
                     score += 1
+                    score += float(weights.get(tok, 0.0) or 0.0) * 0.08
             if score <= 0:
                 continue
             repo = ''
@@ -38530,6 +38699,12 @@ def ai_trainer_page(request):
         phase = str(request.POST.get('phase') or phase).strip()
         goal = str(request.POST.get('goal') or goal).strip()
         text_norm = _ai_trainer_normalize_text(goal)
+        workspace = None
+        try:
+            workspace = _get_active_workspace(request)
+        except Exception:
+            workspace = None
+        tokens = _ai_trainer_tokenize(text_norm, limit=32)
         signals = {
             'principles': _ai_trainer_match_section(dictionary.get('principles') if isinstance(dictionary.get('principles'), dict) else {}, text_norm, limit=8),
             'zones': _ai_trainer_match_section(dictionary.get('zones') if isinstance(dictionary.get('zones'), dict) else {}, text_norm, limit=6),
@@ -38538,6 +38713,18 @@ def ai_trainer_page(request):
         }
         proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals)
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
+
+        _ai_trainer_log_event(
+            request,
+            team,
+            event_type=(AiTrainerEvent.EVENT_GENERATE if post_action == 'generate' else post_action),
+            meta={
+                'profile': profile,
+                'phase': phase,
+                'goal': goal[:800],
+                'signals': signals,
+            },
+        )
 
         if post_action == 'save_task':
             variant = str(request.POST.get('variant') or '').strip().upper()
@@ -38604,6 +38791,26 @@ def ai_trainer_page(request):
                 confrontation_rules=rules,
                 tactical_layout=tactical_layout,
             )
+            # “Aprendizaje” (fase 1): refuerza tokens guardados.
+            _ai_trainer_adjust_token_weights(team, workspace=workspace, tokens=tokens, delta=1.0)
+            # Índice RAG (fase 2): indexa el documento recién creado para sugerencias futuras.
+            try:
+                created_task = (
+                    SessionTask.objects
+                    .filter(session=target_session)
+                    .order_by('-id')
+                    .first()
+                )
+                if created_task:
+                    _ai_trainer_index_task(created_task, team=team)
+            except Exception:
+                pass
+            _ai_trainer_log_event(
+                request,
+                team,
+                event_type=AiTrainerEvent.EVENT_SAVE_TASK,
+                meta={'variant': variant, 'goal': goal[:800], 'profile': profile, 'phase': phase},
+            )
             params = {'tab': 'library', 'library_repo': LIBRARY_REPOSITORY_AI_TRAINER, 'library_source': 'created', 'team': int(team.id)}
             try:
                 workspace = _get_active_workspace(request)
@@ -38612,6 +38819,21 @@ def ai_trainer_page(request):
             except Exception:
                 pass
             return redirect(f"{reverse('sessions')}?{urlencode(params)}")
+
+        if post_action == 'feedback':
+            variant = str(request.POST.get('variant') or '').strip().upper()
+            rating_raw = str(request.POST.get('rating') or '').strip()
+            rating = _parse_int(rating_raw) or 0
+            rating = max(-1, min(1, rating))
+            if rating:
+                delta = 0.6 if rating > 0 else -0.6
+                _ai_trainer_adjust_token_weights(team, workspace=workspace, tokens=tokens, delta=delta)
+            _ai_trainer_log_event(
+                request,
+                team,
+                event_type=AiTrainerEvent.EVENT_FEEDBACK,
+                meta={'variant': variant, 'rating': rating, 'goal': goal[:800], 'signals': signals},
+            )
 
     return render(
         request,

@@ -131,6 +131,26 @@
                         <input type="hidden" name="goal" value="{{ goal }}" />
                         <button type="submit" class="btn primary" title="Guardar en Biblioteca IA‑Trainer">Guardar</button>
                       </form>
+                      <form method="post" action="?team={{ team.id }}" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="feedback" />
+                        <input type="hidden" name="variant" value="{{ p.variant }}" />
+                        <input type="hidden" name="profile" value="{{ profile }}" />
+                        <input type="hidden" name="phase" value="{{ phase }}" />
+                        <input type="hidden" name="goal" value="{{ goal }}" />
+                        <input type="hidden" name="rating" value="1" />
+                        <button type="submit" class="btn" title="Útil">👍</button>
+                      </form>
+                      <form method="post" action="?team={{ team.id }}" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="feedback" />
+                        <input type="hidden" name="variant" value="{{ p.variant }}" />
+                        <input type="hidden" name="profile" value="{{ profile }}" />
+                        <input type="hidden" name="phase" value="{{ phase }}" />
+                        <input type="hidden" name="goal" value="{{ goal }}" />
+                        <input type="hidden" name="rating" value="-1" />
+                        <button type="submit" class="btn" title="No útil">👎</button>
+                      </form>
                     </div>
                   </div>
                   <p><strong>{{ p.title }}</strong>{% if p.goal %}<br /><span class="muted">{{ p.goal }}</span>{% endif %}</p>

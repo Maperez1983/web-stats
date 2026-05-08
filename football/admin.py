@@ -103,3 +103,24 @@ admin.site.register(models.DataImportLog)
 admin.site.register(models.MatchEvent)
 admin.site.register(models.ScrapeSource)
 admin.site.register(models.ScrapeRun)
+
+
+@admin.register(models.AiTrainerEvent)
+class AiTrainerEventAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'event_type', 'team', 'workspace', 'user')
+    list_filter = ('event_type', 'team')
+    search_fields = ('team__name', 'user__username', 'meta')
+
+
+@admin.register(models.AiTrainerTokenWeight)
+class AiTrainerTokenWeightAdmin(admin.ModelAdmin):
+    list_display = ('updated_at', 'team', 'workspace', 'token', 'weight')
+    list_filter = ('team',)
+    search_fields = ('token', 'team__name')
+
+
+@admin.register(models.AiTrainerTaskIndex)
+class AiTrainerTaskIndexAdmin(admin.ModelAdmin):
+    list_display = ('updated_at', 'team', 'repository', 'task')
+    list_filter = ('team', 'repository')
+    search_fields = ('task__title', 'content')

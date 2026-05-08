@@ -1177,6 +1177,95 @@ class SessionTask(models.Model):
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
 
 
+class AiTrainerEvent(models.Model):
+    """
+    Telemetría ligera de IA‑Trainer para “aprendizaje” (ranking/personalización) y auditoría.
+
+    No guarda secretos; meta contiene señales y opciones seleccionadas.
+    """
+
+    EVENT_GENERATE = 'generate'
+    EVENT_COPY = 'copy'
+    EVENT_SAVE_TASK = 'save_task'
+    EVENT_FEEDBACK = 'feedback'
+    EVENT_OPEN_SUGGESTION = 'open_suggestion'
+    EVENT_CHOICES = [
+        (EVENT_GENERATE, 'Generate proposals'),
+        (EVENT_COPY, 'Copy proposal'),
+        (EVENT_SAVE_TASK, 'Save proposal as task'),
+        (EVENT_FEEDBACK, 'Feedback'),
+        (EVENT_OPEN_SUGGESTION, 'Open suggested task'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_trainer_events')
+    workspace = models.ForeignKey(Workspace, null=True, blank=True, on_delete=models.SET_NULL, related_name='ai_trainer_events')
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='ai_trainer_events')
+    event_type = models.CharField(max_length=32, choices=EVENT_CHOICES)
+    meta = models.JSONField(default=dict, blank=True)
+    session_key = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'event_type', '-created_at']),
+            models.Index(fields=['workspace', 'event_type', '-created_at']),
+            models.Index(fields=['user', 'event_type', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'IA‑Trainer {self.event_type} · {self.team.name}'
+
+
+class AiTrainerTokenWeight(models.Model):
+    """
+    “Aprendizaje” simple: pesos por token (palabras/conceptos) por equipo/workspace.
+    Se actualiza con feedback positivo/negativo y con lo que el entrenador guarda.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_trainer_token_weights')
+    workspace = models.ForeignKey(Workspace, null=True, blank=True, on_delete=models.SET_NULL, related_name='ai_trainer_token_weights')
+    token = models.CharField(max_length=64)
+    weight = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'workspace', 'token')
+        indexes = [
+            models.Index(fields=['team', 'workspace', 'token']),
+            models.Index(fields=['team', '-updated_at']),
+        ]
+
+    def __str__(self):
+        ws = f' · ws={self.workspace_id}' if self.workspace_id else ''
+        return f'{self.team.name}{ws} · {self.token}={self.weight:.2f}'
+
+
+class AiTrainerTaskIndex(models.Model):
+    """
+    Índice “RAG” (fase 2): documento normalizado por tarea para búsqueda semántica/lexical.
+
+    Por ahora es lexical (tokens + score); se puede ampliar a embeddings si se añade proveedor.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_trainer_task_index')
+    task = models.OneToOneField(SessionTask, on_delete=models.CASCADE, related_name='ai_trainer_index')
+    repository = models.CharField(max_length=32, blank=True)
+    content = models.TextField(blank=True)
+    content_norm = models.TextField(blank=True)
+    tokens = models.JSONField(default=list, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'repository', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f'Index {self.team.name} · task#{self.task_id}'
+
+
 class SessionTaskBookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_task_bookmarks')
     task = models.ForeignKey(SessionTask, on_delete=models.CASCADE, related_name='bookmarks')
