@@ -943,6 +943,47 @@
               {% endfor %}
             </ul>
           </div>
+
+          <div class="item item-wide">
+            <h3>Plantilla rival (lista)</h3>
+            <p class="meta" style="margin:0.35rem 0 0;">
+              Selecciona jugadores y añádelos al informe manual para preparar tareas. Luego pulsa “Crear tareas (biblioteca)”.
+            </p>
+            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+              <button class="button ghost" type="button" id="rival-roster-add-key">Añadir a “Jugadores clave”</button>
+              <button class="button ghost" type="button" id="rival-roster-add-tasks">Añadir a “Tareas individuales”</button>
+            </div>
+            <div style="overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px; margin-top:0.75rem;">
+              <table class="standings-table" style="margin:0; min-width:860px;">
+                <thead>
+                  <tr>
+                    <th style="width:54px;">Sel</th>
+                    <th>Jugador</th>
+                    <th>Pos</th>
+                    <th>Min</th>
+                    <th>Goles</th>
+                    <th>Amarillas</th>
+                    <th>Rojas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in roster %}
+                  <tr>
+                    <td>
+                      <input type="checkbox" class="rival-roster-pick" value="{{ p.name|default:'' }}" />
+                    </td>
+                    <td><strong>{{ p.name|default:"-" }}</strong></td>
+                    <td class="meta">{{ p.position|default:"-" }}</td>
+                    <td class="meta">{{ p.minutes|default:"-" }}</td>
+                    <td class="meta">{{ p.goals|default:"-" }}</td>
+                    <td class="meta">{{ p.yellow_cards|default:"-" }}</td>
+                    <td class="meta">{{ p.red_cards|default:"-" }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
         {% endif %}
         </div>
@@ -1102,10 +1143,10 @@
           });
 	      })();
 
-	      (function () {
-	        const btn = document.getElementById('rival-report-to-tasks');
-	        const status = document.getElementById('rival-report-to-tasks-status');
-	        if (!btn) return;
+		      (function () {
+		        const btn = document.getElementById('rival-report-to-tasks');
+		        const status = document.getElementById('rival-report-to-tasks-status');
+		        if (!btn) return;
 	        const csrfInp = document.querySelector('input[name="csrfmiddlewaretoken"]');
 	        const csrf = csrfInp ? String(csrfInp.value || '') : '';
 	        const apiUrl = "{% url 'analysis-rival-report-to-blueprints-api' %}";
@@ -1140,7 +1181,47 @@
 	            btn.disabled = false;
 	          }
 	        });
-	      })();
+		      })();
+
+		      (function () {
+		        const pickNodes = () => Array.from(document.querySelectorAll('.rival-roster-pick') || []);
+		        const selectedNames = () =>
+		          pickNodes()
+		            .filter((el) => el && el.checked)
+		            .map((el) => String(el.value || '').trim())
+		            .filter(Boolean);
+
+		        const appendLines = (textarea, lines) => {
+		          if (!textarea || !lines || !lines.length) return false;
+		          const current = String(textarea.value || '').trim();
+		          const set = new Set(current.split(/\n+/).map((x) => String(x || '').trim()).filter(Boolean));
+		          lines.forEach((x) => set.add(String(x || '').trim()));
+		          textarea.value = Array.from(set).filter(Boolean).join('\n').trim();
+		          return true;
+		        };
+
+		        const btnKey = document.getElementById('rival-roster-add-key');
+		        const btnTasks = document.getElementById('rival-roster-add-tasks');
+		        if (btnKey) {
+		          btnKey.addEventListener('click', () => {
+		            const names = selectedNames();
+		            if (!names.length) return alert('Selecciona al menos un jugador de la lista.');
+		            const target = document.getElementById('manual_key_players');
+		            if (!appendLines(target, names)) return;
+		            alert(`Añadidos ${names.length} jugadores a “Jugadores clave”.`);
+		          });
+		        }
+		        if (btnTasks) {
+		          btnTasks.addEventListener('click', () => {
+		            const names = selectedNames();
+		            if (!names.length) return alert('Selecciona al menos un jugador de la lista.');
+		            const target = document.getElementById('manual_individual_tasks');
+		            const lines = names.map((n) => `- Vigilar a ${n}: …`);
+		            if (!appendLines(target, lines)) return;
+		            alert(`Añadidos ${names.length} ítems a “Tareas individuales”.`);
+		          });
+		        }
+		      })();
 	
 	      (function () {
 	        const form = document.getElementById('video-upload-form');

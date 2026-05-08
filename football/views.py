@@ -41128,6 +41128,33 @@ def analysis_page(request):
         'next_match_location': preferred_next.get('location') if isinstance(preferred_next, dict) else '',
         'preferente_url': selected_team.preferente_url if selected_team else '',
     }
+    # Métricas compactas del rival (desde clasificación Universo/RFAF).
+    if isinstance(rival_meta, dict) and rival_meta:
+        try:
+            extracted.update(
+                {
+                    'rival_rank': _safe_int(rival_meta.get('rank'), default=0) or '',
+                    'rival_points': _safe_int(rival_meta.get('points'), default=0) or '',
+                    'rival_played': _safe_int(rival_meta.get('played'), default=0) or '',
+                    'rival_wins': _safe_int(rival_meta.get('wins'), default=0) or '',
+                    'rival_draws': _safe_int(rival_meta.get('draws'), default=0) or '',
+                    'rival_losses': _safe_int(rival_meta.get('losses'), default=0) or '',
+                    'rival_gf': _safe_int(rival_meta.get('goals_for'), default=0) or '',
+                    'rival_ga': _safe_int(rival_meta.get('goals_against'), default=0) or '',
+                    'rival_gd': _safe_int(rival_meta.get('goal_difference'), default=0) or '',
+                }
+            )
+        except Exception:
+            pass
+
+    # Auto-vinculación: si detectamos el código Universo del rival en standings, lo guardamos para futuras cargas.
+    if selected_team and rival_team_code and str(rival_team_code).strip().isdigit():
+        try:
+            if not str(getattr(selected_team, 'external_id', '') or '').strip():
+                selected_team.external_id = str(rival_team_code).strip()
+                selected_team.save(update_fields=['external_id'])
+        except Exception:
+            pass
 
     if active_tab == 'rivals':
         try:
