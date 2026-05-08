@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/match/video/marker/', views.match_video_marker_api, name='match-video-marker-api'),
     path('api/build/', views.public_build_info, name='public-build-info'),
     path('api/search/', views.search_api, name='search-api'),
+    path('api/rivals/roster/', views.rival_roster_api, name='rival-roster-api'),
     path('billing/', views.billing_page, name='billing'),
     path('api/billing/checkout/', views.billing_checkout_session_api, name='billing-checkout-session'),
     path('api/billing/portal/', views.billing_portal_session_api, name='billing-portal-session'),

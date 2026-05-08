@@ -9600,6 +9600,167 @@ def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
     return serialize_standings(primary_team.group)
 
 
+def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_items: int = 60):
+    """
+    Opciones rápidas de rival para editor de tareas / táctica.
+
+    Fuente: misma clasificación que Home (BD federación prioritaria; snapshot Universo como fallback controlado).
+    """
+    if not primary_team:
+        return []
+    try:
+        cache_days = max(1, int(cache_days or 14))
+    except Exception:
+        cache_days = 14
+    threshold = timezone.now() - timedelta(days=cache_days)
+    rows = _resolve_standings_for_team(primary_team) or []
+    if not rows:
+        return []
+
+    primary_keys = {
+        _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+    }
+    code_rows = [str(r.get('team_code') or '').strip() for r in rows if isinstance(r, dict)]
+    code_rows = [c for c in code_rows if c]
+    teams_by_code = {}
+    if code_rows:
+        try:
+            teams_by_code = {str(t.external_id or '').strip(): t for t in Team.objects.filter(external_id__in=code_rows)}
+        except Exception:
+            teams_by_code = {}
+
+    items = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        full_name = str(row.get('full_name') or row.get('team') or '').strip()
+        if not full_name:
+            continue
+        if _normalize_team_lookup_key(full_name) in primary_keys:
+            continue
+        team_code = str(row.get('team_code') or '').strip()
+        team_obj = teams_by_code.get(team_code) if team_code else None
+        if not team_obj:
+            try:
+                team_obj = Team.objects.filter(
+                    Q(name__iexact=full_name)
+                    | Q(short_name__iexact=full_name)
+                    | Q(slug__iexact=slugify(full_name))
+                ).first()
+            except Exception:
+                team_obj = None
+        snapshot = None
+        if team_obj:
+            try:
+                snapshot = (
+                    TeamRosterSnapshot.objects
+                    .filter(team=team_obj)
+                    .order_by('-updated_at', '-id')
+                    .first()
+                )
+            except Exception:
+                snapshot = None
+        snap_payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+        snap_count = len(snap_payload) if snap_payload else 0
+        snap_ok = bool(snapshot and snapshot.updated_at and snapshot.updated_at >= threshold and snap_count > 0 and not (snapshot.error or '').strip())
+        items.append(
+            {
+                'rank': _safe_int(row.get('rank'), default=0),
+                'full_name': full_name,
+                'team_code': team_code,
+                'crest_url': str(row.get('crest_url') or getattr(team_obj, 'crest_url', '') or '').strip(),
+                'team_id': int(team_obj.id) if team_obj else 0,
+                'snapshot_ok': snap_ok,
+                'snapshot_count': snap_count,
+                'snapshot_updated_at': snapshot.updated_at.isoformat() if snapshot and snapshot.updated_at else '',
+            }
+        )
+
+    items.sort(key=lambda x: (x.get('rank', 0) <= 0, int(x.get('rank', 0) or 0), x.get('full_name') or ''))
+    if max_items and len(items) > int(max_items):
+        items = items[: int(max_items)]
+    return items
+
+
+@login_required
+def rival_roster_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo no configurado.'}, status=400)
+
+    rival_team_id = _parse_int(request.GET.get('rival_team_id'))
+    team_code = str(request.GET.get('team_code') or '').strip()
+    rival_name = str(request.GET.get('rival_name') or '').strip()
+
+    team_obj = None
+    if rival_team_id:
+        team_obj = Team.objects.filter(id=int(rival_team_id)).first()
+    if not team_obj and team_code:
+        team_obj = Team.objects.filter(external_id__iexact=team_code).first()
+    if not team_obj and rival_name:
+        team_obj = Team.objects.filter(Q(name__iexact=rival_name) | Q(short_name__iexact=rival_name)).first()
+
+    if not team_obj:
+        return JsonResponse(
+            {
+                'ok': True,
+                'items': [],
+                'rival': {'team_id': 0, 'team_code': team_code, 'full_name': rival_name},
+                'warning': 'No se encontró el rival en el sistema. Vincúlalo en “Análisis → Rivales” para tener plantilla.',
+            }
+        )
+
+    snapshot = (
+        TeamRosterSnapshot.objects
+        .filter(team=team_obj)
+        .order_by('-updated_at', '-id')
+        .first()
+    )
+    payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+    payload = payload if isinstance(payload, list) else []
+
+    items = []
+    for row in payload[:80]:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get('name') or row.get('full_name') or '').strip()
+        if not name:
+            continue
+        items.append(
+            {
+                'name': name[:160],
+                'number': str(row.get('number') or row.get('shirt_number') or '').strip()[:10],
+                'position': str(row.get('position') or '').strip()[:40],
+                'minutes': _safe_int(row.get('minutes'), default=0) or '',
+                'goals': _safe_int(row.get('goals'), default=0) or '',
+                'yellow_cards': _safe_int(row.get('yellow_cards'), default=0) or '',
+                'red_cards': _safe_int(row.get('red_cards'), default=0) or '',
+            }
+        )
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'items': items,
+            'rival': {
+                'team_id': int(team_obj.id),
+                'team_code': str(getattr(team_obj, 'external_id', '') or '').strip(),
+                'full_name': str(getattr(team_obj, 'name', '') or '').strip(),
+            },
+            'snapshot': {
+                'provider': str(getattr(snapshot, 'provider', '') or '').strip(),
+                'updated_at': snapshot.updated_at.isoformat() if snapshot and snapshot.updated_at else '',
+                'source_url': str(getattr(snapshot, 'source_url', '') or '').strip(),
+                'error': str(getattr(snapshot, 'error', '') or '').strip(),
+            },
+        }
+    )
+
+
 def _resolve_rival_identity(rival_name, preferred_opponent=None):
     rival_name = str(rival_name or '').strip() or 'Rival por confirmar'
     rival_full_name = rival_name

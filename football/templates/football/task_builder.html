@@ -5128,11 +5128,73 @@
 
           <button type="button" class="focus-exit" id="task-focus-exit" aria-label="Salir de presentación">Salir</button>
 
-	              <aside class="panel">
-	            <div class="panel-body stack">
-					              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel lateral">
-	                        {% if tactics_mode %}
-					                <button type="button" class="side-tab is-active" data-pane="playbook" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📚</span><span class="tab-label">Playbook</span></button>
+		              <aside class="panel">
+		            <div class="panel-body stack">
+		              <details class="collapsible" id="task-opponent-panel">
+		                <summary>Rival y jugadores (scouting)</summary>
+		                <div class="meta" style="margin:0.55rem 0 0.85rem;">
+		                  Selecciona el rival y marca jugadores clave para preparar consignas, reglas o simulaciones en pizarra.
+		                </div>
+		                <div class="compact-grid">
+		                  <label style="grid-column:1 / -1;">
+		                    Rival
+		                    <select id="task-opponent-select">
+		                      <option value="">— Selecciona rival —</option>
+		                      {% if rivals_options %}
+		                      {% for r in rivals_options %}
+		                      <option
+		                        value="{{ r.team_id|default:0 }}"
+		                        data-team-code="{{ r.team_code|default:''|escape }}"
+		                        data-full-name="{{ r.full_name|default:''|escape }}"
+		                        {% if initial.opponent_team_id and initial.opponent_team_id|stringformat:'s' == r.team_id|stringformat:'s' %}selected{% elif (not initial.opponent_team_id and not initial.opponent_name) and preferred_rival_name and r.full_name and r.full_name|lower in preferred_rival_name|lower %}selected{% endif %}
+		                      >
+		                        {% if r.rank %}{{ r.rank }} · {% endif %}{{ r.full_name }}{% if r.snapshot_ok %} · ✅{% else %} · ⚠️{% endif %}
+		                      </option>
+		                      {% endfor %}
+		                      {% else %}
+		                      <option value="" disabled>(Sin clasificación disponible)</option>
+		                      {% endif %}
+		                    </select>
+		                  </label>
+		                  <label>
+		                    Buscar
+		                    <input type="text" id="task-opponent-player-filter" placeholder="Nombre del jugador…" />
+		                  </label>
+		                  <div class="actions" style="justify-content:flex-start; align-items:flex-end; gap:0.45rem;">
+		                    <button type="button" class="button ghost" id="task-opponent-apply-coaching">Añadir a consignas</button>
+		                    <button type="button" class="button ghost" id="task-opponent-apply-rules">Añadir a reglas</button>
+		                    <button type="button" class="button ghost" id="task-opponent-copy">Copiar nombres</button>
+		                  </div>
+		                </div>
+		                <div class="meta" id="task-opponent-status" style="margin-top:0.6rem;"></div>
+
+		                <input type="hidden" name="draw_task_opponent_team_id" id="draw-task-opponent-team-id" value="{{ initial.opponent_team_id|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_name" id="draw-task-opponent-name" value="{{ initial.opponent_name|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_team_code" id="draw-task-opponent-team-code" value="{{ initial.opponent_team_code|default:'' }}" />
+		                <input type="hidden" name="draw_task_opponent_players_json" id="draw-task-opponent-players-json" value="{{ initial.opponent_players_json|default:'[]'|escape }}" />
+
+		                <div id="task-opponent-roster-wrap" style="margin-top:0.75rem; overflow:auto; max-height:280px; border:1px solid rgba(255,255,255,0.08); border-radius:16px;">
+		                  <table class="standings-table" style="margin:0; min-width:720px;">
+		                    <thead>
+		                      <tr>
+		                        <th style="width:54px;">Sel</th>
+		                        <th>Jugador</th>
+		                        <th>Pos</th>
+		                        <th>Min</th>
+		                        <th>G</th>
+		                        <th>A</th>
+		                        <th>R</th>
+		                      </tr>
+		                    </thead>
+		                    <tbody id="task-opponent-roster-body">
+		                      <tr><td colspan="7" class="meta" style="padding:0.75rem 0.6rem;">Selecciona un rival para cargar su plantilla.</td></tr>
+		                    </tbody>
+		                  </table>
+		                </div>
+		              </details>
+						              <div class="side-tabs" id="task-side-tabs" role="tablist" aria-label="Panel lateral">
+		                        {% if tactics_mode %}
+						                <button type="button" class="side-tab is-active" data-pane="playbook" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📚</span><span class="tab-label">Playbook</span></button>
 					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
@@ -6430,12 +6492,12 @@
 		            } catch (err) {}
 		          };
 
-				          const setRichHtml = (plainName, html) => {
-			            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
-		            if (!wrapper) {
-		              setValue(plainName, String(html || '').replace(/<[^>]*>/g, ''));
-		              return;
-		            }
+					          const setRichHtml = (plainName, html) => {
+				            const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
+			            if (!wrapper) {
+			              setValue(plainName, String(html || '').replace(/<[^>]*>/g, ''));
+			              return;
+			            }
 		            const area = wrapper.querySelector('[data-rich-area]');
 		            const plainField = getField(plainName);
 		            const htmlName = wrapper.getAttribute('data-rich-html-name') || '';
@@ -6452,12 +6514,294 @@
 		              if (htmlField && !(htmlField instanceof RadioNodeList)) {
 		                htmlField.value = safeHtml;
 		              }
-		            } catch (err) {}
-				          };
+			            } catch (err) {}
+					          };
 
-				          const drillsInput = document.getElementById('draw-task-drills-json');
-				          const drillsPicker = document.getElementById('task-drills-picker');
-				          const drillsFilter = document.getElementById('task-drills-filter');
+					          // --- Rival + plantilla (scouting) ---
+					          (function () {
+					            const rosterApiUrl = String("{{ rival_roster_api_url|default:'' }}").trim();
+					            const select = document.getElementById('task-opponent-select');
+					            const filter = document.getElementById('task-opponent-player-filter');
+					            const statusEl = document.getElementById('task-opponent-status');
+					            const tbody = document.getElementById('task-opponent-roster-body');
+					            const hiddenTeamId = document.getElementById('draw-task-opponent-team-id');
+					            const hiddenName = document.getElementById('draw-task-opponent-name');
+					            const hiddenCode = document.getElementById('draw-task-opponent-team-code');
+					            const hiddenPlayers = document.getElementById('draw-task-opponent-players-json');
+					            const btnCoaching = document.getElementById('task-opponent-apply-coaching');
+					            const btnRules = document.getElementById('task-opponent-apply-rules');
+					            const btnCopy = document.getElementById('task-opponent-copy');
+					            if (!select || !tbody) return;
+
+					            const isTacticsMode = !!document.body?.classList?.contains('tactics-mode');
+					            const storageKey = isTacticsMode ? '2j_tactics_opponent' : '2j_task_opponent';
+
+					            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+					              '&': '&amp;',
+					              '<': '&lt;',
+					              '>': '&gt;',
+					              '"': '&quot;',
+					              "'": '&#39;',
+					            }[ch] || ch));
+
+					            const safeJsonParse = (raw, fallback) => {
+					              try { return JSON.parse(String(raw || '')); } catch (e) { return fallback; }
+					            };
+
+					            const readSelectedPlayers = () => {
+					              const arr = safeJsonParse(hiddenPlayers?.value || '[]', []);
+					              const list = Array.isArray(arr) ? arr : [];
+					              const norm = [];
+					              const seen = new Set();
+					              list.forEach((x) => {
+					                const v = String(x || '').trim();
+					                if (!v || seen.has(v)) return;
+					                seen.add(v);
+					                norm.push(v.slice(0, 160));
+					              });
+					              return norm.slice(0, 40);
+					            };
+					            const writeSelectedPlayers = (players) => {
+					              const list = Array.isArray(players) ? players : [];
+					              try {
+					                if (hiddenPlayers) hiddenPlayers.value = JSON.stringify(list.slice(0, 40));
+					              } catch (e) {}
+					              try {
+					                const payload = {
+					                  v: 1,
+					                  at: new Date().toISOString(),
+					                  opponent_name: String(hiddenName?.value || '').trim(),
+					                  opponent_team_id: String(hiddenTeamId?.value || '').trim(),
+					                  opponent_team_code: String(hiddenCode?.value || '').trim(),
+					                  players: list.slice(0, 40),
+					                };
+					                window.localStorage && window.localStorage.setItem(storageKey, JSON.stringify(payload));
+					              } catch (e) {}
+					            };
+
+					            const syncHiddenOpponent = () => {
+					              const opt = select.selectedOptions && select.selectedOptions.length ? select.selectedOptions[0] : null;
+					              const teamId = String(opt ? (opt.value || '') : '').trim();
+					              const fullName = String(opt ? (opt.getAttribute('data-full-name') || opt.textContent || '') : '').trim();
+					              const code = String(opt ? (opt.getAttribute('data-team-code') || '') : '').trim();
+					              try { if (hiddenTeamId) hiddenTeamId.value = teamId && teamId !== '0' ? teamId : ''; } catch (e) {}
+					              try { if (hiddenName) hiddenName.value = fullName || ''; } catch (e) {}
+					              try { if (hiddenCode) hiddenCode.value = code || ''; } catch (e) {}
+					            };
+
+					            const renderRows = (items) => {
+					              const selected = new Set(readSelectedPlayers().map((x) => String(x || '').trim()));
+					              const q = String(filter?.value || '').trim().toLowerCase();
+					              const rows = Array.isArray(items) ? items : [];
+					              const visible = q ? rows.filter((x) => String(x?.name || '').toLowerCase().includes(q)) : rows;
+
+					              tbody.textContent = '';
+					              if (!visible.length) {
+					                const tr = document.createElement('tr');
+					                tr.innerHTML = '<td colspan="7" class="meta" style="padding:0.75rem 0.6rem;">Sin jugadores (o filtro sin resultados).</td>';
+					                tbody.appendChild(tr);
+					                return;
+					              }
+
+					              visible.forEach((p) => {
+					                const name = String(p?.name || '').trim();
+					                if (!name) return;
+					                const tr = document.createElement('tr');
+					                const checked = selected.has(name);
+					                tr.innerHTML = [
+					                  '<td><input type="checkbox" class="task-opponent-pick" value="' + escapeHtml(name) + '"' + (checked ? ' checked' : '') + ' /></td>',
+					                  '<td><strong>' + escapeHtml(name) + '</strong></td>',
+					                  '<td class="meta">' + escapeHtml(String(p?.position || '-')) + '</td>',
+					                  '<td class="meta">' + escapeHtml(String(p?.minutes || '-')) + '</td>',
+					                  '<td class="meta">' + escapeHtml(String(p?.goals || '-')) + '</td>',
+					                  '<td class="meta">' + escapeHtml(String(p?.yellow_cards || '-')) + '</td>',
+					                  '<td class="meta">' + escapeHtml(String(p?.red_cards || '-')) + '</td>',
+					                ].join('');
+					                tbody.appendChild(tr);
+					              });
+
+					              Array.from(tbody.querySelectorAll('input.task-opponent-pick') || []).forEach((cb) => {
+					                cb.addEventListener('change', () => {
+					                  const name = String(cb.value || '').trim();
+					                  const current = readSelectedPlayers();
+					                  const set = new Set(current);
+					                  if (cb.checked) set.add(name);
+					                  else set.delete(name);
+					                  writeSelectedPlayers(Array.from(set));
+					                });
+					              });
+					            };
+
+					            const fetchRoster = async () => {
+					              syncHiddenOpponent();
+					              const teamId = String(hiddenTeamId?.value || '').trim();
+					              const teamCode = String(hiddenCode?.value || '').trim();
+					              const rivalName = String(hiddenName?.value || '').trim();
+					              if (!teamId && !teamCode && !rivalName) {
+					                renderRows([]);
+					                if (statusEl) statusEl.textContent = '';
+					                return;
+					              }
+					              if (!rosterApiUrl) {
+					                if (statusEl) statusEl.textContent = 'No se encontró el endpoint de plantilla rival.';
+					                renderRows([]);
+					                return;
+					              }
+					              if (statusEl) statusEl.textContent = 'Cargando plantilla rival…';
+					              try {
+					                const u = new URL(rosterApiUrl, window.location.origin);
+					                if (teamId) u.searchParams.set('rival_team_id', teamId);
+					                if (teamCode) u.searchParams.set('team_code', teamCode);
+					                if (rivalName) u.searchParams.set('rival_name', rivalName);
+					                const res = await fetch(u.toString(), { credentials: 'same-origin' });
+					                const data = res.ok ? await res.json() : null;
+					                if (!res.ok || !data?.ok) throw new Error(String(data?.error || 'No se pudo cargar.'));
+					                const items = Array.isArray(data?.items) ? data.items : [];
+					                const updatedAt = String(data?.snapshot?.updated_at || '').trim();
+					                const warning = String(data?.warning || '').trim();
+					                const msg = warning
+					                  ? warning
+					                  : (updatedAt ? `Plantilla cargada · ${items.length} jugadores · actualizado ${updatedAt.split('T')[0]}` : `Plantilla cargada · ${items.length} jugadores`);
+					                if (statusEl) statusEl.textContent = msg;
+					                renderRows(items);
+					              } catch (e) {
+					                if (statusEl) statusEl.textContent = 'No se pudo cargar la plantilla del rival. Usa “Análisis → Rivales” para prepararla.';
+					                renderRows([]);
+					              }
+					            };
+
+					            const appendToRich = (plainName, title, names) => {
+					              const list = Array.isArray(names) ? names.map((x) => String(x || '').trim()).filter(Boolean) : [];
+					              if (!list.length) return false;
+					              const wrapper = form.querySelector(`[data-rich-editor][data-rich-name="${plainName}"]`);
+					              const htmlName = wrapper ? (wrapper.getAttribute('data-rich-html-name') || '') : '';
+					              const htmlField = htmlName ? getField(htmlName) : null;
+					              const current = String((htmlField && !(htmlField instanceof RadioNodeList)) ? (htmlField.value || '') : '');
+					              const bulletHtml = '<ul>' + list.map((n) => `<li><strong>${escapeHtml(n)}</strong>: …</li>`).join('') + '</ul>';
+					              const block = `<p><strong>${escapeHtml(title || 'Rival')}</strong></p>${bulletHtml}`;
+					              const merged = (current && current.trim()) ? (current.trim() + '\\n' + block) : block;
+					              setRichHtml(plainName, merged);
+					              return true;
+					            };
+
+					            btnCoaching?.addEventListener('click', () => {
+					              const names = readSelectedPlayers();
+					              const rivalName = String(hiddenName?.value || '').trim() || 'Rival';
+					              if (!names.length) return window.alert('Marca al menos un jugador del rival.');
+					              const ok = appendToRich('draw_task_coaching_points', `Jugadores a vigilar (vs ${rivalName})`, names);
+					              if (ok) window.alert('Añadido a consignas.');
+					            });
+					            btnRules?.addEventListener('click', () => {
+					              const names = readSelectedPlayers();
+					              const rivalName = String(hiddenName?.value || '').trim() || 'Rival';
+					              if (!names.length) return window.alert('Marca al menos un jugador del rival.');
+					              const ok = appendToRich('draw_task_confrontation_rules', `Reglas vs ${rivalName} (jugadores clave)`, names);
+					              if (ok) window.alert('Añadido a reglas.');
+					            });
+					            btnCopy?.addEventListener('click', async () => {
+					              const names = readSelectedPlayers();
+					              if (!names.length) return window.alert('Marca al menos un jugador del rival.');
+					              const text = names.join('\\n');
+					              try {
+					                if (navigator.clipboard && navigator.clipboard.writeText) {
+					                  await navigator.clipboard.writeText(text);
+					                  window.alert('Copiado al portapapeles.');
+					                  return;
+					                }
+					              } catch (e) {}
+					              try {
+					                const ta = document.createElement('textarea');
+					                ta.value = text;
+					                ta.style.position = 'fixed';
+					                ta.style.left = '-9999px';
+					                document.body.appendChild(ta);
+					                ta.focus();
+					                ta.select();
+					                document.execCommand('copy');
+					                document.body.removeChild(ta);
+					                window.alert('Copiado al portapapeles.');
+					              } catch (e) {
+					                window.alert(text);
+					              }
+					            });
+
+					            select.addEventListener('change', () => {
+					              writeSelectedPlayers(readSelectedPlayers());
+					              fetchRoster();
+					            });
+					            filter?.addEventListener('input', () => {
+					              // Re-render sin volver a pedir al servidor: usamos dataset en el tbody actual si existe.
+					              // Si no hay filas, simplemente no hace nada.
+					              try {
+					                const rows = Array.from(tbody.querySelectorAll('tr') || []);
+					                if (!rows.length) return;
+					                // Forzamos recarga desde servidor si aún no se cargó nada.
+					                const hasCheckbox = !!tbody.querySelector('input.task-opponent-pick');
+					                if (!hasCheckbox) return;
+					                // Extrae info desde DOM actual.
+					                const items = rows
+					                  .map((tr) => {
+					                    const strong = tr.querySelector('strong');
+					                    const tds = tr.querySelectorAll('td');
+					                    const name = String(strong?.textContent || '').trim();
+					                    if (!name) return null;
+					                    const getTd = (idx) => String((tds && tds[idx] ? tds[idx].textContent : '') || '').trim();
+					                    return { name, position: getTd(2), minutes: getTd(3), goals: getTd(4), yellow_cards: getTd(5), red_cards: getTd(6) };
+					                  })
+					                  .filter(Boolean);
+					                renderRows(items);
+					              } catch (e) {}
+					            });
+
+					            // Boot: si venimos desde “Análisis rival → Crear tarea específica”.
+					            try {
+					              const url = new URL(window.location.href);
+					              const prefill = String(url.searchParams.get('prefill') || '').trim().toLowerCase();
+					              if (prefill === 'rival_roster') {
+					                const seedRaw = window.localStorage && window.localStorage.getItem('2j_rival_task_seed');
+					                const seed = seedRaw ? safeJsonParse(seedRaw, null) : null;
+					                if (seed && typeof seed === 'object' && String(seed.kind || '') === 'rival_roster') {
+					                  const rivalName = String(seed.rival_name || '').trim();
+					                  const players = Array.isArray(seed.players) ? seed.players.map((x) => String(x || '').trim()).filter(Boolean) : [];
+					                  if (rivalName) {
+					                    // Intenta seleccionar opción por nombre.
+					                    const opts = Array.from(select.options || []);
+					                    const match = opts.find((o) => String(o.getAttribute('data-full-name') || o.textContent || '').toLowerCase().includes(rivalName.toLowerCase()));
+					                    if (match) select.value = String(match.value || '');
+					                    syncHiddenOpponent();
+					                  }
+					                  if (players.length) writeSelectedPlayers(players);
+					                  try { window.localStorage && window.localStorage.removeItem('2j_rival_task_seed'); } catch (e) {}
+					                }
+					              }
+					            } catch (e) {}
+
+					            // Boot normal: restaura última selección (útil en tácticas).
+					            try {
+					              if (!String(hiddenName?.value || '').trim()) {
+					                const raw = window.localStorage && window.localStorage.getItem(storageKey);
+					                const stored = raw ? safeJsonParse(raw, null) : null;
+					                if (stored && typeof stored === 'object') {
+					                  const storedName = String(stored.opponent_name || '').trim();
+					                  const storedPlayers = Array.isArray(stored.players) ? stored.players : [];
+					                  if (storedName) {
+					                    const opts = Array.from(select.options || []);
+					                    const match = opts.find((o) => String(o.getAttribute('data-full-name') || o.textContent || '').toLowerCase().includes(storedName.toLowerCase()));
+					                    if (match) select.value = String(match.value || '');
+					                    syncHiddenOpponent();
+					                  }
+					                  if (storedPlayers.length) writeSelectedPlayers(storedPlayers);
+					                }
+					              }
+					            } catch (e) {}
+
+					            // Carga inicial si hay rival seleccionado.
+					            fetchRoster();
+					          })();
+
+					          const drillsInput = document.getElementById('draw-task-drills-json');
+					          const drillsPicker = document.getElementById('task-drills-picker');
+					          const drillsFilter = document.getElementById('task-drills-filter');
 				          const drillsAge = document.getElementById('task-drills-age');
 				          const drillsSearch = document.getElementById('task-drills-search');
 				          const parseJsonList = (value) => {
