@@ -24206,6 +24206,9 @@ def _build_session_task_sheet(task):
     meta = _normalize_task_pdf_meta(task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {})
     analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
+    is_template = str(meta.get('is_template') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    origin_label = 'Plantilla' if is_template else ('Copia' if source_template_id else '')
     contents = []
     for value in [
         meta.get('training_type'),
@@ -24221,6 +24224,8 @@ def _build_session_task_sheet(task):
         'block_label': task.get_block_display(),
         'minutes': int(task.duration_minutes or 0),
         'type_label': str(meta.get('training_type') or '').strip(),
+        'origin_label': origin_label,
+        'origin_template_id': int(source_template_id) if source_template_id else None,
         'contents_label': ' · '.join(contents) or str(task.objective or '').strip() or '-',
         'structure_label': ' · '.join(
             part for part in [
@@ -32231,6 +32236,25 @@ def _next_session_task_order(session):
 
 
 def _clone_session_task_to_session(source_task, target_session, note=''):
+    # Copia "por valor" para que la sesión tenga su propia instancia,
+    # pero mantiene referencia a la plantilla de Biblioteca si existe.
+    tactical_layout = source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {}
+    try:
+        tactical_layout = dict(tactical_layout) if isinstance(tactical_layout, dict) else {}
+        meta = tactical_layout.get('meta') if isinstance(tactical_layout.get('meta'), dict) else {}
+        meta = dict(meta) if isinstance(meta, dict) else {}
+        source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
+        try:
+            if not source_template_id and _is_library_session(getattr(source_task, 'session', None)):
+                source_template_id = int(getattr(source_task, 'id', 0) or 0)
+        except Exception:
+            source_template_id = source_template_id or 0
+        if source_template_id:
+            meta['library_source_task_id'] = int(source_template_id)
+        meta['is_template'] = False
+        tactical_layout['meta'] = meta
+    except Exception:
+        tactical_layout = source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {}
     cloned = SessionTask.objects.create(
         session=target_session,
         title=source_task.title,
@@ -32239,7 +32263,7 @@ def _clone_session_task_to_session(source_task, target_session, note=''):
         objective=source_task.objective,
         coaching_points=source_task.coaching_points,
         confrontation_rules=source_task.confrontation_rules,
-        tactical_layout=source_task.tactical_layout if isinstance(source_task.tactical_layout, dict) else {},
+        tactical_layout=tactical_layout,
         task_pdf=source_task.task_pdf.name if source_task.task_pdf else None,
         task_preview_image=source_task.task_preview_image.name if source_task.task_preview_image else None,
         status=SessionTask.STATUS_PLANNED,
@@ -36716,6 +36740,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             'scope': scope_key,
             'source': meta_source,
             **({'repository': library_repository} if is_target_library else {}),
+            'is_template': bool(is_target_library),
             'template_key': template_key,
             'surface': selected_surface,
             'pitch_format': selected_pitch_format,
@@ -36804,6 +36829,74 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             order=SessionTask.objects.filter(session=target_session).count() + 1,
             notes='Tarea creada en editor visual',
         )
+
+    # --- Separación Tarea (plantilla) vs Sesión (instancia) ---
+    # Si el usuario está guardando una tarea dentro de una sesión real, creamos (una vez)
+    # una plantilla en Biblioteca y enlazamos la copia con `meta.library_source_task_id`.
+    try:
+        if task and not is_target_library:
+            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+            layout = dict(layout) if isinstance(layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            meta = dict(meta) if isinstance(meta, dict) else {}
+            source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
+            if not source_template_id:
+                # Crea plantilla en Biblioteca (repositorio elegido en el editor).
+                library_session = _get_or_create_library_session_with_repository(primary_team, scope_key, repository=library_repository)
+                template_layout = dict(layout)
+                template_meta = template_layout.get('meta') if isinstance(template_layout.get('meta'), dict) else {}
+                template_meta = dict(template_meta) if isinstance(template_meta, dict) else {}
+                template_meta['is_template'] = True
+                template_meta['repository'] = library_repository
+                template_layout['meta'] = template_meta
+                template_task = SessionTask.objects.create(
+                    session=library_session,
+                    title=str(task.title or '')[:160],
+                    block=str(task.block or SessionTask.BLOCK_MAIN_1),
+                    duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
+                    objective=str(getattr(task, 'objective', '') or '')[:180],
+                    coaching_points=str(getattr(task, 'coaching_points', '') or ''),
+                    confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
+                    tactical_layout=template_layout,
+                    status=SessionTask.STATUS_PLANNED,
+                    order=SessionTask.objects.filter(session=library_session, deleted_at__isnull=True).count() + 1,
+                    notes=f'Plantilla creada desde sesión #{int(getattr(task.session, "id", 0) or 0)} · tarea #{int(task.id)}',
+                )
+                # Copia referencias de archivos (si existen) sin duplicar el contenido.
+                try:
+                    if getattr(task, 'task_pdf', None):
+                        template_task.task_pdf = task.task_pdf.name
+                    if getattr(task, 'task_preview_image', None):
+                        template_task.task_preview_image = task.task_preview_image.name
+                    template_task.save(update_fields=['task_pdf', 'task_preview_image'])
+                except Exception:
+                    pass
+                source_template_id = int(getattr(template_task, 'id', 0) or 0)
+
+            if source_template_id and int(source_template_id) > 0:
+                meta['library_source_task_id'] = int(source_template_id)
+                meta['is_template'] = False
+                layout['meta'] = meta
+                task.tactical_layout = layout
+                task.save(update_fields=['tactical_layout'])
+    except Exception:
+        pass
+
+    # Si es Biblioteca, normaliza: la plantilla referencia a sí misma (útil para badges/UX).
+    try:
+        if task and is_target_library:
+            layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+            layout = dict(layout) if isinstance(layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            meta = dict(meta) if isinstance(meta, dict) else {}
+            if not _parse_int(meta.get('library_source_task_id')):
+                meta['library_source_task_id'] = int(getattr(task, 'id', 0) or 0)
+            meta['is_template'] = True
+            layout['meta'] = meta
+            task.tactical_layout = layout
+            task.save(update_fields=['tactical_layout'])
+    except Exception:
+        pass
     # Aprendizaje automático (mínimo): cada vez que guardas una tarea, actualizamos/creamos
     # una plantilla del equipo (TaskBlueprint) con el mismo título. Esto alimenta el recomendador
     # Smart con "tus tareas" reales sin depender de que el usuario pulse "Guardar plantilla".

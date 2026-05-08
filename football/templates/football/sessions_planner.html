@@ -2669,8 +2669,9 @@
 		      </div>
 
 	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
-	        <section class="panel">
-	          <h2>Planificación · Microciclos y Sesiones</h2>
+		        <section class="panel">
+		          <h2>Planificación · Microciclos y Sesiones</h2>
+		          <p class="meta" style="margin-top:0;">Tarea = plantilla independiente (Biblioteca). Sesión = plan del día (usa copias/asignaciones de tareas).</p>
 		          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
 		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=microcycles&library_repo=traditional">Clásicas</a>
 		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=microcycles&library_repo=interactive">Interactivas</a>
@@ -2994,6 +2995,11 @@
                             <p class="meta" style="margin:0.28rem 0 0;">Orden {{ task_row.obj.order }} · {{ task_row.sheet.minutes }}' · {{ task_row.sheet.block_label }}</p>
                           </div>
                           <span class="session-chip">{{ task_row.sheet.type_label|default:"Tarea" }}</span>
+                          {% if task_row.sheet.origin_label %}
+                          <span class="session-chip" style="border-color:rgba(56,189,248,0.35); color:#bae6fd;">
+                            {{ task_row.sheet.origin_label }}{% if task_row.sheet.origin_template_id %} · #{{ task_row.sheet.origin_template_id }}{% endif %}
+                          </span>
+                          {% endif %}
                         </div>
                         <div class="session-sheet-meta">
                           <span class="session-chip">Contenidos · {{ task_row.sheet.contents_label }}</span>
