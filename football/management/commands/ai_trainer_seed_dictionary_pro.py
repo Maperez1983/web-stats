@@ -12,6 +12,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--team-id", type=int, default=0, help="Filtra por Team.id (por defecto: primary team).")
+        parser.add_argument(
+            "--all-teams",
+            action="store_true",
+            help="Aplica el seed a todos los equipos del sistema (Team). Ignora --team-id.",
+        )
         parser.add_argument("--workspace-id", type=int, default=0, help="Opcional: Workspace.id (0 = global / null).")
         parser.add_argument("--apply", action="store_true", help="Aplica cambios (sin esto es dry-run).")
 
@@ -19,15 +24,14 @@ class Command(BaseCommand):
         from football.models import AiTrainerDictionaryEntry, Team, Workspace
 
         team_id = int(options.get("team_id") or 0)
+        all_teams = bool(options.get("all_teams"))
         workspace_id = int(options.get("workspace_id") or 0)
         apply = bool(options.get("apply"))
 
-        team = Team.objects.filter(id=team_id).first() if team_id else Team.objects.filter(is_primary=True).first()
-        if not team:
-            self.stderr.write("Team no encontrado. Usa --team-id.")
-            return
-
         workspace = Workspace.objects.filter(id=workspace_id).first() if workspace_id else None
+        if workspace_id and not workspace:
+            self.stderr.write("Workspace no encontrado. Revisa --workspace-id.")
+            return
 
         phases = {
             "build_up": {
@@ -369,45 +373,69 @@ class Command(BaseCommand):
         }
 
         total = len(phases) + len(principles) + len(figures)
+        target_label = "all-teams" if all_teams else f"team={team_id or 'primary'}"
         self.stdout.write(
-            f"IA‑Trainer PRO dictionary: team={team.id} workspace={'null' if not workspace else workspace.id} "
-            f"entries={total} apply={apply}"
+            f"IA‑Trainer PRO dictionary: {target_label} workspace={'null' if not workspace else workspace.id} "
+            f"entries_per_team={total} apply={apply}"
         )
 
         if not apply:
             self.stdout.write("Dry-run: usa --apply para guardar en BD.")
+            # Aun así, damos una estimación de impacto.
+            if all_teams:
+                teams_count = int(Team.objects.count() or 0)
+                self.stdout.write(f"Dry-run: teams={teams_count} total_rows={teams_count * total}")
             return
 
-        created = 0
-        updated = 0
+        def _seed_for_team(team_obj):
+            created = 0
+            updated = 0
 
-        def _upsert(section: str, entry_key: str, payload: dict):
-            nonlocal created, updated
-            defaults = {
-                "label": str(payload.get("label") or "")[:160],
-                "keywords": payload.get("keywords") if isinstance(payload.get("keywords"), list) else [],
-                "coaching_points": payload.get("coaching_points") if isinstance(payload.get("coaching_points"), list) else [],
-                "created_by": None,
-            }
-            _, was_created = AiTrainerDictionaryEntry.objects.update_or_create(
-                team=team,
-                workspace=workspace,
-                section=section,
-                entry_key=str(entry_key)[:64],
-                defaults=defaults,
-            )
-            if was_created:
-                created += 1
-            else:
-                updated += 1
+            def _upsert(section: str, entry_key: str, payload: dict):
+                nonlocal created, updated
+                defaults = {
+                    "label": str(payload.get("label") or "")[:160],
+                    "keywords": payload.get("keywords") if isinstance(payload.get("keywords"), list) else [],
+                    "coaching_points": payload.get("coaching_points") if isinstance(payload.get("coaching_points"), list) else [],
+                    "created_by": None,
+                }
+                _, was_created = AiTrainerDictionaryEntry.objects.update_or_create(
+                    team=team_obj,
+                    workspace=workspace,
+                    section=section,
+                    entry_key=str(entry_key)[:64],
+                    defaults=defaults,
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
 
-        with transaction.atomic():
-            for key, data in phases.items():
-                _upsert("phases", key, data)
-            for key, data in principles.items():
-                _upsert("principles", key, data)
-            for key, data in figures.items():
-                _upsert("figures", key, data)
+            with transaction.atomic():
+                for key, data in phases.items():
+                    _upsert("phases", key, data)
+                for key, data in principles.items():
+                    _upsert("principles", key, data)
+                for key, data in figures.items():
+                    _upsert("figures", key, data)
+            return created, updated
 
-        self.stdout.write(f"OK: created={created} updated={updated}")
+        if all_teams:
+            scanned = 0
+            total_created = 0
+            total_updated = 0
+            for team in Team.objects.order_by("id").iterator(chunk_size=200):
+                scanned += 1
+                c, u = _seed_for_team(team)
+                total_created += c
+                total_updated += u
+            self.stdout.write(f"OK: teams={scanned} created={total_created} updated={total_updated}")
+            return
 
+        team = Team.objects.filter(id=team_id).first() if team_id else Team.objects.filter(is_primary=True).first()
+        if not team:
+            self.stderr.write("Team no encontrado. Usa --team-id o --all-teams.")
+            return
+
+        created, updated = _seed_for_team(team)
+        self.stdout.write(f"OK: team={team.id} created={created} updated={updated}")
