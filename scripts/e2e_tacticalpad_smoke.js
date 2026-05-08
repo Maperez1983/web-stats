@@ -30,6 +30,7 @@ async function main() {
   const username = process.env.E2E_USERNAME || 'e2e_coach';
   const password = process.env.E2E_PASSWORD || 'e2e';
   const headless = String(process.env.E2E_HEADLESS || 'true').toLowerCase() !== 'false';
+  const forceDevice = String(process.env.E2E_DEVICE || 'tablet').trim().toLowerCase(); // tablet|desktop|auto
 
   const browserType = pickBrowserType();
   const browser = await browserType.launch({ headless });
@@ -84,7 +85,8 @@ async function main() {
     });
 
     // Open task builder (tactical pad) in a clean state (avoid stale local drafts).
-    await page.goto(`${baseUrl}/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1`, { waitUntil: 'domcontentloaded' });
+    const deviceParam = (forceDevice === 'desktop' || forceDevice === 'tablet') ? `&device=${encodeURIComponent(forceDevice)}` : '';
+    await page.goto(`${baseUrl}/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1${deviceParam}`, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#create-task-canvas', { timeout: 35_000 });
 
     // If the init failed, the JS stores last error in localStorage.
@@ -186,6 +188,52 @@ async function main() {
       if (!okX || !okY) {
         throw new Error(`Drop parece clampado al borde: left=${beforeLeft} top=${beforeTop} world=${canvasDims.worldW}x${canvasDims.worldH}`);
       }
+    }
+
+    // Ensure inspector dock works in tablet mode (new iPad UX): select token and expect dock visible.
+    if (forceDevice === 'tablet') {
+      // Click near canvas center (token drop position) to trigger selection.
+      await page.dispatchEvent('#task-pitch-stage canvas.upper-canvas', 'pointerdown', {
+        pointerId: 88,
+        button: 0,
+        clientX: dropX,
+        clientY: dropY,
+        pointerType: 'touch',
+        isPrimary: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      await page.dispatchEvent('#task-pitch-stage canvas.upper-canvas', 'pointerup', {
+        pointerId: 88,
+        button: 0,
+        clientX: dropX,
+        clientY: dropY,
+        pointerType: 'touch',
+        isPrimary: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      await page.waitForTimeout(450);
+
+      const dockVisible = await page.evaluate(() => {
+        const dock = document.getElementById('task-selection-dock');
+        if (!dock) return false;
+        const hidden = dock.hidden || dock.getAttribute('hidden') != null;
+        const rect = dock.getBoundingClientRect?.();
+        const sizeOk = rect && rect.width > 40 && rect.height > 40;
+        return !hidden && !!sizeOk;
+      });
+      if (!dockVisible) throw new Error('Inspector flotante (task-selection-dock) no visible tras seleccionar objeto');
+
+      // Close button should exist and hide dock.
+      await page.click('#task-selection-dock-close');
+      await page.waitForTimeout(250);
+      const dockHiddenAfterClose = await page.evaluate(() => {
+        const dock = document.getElementById('task-selection-dock');
+        if (!dock) return true;
+        return !!dock.hidden || dock.getAttribute('hidden') != null;
+      });
+      if (!dockHiddenAfterClose) throw new Error('Cerrar inspector flotante no ocultó el dock');
     }
 
     // If there were pageerrors, treat as failure
