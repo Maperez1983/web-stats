@@ -1,0 +1,131 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Modelo de juego · {{ workspace.name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#e5e7eb; font-family:'Inter',system-ui,sans-serif; }
+      .page { max-width: 1080px; margin:0 auto; padding: 1rem 1rem 2.5rem; }
+      .top { display:flex; justify-content:space-between; align-items:flex-start; gap:0.8rem; flex-wrap:wrap; margin-bottom: 0.85rem; }
+      h1 { margin:0; font-size: 1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight: 850; }
+      .card { border:1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.36); border-radius: 18px; padding: 0.9rem; }
+      .row { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:0.7rem; }
+      @media (max-width: 860px) { .row { grid-template-columns: 1fr; } }
+      label { display:flex; flex-direction:column; gap:0.35rem; font-size:0.74rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; color: rgba(226,232,240,0.86); }
+      input, textarea, select {
+        width:100%;
+        border:1px solid rgba(255,255,255,0.18);
+        border-radius: 14px;
+        padding: 0.65rem 0.75rem;
+        background: rgba(2, 6, 23, 0.55);
+        color:#e5e7eb;
+        font: inherit;
+        text-transform:none;
+      }
+      textarea { min-height: 120px; resize: vertical; }
+      .btn { border-radius:999px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.65rem 0.9rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+      .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .alert { border-radius: 14px; padding: 0.65rem 0.75rem; font-weight: 850; }
+      .alert.ok { background: rgba(34,197,94,0.14); border:1px solid rgba(34,197,94,0.32); color: rgba(187,247,208,0.95); }
+      .alert.err { background: rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.32); color: rgba(254,202,202,0.95); }
+      .actions { display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:flex-end; margin-top:0.8rem; }
+      .muted { color: rgba(226,232,240,0.72); font-weight: 800; }
+    </style>
+  </head>
+  <body>
+    {% include 'football/includes/dragon_nav.html' %}
+    <main class="page">
+      <div class="top">
+        <div>
+          <h1>Modelo de juego</h1>
+          <div class="meta">{{ workspace.name }} · {{ team.name|default:"Equipo" }}</div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="btn" href="{% url 'sessions' %}?team={{ team.id }}">Entrenos</a>
+          <a class="btn" href="{% url 'ai-trainer' %}?team={{ team.id }}">IA‑Trainer</a>
+        </div>
+      </div>
+
+      {% if feedback %}<div class="alert ok">{{ feedback }}</div>{% endif %}
+      {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
+
+      <section class="card" style="margin-top:0.9rem;">
+        <p class="muted" style="margin:0 0 0.75rem;">
+          Esto sirve para que el club defina un marco común y para que IA‑Trainer proponga tareas coherentes. No genera costes.
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <div class="row">
+            <label>
+              Estilo (macro)
+              <select name="style">
+                <option value="" {% if not style %}selected{% endif %}>—</option>
+                <option value="posicional" {% if style == 'posicional' %}selected{% endif %}>Posicional</option>
+                <option value="directo" {% if style == 'directo' %}selected{% endif %}>Directo</option>
+                <option value="mixto" {% if style == 'mixto' %}selected{% endif %}>Mixto</option>
+                <option value="proactivo" {% if style == 'proactivo' %}selected{% endif %}>Proactivo</option>
+                <option value="reactivo" {% if style == 'reactivo' %}selected{% endif %}>Reactivo</option>
+              </select>
+            </label>
+            <label>
+              Presión
+              <select name="pressing">
+                <option value="" {% if not pressing %}selected{% endif %}>—</option>
+                <option value="alta" {% if pressing == 'alta' %}selected{% endif %}>Alta</option>
+                <option value="media" {% if pressing == 'media' %}selected{% endif %}>Media</option>
+                <option value="baja" {% if pressing == 'baja' %}selected{% endif %}>Baja</option>
+              </select>
+            </label>
+            <label>
+              Salida (inicio)
+              <select name="build_up">
+                <option value="" {% if not build_up %}selected{% endif %}>—</option>
+                <option value="por_dentro" {% if build_up == 'por_dentro' %}selected{% endif %}>Por dentro</option>
+                <option value="por_fuera" {% if build_up == 'por_fuera' %}selected{% endif %}>Por fuera</option>
+                <option value="mixta" {% if build_up == 'mixta' %}selected{% endif %}>Mixta</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            <label>
+              Principios (Ataque)
+              <textarea name="attack_principles" placeholder="Uno por línea. Ej: 5 carriles, 3er hombre, fijar‑soltar...">{{ attack_principles_text }}</textarea>
+            </label>
+            <label>
+              Principios (Defensa)
+              <textarea name="defense_principles" placeholder="Ej: orientar hacia fuera, saltos coordinados...">{{ defense_principles_text }}</textarea>
+            </label>
+          </div>
+
+          <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            <label>
+              Principios (Transición)
+              <textarea name="transition_principles" placeholder="Ej: 5'' para finalizar, 6'' para recuperar...">{{ transition_principles_text }}</textarea>
+            </label>
+            <label>
+              Principios (ABP)
+              <textarea name="abp_principles" placeholder="Ej: córner 1er palo, bloqueo, 2ª jugada...">{{ abp_principles_text }}</textarea>
+            </label>
+          </div>
+
+          <label style="margin-top:0.7rem;">
+            Notas del club / staff
+            <textarea name="notes" placeholder="Reglas internas, terminología, lo que NO queremos...">{{ notes }}</textarea>
+          </label>
+
+          <div class="actions">
+            <button type="submit" class="btn primary">Guardar</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
+

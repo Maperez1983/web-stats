@@ -191,6 +191,9 @@
 	      <a href="{% url 'sessions' %}?tab=library&library_repo=traditional{% if active_team %}&team={{ active_team.id }}{% endif %}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}">Tareas (biblioteca)</a>
 	      <a href="{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">Crear tarea (pizarra)</a>
 	      <a href="{% url 'ai-trainer' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">🧑‍🏫 IA‑Trainer</a>
+	      {% if can_manage_workspace or is_admin_user %}
+	      <a href="{% url 'coach-model-of-play' %}{% if active_team %}?team={{ active_team.id }}{% if active_workspace %}&workspace={{ active_workspace.id }}{% endif %}{% endif %}">📘 Modelo de juego</a>
+	      {% endif %}
 	      {% endif %}
 
 	      <div class="nav-more-subtitle">Club</div>

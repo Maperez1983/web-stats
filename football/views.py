@@ -24035,6 +24035,9 @@ def _parse_session_plan_fields(raw_content):
         'activation': '',
         'main': '',
         'cooldown': '',
+        'objective': '',
+        'success_criteria': '',
+        'rpe_target': '',
         'player_count': '',
         'location': '',
         'materials': '',
@@ -24058,6 +24061,9 @@ def _parse_session_plan_fields(raw_content):
             'activation': '',
             'main': '',
             'cooldown': '',
+            'objective': '',
+            'success_criteria': '',
+            'rpe_target': '',
             'player_count': '',
             'location': '',
             'materials': '',
@@ -24076,6 +24082,9 @@ def _parse_session_plan_fields(raw_content):
         'activation',
         'main',
         'cooldown',
+        'objective',
+        'success_criteria',
+        'rpe_target',
         'player_count',
         'location',
         'materials',
@@ -24114,6 +24123,9 @@ def _serialize_session_plan_fields(fields):
         'activation',
         'main',
         'cooldown',
+        'objective',
+        'success_criteria',
+        'rpe_target',
         'player_count',
         'location',
         'materials',
@@ -24418,7 +24430,7 @@ def training_session_detail_page(request, session_id):
 
                 # Campos estructurados (presentación)
                 next_fields = plan_fields.copy()
-                for key in ['warmup', 'activation', 'main', 'cooldown', 'player_count', 'location', 'materials', 'absences', 'notes']:
+                for key in ['warmup', 'activation', 'main', 'cooldown', 'objective', 'success_criteria', 'rpe_target', 'player_count', 'location', 'materials', 'absences', 'notes']:
                     next_fields[key] = str(request.POST.get(key) or '').strip()
                 show_in_agenda_raw = str(request.POST.get('show_in_agenda') or '').strip().lower()
                 show_in_agenda = show_in_agenda_raw in {'1', 'true', 'yes', 'on', 'si'}
@@ -38935,6 +38947,30 @@ def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals:
         'coach_points': _coach_points(),
         'blocks': blocks,
     }
+    # Integra modelo de juego del club (si está disponible) como “marco” adicional.
+    try:
+        model = signals.get('_club_model') if isinstance(signals, dict) else None
+        if isinstance(model, dict):
+            club_bits = []
+            for key in ['style', 'pressing', 'build_up']:
+                val = str(model.get(key) or '').strip()
+                if val:
+                    club_bits.append(val.replace('_', ' '))
+            club_notes = str(model.get('notes') or '').strip()
+            if club_notes:
+                club_bits.append('Notas club')
+            if club_bits:
+                base['club_model'] = ' · '.join(club_bits)[:220]
+            # Refuerzo suave: añade principios del club como overlays (no invasivo).
+            club_principles = []
+            for k in ['attack_principles', 'defense_principles', 'transition_principles', 'abp_principles']:
+                items = model.get(k) if isinstance(model.get(k), list) else []
+                club_principles += [str(x).strip() for x in items if str(x or '').strip()]
+            club_principles = club_principles[:6]
+            if club_principles:
+                base['overlays'] = list(dict.fromkeys(list(base.get('overlays') or []) + club_principles))[:10]
+    except Exception:
+        pass
     # Tres opciones: A (más juego), B (más analítica), C (mixta).
     return [
         {**base, 'variant': 'A', 'subtitle': 'Más juego (SSG + transiciones)'},
@@ -39080,6 +39116,13 @@ def ai_trainer_page(request):
         workspace = None
     can_train_dictionary = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
     dictionary = _ai_trainer_load_dictionary_for(team, workspace=workspace)
+    # Modelo de juego del club (workspace pref). Se pasa vía signals para evitar tocar demasiada firma.
+    club_model = {}
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='coach:model_of_play:v1').first() if workspace else None
+        club_model = pref.value if pref and isinstance(pref.value, dict) else {}
+    except Exception:
+        club_model = {}
 
     if request.method == 'POST':
         post_action = str(request.POST.get('action') or '').strip().lower() or 'generate'
@@ -39157,6 +39200,7 @@ def ai_trainer_page(request):
             'zones': _ai_trainer_match_section(dictionary.get('zones') if isinstance(dictionary.get('zones'), dict) else {}, text_norm, limit=6),
             'phases': _ai_trainer_match_section(dictionary.get('phases') if isinstance(dictionary.get('phases'), dict) else {}, text_norm, limit=5),
             'figures': _ai_trainer_match_section(dictionary.get('figures') if isinstance(dictionary.get('figures'), dict) else {}, text_norm, limit=5),
+            '_club_model': (club_model if isinstance(club_model, dict) else {}),
         }
         proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals, dictionary=dictionary)
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
@@ -39316,6 +39360,111 @@ def ai_trainer_page(request):
             'suggestions': suggestions,
             'can_train_dictionary': can_train_dictionary,
             'dict_prefill': dict_prefill,
+        },
+    )
+
+
+@login_required
+@ensure_csrf_cookie
+def coach_model_of_play_page(request):
+    """Modelo de juego configurable por club (workspace) sin costes externos.
+
+    Se guarda en WorkspacePreference para permitir personalización por club.
+    """
+    workspace = _get_active_workspace(request)
+    if not workspace:
+        return HttpResponse('Workspace no configurado.', status=400)
+    if not (_is_admin_user(request.user) or _can_manage_workspace(request.user, workspace)):
+        return HttpResponse('No autorizado.', status=403)
+    team = _get_primary_team_for_request(request) or getattr(workspace, 'primary_team', None) or _team_from_request_param(request)
+    if not team:
+        return HttpResponse('Equipo no configurado.', status=400)
+
+    pref_key = 'coach:model_of_play:v1'
+    existing = WorkspacePreference.objects.filter(workspace=workspace, key=pref_key).first()
+    value = existing.value if existing and isinstance(existing.value, dict) else {}
+    value = dict(value)
+
+    def _to_lines(items):
+        if not isinstance(items, list):
+            return ''
+        return '\n'.join([str(x).strip() for x in items if str(x or '').strip()])[:6000]
+
+    def _parse_lines(raw, *, limit=60):
+        blob = str(raw or '').replace('\r', '\n')
+        parts = []
+        for line in blob.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            for piece in line.split(','):
+                val = str(piece or '').strip()
+                if val:
+                    parts.append(val)
+        clean = []
+        seen = set()
+        for it in parts:
+            k = _ai_trainer_normalize_text(it)
+            if not k or k in seen:
+                continue
+            seen.add(k)
+            clean.append(it)
+            if len(clean) >= int(limit or 60):
+                break
+        return clean
+
+    feedback = ''
+    error = ''
+    if request.method == 'POST':
+        try:
+            style = str(request.POST.get('style') or '').strip().lower()
+            if style not in {'posicional', 'directo', 'mixto', 'reactivo', 'proactivo', ''}:
+                style = ''
+            pressing = str(request.POST.get('pressing') or '').strip().lower()
+            if pressing not in {'alta', 'media', 'baja', ''}:
+                pressing = ''
+            build_up = str(request.POST.get('build_up') or '').strip().lower()
+            if build_up not in {'por_dentro', 'por_fuera', 'mixta', ''}:
+                build_up = ''
+
+            new_value = {
+                'version': 1,
+                'style': style,
+                'pressing': pressing,
+                'build_up': build_up,
+                'attack_principles': _parse_lines(request.POST.get('attack_principles'), limit=80),
+                'defense_principles': _parse_lines(request.POST.get('defense_principles'), limit=80),
+                'transition_principles': _parse_lines(request.POST.get('transition_principles'), limit=80),
+                'abp_principles': _parse_lines(request.POST.get('abp_principles'), limit=60),
+                'notes': str(request.POST.get('notes') or '').strip()[:4000],
+            }
+            WorkspacePreference.objects.update_or_create(
+                workspace=workspace,
+                key=pref_key,
+                defaults={'value': new_value},
+            )
+            value = new_value
+            feedback = 'Modelo de juego guardado.'
+        except Exception:
+            logger.exception('No se pudo guardar modelo de juego')
+            error = 'No se pudo guardar.'
+
+    return render(
+        request,
+        'football/coach_model_of_play.html',
+        {
+            'workspace': workspace,
+            'team': team,
+            'feedback': feedback,
+            'error': error,
+            'style': str(value.get('style') or ''),
+            'pressing': str(value.get('pressing') or ''),
+            'build_up': str(value.get('build_up') or ''),
+            'attack_principles_text': _to_lines(value.get('attack_principles')),
+            'defense_principles_text': _to_lines(value.get('defense_principles')),
+            'transition_principles_text': _to_lines(value.get('transition_principles')),
+            'abp_principles_text': _to_lines(value.get('abp_principles')),
+            'notes': str(value.get('notes') or ''),
         },
     )
 

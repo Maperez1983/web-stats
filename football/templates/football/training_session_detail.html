@@ -605,10 +605,24 @@
 	              </label>
 	            </div>
 	          </div>
-	          <label class="full">
-	            Calentamiento
-	            <textarea name="warmup" rows="3" maxlength="4000">{{ plan_fields.warmup }}</textarea>
-	          </label>
+          <label class="full">
+            Calentamiento
+            <textarea name="warmup" rows="3" maxlength="4000">{{ plan_fields.warmup }}</textarea>
+          </label>
+          <label class="full">
+            Objetivo de la sesión (medible)
+            <textarea name="objective" rows="2" maxlength="1200" placeholder="Ej: atraer y progresar por dentro para atacar zona 14 con 3er hombre.">{{ plan_fields.objective }}</textarea>
+          </label>
+          <div class="form-grid full" style="margin:0;">
+            <label>
+              RPE objetivo (1-10)
+              <input type="number" name="rpe_target" min="1" max="10" value="{{ plan_fields.rpe_target }}" placeholder="7" />
+            </label>
+            <label class="full">
+              Criterios de éxito (qué observar)
+              <textarea name="success_criteria" rows="2" maxlength="2000" placeholder="Ej: 8+ recepciones entre líneas / 5+ 3er hombre / 3+ finalizaciones tras pase atrás.">{{ plan_fields.success_criteria }}</textarea>
+            </label>
+          </div>
           <label class="full">
             Activación
             <textarea name="activation" rows="3" maxlength="4000">{{ plan_fields.activation }}</textarea>

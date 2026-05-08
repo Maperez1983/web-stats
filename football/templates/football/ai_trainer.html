@@ -155,6 +155,9 @@
                     </div>
                   </div>
                   <p><strong>{{ p.title }}</strong>{% if p.goal %}<br /><span class="muted">{{ p.goal }}</span>{% endif %}</p>
+                  {% if p.club_model %}
+                    <p class="muted" style="margin-top:0.35rem;">Marco club: {{ p.club_model }}</p>
+                  {% endif %}
                   <div class="blocks">
                     {% for b in p.blocks %}
                       <div class="block">
