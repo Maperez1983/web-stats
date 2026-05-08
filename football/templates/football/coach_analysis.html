@@ -1229,44 +1229,49 @@
           </div>
 
           <div class="item item-wide">
-            <h3>Plantilla rival (lista)</h3>
-            <p class="meta" style="margin:0.35rem 0 0;">
-              Selecciona jugadores y añádelos al informe manual para preparar tareas. Luego pulsa “Crear tareas (biblioteca)”.
-            </p>
-            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
-              <button class="button ghost" type="button" id="rival-roster-add-key">Añadir a “Jugadores clave”</button>
-              <button class="button ghost" type="button" id="rival-roster-add-tasks">Añadir a “Tareas individuales”</button>
-            </div>
-            <div style="overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px; margin-top:0.75rem;">
-              <table class="standings-table" style="margin:0; min-width:860px;">
-                <thead>
-                  <tr>
-                    <th style="width:54px;">Sel</th>
-                    <th>Jugador</th>
-                    <th>Pos</th>
-                    <th>Min</th>
-                    <th>Goles</th>
-                    <th>Amarillas</th>
-                    <th>Rojas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for p in roster %}
-                  <tr>
-                    <td>
-                      <input type="checkbox" class="rival-roster-pick" value="{{ p.name|default:'' }}" />
-                    </td>
-                    <td><strong>{{ p.name|default:"-" }}</strong></td>
-                    <td class="meta">{{ p.position|default:"-" }}</td>
-                    <td class="meta">{{ p.minutes|default:"-" }}</td>
-                    <td class="meta">{{ p.goals|default:"-" }}</td>
-                    <td class="meta">{{ p.yellow_cards|default:"-" }}</td>
-                    <td class="meta">{{ p.red_cards|default:"-" }}</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+            <h3>Plantilla rival</h3>
+            <details class="collapsible">
+              <summary>Ver lista completa ({{ roster|length }})</summary>
+              <div class="collapsible-body">
+                <p class="meta" style="margin-top:0;">
+                  Selecciona jugadores y añádelos al informe manual para preparar tareas. Luego pulsa “Crear tareas (biblioteca)”.
+                </p>
+                <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+                  <button class="button ghost" type="button" id="rival-roster-add-key">Añadir a “Jugadores clave”</button>
+                  <button class="button ghost" type="button" id="rival-roster-add-tasks">Añadir a “Tareas individuales”</button>
+                </div>
+                <div style="overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px; margin-top:0.75rem;">
+                  <table class="standings-table" style="margin:0; min-width:860px;">
+                    <thead>
+                      <tr>
+                        <th style="width:54px;">Sel</th>
+                        <th>Jugador</th>
+                        <th>Pos</th>
+                        <th>Min</th>
+                        <th>Goles</th>
+                        <th>Amarillas</th>
+                        <th>Rojas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for p in roster %}
+                      <tr>
+                        <td>
+                          <input type="checkbox" class="rival-roster-pick" value="{{ p.name|default:'' }}" />
+                        </td>
+                        <td><strong>{{ p.name|default:"-" }}</strong></td>
+                        <td class="meta">{{ p.position|default:"-" }}</td>
+                        <td class="meta">{{ p.minutes|default:"-" }}</td>
+                        <td class="meta">{{ p.goals|default:"-" }}</td>
+                        <td class="meta">{{ p.yellow_cards|default:"-" }}</td>
+                        <td class="meta">{{ p.red_cards|default:"-" }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
         {% endif %}
@@ -1379,6 +1384,7 @@
         if (!rosterExists) return;
         const list = document.getElementById('rival-form-list');
         const summary = document.getElementById('rival-form-summary');
+        if (!list || !summary) return;
         const teamId = String('{{ team_id|default:"" }}');
         const rivalName = String('{{ extracted.rival_name|default:"" }}');
         const teamCode = String('{{ extracted.rival_team_code|default:"" }}');
