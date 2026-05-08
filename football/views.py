@@ -24337,10 +24337,76 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     session_materials_override = str(session_plan_fields.get('materials') or '').strip()
     if session_materials_override:
         session_materials_summary = session_materials_override
-    session_absences_summary = (
-        str(session_plan_fields.get('absences') or '').strip()
-        or str(session_plan_fields.get('notes') or '').strip()
-    )
+    def _attendance_incidents_summary() -> str:
+        """
+        Convierte las marcas de asistencia (Ausente/Tarde/Lesionado/Justificado) en un resumen legible.
+
+        Objetivo: que el PDF refleje lo marcado en "Asistencia" aunque el staff no copie/pegue a mano.
+        """
+        try:
+            marks = list(
+                TrainingSessionAttendance.objects
+                .select_related('player')
+                .filter(session=session)
+                .exclude(status=TrainingSessionAttendance.STATUS_PRESENT)
+                .order_by('player__number', 'player__name', 'id')
+            )
+        except Exception:
+            marks = []
+        if not marks:
+            return ''
+        buckets = {
+            TrainingSessionAttendance.STATUS_ABSENT: [],
+            TrainingSessionAttendance.STATUS_LATE: [],
+            TrainingSessionAttendance.STATUS_INJURED: [],
+            TrainingSessionAttendance.STATUS_EXCUSED: [],
+        }
+        for m in marks:
+            st = str(getattr(m, 'status', '') or '').strip()
+            if st not in buckets:
+                continue
+            p = getattr(m, 'player', None)
+            if not p:
+                continue
+            try:
+                num = int(getattr(p, 'number', 0) or 0) or 0
+            except Exception:
+                num = 0
+            label = f'#{num} {p.name}'.strip() if num else str(getattr(p, 'name', '') or '').strip()
+            note = str(getattr(m, 'notes', '') or '').strip()
+            if note:
+                label = f'{label} ({note})'
+            buckets[st].append(label or 'Jugador')
+
+        prefix = {
+            TrainingSessionAttendance.STATUS_ABSENT: 'Ausentes',
+            TrainingSessionAttendance.STATUS_LATE: 'Tarde',
+            TrainingSessionAttendance.STATUS_INJURED: 'Lesionados',
+            TrainingSessionAttendance.STATUS_EXCUSED: 'Justificados',
+        }
+        lines = []
+        for key in [
+            TrainingSessionAttendance.STATUS_ABSENT,
+            TrainingSessionAttendance.STATUS_LATE,
+            TrainingSessionAttendance.STATUS_INJURED,
+            TrainingSessionAttendance.STATUS_EXCUSED,
+        ]:
+            items = buckets.get(key) or []
+            if not items:
+                continue
+            lines.append(f'{prefix.get(key, key)}: {", ".join(items)}')
+        return '\n'.join(lines).strip()
+
+    session_absences_summary = str(session_plan_fields.get('absences') or '').strip()
+    if not session_absences_summary:
+        session_absences_summary = str(session_plan_fields.get('notes') or '').strip()
+    attendance_incidents = _attendance_incidents_summary()
+    if attendance_incidents:
+        if session_absences_summary:
+            if attendance_incidents not in session_absences_summary:
+                session_absences_summary = (session_absences_summary.strip() + '\n' + attendance_incidents).strip()
+        else:
+            session_absences_summary = attendance_incidents
     session_player_count_display = str(session_plan_fields.get('player_count') or '').strip()
     if not session_player_count_display:
         assigned_ids = set()
@@ -36358,10 +36424,40 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             )
         }
         session_attendance_counts = {choice[0]: 0 for choice in attendance_status_choices}
+        reason_rev = {
+            'Baja médica': 'baja_medica',
+            'Ausencia justificada': 'ausencia_justificada',
+            'Ausencia sin justificar': 'ausencia_sin_justificar',
+            'Retraso': 'retraso',
+        }
+
+        def _split_attendance_notes(raw: str):
+            note = str(raw or '').strip()
+            if not note:
+                return '', '', ''
+            parts = [p.strip() for p in note.split('·')]
+            parts = [p for p in parts if p]
+            reason_key = ''
+            late_minutes = ''
+            free = []
+            for part in parts:
+                if part in reason_rev and not reason_key:
+                    reason_key = reason_rev.get(part, '') or ''
+                    continue
+                if late_minutes == '' and part.lower().endswith('min'):
+                    head = part.split()[0].strip()
+                    if head.isdigit():
+                        late_minutes = head
+                        continue
+                free.append(part)
+            free_note = ' · '.join([p.strip() for p in free if p.strip()]).strip()
+            return reason_key, late_minutes, free_note
+
         for p in roster_players:
             mark = existing_marks.get(int(p.id))
             status = str(getattr(mark, 'status', '') or '').strip()
             notes = str(getattr(mark, 'notes', '') or '').strip()
+            reason_key, late_minutes, free_note = _split_attendance_notes(notes)
             if status and status in session_attendance_counts:
                 session_attendance_counts[status] += 1
             session_attendance_rows.append(
@@ -36372,6 +36468,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     'position': str(getattr(p, 'position', '') or '').strip(),
                     'status': status,
                     'notes': notes,
+                    'reason': reason_key,
+                    'late_minutes': late_minutes,
+                    'notes_plain': free_note or notes,
                 }
             )
         try:

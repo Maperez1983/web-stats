@@ -2408,21 +2408,21 @@
 				                    </div>
 				                    <div>
 				                      <div style="display:grid; gap:0.35rem;">
-				                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
-				                          <select name="attendance_reason_{{ row.id }}" title="Motivo (opcional)">
-				                            <option value="">Motivo (opcional)</option>
-				                            <option value="baja_medica">Baja médica</option>
-				                            <option value="ausencia_justificada">Ausencia justificada</option>
-				                            <option value="ausencia_sin_justificar">Ausencia sin justificar</option>
-				                            <option value="retraso">Retraso</option>
-				                          </select>
-				                          <input type="number" name="attendance_late_minutes_{{ row.id }}" min="0" max="240" step="5" placeholder="Min retraso" style="max-width:120px;" />
-				                        </div>
-				                        <input type="text" name="attendance_notes_{{ row.id }}" maxlength="180" placeholder="Nota (opcional)" value="{{ row.notes|default:'' }}" />
-				                      </div>
-				                    </div>
-				                  </div>
-			                  {% endfor %}
+					                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+					                          <select name="attendance_reason_{{ row.id }}" title="Motivo (opcional)">
+					                            <option value="">Motivo (opcional)</option>
+					                            <option value="baja_medica" {% if row.reason == 'baja_medica' %}selected{% endif %}>Baja médica</option>
+					                            <option value="ausencia_justificada" {% if row.reason == 'ausencia_justificada' %}selected{% endif %}>Ausencia justificada</option>
+					                            <option value="ausencia_sin_justificar" {% if row.reason == 'ausencia_sin_justificar' %}selected{% endif %}>Ausencia sin justificar</option>
+					                            <option value="retraso" {% if row.reason == 'retraso' %}selected{% endif %}>Retraso</option>
+					                          </select>
+					                          <input type="number" name="attendance_late_minutes_{{ row.id }}" min="0" max="240" step="5" placeholder="Min retraso" value="{{ row.late_minutes|default:'' }}" style="max-width:120px;" />
+					                        </div>
+					                        <input type="text" name="attendance_notes_{{ row.id }}" maxlength="180" placeholder="Nota (opcional)" value="{{ row.notes_plain|default:row.notes|default:'' }}" />
+					                      </div>
+					                    </div>
+					                  </div>
+				                  {% endfor %}
 			                </div>
 			                <div style="grid-column:1/-1; display:flex; justify-content:flex-end;">
 			                  <button type="submit" class="primary">Guardar asistencia</button>
