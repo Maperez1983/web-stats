@@ -368,6 +368,32 @@
               <details style="margin-top:0.35rem;">
                 <summary class="hint" style="cursor:pointer; user-select:none;">Configurar presets</summary>
                 <div style="margin-top:0.45rem; display:grid; gap:0.45rem;">
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+                    <label style="margin:0;">
+                      Pack
+                      <select id="vs-presets-pack">
+                        <option value="rival">Rival</option>
+                        <option value="own">Propio</option>
+                      </select>
+                    </label>
+                    <label style="margin:0;">
+                      Auto-clip con preset
+                      <select id="vs-presets-autoclip">
+                        <option value="0" selected>No</option>
+                        <option value="1">Sí</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+                    <label style="margin:0;">
+                      Pre (s)
+                      <input type="number" id="vs-presets-pre" min="0" step="1" value="8" />
+                    </label>
+                    <label style="margin:0;">
+                      Post (s)
+                      <input type="number" id="vs-presets-post" min="0" step="1" value="8" />
+                    </label>
+                  </div>
                   <div class="hint" style="font-size:0.82rem;">
                     Se guarda por workspace + equipo. Formato: JSON array con objetos <span class="k">kind</span>, <span class="k">label</span>, opcional <span class="k">color</span> y <span class="k">hotkey</span>.
                   </div>
@@ -477,6 +503,7 @@
 	    <input type="hidden" id="vs-ws-pref-get-url" value="{% url 'workspace-pref-get' %}" />
 	    <input type="hidden" id="vs-ws-pref-set-url" value="{% url 'workspace-pref-set' %}" />
 	    <input type="hidden" id="vs-team-id" value="{% if team %}{{ team.id }}{% endif %}" />
+	    <input type="hidden" id="vs-default-pack" value="{% if video.rival_team_id %}rival{% else %}own{% endif %}" />
 	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

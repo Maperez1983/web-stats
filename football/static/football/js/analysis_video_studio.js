@@ -3201,10 +3201,88 @@
       try { return JSON.stringify(items, null, 2); } catch (e) { return '[]'; }
     };
 
-    const loadEventPresets = async () => {
-      const key = prefKeyForEventPresets();
+    const renderAutoClipUi = () => {
+      if (presetsAutoClipSelect) presetsAutoClipSelect.value = autoClipState.enabled ? '1' : '0';
+      if (presetsPreInput) presetsPreInput.value = String(autoClipState.pre ?? 8);
+      if (presetsPostInput) presetsPostInput.value = String(autoClipState.post ?? 8);
+    };
+
+    const readAutoClipUi = () => {
+      autoClipState.enabled = safeText(presetsAutoClipSelect?.value, '0') === '1';
+      autoClipState.pre = clamp(Number(presetsPreInput?.value || 0) || 0, 0, 90);
+      autoClipState.post = clamp(Number(presetsPostInput?.value || 0) || 0, 0, 90);
+    };
+
+    const loadPackSelection = async () => {
+      if (!presetsPackSelect) return;
+      const key = prefKeyForPackSelection();
+      let next = defaultPack;
+      if (key && wsPrefGetUrl) {
+        try {
+          const v = await wsPrefGet(key);
+          const raw = safeText(v?.pack, safeText(v, ''));
+          if (raw === 'own' || raw === 'rival') next = raw;
+        } catch (e) { /* ignore */ }
+      }
+      activePresetsPack = next === 'own' ? 'own' : 'rival';
+      presetsPackSelect.value = activePresetsPack;
+    };
+
+    const savePackSelection = async () => {
+      const key = prefKeyForPackSelection();
+      if (!key) return;
+      await wsPrefSet(key, { pack: activePresetsPack });
+    };
+
+    const loadAutoClipPrefs = async () => {
+      const key = prefKeyForAutoClip(activePresetsPack);
       if (!key || !wsPrefGetUrl) {
+        renderAutoClipUi();
+        return;
+      }
+      try {
+        const v = await wsPrefGet(key);
+        autoClipState.enabled = Boolean(v?.enabled);
+        autoClipState.pre = clamp(Number(v?.pre ?? 8) || 8, 0, 90);
+        autoClipState.post = clamp(Number(v?.post ?? 8) || 8, 0, 90);
+      } catch (e) { /* ignore */ }
+      renderAutoClipUi();
+    };
+
+    const saveAutoClipPrefs = async () => {
+      const key = prefKeyForAutoClip(activePresetsPack);
+      if (!key) return;
+      await wsPrefSet(key, { enabled: Boolean(autoClipState.enabled), pre: Number(autoClipState.pre || 0), post: Number(autoClipState.post || 0) });
+    };
+
+    const createQuickClipFromPreset = async (preset) => {
+      if (!autoClipState.enabled || !clipSaveUrl || !videoId) return;
+      const nowS = Number(video.currentTime) || 0;
+      const inS = Math.max(0, nowS - (Number(autoClipState.pre) || 0));
+      const outS = Math.max(inS + 0.2, nowS + (Number(autoClipState.post) || 0));
+      const title = safeText(preset?.label, 'Clip').slice(0, 180);
+      const kind = safeText(preset?.kind, 'tag').toLowerCase();
+      const tags = [kind, 'preset'].filter(Boolean);
+      const collection = (activePresetsPack === 'own') ? 'Propio' : 'Rival';
+      try {
+        const resp = await fetch(clipSaveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify({ id: 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay: {}, tags, notes: '' }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        await refreshClips();
+      } catch (e) { /* ignore */ }
+    };
+
+    const loadEventPresets = async () => {
+      const key = prefKeyForEventPresets(activePresetsPack);
+      if (!key || !wsPrefGetUrl) {
+        eventPresets = defaultEventPresetsForPack(activePresetsPack);
         if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        await loadAutoClipPrefs();
         return;
       }
       try {
@@ -3213,11 +3291,17 @@
         if (buttons) {
           const sanitized = sanitizeEventPresets(buttons);
           if (sanitized.length) eventPresets = sanitized;
+          else eventPresets = defaultEventPresetsForPack(activePresetsPack);
+        } else {
+          eventPresets = defaultEventPresetsForPack(activePresetsPack);
         }
         if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        await loadAutoClipPrefs();
         setPresetsStatus('OK · presets cargados');
       } catch (e) {
+        eventPresets = defaultEventPresetsForPack(activePresetsPack);
         if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        await loadAutoClipPrefs();
         setPresetsStatus('No se pudieron cargar presets (usando default).', true);
       }
     };
@@ -3238,14 +3322,17 @@
           if (safeText(p.color, '')) {
             try { if (colorInput) colorInput.value = String(p.color); } catch (e) { /* ignore */ }
           }
-          if (ev?.shiftKey) await addTimelineEvent();
+          if (ev?.shiftKey) {
+            await addTimelineEvent();
+            await createQuickClipFromPreset(p);
+          }
         });
       });
     };
-    loadEventPresets().finally(() => renderEventPresets());
+    loadPackSelection().then(loadEventPresets).finally(() => renderEventPresets());
 
     const saveEventPresets = async (items) => {
-      const key = prefKeyForEventPresets();
+      const key = prefKeyForEventPresets(activePresetsPack);
       if (!key) return;
       await wsPrefSet(key, { buttons: items });
     };
@@ -3271,7 +3358,7 @@
 
     presetsResetBtn?.addEventListener('click', async () => {
       try {
-        eventPresets = defaultEventPresets();
+        eventPresets = defaultEventPresetsForPack(activePresetsPack);
         await saveEventPresets(eventPresets);
         if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
         renderEventPresets();
@@ -3280,6 +3367,23 @@
         setPresetsStatus('No se pudo resetear.', true);
       }
     });
+
+    presetsPackSelect?.addEventListener('change', async () => {
+      const next = safeText(presetsPackSelect?.value, defaultPack);
+      activePresetsPack = next === 'own' ? 'own' : 'rival';
+      try { await savePackSelection(); } catch (e) { /* ignore */ }
+      await loadEventPresets();
+      renderEventPresets();
+      setPresetsStatus(`Pack: ${activePresetsPack === 'own' ? 'Propio' : 'Rival'}`);
+    });
+
+    const onAutoClipChange = async () => {
+      readAutoClipUi();
+      try { await saveAutoClipPrefs(); setPresetsStatus('Auto-clip guardado.'); } catch (e) { setPresetsStatus('No se pudo guardar auto-clip.', true); }
+    };
+    presetsAutoClipSelect?.addEventListener('change', onAutoClipChange);
+    presetsPreInput?.addEventListener('change', onAutoClipChange);
+    presetsPostInput?.addEventListener('change', onAutoClipChange);
 
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     timelineSearchInput?.addEventListener('input', () => renderTimeline(timelineCache));
@@ -3355,7 +3459,10 @@
         }
         setStatus(`Preset: ${safeText(p.label)}`);
         // Por defecto: añadir al momento (más rápido). Shift = solo preparar.
-        if (!ev?.shiftKey) addTimelineEvent();
+        if (!ev?.shiftKey) {
+          addTimelineEvent();
+          createQuickClipFromPreset(p);
+        }
       }
     });
 
