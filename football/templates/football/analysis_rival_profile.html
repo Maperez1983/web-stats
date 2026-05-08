@@ -302,7 +302,7 @@
                 {% for p in roster_payload %}
                   <div class="roster-item">
                     <div class="name">
-                      {% if p.number %}{{ p.number }} · {% endif %}{{ p.name|default:"Jugador" }}
+	                      {% if p.dorsal %}{{ p.dorsal }} · {% elif p.number %}{{ p.number }} · {% endif %}{{ p.name|default:"Jugador" }}
                     </div>
                     <div class="sub">
                       {{ p.position|default:"—" }}
@@ -406,4 +406,3 @@
     </main>
   </body>
 </html>
-
