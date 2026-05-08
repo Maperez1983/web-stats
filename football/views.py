@@ -41057,11 +41057,14 @@ def analysis_page(request):
                         f'Rival detectado automáticamente ({auto_team.name}), '
                         'pero no se ha podido cargar su plantilla.'
                     )
-            else:
+            # Solo mostrar este aviso si NO hay plantilla y tampoco tenemos ninguna URL/código guardado.
+            if not roster and not str(team_url or '').strip() and not str(getattr(auto_team, 'external_id', '') or '').strip().isdigit():
                 error = (
                     f'Rival detectado automáticamente ({auto_team.name}), '
                     'pero no tiene URL de La Preferente ni código RFAF (Universo) guardado.'
                 )
+            elif roster and error and 'no tiene URL de La Preferente ni código RFAF' in str(error):
+                error = ''
     selected_team = Team.objects.filter(id=_parse_int(team_id)).first() if team_id else None
     # Fallback: si hay plantilla cacheada en BD, úsala antes que scraping en vivo (403 frecuentes).
     if selected_team and not roster:
