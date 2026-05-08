@@ -114,7 +114,23 @@ def _should_login_js_redirect(request) -> bool:
         ua = str(getattr(request, "META", {}).get("HTTP_USER_AGENT") or "")
     except Exception:
         ua = ""
-    return _is_safari_user_agent(ua)
+    if _is_safari_user_agent(ua):
+        return True
+    # WKWebView / iOS embebido: a veces el UA no incluye "Safari" (o viene recortado),
+    # pero el problema de cookies en 302 es el mismo. Detectamos iOS/iPadOS por markers.
+    try:
+        ua_l = str(ua or "").lower()
+    except Exception:
+        ua_l = ""
+    if not ua_l:
+        return False
+    ios_markers = ("iphone", "ipad", "ipod")
+    if any(marker in ua_l for marker in ios_markers) and "applewebkit" in ua_l and "mobile" in ua_l:
+        return True
+    # iPadOS modernos a veces reportan "Macintosh" pero con AppleWebKit + Mobile.
+    if "macintosh" in ua_l and "applewebkit" in ua_l and "mobile" in ua_l:
+        return True
+    return False
 
 
 class RoleAwareLoginView(auth_views.LoginView):
@@ -167,6 +183,34 @@ class RoleAwareLoginView(auth_views.LoginView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
+        # Diagnóstico opcional: loguea señales de sesión/cookies para depurar bucles de login.
+        try:
+            if str(os.getenv("LOGIN_DEBUG") or "").strip().lower() in {"1", "true", "yes", "on"}:
+                import logging
+
+                logger = logging.getLogger("webstats.auth")
+                try:
+                    host = str(self.request.get_host() or "")
+                except Exception:
+                    host = ""
+                try:
+                    ua = str(getattr(self.request, "META", {}).get("HTTP_USER_AGENT") or "")
+                except Exception:
+                    ua = ""
+                try:
+                    cookie_header = str(getattr(self.request, "META", {}).get("HTTP_COOKIE") or "")
+                except Exception:
+                    cookie_header = ""
+                logger.warning(
+                    "login_valid user=%s host=%s ua=%s cookie_header_len=%s js_redirect=%s",
+                    str(getattr(self.request.user, "username", "") or ""),
+                    host,
+                    (ua[:140] + "…") if len(ua) > 140 else ua,
+                    len(cookie_header or ""),
+                    _should_login_js_redirect(self.request),
+                )
+        except Exception:
+            pass
         # UX: "Mantener sesión" para iPad/WKWebView (evita pedir contraseña cada vez).
         # No guardamos contraseñas: solo extendemos la validez de la cookie de sesión.
         try:
