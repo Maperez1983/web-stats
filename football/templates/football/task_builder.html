@@ -138,6 +138,18 @@
 	        margin: 0;
 	        opacity: 0.88;
 	      }
+	      .task-landing-note {
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        background: rgba(255, 255, 255, 0.04);
+	        border-radius: 16px;
+	        padding: 0.7rem 0.85rem;
+	        font-size: 0.86rem;
+	        line-height: 1.35;
+	        color: rgba(226, 232, 240, 0.92);
+	      }
+	      .task-landing-note strong {
+	        color: rgba(248, 250, 252, 0.98);
+	      }
 	      .task-landing-action {
 	        display: grid;
 	        gap: 0.2rem;
@@ -3765,13 +3777,16 @@
 	                  </svg>
 	                {% endif %}
 		              </div>
-		              <div class="task-landing-actions">
-		                <h2>¿Qué quieres hacer?</h2>
-		                <p class="meta">Elige una opción y pulsa <strong>Entrar</strong>. Puedes cambiar luego sin perder nada.</p>
-		                <button type="button" class="task-landing-action" data-landing-go="assistant" aria-pressed="false">
-		                  Recomendar tarea
-		                  <small>Asistente · “Sugerir tareas”</small>
-		                </button>
+			              <div class="task-landing-actions">
+			                <h2>¿Qué quieres hacer?</h2>
+			                <p class="meta">Elige una opción y pulsa <strong>Entrar</strong>. Puedes cambiar luego sin perder nada.</p>
+			                <div class="task-landing-note">
+			                  <strong>Novedades:</strong> en iPad el inspector de selección aparece flotante (sin scroll), los recursos base se ven con iconos reales y el botón <strong>Guardar</strong> queda fijo arriba.
+			                </div>
+			                <button type="button" class="task-landing-action" data-landing-go="assistant" aria-pressed="false">
+			                  Recomendar tarea
+			                  <small>Asistente · “Sugerir tareas”</small>
+			                </button>
 		                <button type="button" class="task-landing-action" data-landing-go="board" aria-pressed="false">
 		                  Abrir pizarra
 		                  <small>Colocar fichas, dibujar y simular</small>
@@ -3801,14 +3816,14 @@
 	                  <h2>Pizarra</h2>
                   <p>Selecciona superficie, elige recurso y colócalo con un clic sobre el campo.</p>
                 </div>
-                <div class="alert warn" id="tpad-hint" hidden>
-                  <div style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-                    <div style="min-width:240px;">
-                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en la derecha · 3) Usa “Presentación” para enseñar al jugador · 4) Guarda y exporta.
-                    </div>
-                    <button type="button" class="button" id="tpad-hint-close">Entendido</button>
-                  </div>
-                </div>
+	                <div class="alert warn" id="tpad-hint" hidden>
+	                  <div style="display:flex; gap:0.75rem; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+	                    <div style="min-width:240px;">
+	                      <strong>Flujo rápido:</strong> 1) Arrastra recursos al campo · 2) Ajusta tamaño/color en el inspector (flotante en iPad) · 3) Usa “Presentación” · 4) Guarda y exporta.
+	                    </div>
+	                    <button type="button" class="button" id="tpad-hint-close">Entendido</button>
+	                  </div>
+	                </div>
                 <div class="pitch-toolbar">
                   {% if tactics_mode %}
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>

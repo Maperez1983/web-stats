@@ -20308,8 +20308,8 @@
 	      window.visualViewport?.addEventListener('resize', scheduleResize);
 	    } catch (error) { /* ignore */ }
 
-		    let isSubmitting = false;
-			    form.addEventListener('submit', async (event) => {
+			    let isSubmitting = false;
+				    form.addEventListener('submit', async (event) => {
 	      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
 		      if (form.dataset.previewReady === '1') {
 		        form.dataset.previewReady = '';
@@ -20322,9 +20322,18 @@
 		        try { window.alert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.'); } catch (error) { /* ignore */ }
 		        return;
 		      }
-			      event.preventDefault();
-		      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-			      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
+				      event.preventDefault();
+			      // Offline real: no intentamos enviar POST (en iPad puede parecer que "se guardó").
+			      // El borrador local ya queda persistido y el usuario reintenta con conexión.
+			      try {
+			        if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+			          setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
+			          try { window.alert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.'); } catch (error) { /* ignore */ }
+			          return;
+			        }
+			      } catch (error) { /* ignore */ }
+			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+				      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
 	      if (pingKeepalive) {
 	        const ok = await pingKeepalive();
 	        if (!ok) {
