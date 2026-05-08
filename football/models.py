@@ -1177,6 +1177,33 @@ class SessionTask(models.Model):
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
 
 
+class SessionTaskBackup(models.Model):
+    """
+    Backups persistentes (BD) para evitar pérdidas en hosts con filesystem efímero.
+
+    Se crean automáticamente ante acciones de riesgo (papelera, edición, etc.) y sirven
+    para restaurar tareas desaparecidas por borrado accidental.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='session_task_backups')
+    task_id = models.PositiveIntegerField(db_index=True)
+    kind = models.CharField(max_length=40, db_index=True, default='session_task')
+    reason = models.CharField(max_length=80, blank=True, default='')
+    actor_username = models.CharField(max_length=80, blank=True, default='')
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'kind', '-created_at']),
+            models.Index(fields=['team', 'task_id', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'Backup {self.kind} · task#{self.task_id} · {self.team.name}'
+
+
 class AiTrainerEvent(models.Model):
     """
     Telemetría ligera de IA‑Trainer para “aprendizaje” (ranking/personalización) y auditoría.

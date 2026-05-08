@@ -88,10 +88,53 @@ def write_task_backup(task, *, kind: str, reason: str = 'save', actor_username: 
     filename = f'{ts}_{reason}_{suffix}.json'
     path = f'{prefix}/{filename}'
     payload = _task_backup_payload(task, kind=safe_kind, reason=reason, actor_username=str(actor_username or '').strip())
+
+    # 1) Persistencia robusta: guarda también en BD (evita pérdida por FS efímero).
+    # Si BD falla, seguimos con storage; si storage falla, el backup BD sigue existiendo.
+    try:
+        from football.models import SessionTaskBackup  # noqa: WPS433
+
+        team_obj = None
+        try:
+            team_obj = getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
+        except Exception:
+            team_obj = None
+        if team_obj:
+            obj = SessionTaskBackup.objects.create(
+                team=team_obj,
+                task_id=int(task_id),
+                kind=str(safe_kind or 'task')[:40],
+                reason=str(reason or '')[:80],
+                actor_username=str(actor_username or '')[:80],
+                payload=(payload if isinstance(payload, dict) else {}),
+            )
+            # Prune por BD: mantenemos los últimos `keep_last` por task/kind.
+            try:
+                ids = list(
+                    SessionTaskBackup.objects
+                    .filter(team=team_obj, task_id=int(task_id), kind=str(safe_kind or 'task')[:40])
+                    .order_by('-created_at', '-id')
+                    .values_list('id', flat=True)
+                )
+                if keep_last and len(ids) > int(keep_last):
+                    SessionTaskBackup.objects.filter(id__in=ids[int(keep_last):]).delete()
+            except Exception:
+                pass
+            # Si storage falla, al menos devolvemos algo trazable.
+            db_path = f'db:SessionTaskBackup:{int(getattr(obj, "id", 0) or 0)}'
+        else:
+            db_path = ''
+    except Exception:
+        db_path = ''
+
+    # 2) Storage (si está disponible). Es útil para adjuntos legacy y exportación.
     raw = json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
     try:
         default_storage.save(path, ContentFile(raw))
+        _prune_backups(prefix, keep_last=keep_last)
+        return BackupResult(path=path, created_at=payload['captured_at'])
     except Exception:
+        # Fallback: backup en BD si se pudo crear.
+        if db_path:
+            return BackupResult(path=db_path, created_at=payload['captured_at'])
         return None
-    _prune_backups(prefix, keep_last=keep_last)
-    return BackupResult(path=path, created_at=payload['captured_at'])

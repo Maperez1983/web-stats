@@ -131,19 +131,19 @@ from football.models import (
     Team,
     TeamStatistic,
     TeamStanding,
-	    Workspace,
-	    WorkspaceTeam,
-	    WorkspaceTeamAccess,
-	    WorkspaceMembership,
-		    WorkspacePreference,
-			    TrainingMicrocycle,
-			    TrainingSession,
-			    TrainingSessionReview,
-			    TrainingSessionAttendance,
-			    TrainingSessionTimelineSegment,
-			    AuditLogEntry,
-			    ConvocationRecord,
-	    RivalConvocationRecord,
+        Workspace,
+        WorkspaceTeam,
+        WorkspaceTeamAccess,
+        WorkspaceMembership,
+            WorkspacePreference,
+                TrainingMicrocycle,
+                TrainingSession,
+                TrainingSessionReview,
+                TrainingSessionAttendance,
+                TrainingSessionTimelineSegment,
+                AuditLogEntry,
+                ConvocationRecord,
+        RivalConvocationRecord,
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
@@ -355,7 +355,7 @@ def public_build_info(request):
         or ''
     ).strip()
     return JsonResponse(
-	        {
+            {
             'ok': True,
             'build': {
                 'id': build_id,
@@ -1663,7 +1663,7 @@ def _archive_training_session(session_obj, *, actor_username: str = '', reason: 
                 write_task_backup(
                     task_obj,
                     kind='session_task',
-                    reason=f'session_trash_{int(session_obj.id)}_{str(reason or \"delete\")[:30]}',
+                    reason=f'session_trash_{int(session_obj.id)}_{str(reason or "delete")[:30]}',
                     actor_username=str(actor_username or '').strip(),
                 )
             except Exception:
@@ -14062,58 +14062,95 @@ def admin_page(request):
                 except Exception:
                     library_session = _get_or_create_library_session(primary_team, 'coach')
 
-                restored = 0
-                scanned = 0
-                restored_task_ids = []
-                for task_id in task_ids:
-                    if restored >= 25:
-                        break
-                    # Si ya existe, no restaurar.
-                    if SessionTask.objects.filter(id=int(task_id)).exists():
-                        continue
-                    scanned += 1
+                    restored = 0
+                    scanned = 0
+                    restored_task_ids = []
+
+                    # 1) Preferimos backups en BD (fiable en hosts con FS efímero).
                     try:
-                        _, files = default_storage.listdir(f'{prefix}/{task_id}')
-                    except Exception:
-                        continue
-                    json_files = sorted([f for f in (files or []) if str(f).endswith('.json')], reverse=True)
-                    if not json_files:
-                        continue
-                    candidate = json_files[0]
-                    ts = _parse_backup_ts(candidate)
-                    if ts and ts < cutoff:
-                        continue
-                    try:
-                        with default_storage.open(f'{prefix}/{task_id}/{candidate}', 'rb') as fh:
-                            raw = fh.read()
-                        payload = json.loads(raw.decode('utf-8', errors='ignore') or '{}')
-                    except Exception:
-                        continue
-                    if actor and str(payload.get('actor') or '').strip() != actor:
-                        continue
-                    try:
-                        created_at = payload.get('captured_at')
-                        # captured_at es ISO string en payload; si existe, úsalo como filtro adicional.
-                        if created_at:
-                            try:
-                                captured_dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
-                                if timezone.is_naive(captured_dt):
-                                    captured_dt = timezone.make_aware(captured_dt)
-                                if captured_dt < cutoff:
-                                    continue
-                            except Exception:
-                                pass
+                        from football.models import SessionTaskBackup  # noqa: WPS433
+
+                        seen_task_ids = set()
+                        backups_qs = (
+                            SessionTaskBackup.objects
+                            .filter(team=primary_team, kind='session_task', created_at__gte=cutoff)
+                            .order_by('-created_at', '-id')
+                        )
+                        if actor:
+                            backups_qs = backups_qs.filter(actor_username=actor)
+                        for b in list(backups_qs[:2000]):
+                            if restored >= 25:
+                                break
+                            task_id = int(getattr(b, 'task_id', 0) or 0)
+                            if not task_id or task_id in seen_task_ids:
+                                continue
+                            seen_task_ids.add(task_id)
+                            if SessionTask.objects.filter(id=int(task_id)).exists():
+                                continue
+                            payload = getattr(b, 'payload', None)
+                            if not isinstance(payload, dict):
+                                continue
+                            new_task = _restore_from_backup_payload(payload, session_obj=library_session)
+                            if new_task:
+                                restored += 1
+                                restored_task_ids.append(int(new_task.id))
                     except Exception:
                         pass
-                    new_task = _restore_from_backup_payload(payload, session_obj=library_session)
-                    if new_task:
-                        restored += 1
-                        restored_task_ids.append(int(new_task.id))
 
-                if restored:
-                    tasks_message = f'Restauradas {restored} tareas desde backups. (IDs: {", ".join(str(x) for x in restored_task_ids[:10])}{"…" if len(restored_task_ids) > 10 else ""})'
-                else:
-                    tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
+                    # 2) Fallback: backups en storage (media/S3).
+                    if not restored:
+                        for task_id in task_ids:
+                            if restored >= 25:
+                                break
+                            # Si ya existe, no restaurar.
+                            if SessionTask.objects.filter(id=int(task_id)).exists():
+                                continue
+                            scanned += 1
+                            try:
+                                _, files = default_storage.listdir(f'{prefix}/{task_id}')
+                            except Exception:
+                                continue
+                            json_files = sorted([f for f in (files or []) if str(f).endswith('.json')], reverse=True)
+                            if not json_files:
+                                continue
+                            candidate = json_files[0]
+                            ts = _parse_backup_ts(candidate)
+                            if ts and ts < cutoff:
+                                continue
+                            try:
+                                with default_storage.open(f'{prefix}/{task_id}/{candidate}', 'rb') as fh:
+                                    raw = fh.read()
+                                payload = json.loads(raw.decode('utf-8', errors='ignore') or '{}')
+                            except Exception:
+                                continue
+                            if actor and str(payload.get('actor') or '').strip() != actor:
+                                continue
+                            try:
+                                created_at = payload.get('captured_at')
+                                # captured_at es ISO string en payload; si existe, úsalo como filtro adicional.
+                                if created_at:
+                                    try:
+                                        captured_dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+                                        if timezone.is_naive(captured_dt):
+                                            captured_dt = timezone.make_aware(captured_dt)
+                                        if captured_dt < cutoff:
+                                            continue
+                                    except Exception:
+                                        pass
+                            except Exception:
+                                pass
+                            new_task = _restore_from_backup_payload(payload, session_obj=library_session)
+                            if new_task:
+                                restored += 1
+                                restored_task_ids.append(int(new_task.id))
+
+                    if restored:
+                        tasks_message = (
+                            f'Restauradas {restored} tareas desde backups. '
+                            f'(IDs: {", ".join(str(x) for x in restored_task_ids[:10])}{"…" if len(restored_task_ids) > 10 else ""})'
+                        )
+                    else:
+                        tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
 
         elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace'}:
             active_tab = 'teams'
@@ -19738,7 +19775,7 @@ def team_agenda_page(request):
         .select_related('home_team', 'away_team')
         .order_by('date', 'kickoff_time', 'id')
     )
-    sessions = list(
+    sessions_qs = (
         TrainingSession.objects
         .select_related('microcycle')
         .filter(microcycle__team=primary_team)
@@ -19746,6 +19783,9 @@ def team_agenda_page(request):
         .exclude(status=TrainingSession.STATUS_CANCELED)
         .order_by('session_date', 'start_time', 'order', 'id')
     )
+    # No mostrar sesiones internas (Biblioteca/Papelera) en Agenda.
+    sessions_qs = _exclude_library_sessions_qs(sessions_qs)
+    sessions = list(sessions_qs)
     if sessions and not show_hidden:
         try:
             sessions = [
@@ -23448,22 +23488,22 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
     tactical_layout = {
         'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
         'timeline': canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else [],
-	        'meta': {
-	            'surface': selected_surface,
-	            'pitch_format': selected_pitch_format,
-	            'game_phase': selected_phase,
-	            'methodology': selected_methodology,
-	            'complexity': selected_complexity,
-	            'strategy': selected_strategy,
-	            'dynamics': selected_dynamics,
-	            'structure': selected_structure,
-	            'coordination': selected_coordination,
-	            'coordination_skills': selected_coord_skills,
-	            'tactical_intent': selected_tactical_intent,
-	            'space': space,
-	            'organization': organization,
-	            'organization_html': organization_html,
-	            'players_distribution': players_distribution,
+            'meta': {
+                'surface': selected_surface,
+                'pitch_format': selected_pitch_format,
+                'game_phase': selected_phase,
+                'methodology': selected_methodology,
+                'complexity': selected_complexity,
+                'strategy': selected_strategy,
+                'dynamics': selected_dynamics,
+                'structure': selected_structure,
+                'coordination': selected_coordination,
+                'coordination_skills': selected_coord_skills,
+                'tactical_intent': selected_tactical_intent,
+                'space': space,
+                'organization': organization,
+                'organization_html': organization_html,
+                'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
             'series': series,
@@ -32108,6 +32148,7 @@ def _sessions_tab_from_action(action):
         'copy_library_task_to_session',
         'update_session_plan',
         'delete_session_plan',
+        'restore_session_from_trash',
         'duplicate_session_plan',
         'move_session_task',
         'duplicate_session_task',
@@ -32369,6 +32410,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'update_session_attendance',
             'update_session_sections',
             'delete_session_plan',
+            'restore_session_from_trash',
             'duplicate_session_plan',
             'move_session_task',
             'duplicate_session_task',
@@ -34409,10 +34451,10 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             'pitch_format': selected_pitch_format,
                             'pitch_orientation': pitch_orientation,
                             'game_phase': selected_phase,
-	                            'methodology': selected_methodology,
-	                            'complexity': selected_complexity,
-	                            'drills': normalize_drill_ids((request.POST.get('draw_task_drills_json') or '').strip()),
-	                            'space': space,
+                                'methodology': selected_methodology,
+                                'complexity': selected_complexity,
+                                'drills': normalize_drill_ids((request.POST.get('draw_task_drills_json') or '').strip()),
+                                'space': space,
                             'organization': organization,
                             'organization_html': organization_html,
                             'players_distribution': players_distribution,
@@ -34753,10 +34795,19 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if _task_scope_for_item(target_task) != scope_key:
                     raise ValueError('La tarea seleccionada no pertenece a este espacio.')
                 task_title = str(target_task.title or f'Tarea {target_task.id}')
+                try:
+                    write_task_backup(
+                        target_task,
+                        kind='session_task',
+                        reason='delete_library',
+                        actor_username=(request.user.username if getattr(request, 'user', None) and request.user.is_authenticated else ''),
+                    )
+                except Exception:
+                    pass
                 target_task.deleted_at = timezone.localtime()
                 target_task.deleted_by = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
                 target_task.save(update_fields=['deleted_at', 'deleted_by'])
-                feedback = f'Tarea enviada a papelera: {task_title}. (Puedes borrarla definitivamente desde “Papelera biblioteca”)'
+                feedback = f'Tarea enviada a papelera: {task_title}. (Puedes restaurarla cuando quieras)'
 
             elif planner_action == 'restore_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -35234,12 +35285,22 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     planning_sessions = []
     inbox_microcycle = None
     standalone_sessions = []
+    trash_microcycle = None
+    trash_sessions = []
     if planner_tables_ready:
         inbox_microcycle = _get_or_create_inbox_microcycle(primary_team)
+        trash_microcycle = _get_or_create_trash_microcycle(primary_team)
         planning_microcycles_qs = (
             TrainingMicrocycle.objects
             .filter(team=primary_team)
             .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
+            .exclude(week_start=TRASH_MICROCYCLE_WEEK_START)
+            .exclude(
+                Q(notes__icontains=LIBRARY_MICROCYCLE_MARKER)
+                | Q(notes__icontains=TRASH_MICROCYCLE_MARKER)
+                | Q(title__istartswith='Biblioteca ')
+                | Q(title__istartswith='Papelera')
+            )
             .order_by('-week_start', '-id')
         )
         planning_microcycles = list(planning_microcycles_qs[:24])
@@ -35256,6 +35317,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 item for item in planning_sessions
                 if int(getattr(item, 'microcycle_id', 0) or 0) == int(inbox_microcycle.id)
             ]
+        if trash_microcycle:
+            try:
+                trash_sessions = list(
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(microcycle=trash_microcycle, microcycle__team=primary_team)
+                    .order_by('-updated_at', '-id')[:40]
+                )
+            except Exception:
+                trash_sessions = []
 
     # Pestaña Sesiones: trabajamos sobre una única sesión seleccionada.
     selected_session = None
@@ -35835,16 +35906,16 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'task_builder_edit_route_name': _task_builder_edit_route_name(scope_key),
             'task_blocks': SessionTask.BLOCK_CHOICES,
             'all_sessions': all_sessions,
-	            'task_library': task_library,
-	            'task_library_filtered': task_library_filtered,
-	            'task_library_page_items': task_library_page_items,
-	            'library_page': library_page,
-	            'library_pages': library_pages,
-	            'library_total': library_total,
-	            'library_pager_prefix': library_pager_prefix,
-	            'library_deleted_tasks': library_deleted_tasks,
-	            'analysis': analysis,
-	            'analysis_task': analysis_task,
+                'task_library': task_library,
+                'task_library_filtered': task_library_filtered,
+                'task_library_page_items': task_library_page_items,
+                'library_page': library_page,
+                'library_pages': library_pages,
+                'library_total': library_total,
+                'library_pager_prefix': library_pager_prefix,
+                'library_deleted_tasks': library_deleted_tasks,
+                'analysis': analysis,
+                'analysis_task': analysis_task,
             'scope_key': scope_key,
             'scope_title': scope_title,
             'context_group_rows': context_group_rows,
@@ -35857,12 +35928,12 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'date_group_rows': date_group_rows,
             'active_tab': active_tab,
             'library_view': library_view,
-	            'library_key': library_key,
-	            'library_repository': library_repository,
-	            'library_source_tab': library_source_tab,
-	            'library_source_counts': library_source_counts,
-	            'library_filters_active': library_filters_active,
-	            'library_q': library_q,
+                'library_key': library_key,
+                'library_repository': library_repository,
+                'library_source_tab': library_source_tab,
+                'library_source_counts': library_source_counts,
+                'library_filters_active': library_filters_active,
+                'library_q': library_q,
             'library_phase_keys': library_phase_keys,
             'library_type_keys': library_type_keys,
             'library_context_keys': library_context_keys,
@@ -35881,30 +35952,32 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'planning_sessions': planning_sessions,
             'planning_session_items': planning_session_items,
             'planning_task_source_options': planning_task_source_options,
-		            'selected_session': selected_session,
-		            'selected_session_id': selected_session_id,
-		            'session_hint_id': session_hint_id,
-		            'task_pick_mode': task_pick_mode,
-		            'task_pick_kind': task_pick_kind,
-		            'create_session_pick_ids': create_session_pick_ids,
-		            'create_session_pick_assignments_csv': create_session_pick_assignments_csv,
-		            'selected_session_plan_fields': selected_session_plan_fields,
-		            'selected_session_task_sections': selected_session_task_sections,
-		            'selected_session_timeline_segments': selected_session_timeline_segments,
-		            'selected_session_timeline_totals': selected_session_timeline_totals,
-		            'selected_session_timeline_running': selected_session_timeline_running,
+                    'selected_session': selected_session,
+                    'selected_session_id': selected_session_id,
+                    'session_hint_id': session_hint_id,
+                    'task_pick_mode': task_pick_mode,
+                    'task_pick_kind': task_pick_kind,
+                    'create_session_pick_ids': create_session_pick_ids,
+                    'create_session_pick_assignments_csv': create_session_pick_assignments_csv,
+                    'selected_session_plan_fields': selected_session_plan_fields,
+                    'selected_session_task_sections': selected_session_task_sections,
+                    'selected_session_timeline_segments': selected_session_timeline_segments,
+                    'selected_session_timeline_totals': selected_session_timeline_totals,
+                    'selected_session_timeline_running': selected_session_timeline_running,
             'selected_session_microcycle_timeline_totals': selected_session_microcycle_timeline_totals,
-		            'attendance_status_choices': attendance_status_choices,
-		            'session_attendance_rows': session_attendance_rows,
-		            'session_attendance_counts': session_attendance_counts,
-	            'session_absence_rows': session_absence_rows,
-	            'can_manage_fines': can_manage_fines,
-	            'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
-	            'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
-	            'session_status_choices': TrainingSession.STATUS_CHOICES,
+                    'attendance_status_choices': attendance_status_choices,
+                    'session_attendance_rows': session_attendance_rows,
+                    'session_attendance_counts': session_attendance_counts,
+                'session_absence_rows': session_absence_rows,
+                'can_manage_fines': can_manage_fines,
+                'microcycle_status_choices': TrainingMicrocycle.STATUS_CHOICES,
+                'session_intensity_choices': TrainingSession.INTENSITY_CHOICES,
+                'session_status_choices': TrainingSession.STATUS_CHOICES,
             'planning_microcycles': planning_microcycles,
             'standalone_sessions': standalone_sessions,
             'inbox_microcycle_id': (int(inbox_microcycle.id) if inbox_microcycle else None),
+            'trash_microcycle_id': (int(trash_microcycle.id) if trash_microcycle else None),
+            'trash_sessions': trash_sessions,
             'planner_summary': planner_summary,
             'planner_focus_items': planner_focus_items,
             'task_surface_choices': TASK_SURFACE_CHOICES,
@@ -37161,18 +37234,18 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             'pitch_preset': pitch_preset,
             'pitch_orientation': pitch_orientation,
             'game_phase': selected_phase,
-	            'methodology': selected_methodology,
-	            'complexity': selected_complexity,
-	            'strategy': selected_strategy,
-	            'dynamics': selected_dynamics,
-	            'structure': selected_structure,
-	            'coordination': selected_coordination,
-	            'coordination_skills': selected_coord_skills,
-	            'tactical_intent': selected_tactical_intent,
-	            'space': space,
-	            'organization': organization,
-	            'organization_html': organization_html,
-	            'players_distribution': players_distribution,
+                'methodology': selected_methodology,
+                'complexity': selected_complexity,
+                'strategy': selected_strategy,
+                'dynamics': selected_dynamics,
+                'structure': selected_structure,
+                'coordination': selected_coordination,
+                'coordination_skills': selected_coord_skills,
+                'tactical_intent': selected_tactical_intent,
+                'space': space,
+                'organization': organization,
+                'organization_html': organization_html,
+                'players_distribution': players_distribution,
             'load_target': load_target,
             'work_rest': work_rest,
             'series': series,
@@ -37632,11 +37705,11 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'drills_catalog': drills_catalog,
             'initial': initial,
             'library_repository': library_repository,
-	            'back_url': back_url,
-	            'back_label': back_label,
-	            'pdf_preview_url': reverse('sessions-task-pdf-preview'),
+                'back_url': back_url,
+                'back_label': back_label,
+                'pdf_preview_url': reverse('sessions-task-pdf-preview'),
             'video_import_url': reverse('sessions-task-video-import'),
-		            'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
+                    'task_preview_url': (f"{reverse('session-task-preview-file', args=[task.id])}?hd=1&v={quote(str(task.task_preview_image.name or ''))}" if task and task.task_preview_image else ''),
             'show_session_selector': True,
             'saved_task_info': saved_task_info,
             'show_dragon_nav': True,
@@ -40964,12 +41037,12 @@ def analysis_page(request):
             'rival_videos': rival_videos,
             'video_error': video_error,
             'video_message': video_message,
-	            'video_sources': RivalVideo.SOURCE_CHOICES,
-	            'analysis_video_max_upload_mb': int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0),
-	            'video_folders': video_folders,
-	            'selected_folder_id': selected_folder_id,
-	            'folder_message': folder_message,
-	            'folder_error': folder_error,
+                'video_sources': RivalVideo.SOURCE_CHOICES,
+                'analysis_video_max_upload_mb': int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0),
+                'video_folders': video_folders,
+                'selected_folder_id': selected_folder_id,
+                'folder_message': folder_message,
+                'folder_error': folder_error,
             'analyst_players': analyst_players,
             'home_rival_name': home_rival_name,
             'extracted': extracted,
@@ -42160,12 +42233,12 @@ def analysis_video_studio_clips_api(request):
     payload = []
     for obj in items:
         payload.append(
-	            {
-	                'id': int(obj.id),
-	                'view_url': reverse('analysis-video-clip-view', args=[int(obj.id)]),
-	                'title': str(obj.title or '').strip(),
-	                'collection': str(obj.collection or '').strip(),
-	                'in_ms': int(obj.in_ms or 0),
+                {
+                    'id': int(obj.id),
+                    'view_url': reverse('analysis-video-clip-view', args=[int(obj.id)]),
+                    'title': str(obj.title or '').strip(),
+                    'collection': str(obj.collection or '').strip(),
+                    'in_ms': int(obj.in_ms or 0),
                 'out_ms': int(obj.out_ms or 0),
                 'in_s': float(obj.in_seconds),
                 'out_s': float(obj.out_seconds),

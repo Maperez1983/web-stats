@@ -2671,14 +2671,38 @@
 	      <div class="tab-panel {% if main_tab == 'library' and active_tab == 'microcycles' %}is-active{% endif %}" data-tab="microcycles">
 	        <section class="panel">
 	          <h2>Planificación · Microciclos y Sesiones</h2>
-	          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
-	            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=microcycles&library_repo=traditional">Clásicas</a>
-	            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=microcycles&library_repo=interactive">Interactivas</a>
-	            <a class="tab-link {% if library_repository == 'ai_trainer' %}is-active{% endif %}" href="?tab=microcycles&library_repo=ai_trainer">IA‑Trainer</a>
-	          </div>
-	          <div class="grid">
-	            <div class="editor-box">
-	              <h3>Crear / actualizar microciclo</h3>
+		          <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin:0.35rem 0 0.6rem;">
+		            <a class="tab-link {% if library_repository == 'traditional' %}is-active{% endif %}" href="?tab=microcycles&library_repo=traditional">Clásicas</a>
+		            <a class="tab-link {% if library_repository == 'interactive' %}is-active{% endif %}" href="?tab=microcycles&library_repo=interactive">Interactivas</a>
+		            <a class="tab-link {% if library_repository == 'ai_trainer' %}is-active{% endif %}" href="?tab=microcycles&library_repo=ai_trainer">IA‑Trainer</a>
+		          </div>
+		          {% if trash_sessions %}
+		          <details class="box" style="margin:0.65rem 0 0.95rem;">
+		            <summary style="cursor:pointer; font-weight:900;">🗑️ Papelera sesiones ({{ trash_sessions|length }})</summary>
+		            <div style="display:flex; flex-direction:column; gap:0.45rem; margin-top:0.7rem;">
+		              {% for trash_session in trash_sessions %}
+		              <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:space-between; border:1px solid rgba(148,163,184,0.22); border-radius:12px; padding:0.6rem 0.75rem;">
+		                <div class="meta" style="flex:1; min-width:240px;">
+		                  <strong>{{ trash_session.focus|default:"(sin título)" }}</strong>
+		                  {% if trash_session.session_date %}· {{ trash_session.session_date|date:"d/m/Y" }}{% endif %}
+		                  {% if trash_session.updated_at %}· {{ trash_session.updated_at|date:"d/m H:i" }}{% endif %}
+		                </div>
+		                <a class="button secondary" href="{% url 'training-session-detail' trash_session.id %}" style="text-decoration:none;">Abrir</a>
+		                <form method="post" style="margin:0;">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="planner_action" value="restore_session_from_trash" />
+		                  <input type="hidden" name="planner_tab" value="microcycles" />
+		                  <input type="hidden" name="restore_session_id" value="{{ trash_session.id }}" />
+		                  <button type="submit" class="secondary">Restaurar</button>
+		                </form>
+		              </div>
+		              {% endfor %}
+		            </div>
+		          </details>
+		          {% endif %}
+		          <div class="grid">
+		            <div class="editor-box">
+		              <h3>Crear / actualizar microciclo</h3>
               <form method="post" class="grid">
                 {% csrf_token %}
                 <input type="hidden" name="planner_action" value="create_microcycle_plan" />
@@ -3067,13 +3091,7 @@
                             <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                             <button type="submit" class="secondary">Restaurar</button>
                           </form>
-                          <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
-                            {% csrf_token %}
-                            <input type="hidden" name="planner_action" value="purge_session_task" />
-                            <input type="hidden" name="planner_tab" value="microcycles" />
-                            <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
-                            <button type="submit" class="danger">Eliminar definitivo</button>
-                          </form>
+                          <div class="meta" style="opacity:0.85;">Borrado definitivo deshabilitado</div>
                         </div>
                         {% endfor %}
                       </div>
@@ -3181,13 +3199,13 @@
 	                        <input type="hidden" name="detach_session_id" value="{{ session.obj.id }}" />
 	                        <button type="submit" class="secondary">Sacar del microciclo</button>
 	                      </form>
-	                      <form method="post">
-	                        {% csrf_token %}
-	                        <input type="hidden" name="planner_action" value="delete_session_plan" />
-	                        <input type="hidden" name="planner_tab" value="microcycles" />
-	                        <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
-                        <button type="submit" class="danger">Eliminar</button>
-                      </form>
+		                      <form method="post" onsubmit="return confirm('¿Enviar esta sesión a la papelera? (Se puede restaurar)');">
+		                        {% csrf_token %}
+		                        <input type="hidden" name="planner_action" value="delete_session_plan" />
+		                        <input type="hidden" name="planner_tab" value="microcycles" />
+		                        <input type="hidden" name="delete_session_id" value="{{ session.obj.id }}" />
+	                        <button type="submit" class="danger">Papelera</button>
+	                      </form>
                     </div>
                   </article>
                   {% endfor %}
@@ -3624,16 +3642,7 @@
                     <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
                     <button type="submit" class="secondary">Restaurar</button>
                   </form>
-                  <form method="post" style="margin:0;" onsubmit="return confirm('Se eliminará definitivamente (no se puede deshacer). ¿Continuar?');">
-                    {% csrf_token %}
-                    <input type="hidden" name="planner_action" value="purge_library_task" />
-                    <input type="hidden" name="planner_tab" value="library" />
-                    <input type="hidden" name="library_view" value="{{ library_view }}" />
-                    <input type="hidden" name="library_key" value="{{ library_key }}" />
-                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
-                    <input type="hidden" name="task_id" value="{{ trash_task.id }}" />
-                    <button type="submit" class="danger">Eliminar definitivo</button>
-                  </form>
+                  <div class="meta" style="opacity:0.85;">Borrado definitivo deshabilitado</div>
                 </div>
                 {% endfor %}
                 {% if library_deleted_tasks|length|add:0 > 30 %}

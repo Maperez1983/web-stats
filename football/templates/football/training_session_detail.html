@@ -674,10 +674,10 @@
             </div>
           </div>
         </form>
-        <form method="post" style="margin-top:0.55rem; display:flex; justify-content:flex-end;" onsubmit="return confirm('¿Eliminar esta sesión por completo? Se borrarán tareas y asistencia.');">
+        <form method="post" style="margin-top:0.55rem; display:flex; justify-content:flex-end;" onsubmit="return confirm('¿Enviar esta sesión a la papelera? (Se puede restaurar)');">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_session" />
-          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Borrar sesión</button>
+          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Papelera</button>
         </form>
 
         <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.95rem 0;" />

@@ -20324,12 +20324,38 @@
 		      }
 				      event.preventDefault();
 			      // Offline real: no intentamos enviar POST (en iPad puede parecer que "se guardó").
-			      // El borrador local ya queda persistido y el usuario reintenta con conexión.
+			      // Nota: `navigator.onLine` no es fiable en iOS/WKWebView, así que si dice "offline"
+			      // hacemos una comprobación rápida contra el servidor antes de bloquear el guardado.
 			      try {
-			        if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
-			          setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
-			          try { window.alert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.'); } catch (error) { /* ignore */ }
-			          return;
+			        const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
+			        if (reportedOffline) {
+			          let reachable = false;
+			          try {
+			            const url = '/api/session/keepalive/';
+			            const opts = { credentials: 'include', cache: 'no-store', headers: { Accept: 'application/json' } };
+			            if (typeof AbortController !== 'undefined') {
+			              const ctrl = new AbortController();
+			              const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) { /* ignore */ } }, 2500);
+			              try {
+			                await fetch(url, { ...opts, signal: ctrl.signal });
+			                reachable = true;
+			              } catch (e) {
+			                reachable = false;
+			              } finally {
+			                try { window.clearTimeout(timer); } catch (e) { /* ignore */ }
+			              }
+			            } else {
+			              await fetch(url, opts);
+			              reachable = true;
+			            }
+			          } catch (e) {
+			            reachable = false;
+			          }
+			          if (!reachable) {
+			            setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
+			            try { window.alert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.'); } catch (error) { /* ignore */ }
+			            return;
+			          }
 			        }
 			      } catch (error) { /* ignore */ }
 			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
