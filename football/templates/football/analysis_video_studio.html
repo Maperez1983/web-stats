@@ -374,6 +374,28 @@
                   <option value="abp">ABP</option>
                 </select>
               </label>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+                <label style="margin:0;">
+                  Equipo (MAR/BAE)
+                  <select id="vs-ctx-team">
+                    <option value="">—</option>
+                    <option value="MAR">MAR (Marbella)</option>
+                    <option value="BAE">BAE (Baeza)</option>
+                  </select>
+                </label>
+                <label style="margin:0;">
+                  Fase
+                  <select id="vs-ctx-phase">
+                    <option value="">—</option>
+                    <option value="attack">Ataque</option>
+                    <option value="defense">Defensa</option>
+                    <option value="transition_of">Transición OF</option>
+                    <option value="transition_def">Transición DEF</option>
+                    <option value="abp_for">ABP a favor</option>
+                    <option value="abp_against">ABP en contra</option>
+                  </select>
+                </label>
+              </div>
               <label>
                 Etiqueta
                 <input type="text" id="vs-event-label" placeholder="Ej: Robo alto + remate" />

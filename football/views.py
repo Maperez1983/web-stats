@@ -43154,6 +43154,16 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
     if w <= 0 or h <= 0 or x < 0 or y < 0:
         raise ValueError('ROI inválida.')
 
+    allow = set()
+    try:
+        if allow_numbers:
+            allow = {int(x) for x in allow_numbers if int(x) > 0 and int(x) < 100}
+    except Exception:
+        allow = set()
+
+    roi_ratio = float(w) / float(max(1, h))
+    likely_two_digits = roi_ratio >= 0.62 and bool([n for n in allow if n >= 10])
+
     def _run_tesseract(img_path: str, *, psm: int) -> str:
         try:
             out = subprocess.run(
@@ -43167,6 +43177,8 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
                     str(int(psm)),
                     '-c',
                     'tessedit_char_whitelist=0123456789',
+                    '-c',
+                    'classify_bln_numeric_mode=1',
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
@@ -43286,15 +43298,17 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
                                 continue
                             if 0 < n < 100:
                                 normalized.append(n)
+                                # Heurística: si la ROI parece 2 dígitos pero Tesseract devuelve 1 dígito,
+                                # intentamos "promover" a 10+d si existe en la plantilla permitida.
+                                # (Casos típicos: 6 vs 16 en vídeo 640x360).
+                                if likely_two_digits and n < 10 and allow:
+                                    for base in (10, 20, 30):
+                                        guess = base + n
+                                        if guess in allow:
+                                            normalized.append(guess)
+                                            break
             except Exception:
                 continue
-
-    allow = set()
-    try:
-        if allow_numbers:
-            allow = {int(x) for x in allow_numbers if int(x) > 0 and int(x) < 100}
-    except Exception:
-        allow = set()
 
     counts: dict[int, int] = {}
     for n in normalized:
@@ -43308,10 +43322,29 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
     )
     best = int(ranked_pairs[0][0]) if ranked_pairs else None
 
+    # Preferencia por 2 dígitos cuando la ROI lo sugiere y hay candidatos 2-dígitos razonables.
+    if best and best < 10 and likely_two_digits and ranked_pairs:
+        best_hits = int(ranked_pairs[0][1] or 0)
+        two_digit = [(n, h) for n, h in ranked_pairs if int(n) >= 10]
+        if two_digit:
+            # 1) Preferimos n+10/n+20/n+30 si coincide con el último dígito del best (6 -> 16),
+            #    siempre que no esté demasiado por debajo en hits.
+            prefer_same_last = [pair for pair in two_digit if int(pair[0]) % 10 == int(best)]
+            prefer_same_last = sorted(prefer_same_last, key=lambda kv: kv[1], reverse=True)
+            if prefer_same_last:
+                n2, h2 = prefer_same_last[0]
+                if int(h2) >= max(1, best_hits - 2):
+                    best = int(n2)
+            # 2) Si el mejor 2-dígitos empata o casi empata, lo promovemos.
+            if best < 10:
+                n2, h2 = sorted(two_digit, key=lambda kv: kv[1], reverse=True)[0]
+                if int(h2) >= max(1, best_hits - 1) and best_hits <= 6:
+                    best = int(n2)
+
     return {
         'best': best,
         'ranked': [{'number': int(n), 'hits': int(h)} for n, h in ranked_pairs[:10]],
-        'debug': debug,
+        'debug': {**debug, 'roi_ratio': round(roi_ratio, 3), 'likely_two_digits': bool(likely_two_digits)},
     }
 
 

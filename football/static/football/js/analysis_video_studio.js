@@ -145,6 +145,8 @@
 
     const eventKindSelect = document.getElementById('vs-event-kind');
     const eventLabelInput = document.getElementById('vs-event-label');
+    const ctxTeamSelect = document.getElementById('vs-ctx-team');
+    const ctxPhaseSelect = document.getElementById('vs-ctx-phase');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
     const presetsJson = document.getElementById('vs-presets-json');
     const presetsSaveBtn = document.getElementById('vs-presets-save');
@@ -3152,6 +3154,12 @@
         const kind = safeText(ev?.kind, 'tag');
         const label = safeText(ev?.label, '');
         const color = safeText(ev?.color, '');
+        const payload = (ev && typeof ev.payload === 'object' && ev.payload) ? ev.payload : {};
+        const ctxTeam = safeText(payload?.team, '').toUpperCase();
+        const ctxPhase = safeText(payload?.phase, '');
+        const ctxBadge = (ctxTeam || ctxPhase)
+          ? `<span class="k" style="border-radius:999px; padding:0.12rem 0.6rem; min-width:auto;">${escHtml([ctxTeam, ctxPhase].filter(Boolean).join(' · '))}</span>`
+          : '';
         const at = fmtTimeShort(Number(ev?.time_s) || 0);
         const timeVal = (Number(ev?.time_s) || 0).toFixed(1);
         const reviewed = reviewedEventIds.has(id);
@@ -3161,7 +3169,7 @@
               <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">
                 <strong style="display:flex; gap:0.5rem; align-items:center;">
                   ${color ? `<span style="width:12px;height:12px;border-radius:999px;background:${color};display:inline-block;border:1px solid rgba(255,255,255,0.25);"></span>` : ''}
-                  ${at} · ${safeText(kind, 'tag').toUpperCase()}
+                  ${at} · ${safeText(kind, 'tag').toUpperCase()} ${ctxBadge}
                 </strong>
                 <div style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
                   <button type="button" class="button ${reviewed ? 'primary' : 'ghost'}" data-vs-ev-review="${id}" title="Marcar revisado">${reviewed ? '✓' : '○'}</button>
@@ -3331,12 +3339,17 @@
       const label = safeText(eventLabelInput?.value, '');
       const color = strokeColor();
       const timeS = Number(video.currentTime) || 0;
+      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
+      const ctxPhase = safeText(ctxPhaseSelect?.value, '');
+      const payload = {};
+      if (ctxTeam) payload.team = ctxTeam;
+      if (ctxPhase) payload.phase = ctxPhase;
       try {
         const resp = await fetch(timelineSaveUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
           credentials: 'same-origin',
-          body: JSON.stringify({ video_id: videoId, time_s: timeS, kind, label, color }),
+          body: JSON.stringify({ video_id: videoId, time_s: timeS, kind, label, color, payload }),
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
@@ -3453,7 +3466,9 @@
       const outS = Math.max(inS + 0.2, nowS + (Number(autoClipState.post) || 0));
       const title = safeText(preset?.label, 'Clip').slice(0, 180);
       const kind = safeText(preset?.kind, 'tag').toLowerCase();
-      const tags = [kind, 'preset'].filter(Boolean);
+      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
+      const ctxPhase = safeText(ctxPhaseSelect?.value, '');
+      const tags = [kind, 'preset', ctxTeam ? `team:${ctxTeam}` : '', ctxPhase ? `phase:${ctxPhase}` : ''].filter(Boolean);
       const collection = (activePresetsPack === 'own') ? 'Propio' : 'Rival';
       try {
         const resp = await fetch(clipSaveUrl, {
@@ -3592,6 +3607,20 @@
       if (!k) return;
       const tag = safeText(ev?.target?.tagName, '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // Contexto rápido (scouting): equipo + fase, sin romper el flujo.
+      // M/B -> MAR/BAE ; A/F -> Ataque/Defensa ; X/Z -> Transiciones ; P/Shift+P -> ABP a favor/en contra.
+      const kk = k.toLowerCase();
+      if (kk === 'm') { try { if (ctxTeamSelect) ctxTeamSelect.value = 'MAR'; } catch (e) {} setStatus('Contexto: MAR'); return; }
+      if (kk === 'b') { try { if (ctxTeamSelect) ctxTeamSelect.value = 'BAE'; } catch (e) {} setStatus('Contexto: BAE'); return; }
+      if (kk === 'a') { try { if (ctxPhaseSelect) ctxPhaseSelect.value = 'attack'; } catch (e) {} setStatus('Fase: Ataque'); return; }
+      if (kk === 'f') { try { if (ctxPhaseSelect) ctxPhaseSelect.value = 'defense'; } catch (e) {} setStatus('Fase: Defensa'); return; }
+      if (kk === 'x') { try { if (ctxPhaseSelect) ctxPhaseSelect.value = 'transition_of'; } catch (e) {} setStatus('Fase: Transición OF'); return; }
+      if (kk === 'z') { try { if (ctxPhaseSelect) ctxPhaseSelect.value = 'transition_def'; } catch (e) {} setStatus('Fase: Transición DEF'); return; }
+      if (kk === 'p') {
+        try { if (ctxPhaseSelect) ctxPhaseSelect.value = ev.shiftKey ? 'abp_against' : 'abp_for'; } catch (e) {}
+        setStatus(`Fase: ${ev.shiftKey ? 'ABP en contra' : 'ABP a favor'}`);
+        return;
+      }
       // Atajos globales (productividad): Espacio play/pausa · I/O marcar IN/OUT · C guardar clip · T tag.
       if (k === ' ' || k === 'Spacebar') {
         ev.preventDefault();
