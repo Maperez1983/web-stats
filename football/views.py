@@ -26684,6 +26684,15 @@ def coach_tactics_page(request):
             initial['multi_board_enabled'] = True
     except Exception:
         pass
+    # UX: pre-rellena "Edad" con la categoría del equipo (si existe).
+    try:
+        if isinstance(initial, dict) and not str(initial.get('age_group') or '').strip():
+            default_age = _default_task_age_group_for_team(primary_team)
+            if default_age:
+                initial = dict(initial)
+                initial['age_group'] = default_age
+    except Exception:
+        pass
 
     player_catalog = []
     available_players = []
@@ -37003,6 +37012,16 @@ def _task_builder_initial_values(task):
     }
 
 
+def _default_task_age_group_for_team(team) -> str:
+    """
+    Valor por defecto para el campo "Edad" del editor de tareas.
+    Preferimos `Team.category` (ej. Prebenjamín / Cadete / Senior) si existe.
+    """
+    if not team:
+        return ''
+    return str(getattr(team, 'category', '') or '').strip()
+
+
 def _task_existing_meta(task):
     if not task or not isinstance(getattr(task, 'tactical_layout', None), dict):
         return {}
@@ -38413,6 +38432,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         )
         initial = _task_builder_initial_values(None)
         error = error or 'No se pudieron preparar los datos del editor. Recarga la página.'
+    # UX: al crear una tarea nueva, pre-rellena "Edad" con la categoría del equipo.
+    try:
+        if not task and isinstance(initial, dict) and not str(initial.get('age_group') or '').strip():
+            default_age = _default_task_age_group_for_team(primary_team)
+            if default_age:
+                initial = dict(initial)
+                initial['age_group'] = default_age
+    except Exception:
+        pass
 
     # Si venimos desde una sesión (Sesiones → Crear tarea) preseleccionamos la sesión destino
     # SOLO cuando se pide explícitamente. Así "Crear tarea" puede ir a biblioteca por defecto.
