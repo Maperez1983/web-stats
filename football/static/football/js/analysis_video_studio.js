@@ -2941,8 +2941,13 @@
 	    const saveClip = async () => {
 	      if (!clipSaveUrl || !videoId) return;
 	      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
-	      const collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
+	      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
+	      const ctxPhase = safeText(ctxPhaseSelect?.value, '');
+	      let collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
 	      const tags = parseTagsInput();
+	      if (ctxTeam && !tags.includes(`team:${ctxTeam}`)) tags.push(`team:${ctxTeam}`);
+	      if (ctxPhase && !tags.includes(`phase:${ctxPhase}`)) tags.push(`phase:${ctxPhase}`);
+	      if (!collection && ctxTeam) collection = ctxTeam;
 	      const notes = safeText(clipNotesInput?.value, '').slice(0, 5000);
 	      const inS = Number(inInput?.value || 0) || 0;
 	      const outS = Number(outInput?.value || 0) || 0;
