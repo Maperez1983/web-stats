@@ -4,13 +4,21 @@ register = template.Library()
 
 
 @register.simple_tag(takes_context=True)
-def qs_replace(context, **kwargs):
+def qs_replace(context, /, **kwargs):
     """
     Reemplaza parámetros de querystring manteniendo el resto.
 
     Uso:
       <a href="?{% qs_replace tab='library' library_source='imported' lib_page=None %}">Importadas</a>
     """
+    # Guardrail: si por error alguna plantilla usa `context=` como kwarg, Django pasaría
+    # el contexto dos veces (posicional + kwarg). Con `context` como posicional-only (`/`)
+    # evitamos el TypeError y simplemente ignoramos ese kwarg.
+    try:
+        if isinstance(kwargs, dict) and 'context' in kwargs:
+            kwargs.pop('context', None)
+    except Exception:
+        pass
     request = context.get("request")
     if not request:
         return ""

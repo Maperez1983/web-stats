@@ -5146,7 +5146,7 @@
 		                        value="{{ r.team_id|default:0 }}"
 		                        data-team-code="{{ r.team_code|default:''|escape }}"
 		                        data-full-name="{{ r.full_name|default:''|escape }}"
-		                        {% if initial.opponent_team_id and initial.opponent_team_id|stringformat:'s' == r.team_id|stringformat:'s' %}selected{% elif (not initial.opponent_team_id and not initial.opponent_name) and preferred_rival_name and r.full_name and r.full_name|lower in preferred_rival_name|lower %}selected{% endif %}
+		                        {% if initial.opponent_team_id and initial.opponent_team_id|stringformat:'s' == r.team_id|stringformat:'s' %}selected{% elif not initial.opponent_team_id and not initial.opponent_name and preferred_rival_name and r.full_name and r.full_name|lower in preferred_rival_name|lower %}selected{% endif %}
 		                      >
 		                        {% if r.rank %}{{ r.rank }} · {% endif %}{{ r.full_name }}{% if r.snapshot_ok %} · ✅{% else %} · ⚠️{% endif %}
 		                      </option>

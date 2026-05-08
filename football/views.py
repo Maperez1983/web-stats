@@ -29266,6 +29266,13 @@ def _ensure_library_task_preview(task, force=False, prefer_render=False):
     if getattr(task, 'task_pdf', None):
         if _ensure_task_preview_image(task, prefer_render=prefer_render):
             return True
+    # Si no hay PDF, pero sí hay pizarra guardada, intentamos renderizar desde `canvas_state`
+    # para evitar degradar a placeholder cuando el storage es efímero (Render/free).
+    try:
+        if _maybe_render_task_preview_server_side(task, force=True):
+            return True
+    except Exception:
+        pass
     fallback = _default_task_preview_payload()
     if not fallback:
         return False
@@ -32357,6 +32364,7 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
     if not png_bytes:
         return False
     try:
+        update_fields = []
         if getattr(task, "task_preview_image", None):
             try:
                 task.task_preview_image.delete(save=False)
@@ -32364,7 +32372,22 @@ def _maybe_render_task_preview_server_side(task, *, force=False):
                 pass
         filename = f"task-{task.id}-graphic-hd-{uuid.uuid4().hex[:10]}.png"
         task.task_preview_image.save(filename, ContentFile(png_bytes), save=False)
-        task.save(update_fields=["task_preview_image"])
+        update_fields.append("task_preview_image")
+        # Persistir una copia compacta en BD para hosts con filesystem efímero (Render/free).
+        try:
+            layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+            layout = dict(layout) if isinstance(layout, dict) else {}
+            meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+            meta = dict(meta) if isinstance(meta, dict) else {}
+            embedded = _build_embedded_preview_data_url(png_bytes, max_w=1100, max_h=1100)
+            if embedded:
+                meta["preview_data_embedded_v1"] = embedded
+                layout["meta"] = meta
+                task.tactical_layout = layout
+                update_fields.append("tactical_layout")
+        except Exception:
+            pass
+        task.save(update_fields=sorted(set(update_fields)))
         return True
     except Exception:
         return False
@@ -33507,18 +33530,24 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         'agenda_hidden': ('' if show_in_agenda else '1'),
                     }
                 )
-                duplicate_exists = TrainingSession.objects.filter(
-                    microcycle=microcycle,
-                    session_date=session_date,
-                    focus__iexact=focus,
-                ).exists()
-                if duplicate_exists:
-                    raise ValueError('Ya existe una sesión con la misma fecha y nombre en este microciclo.')
                 session_obj = None
                 created = False
-                try:
-                    # Protege contra doble-submit / reintentos: el constraint DB es la última barrera.
-                    with transaction.atomic():
+                # Idempotencia contra doble-submit / reintentos (iPad/WKWebView puede disparar 2 POST):
+                # bloqueamos el microciclo y hacemos get-or-create dentro de la transacción.
+                with transaction.atomic():
+                    try:
+                        TrainingMicrocycle.objects.select_for_update().filter(id=microcycle.id).values_list('id', flat=True).first()
+                    except Exception:
+                        pass
+                    session_obj = (
+                        TrainingSession.objects
+                        .filter(microcycle=microcycle, session_date=session_date, focus__iexact=focus)
+                        .order_by('-id')
+                        .first()
+                    )
+                    if session_obj:
+                        created = False
+                    else:
                         next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
                         session_obj = TrainingSession.objects.create(
                             microcycle=microcycle,
@@ -33532,14 +33561,6 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             order=next_order,
                         )
                         created = True
-                except IntegrityError:
-                    # Ya creada en paralelo (doble click / retry). Consideramos OK e ignoramos el duplicado.
-                    session_obj = TrainingSession.objects.filter(
-                        microcycle=microcycle,
-                        session_date=session_date,
-                        focus__iexact=focus,
-                    ).order_by('-id').first()
-                    created = False
                 if not session_obj:
                     raise ValueError('No se pudo crear la sesión.')
                 # Auto-convocatoria (por defecto): pre-marca toda la plantilla como Presente para que el
