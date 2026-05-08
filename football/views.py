@@ -19949,6 +19949,39 @@ def team_agenda_page(request):
                 )
                 if player_ids:
                     active_injury_ids = get_active_injury_player_ids(player_ids)
+                    blocked_training_ids = set()
+                    try:
+                        if active_injury_ids:
+                            today = timezone.localdate()
+                            qs = (
+                                PlayerInjuryRecord.objects
+                                .filter(player_id__in=list(active_injury_ids), is_active=True)
+                                .filter(Q(return_date__isnull=True) | Q(return_date__gt=today))
+                                .order_by('player_id', '-injury_date', '-id')
+                            )
+                            seen = set()
+
+                            def _norm(value):
+                                raw = str(value or '').strip().lower()
+                                return (
+                                    raw.replace('á', 'a').replace('é', 'e').replace('í', 'i')
+                                    .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
+                                )
+
+                            for rec in qs:
+                                pid = int(getattr(rec, 'player_id', 0) or 0)
+                                if not pid or pid in seen:
+                                    continue
+                                seen.add(pid)
+                                rtt = getattr(rec, 'return_to_train_on', None)
+                                if rtt and rtt <= today:
+                                    continue
+                                st = _norm(getattr(rec, 'training_status', '') or '')
+                                can_train = bool(st and any(tok in st for tok in ['disponible', 'modific', 'readapt', 'rehab', 'parcial', 'limit']))
+                                if not can_train:
+                                    blocked_training_ids.add(pid)
+                    except Exception:
+                        blocked_training_ids = set()
                     TrainingSessionAttendance.objects.bulk_create(
                         [
                             TrainingSessionAttendance(
@@ -19956,7 +19989,7 @@ def team_agenda_page(request):
                                 player_id=int(pid),
                                 status=(
                                     TrainingSessionAttendance.STATUS_INJURED
-                                    if int(pid) in active_injury_ids
+                                    if int(pid) in blocked_training_ids
                                     else TrainingSessionAttendance.STATUS_PRESENT
                                 ),
                                 notes='',
@@ -19967,7 +20000,10 @@ def team_agenda_page(request):
                         ignore_conflicts=True,
                     )
             except Exception:
-                logger.exception('team_agenda_page: no se pudo preconvocar asistencia', extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)})
+                logger.exception(
+                    'team_agenda_page: no se pudo preconvocar asistencia',
+                    extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None)},
+                )
 
         import urllib.parse  # noqa: WPS433
         base = [f'date={urllib.parse.quote(session_date.strftime("%Y-%m-%d"))}']
@@ -21808,6 +21844,63 @@ def convocation_page(request):
                 active_injury_by_player_id[pid] = rec
     except Exception:
         active_injury_by_player_id = {}
+
+    def _normalize_status(value: str) -> str:
+        raw = str(value or '').strip().lower()
+        if not raw:
+            return ''
+        return (
+            raw
+            .replace('á', 'a')
+            .replace('é', 'e')
+            .replace('í', 'i')
+            .replace('ó', 'o')
+            .replace('ú', 'u')
+            .replace('ü', 'u')
+        )
+
+    def _injury_can_train(rec, *, today=None) -> bool:
+        """Devuelve True si, aun existiendo lesión activa, el jugador puede entrenar (quizá con carga modificada)."""
+        if not rec:
+            return True
+        today = today or timezone.localdate()
+        try:
+            rtt = getattr(rec, 'return_to_train_on', None)
+            if rtt and rtt <= today:
+                return True
+        except Exception:
+            pass
+        status = _normalize_status(getattr(rec, 'training_status', '') or '')
+        if not status:
+            return False
+        # Heurística: si el staff escribe "disponible", "modificada", "readapt", etc. => puede entrenar.
+        if any(token in status for token in ['disponible', 'modific', 'readapt', 'rehab', 'parcial', 'limit']):
+            return True
+        if any(token in status for token in ['baja', 'no disponible', 'out']):
+            return False
+        return False
+
+    def _injury_can_play(rec, *, today=None) -> bool:
+        """Devuelve True si el jugador puede competir (alta deportiva / return-to-play)."""
+        if not rec:
+            return True
+        today = today or timezone.localdate()
+        try:
+            rtp = getattr(rec, 'return_to_play_on', None)
+            if rtp and rtp <= today:
+                return True
+        except Exception:
+            pass
+        try:
+            rd = getattr(rec, 'return_date', None)
+            if rd and rd <= today:
+                return True
+        except Exception:
+            pass
+        status = _normalize_status(getattr(rec, 'training_status', '') or '')
+        if status and any(token in status for token in ['disponible', 'apto', 'ok']):
+            return True
+        return False
     sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
         primary_team,
         reference_match=active_match,
@@ -21862,6 +21955,11 @@ def convocation_page(request):
                 player.injury_detail_rtt = rtt
                 player.injury_detail_rtp = rtp
                 player.injury_detail_status = str(getattr(rec, 'training_status', '') or '').strip()
+                # Flags operativos: ¿impide entrenar / competir?
+                can_train = bool(_injury_can_train(rec, today=today))
+                can_play = bool(_injury_can_play(rec, today=today))
+                player.injury_blocks_training = not can_train
+                player.injury_blocks_play = not can_play
             else:
                 player.injury_detail_label = ''
                 player.injury_detail_zone = ''
@@ -21870,6 +21968,8 @@ def convocation_page(request):
                 player.injury_detail_rtt = None
                 player.injury_detail_rtp = None
                 player.injury_detail_status = ''
+                player.injury_blocks_training = False
+                player.injury_blocks_play = False
         except Exception:
             player.injury_detail_label = ''
             player.injury_detail_zone = ''
@@ -21878,6 +21978,8 @@ def convocation_page(request):
             player.injury_detail_rtt = None
             player.injury_detail_rtp = None
             player.injury_detail_status = ''
+            player.injury_blocks_training = False
+            player.injury_blocks_play = False
         filtered_players.append(player)
     players = filtered_players
     convocation_record = get_current_convocation_record(primary_team, match=active_match, fallback_to_latest=True)
@@ -33844,6 +33946,39 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         )
                         if player_ids:
                             active_injury_ids = get_active_injury_player_ids(player_ids)
+                            blocked_training_ids = set()
+                            try:
+                                if active_injury_ids:
+                                    today = timezone.localdate()
+                                    qs = (
+                                        PlayerInjuryRecord.objects
+                                        .filter(player_id__in=list(active_injury_ids), is_active=True)
+                                        .filter(Q(return_date__isnull=True) | Q(return_date__gt=today))
+                                        .order_by('player_id', '-injury_date', '-id')
+                                    )
+                                    seen = set()
+
+                                    def _norm(value):
+                                        raw = str(value or '').strip().lower()
+                                        return (
+                                            raw.replace('á', 'a').replace('é', 'e').replace('í', 'i')
+                                            .replace('ó', 'o').replace('ú', 'u').replace('ü', 'u')
+                                        )
+
+                                    for rec in qs:
+                                        pid = int(getattr(rec, 'player_id', 0) or 0)
+                                        if not pid or pid in seen:
+                                            continue
+                                        seen.add(pid)
+                                        rtt = getattr(rec, 'return_to_train_on', None)
+                                        if rtt and rtt <= today:
+                                            continue
+                                        st = _norm(getattr(rec, 'training_status', '') or '')
+                                        can_train = bool(st and any(tok in st for tok in ['disponible', 'modific', 'readapt', 'rehab', 'parcial', 'limit']))
+                                        if not can_train:
+                                            blocked_training_ids.add(pid)
+                            except Exception:
+                                blocked_training_ids = set()
                             TrainingSessionAttendance.objects.bulk_create(
                                 [
                                     TrainingSessionAttendance(
@@ -33851,7 +33986,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                         player_id=int(pid),
                                         status=(
                                             TrainingSessionAttendance.STATUS_INJURED
-                                            if int(pid) in active_injury_ids
+                                            if int(pid) in blocked_training_ids
                                             else TrainingSessionAttendance.STATUS_PRESENT
                                         ),
                                         notes='',

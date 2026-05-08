@@ -572,6 +572,8 @@
               data-player-position="{{ player.position|default:'Sin definir'|escape }}"
               data-player-photo="{{ player.photo_url|default:avatar_url|escape }}"
               data-player-injured="{% if player.has_active_injury %}1{% else %}0{% endif %}"
+              data-player-injury-blocks-play="{% if player.injury_blocks_play %}1{% else %}0{% endif %}"
+              data-player-injury-blocks-training="{% if player.injury_blocks_training %}1{% else %}0{% endif %}"
               data-player-sanctioned="{% if player.is_sanctioned %}1{% else %}0{% endif %}"
               data-player-warn="{% if player.is_apercibido %}1{% else %}0{% endif %}"
             >
@@ -706,6 +708,8 @@
         position: String(card.dataset.playerPosition || 'Sin definir').trim(),
         photo: String(card.dataset.playerPhoto || '').trim(),
         injured: String(card.dataset.playerInjured || '0') === '1' || injuredPlayerIds.has(String(card.dataset.playerId || '')),
+        injuryBlocksPlay: String(card.dataset.playerInjuryBlocksPlay || '0') === '1',
+        injuryBlocksTraining: String(card.dataset.playerInjuryBlocksTraining || '0') === '1',
         sanctioned: String(card.dataset.playerSanctioned || '0') === '1',
         warned: String(card.dataset.playerWarn || '0') === '1',
       });
@@ -753,7 +757,7 @@
               <img src="${player.photo || playerAvatarFallback}" alt="${player.name}" loading="lazy">
               <div class="selected-text">
                 <strong>#${player.number} ${player.name}</strong>
-                <span>${player.position}${player.injured ? ' · Lesión activa' : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
+                <span>${player.position}${player.injured ? (player.injuryBlocksPlay ? ' · Lesión (no compite)' : ' · Lesión (apto)') : ''}${player.sanctioned ? ' · Sancionado' : ''}${player.warned ? ' · Apercibido' : ''}</span>
               </div>
             </div>
             <div class="selected-actions">
@@ -811,9 +815,10 @@
         const id = String(card.dataset.playerId || '');
         if (!id) return;
         const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
+        const blocksPlay = String(card.dataset.playerInjuryBlocksPlay || '0') === '1';
         const sanctioned = String(card.dataset.playerSanctioned || '0') === '1';
-        if (injured) {
-          showMessage('Jugador bloqueado por lesión activa.', 'warn');
+        if (injured && blocksPlay) {
+          showMessage('Jugador bloqueado: lesión activa (no apto para competir).', 'warn');
           return;
         }
         if (sanctioned) {
@@ -1108,8 +1113,9 @@
           if (card.classList.contains('hidden')) return;
           const id = String(card.dataset.playerId || '');
           const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
+          const blocksPlay = String(card.dataset.playerInjuryBlocksPlay || '0') === '1';
           const sanctioned = String(card.dataset.playerSanctioned || '0') === '1';
-          if (!injured && !sanctioned) selectedSet.add(id);
+          if (!sanctioned && !(injured && blocksPlay)) selectedSet.add(id);
         });
         syncCardStates();
         renderSelected();
@@ -1124,7 +1130,14 @@
       });
 
       dropInjuredBtn?.addEventListener('click', () => {
-        injuredPlayerIds.forEach((id) => selectedSet.delete(String(id)));
+        // Excluye solo los no aptos para competir (lesión activa con bloqueo de partido).
+        cards.forEach((card) => {
+          const id = String(card.dataset.playerId || '');
+          if (!id) return;
+          const injured = injuredPlayerIds.has(id) || String(card.dataset.playerInjured || '0') === '1';
+          const blocksPlay = String(card.dataset.playerInjuryBlocksPlay || '0') === '1';
+          if (injured && blocksPlay) selectedSet.delete(String(id));
+        });
         normalizeRoles();
         syncCardStates();
         renderSelected();
