@@ -2023,7 +2023,8 @@
           if (dashLastSource === 'network') {
             window.localStorage.setItem(dashLastOkKey, String(Date.now()));
           }
-          setNetBadge({ offline: !navigator.onLine, cached: dashLastSource === 'cache' });
+          // `navigator.onLine` no es fiable en Safari/WKWebView. Si la petición ha sido OK, no mostramos "Offline".
+          setNetBadge({ offline: false, cached: dashLastSource === 'cache' });
 
           renderSetupBanner(payload);
           const teamName = String(payload?.team?.name || '').trim();
@@ -2041,7 +2042,14 @@
 
           if (loading) loading.hidden = true;
         } catch (err) {
-          setNetBadge({ offline: !navigator.onLine, cached: dashLastSource === 'cache' });
+          const msg = String(err?.message || '').toLowerCase();
+          const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
+          // Si hay HTTP error (500/403/etc) NO es "offline".
+          const isHttpError = msg.startsWith('dash_http_');
+          // Si fetch falla por red, suele ser TypeError/NetworkError/Failed to fetch.
+          const looksLikeNetwork = msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed');
+          const offline = (reportedOffline || looksLikeNetwork) && !isHttpError;
+          setNetBadge({ offline, cached: dashLastSource === 'cache' });
           if (loading) {
             loading.hidden = false;
             loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';
