@@ -1457,9 +1457,16 @@
         let chosen = best;
         if (!chosen && ranked.length) chosen = Number(ranked[0]?.number || 0) || 0;
 
-        // Si OCR no acierta, pedimos confirmación manual para no bloquear el flujo.
-        if (!chosen) {
-          const manual = prompt('No se pudo leer el dorsal. Escribe el dorsal (número):', '');
+        // Confirmación rápida:
+        // - En vídeo 640x360 el dorsal puede salir borroso. Si hay candidatos (ranked),
+        //   permitimos confirmar el número con un prompt simple.
+        const rankedNums = ranked.map((x) => Number(x?.number || 0) || 0).filter((n) => n > 0 && n < 100);
+        const hasTwoDigits = rankedNums.some((n) => n >= 10);
+        const bestIsSingle = chosen > 0 && chosen < 10;
+        const shouldConfirm = (!chosen) || (rankedNums.length >= 2 && hasTwoDigits && bestIsSingle && !own.length && !rival.length);
+        if (shouldConfirm) {
+          const hint = rankedNums.slice(0, 6).join(', ');
+          const manual = prompt(`Confirma dorsal (candidatos: ${hint || '—'}):`, chosen ? String(chosen) : '');
           const manualNum = Number(String(manual || '').trim()) || 0;
           if (!manualNum) { setStatus('OCR dorsal cancelado.', true); return; }
           chosen = manualNum;
