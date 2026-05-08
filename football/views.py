@@ -40683,9 +40683,10 @@ def analysis_page(request):
                 rivals_error = 'No hay equipo principal configurado.'
             else:
                 snapshot = load_universo_snapshot() or {}
-                standings_rows = _serialize_universo_standings(snapshot) or _serialize_universo_live_classification(snapshot)
+                # Usa la misma fuente que el dashboard (BD/federación como prioridad, sin depender de Universo).
+                standings_rows = _resolve_standings_for_team(primary_team, snapshot=snapshot)
                 if not standings_rows:
-                    rivals_error = 'No hay clasificación disponible para crear rivales.'
+                    rivals_error = 'No hay clasificación disponible para crear rivales (para este equipo).'
                 else:
                     created = 0
                     updated = 0
@@ -41082,8 +41083,20 @@ def analysis_page(request):
             pass
     selected_folder_id = _parse_int(request.GET.get('folder')) or _parse_int(request.POST.get('selected_folder_id'))
     universe = load_universo_snapshot() or {}
-    standings = universe.get('standings') or []
-    team_lookup = _build_universo_standings_lookup(universe)
+    standings_rows_resolved = _resolve_standings_for_team(primary_team, snapshot=universe)
+    standings = standings_rows_resolved or []
+    # Lookup por nombre a partir de standings resueltos (no solo Universo).
+    team_lookup = {}
+    try:
+        for row in standings_rows_resolved or []:
+            if not isinstance(row, dict):
+                continue
+            key = _normalize_team_lookup_key(row.get('full_name') or row.get('team') or '')
+            if not key:
+                continue
+            team_lookup[key] = row
+    except Exception:
+        team_lookup = _build_universo_standings_lookup(universe)
     rival_name = selected_team.name if selected_team else (home_rival_name or auto_team_name)
     rival_full_name, rival_crest_url = _resolve_rival_identity(rival_name, preferred_opponent=preferred_opponent)
     rival_meta = team_lookup.get(_normalize_team_lookup_key(rival_name), {})
@@ -41108,7 +41121,7 @@ def analysis_page(request):
         'rival_team_code': rival_team_code,
         'universo_session': universo_session_label,
         'roster_source': roster_source,
-        'standings_count': len(standings),
+        'standings_count': len(standings_rows_resolved or []),
         'next_match_round': preferred_next.get('round') if isinstance(preferred_next, dict) else '',
         'next_match_date': preferred_next.get('date') if isinstance(preferred_next, dict) else '',
         'next_match_time': preferred_next.get('time') if isinstance(preferred_next, dict) else '',
@@ -41122,7 +41135,7 @@ def analysis_page(request):
         except Exception:
             cache_days = 14
         threshold = timezone.now() - timedelta(days=cache_days)
-        standings_rows = _serialize_universo_standings(universe) or _serialize_universo_live_classification(universe)
+        standings_rows = standings_rows_resolved or []
         code_rows = [str(r.get('team_code') or '').strip() for r in standings_rows if isinstance(r, dict)]
         code_rows = [c for c in code_rows if c]
         teams_by_code = {}
