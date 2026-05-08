@@ -179,6 +179,7 @@ from football.models import (
     AiTrainerEvent,
     AiTrainerTaskIndex,
     AiTrainerTokenWeight,
+    AiTrainerDictionaryEntry,
 )
 from football.event_taxonomy import (
     DRIBBLE_KEYWORDS,
@@ -1489,6 +1490,14 @@ INBOX_MICROCYCLE_TITLE = 'Sesiones sueltas (sin microciclo)'
 # de planificación para no confundir con sesiones reales.
 LIBRARY_MICROCYCLE_MARKER = '[2J_LIBRARY_MICROCYCLE]'
 
+# Papelera (interno): nunca borramos físicamente sesiones/tareas.
+# Las sesiones movidas aquí quedan fuera de la UI estándar pero se pueden restaurar.
+TRASH_MICROCYCLE_WEEK_START = date(1970, 1, 1)
+TRASH_MICROCYCLE_WEEK_END = date(1970, 1, 7)
+TRASH_MICROCYCLE_TITLE = 'Papelera (sistema)'
+TRASH_MICROCYCLE_MARKER = '[2J_TRASH_MICROCYCLE]'
+TRASH_SESSION_REASON_PREFIX = '[2J_TRASH_SESSION]'
+
 
 def _is_inbox_microcycle(microcycle):
     if not microcycle:
@@ -1531,9 +1540,9 @@ def _is_library_session(session):
 
 def _exclude_library_sessions_qs(qs):
     """
-    Las sesiones de Biblioteca (repositorio) son internas.
+    Las sesiones internas (Biblioteca y Papelera) no deben aparecer en selectores/UI normal.
     Si aparecen en selectores o como sesión por defecto, el usuario puede
-    editarlas por error y las tareas "desaparecen" de la Biblioteca.
+    editarlas por error y las tareas "desaparecen" (por confusión o por borrado).
     """
     try:
         return qs.exclude(
@@ -1541,9 +1550,170 @@ def _exclude_library_sessions_qs(qs):
             | Q(microcycle__notes__icontains='microciclo tecnico generado automaticamente para biblioteca')
             | Q(microcycle__objective__iexact='Repositorio de tareas en pdf')
             | Q(microcycle__title__istartswith='Biblioteca ')
+            | Q(microcycle__week_start=TRASH_MICROCYCLE_WEEK_START)
+            | Q(microcycle__notes__icontains=TRASH_MICROCYCLE_MARKER)
+            | Q(microcycle__title__istartswith='Papelera')
         )
     except Exception:
         return qs
+
+
+def _is_trash_microcycle(microcycle):
+    if not microcycle:
+        return False
+    try:
+        if getattr(microcycle, 'week_start', None) == TRASH_MICROCYCLE_WEEK_START:
+            return True
+        notes = str(getattr(microcycle, 'notes', '') or '')
+        if TRASH_MICROCYCLE_MARKER in notes:
+            return True
+        title = str(getattr(microcycle, 'title', '') or '')
+        if title.strip().lower().startswith('papelera'):
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def _get_or_create_trash_microcycle(team):
+    if not team:
+        return None
+    try:
+        obj = TrainingMicrocycle.objects.filter(team=team, week_start=TRASH_MICROCYCLE_WEEK_START).first()
+        if obj:
+            changed = False
+            if getattr(obj, 'week_end', None) != TRASH_MICROCYCLE_WEEK_END:
+                obj.week_end = TRASH_MICROCYCLE_WEEK_END
+                changed = True
+            if str(getattr(obj, 'title', '') or '').strip() != TRASH_MICROCYCLE_TITLE:
+                obj.title = TRASH_MICROCYCLE_TITLE
+                changed = True
+            try:
+                notes = str(getattr(obj, 'notes', '') or '')
+                if TRASH_MICROCYCLE_MARKER not in notes:
+                    obj.notes = (notes + '\n' if notes else '') + TRASH_MICROCYCLE_MARKER
+                    changed = True
+            except Exception:
+                pass
+            if changed:
+                try:
+                    obj.save(update_fields=['title', 'week_end', 'notes', 'updated_at'])
+                except Exception:
+                    obj.save()
+            return obj
+        return TrainingMicrocycle.objects.create(
+            team=team,
+            title=TRASH_MICROCYCLE_TITLE,
+            objective='(Sistema) Papelera de sesiones/tareas. No se borra definitivo.',
+            week_start=TRASH_MICROCYCLE_WEEK_START,
+            week_end=TRASH_MICROCYCLE_WEEK_END,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+            notes=TRASH_MICROCYCLE_MARKER,
+        )
+    except Exception:
+        return None
+
+
+def _trash_reason(from_microcycle_id: int, *, actor_username: str = '') -> str:
+    actor_username = str(actor_username or '').strip()
+    bits = [TRASH_SESSION_REASON_PREFIX, f'from_mc={int(from_microcycle_id) if from_microcycle_id else 0}']
+    if actor_username:
+        bits.append(f'by={actor_username[:40]}')
+    bits.append(f'at={timezone.localtime().strftime("%Y-%m-%d %H:%M")}')
+    return ' '.join(bits)[:220]
+
+
+def _parse_trash_from_microcycle_id(session_obj) -> int:
+    raw = str(getattr(session_obj, 'workflow_reason', '') or '').strip()
+    if not raw or TRASH_SESSION_REASON_PREFIX not in raw:
+        return 0
+    m = re.search(r'from_mc\\s*=\\s*(\\d+)', raw)
+    if not m:
+        return 0
+    try:
+        return int(m.group(1))
+    except Exception:
+        return 0
+
+
+def _archive_training_session(session_obj, *, actor_username: str = '', reason: str = 'delete') -> None:
+    """
+    Nunca borra físicamente: mueve la sesión a microciclo Papelera.
+    Importante: NO aplicar a sesiones de Biblioteca.
+    """
+    if not session_obj or not getattr(session_obj, 'id', None):
+        return
+    if _is_library_session(session_obj):
+        raise ValueError(
+            'Esta sesión pertenece a la Biblioteca (repositorio) y no se puede eliminar. '
+            'Si aparece duplicada o molesta, avísanos y la ocultamos sin perder tareas.'
+        )
+    trash_micro = _get_or_create_trash_microcycle(getattr(getattr(session_obj, 'microcycle', None), 'team', None))
+    if not trash_micro:
+        raise ValueError('No se pudo preparar la Papelera.')
+    if _is_trash_microcycle(getattr(session_obj, 'microcycle', None)):
+        return
+
+    from_microcycle_id = int(getattr(session_obj, 'microcycle_id', 0) or 0)
+
+    # Backups preventivos: si algo raro pasa, podemos restaurar tareas desde BD/storage.
+    try:
+        for task_obj in SessionTask.objects.filter(session=session_obj).order_by('id')[:600]:
+            try:
+                write_task_backup(
+                    task_obj,
+                    kind='session_task',
+                    reason=f'session_trash_{int(session_obj.id)}_{str(reason or \"delete\")[:30]}',
+                    actor_username=str(actor_username or '').strip(),
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Evita colisiones del UniqueConstraint (microcycle + date + focus CI) dentro de la Papelera.
+    focus = str(getattr(session_obj, 'focus', '') or '').strip()[:140] or f'Sesión {int(session_obj.id)}'
+    marker = f'🗑️ #{int(session_obj.id)}'
+    if marker.lower() not in focus.lower():
+        focus = f'{focus} · {marker}'[:140]
+
+    session_obj.microcycle = trash_micro
+    session_obj.status = TrainingSession.STATUS_CANCELED
+    session_obj.workflow_reason = _trash_reason(from_microcycle_id, actor_username=actor_username)
+    session_obj.focus = focus
+    session_obj.save(update_fields=['microcycle', 'status', 'workflow_reason', 'focus', 'updated_at'])
+
+
+def _restore_training_session_from_trash(session_obj) -> None:
+    if not session_obj or not getattr(session_obj, 'id', None):
+        return
+    if not _is_trash_microcycle(getattr(session_obj, 'microcycle', None)):
+        return
+    team = getattr(getattr(session_obj, 'microcycle', None), 'team', None)
+    from_mc_id = _parse_trash_from_microcycle_id(session_obj)
+    target_mc = None
+    if team and from_mc_id:
+        try:
+            target_mc = TrainingMicrocycle.objects.filter(id=int(from_mc_id), team=team).first()
+        except Exception:
+            target_mc = None
+    if not target_mc and team:
+        target_mc = _get_or_create_inbox_microcycle(team)
+    if not target_mc:
+        raise ValueError('No se pudo restaurar: microciclo destino no encontrado.')
+
+    # Limpia marca visual en focus si existe.
+    focus = str(getattr(session_obj, 'focus', '') or '').strip()[:140]
+    focus = re.sub(r'\\s*·\\s*🗑️\\s*#\\d+\\s*$', '', focus).strip()[:140]
+    if not focus:
+        focus = f'Sesión {int(session_obj.id)}'
+
+    session_obj.microcycle = target_mc
+    session_obj.workflow_reason = ''
+    if str(getattr(session_obj, 'status', '') or '') == TrainingSession.STATUS_CANCELED:
+        session_obj.status = TrainingSession.STATUS_PLANNED
+    session_obj.focus = focus
+    session_obj.save(update_fields=['microcycle', 'workflow_reason', 'status', 'focus', 'updated_at'])
 
 
 LIBRARY_REPOSITORY_TRADITIONAL = 'traditional'
@@ -24349,13 +24519,14 @@ def training_session_detail_page(request, session_id):
 
         elif action == 'delete_session':
             try:
-                # Borrado total (por error de creación). Cascada: tareas, asistencia, timeline...
+                # Nunca borramos físicamente: enviamos a Papelera (evita perder tareas).
                 redirect_url = reverse('team-agenda') + (f'?team={int(primary_team.id)}' if primary_team else '')
-                msg = quote('Sesión eliminada.')
-                session_obj.delete()
+                actor = request.user.username if request.user and request.user.is_authenticated else ''
+                _archive_training_session(session_obj, actor_username=actor, reason='detail_delete')
+                msg = quote('Sesión enviada a papelera.')
                 return redirect(f'{redirect_url}&msg={msg}' if '?' in redirect_url else f'{redirect_url}?msg={msg}')
             except Exception as exc:
-                error = str(exc) or 'No se pudo eliminar la sesión.'
+                error = str(exc) or 'No se pudo enviar la sesión a papelera.'
 
         elif action == 'attendance':
             try:
@@ -33555,37 +33726,28 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 if not session_obj:
                     raise ValueError('Sesión no encontrada.')
-                if _is_library_session(session_obj):
-                    raise ValueError(
-                        'Esa sesión pertenece a la Biblioteca (repositorio) y no se puede eliminar. '
-                        'Si la ves duplicada, avísanos: la ocultamos/limpiamos sin perder tareas.'
-                    )
-                # Seguridad: antes de borrar una sesión (hard delete), guarda backups de sus tareas.
-                # Esto evita pérdidas irreversibles si el usuario elimina por error.
                 try:
                     actor = request.user.username if request and getattr(request, 'user', None) and request.user.is_authenticated else ''
                 except Exception:
                     actor = ''
-                try:
-                    for task_obj in (
-                        SessionTask.objects
-                        .filter(session=session_obj)
-                        .order_by('id')[:600]
-                    ):
-                        try:
-                            write_task_backup(
-                                task_obj,
-                                kind='session_task',
-                                reason=f'session_delete_{int(session_obj.id)}',
-                                actor_username=actor,
-                            )
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
                 deleted_focus = session_obj.focus
-                session_obj.delete()
-                feedback = f'Sesión eliminada: {deleted_focus}.'
+                _archive_training_session(session_obj, actor_username=actor, reason='planner_delete')
+                feedback = f'Sesión enviada a papelera: {deleted_focus}.'
+
+            elif planner_action == 'restore_session_from_trash':
+                session_id = _parse_int(request.POST.get('restore_session_id'))
+                if not session_id:
+                    raise ValueError('No se pudo identificar la sesión.')
+                session_obj = (
+                    TrainingSession.objects
+                    .select_related('microcycle')
+                    .filter(id=session_id, microcycle__team=primary_team)
+                    .first()
+                )
+                if not session_obj or not _is_trash_microcycle(getattr(session_obj, 'microcycle', None)):
+                    raise ValueError('Sesión no encontrada en Papelera.')
+                _restore_training_session_from_trash(session_obj)
+                feedback = f'Sesión restaurada: {session_obj.focus}.'
 
             elif planner_action == 'duplicate_session_plan':
                 source_session_id = _parse_int(request.POST.get('source_session_id'))
@@ -34038,30 +34200,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 feedback = f'Tarea restaurada: {restored_title}.'
 
             elif planner_action == 'purge_session_task':
-                task_id = _parse_int(request.POST.get('task_id'))
-                target_task = (
-                    SessionTask.objects
-                    .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
-                    .first()
-                )
-                if not target_task:
-                    raise ValueError('No se encontró la tarea en papelera.')
-                session_for_order = target_task.session
-                task_title = str(target_task.title or f'Tarea {target_task.id}')
-                try:
-                    if getattr(target_task, 'task_pdf', None):
-                        target_task.task_pdf.delete(save=False)
-                except Exception:
-                    pass
-                try:
-                    if getattr(target_task, 'task_preview_image', None):
-                        target_task.task_preview_image.delete(save=False)
-                except Exception:
-                    pass
-                target_task.delete()
-                _normalize_session_task_orders(session_for_order)
-                feedback = f'Tarea eliminada definitivamente: {task_title}.'
+                raise ValueError('Borrado definitivo deshabilitado: la tarea permanece en Papelera para evitar pérdidas.')
 
             elif planner_action == 'bulk_create_tasks':
                 bulk_text = (request.POST.get('bulk_tasks_text') or '').strip()
@@ -34640,30 +34779,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 feedback = f'Tarea restaurada: {str(target_task.title or f"Tarea {target_task.id}")}.'
 
             elif planner_action == 'purge_library_task':
-                task_id = _parse_int(request.POST.get('task_id'))
-                target_task = (
-                    SessionTask.objects
-                    .select_related('session__microcycle')
-                    .filter(id=task_id, session__microcycle__team=primary_team, deleted_at__isnull=False)
-                    .first()
-                )
-                if not target_task:
-                    raise ValueError('No se encontró la tarea en papelera.')
-                if _task_scope_for_item(target_task) != scope_key:
-                    raise ValueError('La tarea seleccionada no pertenece a este espacio.')
-                task_title = str(target_task.title or f'Tarea {target_task.id}')
-                try:
-                    if getattr(target_task, 'task_pdf', None):
-                        target_task.task_pdf.delete(save=False)
-                except Exception:
-                    pass
-                try:
-                    if getattr(target_task, 'task_preview_image', None):
-                        target_task.task_preview_image.delete(save=False)
-                except Exception:
-                    pass
-                target_task.delete()
-                feedback = f'Tarea eliminada definitivamente: {task_title}.'
+                raise ValueError('Borrado definitivo deshabilitado: la tarea permanece en Papelera para evitar pérdidas.')
 
             elif planner_action == 'update_library_task':
                 task_id = _parse_int(request.POST.get('task_id'))
@@ -38460,6 +38576,53 @@ def _ai_trainer_load_coach_dictionary():
     return data
 
 
+def _ai_trainer_merge_dictionary_overrides(base: dict, overrides: list) -> dict:
+    merged = dict(base or {})
+    for section in ['principles', 'zones', 'phases', 'figures']:
+        merged_section = merged.get(section) if isinstance(merged.get(section), dict) else {}
+        merged[section] = dict(merged_section)
+
+    for entry in overrides or []:
+        if not entry:
+            continue
+        section = str(getattr(entry, 'section', '') or '').strip()
+        if section not in {'principles', 'zones', 'phases', 'figures'}:
+            continue
+        key = str(getattr(entry, 'entry_key', '') or '').strip()
+        if not key:
+            continue
+        label = str(getattr(entry, 'label', '') or '').strip()
+        keywords = getattr(entry, 'keywords', []) if isinstance(getattr(entry, 'keywords', None), list) else []
+        coaching_points = getattr(entry, 'coaching_points', []) if isinstance(getattr(entry, 'coaching_points', None), list) else []
+        payload = merged.get(section) if isinstance(merged.get(section), dict) else {}
+        payload = dict(payload)
+        current = payload.get(key) if isinstance(payload.get(key), dict) else {}
+        current = dict(current)
+        if label:
+            current['label'] = label
+        if keywords:
+            current['keywords'] = [str(x) for x in keywords if str(x or '').strip()][:60]
+        if coaching_points:
+            current['coaching_points'] = [str(x) for x in coaching_points if str(x or '').strip()][:30]
+        payload[key] = current
+        merged[section] = payload
+    return merged
+
+
+def _ai_trainer_load_dictionary_for(team, workspace=None) -> dict:
+    base = _ai_trainer_load_coach_dictionary()
+    if not team:
+        return base
+    try:
+        qs = AiTrainerDictionaryEntry.objects.filter(team=team)
+        if workspace:
+            qs = qs.filter(Q(workspace=workspace) | Q(workspace__isnull=True))
+        overrides = list(qs.order_by('-updated_at', '-id')[:600])
+    except Exception:
+        overrides = []
+    return _ai_trainer_merge_dictionary_overrides(base, overrides)
+
+
 def _ai_trainer_match_section(section: dict, text_norm: str, *, limit: int = 10):
     if not isinstance(section, dict) or not text_norm:
         return []
@@ -38482,7 +38645,7 @@ def _ai_trainer_match_section(section: dict, text_norm: str, *, limit: int = 10)
     return out
 
 
-def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals: dict):
+def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals: dict, dictionary: dict = None):
     principles = signals.get('principles') if isinstance(signals.get('principles'), list) else []
     zones = signals.get('zones') if isinstance(signals.get('zones'), list) else []
     figures = signals.get('figures') if isinstance(signals.get('figures'), list) else []
@@ -38507,8 +38670,8 @@ def _ai_trainer_build_proposals(*, profile: str, phase: str, goal: str, signals:
                 continue
             # Recupera puntos desde diccionario (si están).
             try:
-                dictionary = _ai_trainer_load_coach_dictionary()
-                entry = (dictionary.get('principles') or {}).get(key) if isinstance(dictionary.get('principles'), dict) else None
+                local_dict = dictionary or _ai_trainer_load_coach_dictionary()
+                entry = (local_dict.get('principles') or {}).get(key) if isinstance(local_dict.get('principles'), dict) else None
                 cp = entry.get('coaching_points') if isinstance(entry, dict) else None
                 if isinstance(cp, list):
                     pts.extend([str(x) for x in cp[:3] if str(x or '').strip()])
@@ -38690,8 +38853,14 @@ def ai_trainer_page(request):
     proposals = []
     signals = {}
     suggestions = []
-
-    dictionary = _ai_trainer_load_coach_dictionary()
+    dict_prefill = {}
+    workspace = None
+    try:
+        workspace = _get_active_workspace(request)
+    except Exception:
+        workspace = None
+    can_train_dictionary = bool(_is_admin_user(request.user) or (workspace and _can_manage_workspace(request.user, workspace)))
+    dictionary = _ai_trainer_load_dictionary_for(team, workspace=workspace)
 
     if request.method == 'POST':
         post_action = str(request.POST.get('action') or '').strip().lower() or 'generate'
@@ -38699,20 +38868,100 @@ def ai_trainer_page(request):
         phase = str(request.POST.get('phase') or phase).strip()
         goal = str(request.POST.get('goal') or goal).strip()
         text_norm = _ai_trainer_normalize_text(goal)
-        workspace = None
-        try:
-            workspace = _get_active_workspace(request)
-        except Exception:
-            workspace = None
         tokens = _ai_trainer_tokenize(text_norm, limit=32)
+
+        # Entrenar diccionario (PRG).
+        if post_action in {'dict_save', 'dict_delete'}:
+            if not can_train_dictionary:
+                return HttpResponse('No autorizado.', status=403)
+            section = str(request.POST.get('dict_section') or '').strip()
+            entry_key = str(request.POST.get('dict_key') or '').strip()
+            if section not in {'principles', 'zones', 'phases', 'figures'} or not entry_key:
+                return HttpResponse('Entrada no válida.', status=400)
+
+            if post_action == 'dict_delete':
+                try:
+                    AiTrainerDictionaryEntry.objects.filter(team=team, section=section, entry_key=entry_key, workspace=workspace).delete()
+                except Exception:
+                    pass
+            else:
+                label = str(request.POST.get('dict_label') or '').strip()[:160]
+
+                def _parse_lines(raw, *, max_items: int = 80):
+                    blob = str(raw or '').replace('\r', '\n')
+                    parts = []
+                    for line in blob.splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        for piece in line.split(','):
+                            val = str(piece or '').strip()
+                            if val:
+                                parts.append(val)
+                    clean = []
+                    seen = set()
+                    for it in parts:
+                        k = _ai_trainer_normalize_text(it)
+                        if not k or k in seen:
+                            continue
+                        seen.add(k)
+                        clean.append(it)
+                        if len(clean) >= max_items:
+                            break
+                    return clean
+
+                keywords = _parse_lines(request.POST.get('dict_keywords'), max_items=60)
+                coaching_points = _parse_lines(request.POST.get('dict_coaching_points'), max_items=30)
+                AiTrainerDictionaryEntry.objects.update_or_create(
+                    team=team,
+                    workspace=workspace,
+                    section=section,
+                    entry_key=entry_key[:64],
+                    defaults={
+                        'label': label,
+                        'keywords': keywords,
+                        'coaching_points': coaching_points,
+                        'created_by': request.user if request.user and request.user.is_authenticated else None,
+                    },
+                )
+
+            params = {'team': int(team.id)}
+            if profile:
+                params['profile'] = str(profile)
+            if phase:
+                params['phase'] = str(phase)
+            if goal and len(goal) <= 900:
+                params['goal'] = str(goal)
+            return redirect(f"{reverse('ai-trainer')}?{urlencode(params)}")
         signals = {
             'principles': _ai_trainer_match_section(dictionary.get('principles') if isinstance(dictionary.get('principles'), dict) else {}, text_norm, limit=8),
             'zones': _ai_trainer_match_section(dictionary.get('zones') if isinstance(dictionary.get('zones'), dict) else {}, text_norm, limit=6),
             'phases': _ai_trainer_match_section(dictionary.get('phases') if isinstance(dictionary.get('phases'), dict) else {}, text_norm, limit=5),
             'figures': _ai_trainer_match_section(dictionary.get('figures') if isinstance(dictionary.get('figures'), dict) else {}, text_norm, limit=5),
         }
-        proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals)
+        proposals = _ai_trainer_build_proposals(profile=profile, phase=phase, goal=goal, signals=signals, dictionary=dictionary)
         suggestions = _ai_trainer_suggest_library_tasks(team, text_norm=text_norm, signals=signals, limit=8)
+        # Prefill para entrenar (solo lo detectado).
+        try:
+            dict_prefill = {}
+            for section in ['principles', 'zones', 'phases', 'figures']:
+                sec = dictionary.get(section) if isinstance(dictionary.get(section), dict) else {}
+                sec_prefill = {}
+                for it in (signals.get(section) or []):
+                    if not isinstance(it, dict):
+                        continue
+                    key = str(it.get('key') or '').strip()
+                    if not key:
+                        continue
+                    entry = sec.get(key) if isinstance(sec.get(key), dict) else {}
+                    sec_prefill[key] = {
+                        'label': str(entry.get('label') or it.get('label') or key).strip(),
+                        'keywords': entry.get('keywords') if isinstance(entry.get('keywords'), list) else [],
+                        'coaching_points': entry.get('coaching_points') if isinstance(entry.get('coaching_points'), list) else [],
+                    }
+                dict_prefill[section] = sec_prefill
+        except Exception:
+            dict_prefill = {}
 
         _ai_trainer_log_event(
             request,
@@ -38846,6 +39095,8 @@ def ai_trainer_page(request):
             'signals': signals,
             'proposals': proposals,
             'suggestions': suggestions,
+            'can_train_dictionary': can_train_dictionary,
+            'dict_prefill': dict_prefill,
         },
     )
 

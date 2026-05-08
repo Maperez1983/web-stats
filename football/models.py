@@ -1266,6 +1266,47 @@ class AiTrainerTaskIndex(models.Model):
         return f'Index {self.team.name} · task#{self.task_id}'
 
 
+class AiTrainerDictionaryEntry(models.Model):
+    """
+    Overrides editables del diccionario base (coach_dictionary_es_v1.json).
+
+    Se guardan en BD para persistir en Render y poder “entrenar” IA‑Trainer sin costes externos.
+    """
+
+    SECTION_PRINCIPLES = 'principles'
+    SECTION_ZONES = 'zones'
+    SECTION_PHASES = 'phases'
+    SECTION_FIGURES = 'figures'
+    SECTION_CHOICES = [
+        (SECTION_PRINCIPLES, 'Principios'),
+        (SECTION_ZONES, 'Zonas'),
+        (SECTION_PHASES, 'Fases'),
+        (SECTION_FIGURES, 'Figuras'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='ai_trainer_dictionary_entries')
+    workspace = models.ForeignKey(Workspace, null=True, blank=True, on_delete=models.SET_NULL, related_name='ai_trainer_dictionary_entries')
+    section = models.CharField(max_length=24, choices=SECTION_CHOICES)
+    entry_key = models.CharField(max_length=64)
+    label = models.CharField(max_length=160, blank=True)
+    keywords = models.JSONField(default=list, blank=True)
+    coaching_points = models.JSONField(default=list, blank=True)
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='ai_trainer_dictionary_entries')
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('team', 'workspace', 'section', 'entry_key')
+        ordering = ['section', 'entry_key', '-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'workspace', 'section', 'entry_key']),
+            models.Index(fields=['team', 'section', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.team.name} · {self.section}:{self.entry_key}'
+
+
 class SessionTaskBookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='session_task_bookmarks')
     task = models.ForeignKey(SessionTask, on_delete=models.CASCADE, related_name='bookmarks')

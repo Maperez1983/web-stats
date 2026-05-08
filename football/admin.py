@@ -124,3 +124,10 @@ class AiTrainerTaskIndexAdmin(admin.ModelAdmin):
     list_display = ('updated_at', 'team', 'repository', 'task')
     list_filter = ('team', 'repository')
     search_fields = ('task__title', 'content')
+
+
+@admin.register(models.AiTrainerDictionaryEntry)
+class AiTrainerDictionaryEntryAdmin(admin.ModelAdmin):
+    list_display = ('updated_at', 'team', 'workspace', 'section', 'entry_key', 'label', 'created_by')
+    list_filter = ('team', 'section')
+    search_fields = ('entry_key', 'label', 'keywords', 'coaching_points')

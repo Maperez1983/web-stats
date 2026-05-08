@@ -67,6 +67,7 @@
           <div class="section-title">Hoy quiero…</div>
           <form method="post">
             {% csrf_token %}
+            <input type="hidden" name="action" value="generate" />
             <div class="row">
               <label>
                 Perfil
@@ -198,6 +199,111 @@
                   </div>
                 {% endfor %}
               </div>
+            </div>
+          {% endif %}
+
+          {% if can_train_dictionary %}
+            <div style="margin-top:1.05rem;">
+              <div class="section-title">Entrenar diccionario (admin)</div>
+              <p class="muted" style="margin:0 0 0.55rem;">
+                Añade/ajusta keywords y consignas para que IA‑Trainer detecte mejor tus conceptos. Se guarda en BD.
+              </p>
+
+              {% if dict_prefill %}
+                {% for section, items in dict_prefill.items %}
+                  {% if items %}
+                    <div class="muted" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; margin-top:0.65rem;">
+                      {{ section }}
+                    </div>
+                    <div class="blocks" style="margin-top:0.35rem;">
+                      {% for key, data in items.items %}
+                        <div class="block">
+                          <strong class="mono">{{ key }}</strong>
+                          <form method="post" action="?team={{ team.id }}" style="margin-top:0.45rem;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="dict_save" />
+                            <input type="hidden" name="dict_section" value="{{ section }}" />
+                            <input type="hidden" name="dict_key" value="{{ key }}" />
+                            <input type="hidden" name="profile" value="{{ profile }}" />
+                            <input type="hidden" name="phase" value="{{ phase }}" />
+                            <input type="hidden" name="goal" value="{{ goal }}" />
+                            <label style="margin-top:0.2rem;">
+                              Label
+                              <input name="dict_label" value="{{ data.label }}" />
+                            </label>
+                            <div class="row" style="margin-top:0.45rem;">
+                              <label>
+                                Keywords
+                                <textarea name="dict_keywords" style="min-height:74px;">{% for kw in data.keywords %}{{ kw }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}</textarea>
+                              </label>
+                              <label>
+                                Consignas
+                                <textarea name="dict_coaching_points" style="min-height:74px;">{% for cp in data.coaching_points %}{{ cp }}{% if not forloop.last %}&#10;{% endif %}{% endfor %}</textarea>
+                              </label>
+                            </div>
+                            <div class="actions" style="justify-content:flex-start;">
+                              <button type="submit" class="btn primary">Guardar</button>
+                            </div>
+                          </form>
+                          <form method="post" action="?team={{ team.id }}" style="margin-top:0.35rem;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="dict_delete" />
+                            <input type="hidden" name="dict_section" value="{{ section }}" />
+                            <input type="hidden" name="dict_key" value="{{ key }}" />
+                            <input type="hidden" name="profile" value="{{ profile }}" />
+                            <input type="hidden" name="phase" value="{{ phase }}" />
+                            <input type="hidden" name="goal" value="{{ goal }}" />
+                            <button type="submit" class="btn" title="Borrar override (volver a base)">Borrar override</button>
+                          </form>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              <div class="muted" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; margin-top:0.85rem;">
+                Añadir nuevo concepto
+              </div>
+              <form method="post" action="?team={{ team.id }}" style="margin-top:0.35rem;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dict_save" />
+                <input type="hidden" name="profile" value="{{ profile }}" />
+                <input type="hidden" name="phase" value="{{ phase }}" />
+                <input type="hidden" name="goal" value="{{ goal }}" />
+                <div class="row">
+                  <label>
+                    Sección
+                    <select name="dict_section">
+                      <option value="principles">principles</option>
+                      <option value="zones">zones</option>
+                      <option value="phases">phases</option>
+                      <option value="figures">figures</option>
+                    </select>
+                  </label>
+                  <label>
+                    Key (sin espacios)
+                    <input name="dict_key" placeholder="ej: tercer_hombre" />
+                  </label>
+                </div>
+                <label style="margin-top:0.45rem;">
+                  Label
+                  <input name="dict_label" placeholder="Ej: 3er hombre" />
+                </label>
+                <div class="row" style="margin-top:0.45rem;">
+                  <label>
+                    Keywords
+                    <textarea name="dict_keywords" style="min-height:74px;" placeholder="una por línea, ej:\n3er hombre\ntercer hombre\nhombre libre"></textarea>
+                  </label>
+                  <label>
+                    Consignas
+                    <textarea name="dict_coaching_points" style="min-height:74px;" placeholder="una por línea, ej:\norientar antes de recibir\nfijar y soltar\napoyos a distinta altura"></textarea>
+                  </label>
+                </div>
+                <div class="actions" style="justify-content:flex-start;">
+                  <button type="submit" class="btn primary">Guardar concepto</button>
+                </div>
+              </form>
             </div>
           {% endif %}
         </section>

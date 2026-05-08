@@ -7929,3 +7929,39 @@ class AiTrainerLibraryTests(TestCase):
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
         self.assertEqual(str(meta.get('repository') or ''), 'ai_trainer')
+
+    def test_ai_trainer_dictionary_training_adds_new_detection(self):
+        self.client.force_login(self.user)
+        self._activate_workspace()
+
+        url = reverse('ai-trainer') + f'?team={self.team.id}'
+        resp = self.client.post(
+            url,
+            data={
+                'action': 'dict_save',
+                'dict_section': 'principles',
+                'dict_key': 'concepto_custom',
+                'dict_label': 'Concepto Custom',
+                'dict_keywords': 'palabraunica123',
+                'dict_coaching_points': 'consigna 1\\nconsigna 2',
+                'profile': 'hybrid',
+                'phase': 'Ataque',
+                'goal': 'palabraunica123',
+            },
+            secure=True,
+        )
+        self.assertIn(resp.status_code, {301, 302})
+
+        resp2 = self.client.post(
+            url,
+            data={
+                'action': 'generate',
+                'profile': 'hybrid',
+                'phase': 'Ataque',
+                'goal': 'Quiero trabajar palabraunica123 hoy.',
+            },
+            secure=True,
+        )
+        self.assertEqual(resp2.status_code, 200)
+        html = (resp2.content or b'').decode('utf-8', errors='ignore')
+        self.assertIn('Concepto Custom', html)
