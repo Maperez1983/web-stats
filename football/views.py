@@ -41940,6 +41940,214 @@ def analysis_page(request):
 
 
 @login_required
+def analysis_rival_profile_page(request, rival_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    rival = Team.objects.filter(id=int(rival_id)).first()
+    if not rival:
+        raise Http404('Rival no encontrado')
+
+    active_tab = str(request.GET.get('tab') or '').strip().lower() or 'roster'
+    if active_tab not in {'roster', 'reports', 'videos'}:
+        active_tab = 'roster'
+
+    message = ''
+    error = ''
+
+    standings_row = None
+    if primary_team:
+        try:
+            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) or []
+        except Exception:
+            standings_rows = []
+        rival_keys = {
+            _normalize_team_lookup_key(getattr(rival, 'name', '') or ''),
+            _normalize_team_lookup_key(getattr(rival, 'display_name', '') or ''),
+            _normalize_team_lookup_key(getattr(rival, 'short_name', '') or ''),
+        }
+        rival_keys = {k for k in rival_keys if k}
+        rival_code = str(getattr(rival, 'external_id', '') or '').strip()
+        for row in standings_rows:
+            if not isinstance(row, dict):
+                continue
+            full_name = str(row.get('full_name') or row.get('team') or '').strip()
+            row_code = str(row.get('team_code') or '').strip()
+            if rival_code and row_code and rival_code == row_code:
+                standings_row = row
+                break
+            if full_name and _normalize_team_lookup_key(full_name) in rival_keys:
+                standings_row = row
+                break
+
+    try:
+        cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
+    except Exception:
+        cache_days = 14
+    threshold = timezone.now() - timedelta(days=cache_days)
+    roster_snapshot = (
+        TeamRosterSnapshot.objects.filter(team=rival)
+        .order_by('-updated_at', '-id')
+        .first()
+    )
+
+    if request.method == 'POST':
+        form_action = str(request.POST.get('form_action') or '').strip().lower()
+        if form_action == 'refresh_roster':
+            roster_rows = []
+            roster_provider = ''
+            source_url = ''
+            fetch_error = ''
+
+            universo_team_code = str(getattr(rival, 'external_id', '') or '').strip()
+            if universo_team_code and universo_team_code.isdigit():
+                try:
+                    roster_rows = fetch_universo_team_roster(universo_team_code)
+                    roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+                    source_url = f'https://www.universorfaf.es/team/{universo_team_code}'
+                except Exception as exc:
+                    fetch_error = str(exc) or 'No se pudo cargar la plantilla desde Universo.'
+                    roster_rows = []
+
+            if not roster_rows:
+                candidate_url = str(getattr(rival, 'preferente_url', '') or '').strip()
+                if not candidate_url:
+                    try:
+                        candidate_url = find_preferente_team_url(rival.name)
+                    except Exception:
+                        candidate_url = ''
+                    if candidate_url:
+                        try:
+                            rival.preferente_url = candidate_url
+                            rival.save(update_fields=['preferente_url'])
+                        except Exception:
+                            pass
+                if candidate_url:
+                    try:
+                        roster_rows = fetch_preferente_team_roster(candidate_url)
+                        roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                        source_url = candidate_url
+                        fetch_error = ''
+                    except Exception as exc:
+                        fetch_error = str(exc) or 'No se pudo cargar La Preferente.'
+                        roster_rows = []
+
+            if roster_rows:
+                try:
+                    TeamRosterSnapshot.objects.update_or_create(
+                        team=rival,
+                        provider=roster_provider or TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                        defaults={
+                            'roster_payload': roster_rows,
+                            'source_url': str(source_url or '').strip(),
+                            'error': '',
+                        },
+                    )
+                    message = f'Plantilla actualizada ({len(roster_rows)} jugadores).'
+                except Exception:
+                    error = 'No se pudo guardar la plantilla en caché.'
+            else:
+                try:
+                    TeamRosterSnapshot.objects.update_or_create(
+                        team=rival,
+                        provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                        defaults={
+                            'error': (fetch_error or 'No se pudo actualizar la plantilla.')[:240],
+                            'source_url': str(source_url or '').strip(),
+                        },
+                    )
+                except Exception:
+                    pass
+                error = fetch_error or 'No se pudo actualizar la plantilla.'
+
+            roster_snapshot = (
+                TeamRosterSnapshot.objects.filter(team=rival)
+                .order_by('-updated_at', '-id')
+                .first()
+            )
+
+    roster_payload = roster_snapshot.roster_payload if roster_snapshot and isinstance(roster_snapshot.roster_payload, list) else []
+    roster_count = len(roster_payload) if roster_payload else 0
+    roster_ok = bool(
+        roster_snapshot
+        and roster_snapshot.updated_at
+        and roster_snapshot.updated_at >= threshold
+        and roster_count > 0
+        and not (roster_snapshot.error or '').strip()
+    )
+
+    manual_reports = []
+    match_reports = []
+    if primary_team:
+        try:
+            manual_reports = list(
+                RivalAnalysisReport.objects
+                .filter(team=primary_team, rival_team=rival)
+                .order_by('-updated_at', '-id')[:18]
+            )
+        except Exception:
+            manual_reports = []
+
+        try:
+            match_ids = list(
+                _team_match_queryset(primary_team)
+                .filter(Q(home_team=rival) | Q(away_team=rival))
+                .values_list('id', flat=True)[:60]
+            )
+        except Exception:
+            match_ids = []
+        try:
+            reports_qs = AnalystMatchReport.objects.filter(team=primary_team).select_related('match').order_by('-created_at', '-id')
+            if match_ids:
+                reports_qs = reports_qs.filter(Q(match_id__in=match_ids) | Q(opponent_name__icontains=str(rival.name or '')))
+            else:
+                reports_qs = reports_qs.filter(Q(opponent_name__icontains=str(rival.name or '')))
+            match_reports = list(reports_qs[:18])
+        except Exception:
+            match_reports = []
+
+    rival_videos = []
+    if primary_team:
+        try:
+            rival_videos_qs = (
+                RivalVideo.objects
+                .select_related('rival_team', 'folder')
+                .prefetch_related('assigned_players')
+                .order_by('-created_at')
+                .filter(rival_team=rival)
+            )
+            rival_videos_qs = rival_videos_qs.filter(Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team))
+            rival_videos = list(rival_videos_qs[:30])
+        except Exception:
+            rival_videos = []
+
+    return render(
+        request,
+        'football/analysis_rival_profile.html',
+        {
+            'section_title': 'Ficha rival',
+            'primary_team': primary_team,
+            'rival': rival,
+            'active_tab': active_tab,
+            'message': message,
+            'error': error,
+            'standings_row': standings_row,
+            'roster_snapshot': roster_snapshot,
+            'roster_ok': roster_ok,
+            'roster_payload': roster_payload,
+            'cache_days': cache_days,
+            'manual_reports': manual_reports,
+            'match_reports': match_reports,
+            'rival_videos': rival_videos,
+        },
+    )
+
+
+@login_required
 def analysis_match_report_file(request, report_id):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:

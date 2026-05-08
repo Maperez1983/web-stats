@@ -1357,6 +1357,7 @@
                           <div class="video-actions" style="justify-content:flex-end;">
                             {% if row.team_id %}
                               <a class="button ghost" href="?tab=reports&team_id={{ row.team_id }}">Abrir</a>
+                              <a class="button ghost" href="{% url 'analysis-rival-profile' row.team_id %}">Ficha</a>
                               <form method="post" style="margin:0;">
                                 {% csrf_token %}
                                 <input type="hidden" name="form_action" value="rivals_refresh_snapshot" />
