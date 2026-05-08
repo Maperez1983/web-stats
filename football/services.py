@@ -823,9 +823,10 @@ def compute_probable_eleven(players: list[dict]) -> list[dict]:
 
 def build_rival_insights(players: list[dict]) -> dict:
     if not players:
-        return {'top_scorers': [], 'most_minutes': [], 'most_cards': []}
+        return {'top_scorers': [], 'most_minutes': [], 'most_cards': [], 'role_breakdown': {'GK': 0, 'DEF': 0, 'MID': 0, 'ATT': 0}}
 
     normalized_players = []
+    role_breakdown = {'GK': 0, 'DEF': 0, 'MID': 0, 'ATT': 0}
     for player in players:
         item = dict(player)
         item['goals'] = max(0, int(item.get('goals', 0) or 0))
@@ -834,6 +835,8 @@ def build_rival_insights(players: list[dict]) -> dict:
         item['yellow_cards'] = max(0, int(item.get('yellow_cards', 0) or 0))
         item['red_cards'] = max(0, int(item.get('red_cards', 0) or 0))
         item['_role'] = infer_roster_role(item.get('position') or '')
+        if item['_role'] in role_breakdown:
+            role_breakdown[item['_role']] += 1
         # Guardrails: un portero como máximo goleador suele indicar parseo roto.
         if item['_role'] == 'GK' and item['goals'] > 3:
             item['goals'] = 0
@@ -864,6 +867,7 @@ def build_rival_insights(players: list[dict]) -> dict:
         'top_scorers': top_scorers,
         'most_minutes': most_minutes,
         'most_cards': most_cards,
+        'role_breakdown': role_breakdown,
     }
 
 

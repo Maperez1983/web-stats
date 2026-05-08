@@ -41507,6 +41507,55 @@ def analysis_page(request):
                 }
             )
         rivals_library.sort(key=lambda x: (x.get('rank', 0) <= 0, int(x.get('rank', 0) or 0), x.get('full_name') or ''))
+        # Estado scouting por rival: informes listos + vídeos asociados.
+        try:
+            rival_team_ids = [int(r.get('team_id') or 0) for r in rivals_library if int(r.get('team_id') or 0)]
+        except Exception:
+            rival_team_ids = []
+        if primary_team and rival_team_ids:
+            ready_map = {}
+            ready_last_map = {}
+            try:
+                ready_rows = list(
+                    RivalAnalysisReport.objects
+                    .filter(team=primary_team, rival_team_id__in=rival_team_ids, status=RivalAnalysisReport.STATUS_READY)
+                    .values('rival_team_id')
+                    .annotate(n=Count('id'), last=Max('updated_at'))
+                )
+                for row in ready_rows:
+                    rid = int(row.get('rival_team_id') or 0)
+                    ready_map[rid] = int(row.get('n') or 0)
+                    ready_last_map[rid] = row.get('last')
+            except Exception:
+                ready_map = {}
+                ready_last_map = {}
+
+            videos_map = {}
+            videos_last_map = {}
+            try:
+                videos_rows = list(
+                    RivalVideo.objects
+                    .filter(
+                        Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team),
+                        rival_team_id__in=rival_team_ids,
+                    )
+                    .values('rival_team_id')
+                    .annotate(n=Count('id'), last=Max('created_at'))
+                )
+                for row in videos_rows:
+                    rid = int(row.get('rival_team_id') or 0)
+                    videos_map[rid] = int(row.get('n') or 0)
+                    videos_last_map[rid] = row.get('last')
+            except Exception:
+                videos_map = {}
+                videos_last_map = {}
+
+            for item in rivals_library:
+                tid = int(item.get('team_id') or 0)
+                item['reports_ready_count'] = ready_map.get(tid, 0)
+                item['reports_ready_last'] = ready_last_map.get(tid)
+                item['videos_count'] = videos_map.get(tid, 0)
+                item['videos_last'] = videos_last_map.get(tid)
     manual_report_latest = None
     manual_reports = []
     if primary_team:
@@ -41569,6 +41618,22 @@ def analysis_page(request):
         if selected_team:
             folders_qs = folders_qs.filter(Q(rival_team=selected_team) | Q(rival_team__isnull=True))
         video_folders = list(folders_qs.order_by('name', '-created_at'))
+
+    video_inbox_unread_count = 0
+    if active_tab == 'videos' and primary_team:
+        try:
+            active_ws = _get_active_workspace(request)
+        except Exception:
+            active_ws = None
+        if active_ws:
+            try:
+                video_inbox_unread_count = (
+                    VideoInboxItem.objects
+                    .filter(workspace=active_ws, team=primary_team, target_user=request.user, is_read=False)
+                    .count()
+                )
+            except Exception:
+                video_inbox_unread_count = 0
 
     rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder').prefetch_related('assigned_players').order_by('-created_at')
     if primary_team:
@@ -41661,7 +41726,8 @@ def analysis_page(request):
                 'video_folders': video_folders,
                 'selected_folder_id': selected_folder_id,
                 'folder_message': folder_message,
-                'folder_error': folder_error,
+            'folder_error': folder_error,
+            'video_inbox_unread_count': int(video_inbox_unread_count or 0),
             'analyst_players': analyst_players,
             'home_rival_name': home_rival_name,
             'extracted': extracted,
@@ -41713,6 +41779,38 @@ def analysis_match_report_file(request, report_id):
     response['Content-Disposition'] = f'inline; filename="{Path(str(report.document.name)).name}"'
     response['Cache-Control'] = 'private, max-age=60'
     return response
+
+
+@login_required
+def analysis_rival_report_pdf(request, report_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    report_id = int(report_id)
+    report = (
+        RivalAnalysisReport.objects
+        .select_related('rival_team', 'team')
+        .filter(team=primary_team, id=report_id)
+        .first()
+    )
+    if not report:
+        raise Http404('Informe no disponible')
+
+    context = {
+        'team': primary_team,
+        'report': report,
+        'generated_at': timezone.now(),
+    }
+    html = render_to_string('football/analysis_rival_report_pdf.html', context)
+    title_hint = str(getattr(report, 'report_title', '') or '').strip() or str(getattr(report, 'match_round', '') or '').strip() or str(getattr(report, 'rival_name', '') or '').strip()
+    filename = slugify(f'plan-rival-{primary_team.id}-{report_id}-{title_hint}') or f'plan-rival-{report_id}'
+    return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
 @login_required

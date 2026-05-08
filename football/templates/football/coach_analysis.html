@@ -662,91 +662,150 @@
                   {% csrf_token %}
                   <input type="hidden" name="form_action" value="save_manual_report" />
                   <input type="hidden" name="team_id" value="{{ team_id }}" />
-                  <div class="manual-grid">
-                    <div>
-                      <label for="manual_report_title">Título informe</label>
-                      <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
+                  <p class="meta" style="margin:0 0 0.5rem;">
+                    Plantilla guiada por bloques. Rellena lo esencial y deja el resto como apoyo.
+                  </p>
+
+                  <details class="collapsible" open>
+                    <summary>1) Contexto del partido</summary>
+                    <div class="collapsible-body">
+                      <div class="manual-grid">
+                        <div>
+                          <label for="manual_report_title">Título informe</label>
+                          <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
+                        </div>
+                        <div>
+                          <label for="manual_rival_name">Rival</label>
+                          <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
+                        </div>
+                        <div>
+                          <label for="manual_match_round">Jornada</label>
+                          <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
+                        </div>
+                        <div>
+                          <label for="manual_match_date">Fecha/Hora</label>
+                          <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
+                        </div>
+                        <div class="wide">
+                          <label for="manual_match_location">Campo</label>
+                          <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
+                        </div>
+                        <div>
+                          <label for="manual_tactical_system">Sistema rival</label>
+                          <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
+                        </div>
+                        <div>
+                          <label for="manual_confidence">Nivel confianza (1-5)</label>
+                          <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
+                        </div>
+                        <div>
+                          <label for="manual_status">Estado</label>
+                          <select id="manual_status" name="manual_status">
+                            {% for value,label in manual_report_status_choices %}
+                            <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label for="manual_rival_name">Rival</label>
-                      <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
+                  </details>
+
+                  <details class="collapsible">
+                    <summary>2) Cómo atacan (fase ofensiva)</summary>
+                    <div class="collapsible-body">
+                      <p class="meta" style="margin-top:0;">Progresión, zonas preferidas, mecanismos, centro/pared/juego directo.</p>
+                      <div class="manual-grid">
+                        <div class="wide">
+                          <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
+                          <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:120px;" placeholder="• Salida: ...\n• Progresión: ...\n• Finalización: ...">{{ manual_initial.attacking_patterns }}</textarea>
+                        </div>
+                        <div class="wide">
+                          <label for="manual_key_players">Jugadores clave rival</label>
+                          <textarea id="manual_key_players" name="manual_key_players" style="min-height:92px;" placeholder="• #9 ...\n• #10 ...\n• Extremos ...">{{ manual_initial.key_players }}</textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label for="manual_match_round">Jornada</label>
-                      <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
+                  </details>
+
+                  <details class="collapsible">
+                    <summary>3) Cómo defienden (fase defensiva)</summary>
+                    <div class="collapsible-body">
+                      <p class="meta" style="margin-top:0;">Altura de bloque, presión, ajustes, defensa de área, basculaciones.</p>
+                      <div class="manual-grid">
+                        <div class="wide">
+                          <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
+                          <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:120px;" placeholder="• Presión: ...\n• Repliegue: ...\n• Marca: ...">{{ manual_initial.defensive_patterns }}</textarea>
+                        </div>
+                        <div>
+                          <label for="manual_weaknesses">Debilidades detectadas</label>
+                          <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:110px;" placeholder="• Espalda lateral...\n• Balón parado...\n• Distancias...">{{ manual_initial.weaknesses }}</textarea>
+                        </div>
+                        <div>
+                          <label for="manual_opportunities">Oportunidades para atacarles</label>
+                          <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:110px;" placeholder="• Cambios de orientación...\n• Juego entre líneas...\n• 2º palo...">{{ manual_initial.opportunities }}</textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label for="manual_match_date">Fecha/Hora</label>
-                      <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
+                  </details>
+
+                  <details class="collapsible">
+                    <summary>4) Transiciones (ataque/defensa)</summary>
+                    <div class="collapsible-body">
+                      <p class="meta" style="margin-top:0;">Reacción tras pérdida, contraataque, faltas tácticas, retorno.</p>
+                      <div class="manual-grid">
+                        <div class="wide">
+                          <label for="manual_transitions">Transiciones (OF/DEF)</label>
+                          <textarea id="manual_transitions" name="manual_transitions" style="min-height:120px;" placeholder="• Tras pérdida: ...\n• Tras robo: ...">{{ manual_initial.transitions }}</textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div class="wide">
-                      <label for="manual_match_location">Campo</label>
-                      <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
+                  </details>
+
+                  <details class="collapsible">
+                    <summary>5) ABP (balón parado)</summary>
+                    <div class="collapsible-body">
+                      <p class="meta" style="margin-top:0;">Córners, faltas, saques de banda, rechaces, bloqueos.</p>
+                      <div class="manual-grid">
+                        <div>
+                          <label for="manual_set_pieces_for">ABP ofensivas rival</label>
+                          <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:110px;" placeholder="• Córner: ...\n• Falta lateral: ...">{{ manual_initial.set_pieces_for }}</textarea>
+                        </div>
+                        <div>
+                          <label for="manual_set_pieces_against">ABP defensivas rival</label>
+                          <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:110px;" placeholder="• Zonal/mixta: ...\n• 2ª jugada: ...">{{ manual_initial.set_pieces_against }}</textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label for="manual_tactical_system">Sistema rival</label>
-                      <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
+                  </details>
+
+                  <details class="collapsible" open>
+                    <summary>6) Plan de partido + tareas</summary>
+                    <div class="collapsible-body">
+                      <p class="meta" style="margin-top:0;">Qué hacemos en salida, presión, alturas, ABP y gestión.</p>
+                      <div class="manual-grid">
+                        <div class="wide">
+                          <label for="manual_match_plan">Plan de partido propuesto</label>
+                          <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:140px;" placeholder="• Objetivo: ...\n• Clave 1: ...\n• Clave 2: ...\n• ABP: ...">{{ manual_initial.match_plan }}</textarea>
+                        </div>
+                        <div class="wide">
+                          <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
+                          <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:120px;" placeholder="- #...: ...\n- Línea defensiva: ...">{{ manual_initial.individual_tasks }}</textarea>
+                        </div>
+                        <div class="wide">
+                          <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
+                          <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:110px;" placeholder="• Lesiones/sanciones...\n• Contexto (viaje, campo)...">{{ manual_initial.alert_notes }}</textarea>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label for="manual_confidence">Nivel confianza (1-5)</label>
-                      <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
-                    </div>
-                    <div>
-                      <label for="manual_status">Estado</label>
-                      <select id="manual_status" name="manual_status">
-                        {% for value,label in manual_report_status_choices %}
-                        <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                      </select>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
-                      <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:96px;">{{ manual_initial.attacking_patterns }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
-                      <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:96px;">{{ manual_initial.defensive_patterns }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_transitions">Transiciones (OF/DEF)</label>
-                      <textarea id="manual_transitions" name="manual_transitions" style="min-height:96px;">{{ manual_initial.transitions }}</textarea>
-                    </div>
-                    <div>
-                      <label for="manual_set_pieces_for">ABP ofensivas rival</label>
-                      <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:90px;">{{ manual_initial.set_pieces_for }}</textarea>
-                    </div>
-                    <div>
-                      <label for="manual_set_pieces_against">ABP defensivas rival</label>
-                      <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:90px;">{{ manual_initial.set_pieces_against }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_key_players">Jugadores clave rival</label>
-                      <textarea id="manual_key_players" name="manual_key_players" style="min-height:88px;">{{ manual_initial.key_players }}</textarea>
-                    </div>
-                    <div>
-                      <label for="manual_weaknesses">Debilidades detectadas</label>
-                      <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:92px;">{{ manual_initial.weaknesses }}</textarea>
-                    </div>
-                    <div>
-                      <label for="manual_opportunities">Oportunidades para atacarles</label>
-                      <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:92px;">{{ manual_initial.opportunities }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_match_plan">Plan de partido propuesto</label>
-                      <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:110px;">{{ manual_initial.match_plan }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
-                      <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:110px;">{{ manual_initial.individual_tasks }}</textarea>
-                    </div>
-                    <div class="wide">
-                      <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
-                      <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:90px;">{{ manual_initial.alert_notes }}</textarea>
-                    </div>
-                  </div>
+                  </details>
                   <div class="actions">
                     <button class="button" type="submit">Guardar informe manual</button>
                     <button class="button ghost" type="button" id="rival-report-to-tasks" data-report-id="{{ manual_report_latest_id|default:0 }}">Crear tareas (biblioteca)</button>
+                    {% if manual_report_latest_id %}
+                      <a class="button ghost" href="{% url 'analysis-rival-report-pdf' manual_report_latest_id %}" target="_blank" rel="noopener">Exportar PDF</a>
+                    {% else %}
+                      <span class="meta" style="align-self:center;">Guarda el informe para exportar PDF.</span>
+                    {% endif %}
                   </div>
                   <p class="meta" id="rival-report-to-tasks-status" style="margin:0.35rem 0 0;">Convierte el último informe guardado en plantillas reutilizables.</p>
                   {% if manual_report_message %}
@@ -857,6 +916,19 @@
 
         <div data-tab="videos">
         <div class="grid" style="margin-top:1rem;">
+          <div class="item item-wide">
+            <h3>Bandeja y flujo</h3>
+            <p class="meta" style="margin:0.35rem 0 0;">
+              Recibe playlists/clips del staff y prepara la charla: selecciona clips en Video Studio → crea playlist → envíala a la Bandeja.
+            </p>
+            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">
+                Abrir bandeja{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }} sin leer){% endif %}
+              </a>
+              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=playlist">Playlists</a>
+              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=clip">Clips</a>
+            </div>
+          </div>
 	          <div class="item item-wide">
 	            <h3>Repositorio vídeos rival</h3>
 	            <details class="collapsible" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
@@ -1076,10 +1148,34 @@
         {% if roster %}
         <div class="grid">
           <div class="item">
-            <h3>Forma reciente</h3>
-            <p class="meta" id="rival-form-summary">Cargando…</p>
-            <ul class="list" id="rival-form-list">
-              <li><span class="meta">Cargando resultados…</span></li>
+            <h3>Perfil competitivo</h3>
+            <p class="meta" style="margin:0.35rem 0 0;">
+              Pos {% if extracted.rival_rank %}{{ extracted.rival_rank }}{% else %}—{% endif %}
+              · Pts {% if extracted.rival_points %}{{ extracted.rival_points }}{% else %}—{% endif %}
+              · DG {% if extracted.rival_gd != "" %}{% if extracted.rival_gd|add:0 > 0 %}+{{ extracted.rival_gd }}{% else %}{{ extracted.rival_gd }}{% endif %}{% else %}—{% endif %}
+            </p>
+            <ul class="list" style="margin-top:0.65rem;">
+              <li><strong>PJ</strong> <span class="meta">· {% if extracted.rival_played %}{{ extracted.rival_played }}{% else %}—{% endif %}</span></li>
+              <li><strong>V/E/D</strong> <span class="meta">· {% if extracted.rival_wins != "" %}{{ extracted.rival_wins }}{% else %}—{% endif %}·{% if extracted.rival_draws != "" %}{{ extracted.rival_draws }}{% else %}—{% endif %}·{% if extracted.rival_losses != "" %}{{ extracted.rival_losses }}{% else %}—{% endif %}</span></li>
+              <li><strong>GF/GC</strong> <span class="meta">· {% if extracted.rival_gf != "" %}{{ extracted.rival_gf }}{% else %}—{% endif %}/{% if extracted.rival_ga != "" %}{{ extracted.rival_ga }}{% else %}—{% endif %}</span></li>
+            </ul>
+          </div>
+          <div class="item">
+            <h3>Estructura plantilla</h3>
+            <p class="meta" style="margin:0.35rem 0 0;">Distribución por líneas (aprox.)</p>
+            <ul class="list" style="margin-top:0.65rem;">
+              <li><strong>Porteros</strong> <span class="meta">· {{ insights.role_breakdown.GK|default:0 }}</span></li>
+              <li><strong>Defensas</strong> <span class="meta">· {{ insights.role_breakdown.DEF|default:0 }}</span></li>
+              <li><strong>Medios</strong> <span class="meta">· {{ insights.role_breakdown.MID|default:0 }}</span></li>
+              <li><strong>Atacantes</strong> <span class="meta">· {{ insights.role_breakdown.ATT|default:0 }}</span></li>
+            </ul>
+          </div>
+          <div class="item">
+            <h3>Checklist scouting</h3>
+            <ul class="list" style="margin-top:0.65rem;">
+              <li><span class="meta">Plantilla:</span> {% if extracted.roster_source %}<strong>{{ extracted.roster_source }}</strong>{% else %}<span class="meta">—</span>{% endif %}</li>
+              <li><span class="meta">Universo:</span> {% if extracted.rival_team_code %}<strong>{{ extracted.rival_team_code }}</strong>{% else %}<span class="meta">—</span>{% endif %}</li>
+              <li><span class="meta">Preferente:</span> {% if extracted.preferente_url %}<strong>OK</strong>{% else %}<span class="meta">No</span>{% endif %}</li>
             </ul>
           </div>
           <div class="item item-wide">
@@ -1207,6 +1303,7 @@
                         <th>Equipo</th>
                         <th>En sistema</th>
                         <th>Plantilla</th>
+                        <th>Scouting</th>
                         <th>Jug.</th>
                         <th>Actualizado</th>
                         <th>Fuente</th>
@@ -1240,6 +1337,9 @@
                             <span class="meta">Falta</span>
                           {% endif %}
                         </td>
+                        <td class="meta">
+                          I {{ row.reports_ready_count|default:0 }} · V {{ row.videos_count|default:0 }}
+                        </td>
                         <td class="meta">{{ row.snapshot_count|default:"-" }}</td>
                         <td class="meta">{{ row.snapshot_updated|default:"-" }}</td>
                         <td class="meta">{{ row.snapshot_provider|default:"-" }}</td>
@@ -1251,7 +1351,7 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="form_action" value="rivals_refresh_snapshot" />
                                 <input type="hidden" name="rival_team_id" value="{{ row.team_id }}" />
-                                <button class="button ghost" type="submit">Actualizar</button>
+                                <button class="button ghost" type="submit">Cachear plantilla</button>
                               </form>
                             {% else %}
                               <span class="meta">Crea el rival primero</span>

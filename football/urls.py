@@ -219,6 +219,7 @@ urlpatterns = [
     path('coach/sesiones/sesion/<int:session_id>/presentacion/', views.session_presentation_pdf, name='session-presentation-pdf'),
     path('coach/sesiones/tarea/<int:task_id>/canva/', views.session_task_canva_export, name='session-task-canva-export'),
     path('coach/multas/', views.fines_page, name='fines'),
+    path('coach/analisis/informe/<int:report_id>/pdf/', views.analysis_rival_report_pdf, name='analysis-rival-report-pdf'),
     path('coach/analisis/informes/<int:report_id>/file/', views.analysis_match_report_file, name='analysis-match-report-file'),
     path('coach/analisis/', views.analysis_page, name='analysis'),
     path('coach/analisis/inbox/', views.analysis_video_inbox_page, name='analysis-video-inbox'),

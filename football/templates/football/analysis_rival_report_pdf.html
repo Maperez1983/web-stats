@@ -1,0 +1,170 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% if report.report_title %}{{ report.report_title }}{% else %}Informe rival{% endif %}</title>
+    {% include 'football/includes/print_tokens_css.html' %}
+    <style>
+      @page { size: A4; margin: 14mm; }
+      body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; }
+      h1 { margin: 0 0 6px 0; font-size: 18px; letter-spacing: 0.06em; text-transform: uppercase; }
+      h2 { margin: 16px 0 8px 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+      .meta { color: #334155; font-weight: 700; font-size: 10px; }
+      .muted { color: #64748b; }
+      .box { border: 1px solid rgba(15, 23, 42, 0.18); border-radius: 10px; padding: 10px; margin-top: 10px; }
+      .row { width: 100%; border-collapse: collapse; }
+      .row td { vertical-align: top; padding: 4px 6px; font-size: 10px; border-bottom: 1px solid rgba(15, 23, 42, 0.08); }
+      .k { display: inline-block; padding: 2px 6px; border-radius: 999px; background: rgba(2, 6, 23, 0.06); border: 1px solid rgba(15, 23, 42, 0.12); font-weight: 800; font-size: 9px; }
+      .notes { margin-top: 6px; font-size: 10px; white-space: pre-wrap; line-height: 1.35; }
+      .empty { font-size: 10px; color: #64748b; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <h1>{% if report.report_title %}{{ report.report_title }}{% else %}Plan de partido{% endif %}</h1>
+    <div class="meta">
+      {% if team %}{{ team.display_name|default:team.name }} · {% endif %}
+      Rival: {{ report.rival_name }}
+      {% if report.match_round %} · {{ report.match_round }}{% endif %}
+      {% if report.match_date %} · {{ report.match_date }}{% endif %}
+      · Generado: {{ generated_at|date:"Y-m-d H:i" }}
+    </div>
+
+    <div class="box">
+      <table class="row">
+        <tr>
+          <td><span class="k">Campo</span></td>
+          <td style="width:100%">{% if report.match_location %}{{ report.match_location }}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td><span class="k">Sistema</span></td>
+          <td>{% if report.tactical_system %}{{ report.tactical_system }}{% else %}<span class="muted">—</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td><span class="k">Confianza</span></td>
+          <td>{{ report.confidence_level|default:3 }}/5</td>
+          <td><span class="k">Estado</span></td>
+          <td>{{ report.get_status_display }}</td>
+        </tr>
+      </table>
+      {% if report.created_by %}
+        <div class="meta muted" style="margin-top:6px;">Autor: {{ report.created_by }}</div>
+      {% endif %}
+    </div>
+
+    <h2>Patrones ofensivos</h2>
+    <div class="box">
+      {% if report.attacking_patterns %}
+        <div class="notes">{{ report.attacking_patterns }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>Patrones defensivos</h2>
+    <div class="box">
+      {% if report.defensive_patterns %}
+        <div class="notes">{{ report.defensive_patterns }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>Transiciones</h2>
+    <div class="box">
+      {% if report.transitions %}
+        <div class="notes">{{ report.transitions }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>ABP</h2>
+    <div class="box">
+      <table class="row">
+        <tr>
+          <td style="width:50%"><span class="k">Ofensivas rival</span></td>
+          <td style="width:50%"><span class="k">Defensivas rival</span></td>
+        </tr>
+        <tr>
+          <td>
+            {% if report.set_pieces_for %}
+              <div class="notes">{{ report.set_pieces_for }}</div>
+            {% else %}
+              <div class="empty">—</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if report.set_pieces_against %}
+              <div class="notes">{{ report.set_pieces_against }}</div>
+            {% else %}
+              <div class="empty">—</div>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>Jugadores clave</h2>
+    <div class="box">
+      {% if report.key_players %}
+        <div class="notes">{{ report.key_players }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>Debilidades y oportunidades</h2>
+    <div class="box">
+      <table class="row">
+        <tr>
+          <td style="width:50%"><span class="k">Debilidades</span></td>
+          <td style="width:50%"><span class="k">Oportunidades</span></td>
+        </tr>
+        <tr>
+          <td>
+            {% if report.weaknesses %}
+              <div class="notes">{{ report.weaknesses }}</div>
+            {% else %}
+              <div class="empty">—</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if report.opportunities %}
+              <div class="notes">{{ report.opportunities }}</div>
+            {% else %}
+              <div class="empty">—</div>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>Plan de partido</h2>
+    <div class="box">
+      {% if report.match_plan %}
+        <div class="notes">{{ report.match_plan }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>Tareas individuales</h2>
+    <div class="box">
+      {% if report.individual_tasks %}
+        <div class="notes">{{ report.individual_tasks }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+
+    <h2>Alertas</h2>
+    <div class="box">
+      {% if report.alert_notes %}
+        <div class="notes">{{ report.alert_notes }}</div>
+      {% else %}
+        <div class="empty">Sin datos.</div>
+      {% endif %}
+    </div>
+  </body>
+</html>
+
