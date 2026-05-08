@@ -171,6 +171,21 @@
       .tab-panel { display: none; }
       .tab-panel.is-active { display: block; }
       .grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+      .sheet-item {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 12px;
+        padding: 0.6rem 0.65rem;
+        background: rgba(2, 10, 22, 0.45);
+        min-width: 0;
+      }
+      .sheet-item > strong {
+        display: block;
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.9;
+        margin-bottom: 0.35rem;
+      }
       .editor-grid {
         display: grid;
         gap: 0.8rem;
@@ -3264,6 +3279,184 @@
 	                  <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>.
 	                </p>
 
+                <details class="box" style="margin:0 0 1rem;">
+                  <summary style="cursor:pointer; font-weight:900;">
+                    🔎 Filtros CoachLab
+                    {% if library_filters_active %}<span class="badge" style="margin-left:0.35rem; opacity:0.95;">Activos</span>{% endif %}
+                  </summary>
+                  <form method="get" style="margin:0.8rem 0 0; display:grid; gap:0.65rem;">
+                    <input type="hidden" name="tab" value="library" />
+                    <input type="hidden" name="team" value="{{ primary_team_id }}" />
+                    {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <input type="hidden" name="library_source" value="{{ library_source_tab }}" />
+                    {% if session_hint_id %}<input type="hidden" name="session_id" value="{{ session_hint_id }}" />{% endif %}
+                    {% if task_pick_kind %}<input type="hidden" name="pick_for" value="{{ task_pick_kind }}" />{% endif %}
+                    {% if library_view == 'favorites' %}<input type="hidden" name="library_view" value="favorites" />{% endif %}
+                    {% if library_collection_id %}<input type="hidden" name="collection_id" value="{{ library_collection_id }}" />{% endif %}
+
+                    <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                      <input
+                        type="search"
+                        name="q"
+                        value="{{ library_q }}"
+                        placeholder="Buscar (título, objetivo, consignas, reglas, descripción…)"
+                        style="flex:1; min-width:260px;"
+                      />
+                      <select name="sort" style="min-width:210px;">
+                        <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
+                        <option value="quality" {% if library_sort == 'quality' %}selected{% endif %}>Mayor calidad</option>
+                        <option value="confidence" {% if library_sort == 'confidence' %}selected{% endif %}>Mayor confianza</option>
+                        <option value="title" {% if library_sort == 'title' %}selected{% endif %}>A‑Z</option>
+                      </select>
+                      <button type="submit" class="secondary">Aplicar</button>
+                      <a
+                        class="button secondary"
+                        href="?{% qs_replace q=None phase=None type=None context=None objective=None players=None duration=None quality=None ref_date=None sort='recent' lib_page=None %}"
+                        title="Quitar filtros"
+                      >Limpiar</a>
+                    </div>
+
+                    <div class="grid">
+                      <div class="sheet-item">
+                        <strong>Fase</strong>
+                        <div class="option-grid" style="margin-top:0.35rem;">
+                          {% for row in phase_group_rows %}
+                          <label class="check-pill">
+                            <input type="checkbox" name="phase" value="{{ row.key }}" {% if library_phase_keys and row.key in library_phase_keys %}checked{% endif %} />
+                            <span>{{ row.label }}</span>
+                            <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                          </label>
+                          {% endfor %}
+                        </div>
+                      </div>
+
+                      <div class="sheet-item">
+                        <strong>Tipo</strong>
+                        <div class="option-grid" style="margin-top:0.35rem;">
+                          {% for row in type_group_rows|slice:":14" %}
+                          <label class="check-pill">
+                            <input type="checkbox" name="type" value="{{ row.key }}" {% if library_type_keys and row.key in library_type_keys %}checked{% endif %} />
+                            <span>{{ row.key }}</span>
+                            <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                          </label>
+                          {% endfor %}
+                        </div>
+                        {% if type_group_rows|length|add:0 > 14 %}
+                        <details style="margin-top:0.55rem;">
+                          <summary class="button secondary" style="display:inline-flex; width:max-content;">Ver más</summary>
+                          <div class="option-grid" style="margin-top:0.55rem;">
+                            {% for row in type_group_rows|slice:"14:" %}
+                            <label class="check-pill">
+                              <input type="checkbox" name="type" value="{{ row.key }}" {% if library_type_keys and row.key in library_type_keys %}checked{% endif %} />
+                              <span>{{ row.key }}</span>
+                              <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                            </label>
+                            {% endfor %}
+                          </div>
+                        </details>
+                        {% endif %}
+                      </div>
+
+                      <div class="sheet-item">
+                        <strong>Contexto</strong>
+                        <div class="option-grid" style="margin-top:0.35rem;">
+                          {% for row in context_group_rows|slice:":14" %}
+                          <label class="check-pill">
+                            <input type="checkbox" name="context" value="{{ row.key }}" {% if library_context_keys and row.key in library_context_keys %}checked{% endif %} />
+                            <span>{{ row.key }}</span>
+                            <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                          </label>
+                          {% endfor %}
+                        </div>
+                        {% if context_group_rows|length|add:0 > 14 %}
+                        <details style="margin-top:0.55rem;">
+                          <summary class="button secondary" style="display:inline-flex; width:max-content;">Ver más</summary>
+                          <div class="option-grid" style="margin-top:0.55rem;">
+                            {% for row in context_group_rows|slice:"14:" %}
+                            <label class="check-pill">
+                              <input type="checkbox" name="context" value="{{ row.key }}" {% if library_context_keys and row.key in library_context_keys %}checked{% endif %} />
+                              <span>{{ row.key }}</span>
+                              <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                            </label>
+                            {% endfor %}
+                          </div>
+                        </details>
+                        {% endif %}
+                      </div>
+
+                      <div class="sheet-item">
+                        <strong>Objetivo</strong>
+                        <div class="option-grid" style="margin-top:0.35rem;">
+                          {% for row in objective_group_rows|slice:":14" %}
+                          <label class="check-pill">
+                            <input type="checkbox" name="objective" value="{{ row.key }}" {% if library_objective_keys and row.key in library_objective_keys %}checked{% endif %} />
+                            <span>{{ row.key }}</span>
+                            <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                          </label>
+                          {% endfor %}
+                        </div>
+                        {% if objective_group_rows|length|add:0 > 14 %}
+                        <details style="margin-top:0.55rem;">
+                          <summary class="button secondary" style="display:inline-flex; width:max-content;">Ver más</summary>
+                          <div class="option-grid" style="margin-top:0.55rem;">
+                            {% for row in objective_group_rows|slice:"14:" %}
+                            <label class="check-pill">
+                              <input type="checkbox" name="objective" value="{{ row.key }}" {% if library_objective_keys and row.key in library_objective_keys %}checked{% endif %} />
+                              <span>{{ row.key }}</span>
+                              <span class="meta" style="margin-left:auto;">{{ row.count }}</span>
+                            </label>
+                            {% endfor %}
+                          </div>
+                        </details>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="grid">
+                      <div class="sheet-item">
+                        <strong>Jugadores</strong>
+                        <select name="players">
+                          <option value="" {% if not library_players_band %}selected{% endif %}>Cualquiera</option>
+                          {% for row in players_band_group_rows %}
+                          <option value="{{ row.key }}" {% if library_players_band and row.key == library_players_band %}selected{% endif %}>{{ row.key }} ({{ row.count }})</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="sheet-item">
+                        <strong>Duración</strong>
+                        <select name="duration">
+                          <option value="" {% if not library_duration_band %}selected{% endif %}>Cualquiera</option>
+                          {% for row in duration_band_group_rows %}
+                          <option value="{{ row.key }}" {% if library_duration_band and row.key == library_duration_band %}selected{% endif %}>{{ row.key }} ({{ row.count }})</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="sheet-item">
+                        <strong>Calidad</strong>
+                        <select name="quality">
+                          <option value="" {% if not library_quality %}selected{% endif %}>Cualquiera</option>
+                          {% for row in quality_group_rows %}
+                          <option value="{{ row.key }}" {% if library_quality and row.key == library_quality %}selected{% endif %}>{{ row.label }} ({{ row.count }})</option>
+                          {% endfor %}
+                        </select>
+                      </div>
+                      <div class="sheet-item">
+                        <strong>Fecha</strong>
+                        <select name="ref_date">
+                          <option value="" {% if not library_reference_date %}selected{% endif %}>Cualquiera</option>
+                          {% for row in date_group_rows|slice:":40" %}
+                          <option value="{{ row.key }}" {% if library_reference_date and row.key == library_reference_date %}selected{% endif %}>{{ row.label }} ({{ row.count }})</option>
+                          {% endfor %}
+                        </select>
+                        {% if date_group_rows|length|add:0 > 40 %}
+                        <div class="meta" style="margin-top:0.35rem;">Mostrando 40 fechas. Usa búsqueda o reduce filtros si no aparece.</div>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </form>
+                </details>
+
         {% if task_library_page_items %}
         {% if task_pick_mode and task_pick_kind == 'create_session' %}
         <div class="box" style="margin:0 0 0.9rem;">
@@ -3351,18 +3544,40 @@
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
               <p class="meta"><strong>{{ t.reference_date|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · Fecha detectada{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin:0.35rem 0 0.55rem;">
+                {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
+                {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
+                {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
+                {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión</span>{% endif %}
+                {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
+                {% for phase in t.phase_tags|slice:":2" %}<span class="badge">Fase: {{ phase }}</span>{% endfor %}
+                {% for ctx in t.work_contexts|slice:":2" %}<span class="badge">Ctx: {{ ctx }}</span>{% endfor %}
+                {% for obj in t.objective_tags|slice:":2" %}<span class="badge">Obj: {{ obj }}</span>{% endfor %}
+                {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
+                {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
+                {% if t.quality_warnings %}<span class="badge" style="border-color:rgba(251,191,36,0.55); color:#fde68a;">Faltan {{ t.quality_warnings|length }}</span>{% endif %}
+              </div>
               {% if t.analysis_meta %}
               <details style="margin-bottom:0.55rem;">
-                <summary class="button secondary" style="display:inline-flex; width:max-content;">Etiquetas</summary>
+                <summary class="button secondary" style="display:inline-flex; width:max-content;">Detalle / etiquetas</summary>
                 <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.55rem;">
-                  {% if t.analysis_meta.quality_score %}<span class="badge">Score {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
-                  {% if t.analysis_confidence.overall %}<span class="badge">Conf {{ t.analysis_confidence.overall }}/100</span>{% endif %}
-                  {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión necesaria</span>{% endif %}
+                  {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
+                  {% if t.quality_warnings %}
+                  {% for warn in t.quality_warnings|slice:":10" %}
+                  <span class="badge" style="border-color:rgba(251,191,36,0.55); color:#fde68a;">{{ warn }}</span>
+                  {% endfor %}
+                  {% endif %}
                   {% for item in t.exercise_types %}
                   <span class="badge">Tipo: {{ item }}</span>
                   {% endfor %}
                   {% for phase in t.phase_tags %}
                   <span class="badge">Fase: {{ phase }}</span>
+                  {% endfor %}
+                  {% for ctx in t.work_contexts %}
+                  <span class="badge">Ctx: {{ ctx }}</span>
+                  {% endfor %}
+                  {% for obj in t.objective_tags %}
+                  <span class="badge">Obj: {{ obj }}</span>
                   {% endfor %}
                   {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
                   {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}

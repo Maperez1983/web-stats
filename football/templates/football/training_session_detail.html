@@ -136,6 +136,7 @@
 	          <a class="btn secondary" href="{% url 'team-agenda' %}{% if team %}?team={{ team.id }}{% endif %}">← Agenda</a>
 	          <a class="btn secondary" href="{{ planner_url }}">Biblioteca</a>
 	          <a class="btn secondary" href="{{ planner_url }}" title="Ir a biblioteca para seleccionar tareas" aria-label="Añadir tareas">➕ Tareas</a>
+	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=uefa" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }} · UEFA">📄 PDF UEFA</a>
 	          <a class="btn" href="{% url 'session-plan-pdf' session.id %}?style=club" data-pdf-viewer="1" data-pdf-title="Sesión · {{ session.focus }}">📄 PDF Club</a>
 	          <button type="button" class="btn primary" id="toggle-edit">✏️ Editar</button>
 	        </div>

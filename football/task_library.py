@@ -25,6 +25,9 @@ def prepare_task_library(
     coerce_reference_date,
     is_imported_task,
 ):
+    def _truthy(value):
+        return bool(str(value or '').strip())
+
     def _has_canvas_objects(task):
         try:
             layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
@@ -52,6 +55,12 @@ def prepare_task_library(
         task.analysis_meta = analysis_meta
         task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
         task.task_sheet = task_sheet
+        task.work_contexts = normalize_tags(
+            analysis_meta.get('work_contexts') if isinstance(analysis_meta.get('work_contexts'), list) else []
+        )
+        task.objective_tags = normalize_tags(
+            analysis_meta.get('objective_tags') if isinstance(analysis_meta.get('objective_tags'), list) else []
+        )
         task.is_imported = is_imported_task(task)
         task.is_drawn = bool(_has_canvas_objects(task)) if not task.is_imported else False
         task.analysis_summary = sanitize_text(
@@ -149,6 +158,27 @@ def prepare_task_library(
             task.analysis_summary or task_sheet.get('description') or task.objective_summary or ''
         ).strip()
         task.card_summary = sanitize_text(card_summary, multiline=True, max_len=280)
+
+        quality_checks = [
+            ('Sin descripción', _truthy(task_sheet.get('description')) or _truthy(task.analysis_summary) or _truthy(task.objective_summary)),
+            ('Sin objetivo', _truthy(task.objective) or bool(task.objective_tags)),
+            ('Sin consignas', _truthy(task.coaching_points) or _truthy(task_sheet.get('coaching_html'))),
+            ('Sin reglas', _truthy(task.confrontation_rules) or _truthy(task_sheet.get('rules_html'))),
+            ('Sin organización', _truthy(meta.get('organization'))),
+            ('Sin espacio', _truthy(task_sheet.get('space')) or _truthy(task_sheet.get('dimensions')) or _truthy(meta.get('space'))),
+            ('Sin jugadores', _truthy(task_sheet.get('players')) or _truthy(meta.get('players_distribution')) or _truthy(meta.get('players'))),
+            ('Sin material', _truthy(task_sheet.get('materials')) or bool(task.detected_materials)),
+            ('Sin variantes', _truthy(meta.get('progression')) or _truthy(meta.get('progression_html')) or _truthy(meta.get('regression')) or _truthy(meta.get('regression_html'))),
+            ('Sin criterio de éxito', _truthy(meta.get('success_criteria')) or _truthy(meta.get('success_criteria_html'))),
+        ]
+        quality_warnings = [label for label, ok in quality_checks if not ok]
+        task.quality_warnings = quality_warnings
+        try:
+            ok_count = len([1 for _, ok in quality_checks if ok])
+            task.completeness_score = int(round((ok_count / max(1, len(quality_checks))) * 100))
+        except Exception:
+            task.completeness_score = 0
+
         for ctx in analysis_meta.get('work_contexts') or []:
             for norm in normalize_tags([str(ctx)]):
                 context_groups[str(norm)].append(task)
