@@ -112,6 +112,7 @@ urlpatterns = [
     path('api/analysis/video-studio/timeline/import/', views.analysis_video_studio_timeline_import_api, name='analysis-video-studio-timeline-import-api'),
     path('api/analysis/video-studio/timeline/clear/', views.analysis_video_studio_timeline_clear_api, name='analysis-video-studio-timeline-clear-api'),
     path('api/analysis/video-studio/review/', views.analysis_video_studio_review_api, name='analysis-video-studio-review-api'),
+    path('api/analysis/video-studio/ocr/dorsal/', views.analysis_video_studio_ocr_dorsal_api, name='analysis-video-studio-ocr-dorsal-api'),
     path('api/kpi-explorer/options/', views.kpi_explorer_options_api, name='kpi-explorer-options-api'),
     path('api/kpi-explorer/query/', views.kpi_explorer_query_api, name='kpi-explorer-query-api'),
     path('api/kpi-explorer/sources/', views.kpi_explorer_sources_api, name='kpi-explorer-sources-api'),

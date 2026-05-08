@@ -39384,6 +39384,10 @@ def ai_trainer_page(request):
     if not team:
         return HttpResponse('Equipo no configurado.', status=400)
 
+    tab = str(request.GET.get('tab') or '').strip().lower() or 'assistant'
+    if tab not in {'assistant', 'concepts'}:
+        tab = 'assistant'
+
     profile = str(request.GET.get('profile') or '').strip() or 'hybrid'
     phase = str(request.GET.get('phase') or '').strip()
     goal = str(request.GET.get('goal') or '').strip()
@@ -39391,6 +39395,9 @@ def ai_trainer_page(request):
     signals = {}
     suggestions = []
     dict_prefill = {}
+    concept_section = str(request.GET.get('section') or '').strip().lower() or 'principles'
+    concept_q = str(request.GET.get('q') or '').strip()
+    concept_rows = []
     workspace = None
     try:
         workspace = _get_active_workspace(request)
@@ -39629,11 +39636,53 @@ def ai_trainer_page(request):
                 meta={'variant': variant, 'rating': rating, 'goal': goal[:800], 'signals': signals},
             )
 
+    # Biblioteca de conceptos (solo lectura): lista el diccionario (base + overrides) para que el entrenador pueda
+    # navegar, buscar y usar como referencia.
+    if tab == 'concepts':
+        try:
+            wanted = {'principles', 'phases', 'figures', 'zones'}
+            if concept_section not in wanted:
+                concept_section = 'principles'
+            section_dict = dictionary.get(concept_section) if isinstance(dictionary.get(concept_section), dict) else {}
+            q_norm = _ai_trainer_normalize_text(concept_q)
+            rows = []
+            for key, item in section_dict.items():
+                if not isinstance(item, dict):
+                    continue
+                label = str(item.get('label') or key).strip()
+                keywords = item.get('keywords') if isinstance(item.get('keywords'), list) else []
+                coaching_points = item.get('coaching_points') if isinstance(item.get('coaching_points'), list) else []
+                if q_norm:
+                    hay = _ai_trainer_normalize_text(label)
+                    if not hay:
+                        continue
+                    if q_norm not in hay:
+                        hit = False
+                        for kw in keywords[:80]:
+                            if q_norm in _ai_trainer_normalize_text(str(kw or '')):
+                                hit = True
+                                break
+                        if not hit:
+                            continue
+                rows.append(
+                    {
+                        'key': str(key),
+                        'label': label,
+                        'keywords': [str(x) for x in keywords[:120] if str(x or '').strip()],
+                        'coaching_points': [str(x) for x in coaching_points[:18] if str(x or '').strip()],
+                    }
+                )
+            rows.sort(key=lambda r: (_ai_trainer_normalize_text(r.get('label') or ''), str(r.get('key') or '')))
+            concept_rows = rows[:800]
+        except Exception:
+            concept_rows = []
+
     return render(
         request,
         'football/ai_trainer.html',
         {
             'team': team,
+            'tab': tab,
             'profile': profile,
             'phase': phase,
             'goal': goal,
@@ -39642,6 +39691,9 @@ def ai_trainer_page(request):
             'suggestions': suggestions,
             'can_train_dictionary': can_train_dictionary,
             'dict_prefill': dict_prefill,
+            'concept_section': concept_section,
+            'concept_q': concept_q,
+            'concept_rows': concept_rows,
         },
     )
 
@@ -43061,6 +43113,298 @@ def _video_ms_from_seconds(value, *, default=0) -> int:
         return int(max(0, round(float(raw) * 1000.0)))
     except Exception:
         return int(default)
+
+
+def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: dict) -> dict:
+    """
+    OCR asistido de dorsales: el usuario marca un recuadro (ROI) alrededor del dorsal.
+
+    Devuelve:
+      - best: número (int) o None
+      - ranked: lista {number,hits}
+      - debug: contadores (frames/variantes)
+    """
+    try:
+        import os  # noqa: WPS433 (lazy import)
+        import shutil  # noqa: WPS433 (lazy import)
+        import subprocess  # noqa: WPS433 (lazy import)
+        import tempfile  # noqa: WPS433 (lazy import)
+        from pathlib import Path  # noqa: WPS433 (lazy import)
+
+        from PIL import Image, ImageEnhance, ImageFilter, ImageOps  # noqa: WPS433 (lazy import)
+    except Exception as exc:  # pragma: no cover
+        raise ValueError('Dependencias OCR no disponibles.') from exc
+
+    ffmpeg_bin = shutil.which('ffmpeg')
+    tesseract_bin = shutil.which('tesseract')
+    if not ffmpeg_bin or not tesseract_bin:
+        raise ValueError('Falta ffmpeg/tesseract en el servidor.')
+
+    if not video_path or not os.path.exists(video_path):
+        raise ValueError('El vídeo no está disponible para OCR en este servidor.')
+
+    try:
+        x = int(roi.get('x'))
+        y = int(roi.get('y'))
+        w = int(roi.get('w'))
+        h = int(roi.get('h'))
+    except Exception:
+        raise ValueError('ROI inválida.')
+
+    if w <= 0 or h <= 0 or x < 0 or y < 0:
+        raise ValueError('ROI inválida.')
+
+    def _run_tesseract(img_path: str, *, psm: int) -> str:
+        try:
+            out = subprocess.run(
+                [
+                    tesseract_bin,
+                    img_path,
+                    'stdout',
+                    '-l',
+                    'eng',
+                    '--psm',
+                    str(int(psm)),
+                    '-c',
+                    'tessedit_char_whitelist=0123456789',
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=False,
+                timeout=10,
+            ).stdout
+        except Exception:
+            out = ''
+        raw = ''.join(ch for ch in str(out or '') if ch.isdigit())
+        return raw.strip()
+
+    def _extract_frame_crop(out_path: str, *, at: float) -> None:
+        # Escala hacia arriba para mejorar OCR (capado para no explotar).
+        target_w = int(max(260, min(1600, w * 10)))
+        vf = f'crop={w}:{h}:{x}:{y},scale={target_w}:-1'
+        subprocess.run(
+            [
+                ffmpeg_bin,
+                '-hide_banner',
+                '-loglevel',
+                'error',
+                '-y',
+                '-ss',
+                str(max(0.0, float(at))),
+                '-i',
+                video_path,
+                '-frames:v',
+                '1',
+                '-vf',
+                vf,
+                out_path,
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=12,
+        )
+
+    def _variant_images(img: Image.Image) -> list[Image.Image]:
+        variants: list[Image.Image] = []
+        base = img.convert('RGB')
+
+        # V1: grayscale + contraste
+        try:
+            g = base.convert('L')
+            g = ImageOps.autocontrast(g)
+            g = ImageEnhance.Contrast(g).enhance(3.0)
+            g = g.filter(ImageFilter.UnsharpMask(radius=2, percent=230, threshold=2))
+            variants.append(g)
+        except Exception:
+            pass
+
+        # V2: canal verde (separa blanco vs rojo en muchas equipaciones)
+        try:
+            _, green, _ = base.split()
+            green = ImageOps.autocontrast(green)
+            green = ImageEnhance.Contrast(green).enhance(3.6)
+            green = green.filter(ImageFilter.UnsharpMask(radius=2, percent=240, threshold=2))
+            variants.append(green)
+        except Exception:
+            pass
+
+        # V3: máscara "pixeles claros" (funciona mejor con ROI bien ajustada al dorsal)
+        try:
+            w0, h0 = base.size
+            px = base.load()
+            mask = Image.new('L', (w0, h0), 255)
+            mx = mask.load()
+            for yy in range(h0):
+                for xx in range(w0):
+                    r, g, b = px[xx, yy]
+                    # thresholds suaves: incluimos blancos "lavados" por compresión.
+                    if r >= 155 and g >= 140 and b >= 140:
+                        mx[xx, yy] = 0
+            variants.append(mask)
+        except Exception:
+            pass
+
+        return variants[:3] or [base.convert('L')]
+
+    time_s = float(time_s or 0.0)
+    sample_times = []
+    for dt in (0.0, -0.12, 0.12):
+        t = max(0.0, time_s + dt)
+        if not any(abs(t - prev) < 0.02 for prev in sample_times):
+            sample_times.append(t)
+
+    normalized: list[int] = []
+    debug = {'frames': 0, 'variants': 0}
+    with tempfile.TemporaryDirectory(prefix='2j_dorsal_ocr_') as tmpdir:
+        tmp = Path(tmpdir)
+        for idx, t in enumerate(sample_times[:3]):
+            frame_path = str(tmp / f'frame_{idx}.png')
+            _extract_frame_crop(frame_path, at=t)
+            if not os.path.exists(frame_path):
+                continue
+            debug['frames'] += 1
+            try:
+                with Image.open(frame_path) as im:
+                    for v_idx, variant in enumerate(_variant_images(im)):
+                        debug['variants'] += 1
+                        v_path = str(tmp / f'v_{idx}_{v_idx}.png')
+                        try:
+                            variant.save(v_path)
+                        except Exception:
+                            continue
+                        for psm in (6, 7, 8, 10, 11, 12, 13):
+                            cand = _run_tesseract(v_path, psm=psm)
+                            if not cand:
+                                continue
+                            if len(cand) > 2:
+                                cand = cand[:2]
+                            try:
+                                n = int(cand)
+                            except Exception:
+                                continue
+                            if 0 < n < 100:
+                                normalized.append(n)
+            except Exception:
+                continue
+
+    counts: dict[int, int] = {}
+    for n in normalized:
+        counts[n] = counts.get(n, 0) + 1
+    ranked_pairs = sorted(
+        counts.items(),
+        key=lambda kv: (kv[1], 1 if kv[0] >= 10 else 0),
+        reverse=True,
+    )
+    best = int(ranked_pairs[0][0]) if ranked_pairs else None
+
+    return {
+        'best': best,
+        'ranked': [{'number': int(n), 'hits': int(h)} for n, h in ranked_pairs[:10]],
+        'debug': debug,
+    }
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_ocr_dorsal_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Payload inválido.'}, status=400)
+
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+
+    roi = payload.get('roi') if isinstance(payload.get('roi'), dict) else {}
+    try:
+        time_s = float(payload.get('time_s') or 0.0)
+    except Exception:
+        time_s = 0.0
+
+    video_path = ''
+    try:
+        if getattr(video, 'video', None) and getattr(video.video, 'path', None):
+            video_path = str(video.video.path or '')
+    except Exception:
+        video_path = ''
+
+    if not video_path:
+        return JsonResponse({'ok': False, 'error': 'El vídeo no está disponible localmente para OCR.'}, status=400)
+
+    try:
+        ocr = _video_studio_ocr_dorsal_candidates(video_path=video_path, time_s=time_s, roi=roi)
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo ejecutar OCR del dorsal.'}, status=400)
+
+    best = ocr.get('best')
+
+    own_matches = []
+    if best:
+        try:
+            for p in Player.objects.filter(team=primary_team, number=int(best)).order_by('name')[:8]:
+                own_matches.append({'id': int(p.id), 'name': str(p.name or '').strip(), 'number': int(p.number or 0) or None})
+        except Exception:
+            own_matches = []
+
+    rival_matches = []
+    if best and getattr(video, 'rival_team_id', None):
+        try:
+            snapshot = (
+                TeamRosterSnapshot.objects
+                .filter(team_id=int(video.rival_team_id), provider=TeamRosterSnapshot.PROVIDER_UNIVERSO)
+                .order_by('-updated_at')
+                .first()
+            )
+            rows = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+            for idx, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    continue
+                number = row.get('number') or row.get('dorsal') or row.get('shirt_number') or ''
+                try:
+                    number_int = int(str(number).strip() or 0)
+                except Exception:
+                    number_int = 0
+                if not number_int or number_int != int(best):
+                    continue
+                name = (row.get('name') or row.get('player') or row.get('full_name') or '').strip()
+                if not name:
+                    continue
+                code = str(row.get('code') or row.get('player_code') or row.get('id') or '').strip() or f'row-{idx}'
+                rival_matches.append({'code': code, 'name': name, 'number': number_int})
+                if len(rival_matches) >= 10:
+                    break
+        except Exception:
+            rival_matches = []
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'best': best,
+            'ranked': ocr.get('ranked') if isinstance(ocr.get('ranked'), list) else [],
+            'own_matches': own_matches,
+            'rival_matches': rival_matches,
+            'debug': ocr.get('debug') if isinstance(ocr.get('debug'), dict) else {},
+        }
+    )
 
 
 @login_required

@@ -47,6 +47,7 @@
 	    const btnExportRetry = document.getElementById('vs-export-retry');
 	    const btnRecord = document.getElementById('vs-record');
 	    const btnSnap = document.getElementById('vs-snap');
+	    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
 	    const btnFreeze = document.getElementById('vs-freeze');
 
     const btnSelect = document.getElementById('vs-tool-select');
@@ -104,6 +105,7 @@
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
 	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
+	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
 
 	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
 	    const aiForceBtn = document.getElementById('vs-ai-force');
@@ -1365,6 +1367,188 @@
       }, 'image/png');
     };
     btnSnap?.addEventListener('click', snapshotPng);
+
+    // --- OCR dorsal (asistido): el usuario marca una ROI sobre el dorsal.
+    const roiEl = document.getElementById('vs-roi');
+    let dorsalMode = false;
+    let roiDragging = false;
+    let roiStart = null;
+
+    const stageRect = () => {
+      try { return stage.getBoundingClientRect(); } catch (e) { return null; }
+    };
+
+    const setRoiBox = (x0, y0, x1, y1) => {
+      if (!roiEl) return;
+      const left = Math.min(x0, x1);
+      const top = Math.min(y0, y1);
+      const w = Math.max(0, Math.abs(x1 - x0));
+      const h = Math.max(0, Math.abs(y1 - y0));
+      roiEl.style.left = `${left}px`;
+      roiEl.style.top = `${top}px`;
+      roiEl.style.width = `${w}px`;
+      roiEl.style.height = `${h}px`;
+      roiEl.style.display = (w >= 8 && h >= 8) ? 'block' : 'none';
+    };
+
+    const clearRoiBox = () => {
+      if (!roiEl) return;
+      roiEl.style.display = 'none';
+      roiEl.style.width = '0px';
+      roiEl.style.height = '0px';
+      roiEl.style.left = '0px';
+      roiEl.style.top = '0px';
+    };
+
+    const toggleDorsalMode = (force) => {
+      const next = (typeof force === 'boolean') ? force : !dorsalMode;
+      dorsalMode = next;
+      roiDragging = false;
+      roiStart = null;
+      clearRoiBox();
+      if (dorsalMode) setStatus('Dorsal OCR: arrastra un recuadro sobre el dorsal y suelta.', false);
+    };
+
+    btnDorsalOcr?.addEventListener('click', () => toggleDorsalMode());
+
+    const roiFromStageToVideoPx = (roiStagePx) => {
+      const rect = stageRect();
+      if (!rect) return null;
+      const vw = Number(video.videoWidth) || 0;
+      const vh = Number(video.videoHeight) || 0;
+      if (!vw || !vh) return null;
+      const scaleX = vw / rect.width;
+      const scaleY = vh / rect.height;
+      return {
+        x: Math.max(0, Math.round(roiStagePx.x * scaleX)),
+        y: Math.max(0, Math.round(roiStagePx.y * scaleY)),
+        w: Math.max(1, Math.round(roiStagePx.w * scaleX)),
+        h: Math.max(1, Math.round(roiStagePx.h * scaleY)),
+      };
+    };
+
+    const postDorsalOcr = async (roiPx) => {
+      if (!dorsalOcrUrl) {
+        setStatus('OCR dorsal: endpoint no configurado.', true);
+        return;
+      }
+      const csrf = document.querySelector('#vs-csrf input[name=\"csrfmiddlewaretoken\"]')?.value || '';
+      const timeS = Number(video.currentTime) || 0;
+      try {
+        setStatus('OCR dorsal…', false);
+        const resp = await fetch(dorsalOcrUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+          body: JSON.stringify({ video_id: videoId, time_s: timeS, roi: roiPx }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) {
+          const msg = data?.error || 'No se pudo hacer OCR del dorsal.';
+          setStatus(msg, true);
+          alert(msg);
+          return;
+        }
+        const best = Number(data?.best || 0) || 0;
+        const ranked = Array.isArray(data?.ranked) ? data.ranked : [];
+        const own = Array.isArray(data?.own_matches) ? data.own_matches : [];
+        const rival = Array.isArray(data?.rival_matches) ? data.rival_matches : [];
+
+        let chosen = best;
+        if (!chosen && ranked.length) chosen = Number(ranked[0]?.number || 0) || 0;
+
+        // Si OCR no acierta, pedimos confirmación manual para no bloquear el flujo.
+        if (!chosen) {
+          const manual = prompt('No se pudo leer el dorsal. Escribe el dorsal (número):', '');
+          const manualNum = Number(String(manual || '').trim()) || 0;
+          if (!manualNum) { setStatus('OCR dorsal cancelado.', true); return; }
+          chosen = manualNum;
+        }
+
+        const label = (() => {
+          const hitR = rival && rival.length ? rival[0] : null;
+          const hitO = own && own.length ? own[0] : null;
+          const name = hitR?.name || hitO?.name || '';
+          return name ? `#${chosen} · ${name}` : `#${chosen}`;
+        })();
+
+        const labelEl = document.getElementById('vs-event-label');
+        if (labelEl && (!safeText(labelEl.value) || safeText(labelEl.value).startsWith('#'))) {
+          labelEl.value = label;
+        }
+        setStatus(`Dorsal: ${label}`, false);
+      } catch (e) {
+        setStatus('Error en OCR dorsal.', true);
+        alert('Error en OCR dorsal.');
+      }
+    };
+
+    const onRoiPointerDown = (ev) => {
+      if (!dorsalMode) return;
+      const rect = stageRect();
+      if (!rect) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      roiDragging = true;
+      const x = clamp((ev.clientX - rect.left), 0, rect.width);
+      const y = clamp((ev.clientY - rect.top), 0, rect.height);
+      roiStart = { x, y };
+      setRoiBox(x, y, x, y);
+      try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+    };
+    const onRoiPointerMove = (ev) => {
+      if (!dorsalMode || !roiDragging || !roiStart) return;
+      const rect = stageRect();
+      if (!rect) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const x = clamp((ev.clientX - rect.left), 0, rect.width);
+      const y = clamp((ev.clientY - rect.top), 0, rect.height);
+      setRoiBox(roiStart.x, roiStart.y, x, y);
+    };
+    const onRoiPointerUp = (ev) => {
+      if (!dorsalMode || !roiDragging || !roiStart) return;
+      const rect = stageRect();
+      if (!rect) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      roiDragging = false;
+      const x = clamp((ev.clientX - rect.left), 0, rect.width);
+      const y = clamp((ev.clientY - rect.top), 0, rect.height);
+      const left = Math.min(roiStart.x, x);
+      const top = Math.min(roiStart.y, y);
+      const w = Math.abs(x - roiStart.x);
+      const h = Math.abs(y - roiStart.y);
+      roiStart = null;
+      if (w < 10 || h < 10) { clearRoiBox(); return; }
+      const roiVideoPx = roiFromStageToVideoPx({ x: left, y: top, w, h });
+      clearRoiBox();
+      toggleDorsalMode(false);
+      if (!roiVideoPx) {
+        setStatus('OCR dorsal: el vídeo aún no está listo (metadata).', true);
+        return;
+      }
+      postDorsalOcr(roiVideoPx);
+    };
+
+    // Capturamos en fase capture para no interferir con Fabric/Canvas.
+    stage.addEventListener('pointerdown', onRoiPointerDown, true);
+    stage.addEventListener('pointermove', onRoiPointerMove, true);
+    stage.addEventListener('pointerup', onRoiPointerUp, true);
+    stage.addEventListener('pointercancel', onRoiPointerUp, true);
+
+    document.addEventListener('keydown', (ev) => {
+      if (!ev || ev.defaultPrevented) return;
+      if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      const tag = String((ev.target && ev.target.tagName) || '').toLowerCase();
+      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || (ev.target && ev.target.isContentEditable);
+      if (isTyping) return;
+      const k = String(ev.key || '').toLowerCase();
+      if (k === 'd') {
+        ev.preventDefault();
+        toggleDorsalMode();
+      }
+    }, { passive: false });
 
     const captureVideoFrameDataUrl = () => {
       try {
