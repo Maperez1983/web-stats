@@ -43115,7 +43115,7 @@ def _video_ms_from_seconds(value, *, default=0) -> int:
         return int(default)
 
 
-def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: dict) -> dict:
+def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: dict, allow_numbers=None) -> dict:
     """
     OCR asistido de dorsales: el usuario marca un recuadro (ROI) alrededor del dorsal.
 
@@ -43289,8 +43289,17 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
             except Exception:
                 continue
 
+    allow = set()
+    try:
+        if allow_numbers:
+            allow = {int(x) for x in allow_numbers if int(x) > 0 and int(x) < 100}
+    except Exception:
+        allow = set()
+
     counts: dict[int, int] = {}
     for n in normalized:
+        if allow and n not in allow:
+            continue
         counts[n] = counts.get(n, 0) + 1
     ranked_pairs = sorted(
         counts.items(),
@@ -43348,8 +43357,47 @@ def analysis_video_studio_ocr_dorsal_api(request):
     if not video_path:
         return JsonResponse({'ok': False, 'error': 'El vídeo no está disponible localmente para OCR.'}, status=400)
 
+    # Restringe candidatos a dorsales reales (plantilla propia + snapshot rival) si están disponibles.
+    allow_numbers = set()
     try:
-        ocr = _video_studio_ocr_dorsal_candidates(video_path=video_path, time_s=time_s, roi=roi)
+        for n in Player.objects.filter(team=primary_team).values_list('number', flat=True):
+            try:
+                ni = int(n or 0)
+            except Exception:
+                ni = 0
+            if 0 < ni < 100:
+                allow_numbers.add(ni)
+    except Exception:
+        pass
+    if getattr(video, 'rival_team_id', None):
+        try:
+            snapshot = (
+                TeamRosterSnapshot.objects
+                .filter(team_id=int(video.rival_team_id), provider=TeamRosterSnapshot.PROVIDER_UNIVERSO)
+                .order_by('-updated_at')
+                .first()
+            )
+            rows = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                number = row.get('number') or row.get('dorsal') or row.get('shirt_number') or ''
+                try:
+                    ni = int(str(number).strip() or 0)
+                except Exception:
+                    ni = 0
+                if 0 < ni < 100:
+                    allow_numbers.add(ni)
+        except Exception:
+            pass
+
+    try:
+        ocr = _video_studio_ocr_dorsal_candidates(
+            video_path=video_path,
+            time_s=time_s,
+            roi=roi,
+            allow_numbers=sorted(allow_numbers) if allow_numbers else None,
+        )
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
     except Exception:
