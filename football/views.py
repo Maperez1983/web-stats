@@ -14917,10 +14917,22 @@ def admin_page(request):
         except Exception:
             start_date = timezone.localdate()
         try:
+            # Si el usuario crea tareas en una categoría distinta sin darse cuenta,
+            # conviene que Admin pueda encontrarlas igualmente (mismo club/grupo).
+            team_ids = [int(primary_team.id)]
+            try:
+                group_id = int(getattr(primary_team, 'group_id', 0) or 0)
+                if group_id:
+                    team_ids = list(Team.objects.filter(group_id=group_id).values_list('id', flat=True))
+                    team_ids = [int(x) for x in team_ids if _parse_int(x)]
+                    if not team_ids:
+                        team_ids = [int(primary_team.id)]
+            except Exception:
+                team_ids = [int(primary_team.id)]
             qs = (
                 SessionTask.objects
                 .select_related('session__microcycle')
-                .filter(session__microcycle__team=primary_team, deleted_at__isnull=True)
+                .filter(session__microcycle__team_id__in=team_ids, deleted_at__isnull=True)
                 .filter(created_at__date__gte=start_date)
                 .order_by('-created_at', '-id')[:200]
             )
@@ -14930,6 +14942,12 @@ def admin_page(request):
                 'fitness': 'Preparación física',
             }
             for t in qs:
+                try:
+                    t_team = getattr(getattr(getattr(t, 'session', None), 'microcycle', None), 'team', None)
+                    if t_team:
+                        setattr(t, 'admin_team_label', str(getattr(t_team, 'category', '') or '').strip() or str(getattr(t_team, 'display_name', '') or getattr(t_team, 'name', '') or '').strip())
+                except Exception:
+                    pass
                 try:
                     scope_key = _task_scope_for_item(t)
                 except Exception:

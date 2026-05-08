@@ -244,14 +244,15 @@
         {% if recent_tasks %}
           <div class="roster-list" style="margin-top:0.9rem;">
             {% for t in recent_tasks %}
-            <div class="roster-item" style="grid-template-columns:minmax(0,1fr) auto auto; align-items:start;">
-              <div>
-                <div style="font-weight:800;">#{{ t.id }} · {{ t.title }}</div>
-                <div class="meta" style="margin-top:0.15rem; opacity:0.88;">
-                  {{ t.created_at|date:"d/m/Y H:i" }}
-                  {% if t.admin_dest_label %} · {{ t.admin_dest_label }}{% endif %}
-                </div>
-              </div>
+	            <div class="roster-item" style="grid-template-columns:minmax(0,1fr) auto auto; align-items:start;">
+	              <div>
+	                <div style="font-weight:800;">#{{ t.id }} · {{ t.title }}</div>
+	                <div class="meta" style="margin-top:0.15rem; opacity:0.88;">
+	                  {{ t.created_at|date:"d/m/Y H:i" }}
+	                  {% if t.admin_team_label %} · {{ t.admin_team_label }}{% endif %}
+	                  {% if t.admin_dest_label %} · {{ t.admin_dest_label }}{% endif %}
+	                </div>
+	              </div>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
                 <a class="pill-button icon-action" style="text-decoration:none;" href="{% url 'session-task-detail' t.id %}">Abrir</a>
                 {% if t.admin_dest_url %}
