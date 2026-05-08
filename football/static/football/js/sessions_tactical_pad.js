@@ -964,19 +964,28 @@
 					    } catch (e) { /* ignore */ }
 
 					    // Inspector flotante (selección): en tablet evitamos el scroll del panel lateral.
-					    const selectionDockEl = document.getElementById('task-selection-dock');
-					    const selectionDockState = (() => {
-					      if (!selectionDockEl || !selectionToolbar) return null;
-					      return {
-					        originalParent: selectionToolbar.parentElement,
-					        originalNext: selectionToolbar.nextElementSibling,
-					      };
-					    })();
-					    const shouldDockSelectionInspector = () => {
-					      try {
-					        const raw = safeText(document.body?.dataset?.deviceMode);
-					        if (raw === 'desktop') return false;
-					        if (raw === 'tablet') return true;
+						    const selectionDockEl = document.getElementById('task-selection-dock');
+						    const selectionDockCloseBtn = document.getElementById('task-selection-dock-close');
+						    const selectionDockState = (() => {
+						      if (!selectionDockEl || !selectionToolbar) return null;
+						      return {
+						        originalParent: selectionToolbar.parentElement,
+						        originalNext: selectionToolbar.nextElementSibling,
+						      };
+						    })();
+						    let selectionDockDismissed = false;
+						    let selectionDockDismissedUid = '';
+						    const selectionDockUidFor = (obj) => {
+						      if (!obj) return '';
+						      const uid = safeText(obj?.data?.layer_uid);
+						      if (uid) return uid;
+						      return `${safeText(obj?.data?.kind)}:${safeText(obj?.data?.token_kind)}:${safeText(obj?.type)}`;
+						    };
+						    const shouldDockSelectionInspector = () => {
+						      try {
+						        const raw = safeText(document.body?.dataset?.deviceMode);
+						        if (raw === 'desktop') return false;
+						        if (raw === 'tablet') return true;
 					      } catch (e) { /* ignore */ }
 					      try { if (document.body.classList.contains('ui-tablet')) return true; } catch (e) { /* ignore */ }
 					      // Auto fallback: pantallas pequeñas + puntero táctil.
@@ -1005,10 +1014,22 @@
 					      }
 					      try { selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
 					    };
-					    try {
-					      syncSelectionInspectorDock();
-					      window.addEventListener('webstats:tpad:device-change', syncSelectionInspectorDock);
-					    } catch (e) { /* ignore */ }
+						    try {
+						      syncSelectionInspectorDock();
+						      window.addEventListener('webstats:tpad:device-change', syncSelectionInspectorDock);
+						    } catch (e) { /* ignore */ }
+						    selectionDockCloseBtn?.addEventListener('click', (ev) => {
+						      try { ev.preventDefault(); } catch (e) { /* ignore */ }
+						      try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+						      try {
+						        const active = activeInspectableObject();
+						        selectionDockDismissedUid = selectionDockUidFor(active);
+						      } catch (e) {
+						        selectionDockDismissedUid = '';
+						      }
+						      selectionDockDismissed = true;
+						      try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+						    });
 
 				    const setTacticsPanelOpen = (open) => {
 				      if (!isTacticsMode) return;
@@ -3906,13 +3927,25 @@
 			        if (tokenPatternActions) tokenPatternActions.hidden = true;
 			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
+			        selectionDockDismissed = false;
+			        selectionDockDismissedUid = '';
 			        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
 			        return;
 			      }
-		      selectionToolbar.hidden = false;
-		      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
-		      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
-		      const canColor = isColorizableObject(active);
+		      // Si el usuario cerró el inspector para este objeto, no lo reabrimos hasta cambiar de selección.
+		      try {
+		        const uid = selectionDockUidFor(active);
+		        if (uid && uid !== selectionDockDismissedUid) selectionDockDismissed = false;
+		      } catch (e) { /* ignore */ }
+		      if (selectionDockDismissed && shouldDockSelectionInspector()) {
+		        selectionToolbar.hidden = true;
+		        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+		        return;
+		      }
+			      selectionToolbar.hidden = false;
+			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
+			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
+			      const canColor = isColorizableObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
 	      colorInput.disabled = !canColor;
 	      if (colorHexInput) colorHexInput.disabled = !canColor;

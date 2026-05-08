@@ -2753,6 +2753,9 @@
 	        display: grid;
 	        gap: 0.85rem;
 	      }
+	      .selection-toolbar .selection-dock-actions {
+	        display: none;
+	      }
 	      .selection-dock {
 	        position: fixed;
 	        left: calc(12px + env(safe-area-inset-left));
@@ -2766,12 +2769,35 @@
 	      .selection-dock .selection-toolbar {
 	        margin: 0;
 	      }
+	      .selection-dock .selection-toolbar .selection-dock-actions {
+	        display: flex;
+	        justify-content: flex-end;
+	        align-items: center;
+	      }
+	      .selection-dock .selection-toolbar .selection-dock-actions button {
+	        border-radius: 999px;
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        background: rgba(255, 255, 255, 0.05);
+	        color: rgba(248, 250, 252, 0.96);
+	        padding: 0.42rem 0.65rem;
+	        font-weight: 900;
+	        cursor: pointer;
+	      }
+	      .selection-dock .selection-toolbar .selection-dock-actions button:hover {
+	        background: rgba(255, 255, 255, 0.07);
+	      }
 	      body.ui-tablet .selection-dock {
 	        bottom: calc(96px + env(safe-area-inset-bottom));
 	        width: min(520px, calc(100vw - 24px));
 	      }
 	      body.ui-tablet.library-collapsed .selection-dock {
 	        left: calc(12px + env(safe-area-inset-left));
+	      }
+	      /* iPad en vertical: no mostramos inspector flotante si el bottom-sheet de Recursos está abierto. */
+	      @media (orientation: portrait) {
+	        body.ui-tablet:not(.library-collapsed) .selection-dock {
+	          display: none;
+	        }
 	      }
       .selection-toolbar h3 {
         margin: 0;
@@ -4747,11 +4773,14 @@
 					                  <button type="button" class="tool-icon" data-action="duplicate" title="Duplicar" aria-label="Duplicar"><span class="tool-emoji" aria-hidden="true">📄</span><span class="sr-only">Duplicar</span></button>
 	                </div>
                   <div data-inspector-slot="base">
-                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
-                      <div>
-                        <h3>Elemento seleccionado</h3>
-                        <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
-                      </div>
+	                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
+	                      <div>
+	                        <div class="selection-dock-actions">
+	                          <button type="button" id="task-selection-dock-close" aria-label="Cerrar inspector" title="Cerrar">✕</button>
+	                        </div>
+	                        <h3>Elemento seleccionado</h3>
+	                        <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
+	                      </div>
 	                      <div class="selection-grid">
 	                        <div class="token-meta" id="task-token-meta" hidden>
 	                          <label>
