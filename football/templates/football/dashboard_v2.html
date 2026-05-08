@@ -301,46 +301,49 @@
 	        display: block;
 	      }
 
-		      .hero-photo {
-	        border: 1px solid var(--line);
-	        border-radius: var(--radius-xl);
-	        overflow: hidden;
-	        position: relative;
-		        min-height: 520px;
-	        box-shadow: var(--shadow);
-	        background-color: #050c17;
-	        background-image:
-	          linear-gradient(180deg, rgba(5, 12, 23, 0.28), rgba(5, 12, 23, 0.92)),
-	          var(--hero-image),
-	          var(--hero-image);
-	        background-size: cover, contain, cover;
-	        background-position: center, center, center;
-	        background-repeat: no-repeat, no-repeat, no-repeat;
+			      .hero-photo {
+		        border: 1px solid var(--line);
+		        border-radius: var(--radius-xl);
+		        overflow: hidden;
+		        position: relative;
+			        min-height: 520px;
+		        box-shadow: var(--shadow);
+		        background-color: #050c17;
+		        background-image: var(--hero-image);
+		        background-size: contain;
+		        background-position: center;
+		        background-repeat: no-repeat;
+			      }
+
+		      .hero-photo::before {
+		        content: "";
+		        position: absolute;
+		        inset: -12%;
+		        background-image: var(--hero-image);
+		        background-size: cover;
+		        background-position: center;
+		        background-repeat: no-repeat;
+		        filter: blur(18px) saturate(1.08) contrast(1.02);
+		        opacity: 0.42;
+		        transform: scale(1.06);
+		        pointer-events: none;
 		      }
 
-	      .hero-photo::before {
+	      .hero-photo::after {
 	        content: "";
 	        position: absolute;
 	        inset: 0;
 	        background:
-	          radial-gradient(circle at 14% 18%, rgba(244, 180, 0, 0.2), transparent 46%),
-	          radial-gradient(circle at 86% 20%, rgba(47, 125, 50, 0.18), transparent 44%),
-	          linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.28));
+	          radial-gradient(circle at 14% 18%, rgba(244, 180, 0, 0.16), transparent 46%),
+	          radial-gradient(circle at 86% 20%, rgba(47, 125, 50, 0.14), transparent 44%),
+	          linear-gradient(
+	            180deg,
+	            rgba(0, 0, 0, 0.04) 0%,
+	            rgba(0, 0, 0, 0.46) 78%,
+	            rgba(0, 0, 0, 0.64) 100%
+	          );
 	        pointer-events: none;
 	      }
-
-      .hero-photo::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(
-          180deg,
-          rgba(0, 0, 0, 0) 0%,
-          rgba(0, 0, 0, 0.62) 74%,
-          rgba(0, 0, 0, 0.88) 100%
-        );
-        pointer-events: none;
-      }
 
 	      .hero-photo-overlay {
 	        position: absolute;
@@ -1652,18 +1655,20 @@
         }
       }
 
-      function renderKPIs(standingInfo) {
-        const row = standingInfo?.row;
-        const idx = clampNumber(standingInfo?.idx, -1);
-        const position = getRowField(row, ['pos', 'position', '#'], idx >= 0 ? idx + 1 : '—');
-        const points = getRowField(row, ['pts', 'points', 'PTS'], '—');
-        const played = getRowField(row, ['pj', 'played', 'PJ'], '—');
-        const gd = getRowField(row, ['dg', 'gd', 'DG'], '—');
-        setText('kpi-position', position);
-        setText('kpi-points', points);
-        setText('kpi-played', played);
-        setText('kpi-gd', gd);
-      }
+	      function renderKPIs(standingInfo) {
+	        const row = standingInfo?.row;
+	        const idx = clampNumber(standingInfo?.idx, -1);
+	        const position = getRowField(row, ['pos', 'position', '#'], idx >= 0 ? idx + 1 : '—');
+	        const points = getRowField(row, ['pts', 'points', 'PTS'], '—');
+	        const played = getRowField(row, ['pj', 'played', 'PJ'], '—');
+	        const gdRaw = getRowField(row, ['dg', 'gd', 'DG', 'goal_difference', 'goalDifference', 'goal_diff'], '—');
+	        const gdNum = Number(gdRaw);
+	        const gd = Number.isFinite(gdNum) ? (gdNum > 0 ? `+${gdNum}` : `${gdNum}`) : gdRaw;
+	        setText('kpi-position', position);
+	        setText('kpi-points', points);
+	        setText('kpi-played', played);
+	        setText('kpi-gd', gd);
+	      }
 
       function renderStandings(payload, standingInfo) {
         const tbody = document.getElementById('standings-body');
@@ -1672,16 +1677,18 @@
         const limit = Math.max(12, Math.min(standings.length, 18));
         const key = standingInfo?.key || '';
         tbody.innerHTML = standings.slice(0, limit).map((row, i) => {
-          const name = String(getRowField(row, ['team', 'full_name', 'name'], '')).trim() || 'Equipo';
-          const pos = getRowField(row, ['pos', 'position', '#'], i + 1);
-          const pts = getRowField(row, ['pts', 'points', 'PTS'], '');
-          const pj = getRowField(row, ['pj', 'played', 'PJ'], '');
-          const dg = getRowField(row, ['dg', 'gd', 'DG'], '');
-          const highlight = key && normalizeKey(name) === key ? 'highlight' : '';
-          return `
-            <tr class="${highlight}">
-              <td class="num">${escapeHtml(pos)}</td>
-              <td>${escapeHtml(name)}</td>
+	          const name = String(getRowField(row, ['team', 'full_name', 'name'], '')).trim() || 'Equipo';
+	          const pos = getRowField(row, ['pos', 'position', '#'], i + 1);
+	          const pts = getRowField(row, ['pts', 'points', 'PTS'], '');
+	          const pj = getRowField(row, ['pj', 'played', 'PJ'], '');
+	          const dgRaw = getRowField(row, ['dg', 'gd', 'DG', 'goal_difference', 'goalDifference', 'goal_diff'], '');
+	          const dgNum = Number(dgRaw);
+	          const dg = Number.isFinite(dgNum) ? (dgNum > 0 ? `+${dgNum}` : `${dgNum}`) : dgRaw;
+	          const highlight = key && normalizeKey(name) === key ? 'highlight' : '';
+	          return `
+	            <tr class="${highlight}">
+	              <td class="num">${escapeHtml(pos)}</td>
+	              <td>${escapeHtml(name)}</td>
               <td class="num">${escapeHtml(pts)}</td>
               <td class="num">${escapeHtml(pj)}</td>
               <td class="num">${escapeHtml(dg)}</td>

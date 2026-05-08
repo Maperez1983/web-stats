@@ -7364,8 +7364,93 @@ def _build_recent_form_payload(primary_team, limit=5):
         season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
     except Exception:
         season_obj = None
+    # No bloquear el dashboard si no hay temporada configurada todavía:
+    # hacemos fallback a "últimos partidos" del equipo aunque `season` sea nulo.
     if not season_obj:
-        return None
+        season_label = ''
+        try:
+            season_label = season_display_name(getattr(getattr(primary_team, 'group', None), 'season', None))
+        except Exception:
+            season_label = ''
+        today = timezone.localdate()
+        try:
+            matches = list(
+                Match.objects
+                .select_related('home_team', 'away_team')
+                .filter(context=Match.CONTEXT_LEAGUE)
+                .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                .filter(date__isnull=False, date__lte=today)
+                .exclude(home_score__isnull=True)
+                .exclude(away_score__isnull=True)
+                .order_by('-date', '-id')[:120]
+            )
+        except Exception:
+            matches = []
+        if not matches:
+            return {
+                'season': season_label,
+                'played': 0,
+                'wins': 0,
+                'draws': 0,
+                'losses': 0,
+                'gf': 0,
+                'ga': 0,
+                'gd': 0,
+                'last': [],
+            }
+        # Reutiliza el mismo cálculo de totales.
+        played = wins = draws = losses = 0
+        gf_total = ga_total = 0
+        last_rows = []
+        for match in matches:
+            is_home = int(getattr(match, 'home_team_id', 0) or 0) == int(primary_team.id)
+            gf = int(match.home_score if is_home else match.away_score)
+            ga = int(match.away_score if is_home else match.home_score)
+            played += 1
+            gf_total += gf
+            ga_total += ga
+            if gf > ga:
+                wins += 1
+                outcome = 'W'
+            elif gf == ga:
+                draws += 1
+                outcome = 'D'
+            else:
+                losses += 1
+                outcome = 'L'
+            try:
+                opponent = match.away_team if is_home else match.home_team
+            except Exception:
+                opponent = None
+            opponent_name = (
+                str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip()
+                if opponent
+                else ''
+            )
+            last_rows.append(
+                {
+                    'id': int(getattr(match, 'id', 0) or 0),
+                    'date': match.date.isoformat() if getattr(match, 'date', None) else '',
+                    'date_label': match.date.strftime('%d/%m') if getattr(match, 'date', None) else '',
+                    'opponent': opponent_name or 'Rival',
+                    'home': bool(is_home),
+                    'gf': gf,
+                    'ga': ga,
+                    'outcome': outcome,
+                }
+            )
+        last_rows = list(reversed(last_rows[: max(1, int(limit or 5))]))
+        return {
+            'season': season_label,
+            'played': played,
+            'wins': wins,
+            'draws': draws,
+            'losses': losses,
+            'gf': gf_total,
+            'ga': ga_total,
+            'gd': gf_total - ga_total,
+            'last': last_rows,
+        }
     today = timezone.localdate()
     try:
         matches = list(
