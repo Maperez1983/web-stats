@@ -82,11 +82,34 @@ async function main() {
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => null),
     ]);
-    if (page.url().includes('/login')) {
+    // Si hay un mensaje de error visible, fallamos explícitamente.
+    const errText = await page.locator('.error').first().textContent().catch(() => '');
+    if (errText && errText.trim()) {
       const status = loginResp ? loginResp.status() : null;
-      const errText = await page.locator('.error').first().textContent().catch(() => '');
-      const hint = errText ? ` (${errText.trim().slice(0, 180)})` : '';
-      throw new Error(`Login failed${status ? ` [status=${status}]` : ''}${hint}`);
+      throw new Error(`Login failed${status ? ` [status=${status}]` : ''} (${errText.trim().slice(0, 180)})`);
+    }
+
+    // Login robusto: algunos despliegues devuelven 200 y redirigen por JS (la URL puede seguir siendo /login).
+    const hasSessionCookie = async () => {
+      try {
+        const cookies = await context.cookies();
+        return (cookies || []).some((c) => {
+          const name = String(c?.name || '').toLowerCase();
+          return name === 'sessionid' || name === 'webstats_sessionid' || name.includes('sessionid');
+        });
+      } catch (e) {
+        return false;
+      }
+    };
+    for (let i = 0; i < 12; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await hasSessionCookie()) break;
+      // eslint-disable-next-line no-await-in-loop
+      await page.waitForTimeout(250);
+    }
+    if (!(await hasSessionCookie())) {
+      const status = loginResp ? loginResp.status() : null;
+      throw new Error(`Login failed${status ? ` [status=${status}]` : ''}`);
     }
 
     // Clear previous tactical-pad error marker to detect fresh failures.
@@ -99,8 +122,26 @@ async function main() {
 
     // Open task builder (tactical pad) in a clean state (avoid stale local drafts).
     const deviceParam = (forceDevice === 'desktop' || forceDevice === 'tablet') ? `&device=${encodeURIComponent(forceDevice)}` : '';
-    await page.goto(`${baseUrl}/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1${deviceParam}`, { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('#create-task-canvas', { timeout: 35_000 });
+    const builderUrl = `${baseUrl}/coach/sesiones/tareas/nueva/?reset=1&cleardraft=1${deviceParam}`;
+    const builderResp = await page.goto(builderUrl, { waitUntil: 'domcontentloaded' });
+    try {
+      const status = builderResp ? builderResp.status() : null;
+      console.log(`[e2e] builder url=${page.url()} status=${status == null ? 'n/a' : status}`);
+    } catch (e) { /* ignore */ }
+    try {
+      await page.waitForSelector('#create-task-canvas', { timeout: 35_000 });
+    } catch (e) {
+      const nowUrl = page.url();
+      const title = await page.title().catch(() => '');
+      const bodyText = await page.evaluate(() => (document.body && document.body.innerText ? document.body.innerText.slice(0, 420) : '')).catch(() => '');
+      console.error(`[e2e] builder missing canvas; url=${nowUrl} title=${title} body=${JSON.stringify(bodyText)}`);
+      try {
+        const fs = require('fs');
+        fs.mkdirSync('artifacts', { recursive: true });
+        await page.screenshot({ path: 'artifacts/e2e_tacticalpad_builder_missing.png', fullPage: true }).catch(() => null);
+      } catch (err) { /* ignore */ }
+      throw e;
+    }
 
     // If the init failed, the JS stores last error in localStorage.
     const lastError = await page.evaluate(() => window.localStorage.getItem('webstats:tpad:last_error') || '');
