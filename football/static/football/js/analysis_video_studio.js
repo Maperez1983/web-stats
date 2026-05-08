@@ -144,6 +144,10 @@
     const eventKindSelect = document.getElementById('vs-event-kind');
     const eventLabelInput = document.getElementById('vs-event-label');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
+    const presetsJson = document.getElementById('vs-presets-json');
+    const presetsSaveBtn = document.getElementById('vs-presets-save');
+    const presetsResetBtn = document.getElementById('vs-presets-reset');
+    const presetsStatusEl = document.getElementById('vs-presets-status');
     const eventAddBtn = document.getElementById('vs-event-add');
     const eventRefreshBtn = document.getElementById('vs-event-refresh');
     const timelineList = document.getElementById('vs-timeline');
@@ -190,6 +194,43 @@
     const fxOpacityInput = document.getElementById('vs-fx-opacity');
 
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+    const wsPrefGetUrl = safeText(document.getElementById('vs-ws-pref-get-url')?.value);
+    const wsPrefSetUrl = safeText(document.getElementById('vs-ws-pref-set-url')?.value);
+    const teamId = Number(document.getElementById('vs-team-id')?.value || 0);
+
+    const setPresetsStatus = (text, isError = false) => {
+      if (!presetsStatusEl) return;
+      presetsStatusEl.textContent = safeText(text, '—');
+      presetsStatusEl.style.color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+    };
+
+    const allowedEventKinds = new Set(['tag', 'note', 'goal', 'shot', 'press', 'turnover', 'abp']);
+
+    const prefKeyForEventPresets = () => {
+      if (!teamId) return '';
+      return `vs_event_presets:team:${teamId}`;
+    };
+
+    const wsPrefGet = async (key) => {
+      if (!wsPrefGetUrl || !key) return null;
+      const url = `${wsPrefGetUrl}?key=${encodeURIComponent(String(key))}`;
+      const resp = await fetch(url, { credentials: 'same-origin' });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+      return data?.value ?? null;
+    };
+
+    const wsPrefSet = async (key, value) => {
+      if (!wsPrefSetUrl || !key) return;
+      const resp = await fetch(wsPrefSetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: String(key), value: value ?? {} }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+    };
 
     const downloadResponseBlob = async (resp, fallbackName) => {
       const blob = await resp.blob();
@@ -3117,21 +3158,74 @@
     };
     eventAddBtn?.addEventListener('click', addTimelineEvent);
 
-    const eventPresets = [
-      { kind: 'press', label: 'Presión tras pérdida' },
-      { kind: 'turnover', label: 'Pérdida / riesgo en inicio' },
-      { kind: 'abp', label: 'ABP (córner / falta)' },
-      { kind: 'shot', label: 'Finalización (disparo)' },
-      { kind: 'goal', label: 'Gol' },
-      { kind: 'note', label: 'Nota táctica' },
-      { kind: 'tag', label: 'Centro lateral' },
-      { kind: 'tag', label: 'Salida vs presión' },
-    ];
+    const defaultEventPresets = () => ([
+      { kind: 'press', label: 'Presión tras pérdida', hotkey: '1', color: '#22d3ee' },
+      { kind: 'turnover', label: 'Pérdida / riesgo en inicio', hotkey: '2', color: '#fb7185' },
+      { kind: 'abp', label: 'ABP (córner / falta)', hotkey: '3', color: '#facc15' },
+      { kind: 'shot', label: 'Finalización (disparo)', hotkey: '4', color: '#a78bfa' },
+      { kind: 'goal', label: 'Gol', hotkey: '5', color: '#f59e0b' },
+      { kind: 'note', label: 'Nota táctica', hotkey: '6', color: '#60a5fa' },
+      { kind: 'tag', label: 'Centro lateral', hotkey: '7', color: '#34d399' },
+      { kind: 'tag', label: 'Salida vs presión', hotkey: '8', color: '#38bdf8' },
+      { kind: 'tag', label: 'Transición', hotkey: '9', color: '#cbd5e1' },
+    ]);
+    let eventPresets = defaultEventPresets();
+
+    const sanitizeEventPresets = (raw) => {
+      const items = Array.isArray(raw) ? raw : [];
+      const out = [];
+      const usedHotkeys = new Set();
+      for (const it of items.slice(0, 24)) {
+        const kind = safeText(it?.kind, 'tag').toLowerCase();
+        const label = safeText(it?.label, '');
+        if (!label) continue;
+        if (!allowedEventKinds.has(kind)) continue;
+        const hotkeyRaw = safeText(it?.hotkey, '');
+        const hotkey = (hotkeyRaw && hotkeyRaw.length <= 2) ? hotkeyRaw : '';
+        const hk = hotkey || '';
+        if (hk && usedHotkeys.has(hk)) continue;
+        if (hk) usedHotkeys.add(hk);
+        const color = safeText(it?.color, '');
+        out.push({ kind, label: label.slice(0, 140), hotkey: hk, color: color.slice(0, 16) });
+      }
+      // Asigna hotkeys 1..9 si faltan (para productividad).
+      const digits = ['1','2','3','4','5','6','7','8','9'];
+      for (let i = 0; i < out.length && i < digits.length; i += 1) {
+        const d = digits[i];
+        if (!out[i].hotkey) out[i].hotkey = d;
+      }
+      return out;
+    };
+
+    const presetsToJson = (items) => {
+      try { return JSON.stringify(items, null, 2); } catch (e) { return '[]'; }
+    };
+
+    const loadEventPresets = async () => {
+      const key = prefKeyForEventPresets();
+      if (!key || !wsPrefGetUrl) {
+        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        return;
+      }
+      try {
+        const value = await wsPrefGet(key);
+        const buttons = Array.isArray(value?.buttons) ? value.buttons : (Array.isArray(value) ? value : null);
+        if (buttons) {
+          const sanitized = sanitizeEventPresets(buttons);
+          if (sanitized.length) eventPresets = sanitized;
+        }
+        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        setPresetsStatus('OK · presets cargados');
+      } catch (e) {
+        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        setPresetsStatus('No se pudieron cargar presets (usando default).', true);
+      }
+    };
 
     const renderEventPresets = () => {
       if (!eventPresetsWrap) return;
       const buttons = eventPresets.slice(0, 12).map((p, idx) => (
-        `<button type="button" class="button ghost" data-vs-preset="${idx}" title="Click: preparar · Shift+Click: añadir">${escHtml(p.label)}</button>`
+        `<button type="button" class="button ghost" data-vs-preset="${idx}" title="Click: preparar · Shift+Click: añadir">${escHtml(p.hotkey ? `[${p.hotkey}] ` : '')}${escHtml(p.label)}</button>`
       )).join('');
       eventPresetsWrap.innerHTML = buttons || '<span class="hint">—</span>';
       Array.from(eventPresetsWrap.querySelectorAll('[data-vs-preset]')).forEach((btn) => {
@@ -3141,11 +3235,51 @@
           if (!p) return;
           if (eventKindSelect) eventKindSelect.value = safeText(p.kind, 'tag');
           if (eventLabelInput) eventLabelInput.value = safeText(p.label, '');
+          if (safeText(p.color, '')) {
+            try { if (colorInput) colorInput.value = String(p.color); } catch (e) { /* ignore */ }
+          }
           if (ev?.shiftKey) await addTimelineEvent();
         });
       });
     };
-    renderEventPresets();
+    loadEventPresets().finally(() => renderEventPresets());
+
+    const saveEventPresets = async (items) => {
+      const key = prefKeyForEventPresets();
+      if (!key) return;
+      await wsPrefSet(key, { buttons: items });
+    };
+
+    presetsSaveBtn?.addEventListener('click', async () => {
+      try {
+        const raw = safeText(presetsJson?.value, '');
+        const parsed = raw ? JSON.parse(raw) : [];
+        const sanitized = sanitizeEventPresets(parsed);
+        if (!sanitized.length) {
+          setPresetsStatus('JSON vacío o inválido: añade al menos 1 preset.', true);
+          return;
+        }
+        eventPresets = sanitized;
+        await saveEventPresets(eventPresets);
+        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        renderEventPresets();
+        setPresetsStatus('Guardado.');
+      } catch (e) {
+        setPresetsStatus('No se pudo guardar (JSON inválido).', true);
+      }
+    });
+
+    presetsResetBtn?.addEventListener('click', async () => {
+      try {
+        eventPresets = defaultEventPresets();
+        await saveEventPresets(eventPresets);
+        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+        renderEventPresets();
+        setPresetsStatus('Reset OK.');
+      } catch (e) {
+        setPresetsStatus('No se pudo resetear.', true);
+      }
+    });
 
     eventRefreshBtn?.addEventListener('click', refreshTimeline);
     timelineSearchInput?.addEventListener('input', () => renderTimeline(timelineCache));
@@ -3198,13 +3332,19 @@
         return;
       }
       if (k >= '1' && k <= '9') {
+        // Tecla rápida: busca preset por hotkey; si no existe, fallback por índice.
+        const byHotkey = eventPresets.find((p) => safeText(p?.hotkey, '') === k);
         const idx = Number(k) - 1;
-        const p = eventPresets[idx];
+        const p = byHotkey || eventPresets[idx];
         if (!p) return;
         if (eventKindSelect) eventKindSelect.value = safeText(p.kind, 'tag');
         if (eventLabelInput) eventLabelInput.value = safeText(p.label, '');
+        if (safeText(p.color, '')) {
+          try { if (colorInput) colorInput.value = String(p.color); } catch (e) { /* ignore */ }
+        }
         setStatus(`Preset: ${safeText(p.label)}`);
-        if (ev?.shiftKey) addTimelineEvent();
+        // Por defecto: añadir al momento (más rápido). Shift = solo preparar.
+        if (!ev?.shiftKey) addTimelineEvent();
       }
     });
 

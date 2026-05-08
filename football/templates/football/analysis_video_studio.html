@@ -363,8 +363,22 @@
                 Etiqueta
                 <input type="text" id="vs-event-label" placeholder="Ej: Robo alto + remate" />
               </label>
-              <div class="hint">Presets rápidos:</div>
+              <div class="hint">Presets rápidos (teclas <span class="k">1</span>-<span class="k">9</span>):</div>
               <div id="vs-event-presets" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
+              <details style="margin-top:0.35rem;">
+                <summary class="hint" style="cursor:pointer; user-select:none;">Configurar presets</summary>
+                <div style="margin-top:0.45rem; display:grid; gap:0.45rem;">
+                  <div class="hint" style="font-size:0.82rem;">
+                    Se guarda por workspace + equipo. Formato: JSON array con objetos <span class="k">kind</span>, <span class="k">label</span>, opcional <span class="k">color</span> y <span class="k">hotkey</span>.
+                  </div>
+                  <textarea id="vs-presets-json" style="min-height:140px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;" placeholder='[{"kind":"press","label":"Presión tras pérdida","hotkey":"1"}]'></textarea>
+                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                    <button type="button" class="button primary" id="vs-presets-save">Guardar presets</button>
+                    <button type="button" class="button ghost" id="vs-presets-reset">Reset</button>
+                  </div>
+                  <div class="hint" id="vs-presets-status">—</div>
+                </div>
+              </details>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
@@ -460,6 +474,9 @@
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
 	    <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
+	    <input type="hidden" id="vs-ws-pref-get-url" value="{% url 'workspace-pref-get' %}" />
+	    <input type="hidden" id="vs-ws-pref-set-url" value="{% url 'workspace-pref-set' %}" />
+	    <input type="hidden" id="vs-team-id" value="{% if team %}{{ team.id }}{% endif %}" />
 	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
