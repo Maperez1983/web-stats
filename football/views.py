@@ -10970,6 +10970,59 @@ def dashboard_data(request):
         pass
     try:
         recent_form = _build_recent_form_payload(primary_team, limit=5)
+
+        # Fuente de verdad: en Universo/RFAF los totales (PJ/PG/PE/PP/GF/GC/DG) vienen en la clasificación.
+        # Así el dashboard refleja "victorias/empates/derrotas" aunque no tengamos `Match` con marcadores.
+        try:
+            candidate_keys = {
+                _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+                _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+            }
+            candidate_keys = {key for key in candidate_keys if key}
+            picked = None
+            if isinstance(standings, list) and candidate_keys:
+                for row in standings:
+                    if not isinstance(row, dict):
+                        continue
+                    row_keys = {
+                        _normalize_team_lookup_key(row.get('full_name') or ''),
+                        _normalize_team_lookup_key(row.get('team') or ''),
+                    }
+                    row_keys = {key for key in row_keys if key}
+                    if candidate_keys & row_keys:
+                        picked = row
+                        break
+            if picked:
+                wins = _safe_int(picked.get('wins'))
+                draws = _safe_int(picked.get('draws'))
+                losses = _safe_int(picked.get('losses'))
+                played = _safe_int(picked.get('played'))
+                if played <= 0:
+                    played = max(0, wins + draws + losses)
+                gf = _safe_int(picked.get('goals_for'))
+                ga = _safe_int(picked.get('goals_against'))
+                gd = picked.get('goal_difference')
+                if gd in (None, ''):
+                    gd = gf - ga
+                if not isinstance(recent_form, dict) or not recent_form:
+                    recent_form = {'last': []}
+                else:
+                    recent_form = dict(recent_form)
+                    recent_form.setdefault('last', [])
+                recent_form.update(
+                    {
+                        'played': played,
+                        'wins': wins,
+                        'draws': draws,
+                        'losses': losses,
+                        'gf': gf,
+                        'ga': ga,
+                        'gd': _safe_int(gd),
+                    }
+                )
+        except Exception:
+            pass
+
         if isinstance(recent_form, dict) and recent_form:
             payload['recent_form'] = recent_form
     except Exception:
