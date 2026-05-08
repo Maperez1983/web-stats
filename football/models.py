@@ -1172,6 +1172,11 @@ class SessionTask(models.Model):
     order = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    workflow_is_latest = models.BooleanField(default=True)
+    workflow_status = models.CharField(max_length=12, default='draft')
+    workflow_version_group = models.CharField(max_length=32, default='', blank=True)
+    workflow_version_number = models.PositiveSmallIntegerField(default=1)
     # Soft-delete (papelera). No borrar físicamente por defecto para permitir restauración.
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='deleted_session_tasks')
