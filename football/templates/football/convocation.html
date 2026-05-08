@@ -580,7 +580,10 @@
               <div class="roster-meta">#{{ player.number|default:"--" }} · {{ player.position|default:"Sin definir" }}</div>
               <div class="status-badges">
                 {% if player.has_active_injury %}
-                <span class="status-dot injury" title="Lesionado">✚</span>
+                <span
+                  class="status-dot injury"
+                  title="Lesionado{% if player.injury_detail_label %}: {{ player.injury_detail_label|escape }}{% endif %}{% if player.injury_detail_zone %} · {{ player.injury_detail_zone|escape }}{% endif %}{% if player.injury_detail_eta %} · Alta est: {{ player.injury_detail_eta|date:'d/m/Y' }}{% endif %}{% if player.injury_detail_rtt %} · Vuelta entreno: {{ player.injury_detail_rtt|date:'d/m/Y' }}{% endif %}{% if player.injury_detail_rtp %} · Vuelta competir: {{ player.injury_detail_rtp|date:'d/m/Y' }}{% endif %}"
+                >✚</span>
                 {% endif %}
                 {% if player.is_sanctioned %}
                 <span class="status-dot red-card" title="Sancionado por tarjeta roja">🟥</span>

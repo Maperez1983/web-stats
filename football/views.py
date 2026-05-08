@@ -19948,12 +19948,17 @@ def team_agenda_page(request):
                     Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
                 )
                 if player_ids:
+                    active_injury_ids = get_active_injury_player_ids(player_ids)
                     TrainingSessionAttendance.objects.bulk_create(
                         [
                             TrainingSessionAttendance(
                                 session=session_obj,
                                 player_id=int(pid),
-                                status=TrainingSessionAttendance.STATUS_PRESENT,
+                                status=(
+                                    TrainingSessionAttendance.STATUS_INJURED
+                                    if int(pid) in active_injury_ids
+                                    else TrainingSessionAttendance.STATUS_PRESENT
+                                ),
                                 notes='',
                                 marked_by=request.user if request.user.is_authenticated else None,
                             )
@@ -21785,6 +21790,24 @@ def convocation_page(request):
                 return entry
         return {}
     active_injury_ids = get_active_injury_player_ids([p.id for p in all_players])
+    active_injury_by_player_id = {}
+    try:
+        if active_injury_ids:
+            today = timezone.localdate()
+            qs = (
+                PlayerInjuryRecord.objects
+                .select_related('catalog_entry')
+                .filter(player_id__in=list(active_injury_ids), is_active=True)
+                .filter(Q(return_date__isnull=True) | Q(return_date__gt=today))
+                .order_by('player_id', '-injury_date', '-id')
+            )
+            for rec in qs:
+                pid = int(getattr(rec, 'player_id', 0) or 0)
+                if not pid or pid in active_injury_by_player_id:
+                    continue
+                active_injury_by_player_id[pid] = rec
+    except Exception:
+        active_injury_by_player_id = {}
     sanctioned_player_ids = get_sanctioned_player_ids_from_previous_round(
         primary_team,
         reference_match=active_match,
@@ -21814,6 +21837,47 @@ def convocation_page(request):
         player.is_sanctioned = (player.id in sanctioned_player_ids) or is_manual_sanction_active(player, today=today)
         player.is_apercibido = player.yellow_cards in {4, 9, 14}
         player.has_active_injury = player.id in active_injury_ids
+        # Detalle lesión (para UI): etiqueta + alta estimada/real.
+        try:
+            rec = active_injury_by_player_id.get(int(player.id))
+            if rec:
+                injury_name = str(getattr(rec, 'injury', '') or '').strip()
+                catalog = getattr(rec, 'catalog_entry', None)
+                zone = ''
+                if catalog:
+                    try:
+                        zone = str(catalog.get_region_display() or '').strip()
+                    except Exception:
+                        zone = str(getattr(catalog, 'region', '') or '').strip()
+                if not zone:
+                    zone = str(getattr(rec, 'injury_zone', '') or '').strip()
+                eta = getattr(rec, 'estimated_return_date', None)
+                rtd = getattr(rec, 'return_date', None)
+                rtt = getattr(rec, 'return_to_train_on', None)
+                rtp = getattr(rec, 'return_to_play_on', None)
+                player.injury_detail_label = injury_name
+                player.injury_detail_zone = zone
+                player.injury_detail_eta = eta
+                player.injury_detail_return = rtd
+                player.injury_detail_rtt = rtt
+                player.injury_detail_rtp = rtp
+                player.injury_detail_status = str(getattr(rec, 'training_status', '') or '').strip()
+            else:
+                player.injury_detail_label = ''
+                player.injury_detail_zone = ''
+                player.injury_detail_eta = None
+                player.injury_detail_return = None
+                player.injury_detail_rtt = None
+                player.injury_detail_rtp = None
+                player.injury_detail_status = ''
+        except Exception:
+            player.injury_detail_label = ''
+            player.injury_detail_zone = ''
+            player.injury_detail_eta = None
+            player.injury_detail_return = None
+            player.injury_detail_rtt = None
+            player.injury_detail_rtp = None
+            player.injury_detail_status = ''
         filtered_players.append(player)
     players = filtered_players
     convocation_record = get_current_convocation_record(primary_team, match=active_match, fallback_to_latest=True)
@@ -33573,12 +33637,17 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True)
                         )
                         if player_ids:
+                            active_injury_ids = get_active_injury_player_ids(player_ids)
                             TrainingSessionAttendance.objects.bulk_create(
                                 [
                                     TrainingSessionAttendance(
                                         session=session_obj,
                                         player_id=int(pid),
-                                        status=TrainingSessionAttendance.STATUS_PRESENT,
+                                        status=(
+                                            TrainingSessionAttendance.STATUS_INJURED
+                                            if int(pid) in active_injury_ids
+                                            else TrainingSessionAttendance.STATUS_PRESENT
+                                        ),
                                         notes='',
                                         marked_by=request.user if request.user.is_authenticated else None,
                                     )
@@ -33811,6 +33880,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 allowed_statuses = {choice[0] for choice in TrainingSessionAttendance.STATUS_CHOICES}
                 roster_ids = set(Player.objects.filter(team=primary_team).values_list('id', flat=True))
                 wanted_by_pid = {}
+                wanted_reason_by_pid = {}
                 delete_pids = set()
                 for key, value in request.POST.items():
                     if not key.startswith('attendance_status_'):
@@ -33845,6 +33915,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if status not in allowed_statuses:
                         continue
                     wanted_by_pid[pid] = (status, notes)
+                    wanted_reason_by_pid[pid] = reason
 
                 touched_pids = set(wanted_by_pid.keys()) | set(delete_pids)
                 existing = {}
@@ -33894,6 +33965,61 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     TrainingSessionAttendance.objects.bulk_update(to_update, ['status', 'notes', 'marked_by', 'updated_at'])
                     updated_count = len(to_update)
                 feedback = f'Asistencia guardada: +{created_count} · {updated_count} actualizadas · {deleted_count} quitadas.'
+
+                # Sync lesiones: si un jugador se marca como "Lesionado" desde el planner,
+                # creamos/actualizamos un PlayerInjuryRecord para que Convocatoria/Dashboard lo reflejen.
+                try:
+                    injured_pids = [
+                        int(pid)
+                        for pid, (status, _notes) in wanted_by_pid.items()
+                        if status == TrainingSessionAttendance.STATUS_INJURED
+                    ]
+                    if injured_pids:
+                        injury_today = getattr(session_obj, 'session_date', None) or timezone.localdate()
+                        players_by_id = {
+                            int(p.id): p
+                            for p in Player.objects.filter(team=primary_team, id__in=injured_pids)
+                        }
+                        for pid in injured_pids:
+                            p = players_by_id.get(int(pid))
+                            if not p:
+                                continue
+                            notes = str((wanted_by_pid.get(int(pid)) or ('', ''))[1] or '').strip()
+                            reason_key = str(wanted_reason_by_pid.get(int(pid)) or '').strip()
+                            # Nombre mínimo (si el staff no especifica): usamos "Baja médica" o "Lesión".
+                            injury_name = 'Baja médica' if reason_key == 'baja_medica' else 'Lesión'
+                            # Si hay texto adicional, lo usamos como etiqueta más útil.
+                            if notes:
+                                injury_name = notes.split(' · ')[-1].strip()[:180] or injury_name
+                            # Persistimos resumen rápido en Player para UX.
+                            try:
+                                p.injury = injury_name[:180]
+                                p.injury_date = injury_today
+                                p.save(update_fields=['injury', 'injury_date'])
+                            except Exception:
+                                pass
+                            # Evita duplicados: misma fecha + misma etiqueta, activo.
+                            exists = PlayerInjuryRecord.objects.filter(
+                                player=p,
+                                injury_date=injury_today,
+                                injury__iexact=injury_name,
+                                is_active=True,
+                            ).exists()
+                            if not exists:
+                                PlayerInjuryRecord.objects.create(
+                                    player=p,
+                                    catalog_entry=None,
+                                    injury=injury_name[:180],
+                                    injury_type='',
+                                    injury_zone='',
+                                    injury_side='',
+                                    injury_date=injury_today,
+                                    estimated_return_date=None,
+                                    notes=(notes or '')[:500],
+                                    is_active=True,
+                                )
+                except Exception:
+                    pass
 
             elif planner_action in {'timeline_start_segment', 'timeline_stop', 'timeline_update_segments', 'timeline_delete_segment'}:
                 session_id = _parse_int(
