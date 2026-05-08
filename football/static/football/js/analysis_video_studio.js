@@ -3317,6 +3317,17 @@
         markOut();
         return;
       }
+      // Compatibilidad con otros editores: S=IN, R=OUT (tipo "quick tagging").
+      if (k === 's' || k === 'S') {
+        ev.preventDefault();
+        markIn();
+        return;
+      }
+      if (k === 'r' || k === 'R') {
+        ev.preventDefault();
+        markOut();
+        return;
+      }
       if (k === 'c' || k === 'C') {
         ev.preventDefault();
         saveClip();
