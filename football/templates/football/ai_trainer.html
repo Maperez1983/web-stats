@@ -57,12 +57,72 @@
           <div class="meta">Asistente (separado del flujo clásico) · {{ team.name|default:"Equipo" }}</div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="btn {% if tab == 'assistant' or not tab %}primary{% endif %}" href="?team={{ team.id }}&tab=assistant">Asistente</a>
+          <a class="btn {% if tab == 'concepts' %}primary{% endif %}" href="?team={{ team.id }}&tab=concepts&section={{ concept_section|default:'principles' }}">Conceptos</a>
           <a class="btn" href="{% url 'sessions' %}?team={{ team.id }}">Entrenos</a>
           <a class="btn" href="{% url 'sessions-task-create' %}?team={{ team.id }}">Crear tarea</a>
         </div>
       </div>
 
       <div class="grid">
+        {% if tab == 'concepts' %}
+          <section class="card" style="grid-column: 1 / -1;">
+            <div class="section-title">Biblioteca de conceptos</div>
+            <form method="get" action="" style="margin-top:0.35rem;">
+              <input type="hidden" name="team" value="{{ team.id }}" />
+              <input type="hidden" name="tab" value="concepts" />
+              <div class="row">
+                <label>
+                  Sección
+                  <select name="section">
+                    <option value="principles" {% if concept_section == 'principles' %}selected{% endif %}>Principios</option>
+                    <option value="phases" {% if concept_section == 'phases' %}selected{% endif %}>Fases</option>
+                    <option value="figures" {% if concept_section == 'figures' %}selected{% endif %}>Figuras</option>
+                    <option value="zones" {% if concept_section == 'zones' %}selected{% endif %}>Zonas</option>
+                  </select>
+                </label>
+                <label>
+                  Buscar
+                  <input name="q" value="{{ concept_q|default:'' }}" placeholder="Ej.: tercer hombre, carriles, pre‑pérdida…" />
+                </label>
+              </div>
+              <div class="actions" style="justify-content:flex-start;">
+                <button type="submit" class="btn primary">Filtrar</button>
+                <a class="btn" href="?team={{ team.id }}&tab=concepts&section={{ concept_section|default:'principles' }}">Limpiar</a>
+              </div>
+            </form>
+
+            {% if concept_rows %}
+              <div class="blocks" style="margin-top:0.75rem;">
+                {% for c in concept_rows %}
+                  <div class="block">
+                    <strong class="mono">{{ c.key }}</strong>
+                    <span style="margin-top:0.3rem; font-weight:950; letter-spacing:0.02em;">{{ c.label }}</span>
+                    {% if c.coaching_points %}
+                      <span class="muted" style="margin-top:0.35rem;">
+                        {% for cp in c.coaching_points %}
+                          • {{ cp }}{% if not forloop.last %}<br/>{% endif %}
+                        {% endfor %}
+                      </span>
+                    {% endif %}
+                    {% if c.keywords %}
+                      <div class="chips" style="margin-top:0.45rem;">
+                        {% for kw in c.keywords|slice:":14" %}
+                          <span class="chip">🏷️ {{ kw }}</span>
+                        {% endfor %}
+                        {% if c.keywords|length > 14 %}
+                          <span class="chip">+{{ c.keywords|length|add:"-14" }}</span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">No hay resultados para ese filtro.</p>
+            {% endif %}
+          </section>
+        {% else %}
         <section class="card">
           <div class="section-title">Hoy quiero…</div>
           <form method="post">
@@ -310,6 +370,7 @@
             </div>
           {% endif %}
         </section>
+        {% endif %}
       </div>
     </main>
 
