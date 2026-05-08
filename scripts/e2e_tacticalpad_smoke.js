@@ -70,11 +70,24 @@ async function main() {
     await page.goto(`${baseUrl}/login/`, { waitUntil: 'domcontentloaded' });
     await page.fill('input[name="username"]', username);
     await page.fill('input[name="password"]', password);
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+    const [loginResp] = await Promise.all([
+      page.waitForResponse((resp) => {
+        try {
+          const url = resp.url() || '';
+          return url.includes('/login') && resp.request()?.method?.() === 'POST';
+        } catch (e) {
+          return false;
+        }
+      }).catch(() => null),
       page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }).catch(() => null),
     ]);
-    if (page.url().includes('/login')) throw new Error('Login failed');
+    if (page.url().includes('/login')) {
+      const status = loginResp ? loginResp.status() : null;
+      const errText = await page.locator('.error').first().textContent().catch(() => '');
+      const hint = errText ? ` (${errText.trim().slice(0, 180)})` : '';
+      throw new Error(`Login failed${status ? ` [status=${status}]` : ''}${hint}`);
+    }
 
     // Clear previous tactical-pad error marker to detect fresh failures.
     await page.evaluate(() => {
