@@ -222,7 +222,6 @@ urlpatterns = [
     path('coach/multas/', views.fines_page, name='fines'),
     path('coach/analisis/informe/<int:report_id>/pdf/', views.analysis_rival_report_pdf, name='analysis-rival-report-pdf'),
     path('coach/analisis/informes/<int:report_id>/file/', views.analysis_match_report_file, name='analysis-match-report-file'),
-    path('coach/analisis/rival/<int:rival_id>/', views.analysis_rival_profile_page, name='analysis-rival-profile'),
     path('coach/analisis/', views.analysis_page, name='analysis'),
     path('coach/analisis/inbox/', views.analysis_video_inbox_page, name='analysis-video-inbox'),
     path('coach/analisis/inbox/open/<int:item_id>/', views.analysis_video_inbox_open, name='analysis-video-inbox-open'),

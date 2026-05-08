@@ -32762,6 +32762,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'delete_session_task',
             'restore_session_task',
             'purge_session_task',
+            'create_session_from_imported_doc',
             'delete_imported_session_doc',
             'bulk_copy_library_tasks_to_session',
         }:
@@ -33005,6 +33006,211 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     if created_docs == 1
                     else f'Se importaron {created_docs} sesiones (PDF).'
                 )
+
+            elif planner_action == 'create_session_from_imported_doc':
+                doc_id = _parse_int(request.POST.get('doc_id'))
+                if not doc_id:
+                    raise ValueError('Documento no válido.')
+                doc = ImportedSessionDocument.objects.filter(id=doc_id, team=primary_team).first()
+                if not doc or not getattr(doc, 'pdf', None):
+                    raise ValueError('Sesión importada no encontrada.')
+
+                # Fecha y microciclo destino.
+                session_date = getattr(doc, 'session_date', None) or timezone.localdate()
+                microcycle = None
+                try:
+                    microcycle = (
+                        TrainingMicrocycle.objects
+                        .filter(team=primary_team, week_start__lte=session_date, week_end__gte=session_date)
+                        .order_by('-week_start', '-id')
+                        .first()
+                    )
+                except Exception:
+                    microcycle = None
+                if not microcycle:
+                    microcycle = _get_or_create_inbox_microcycle(primary_team)
+                if not microcycle:
+                    raise ValueError('No se pudo preparar el microciclo destino.')
+
+                focus = str(getattr(doc, 'title', '') or f'Sesión importada #{doc.id}').strip()[:140] or f'Sesión importada #{doc.id}'
+                # Guardamos un marcador en `content.notes` para idempotencia/dedupe.
+                content = _serialize_session_plan_fields({'notes': f'imported_doc_id:{int(doc.id)}'})
+
+                session_obj = None
+                created = False
+                with transaction.atomic():
+                    try:
+                        TrainingMicrocycle.objects.select_for_update().filter(id=microcycle.id).values_list('id', flat=True).first()
+                    except Exception:
+                        pass
+                    session_obj = (
+                        TrainingSession.objects
+                        .filter(microcycle=microcycle, session_date=session_date, focus__iexact=focus)
+                        .order_by('-id')
+                        .first()
+                    )
+                    if session_obj:
+                        created = False
+                    else:
+                        next_order = (TrainingSession.objects.filter(microcycle=microcycle).aggregate(Max('order')).get('order__max') or 0) + 1
+                        session_obj = TrainingSession.objects.create(
+                            microcycle=microcycle,
+                            session_date=session_date,
+                            start_time=None,
+                            duration_minutes=90,
+                            intensity=TrainingSession.INTENSITY_MEDIUM,
+                            focus=focus,
+                            content=content,
+                            status=TrainingSession.STATUS_PLANNED,
+                            order=next_order,
+                        )
+                        created = True
+                if not session_obj:
+                    raise ValueError('No se pudo crear la sesión desde el PDF importado.')
+
+                # Auto-convocatoria (igual que sesiones manuales).
+                if created:
+                    try:
+                        player_ids = list(Player.objects.filter(team=primary_team, is_active=True).values_list('id', flat=True))
+                        if player_ids:
+                            TrainingSessionAttendance.objects.bulk_create(
+                                [
+                                    TrainingSessionAttendance(
+                                        session=session_obj,
+                                        player_id=int(pid),
+                                        status=TrainingSessionAttendance.STATUS_PRESENT,
+                                        notes='',
+                                        marked_by=request.user if request.user.is_authenticated else None,
+                                    )
+                                    for pid in player_ids
+                                ],
+                                ignore_conflicts=True,
+                            )
+                    except Exception:
+                        logger.exception(
+                            'create_session_from_imported_doc: no se pudo preconvocar asistencia',
+                            extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None), 'doc_id': int(doc.id)},
+                        )
+
+                # Convierte el PDF de sesión en tareas dentro de la TrainingSession (con previews gráficas).
+                try:
+                    try:
+                        doc.pdf.open('rb')
+                    except Exception:
+                        pass
+                    pdf_handle = doc.pdf
+                    extracted_text = ''
+                    try:
+                        extracted_text = _extract_pdf_text(pdf_handle, max_chars=60000)
+                    except Exception:
+                        extracted_text = ''
+                    parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=focus) or []
+                    if not parsed_tasks:
+                        parsed_tasks = [
+                            {
+                                'analysis': {
+                                    'title': focus[:160],
+                                    'objective': '',
+                                    'minutes': 15,
+                                    'coaching_points': '',
+                                    'confrontation_rules': '',
+                                    'summary': '',
+                                },
+                                'raw_text': '',
+                                'segment_index': 1,
+                                'segment_total': 1,
+                            }
+                        ]
+                    if hasattr(pdf_handle, 'seek'):
+                        try:
+                            pdf_handle.seek(0)
+                        except Exception:
+                            pass
+                    preview_payloads = _extract_preview_images_from_pdf(
+                        pdf_handle,
+                        max_images=max(1, len(parsed_tasks)),
+                        prefer_render=True,
+                    )
+                    segment_blocks = _suggest_blocks_for_session_pdf_segments(parsed_tasks, SessionTask.BLOCK_MAIN_1)
+                    shared_pdf_name = str(doc.pdf.name or '').strip()
+                    base_order = _next_session_task_order(session_obj) - 1
+                    for idx, segment in enumerate(parsed_tasks, start=1):
+                        analysis = segment.get('analysis') or {}
+                        title = str(analysis.get('title') or f'{focus} · Tarea {idx}').strip()[:160] or f'{focus} · Tarea {idx}'
+                        minutes = max(5, min(_parse_int(analysis.get('minutes')) or 15, 90))
+                        segment_index = max(1, int(segment.get('segment_index') or idx))
+                        segment_total = max(1, int(segment.get('segment_total') or len(parsed_tasks)))
+                        block = segment_blocks[min(idx - 1, len(segment_blocks) - 1)] if segment_blocks else SessionTask.BLOCK_MAIN_1
+                        extra_layout = {
+                            'meta': {
+                                'scope': scope_key,
+                                'source': 'imported_session_doc',
+                                'import_mode': 'session_pdf',
+                                'repository': getattr(doc, 'repository', '') or LIBRARY_REPOSITORY_TRADITIONAL,
+                                'pdf_source_name': str(getattr(doc, 'title', '') or '').strip()[:220],
+                                'pdf_segment_index': segment_index,
+                                'pdf_segments_total': segment_total,
+                                'pdf_segment_excerpt': (segment.get('raw_text') or '')[:1200],
+                                'pdf_split_done': True,
+                                'imported_session_doc_id': int(doc.id),
+                            }
+                        }
+                        new_task = SessionTask.objects.create(
+                            session=session_obj,
+                            title=title,
+                            block=block,
+                            duration_minutes=minutes,
+                            objective=str(analysis.get('objective') or '').strip()[:180],
+                            coaching_points=str(analysis.get('coaching_points') or ''),
+                            confrontation_rules=str(analysis.get('confrontation_rules') or ''),
+                            tactical_layout=extra_layout,
+                            task_pdf=shared_pdf_name or None,
+                            status=SessionTask.STATUS_PLANNED,
+                            order=base_order + idx,
+                            notes=f'Importada desde sesión PDF #{doc.id}',
+                        )
+                        preview_bytes = b''
+                        payload = preview_payloads[min(idx - 1, len(preview_payloads) - 1)] if preview_payloads else None
+                        if payload:
+                            preview_name, preview_content = payload
+                            try:
+                                preview_content.seek(0)
+                            except Exception:
+                                pass
+                            try:
+                                preview_bytes = preview_content.read() or b''
+                            except Exception:
+                                preview_bytes = b''
+                            try:
+                                preview_content.seek(0)
+                            except Exception:
+                                pass
+                            try:
+                                new_task.task_preview_image.save(preview_name, preview_content, save=True)
+                            except Exception:
+                                pass
+                        if preview_bytes:
+                            try:
+                                embedded = _build_embedded_preview_data_url(preview_bytes)
+                                if embedded:
+                                    layout = new_task.tactical_layout if isinstance(new_task.tactical_layout, dict) else {}
+                                    layout = dict(layout)
+                                    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                                    meta = dict(meta)
+                                    meta['preview_data_embedded_v1'] = embedded
+                                    layout['meta'] = meta
+                                    new_task.tactical_layout = layout
+                                    new_task.save(update_fields=['tactical_layout'])
+                            except Exception:
+                                pass
+                except Exception:
+                    logger.exception(
+                        'create_session_from_imported_doc: no se pudieron crear tareas',
+                        extra={'team_id': getattr(primary_team, 'id', None), 'session_id': getattr(session_obj, 'id', None), 'doc_id': int(doc.id)},
+                    )
+
+                feedback = f'Sesión creada desde PDF: {focus}.'
+                return redirect(reverse('training-session-detail', args=[int(session_obj.id)]))
 
             elif planner_action == 'delete_imported_session_doc':
                 doc_id = _parse_int(request.POST.get('doc_id'))

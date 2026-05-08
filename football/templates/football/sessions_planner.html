@@ -2110,6 +2110,19 @@
                           <span class="emoji" aria-hidden="true">📄</span>
                           <span class="sr-only">Abrir PDF</span>
                         </a>
+	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Crear un entreno real desde este PDF? (Generará tareas, convocatoria y asistencia)');">
+	                        {% csrf_token %}
+	                        <input type="hidden" name="planner_action" value="create_session_from_imported_doc" />
+	                        <input type="hidden" name="planner_tab" value="sessions" />
+	                        <input type="hidden" name="team" value="{{ primary_team_id }}" />
+	                        {% if active_workspace_id %}<input type="hidden" name="workspace" value="{{ active_workspace_id }}" />{% endif %}
+	                        <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+	                        <input type="hidden" name="doc_id" value="{{ doc.id }}" />
+	                        <button type="submit" class="button secondary icon-btn" title="Crear entreno real" aria-label="Crear entreno real">
+                            <span class="emoji" aria-hidden="true">➕</span>
+                            <span class="sr-only">Crear entreno real</span>
+                          </button>
+	                      </form>
 	                      <form method="post" style="margin:0;" onsubmit="return confirm('¿Eliminar esta sesión importada? (Se borrará el PDF guardado)');">
 	                        {% csrf_token %}
 	                        <input type="hidden" name="planner_action" value="delete_imported_session_doc" />
