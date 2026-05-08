@@ -26434,6 +26434,13 @@ def coach_tactics_page(request):
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'rivals_options': _build_rival_options_for_team(
+                primary_team,
+                cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
+                max_items=80,
+            ),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'rival_roster_api_url': reverse('rival-roster-api'),
             'library_repository': LIBRARY_REPOSITORY_TRADITIONAL,
             'back_url': back_url,
             'back_label': 'Volver al club',
@@ -32429,6 +32436,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
     task_pick_kind = str(request.GET.get('pick_for') or request.POST.get('pick_for') or '').strip().lower()
     if task_pick_kind not in {'', 'create_session'}:
         task_pick_kind = ''
+    library_bulk_mode = str(request.GET.get('bulk') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     CREATE_SESSION_TASK_PICKS_SESSION_KEY = 'sessions:create_session_task_picks:v1'
 
@@ -33167,6 +33175,49 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     feedback = 'Tarea añadida a colección.'
                 except IntegrityError:
                     feedback = 'La tarea ya estaba en esa colección.'
+
+            elif planner_action == 'bulk_add_tasks_to_collection':
+                collection_id = _parse_int(request.POST.get('collection_id'))
+                raw_csv = str(request.POST.get('task_ids_csv') or '').strip()
+                if not collection_id or not raw_csv:
+                    raise ValueError('Selecciona colección y al menos una tarea.')
+                collection = SessionTaskCollection.objects.filter(
+                    id=collection_id,
+                    team=primary_team,
+                    repository=library_repository,
+                ).first()
+                if not collection:
+                    raise ValueError('Colección no encontrada.')
+                raw_ids = [item.strip() for item in raw_csv.split(',') if item and str(item).strip()]
+                task_ids = []
+                for raw in raw_ids[:260]:
+                    tid = _parse_int(raw)
+                    if tid and tid not in task_ids:
+                        task_ids.append(tid)
+                if not task_ids:
+                    raise ValueError('No se pudieron leer tareas seleccionadas.')
+                tasks = list(
+                    SessionTask.objects
+                    .filter(
+                        id__in=task_ids,
+                        deleted_at__isnull=True,
+                        session__microcycle__team=primary_team,
+                    )
+                    .only('id')
+                )
+                if not tasks:
+                    raise ValueError('No se encontraron tareas válidas.')
+                items = [SessionTaskCollectionItem(collection=collection, task=t) for t in tasks]
+                try:
+                    SessionTaskCollectionItem.objects.bulk_create(items, ignore_conflicts=True)
+                except TypeError:
+                    # Compatibilidad si ignore_conflicts no está disponible.
+                    for it in items:
+                        try:
+                            SessionTaskCollectionItem.objects.create(collection=collection, task_id=it.task_id)
+                        except IntegrityError:
+                            pass
+                feedback = f'Añadidas {len(tasks)} tareas a la colección.'
 
             elif planner_action == 'remove_task_from_collection':
                 collection_id = _parse_int(request.POST.get('collection_id'))
@@ -36032,6 +36083,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             'library_quality': library_quality,
             'library_reference_date': library_reference_date,
             'library_sort': library_sort,
+            'library_bulk_mode': library_bulk_mode,
             'bookmarked_task_ids': bookmarked_task_ids,
             'library_collections': library_collections,
             'library_collection_counts': library_collection_counts,
@@ -36369,6 +36421,46 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         if raw_players is not None
         else str(existing_task_sheet.get('players') or '')
     )
+
+    # Rival (opcional): contexto de scouting + jugadores rivales clave.
+    existing_opponent = existing_analysis.get('opponent') if isinstance(existing_analysis.get('opponent'), dict) else {}
+    raw_opponent_name = request.POST.get('draw_task_opponent_name')
+    opponent_name = (
+        _sanitize_task_text(str(raw_opponent_name or '').strip(), multiline=False, max_len=180)
+        if raw_opponent_name is not None
+        else str(existing_opponent.get('name') or '')
+    )
+    raw_opponent_team_id = request.POST.get('draw_task_opponent_team_id')
+    opponent_team_id = (
+        _parse_int(raw_opponent_team_id) if raw_opponent_team_id is not None else _parse_int(existing_opponent.get('team_id'))
+    ) or 0
+    raw_opponent_team_code = request.POST.get('draw_task_opponent_team_code')
+    opponent_team_code = (
+        _sanitize_task_text(str(raw_opponent_team_code or '').strip(), multiline=False, max_len=60)
+        if raw_opponent_team_code is not None
+        else str(existing_opponent.get('team_code') or '')
+    )
+    raw_opponent_players_json = request.POST.get('draw_task_opponent_players_json')
+    opponent_players = []
+    if raw_opponent_players_json is None:
+        opponent_players = existing_opponent.get('players') if isinstance(existing_opponent.get('players'), list) else []
+    else:
+        try:
+            parsed = json.loads(str(raw_opponent_players_json or '').strip() or '[]')
+            if isinstance(parsed, list):
+                opponent_players = [str(x or '').strip()[:160] for x in parsed if str(x or '').strip()]
+        except Exception:
+            opponent_players = []
+    opponent_players = opponent_players[:40]
+    opponent_meta = {}
+    if opponent_name or opponent_team_id or opponent_team_code or opponent_players:
+        opponent_meta = {
+            'name': opponent_name[:180] if opponent_name else '',
+            'team_id': int(opponent_team_id) if opponent_team_id else 0,
+            'team_code': opponent_team_code[:60] if opponent_team_code else '',
+            'players': opponent_players,
+        }
+
     raw_dimensions = request.POST.get('draw_task_dimensions')
     dimensions = (
         _sanitize_task_text(str(raw_dimensions or '').strip(), multiline=False, max_len=120)
@@ -36808,7 +36900,8 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                     'space': space,
                     'dimensions': dimensions,
                     'materials': materials,
-                }
+                },
+                **({'opponent': opponent_meta} if opponent_meta else {}),
             },
             **(preserved_import_meta or {}),
         }
@@ -37862,6 +37955,13 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             'ppt_icons': ppt_icons,
             'drills_catalog': drills_catalog,
             'initial': initial,
+            'rivals_options': _build_rival_options_for_team(
+                primary_team,
+                cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
+                max_items=80,
+            ),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'rival_roster_api_url': reverse('rival-roster-api'),
             'library_repository': library_repository,
                 'back_url': back_url,
                 'back_label': back_label,

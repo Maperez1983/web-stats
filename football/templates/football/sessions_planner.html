@@ -3312,9 +3312,14 @@
                       <button type="submit" class="secondary">Aplicar</button>
                       <a
                         class="button secondary"
-                        href="?{% qs_replace q=None phase=None type=None context=None objective=None players=None duration=None quality=None ref_date=None sort='recent' lib_page=None %}"
+                        href="?{% qs_replace q=None phase=None type=None context_=None objective=None players=None duration=None quality=None ref_date=None sort='recent' lib_page=None %}"
                         title="Quitar filtros"
                       >Limpiar</a>
+                      {% if library_bulk_mode %}
+                      <a class="button secondary" href="?{% qs_replace bulk=None lib_page=None %}" title="Salir del modo selección">Salir selección</a>
+                      {% else %}
+                      <a class="button secondary" href="?{% qs_replace bulk='1' lib_page=None %}" title="Seleccionar varias tareas para acciones masivas">Modo selección</a>
+                      {% endif %}
                     </div>
 
                     <div class="grid">
@@ -3457,6 +3462,42 @@
                   </form>
                 </details>
 
+                {% if library_bulk_mode %}
+                <div class="box" style="margin:0 0 1rem;">
+                  {% if library_collections %}
+                  <form method="post" id="bulk-collection-form" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="bulk_add_tasks_to_collection" />
+                    <input type="hidden" name="planner_tab" value="library" />
+                    <input type="hidden" name="library_view" value="{{ library_view }}" />
+                    <input type="hidden" name="library_key" value="{{ library_key }}" />
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <input type="hidden" name="task_ids_csv" id="bulk-collection-task-ids" value="" />
+                    <strong style="margin-right:0.25rem;">Acción masiva</strong>
+                    <select name="collection_id" style="min-width:240px;">
+                      {% for col in library_collections %}
+                      <option value="{{ col.id }}">{{ col.name }}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="primary" id="bulk-collection-submit" disabled>Añadir 0 a colección</button>
+                    <button type="button" class="secondary" id="bulk-collection-clear" disabled>Limpiar</button>
+                    <span class="meta" style="margin-left:auto;">Marca tareas (checkbox) en las cards.</span>
+                  </form>
+                  {% else %}
+                  <form method="post" style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center; margin:0;">
+                    {% csrf_token %}
+                    <input type="hidden" name="planner_action" value="create_task_collection" />
+                    <input type="hidden" name="planner_tab" value="library" />
+                    <input type="hidden" name="library_repo" value="{{ library_repository }}" />
+                    <strong style="margin-right:0.25rem;">Acción masiva</strong>
+                    <input type="text" name="collection_name" placeholder="Nombre colección (ej: ‘ABP ofensivo’)…" style="min-width:260px;" />
+                    <button type="submit" class="secondary">Crear colección</button>
+                    <span class="meta" style="margin-left:auto;">Crea una colección para poder agrupar tareas.</span>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endif %}
+
         {% if task_library_page_items %}
         {% if task_pick_mode and task_pick_kind == 'create_session' %}
         <div class="box" style="margin:0 0 0.9rem;">
@@ -3517,11 +3558,13 @@
 			            role="link"
 			            aria-label="Abrir tarea {{ t.title }}"
 			          >
-              {% if task_pick_mode %}
+              {% if task_pick_mode or library_bulk_mode %}
               <label class="ui-check" style="position:absolute; top:0.55rem; right:0.55rem; z-index:2; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.35); padding:0.35rem 0.5rem; border-radius:999px;">
                 <input type="checkbox" class="bulk-task-select" value="{{ t.id }}" />
                 <span class="meta" style="margin-left:0.25rem;">Seleccionar</span>
               </label>
+              {% endif %}
+              {% if task_pick_mode %}
               <div style="position:absolute; top:0.55rem; left:0.55rem; z-index:2; background:rgba(15,23,42,0.85); border:1px solid rgba(148,163,184,0.35); padding:0.25rem 0.45rem; border-radius:999px;">
                 <select class="bulk-task-block" data-task-id="{{ t.id }}" style="background:transparent; border:none; color:inherit; font-size:0.82rem; padding:0; min-width:220px;">
                   <option value="">Segmento: mantener</option>
@@ -3751,18 +3794,25 @@
           </article>
           {% endfor %}
         </div>
-        {% if task_pick_mode %}
+        {% if task_pick_mode or library_bulk_mode %}
         <script>
           (function () {
             const addForm = document.getElementById('bulk-add-library-tasks');
             const pickForm = document.getElementById('pick-create-session-tasks');
+            const collectionForm = document.getElementById('bulk-collection-form');
 
-            const idsInput = document.getElementById('bulk-add-task-ids') || document.getElementById('pick-session-task-ids');
+            const idsInput = document.getElementById('bulk-add-task-ids')
+              || document.getElementById('pick-session-task-ids')
+              || document.getElementById('bulk-collection-task-ids');
             const assignmentsInput = document.getElementById('bulk-add-task-assignments') || document.getElementById('pick-session-task-assignments');
-            const submitBtn = document.getElementById('bulk-add-submit') || document.getElementById('pick-session-submit');
-            const clearBtn = document.getElementById('bulk-add-clear') || document.getElementById('pick-session-clear');
+            const submitBtn = document.getElementById('bulk-add-submit')
+              || document.getElementById('pick-session-submit')
+              || document.getElementById('bulk-collection-submit');
+            const clearBtn = document.getElementById('bulk-add-clear')
+              || document.getElementById('pick-session-clear')
+              || document.getElementById('bulk-collection-clear');
 
-            if (!addForm && !pickForm) return;
+            if (!addForm && !pickForm && !collectionForm) return;
             const checks = Array.from(document.querySelectorAll('.bulk-task-select'));
             const blockSelects = Array.from(document.querySelectorAll('.bulk-task-block'));
 
@@ -3790,7 +3840,13 @@
               const count = ids.length;
               if (submitBtn) {
                 submitBtn.disabled = count === 0;
-                submitBtn.textContent = submitBtn.id === 'pick-session-submit' ? `Guardar ${count} tareas` : `Añadir ${count} tareas`;
+                if (submitBtn.id === 'pick-session-submit') {
+                  submitBtn.textContent = `Guardar ${count} tareas`;
+                } else if (submitBtn.id === 'bulk-collection-submit') {
+                  submitBtn.textContent = `Añadir ${count} a colección`;
+                } else {
+                  submitBtn.textContent = `Añadir ${count} tareas`;
+                }
               }
               if (clearBtn) clearBtn.disabled = count === 0;
             };

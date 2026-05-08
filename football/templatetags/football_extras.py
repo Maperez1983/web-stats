@@ -16,13 +16,14 @@ def qs_replace(context, **kwargs):
         return ""
     query = request.GET.copy()
     for key, value in (kwargs or {}).items():
+        actual_key = 'context' if str(key) == 'context_' else str(key)
         if value is None:
             try:
-                query.pop(key)
+                query.pop(actual_key)
             except KeyError:
                 pass
             continue
-        query[str(key)] = str(value)
+        query[actual_key] = str(value)
     return query.urlencode()
 
 
