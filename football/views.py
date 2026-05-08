@@ -26693,6 +26693,15 @@ def coach_tactics_page(request):
                 initial['age_group'] = default_age
     except Exception:
         pass
+    # UX: superficie por defecto en el editor.
+    try:
+        if isinstance(initial, dict) and not str(initial.get('surface') or '').strip():
+            default_surface = _default_task_surface_for_request(request, primary_team)
+            if default_surface:
+                initial = dict(initial)
+                initial['surface'] = default_surface
+    except Exception:
+        pass
 
     player_catalog = []
     available_players = []
@@ -37022,6 +37031,35 @@ def _default_task_age_group_for_team(team) -> str:
     return str(getattr(team, 'category', '') or '').strip()
 
 
+def _default_task_surface_for_request(request, team) -> str:
+    """
+    Superficie por defecto en el editor de tareas.
+
+    Orden:
+    1) Preferencia del workspace `task_builder_defaults:v1` -> {"surface": "<key>"}
+    2) Variable de entorno `DEFAULT_TASK_SURFACE`
+    3) Fallback: césped artificial
+    """
+    valid = {key for key, _ in TASK_SURFACE_CHOICES}
+    try:
+        workspace = _get_active_workspace(request) if request else None
+        if workspace:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key='task_builder_defaults:v1').first()
+            value = pref.value if pref and isinstance(pref.value, dict) else {}
+            surface = str(value.get('surface') or '').strip()
+            if surface in valid:
+                return surface
+    except Exception:
+        pass
+    try:
+        env_surface = str(os.getenv('DEFAULT_TASK_SURFACE', '') or '').strip()
+        if env_surface in valid:
+            return env_surface
+    except Exception:
+        pass
+    return 'artificial_turf' if 'artificial_turf' in valid else ''
+
+
 def _task_existing_meta(task):
     if not task or not isinstance(getattr(task, 'tactical_layout', None), dict):
         return {}
@@ -38439,6 +38477,15 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             if default_age:
                 initial = dict(initial)
                 initial['age_group'] = default_age
+    except Exception:
+        pass
+    # UX: al crear una tarea nueva, pre-rellena "Superficie".
+    try:
+        if not task and isinstance(initial, dict) and not str(initial.get('surface') or '').strip():
+            default_surface = _default_task_surface_for_request(request, primary_team)
+            if default_surface:
+                initial = dict(initial)
+                initial['surface'] = default_surface
     except Exception:
         pass
 

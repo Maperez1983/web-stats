@@ -6585,6 +6585,12 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="draw_task_age_group" value="Juvenil"')
 
+    def test_task_builder_prefills_surface_as_artificial_turf(self):
+        response = self.client.get(reverse('sessions-task-create'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'option value="artificial_turf" selected')
+
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
