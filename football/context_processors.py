@@ -11,8 +11,8 @@ def _static_build_id() -> str:
     Cache-busting para estáticos.
 
     Render suele exponer `RENDER_GIT_COMMIT` (o variables similares). Si no existe,
-    usamos un fallback local (mtime de `sessions_tactical_pad.js`) para evitar que Safari/iPad
-    se quede enganchado a un JS antiguo.
+    usamos un fallback local (mtimes de assets core) para evitar que Safari/iPad
+    se quede enganchado a un JS antiguo cuando cambiamos otras pantallas.
     """
     build_id = (
         os.getenv('RENDER_GIT_COMMIT')
@@ -25,9 +25,21 @@ def _static_build_id() -> str:
         return build_id
     try:
         base_dir = Path(__file__).resolve().parent.parent
-        js_path = base_dir / 'football' / 'static' / 'football' / 'js' / 'sessions_tactical_pad.js'
-        if js_path.exists():
-            return str(int(js_path.stat().st_mtime))
+        candidates = [
+            base_dir / 'football' / 'static' / 'football' / 'js' / 'sessions_tactical_pad.js',
+            base_dir / 'football' / 'static' / 'football' / 'js' / 'match_actions_page.js',
+            base_dir / 'static' / 'football' / 'css' / 'product_system.css',
+            base_dir / 'static' / 'football' / 'css' / 'commercial.css',
+        ]
+        mtimes = []
+        for path in candidates:
+            try:
+                if path.exists():
+                    mtimes.append(int(path.stat().st_mtime))
+            except Exception:
+                continue
+        if mtimes:
+            return str(max(mtimes))
     except Exception:
         return ''
     return ''
