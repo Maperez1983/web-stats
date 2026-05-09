@@ -1484,19 +1484,38 @@
       const setupMode = {% if setup_mode %}true{% else %}false{% endif %};
       const heroElement = document.getElementById('team-hero');
       const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
-	      const heroFallbackCandidates = demoMode
-          ? []
-          : [
-	            '{% static "football/images/team-01.jpg" %}',
-	            '{% static "football/campo-futbol.jpg" %}',
-	          ];
-        const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
-        const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
-        // Fallback: si el contexto no está fijado en sesión, usa los params de la URL actual.
-        const urlParams = new URLSearchParams(window.location.search || '');
-        const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
-        const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
-        const effectiveHome = String(urlParams.get('home') || '').trim();
+	        const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
+	        const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
+	        // Fallback: si el contexto no está fijado en sesión, usa los params de la URL actual.
+	        const urlParams = new URLSearchParams(window.location.search || '');
+	        const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
+	        const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
+	        const effectiveHome = String(urlParams.get('home') || '').trim();
+		      const heroFallbackPool = demoMode
+	          ? []
+	          : [
+		            '{% static "football/images/team-01.jpg" %}',
+		            '{% static "football/images/team-02.jpg" %}',
+		            '{% static "football/images/team-03.jpg" %}',
+		            '{% static "football/campo-futbol.jpg" %}',
+		          ];
+
+	        function buildHeroFallbackCandidates() {
+	          if (demoMode || setupMode) return [];
+	          const pool = [...(heroFallbackPool || [])]
+	            .map((src) => String(src || '').trim())
+	            .filter(Boolean);
+	          if (!pool.length) return [];
+	          const teamImgs = pool.slice(0, 3);
+	          const rest = pool.slice(3);
+	          const teamNum = Number.parseInt(String(effectiveTeamId || '').trim(), 10);
+	          const baseIdx = Number.isFinite(teamNum) ? Math.abs(teamNum) % Math.max(1, teamImgs.length) : 0;
+	          const rotated = [];
+	          for (let i = 0; i < teamImgs.length; i += 1) {
+	            rotated.push(teamImgs[(baseIdx + i) % teamImgs.length]);
+	          }
+	          return [...rotated, ...rest];
+	        }
 		      let standingsExpanded = false;
 
         function buildDashboardUrl({ fresh = false } = {}) {
@@ -1540,7 +1559,7 @@
         if (demoMode || setupMode) {
           return;
         }
-        const candidates = [...(managedHeroImages || []), ...heroFallbackCandidates]
+        const candidates = [...(managedHeroImages || []), ...buildHeroFallbackCandidates()]
           .map((src) => String(src || '').trim())
           .filter(Boolean);
         for (const candidate of candidates) {
