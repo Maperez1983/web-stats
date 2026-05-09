@@ -3782,6 +3782,145 @@
         });
       })();
     </script>
+    <script>
+      // Smoke test opcional (manual) para diagnosticar botones que "no hacen nada" en iPad/Safari.
+      // Uso: añade `?debug=1` a la URL del registro de acciones.
+      (function () {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          if (!(params.get('debug') === '1')) return;
+        } catch (e) {
+          return;
+        }
+
+        const panel = document.createElement('div');
+        panel.style.position = 'fixed';
+        panel.style.right = '12px';
+        panel.style.bottom = '12px';
+        panel.style.zIndex = '2147483647';
+        panel.style.width = 'min(520px, calc(100vw - 24px))';
+        panel.style.maxHeight = 'min(70vh, 620px)';
+        panel.style.overflow = 'auto';
+        panel.style.borderRadius = '18px';
+        panel.style.border = '1px solid rgba(148,163,184,0.25)';
+        panel.style.background = 'rgba(2,6,23,0.92)';
+        panel.style.boxShadow = '0 24px 80px rgba(0,0,0,0.55)';
+        panel.style.padding = '0.75rem';
+        panel.style.color = '#e2e8f0';
+        panel.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace';
+        panel.style.fontSize = '12px';
+
+        panel.innerHTML = `
+          <div style="display:flex; align-items:center; gap:0.6rem; justify-content:space-between; margin-bottom:0.55rem;">
+            <strong style="letter-spacing:0.12em; text-transform:uppercase; font-size:12px;">Debug · Smoke Test</strong>
+            <div style="display:flex; gap:0.4rem;">
+              <button type="button" id="ma-smoke-run" style="padding:0.35rem 0.6rem; border-radius:999px; border:1px solid rgba(34,211,238,0.35); background:rgba(34,211,238,0.14); color:#e0f2fe; font-weight:900; cursor:pointer;">Run</button>
+              <button type="button" id="ma-smoke-close" style="padding:0.35rem 0.6rem; border-radius:999px; border:1px solid rgba(148,163,184,0.25); background:transparent; color:#e2e8f0; font-weight:900; cursor:pointer;">Cerrar</button>
+            </div>
+          </div>
+          <pre id="ma-smoke-out" style="margin:0; white-space:pre-wrap; line-height:1.35; opacity:0.95;"></pre>
+        `;
+        document.body.appendChild(panel);
+        const out = panel.querySelector('#ma-smoke-out');
+        const runBtn = panel.querySelector('#ma-smoke-run');
+        const closeBtn = panel.querySelector('#ma-smoke-close');
+        closeBtn?.addEventListener('click', () => panel.remove());
+
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const log = (line) => { if (out) out.textContent += `${line}\n`; };
+        const assert = (name, ok, extra = '') => {
+          log(`${ok ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`);
+          return ok;
+        };
+        const click = (el) => {
+          if (!el) return false;
+          try { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window })); } catch (e) {}
+          try { el.click(); } catch (e) {}
+          return true;
+        };
+
+        const run = async () => {
+          if (out) out.textContent = '';
+          log(`UA: ${String(navigator.userAgent || '').slice(0, 140)}`);
+          log(`URL: ${String(window.location.href || '')}`);
+          log('---');
+
+          const tabs = Array.from(document.querySelectorAll('[data-stage-tab]') || []);
+          const panels = Array.from(document.querySelectorAll('[data-stage-panel]') || []);
+          assert('Pestañas stage presentes', tabs.length >= 3, `(${tabs.length})`);
+          assert('Panels stage presentes', panels.length >= 3, `(${panels.length})`);
+
+          const tabLive = document.querySelector('[data-stage-tab="live"]');
+          const panelLive = document.querySelector('[data-stage-panel="live"]');
+          click(tabLive);
+          await sleep(50);
+          assert('Tab En vivo activa', tabLive?.classList.contains('is-active'));
+          assert('Panel En vivo visible', panelLive?.classList.contains('is-active'));
+
+          const surface = document.getElementById('field-surface') || document.getElementById('touch-field');
+          assert('Campo interactivo presente', !!surface);
+          const popup = document.getElementById('field-popup');
+          assert('Popup presente', !!popup);
+          if (surface && popup) {
+            const r = surface.getBoundingClientRect();
+            const clientX = r.left + r.width * 0.52;
+            const clientY = r.top + r.height * 0.55;
+            try {
+              surface.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, clientX, clientY }));
+            } catch (e) {}
+            await sleep(60);
+            assert('Tap en campo abre popup', popup.classList.contains('is-visible'));
+
+            const close = popup.querySelector('.close-popup');
+            assert('Botón Cerrar presente', !!close);
+            click(close);
+            await sleep(30);
+            assert('Cerrar oculta popup', !popup.classList.contains('is-visible'));
+          }
+
+          const clockDisplay = document.getElementById('match-clock-display');
+          const clockToggle = document.getElementById('field-clock-toggle');
+          const clockReset = document.getElementById('field-clock-reset');
+          const halfBtn = document.getElementById('change-half-btn');
+          assert('Cronómetro UI presente', !!(clockDisplay && clockToggle && clockReset && halfBtn));
+          if (clockToggle && clockDisplay && clockReset && halfBtn) {
+            // Asegura 1ª parte.
+            for (let i = 0; i < 2; i++) {
+              if (String(halfBtn.textContent || '').includes('1ª')) break;
+              click(halfBtn);
+              await sleep(30);
+            }
+            click(clockReset);
+            await sleep(30);
+            assert('Reset reloj pone 00:00', String(clockDisplay.textContent || '').trim() === '00:00', `(${String(clockDisplay.textContent || '').trim()})`);
+
+            const before = String(clockToggle.textContent || '').trim();
+            click(clockToggle);
+            await sleep(30);
+            const after = String(clockToggle.textContent || '').trim();
+            assert('Toggle reloj cambia estado', before !== after, `${before} -> ${after}`);
+            await sleep(1100);
+            const ticked = String(clockDisplay.textContent || '').trim();
+            assert('Reloj avanza', ticked !== '00:00', `(${ticked})`);
+            click(clockToggle); // pausa
+          }
+
+          const tabClose = document.querySelector('[data-stage-tab="close"]');
+          const panelClose = document.querySelector('[data-stage-panel="close"]');
+          click(tabClose);
+          await sleep(50);
+          assert('Tab Cierre activa', tabClose?.classList.contains('is-active'));
+          assert('Panel Cierre visible', panelClose?.classList.contains('is-active'));
+
+          log('---');
+          log('Fin smoke test.');
+        };
+
+        runBtn?.addEventListener('click', () => { void run(); });
+        // Ejecuta una vez al cargar para acelerar diagnóstico.
+        void run();
+      })();
+    </script>
     <script src="{% static 'football/js/match_actions_chrome.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/match_actions_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/match_actions_page.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
