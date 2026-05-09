@@ -47009,6 +47009,124 @@ def _video_studio_cut_source_to_mp4(*, source_path: str, start_s: float, end_s: 
         raise
 
 
+def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tuple[float, float]], base_name: str = 'playlist'):
+    """
+    Concatena varios segmentos (IN/OUT) del mismo vídeo en un MP4 final.
+
+    Implementación simple y robusta:
+    - Renderiza cada segmento a MP4 temporal (H.264/AAC).
+    - Concatena con ffmpeg concat demuxer (stream copy).
+
+    Devuelve: (file_obj, mime_type, filename, cleanup_paths)
+    """
+    src = str(source_path or '').strip()
+    if not src:
+        raise ValueError('source_path requerido')
+    if not segments:
+        raise ValueError('segments requerido')
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        raise RuntimeError('FFmpeg no disponible')
+
+    safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'playlist'
+
+    cleanup_paths: list[str] = []
+    try:
+        part_paths: list[str] = []
+        for idx, (start_s, end_s) in enumerate(segments[:60], start=1):
+            start = max(0.0, float(start_s or 0.0))
+            end = max(0.0, float(end_s or 0.0))
+            if end <= start:
+                continue
+            duration = max(0.01, end - start)
+
+            tmp_part = tempfile.NamedTemporaryFile(prefix=f'2j-vs-part-{safe_base}-{idx:02d}-', suffix='.mp4', delete=False)
+            part_path = tmp_part.name
+            tmp_part.close()
+            cleanup_paths.append(part_path)
+
+            cmd = [
+                ffmpeg_path,
+                '-y',
+                '-ss',
+                f'{start:.3f}',
+                '-t',
+                f'{duration:.3f}',
+                '-i',
+                src,
+                '-map',
+                '0:v:0',
+                '-map',
+                '0:a:0?',
+                '-c:v',
+                'libx264',
+                '-pix_fmt',
+                'yuv420p',
+                '-preset',
+                'veryfast',
+                '-crf',
+                '23',
+                '-c:a',
+                'aac',
+                '-b:a',
+                '128k',
+                '-movflags',
+                '+faststart',
+                part_path,
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+            part_paths.append(part_path)
+
+        if not part_paths:
+            raise ValueError('No hay segmentos válidos.')
+
+        list_file = tempfile.NamedTemporaryFile(prefix=f'2j-vs-concat-{safe_base}-', suffix='.txt', delete=False, mode='w', encoding='utf-8')
+        list_path = list_file.name
+        for p in part_paths:
+            list_file.write(f'file {p}\n')
+        list_file.close()
+        cleanup_paths.append(list_path)
+
+        tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-playlist-{safe_base}-', suffix='.mp4', delete=False)
+        out_path = tmp_out.name
+        tmp_out.close()
+        cleanup_paths.append(out_path)
+
+        cmd_concat = [
+            ffmpeg_path,
+            '-y',
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            list_path,
+            '-c',
+            'copy',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+
+        from django.core.files import File  # noqa: WPS433
+        handle = open(out_path, 'rb')
+        out_name = f'{safe_base}.mp4'
+        return File(handle, name=out_name), 'video/mp4', out_name, cleanup_paths
+    except Exception:
+        try:
+            logger.exception('Video Studio: no se pudo concatenar playlist en servidor')
+        except Exception:
+            pass
+        for p in cleanup_paths:
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+        raise
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -47149,6 +47267,166 @@ def analysis_video_studio_export_server_api(request):
             'download_url': f'{share_url}?download=1',
             'expires_at': link.expires_at,
             'mime_type': str(getattr(asset, 'mime_type', '') or '').strip().lower(),
+            'format': 'mp4',
+        }
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_export_server_playlist_api(request):
+    """
+    Export en servidor (MP4) concatenando varios clips en una sola pieza.
+
+    JSON:
+    - video_id (int)
+    - clip_ids (list[int]) requerido
+    - title (str, opcional)
+    - valid_days (int, opcional)
+    - password (str, opcional)
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
+    validity_days = _parse_int(data.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (data.get('password') or '').strip()
+
+    clip_ids = data.get('clip_ids')
+    if isinstance(clip_ids, str):
+        try:
+            clip_ids = json.loads(clip_ids)
+        except Exception:
+            clip_ids = []
+    if not isinstance(clip_ids, list):
+        clip_ids = []
+    cleaned_clip_ids = []
+    for x in clip_ids:
+        try:
+            cleaned_clip_ids.append(int(x))
+        except Exception:
+            continue
+    cleaned_clip_ids = [x for x in cleaned_clip_ids if x > 0][:60]
+
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    if len(cleaned_clip_ids) < 2:
+        return JsonResponse({'ok': False, 'error': 'clip_ids debe contener al menos 2 clips.'}, status=400)
+
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
+
+    if not getattr(video, 'video', None):
+        return JsonResponse({'ok': False, 'error': 'Este vídeo no está subido como MP4. Sube el archivo para exportar en servidor.'}, status=400)
+    try:
+        source_path = str(video.video.path or '').strip()
+    except Exception:
+        source_path = ''
+    if not source_path:
+        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}, status=500)
+
+    clips = list(
+        VideoClip.objects
+        .filter(team=primary_team, video_id=int(video.id), id__in=cleaned_clip_ids)
+        .only('id', 'in_ms', 'out_ms', 'title')
+    )
+    clip_by_id = {int(c.id): c for c in clips if getattr(c, 'id', None)}
+    ordered_segments = []
+    total_s = 0.0
+    for cid in cleaned_clip_ids:
+        clip = clip_by_id.get(int(cid))
+        if not clip:
+            continue
+        start_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
+        end_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+        if end_s <= start_s:
+            continue
+        ordered_segments.append((start_s, end_s))
+        total_s += (end_s - start_s)
+
+    if len(ordered_segments) < 2:
+        return JsonResponse({'ok': False, 'error': 'No hay clips válidos para exportar.'}, status=400)
+
+    max_seconds = float(getattr(settings, 'ANALYSIS_VIDEO_SERVER_EXPORT_MAX_SECONDS', 0) or 0) or (20 * 60.0)
+    if total_s > max_seconds:
+        return JsonResponse({'ok': False, 'error': f'El export supera el máximo permitido ({int(max_seconds)}s).'}, status=400)
+
+    if not title:
+        title = f'Playlist · {len(ordered_segments)} clips'
+
+    try:
+        file_obj, mime_type, out_name, cleanup_paths = _video_studio_concat_segments_to_mp4(
+            source_path=source_path,
+            segments=ordered_segments,
+            base_name=title or f'playlist-{video_id}',
+        )
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except RuntimeError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo generar el MP4 en servidor.'}, status=500)
+
+    if not mime_type:
+        mime_type = 'video/mp4'
+
+    try:
+        asset = VideoExportAsset.objects.create(
+            team=primary_team,
+            video=video,
+            clip=None,
+            title=title[:180],
+            file=file_obj,
+            mime_type=str(mime_type or '').strip().lower()[:80],
+            created_by=request.user.get_username() if request.user.is_authenticated else '',
+        )
+    finally:
+        try:
+            if hasattr(file_obj, 'close'):
+                file_obj.close()
+        except Exception:
+            pass
+        for p in (cleanup_paths or []):
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_EXPORT,
+        payload={'export_id': int(asset.id)},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    return JsonResponse(
+        {
+            'ok': True,
+            'id': int(asset.id),
+            'url': share_url,
+            'download_url': f'{share_url}?download=1',
+            'expires_at': link.expires_at,
+            'mime_type': 'video/mp4',
             'format': 'mp4',
         }
     )

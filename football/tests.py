@@ -6299,6 +6299,40 @@ class VideoStudioProApiTests(TestCase):
         self.assertTrue(any(n.startswith('slides/slide-') for n in names))
         self.assertTrue(any(n.startswith('thumbs/thumb-') for n in names))
 
+    def test_video_studio_export_playlist_server_requires_ffmpeg(self):
+        c1 = VideoClip.objects.create(
+            team=self.team,
+            video=self.video,
+            title='C1',
+            collection='',
+            in_ms=0,
+            out_ms=1000,
+            tags=[],
+            notes='',
+            overlay={},
+            created_by=self.user.username,
+        )
+        c2 = VideoClip.objects.create(
+            team=self.team,
+            video=self.video,
+            title='C2',
+            collection='',
+            in_ms=1500,
+            out_ms=2500,
+            tags=[],
+            notes='',
+            overlay={},
+            created_by=self.user.username,
+        )
+        with patch('football.views.shutil.which', return_value=None):
+            resp = self.client.post(
+                reverse('analysis-video-studio-export-server-playlist-api'),
+                data=json.dumps({'video_id': self.video.id, 'clip_ids': [c1.id, c2.id], 'title': 'PL'}),
+                content_type='application/json',
+            )
+        self.assertEqual(resp.status_code, 503)
+        self.assertFalse(resp.json().get('ok'))
+
 
 class VideoStudioPersonalLibraryTests(TestCase):
     def setUp(self):

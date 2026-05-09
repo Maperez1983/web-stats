@@ -45,6 +45,7 @@
 	    const btnExportSeg = document.getElementById('vs-export-seg');
 	    const btnExportShare = document.getElementById('vs-export-share');
 	    const btnExportServer = document.getElementById('vs-export-server');
+	    const btnExportServerPlaylist = document.getElementById('vs-export-server-playlist');
 	    const btnExportRetry = document.getElementById('vs-export-retry');
 	    const btnRecord = document.getElementById('vs-record');
 	    const btnSnap = document.getElementById('vs-snap');
@@ -108,6 +109,7 @@
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
 	    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
+	    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
 	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
@@ -1975,6 +1977,65 @@
 	      }
 	    });
 
+	    const updatePlaylistExportAvailability = () => {
+	      if (!btnExportServerPlaylist) return;
+	      const okTeam = Number(teamId || 0) > 0;
+	      const okClips = selectedClipIds.size >= 2;
+	      btnExportServerPlaylist.disabled = !(okTeam && okClips && exportServerPlaylistUrl);
+	    };
+
+	    btnExportServerPlaylist?.addEventListener('click', async () => {
+	      if (!exportServerPlaylistUrl) {
+	        setStatus('No hay endpoint para MP4 playlist.', true);
+	        return;
+	      }
+	      if (!teamId) {
+	        setStatus('Asigna el vídeo a un equipo antes de exportar playlist.', true);
+	        return;
+	      }
+	      const ids = Array.from(selectedClipIds.values()).map((x) => Number(x) || 0).filter((x) => x > 0);
+	      if (ids.length < 2) {
+	        setStatus('Selecciona al menos 2 clips.', true);
+	        return;
+	      }
+	      const t = `Playlist · ${ids.length} clips`;
+	      try {
+	        btnExportServerPlaylist.disabled = true;
+	        setStatus('Generando MP4 playlist en servidor…');
+	        const resp = await fetch(exportServerPlaylistUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({ video_id: videoId || 0, clip_ids: ids, title: t }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok || !data?.url) {
+	          setStatus(data?.error || 'No se pudo exportar MP4 playlist en servidor.', true);
+	          return;
+	        }
+	        const url = String(data.url);
+	        const downloadUrl = String(data.download_url || url);
+	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+	        lastExportShareUrl = url;
+	        try {
+	          if (navigator.clipboard?.writeText) {
+	            await navigator.clipboard.writeText(downloadUrl);
+	            setStatus('MP4 playlist listo. Link copiado.');
+	          } else {
+	            setStatus('MP4 playlist listo. Copia el link.');
+	            window.prompt('Copia este enlace:', downloadUrl);
+	          }
+	        } catch (e) {
+	          window.prompt('Copia este enlace:', downloadUrl);
+	        }
+	        refreshShareLinks();
+	      } catch (e) {
+	        setStatus('Error exportando MP4 playlist en servidor.', true);
+	      } finally {
+	        updatePlaylistExportAvailability();
+	      }
+	    });
+
 	    btnExportRetry?.addEventListener('click', async () => {
 	      if (!lastFailedExport || !lastFailedExport.blob) {
 	        setStatus('No hay export pendiente de reintento.', true);
@@ -2373,6 +2434,7 @@
 	    const updatePlaylistCount = () => {
 	      if (!playlistCountEl) return;
 	      playlistCountEl.textContent = `${selectedClipIds.size} seleccionados`;
+	      try { updatePlaylistExportAvailability(); } catch (e) { /* ignore */ }
 	    };
 
 	    const clipById = (id) => {

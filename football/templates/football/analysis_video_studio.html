@@ -101,6 +101,7 @@
 	              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
 	              <button type="button" class="button primary" id="vs-export-share">Export + compartir</button>
 	              <button type="button" class="button" id="vs-export-server" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 server</button>
+	              <button type="button" class="button" id="vs-export-server-playlist" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
 	              <button type="button" class="button" id="vs-export-retry" hidden>Reintentar upload</button>
 	              <button type="button" class="button" id="vs-record">Grabar</button>
 	              <button type="button" class="button" id="vs-snap">PNG</button>
@@ -547,6 +548,7 @@
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
 	    <input type="hidden" id="vs-export-server-url" value="{% url 'analysis-video-studio-export-server-api' %}" />
+	    <input type="hidden" id="vs-export-server-playlist-url" value="{% url 'analysis-video-studio-export-server-playlist-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
 	    <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
 	    <input type="hidden" id="vs-dorsal-ocr-url" value="{% url 'analysis-video-studio-ocr-dorsal-api' %}" />
