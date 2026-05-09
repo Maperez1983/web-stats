@@ -14317,95 +14317,95 @@ def admin_page(request):
                 except Exception:
                     library_session = _get_or_create_library_session(primary_team, 'coach')
 
-                    restored = 0
-                    scanned = 0
-                    restored_task_ids = []
+                restored = 0
+                scanned = 0
+                restored_task_ids = []
 
-                    # 1) Preferimos backups en BD (fiable en hosts con FS efímero).
-                    try:
-                        from football.models import SessionTaskBackup  # noqa: WPS433
+                # 1) Preferimos backups en BD (fiable en hosts con FS efímero).
+                try:
+                    from football.models import SessionTaskBackup  # noqa: WPS433
 
-                        seen_task_ids = set()
-                        backups_qs = (
-                            SessionTaskBackup.objects
-                            .filter(team=primary_team, kind='session_task', created_at__gte=cutoff)
-                            .order_by('-created_at', '-id')
-                        )
-                        if actor:
-                            backups_qs = backups_qs.filter(actor_username=actor)
-                        for b in list(backups_qs[:2000]):
-                            if restored >= 25:
-                                break
-                            task_id = int(getattr(b, 'task_id', 0) or 0)
-                            if not task_id or task_id in seen_task_ids:
-                                continue
-                            seen_task_ids.add(task_id)
-                            if SessionTask.objects.filter(id=int(task_id)).exists():
-                                continue
-                            payload = getattr(b, 'payload', None)
-                            if not isinstance(payload, dict):
-                                continue
-                            new_task = _restore_from_backup_payload(payload, session_obj=library_session)
-                            if new_task:
-                                restored += 1
-                                restored_task_ids.append(int(new_task.id))
-                    except Exception:
-                        pass
+                    seen_task_ids = set()
+                    backups_qs = (
+                        SessionTaskBackup.objects
+                        .filter(team=primary_team, kind='session_task', created_at__gte=cutoff)
+                        .order_by('-created_at', '-id')
+                    )
+                    if actor:
+                        backups_qs = backups_qs.filter(actor_username=actor)
+                    for b in list(backups_qs[:2000]):
+                        if restored >= 25:
+                            break
+                        task_id = int(getattr(b, 'task_id', 0) or 0)
+                        if not task_id or task_id in seen_task_ids:
+                            continue
+                        seen_task_ids.add(task_id)
+                        if SessionTask.objects.filter(id=int(task_id)).exists():
+                            continue
+                        payload = getattr(b, 'payload', None)
+                        if not isinstance(payload, dict):
+                            continue
+                        new_task = _restore_from_backup_payload(payload, session_obj=library_session)
+                        if new_task:
+                            restored += 1
+                            restored_task_ids.append(int(new_task.id))
+                except Exception:
+                    pass
 
-                    # 2) Fallback: backups en storage (media/S3).
-                    if not restored:
-                        for task_id in task_ids:
-                            if restored >= 25:
-                                break
-                            # Si ya existe, no restaurar.
-                            if SessionTask.objects.filter(id=int(task_id)).exists():
-                                continue
-                            scanned += 1
-                            try:
-                                _, files = default_storage.listdir(f'{prefix}/{task_id}')
-                            except Exception:
-                                continue
-                            json_files = sorted([f for f in (files or []) if str(f).endswith('.json')], reverse=True)
-                            if not json_files:
-                                continue
-                            candidate = json_files[0]
-                            ts = _parse_backup_ts(candidate)
-                            if ts and ts < cutoff:
-                                continue
-                            try:
-                                with default_storage.open(f'{prefix}/{task_id}/{candidate}', 'rb') as fh:
-                                    raw = fh.read()
-                                payload = json.loads(raw.decode('utf-8', errors='ignore') or '{}')
-                            except Exception:
-                                continue
-                            if actor and str(payload.get('actor') or '').strip() != actor:
-                                continue
-                            try:
-                                created_at = payload.get('captured_at')
-                                # captured_at es ISO string en payload; si existe, úsalo como filtro adicional.
-                                if created_at:
-                                    try:
-                                        captured_dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
-                                        if timezone.is_naive(captured_dt):
-                                            captured_dt = timezone.make_aware(captured_dt)
-                                        if captured_dt < cutoff:
-                                            continue
-                                    except Exception:
-                                        pass
-                            except Exception:
-                                pass
-                            new_task = _restore_from_backup_payload(payload, session_obj=library_session)
-                            if new_task:
-                                restored += 1
-                                restored_task_ids.append(int(new_task.id))
+                # 2) Fallback: backups en storage (media/S3).
+                if not restored:
+                    for task_id in task_ids:
+                        if restored >= 25:
+                            break
+                        # Si ya existe, no restaurar.
+                        if SessionTask.objects.filter(id=int(task_id)).exists():
+                            continue
+                        scanned += 1
+                        try:
+                            _, files = default_storage.listdir(f'{prefix}/{task_id}')
+                        except Exception:
+                            continue
+                        json_files = sorted([f for f in (files or []) if str(f).endswith('.json')], reverse=True)
+                        if not json_files:
+                            continue
+                        candidate = json_files[0]
+                        ts = _parse_backup_ts(candidate)
+                        if ts and ts < cutoff:
+                            continue
+                        try:
+                            with default_storage.open(f'{prefix}/{task_id}/{candidate}', 'rb') as fh:
+                                raw = fh.read()
+                            payload = json.loads(raw.decode('utf-8', errors='ignore') or '{}')
+                        except Exception:
+                            continue
+                        if actor and str(payload.get('actor') or '').strip() != actor:
+                            continue
+                        try:
+                            created_at = payload.get('captured_at')
+                            # captured_at es ISO string en payload; si existe, úsalo como filtro adicional.
+                            if created_at:
+                                try:
+                                    captured_dt = datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+                                    if timezone.is_naive(captured_dt):
+                                        captured_dt = timezone.make_aware(captured_dt)
+                                    if captured_dt < cutoff:
+                                        continue
+                                except Exception:
+                                    pass
+                        except Exception:
+                            pass
+                        new_task = _restore_from_backup_payload(payload, session_obj=library_session)
+                        if new_task:
+                            restored += 1
+                            restored_task_ids.append(int(new_task.id))
 
-                    if restored:
-                        tasks_message = (
-                            f'Restauradas {restored} tareas desde backups. '
-                            f'(IDs: {", ".join(str(x) for x in restored_task_ids[:10])}{"…" if len(restored_task_ids) > 10 else ""})'
-                        )
-                    else:
-                        tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
+                if restored:
+                    tasks_message = (
+                        f'Restauradas {restored} tareas desde backups. '
+                        f'(IDs: {", ".join(str(x) for x in restored_task_ids[:10])}{"…" if len(restored_task_ids) > 10 else ""})'
+                    )
+                else:
+                    tasks_error = 'No se encontraron backups recientes para restaurar (o ya existen).'
 
         elif form_action in {'team_create', 'team_update', 'team_set_default', 'team_unlink', 'team_split_workspace'}:
             active_tab = 'teams'

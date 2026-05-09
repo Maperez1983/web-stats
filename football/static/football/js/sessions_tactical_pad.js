@@ -1553,14 +1553,47 @@
     const draftClearBtn = document.getElementById('task-builder-draft-clear');
     const keepaliveUrl = safeText(form.dataset.keepaliveUrl);
     const saveSuccess = safeText(form.dataset.saveSuccess) === '1';
-    const draftKey = safeText(form.dataset.draftKey);
-    const draftNewKey = safeText(form.dataset.draftNewKey);
+    let draftKey = safeText(form.dataset.draftKey);
+    let draftNewKey = safeText(form.dataset.draftNewKey);
     const currentDraftUrl = `${window.location.pathname}${window.location.search || ''}`;
     const urlParams = (() => {
       try {
         return new URLSearchParams(window.location.search || '');
       } catch (error) {
         return new URLSearchParams();
+      }
+    })();
+
+    // Evita pérdidas al crear varias tareas nuevas (sobre todo en iPad/offline):
+    // si la tarea no tiene ID aún, el draftKey base usa "new" y se sobreescribe.
+    // Añadimos un `draft` uid persistido en la URL para que cada borrador sea único.
+    (() => {
+      try {
+        if (!draftKey || !draftNewKey) return;
+        if (!draftKey.includes(':new:')) return;
+        // Si ya incluye un uid (por ejemplo tras una navegación), no tocar.
+        if (draftKey.split(':').length >= 7) return;
+        const url = new URL(window.location.href);
+        let uid = safeText(url.searchParams.get('draft'));
+        if (!uid) {
+          uid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+          url.searchParams.set('draft', uid);
+          try {
+            window.history.replaceState({}, '', url.toString());
+          } catch (error) {
+            // ignore
+          }
+        }
+        draftKey = `${draftKey}:${uid}`;
+        draftNewKey = `${draftNewKey}:${uid}`;
+        try {
+          form.dataset.draftKey = draftKey;
+          form.dataset.draftNewKey = draftNewKey;
+        } catch (error) {
+          // ignore
+        }
+      } catch (error) {
+        // ignore
       }
     })();
 	    const canUseStorage = (() => {
@@ -20367,6 +20400,10 @@
 		        return;
 		      }
 				      event.preventDefault();
+			      // Antes de cualquier comprobación de red, guardamos borrador local para no perder cambios
+			      // si el dispositivo reporta "offline" o se corta la conexión al pulsar Guardar.
+			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
+			      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
 			      // Offline real: no intentamos enviar POST (en iPad puede parecer que "se guardó").
 			      // Nota: `navigator.onLine` no es fiable en iOS/WKWebView, así que si dice "offline"
 			      // hacemos una comprobación rápida contra el servidor antes de bloquear el guardado.
@@ -20396,14 +20433,13 @@
 			            reachable = false;
 			          }
 			          if (!reachable) {
+			            try { persistDraftNow('submit-offline'); } catch (error) { /* ignore */ }
 			            setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
 			            try { window.alert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.'); } catch (error) { /* ignore */ }
 			            return;
 			          }
 			        }
 			      } catch (error) { /* ignore */ }
-			      try { syncRichEditorsNow(); } catch (error) { /* ignore */ }
-				      try { persistDraftNow('submit'); } catch (error) { /* ignore */ }
 	      if (pingKeepalive) {
 	        const ok = await pingKeepalive();
 	        if (!ok) {
