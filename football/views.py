@@ -28425,18 +28425,11 @@ def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_i
     except Exception:
         objective = ''
 
-    # Vuelta a la calma: desde "Estiramientos"/"Parte final" hasta el final.
+    # Nota: para sesiones importadas desde PDF, NO volcamos texto crudo a los campos visibles del plan
+    # (calentamiento/activación/principal/vuelta a la calma). Si lo hacemos, la salida PDF "club"
+    # deja de parecerse al formato estándar de sesiones creadas en el sistema. Guardamos el texto
+    # íntegro en `agenda_hidden` y mantenemos la ficha limpia.
     cooldown = ''
-    try:
-        m = re.search(r'(?is)\b(estiramientos.*)$', cleaned)
-        if not m:
-            m = re.search(r'(?is)\b(parte\s+final.*)$', cleaned)
-        if m:
-            cooldown = m.group(1).strip()
-            cooldown = re.sub(r'\n{3,}', '\n\n', cooldown).strip()
-            cooldown = cooldown[:1800].strip()
-    except Exception:
-        cooldown = ''
 
     fields = {
         'warmup': '',
