@@ -38,11 +38,16 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Equipo: #{team.id} {team.name}")
 
-        qs = (
-            TrainingSession.objects.select_related("microcycle")
-            .filter(microcycle__team=team, deleted_at__isnull=True)
-            .order_by("-id")[:limit]
-        )
+        # Compat: `TrainingSession` no siempre tiene `deleted_at` (depende de rama/migraciones).
+        has_deleted_at = False
+        try:
+            has_deleted_at = any(getattr(f, "name", None) == "deleted_at" for f in TrainingSession._meta.get_fields())
+        except Exception:
+            has_deleted_at = False
+        filters = {"microcycle__team": team, "content__icontains": "imported_doc_id:"}
+        if has_deleted_at:
+            filters["deleted_at__isnull"] = True
+        qs = TrainingSession.objects.select_related("microcycle").filter(**filters).order_by("-id")[:limit]
 
         scanned = 0
         changed = 0
@@ -106,4 +111,3 @@ class Command(BaseCommand):
                 f"Cleanup imported sessions: changed={changed} scanned={scanned} skipped={skipped} dry_run={dry_run}"
             )
         )
-
