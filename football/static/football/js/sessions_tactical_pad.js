@@ -18188,8 +18188,13 @@
 			      // el fondo intercepte el click. Si el fondo está en background_edit, sí bloquea.
 			      const target = event?.target;
 			      if (target) {
+			        const isBase = !!target?.data?.base;
 			        const isBg = isBackgroundShape(target) && !target?.data?.background_edit;
-			        if (!isBg) return;
+			        // Si pulsas sobre un elemento "real" (jugador, flecha, etc.), no insertamos encima:
+			        // el click debe servir para seleccionarlo/moverlo. Pero sí permitimos insertar sobre:
+			        // - la base del campo (data.base)
+			        // - figuras de fondo (zonas/porterías) cuando NO están en modo edición
+			        if (!isBase && !isBg) return;
 			      }
 			      const raw = canvas.getPointer(event.e);
 			      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
