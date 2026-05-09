@@ -43077,7 +43077,10 @@ def analysis_page(request):
             'rivals_message': rivals_message,
             'rivals_error': rivals_error,
             'rivals_library': rivals_library,
-            'youtube_import_enabled': str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
+            # Import YouTube: por defecto habilitado (solo guarda enlace). Si el env var existe y es falsy, se oculta.
+            'youtube_import_enabled': (lambda raw: (not raw) or (raw in {'1', 'true', 'yes', 'on'}))(
+                str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower()
+            ),
         },
     )
 
@@ -44243,8 +44246,9 @@ def analysis_rival_video_import_youtube_api(request):
     """
     Importa un vídeo desde YouTube como enlace (sin descargar) y lo guarda como `RivalVideo`.
 
-    Requisitos en entorno:
-    - `ANALYSIS_YOUTUBE_IMPORT_ENABLED=1`
+    Control por entorno (opcional):
+    - Si `ANALYSIS_YOUTUBE_IMPORT_ENABLED` está definido y NO es truthy, se deshabilita.
+    - Si no está definido, queda habilitado (solo guarda enlace, no descarga).
     """
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -44252,7 +44256,11 @@ def analysis_rival_video_import_youtube_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    if str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower() not in {'1', 'true', 'yes', 'on'}:
+    try:
+        enabled_raw = str(os.getenv('ANALYSIS_YOUTUBE_IMPORT_ENABLED') or '').strip().lower()
+    except Exception:
+        enabled_raw = ''
+    if enabled_raw and enabled_raw not in {'1', 'true', 'yes', 'on'}:
         return JsonResponse({'ok': False, 'error': 'Importación YouTube deshabilitada.'}, status=403)
 
     primary_team = _get_primary_team_for_request(request)

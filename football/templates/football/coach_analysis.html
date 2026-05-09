@@ -1461,6 +1461,12 @@
                             {% if row.team_id %}
                               <a class="button ghost" href="?tab=reports&team_id={{ row.team_id }}">Abrir</a>
                               <a class="button ghost" href="{% url 'analysis-rival-profile' row.team_id %}">Ficha</a>
+                              <a
+                                class="button ghost"
+                                href="{% url 'sessions-task-create' %}?team={{ team_id|default:'' }}"
+                                data-seed-rival-task
+                                data-rival-name="{{ row.full_name|default:'' }}"
+                              >Crear tarea</a>
                               <form method="post" style="margin:0;">
                                 {% csrf_token %}
                                 <input type="hidden" name="form_action" value="rivals_refresh_snapshot" />
@@ -1545,6 +1551,24 @@
             if (list) list.innerHTML = '<li><span class="meta">Revisa la configuración de Universo.</span></li>';
           });
 	      })();
+
+      (function () {
+        // Seed rápido: desde Rivales -> abrir editor de tareas con rival preseleccionado.
+        try {
+          const links = Array.from(document.querySelectorAll('[data-seed-rival-task]'));
+          if (!links.length) return;
+          links.forEach((a) => {
+            a.addEventListener('click', () => {
+              try {
+                const name = String(a.getAttribute('data-rival-name') || '').trim();
+                if (!name) return;
+                const payload = { kind: 'rival_roster', rival_name: name, players: [] };
+                try { window.localStorage && window.localStorage.setItem('2j_rival_task_seed', JSON.stringify(payload)); } catch (e) {}
+              } catch (e) {}
+            });
+          });
+        } catch (e) {}
+      })();
 
 		      (function () {
 		        const btn = document.getElementById('rival-report-to-tasks');
