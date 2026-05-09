@@ -3564,6 +3564,36 @@
 	        },
       };
     </script>
+    <script>
+      // Fallback de UX: si por cualquier motivo el JS principal falla (caché/iOS),
+      // mantenemos operativo el cambio de pestañas (Pre / En vivo / Cierre).
+      (function () {
+        const ready = (fn) => {
+          if (document.readyState !== 'loading') fn();
+          else document.addEventListener('DOMContentLoaded', fn, { once: true });
+        };
+        ready(() => {
+          const tabs = Array.from(document.querySelectorAll('[data-stage-tab]') || []);
+          const panels = Array.from(document.querySelectorAll('[data-stage-panel]') || []);
+          if (!tabs.length || !panels.length) return;
+          const setStage = (stage) => {
+            const key = String(stage || '').trim();
+            if (!key) return;
+            tabs.forEach((tab) => tab.classList.toggle('is-active', tab.dataset.stageTab === key));
+            panels.forEach((panel) => panel.classList.toggle('is-active', panel.dataset.stagePanel === key));
+            try {
+              document.dispatchEvent(new CustomEvent('matchactions:stagechange', { detail: { stage: key } }));
+            } catch (e) {}
+          };
+          tabs.forEach((tab) => tab.addEventListener('click', () => setStage(tab.dataset.stageTab)));
+          Array.from(document.querySelectorAll('[data-stage-jump]') || []).forEach((btn) => {
+            btn.addEventListener('click', () => setStage(btn.dataset.stageJump));
+          });
+          // Si no hay ninguna activa, usa prepartido.
+          if (!tabs.some((t) => t.classList.contains('is-active'))) setStage('pre');
+        });
+      })();
+    </script>
     <script src="{% static 'football/js/match_actions_chrome.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/match_actions_live.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/match_actions_page.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
