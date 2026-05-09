@@ -247,6 +247,156 @@
         text-transform: uppercase;
         color: rgba(226, 232, 240, 0.6);
       }
+      /* --- Táctica (prepartido): once sobre el campo --- */
+      .tactics-board {
+        margin-top: 0.9rem;
+      }
+      .tactics-board-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.55rem;
+      }
+      .tactics-board-head h5 {
+        margin: 0;
+      }
+      .tactics-board-actions {
+        display: flex;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .tactics-pitch {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background:
+          radial-gradient(circle at 30% 20%, rgba(34, 211, 238, 0.12), transparent 55%),
+          radial-gradient(circle at 70% 75%, rgba(244, 180, 0, 0.10), transparent 60%),
+          linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.62));
+        overflow: hidden;
+      }
+      .tactics-pitch::before {
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border-radius: 14px;
+        border: 2px solid rgba(226, 232, 240, 0.22);
+        opacity: 0.9;
+        pointer-events: none;
+      }
+      .tactics-line-mid {
+        position: absolute;
+        left: 50%;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        background: rgba(226, 232, 240, 0.18);
+        transform: translateX(-1px);
+        pointer-events: none;
+      }
+      .tactics-circle {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 22%;
+        aspect-ratio: 1 / 1;
+        border-radius: 999px;
+        border: 2px solid rgba(226, 232, 240, 0.18);
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .tactics-tokens {
+        position: absolute;
+        inset: 0;
+      }
+      .tactics-token {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(2, 6, 23, 0.55);
+        box-shadow: 0 18px 46px rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+      .tactics-token:active {
+        cursor: grabbing;
+      }
+      .tactics-token .avatar {
+        position: absolute;
+        inset: 6px;
+        border-radius: 999px;
+        background-size: cover;
+        background-position: center;
+        filter: saturate(1.05) contrast(1.05);
+        opacity: 0.9;
+      }
+      .tactics-token .avatar.fallback {
+        background: linear-gradient(135deg, rgba(148, 163, 184, 0.25), rgba(2, 6, 23, 0.25));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        color: rgba(226, 232, 240, 0.92);
+        font-size: 0.85rem;
+      }
+      .tactics-token .badge {
+        position: absolute;
+        right: -6px;
+        bottom: -6px;
+        min-width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.45);
+        background: rgba(244, 180, 0, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 950;
+        color: rgba(255, 242, 199, 0.98);
+        font-size: 0.75rem;
+      }
+      .tactics-token .name {
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 10px);
+        transform: translateX(-50%);
+        width: 140px;
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.88);
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+        pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tactics-token.is-selected {
+        border-color: rgba(34, 211, 238, 0.52);
+        box-shadow: 0 22px 56px rgba(34, 211, 238, 0.14);
+      }
+      .tactics-token.is-dragging {
+        z-index: 6;
+      }
+      body.pro-mode .tactics-token {
+        width: 64px;
+        height: 64px;
+      }
       .status-card {
         flex: 1;
         border-radius: 14px;
@@ -2653,6 +2803,20 @@
                 <button type="button" class="toolbar-pill" id="match-plan-save" title="Guardar plan por club/workspace" {% if not can_manage_workspace %}disabled{% endif %}>Guardar plan (club)</button>
               </div>
               <p class="meta" id="match-plan-status" style="margin:0.45rem 0 0;">—</p>
+            </article>
+            <article class="status-card tactics-board" id="tactics-board-card" style="margin-top:0.9rem;">
+              <div class="tactics-board-head">
+                <h5>Táctica · once en campo</h5>
+                <div class="tactics-board-actions">
+                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar once en una estructura base">Reset posiciones</button>
+                </div>
+              </div>
+              <div class="tactics-pitch" id="tactics-pitch" aria-label="Pizarra táctica (once)" role="application">
+                <div class="tactics-line-mid" aria-hidden="true"></div>
+                <div class="tactics-circle" aria-hidden="true"></div>
+                <div class="tactics-tokens" id="tactics-tokens"></div>
+              </div>
+              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el 11 inicial y mejoran la sugerencia automática).</p>
             </article>
             <div class="pre-lineup-panel">
               <article class="status-card">

@@ -2284,6 +2284,243 @@ const urlWithMatchId = (baseUrl) => {
           preLineupChipsEl.appendChild(chip);
         });
       };
+      // --- Táctica (Prepartido): once sobre el campo ---
+      const tacticsPitch = document.getElementById('tactics-pitch');
+      const tacticsTokensEl = document.getElementById('tactics-tokens');
+      const tacticsResetBtn = document.getElementById('tactics-reset-positions');
+      let renderTacticsBoard = () => {};
+      const clampPct = (value, min, max) => Math.max(min, Math.min(max, value));
+      const safeNumber = (raw, fallback = NaN) => {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      const shortDisplayName = (full) => {
+        const raw = String(full || '').trim();
+        if (!raw) return '';
+        const parts = raw.split(/\\s+/).filter(Boolean);
+        if (parts.length === 1) return parts[0].slice(0, 10);
+        const last = parts[parts.length - 1];
+        return last.slice(0, 12);
+      };
+      const roleBucketFromPositionLite = (positionRaw) => {
+        const pos = String(positionRaw || '').trim().toLowerCase();
+        if (!pos) return 'any';
+        const compact = pos.replace(/\\s+/g, '');
+        if (compact.includes('por') || compact.includes('portero') || compact === 'gk') return 'gk';
+        if (
+          compact.includes('def')
+          || compact.includes('central')
+          || compact.includes('lateral')
+          || compact.includes('carril')
+          || compact.includes('cb')
+          || compact.includes('lb')
+          || compact.includes('rb')
+        ) return 'def';
+        if (
+          compact.includes('mc')
+          || compact.includes('mcd')
+          || compact.includes('mco')
+          || compact.includes('medio')
+          || compact.includes('interior')
+          || compact.includes('piv')
+          || compact.includes('mp')
+          || compact.includes('cm')
+        ) return 'mid';
+        if (
+          compact.includes('del')
+          || compact.includes('ext')
+          || compact.includes('ei')
+          || compact.includes('ed')
+          || compact.includes('punta')
+          || compact === 'dc'
+          || compact.includes('st')
+          || compact.includes('fw')
+        ) return 'att';
+        return 'any';
+      };
+      const defaultBaseSlots = [
+        { x: 50, y: 86 }, // GK
+        { x: 18, y: 72 },
+        { x: 38, y: 74 },
+        { x: 62, y: 74 },
+        { x: 82, y: 72 },
+        { x: 30, y: 52 },
+        { x: 50, y: 56 },
+        { x: 70, y: 52 },
+        { x: 25, y: 30 },
+        { x: 50, y: 26 },
+        { x: 75, y: 30 },
+      ];
+      const pickPlayersByRole = (players, role) => {
+        const list = Array.isArray(players) ? players.slice() : [];
+        const inRole = [];
+        const other = [];
+        list.forEach((p) => {
+          if (!p || !p.id) return;
+          const bucket = roleBucketFromPositionLite(p.position);
+          if (bucket === role) inRole.push(p);
+          else other.push(p);
+        });
+        const sortKey = (p) => {
+          const num = safeNumber(p.number, 999);
+          const name = String(p.name || '').toLowerCase();
+          return [Number.isFinite(num) ? num : 999, name, String(p.id)];
+        };
+        const cmp = (a, b) => {
+          const ka = sortKey(a);
+          const kb = sortKey(b);
+          for (let i = 0; i < ka.length; i += 1) {
+            if (ka[i] < kb[i]) return -1;
+            if (ka[i] > kb[i]) return 1;
+          }
+          return 0;
+        };
+        inRole.sort(cmp);
+        other.sort(cmp);
+        return { inRole, other };
+      };
+      const applyBasePositionsToStarters = () => {
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, 11) : [];
+        if (!starters.length) return;
+        const pool = starters.map((p) => ({ ...p }));
+        const picks = [];
+        const consume = (role, count) => {
+          const { inRole, other } = pickPlayersByRole(pool, role);
+          const chosen = inRole.slice(0, count);
+          const chosenIds = new Set(chosen.map((p) => String(p.id)));
+          const rest = [...inRole.slice(count), ...other].filter((p) => !chosenIds.has(String(p.id)));
+          pool.splice(0, pool.length, ...rest);
+          picks.push(...chosen);
+        };
+        consume('gk', 1);
+        consume('def', 4);
+        consume('mid', 3);
+        consume('att', 3);
+        if (picks.length < starters.length) {
+          picks.push(...pool.slice(0, Math.max(0, starters.length - picks.length)));
+        }
+        const byId = new Map(picks.map((p, idx) => [String(p.id), idx]));
+        lineupState.starters = starters.map((row) => {
+          const idx = byId.get(String(row.id));
+          const slot = defaultBaseSlots[idx !== undefined ? idx : 0] || defaultBaseSlots[0];
+          return { ...row, slot_index: (idx !== undefined ? idx : (safeNumber(row.slot_index, 0) || 0)), x_pct: slot.x, y_pct: slot.y };
+        });
+        updateLineupInput();
+        try { renderTacticsBoard(); } catch (e) {}
+      };
+      const createTacticsToken = (player) => {
+        const id = String(player?.id || '').trim();
+        if (!id) return null;
+        const el = document.createElement('div');
+        el.className = 'tactics-token';
+        el.dataset.playerId = id;
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        const photo = String(player?.photo || '').trim();
+        if (photo) {
+          avatar.style.backgroundImage = `url(\"${photo.replace(/\"/g, '\\\\\"')}\")`;
+        } else {
+          avatar.classList.add('fallback');
+          avatar.textContent = String(getInitials(player?.name || player?.number || '?'));
+        }
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = player?.number ? String(player.number).slice(0, 3) : '--';
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = shortDisplayName(player?.name || 'Jugador').toUpperCase();
+        el.appendChild(avatar);
+        el.appendChild(badge);
+        el.appendChild(name);
+
+        let dragging = false;
+        let downAt = null;
+        let offsetPx = { x: 0, y: 0 };
+        const getPitchRect = () => tacticsPitch?.getBoundingClientRect?.() || null;
+        const setFromClient = (clientX, clientY) => {
+          const rect = getPitchRect();
+          if (!rect) return;
+          const x = clampPct(((clientX - rect.left) / rect.width) * 100, 4, 96);
+          const y = clampPct(((clientY - rect.top) / rect.height) * 100, 6, 94);
+          el.style.left = `${x}%`;
+          el.style.top = `${y}%`;
+        };
+        const persistPctFromClient = (clientX, clientY) => {
+          const rect = getPitchRect();
+          if (!rect) return;
+          const x = clampPct(((clientX - rect.left) / rect.width) * 100, 4, 96);
+          const y = clampPct(((clientY - rect.top) / rect.height) * 100, 6, 94);
+          const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+          lineupState.starters = starters.map((row) => (String(row?.id || '') === id ? { ...row, x_pct: x, y_pct: y } : row));
+          updateLineupInput();
+        };
+
+        el.addEventListener('pointerdown', (event) => {
+          if (!tacticsPitch) return;
+          if (event.button !== undefined && event.button !== 0) return;
+          try { el.setPointerCapture(event.pointerId); } catch (e) {}
+          dragging = false;
+          downAt = { x: event.clientX, y: event.clientY };
+          el.classList.add('is-dragging');
+          const rect = getPitchRect();
+          if (rect) {
+            const computedLeft = safeNumber(String(el.style.left || '').replace('%', ''), NaN);
+            const computedTop = safeNumber(String(el.style.top || '').replace('%', ''), NaN);
+            const pxLeft = Number.isFinite(computedLeft) ? (rect.left + (computedLeft / 100) * rect.width) : event.clientX;
+            const pxTop = Number.isFinite(computedTop) ? (rect.top + (computedTop / 100) * rect.height) : event.clientY;
+            offsetPx = { x: event.clientX - pxLeft, y: event.clientY - pxTop };
+          }
+        });
+        el.addEventListener('pointermove', (event) => {
+          if (!downAt) return;
+          const dx = Math.abs(event.clientX - downAt.x);
+          const dy = Math.abs(event.clientY - downAt.y);
+          if (!dragging && (dx + dy) > 7) dragging = true;
+          if (!dragging) return;
+          setFromClient(event.clientX - offsetPx.x, event.clientY - offsetPx.y);
+        });
+        const endDrag = (event) => {
+          if (!downAt) return;
+          const wasDragging = dragging;
+          downAt = null;
+          dragging = false;
+          el.classList.remove('is-dragging');
+          if (wasDragging) {
+            persistPctFromClient(event.clientX - offsetPx.x, event.clientY - offsetPx.y);
+            try { renderTacticsBoard(); } catch (e) {}
+            return;
+          }
+          try {
+            nextPlayerPickSource = 'manual';
+            selectPlayer(id);
+            try { renderTacticsBoard(); } catch (e) {}
+          } catch (e) {}
+        };
+        el.addEventListener('pointerup', endDrag);
+        el.addEventListener('pointercancel', endDrag);
+        return el;
+      };
+      const renderTacticsBoardImpl = () => {
+        if (!tacticsPitch || !tacticsTokensEl) return;
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, 11) : [];
+        tacticsTokensEl.innerHTML = '';
+        if (!starters.length) return;
+        starters.forEach((player, idx) => {
+          const token = createTacticsToken(player);
+          if (!token) return;
+          const x = safeNumber(player?.x_pct, NaN);
+          const y = safeNumber(player?.y_pct, NaN);
+          const fallback = defaultBaseSlots[idx] || defaultBaseSlots[0];
+          token.style.left = `${Number.isFinite(x) ? x : fallback.x}%`;
+          token.style.top = `${Number.isFinite(y) ? y : fallback.y}%`;
+          token.classList.toggle('is-selected', String(selectedPlayerId || '') === String(player?.id || ''));
+          tacticsTokensEl.appendChild(token);
+        });
+      };
+      renderTacticsBoard = () => renderTacticsBoardImpl();
+      if (tacticsResetBtn) {
+        tacticsResetBtn.addEventListener('click', () => applyBasePositionsToStarters());
+      }
 	      const renderLineup = () => {
 	        Object.keys(lineupSections).forEach(renderLineupSection);
 	        refreshLineupCounts();
@@ -2307,6 +2544,7 @@ const urlWithMatchId = (baseUrl) => {
 	        updateLineupInput();
 	        refreshCardAssignments();
 	        renderPreLineupSummary();
+	        try { renderTacticsBoard(); } catch (e) {}
 	        try { renderProQuickPlayers(); } catch (e) {}
 	        if (typeof updateCloseSummary === 'function') {
 	          updateCloseSummary();
