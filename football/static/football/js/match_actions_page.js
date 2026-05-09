@@ -1704,7 +1704,7 @@ const urlWithMatchId = (baseUrl) => {
 	          const parsed = Date.parse(raw);
 	          return Number.isFinite(parsed) ? parsed : 0;
 	        };
-	        const isRecentLocal = (persisted) => {
+		        const isRecentLocal = (persisted) => {
 	          try {
 	            const ts = Number(persisted?._meta?.local_ts || 0);
 	            if (!Number.isFinite(ts) || ts <= 0) return false;
@@ -1712,92 +1712,100 @@ const urlWithMatchId = (baseUrl) => {
 	          } catch (e) {
 	            return false;
 	          }
-	        };
-	        try {
-	          const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
-	          if (seedRaw) {
-	            const seed = JSON.parse(seedRaw);
-	            if (seed && typeof seed === 'object') {
-	              lineupState = seed;
-	            }
-	          }
-	        } catch (err) {
-	          console.warn('No se pudo leer el 11 inicial del servidor', err);
-	        }
-	        if (lineupStorageKey) {
-	          try {
-	            const rawPersisted = localStorage.getItem(lineupStorageKey);
-	            if (rawPersisted) {
-	              const persisted = JSON.parse(rawPersisted);
-	              const serverSavedAt = parseEpoch(lineupState?._meta?.saved_at || lineupState?._meta?.server_saved_at);
-	              const persistedServerSavedAt = parseEpoch(persisted?._meta?.server_saved_at || persisted?._meta?.saved_at);
-	              const prefersServer = Boolean(
-	                serverSavedAt
-	                && (!persistedServerSavedAt || serverSavedAt > persistedServerSavedAt)
-	                && !isRecentLocal(persisted),
-	              );
-	              if (prefersServer) {
-	                try {
-	                  localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] }));
-	                } catch (e) {}
-	              } else if (persisted && typeof persisted === 'object') {
-	                lineupState = persisted;
-	                return;
-	              }
-	            }
-	          } catch (err) {
-	            console.warn('No se pudo recuperar el 11 inicial persistido', err);
-	          }
-	        }
+		        };
+            const ensureLineupOrientationLR = () => {
+              // Asegura que el 11 inicial esté en la misma orientación que el campo del registro (LR: izquierda→derecha).
+              // El editor de "11 inicial" histórico guardaba coordenadas TB (vertical). Eso rompe el auto-jugador por zonas.
+              try {
+                const clampPct = (value, min = 0, max = 100) => {
+                  const n = Number(value);
+                  if (!Number.isFinite(n)) return NaN;
+                  return Math.max(min, Math.min(max, n));
+                };
+                lineupState = lineupState && typeof lineupState === 'object' ? lineupState : { starters: [], bench: [] };
+                if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
+                if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
+                lineupState._meta = (lineupState._meta && typeof lineupState._meta === 'object') ? lineupState._meta : {};
+                const orientationRaw = String(lineupState._meta.orientation || '').trim().toLowerCase();
+                const orientation = (orientationRaw === 'tb' || orientationRaw === 'portrait') ? 'tb' : 'lr';
+                const looksTb = (() => {
+                  const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+                  if (!starters.length) return false;
+                  const findGk = starters.find((p) => {
+                    const pos = String(p?.position || '').toLowerCase();
+                    return Number(p?.slot_index) === 0 || pos.includes('por') || pos.includes('gk');
+                  }) || starters[0];
+                  const x = clampPct(findGk?.x_pct, 0, 100);
+                  const y = clampPct(findGk?.y_pct, 0, 100);
+                  return Number.isFinite(x) && Number.isFinite(y) && x >= 35 && x <= 65 && y >= 70;
+                })();
+                if (orientation === 'tb' || (orientationRaw === '' && looksTb)) {
+                  lineupState.starters = (lineupState.starters || []).map((row) => {
+                    const x = clampPct(row?.x_pct, 0, 100);
+                    const y = clampPct(row?.y_pct, 0, 100);
+                    if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
+                    // TB -> LR: x_lr = 100 - y_tb ; y_lr = x_tb
+                    return { ...row, x_pct: clampPct(100 - y, 0, 100), y_pct: clampPct(x, 0, 100) };
+                  });
+                  lineupState._meta.orientation = 'lr';
+                } else if (!orientationRaw) {
+                  lineupState._meta.orientation = 'lr';
+                }
+              } catch (e) {}
+            };
+		        try {
+		          const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
+		          if (seedRaw) {
+		            const seed = JSON.parse(seedRaw);
+		            if (seed && typeof seed === 'object') {
+		              lineupState = seed;
+		            }
+		          }
+		        } catch (err) {
+		          console.warn('No se pudo leer el 11 inicial del servidor', err);
+		        }
+		        if (lineupStorageKey) {
+		          try {
+		            const rawPersisted = localStorage.getItem(lineupStorageKey);
+		            if (rawPersisted) {
+		              const persisted = JSON.parse(rawPersisted);
+		              const serverSavedAt = parseEpoch(lineupState?._meta?.saved_at || lineupState?._meta?.server_saved_at);
+		              const persistedServerSavedAt = parseEpoch(persisted?._meta?.server_saved_at || persisted?._meta?.saved_at);
+		              const prefersServer = Boolean(
+		                serverSavedAt
+		                && (!persistedServerSavedAt || serverSavedAt > persistedServerSavedAt)
+		                && !isRecentLocal(persisted),
+		              );
+		              if (prefersServer) {
+		                try {
+		                  localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] }));
+		                } catch (e) {}
+		              } else if (persisted && typeof persisted === 'object') {
+		                lineupState = persisted;
+                    ensureLineupOrientationLR();
+		                return;
+		              }
+		            }
+		          } catch (err) {
+		            console.warn('No se pudo recuperar el 11 inicial persistido', err);
+		          }
+		        }
 	        if (!lineupInput?.value) {
+            ensureLineupOrientationLR();
 	          return;
 	        }
-	        try {
-	          const current = JSON.parse(lineupInput.value);
-	          lineupState = current && typeof current === 'object' ? current : lineupState;
-	        } catch (err) {
-	          console.error('Invalid lineup payload', err);
-	        }
+		        try {
+		          const current = JSON.parse(lineupInput.value);
+		          lineupState = current && typeof current === 'object' ? current : lineupState;
+		        } catch (err) {
+		          console.error('Invalid lineup payload', err);
+		        }
 		        try {
 		          if (!lineupState || typeof lineupState !== 'object') lineupState = { starters: [], bench: [] };
 		          if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
 		          if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
 		        } catch (e) {}
-            // Asegura que el 11 inicial esté en la misma orientación que el campo del registro (LR: izquierda→derecha).
-            // El editor de "11 inicial" histórico guardaba coordenadas TB (vertical). Eso rompe el auto-jugador por zonas.
-            try {
-              const clampPct = (value, min = 0, max = 100) => {
-                const n = Number(value);
-                if (!Number.isFinite(n)) return NaN;
-                return Math.max(min, Math.min(max, n));
-              };
-              lineupState._meta = (lineupState._meta && typeof lineupState._meta === 'object') ? lineupState._meta : {};
-              const orientationRaw = String(lineupState._meta.orientation || '').trim().toLowerCase();
-              const orientation = (orientationRaw === 'tb' || orientationRaw === 'portrait') ? 'tb' : 'lr';
-              const looksTb = (() => {
-                const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
-                if (!starters.length) return false;
-                const findGk = starters.find((p) => {
-                  const pos = String(p?.position || '').toLowerCase();
-                  return Number(p?.slot_index) === 0 || pos.includes('por') || pos.includes('gk');
-                }) || starters[0];
-                const x = clampPct(findGk?.x_pct, 0, 100);
-                const y = clampPct(findGk?.y_pct, 0, 100);
-                return Number.isFinite(x) && Number.isFinite(y) && x >= 35 && x <= 65 && y >= 70;
-              })();
-              if (orientation === 'tb' || (orientationRaw === '' && looksTb)) {
-                lineupState.starters = (lineupState.starters || []).map((row) => {
-                  const x = clampPct(row?.x_pct, 0, 100);
-                  const y = clampPct(row?.y_pct, 0, 100);
-                  if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
-                  // TB -> LR: x_lr = 100 - y_tb ; y_lr = x_tb
-                  return { ...row, x_pct: clampPct(100 - y, 0, 100), y_pct: clampPct(x, 0, 100) };
-                });
-                lineupState._meta.orientation = 'lr';
-              } else if (!orientationRaw) {
-                lineupState._meta.orientation = 'lr';
-              }
-            } catch (e) {}
+            ensureLineupOrientationLR();
 		        lastLineupSignature = lineupSignature(lineupState);
 		        lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
 		      };
