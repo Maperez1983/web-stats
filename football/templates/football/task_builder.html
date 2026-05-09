@@ -6068,6 +6068,13 @@
 		          if (isTacticsMode || hasTaskId || wantsBoard) ensureEditorStack();
 		        }, 2200);
 
+            // En Táctica, la pizarra es el producto: cargamos el editor inmediatamente para evitar
+            // que el usuario vea un campo oscuro (placeholder) varios segundos.
+            try {
+              const isTacticsModeNow = String(form.dataset.tacticsMode || '').trim() === '1';
+              if (isTacticsModeNow) ensureEditorStack();
+            } catch (e) { /* ignore */ }
+
 		        // 3D de pizarra (usa Three.js dentro del editor TPad).
 		        hookClick(
 		          'pitch-3d-open',
