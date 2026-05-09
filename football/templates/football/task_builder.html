@@ -6061,10 +6061,11 @@
 		        scheduleIdle(() => {
 		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
 		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
+              const isTacticsMode = String(form.dataset.tacticsMode || '').trim() === '1';
 		          const wantsBoard = !!document.querySelector('#task-mode-tabs [data-task-mode=\"board\"].is-active,#task-mode-tabs [data-task-mode=\"both\"].is-active');
 		          // Nota: en esta página la pizarra es el modo por defecto; si el usuario está en "Pizarra",
 		          // precargamos siempre para que la superficie aparezca sin clicks extra.
-		          if (hasTaskId || wantsBoard) ensureEditorStack();
+		          if (isTacticsMode || hasTaskId || wantsBoard) ensureEditorStack();
 		        }, 2200);
 
 		        // 3D de pizarra (usa Three.js dentro del editor TPad).
