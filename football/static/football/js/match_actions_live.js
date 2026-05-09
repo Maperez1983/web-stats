@@ -1401,11 +1401,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   let lastTapAt = 0;
   let lastTapPoint = null;
   let swipeStart = null;
-  interactiveSurface.addEventListener('click', (event) => {
-    if (fieldPopup.contains(event.target) || popupForm.contains(event.target)) return;
+  // iOS/Safari a veces no dispara `click` de forma fiable en divs con overlays.
+  // Unificamos el gesto como "tap" y lo escuchamos por `pointerup` + fallback `touchend`/`click`.
+  let lastPhysicalTapAt = 0;
+  const handleSurfaceTap = (clientX, clientY, event) => {
+    if (!interactiveSurface) return;
+    if (fieldPopup.contains(event?.target) || popupForm.contains(event?.target)) return;
     const rect = interactiveSurface.getBoundingClientRect();
-    const fieldX = event.clientX - rect.left;
-    const fieldY = event.clientY - rect.top;
+    const fieldX = clientX - rect.left;
+    const fieldY = clientY - rect.top;
     if (fieldX < 0 || fieldX > rect.width || fieldY < 0 || fieldY > rect.height) return;
     highlight.style.left = `${fieldX}px`;
     highlight.style.top = `${fieldY}px`;
@@ -1458,7 +1462,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           showPageStatus('Selecciona un resultado.', 'warning', 2400);
           return;
         }
-        // En PRO, si hay acción+resultado+jugador, registramos sin abrir popup.
         const payload = new FormData(popupForm);
         void submitPopupAction(payload, { isTeamOnlyAction, source: 'pro_autosend' });
         return;
@@ -1470,6 +1473,25 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       zoneLabel.style.display = 'none';
       hidePopup();
     }
+  };
+
+  interactiveSurface.addEventListener('pointerup', (event) => {
+    if (!event || !event.isPrimary) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    lastPhysicalTapAt = Date.now();
+    handleSurfaceTap(event.clientX, event.clientY, event);
+  });
+  interactiveSurface.addEventListener('touchend', (event) => {
+    // Fallback para iOS antiguos sin Pointer Events.
+    const touch = event?.changedTouches?.[0];
+    if (!touch) return;
+    lastPhysicalTapAt = Date.now();
+    handleSurfaceTap(touch.clientX, touch.clientY, event);
+  }, { passive: true });
+  interactiveSurface.addEventListener('click', (event) => {
+    // Evita el "ghost click" tras touchend/pointerup.
+    if (Date.now() - (lastPhysicalTapAt || 0) < 450) return;
+    handleSurfaceTap(event.clientX, event.clientY, event);
   });
 
   // Gestos pro: swipe izq = deshacer, swipe der = rehacer.
