@@ -1522,8 +1522,38 @@
         badge.innerHTML = `<span class="dot"></span><span>${escapeHtml(msg)}</span>`;
       }
 
+      async function verifyConnectivity() {
+        // `navigator.onLine` / evento offline no es fiable en iOS/WKWebView. Verificamos contra servidor.
+        try {
+          const url = '/api/session/keepalive/';
+          const opts = { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
+          if (typeof AbortController !== 'undefined') {
+            const ctrl = new AbortController();
+            const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 2500);
+            try {
+              const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+              return !!(resp && resp.ok);
+            } catch (e) {
+              return false;
+            } finally {
+              try { window.clearTimeout(timer); } catch (e) {}
+            }
+          }
+          const resp = await fetch(url, opts);
+          return !!(resp && resp.ok);
+        } catch (e) {
+          return false;
+        }
+      }
+
       window.addEventListener('online', () => setNetBadge({ offline: false }));
-      window.addEventListener('offline', () => setNetBadge({ offline: true, cached: true }));
+      window.addEventListener('offline', () => {
+        void (async () => {
+          const ok = await verifyConnectivity();
+          if (ok) setNetBadge({ offline: false });
+          else setNetBadge({ offline: true, cached: true });
+        })();
+      });
 
       function preloadImage(src) {
         return new Promise((resolve) => {

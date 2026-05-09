@@ -1804,7 +1804,33 @@ const urlWithMatchId = (baseUrl) => {
 	      const refreshLineupFromServer = async ({ quiet = true } = {}) => {
 	        if (!lineupGetUrl) return false;
 	        try {
-	          if (!navigator.onLine) return false;
+	          // `navigator.onLine` no es fiable en iOS/WKWebView: si reporta offline, verificamos contra servidor.
+	          const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
+	          if (reportedOffline) {
+	            let reachable = false;
+	            try {
+	              const url = keepaliveUrl || '/api/session/keepalive/';
+	              const opts = { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
+	              if (typeof AbortController !== 'undefined') {
+	                const ctrl = new AbortController();
+	                const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 2500);
+	                try {
+	                  const resp = await fetch(url, { ...opts, signal: ctrl.signal });
+	                  reachable = !!(resp && resp.ok);
+	                } catch (e) {
+	                  reachable = false;
+	                } finally {
+	                  try { window.clearTimeout(timer); } catch (e) {}
+	                }
+	              } else {
+	                const resp = await fetch(url, opts);
+	                reachable = !!(resp && resp.ok);
+	              }
+	            } catch (e) {
+	              reachable = false;
+	            }
+	            if (!reachable) return false;
+	          }
 	        } catch (e) {}
 	        try {
 	          const response = await fetch(lineupGetUrl, {

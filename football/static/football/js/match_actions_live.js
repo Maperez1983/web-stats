@@ -184,6 +184,38 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     }
   };
 
+  // `navigator.onLine` no es fiable en iOS/WKWebView. Si reporta offline, verificamos contra servidor.
+  const reachabilityUrl = String(keepaliveUrl || '/api/session/keepalive/').trim() || '/api/session/keepalive/';
+  const isServerReachable = async () => {
+    try {
+      const opts = { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
+      if (typeof AbortController !== 'undefined') {
+        const ctrl = new AbortController();
+        const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 2500);
+        try {
+          const resp = await fetch(reachabilityUrl, { ...opts, signal: ctrl.signal });
+          return !!(resp && resp.ok);
+        } catch (e) {
+          return false;
+        } finally {
+          try { window.clearTimeout(timer); } catch (e) {}
+        }
+      }
+      const resp = await fetch(reachabilityUrl, opts);
+      return !!(resp && resp.ok);
+    } catch (e) {
+      return false;
+    }
+  };
+  const ensureOnline = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+        return await isServerReachable();
+      }
+    } catch (e) {}
+    return true;
+  };
+
   const buildClipUrl = (clipId) => {
     const id = Number(clipId) || 0;
     if (!id || !analysisVideoClipUrlTemplate) return '';
@@ -418,7 +450,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   let flushOfflineInFlight = false;
   const flushOfflineQueue = async ({ limit = 20 } = {}) => {
     if (flushOfflineInFlight) return;
-    if (!navigator.onLine) {
+    if (!(await ensureOnline())) {
       updateOfflineQueueUi();
       return;
     }
@@ -1301,7 +1333,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           readOfflineQueue().filter((item) => item && item.kind === 'action').length;
         const pendingOffline = countOfflineActions();
         if (pendingOffline > 0) {
-          if (!navigator.onLine) {
+          if (!(await ensureOnline())) {
             showPageStatus(
               `Tienes ${pendingOffline} acciones offline pendientes. Conéctate y pulsa “Sincronizar” antes de guardar el partido.`,
               'warning',
@@ -1571,7 +1603,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
 
       const editingId = getEditingEventId();
       const isEdit = Boolean(editingId && updateUrl);
-      if (!navigator.onLine) throw new Error('offline');
+      if (!(await ensureOnline())) throw new Error('offline');
       const response = await fetch(isEdit ? updateUrl : submitUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -1670,7 +1702,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       );
       return data;
     } catch (err) {
-      if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
+      if (!(await ensureOnline()) || String(err?.message || '').toLowerCase().includes('offline')) {
         const offlineId = makeOfflineId();
         const fields = serializeFormData(payload);
         enqueueOfflineAction({ offlineId, fields });
@@ -1870,7 +1902,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const pollRemoteEvents = async () => {
     if (!eventsUrl || pollInFlight) return;
     if (document.visibilityState !== 'visible') return;
-    if (!navigator.onLine) return;
+    if (!(await ensureOnline())) return;
     pollInFlight = true;
     try {
       const url = new URL(eventsUrl, window.location.origin);
@@ -1938,7 +1970,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     formData.set('client_event_uid', makeClientEventUid());
     if (currentMatchId) formData.set('match_id', currentMatchId);
     try {
-      if (!navigator.onLine) throw new Error('offline');
+      if (!(await ensureOnline())) throw new Error('offline');
       const response = await fetch(submitUrl, {
 	      method: 'POST',
 	      credentials: 'same-origin',
@@ -1969,7 +2001,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       } catch (e) {}
       return data;
     } catch (err) {
-      if (!navigator.onLine || String(err?.message || '').toLowerCase().includes('offline')) {
+      if (!(await ensureOnline()) || String(err?.message || '').toLowerCase().includes('offline')) {
         const offlineId = makeOfflineId();
         const fields = serializeFormData(formData);
         enqueueOfflineAction({ offlineId, fields });
