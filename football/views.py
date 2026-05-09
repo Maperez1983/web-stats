@@ -41905,7 +41905,7 @@ def analysis_page(request):
         return forbidden
     primary_team = _get_primary_team_for_request(request)
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'reports'
-    if active_tab not in {'reports', 'videos', 'insights', 'rivals'}:
+    if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
         active_tab = 'reports'
     def _tab_link(tab_name):
         params = request.GET.copy()
@@ -43045,6 +43045,7 @@ def analysis_page(request):
             'active_tab': active_tab,
             'tab_link_reports': _tab_link('reports'),
             'tab_link_videos': _tab_link('videos'),
+            'tab_link_studio': _tab_link('studio'),
             'tab_link_insights': _tab_link('insights'),
             'tab_link_rivals': _tab_link('rivals'),
             'teams': Team.objects.order_by('name'),

@@ -193,16 +193,24 @@
 	      }
       [data-tab] { display: block; }
       body[data-active-tab="reports"] [data-tab="videos"],
+      body[data-active-tab="reports"] [data-tab="studio"],
       body[data-active-tab="reports"] [data-tab="insights"],
       body[data-active-tab="reports"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="videos"] [data-tab="reports"],
+      body[data-active-tab="videos"] [data-tab="studio"],
       body[data-active-tab="videos"] [data-tab="insights"],
       body[data-active-tab="videos"] [data-tab="rivals"] { display: none; }
+      body[data-active-tab="studio"] [data-tab="reports"],
+      body[data-active-tab="studio"] [data-tab="videos"],
+      body[data-active-tab="studio"] [data-tab="insights"],
+      body[data-active-tab="studio"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="insights"] [data-tab="reports"],
       body[data-active-tab="insights"] [data-tab="videos"],
+      body[data-active-tab="insights"] [data-tab="studio"],
       body[data-active-tab="insights"] [data-tab="rivals"] { display: none; }
       body[data-active-tab="rivals"] [data-tab="reports"],
       body[data-active-tab="rivals"] [data-tab="videos"],
+      body[data-active-tab="rivals"] [data-tab="studio"],
       body[data-active-tab="rivals"] [data-tab="insights"] { display: none; }
       .grid {
         display: grid;
@@ -510,13 +518,14 @@
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>
       </header>
       <article class="panel">
-        <p>{{ description }}</p>
-	        <nav class="tab-nav" aria-label="Secciones análisis">
-	          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
-	          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
-	          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
-	          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
-	        </nav>
+	        <p>{{ description }}</p>
+		        <nav class="tab-nav" aria-label="Secciones análisis">
+		          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
+		          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+		          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Video Studio</a>
+		          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
+		          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
+		        </nav>
 
 	        <section class="analysis-summary" aria-label="Resumen rival">
 	          <div class="analysis-summary-main">
@@ -1141,12 +1150,106 @@
               {% endfor %}
             </div>
           </div>
-        </div>
-        </div>
+	        </div>
+	        </div>
 
-        <div data-tab="insights">
-        {% if roster %}
-        <div class="grid">
+	        <div data-tab="studio">
+	        <div class="grid" style="margin-top:1rem;">
+	          <div class="item item-wide">
+	            <h3>Video Studio (editor)</h3>
+	            <p class="meta" style="margin:0.35rem 0 0;">
+	              Flujo recomendado: 1) añade un vídeo (archivo o YouTube) 2) abre “Video Studio” para recortar clips, añadir notas y dibujar (flechas, círculos, marcas) sobre el vídeo.
+	            </p>
+	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
+	              <a class="button ghost" href="{{ tab_link_videos }}">Ir a Vídeos</a>
+	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
+	            </div>
+	          </div>
+	          <div class="item item-wide">
+	            <h3>Cargar vídeo</h3>
+	            <p class="meta" style="margin:0.35rem 0 0;">
+	              Sube un archivo o pega un enlace de YouTube. Después pulsa “Abrir Video Studio”.
+	            </p>
+	            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
+	              <summary>Añadir vídeo (archivo / YouTube)</summary>
+	              <div class="collapsible-body">
+	                <form
+	                  class="form"
+	                  method="post"
+	                  enctype="multipart/form-data"
+	                  id="video-upload-form-studio"
+	                  data-max-mb="{{ analysis_video_max_upload_mb|default:'' }}"
+	                >
+	                  {% csrf_token %}
+	                  <input type="hidden" name="form_action" value="upload_video" />
+	                  <input type="hidden" name="video_team_id" value="{{ team_id }}" />
+	                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+	                  <div class="manual-grid">
+	                    <div>
+	                      <label for="video_title_studio">Título</label>
+	                      <input id="video_title_studio" name="video_title" type="text" placeholder="Ej. J24 vs Rival · 1ª parte" />
+	                    </div>
+	                    <div>
+	                      <label for="video_source_studio">Fuente</label>
+	                      <select id="video_source_studio" name="video_source">
+	                        {% for value,label in video_sources %}
+	                        <option value="{{ value }}">{{ label }}</option>
+	                        {% endfor %}
+	                      </select>
+	                    </div>
+	                  </div>
+	                  <div class="manual-grid" style="margin-top:0.75rem;">
+	                    <div>
+	                      <label for="video_folder_id_studio">Carpeta</label>
+	                      <select id="video_folder_id_studio" name="video_folder_id">
+	                        <option value="">Sin carpeta</option>
+	                        {% for folder in video_folders %}
+	                        <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
+	                        {% endfor %}
+	                      </select>
+	                    </div>
+	                    <div>
+	                      <label for="video_file_studio">Archivo</label>
+	                      <input id="video_file_studio" name="video_file" type="file" accept="video/*" />
+	                    </div>
+	                  </div>
+	                  <div style="margin-top:0.75rem;">
+	                    <label for="video_source_url_studio">Enlace YouTube (opcional)</label>
+	                    <input id="video_source_url_studio" name="video_source_url" type="url" placeholder="https://youtube.com/..." />
+	                  </div>
+	                  <div class="actions" style="justify-content:flex-start; margin-top:0.75rem;">
+	                    <button class="button ghost" type="submit">Guardar vídeo</button>
+	                  </div>
+	                </form>
+	                {% if video_message %}
+	                <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
+	                {% endif %}
+	                {% if video_error %}
+	                <p class="error">{{ video_error }}</p>
+	                {% endif %}
+	              </div>
+	            </details>
+	          </div>
+	          {% for video in rival_videos %}
+	          <article class="item video-item">
+	            <h4>{{ video.title }}</h4>
+	            <p class="meta">
+	              {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
+	              {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
+	            </p>
+	            <div class="actions" style="justify-content:flex-start;">
+	              <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Abrir Video Studio</a>
+	            </div>
+	          </article>
+	          {% empty %}
+	          <article class="item"><p class="meta">No hay vídeos todavía. Ve a la pestaña “Vídeos” para subir uno (archivo o YouTube).</p></article>
+	          {% endfor %}
+	        </div>
+	        </div>
+
+	        <div data-tab="insights">
+	        {% if roster %}
+	        <div class="grid">
           <div class="item">
             <h3>Perfil competitivo</h3>
             <p class="meta" style="margin:0.35rem 0 0;">
