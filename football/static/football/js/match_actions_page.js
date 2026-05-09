@@ -2500,6 +2500,91 @@ const urlWithMatchId = (baseUrl) => {
         el.addEventListener('pointercancel', endDrag);
         return el;
       };
+      const createRivalTacticsToken = (player) => {
+        const code = String(player?.code || player?.id || player?.name || '').trim();
+        if (!code) return null;
+        const el = document.createElement('div');
+        el.className = 'tactics-token is-rival';
+        el.dataset.playerCode = code;
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        const badge = document.createElement('div');
+        badge.className = 'badge';
+        badge.textContent = player?.number ? String(player.number).slice(0, 3) : '--';
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = shortDisplayName(player?.name || 'Rival').toUpperCase();
+        avatar.classList.add('fallback');
+        avatar.textContent = String(getInitials(player?.name || player?.number || 'R'));
+        el.appendChild(avatar);
+        el.appendChild(badge);
+        el.appendChild(name);
+
+        let dragging = false;
+        let downAt = null;
+        let offsetPx = { x: 0, y: 0 };
+        const getPitchRect = () => tacticsPitch?.getBoundingClientRect?.() || null;
+        const setFromClient = (clientX, clientY) => {
+          const rect = getPitchRect();
+          if (!rect) return;
+          const x = clampPct(((clientX - rect.left) / rect.width) * 100, 4, 96);
+          const y = clampPct(((clientY - rect.top) / rect.height) * 100, 6, 94);
+          el.style.left = `${x}%`;
+          el.style.top = `${y}%`;
+        };
+        const persistPctFromClient = (clientX, clientY) => {
+          const rect = getPitchRect();
+          if (!rect) return;
+          const x = clampPct(((clientX - rect.left) / rect.width) * 100, 4, 96);
+          const y = clampPct(((clientY - rect.top) / rect.height) * 100, 6, 94);
+          const starters = Array.isArray(rivalLineupState?.starters) ? rivalLineupState.starters : [];
+          rivalLineupState.starters = starters.map((row) => {
+            const rowCode = String(row?.code || row?.id || row?.name || '').trim();
+            return rowCode === code ? { ...row, x_pct: x, y_pct: y } : row;
+          });
+          updateRivalLineupState();
+        };
+
+        el.addEventListener('pointerdown', (event) => {
+          if (!tacticsPitch) return;
+          if (!rivalVisible) return;
+          if (event.button !== undefined && event.button !== 0) return;
+          try { el.setPointerCapture(event.pointerId); } catch (e) {}
+          dragging = false;
+          downAt = { x: event.clientX, y: event.clientY };
+          el.classList.add('is-dragging');
+          const rect = getPitchRect();
+          if (rect) {
+            const computedLeft = safeNumber(String(el.style.left || '').replace('%', ''), NaN);
+            const computedTop = safeNumber(String(el.style.top || '').replace('%', ''), NaN);
+            const pxLeft = Number.isFinite(computedLeft) ? (rect.left + (computedLeft / 100) * rect.width) : event.clientX;
+            const pxTop = Number.isFinite(computedTop) ? (rect.top + (computedTop / 100) * rect.height) : event.clientY;
+            offsetPx = { x: event.clientX - pxLeft, y: event.clientY - pxTop };
+          }
+        });
+        el.addEventListener('pointermove', (event) => {
+          if (!downAt) return;
+          const dx = Math.abs(event.clientX - downAt.x);
+          const dy = Math.abs(event.clientY - downAt.y);
+          if (!dragging && (dx + dy) > 7) dragging = true;
+          if (!dragging) return;
+          setFromClient(event.clientX - offsetPx.x, event.clientY - offsetPx.y);
+        });
+        const endDrag = (event) => {
+          if (!downAt) return;
+          const wasDragging = dragging;
+          downAt = null;
+          dragging = false;
+          el.classList.remove('is-dragging');
+          if (wasDragging) {
+            persistPctFromClient(event.clientX - offsetPx.x, event.clientY - offsetPx.y);
+            try { renderTacticsBoard(); } catch (e) {}
+          }
+        };
+        el.addEventListener('pointerup', endDrag);
+        el.addEventListener('pointercancel', endDrag);
+        return el;
+      };
       const renderTacticsBoardImpl = () => {
         if (!tacticsPitch || !tacticsTokensEl) return;
         const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, 11) : [];
@@ -2517,7 +2602,31 @@ const urlWithMatchId = (baseUrl) => {
           tacticsTokensEl.appendChild(token);
         });
       };
-      renderTacticsBoard = () => renderTacticsBoardImpl();
+      const renderRivalTacticsBoardImpl = () => {
+        if (!tacticsPitch || !tacticsRivalTokensEl) return;
+        const starters = Array.isArray(rivalLineupState?.starters) ? rivalLineupState.starters.slice(0, 11) : [];
+        tacticsRivalTokensEl.innerHTML = '';
+        if (!starters.length) {
+          setRivalVisible(false, { persist: false, silent: true });
+          return;
+        }
+        syncRivalToggleUi();
+        if (!rivalVisible) return;
+        starters.forEach((player, idx) => {
+          const token = createRivalTacticsToken(player);
+          if (!token) return;
+          const x = safeNumber(player?.x_pct, NaN);
+          const y = safeNumber(player?.y_pct, NaN);
+          const fallback = defaultBaseSlotsRival[idx] || defaultBaseSlotsRival[0] || defaultBaseSlots[0];
+          token.style.left = `${Number.isFinite(x) ? x : fallback.x}%`;
+          token.style.top = `${Number.isFinite(y) ? y : fallback.y}%`;
+          tacticsRivalTokensEl.appendChild(token);
+        });
+      };
+      renderTacticsBoard = () => {
+        renderTacticsBoardImpl();
+        renderRivalTacticsBoardImpl();
+      };
       if (tacticsResetBtn) {
         tacticsResetBtn.addEventListener('click', () => applyBasePositionsToStarters());
       }

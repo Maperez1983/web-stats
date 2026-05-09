@@ -17548,6 +17548,106 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
     return base
 
 
+def _normalize_rival_lineup_payload_with_limit(payload, allowed_rows, *, starters_limit=11):
+    allowed = {}
+    for row in (allowed_rows or []):
+        if not isinstance(row, dict):
+            continue
+        code = str(row.get('code') or '').strip()
+        if not code:
+            continue
+        allowed[code] = row
+
+    base = {'starters': [], 'bench': []}
+    if not isinstance(payload, dict):
+        return base
+
+    starters_limit = int(starters_limit or 11)
+    if starters_limit <= 0:
+        starters_limit = 11
+
+    for section in ('starters', 'bench'):
+        rows = payload.get(section)
+        if not isinstance(rows, list):
+            continue
+        for item in rows:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get('code') or '').strip()
+            if not code or code not in allowed:
+                continue
+            src = allowed[code] if isinstance(allowed.get(code), dict) else {}
+            out_row = {
+                'code': code[:60],
+                'name': str(src.get('name') or item.get('name') or '').strip()[:160],
+                'number': str(src.get('number') or item.get('number') or '').strip()[:10],
+                'position': str(src.get('position') or item.get('position') or '').strip()[:40],
+            }
+            try:
+                if section == 'starters':
+                    raw_x = item.get('x_pct')
+                    raw_y = item.get('y_pct')
+                    if raw_x is None and 'x' in item:
+                        raw_x = item.get('x')
+                    if raw_y is None and 'y' in item:
+                        raw_y = item.get('y')
+                    if raw_x is not None and raw_y is not None:
+                        x = float(str(raw_x).strip())
+                        y = float(str(raw_y).strip())
+                        if x == x and y == y:  # NaN guard
+                            x = max(0.0, min(100.0, x))
+                            y = max(0.0, min(100.0, y))
+                            out_row['x_pct'] = round(x, 2)
+                            out_row['y_pct'] = round(y, 2)
+            except Exception:
+                pass
+            base[section].append(out_row)
+
+    # dedupe: a player must appear only once across sections
+    seen = set()
+    for section in ('starters', 'bench'):
+        deduped = []
+        for row in base[section]:
+            code = str(row.get('code') or '').strip()
+            if not code or code in seen:
+                continue
+            seen.add(code)
+            deduped.append(row)
+        base[section] = deduped
+
+    if len(base['starters']) > starters_limit:
+        overflow = base['starters'][starters_limit:]
+        base['starters'] = base['starters'][:starters_limit]
+        base['bench'].extend(overflow)
+
+    # Normaliza coordenadas al rango del campo.
+    try:
+        for row in base['starters']:
+            if not isinstance(row, dict):
+                continue
+            if 'x_pct' not in row or 'y_pct' not in row:
+                continue
+            try:
+                x = float(row.get('x_pct'))
+                y = float(row.get('y_pct'))
+            except Exception:
+                row.pop('x_pct', None)
+                row.pop('y_pct', None)
+                continue
+            if not (x == x and y == y):
+                row.pop('x_pct', None)
+                row.pop('y_pct', None)
+                continue
+            x = max(0.0, min(100.0, x))
+            y = max(0.0, min(100.0, y))
+            row['x_pct'] = round(x, 2)
+            row['y_pct'] = round(y, 2)
+    except Exception:
+        pass
+
+    return base
+
+
 def _build_default_lineup_payload(convocation_players):
     return _build_default_lineup_payload_with_limit(convocation_players, starters_limit=11)
 
@@ -18464,6 +18564,70 @@ def get_match_lineup(request):
     if meta:
         normalized['_meta'] = meta
     return JsonResponse({'ok': True, 'lineup': normalized})
+
+
+@login_required
+def get_match_rival_lineup(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede acceder al 11 del rival.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    starters_limit = _required_starters_for_team(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
+    if not match:
+        return JsonResponse({'ok': True, 'lineup': {'starters': [], 'bench': []}})
+    record = (
+        RivalConvocationRecord.objects
+        .filter(team=primary_team, match=match)
+        .select_related('rival_team')
+        .first()
+    )
+    if not record:
+        return JsonResponse({'ok': True, 'lineup': {'starters': [], 'bench': []}})
+    allowed_rows = record.convocation_data if isinstance(record.convocation_data, list) else []
+    stored = record.lineup_data if isinstance(record.lineup_data, dict) else {}
+    normalized = _normalize_rival_lineup_payload_with_limit(stored, allowed_rows, starters_limit=starters_limit)
+    return JsonResponse({'ok': True, 'lineup': normalized})
+
+
+@authenticated_write
+@require_POST
+def save_match_rival_lineup(request):
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar el 11 del rival.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+    starters_limit = _required_starters_for_team(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
+    if not match:
+        return JsonResponse({'error': 'No hay partido.'}, status=400)
+    record = (
+        RivalConvocationRecord.objects
+        .filter(team=primary_team, match=match)
+        .select_related('rival_team')
+        .first()
+    )
+    if not record:
+        return JsonResponse({'error': 'No hay rival preparado. Usa “Cuerpo técnico → Rival” primero.'}, status=400)
+    payload = {}
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return JsonResponse({'error': 'Payload inválido'}, status=400)
+    lineup = payload.get('lineup')
+    allowed_rows = record.convocation_data if isinstance(record.convocation_data, list) else []
+    normalized = _normalize_rival_lineup_payload_with_limit(lineup, allowed_rows, starters_limit=starters_limit)
+    record.lineup_data = normalized
+    record.save(update_fields=['lineup_data', 'updated_at'])
+    return JsonResponse({'saved': True, 'lineup': normalized})
 
 
 @authenticated_write
@@ -28194,6 +28358,12 @@ def _parse_pdf_session_header_fields(extracted_text):
         if m:
             raw = m.group(1).replace(' ', '')
             out['md'] = int(raw)
+        # Variante común: "MD: -4 Nº127" (sin la palabra "Sesión").
+        m = re.search(r'(?i)\bmd\s*:\s*([+\-]?\s*\d{1,2})\s*(?:n[º°o]\s*)?0*(\d{1,4})\b', cleaned)
+        if m:
+            raw = m.group(1).replace(' ', '')
+            out['md'] = int(raw)
+            out['session_number'] = int(m.group(2))
     except Exception:
         pass
     try:
@@ -33468,6 +33638,11 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 except Exception:
                     pass
                 session_header = _parse_pdf_session_header_fields(extracted_text_for_session) if extracted_text_for_session else {}
+                if isinstance(session_header, dict) and session_header.get('date'):
+                    try:
+                        session_date = session_header.get('date') or session_date
+                    except Exception:
+                        pass
                 plan_fields = _suggest_session_plan_fields_from_pdf_text(
                     extracted_text_for_session,
                     imported_doc_id=int(doc.id),
@@ -33477,6 +33652,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     microcycle = (
                         TrainingMicrocycle.objects
                         .filter(team=primary_team, week_start__lte=session_date, week_end__gte=session_date)
+                        .exclude(week_start=INBOX_MICROCYCLE_WEEK_START)
                         .order_by('-week_start', '-id')
                         .first()
                     )
@@ -33494,8 +33670,34 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if not microcycle:
                     raise ValueError('No se pudo preparar el microciclo destino.')
 
-                focus = str(getattr(doc, 'title', '') or f'Sesión importada #{doc.id}').strip()[:140] or f'Sesión importada #{doc.id}'
+                md = session_header.get('md') if isinstance(session_header, dict) else None
+                sess_no = session_header.get('session_number') if isinstance(session_header, dict) else None
+                md_label = ''
+                if isinstance(md, int):
+                    md_label = 'MD' if md == 0 else f'MD{md:+d}'.replace('MD+-', 'MD-')
+                focus = ''
+                if isinstance(sess_no, int) and sess_no > 0:
+                    focus = f'{md_label} · Sesión {sess_no}' if md_label else f'Sesión {sess_no}'
+                if not focus:
+                    focus = str(getattr(doc, 'title', '') or '').strip()
+                if not focus:
+                    focus = f'Sesión importada #{doc.id}'
+                focus = focus.strip()[:140] or f'Sesión importada #{doc.id}'
+
                 content = _serialize_session_plan_fields(plan_fields)
+
+                # Duración estimada: suma de minutos de las tareas detectadas en el PDF.
+                duration_minutes = 90
+                try:
+                    parsed_for_duration = _extract_tasks_from_pdf_text(extracted_text_for_session, fallback_title=focus) or []
+                    total = 0
+                    for seg in parsed_for_duration:
+                        analysis = seg.get('analysis') if isinstance(seg, dict) else {}
+                        total += max(0, _parse_int((analysis or {}).get('minutes')) or 0)
+                    if total >= 15:
+                        duration_minutes = min(240, total)
+                except Exception:
+                    duration_minutes = 90
 
                 session_obj = None
                 created = False
@@ -33518,7 +33720,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             microcycle=microcycle,
                             session_date=session_date,
                             start_time=(session_header.get('time') if isinstance(session_header.get('time'), time) else None),
-                            duration_minutes=90,
+                            duration_minutes=duration_minutes,
                             intensity=TrainingSession.INTENSITY_MEDIUM,
                             focus=focus,
                             content=content,
@@ -33530,22 +33732,9 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if not session_obj:
                     raise ValueError('No se pudo crear la sesión desde el PDF importado.')
 
-                # Ajusta focus a un título "de sistema" si el PDF trae MD/sesión (solo al crear).
-                if created and session_header:
-                    try:
-                        md = session_header.get('md')
-                        sess_no = session_header.get('session_number')
-                        md_label = ''
-                        if isinstance(md, int):
-                            md_label = 'MD' if md == 0 else f'MD{md:+d}'.replace('MD+-', 'MD-')
-                        if isinstance(sess_no, int) and sess_no > 0:
-                            pretty = f'{md_label} · Sesión {sess_no}' if md_label else f'Sesión {sess_no}'
-                            pretty = pretty.strip()[:140]
-                            if pretty:
-                                session_obj.focus = pretty
-                                session_obj.save(update_fields=['focus'])
-                    except Exception:
-                        pass
+                # Evita duplicar tareas si la sesión ya existía (doble click / retry).
+                if not created:
+                    return redirect(reverse('training-session-detail', args=[int(session_obj.id)]))
 
                 # Auto-convocatoria (igual que sesiones manuales).
                 if created:

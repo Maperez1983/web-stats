@@ -5160,6 +5160,53 @@ class MatchActionWorkflowTests(TestCase):
         self.convocation.refresh_from_db()
         self.assertEqual(int(self.convocation.lineup_data['starters'][0]['id']), self.player.id)
 
+    def test_rival_lineup_get_and_save_works_from_match_actions(self):
+        from football.models import RivalConvocationRecord
+
+        RivalConvocationRecord.objects.create(
+            team=self.team,
+            match=self.match,
+            rival_team=self.rival,
+            convocation_data=[
+                {'code': 'r1', 'name': 'Rival Uno', 'number': '1', 'position': 'POR'},
+                {'code': 'r9', 'name': 'Rival Nueve', 'number': '9', 'position': 'DC'},
+            ],
+            lineup_data={
+                'starters': [
+                    {'code': 'r1', 'name': 'Rival Uno', 'number': '1', 'position': 'POR'},
+                    {'code': 'r9', 'name': 'Rival Nueve', 'number': '9', 'position': 'DC'},
+                ],
+                'bench': [],
+            },
+        )
+
+        get_resp = self.client.get(reverse('match-rival-lineup-get'))
+        self.assertEqual(get_resp.status_code, 200)
+        get_payload = get_resp.json()
+        self.assertTrue(get_payload.get('ok'))
+        self.assertEqual(get_payload['lineup']['starters'][0]['code'], 'r1')
+
+        save_resp = self.client.post(
+            reverse('match-rival-lineup-save'),
+            data=json.dumps(
+                {
+                    'lineup': {
+                        'starters': [
+                            {'code': 'r1', 'x_pct': 50, 'y_pct': 10},
+                            {'code': 'r9', 'x_pct': 50, 'y_pct': 30},
+                        ],
+                        'bench': [],
+                    }
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(save_resp.status_code, 200)
+        saved = save_resp.json()
+        self.assertTrue(saved.get('saved'))
+        self.assertEqual(saved['lineup']['starters'][0]['code'], 'r1')
+        self.assertIn('x_pct', saved['lineup']['starters'][0])
+
     def test_delete_endpoint_only_deletes_pending_live_events(self):
         final_event = MatchEvent.objects.create(
             match=self.match,
