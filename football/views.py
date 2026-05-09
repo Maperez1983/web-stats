@@ -24780,9 +24780,13 @@ def training_session_detail_page(request, session_id):
     except Exception:
         # Fallback: si algo raro falla, mantenemos el orden por nombre.
         pass
+    # Guardamos solo incidencias (no "present") para evitar ruido/duplicados innecesarios.
     marks = {
         int(m.player_id): m
-        for m in TrainingSessionAttendance.objects.filter(session=session_obj, player__team=primary_team)
+        for m in (
+            TrainingSessionAttendance.objects.filter(session=session_obj, player__team=primary_team)
+            .exclude(status=TrainingSessionAttendance.STATUS_PRESENT)
+        )
     }
     attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
@@ -25092,11 +25096,22 @@ def training_session_detail_page(request, session_id):
                             injury_return_date = datetime.strptime(injury_return_raw, '%Y-%m-%d').date()
                         except Exception:
                             injury_return_date = None
-                    if not status_key:
+                    existing = marks.get(int(p.id))
+
+                    # UX: "Sin marcar" o "Presente" significa no guardar incidencia.
+                    if not status_key or status_key == TrainingSessionAttendance.STATUS_PRESENT:
+                        if existing:
+                            existing.delete()
+                            try:
+                                del marks[int(p.id)]
+                            except Exception:
+                                pass
+                            updated += 1
                         continue
+
                     if status_key not in allowed_values:
                         continue
-                    existing = marks.get(int(p.id))
+
                     if existing:
                         if existing.status != status_key or (existing.notes or '') != notes:
                             existing.status = status_key
@@ -25165,6 +25180,17 @@ def training_session_detail_page(request, session_id):
                         except Exception:
                             pass
                 message = f'Asistencia guardada ({updated}).' if updated else 'Sin cambios en asistencia.'
+
+                # Importante: refrescar `marks`/`attendance_rows` para que el informe post-sesión
+                # refleje el POST en la misma respuesta (sin obligar a recargar).
+                marks = {
+                    int(m.player_id): m
+                    for m in (
+                        TrainingSessionAttendance.objects.filter(session=session_obj, player__team=primary_team)
+                        .exclude(status=TrainingSessionAttendance.STATUS_PRESENT)
+                    )
+                }
+                attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
             except Exception:
                 error = 'No se pudo guardar la asistencia.'
         # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).

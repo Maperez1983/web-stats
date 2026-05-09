@@ -718,12 +718,9 @@
                     </td>
                     <td style="width:170px;">
                       <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
+                        <option value="" {% if not mark or mark.status == 'present' %}selected{% endif %}>Sin marcar</option>
                         {% for value, label in allowed_statuses %}
-                          {% if mark %}
-                            <option value="{{ value }}" {% if mark.status == value %}selected{% endif %}>{{ label }}</option>
-                          {% else %}
-                            <option value="{{ value }}" {% if value == 'present' %}selected{% endif %}>{{ label }}</option>
-                          {% endif %}
+                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                       </select>
                     </td>
