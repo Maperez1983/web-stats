@@ -6591,6 +6591,30 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'option value="artificial_turf" selected')
 
+    def test_session_task_detail_is_default_view_for_editable_tasks(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión detalle tarea',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea detalle',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=18,
+            tactical_layout={'meta': {'scope': 'coach'}},
+        )
+
+        response = self.client.get(reverse('session-task-detail', args=[task.id]), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        chain = getattr(response, 'redirect_chain', []) or []
+        # No debe redirigir al editor visual (la ficha es la vista por defecto).
+        self.assertFalse(any('/coach/sesiones/tareas/' in str(url) and '/editar/' in str(url) for url, _ in chain))
+        self.assertContains(response, 'Detalle de tarea')
+        self.assertContains(response, 'Editar pizarra')
+
     def test_task_builder_creates_task_with_extended_metadata_and_assignment(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

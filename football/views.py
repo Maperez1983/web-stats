@@ -38793,6 +38793,17 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
     except Exception:
         back_url = _sessions_library_back_url(source=request.GET.get('library_source') or '')
         back_label = 'Volver a biblioteca'
+    # Si venimos desde la ficha (detalle) y abrimos el editor para modificar la pizarra,
+    # el botón "Volver" debe retornar a la ficha.
+    try:
+        if task and str(request.GET.get('back_to') or '').strip().lower() in {'detail', 'task_detail', 'ficha'}:
+            back_url = reverse('session-task-detail', args=[int(task.id)])
+            ws = str(request.GET.get('workspace') or '').strip()
+            if ws:
+                back_url = f'{back_url}?workspace={quote(ws)}'
+            back_label = 'Volver a ficha'
+    except Exception:
+        pass
     return render(
         request,
         'football/task_builder.html',
@@ -40634,22 +40645,7 @@ def session_task_detail_page(request, task_id):
     except Exception:
         is_performed_task = False
 
-    # Evita confusión: para tareas editables, "detalle" abre el mismo editor visual que se usa al crear.
-    # La ficha legacy queda disponible con ?legacy=1 (útil sobre todo para tareas importadas).
-    if request.method == 'GET' and is_editable_task and not is_performed_task and not (request.GET.get('legacy') or '').strip():
-        target = reverse(_task_builder_edit_route_name(scope_key), args=[task.id])
-        try:
-            params = request.GET.copy()
-            if not str(params.get('from_session') or '').strip():
-                forced = _parse_int(params.get('session_id')) or _parse_int(getattr(task, 'session_id', None))
-                if forced:
-                    params['from_session'] = str(int(forced))
-            encoded = params.urlencode()
-            if encoded:
-                return redirect(f"{target}?{encoded}")
-        except Exception:
-            pass
-        return redirect(target)
+    # UX: la ficha de tarea es la vista por defecto. El editor visual se abre desde un botón ("Editar pizarra").
 
     if request.method == 'POST':
         detail_action = (request.POST.get('detail_action') or '').strip()
@@ -40766,6 +40762,18 @@ def session_task_detail_page(request, task_id):
                 related_tasks = suggest_related_tasks(prepared[1:], prepared[0], limit=8)
     except Exception:
         related_tasks = []
+    edit_graphic_url = ''
+    try:
+        if is_editable_task and not is_performed_task:
+            edit_graphic_url = reverse(_task_builder_edit_route_name(scope_key), args=[int(task.id)])
+            params = request.GET.copy()
+            params.pop('legacy', None)
+            params['back_to'] = 'detail'
+            encoded = params.urlencode()
+            if encoded:
+                edit_graphic_url = f'{edit_graphic_url}?{encoded}'
+    except Exception:
+        edit_graphic_url = ''
     return render(
         request,
         'football/session_task_detail.html',
@@ -40794,6 +40802,7 @@ def session_task_detail_page(request, task_id):
             'is_performed_task': is_performed_task,
             'session_context': session_context,
             'related_tasks': related_tasks,
+            'edit_graphic_url': edit_graphic_url,
             'is_bookmarked': SessionTaskBookmark.objects.filter(user=request.user, task=task).exists()
             if request.user and request.user.is_authenticated
             else False,

@@ -381,6 +381,9 @@
         <h1>Detalle de tarea</h1>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
 	          <a class="button" href="{{ back_url }}">{{ back_label }}</a>
+          {% if edit_graphic_url %}
+          <a class="button" href="{{ edit_graphic_url }}">Editar pizarra</a>
+          {% endif %}
           {% if is_editable_task %}
           <button
             type="button"
