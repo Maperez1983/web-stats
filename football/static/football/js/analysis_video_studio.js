@@ -2779,6 +2779,7 @@
 		              <button type="button" class="button" data-vs-clip-play="${id}">Play</button>
 		              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
 		              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
+		              <button type="button" class="button" data-vs-clip-export-server="${id}" title="Genera MP4 en servidor">MP4</button>
 		              <button type="button" class="button" data-vs-clip-share="${id}">Share</button>
 		              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
 		            </div>
@@ -2948,6 +2949,51 @@
 	            window.prompt('Copia este enlace:', url);
 	          } catch (e) {
 	            setStatus('No se pudo crear enlace.', true);
+	          }
+	        });
+	      });
+	      Array.from(clipsList.querySelectorAll('[data-vs-clip-export-server]')).forEach((btn) => {
+	        btn.addEventListener('click', async () => {
+	          const id = Number(btn.getAttribute('data-vs-clip-export-server') || 0);
+	          if (!id) return;
+	          if (!exportServerUrl) {
+	            setStatus('No hay endpoint para MP4 server.', true);
+	            return;
+	          }
+	          try {
+	            btn.disabled = true;
+	            setStatus('Generando MP4 en servidor…');
+	            const resp = await fetch(exportServerUrl, {
+	              method: 'POST',
+	              credentials: 'same-origin',
+	              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	              body: JSON.stringify({ video_id: videoId || 0, clip_id: id }),
+	            });
+	            const data = await resp.json().catch(() => ({}));
+	            if (!resp.ok || !data?.ok || !data?.url) {
+	              setStatus(data?.error || 'No se pudo exportar MP4 en servidor.', true);
+	              return;
+	            }
+	            const url = String(data.url);
+	            const downloadUrl = String(data.download_url || url);
+	            lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+	            lastExportShareUrl = url;
+	            try {
+	              if (navigator.clipboard?.writeText) {
+	                await navigator.clipboard.writeText(downloadUrl);
+	                setStatus('MP4 listo. Link copiado.');
+	              } else {
+	                setStatus('MP4 listo. Copia el link.');
+	                window.prompt('Copia este enlace:', downloadUrl);
+	              }
+	            } catch (e) {
+	              window.prompt('Copia este enlace:', downloadUrl);
+	            }
+	            refreshShareLinks();
+	          } catch (e) {
+	            setStatus('Error exportando MP4 en servidor.', true);
+	          } finally {
+	            btn.disabled = false;
 	          }
 	        });
 	      });
