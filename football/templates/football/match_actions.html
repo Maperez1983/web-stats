@@ -3652,6 +3652,107 @@
       })();
     </script>
     <script>
+      // Fallback crítico para cronómetro: si el live controller no llega a inicializar,
+      // el staff necesita que el reloj funcione sí o sí (aunque sea solo local).
+      (function () {
+        const ready = (fn) => {
+          if (document.readyState !== 'loading') fn();
+          else document.addEventListener('DOMContentLoaded', fn, { once: true });
+        };
+        ready(() => {
+          window.setTimeout(() => {
+            const display = document.getElementById('match-clock-display');
+            const toggle = document.getElementById('field-clock-toggle');
+            const reset = document.getElementById('field-clock-reset');
+            const halfBtn = document.getElementById('change-half-btn');
+            if (!display || !toggle || !reset || !halfBtn) return;
+            // Si el JS principal ya está activo, no hacemos nada.
+            if (toggle.dataset.boundClock === '1' || reset.dataset.boundClock === '1' || halfBtn.dataset.boundClock === '1') return;
+
+            const storageKey = 'webstats:match_actions:clock_fallback:v1';
+            const halfSeconds = 45 * 60;
+            let elapsed = 0;
+            let running = false;
+            let half = 1;
+            let timer = null;
+
+            const format = (sec) => {
+              const m = Math.floor(sec / 60);
+              const s = sec % 60;
+              return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            };
+            const persist = () => {
+              try {
+                localStorage.setItem(storageKey, JSON.stringify({ v: 1, elapsed, running, half, at: Date.now() }));
+              } catch (e) {}
+            };
+            const restore = () => {
+              try {
+                const raw = localStorage.getItem(storageKey);
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (!parsed || parsed.v !== 1) return;
+                elapsed = Math.max(0, Number(parsed.elapsed) || 0);
+                half = Number(parsed.half) === 2 ? 2 : 1;
+                running = Boolean(parsed.running);
+              } catch (e) {}
+            };
+            const render = () => {
+              display.textContent = format(elapsed);
+              toggle.textContent = running ? '||' : '►';
+              halfBtn.textContent = half === 2 ? '2ª Parte' : '1ª Parte';
+              persist();
+            };
+            const stop = () => {
+              running = false;
+              if (timer) window.clearInterval(timer);
+              timer = null;
+              render();
+            };
+            const start = () => {
+              if (running) return;
+              running = true;
+              if (timer) window.clearInterval(timer);
+              timer = window.setInterval(() => {
+                elapsed += 1;
+                display.textContent = format(elapsed);
+                persist();
+              }, 1000);
+              render();
+            };
+            const setHalf = (next) => {
+              stop();
+              half = next === 2 ? 2 : 1;
+              elapsed = half === 2 ? halfSeconds : 0;
+              render();
+            };
+            const resetClock = () => {
+              stop();
+              elapsed = half === 2 ? halfSeconds : 0;
+              render();
+            };
+
+            restore();
+            render();
+            if (running) start();
+
+            toggle.addEventListener('click', (ev) => {
+              try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
+              if (running) stop(); else start();
+            });
+            reset.addEventListener('click', (ev) => {
+              try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
+              resetClock();
+            });
+            halfBtn.addEventListener('click', (ev) => {
+              try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
+              setHalf(half === 1 ? 2 : 1);
+            });
+          }, 1200);
+        });
+      })();
+    </script>
+    <script>
       // Fallback de UX: si por cualquier motivo el JS principal falla (caché/iOS),
       // mantenemos operativo el cambio de pestañas (Pre / En vivo / Cierre).
       (function () {

@@ -917,32 +917,41 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
 
   if (clockToggle) {
-    clockToggle.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (clockRunning) pauseClock(); else startClock();
-    });
+    if (clockToggle.dataset.boundClock !== '1') {
+      clockToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (clockRunning) pauseClock(); else startClock();
+      });
+      clockToggle.dataset.boundClock = '1';
+    }
   }
   if (clockResetBtn) {
-    clockResetBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      resetClock();
-    });
+    if (clockResetBtn.dataset.boundClock !== '1') {
+      clockResetBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        resetClock();
+      });
+      clockResetBtn.dataset.boundClock = '1';
+    }
   }
   if (changeHalfBtn) {
-    changeHalfBtn.addEventListener('click', (event) => {
-      event.stopPropagation();
-      pauseClock();
-      if (currentHalf === 1) {
-        currentHalf = 2;
-        elapsedRef.value = halfSeconds;
-        changeHalfBtn.textContent = '2ª Parte';
-      } else {
-        currentHalf = 1;
-        elapsedRef.value = 0;
-        changeHalfBtn.textContent = '1ª Parte';
-      }
-      updateClockDisplay();
-    });
+    if (changeHalfBtn.dataset.boundClock !== '1') {
+      changeHalfBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        pauseClock();
+        if (currentHalf === 1) {
+          currentHalf = 2;
+          elapsedRef.value = halfSeconds;
+          changeHalfBtn.textContent = '2ª Parte';
+        } else {
+          currentHalf = 1;
+          elapsedRef.value = 0;
+          changeHalfBtn.textContent = '1ª Parte';
+        }
+        updateClockDisplay();
+      });
+      changeHalfBtn.dataset.boundClock = '1';
+    }
   }
   // Restaura cronómetro si el iPad recarga (suspensión/auto-lock).
   try {
