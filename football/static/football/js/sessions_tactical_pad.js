@@ -972,13 +972,14 @@
 						        originalParent: selectionToolbar.parentElement,
 						        originalNext: selectionToolbar.nextElementSibling,
 						      };
-						    })();
-						    let selectionDockDismissed = false;
-						    let selectionDockDismissedUid = '';
-						    const selectionDockUidFor = (obj) => {
-						      if (!obj) return '';
-						      const uid = safeText(obj?.data?.layer_uid);
-						      if (uid) return uid;
+							    })();
+							    let selectionDockDismissed = false;
+							    let selectionDockDismissedUid = '';
+							    const selectionDockDismissedFor = new Set();
+							    const selectionDockUidFor = (obj) => {
+							      if (!obj) return '';
+							      const uid = safeText(obj?.data?.layer_uid);
+							      if (uid) return uid;
 						      return `${safeText(obj?.data?.kind)}:${safeText(obj?.data?.token_kind)}:${safeText(obj?.type)}`;
 						    };
 						    const shouldDockSelectionInspector = () => {
@@ -1017,19 +1018,20 @@
 						    try {
 						      syncSelectionInspectorDock();
 						      window.addEventListener('webstats:tpad:device-change', syncSelectionInspectorDock);
-						    } catch (e) { /* ignore */ }
-						    selectionDockCloseBtn?.addEventListener('click', (ev) => {
-						      try { ev.preventDefault(); } catch (e) { /* ignore */ }
-						      try { ev.stopPropagation(); } catch (e) { /* ignore */ }
-						      try {
-						        const active = activeInspectableObject();
-						        selectionDockDismissedUid = selectionDockUidFor(active);
-						      } catch (e) {
-						        selectionDockDismissedUid = '';
-						      }
-						      selectionDockDismissed = true;
-						      try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
-						    });
+							    } catch (e) { /* ignore */ }
+							    selectionDockCloseBtn?.addEventListener('click', (ev) => {
+							      try { ev.preventDefault(); } catch (e) { /* ignore */ }
+							      try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+							      try {
+							        const active = activeInspectableObject();
+							        selectionDockDismissedUid = selectionDockUidFor(active);
+							        if (selectionDockDismissedUid) selectionDockDismissedFor.add(selectionDockDismissedUid);
+							      } catch (e) {
+							        selectionDockDismissedUid = '';
+							      }
+							      selectionDockDismissed = true;
+							      try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+							    });
 
 				    const setTacticsPanelOpen = (open) => {
 				      if (!isTacticsMode) return;
@@ -3929,20 +3931,24 @@
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
 			        selectionDockDismissed = false;
 			        selectionDockDismissedUid = '';
+				        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
+				        return;
+				      }
+			      // Si el usuario cerró el inspector para este objeto, no lo reabrimos (aunque cambie la selección).
+			      let dismissedForActive = false;
+			      try {
+			        const uid = selectionDockUidFor(active);
+			        dismissedForActive = !!(uid && selectionDockDismissedFor && selectionDockDismissedFor.has(uid));
+			      } catch (e) { /* ignore */ }
+			      if (dismissedForActive && shouldDockSelectionInspector()) {
+			        selectionToolbar.hidden = true;
 			        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
 			        return;
 			      }
-		      // Si el usuario cerró el inspector para este objeto, no lo reabrimos hasta cambiar de selección.
-		      try {
-		        const uid = selectionDockUidFor(active);
-		        if (uid && uid !== selectionDockDismissedUid) selectionDockDismissed = false;
-		      } catch (e) { /* ignore */ }
-		      if (selectionDockDismissed && shouldDockSelectionInspector()) {
-		        selectionToolbar.hidden = true;
-		        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
-		        return;
-		      }
-			      selectionToolbar.hidden = false;
+			      // Reset del estado "temporal" (por si venimos de cerrar otro objeto).
+			      selectionDockDismissed = false;
+			      selectionDockDismissedUid = '';
+				      selectionToolbar.hidden = false;
 			      try { syncSelectionInspectorDock(); } catch (e) { /* ignore */ }
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
 			      const canColor = isColorizableObject(active);
