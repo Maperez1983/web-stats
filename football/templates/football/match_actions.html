@@ -3572,17 +3572,32 @@
           if (document.readyState !== 'loading') fn();
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
         };
-        ready(() => {
-          if (window.__matchActionsTapFallbackBound) return;
-          const surface = document.getElementById('field-surface') || document.getElementById('touch-field');
-          const popup = document.getElementById('field-popup');
-          const form = document.getElementById('field-popup-form');
-          if (!surface || !popup || !form) return;
-          const zoneInput = form.querySelector('input[name=\"zone\"]');
-          if (!zoneInput) return;
-          const defsRaw = document.getElementById('field-zone-defs')?.textContent || '[]';
-          let zones = [];
-          try { zones = JSON.parse(defsRaw) || []; } catch (e) { zones = []; }
+	        ready(() => {
+	          if (window.__matchActionsTapFallbackBound) return;
+	          const surface = document.getElementById('field-surface') || document.getElementById('touch-field');
+	          const popup = document.getElementById('field-popup');
+	          const form = document.getElementById('field-popup-form');
+	          if (!surface || !popup || !form) return;
+	          const hidePopup = () => {
+	            try { popup.classList.remove('is-visible'); } catch (e) {}
+	          };
+	          // Permite cerrar el popup incluso si el JS principal no ha cargado.
+	          try {
+	            Array.from(popup.querySelectorAll('.close-popup') || []).forEach((btn) => {
+	              btn.addEventListener('click', (ev) => {
+	                try { ev.preventDefault(); ev.stopPropagation(); } catch (e) {}
+	                hidePopup();
+	              });
+	            });
+	            document.addEventListener('keydown', (ev) => {
+	              if (ev.key === 'Escape') hidePopup();
+	            });
+	          } catch (e) {}
+	          const zoneInput = form.querySelector('input[name=\"zone\"]');
+	          if (!zoneInput) return;
+	          const defsRaw = document.getElementById('field-zone-defs')?.textContent || '[]';
+	          let zones = [];
+	          try { zones = JSON.parse(defsRaw) || []; } catch (e) { zones = []; }
           const clamp = (v, min, max) => Math.max(min, Math.min(v, max));
           const inside = (z, x, y) => (
             x >= Number(z.left_pct ?? 0) &&
@@ -3591,17 +3606,17 @@
             y <= Number(z.top_pct ?? 0) + Number(z.height_pct ?? 0)
           );
           const findZone = (x, y) => zones.find((z) => inside(z, x, y)) || null;
-          const showPopup = (x, y) => {
-            const rect = surface.getBoundingClientRect();
-            const w = popup.offsetWidth || 340;
-            const h = popup.offsetHeight || 420;
-            const left = clamp(x - w / 2, 8, rect.width - w - 8);
-            let top = y - h - 12;
-            if (top < 8) top = clamp(y + 12, 8, rect.height - h - 8);
-            popup.style.left = `${left}px`;
-            popup.style.top = `${top}px`;
-            popup.classList.add('is-visible');
-          };
+	          const showPopup = (x, y) => {
+	            const rect = surface.getBoundingClientRect();
+	            const w = popup.offsetWidth || 340;
+	            const h = popup.offsetHeight || 420;
+	            const left = clamp(x - w / 2, 8, rect.width - w - 8);
+	            let top = y - h - 12;
+	            if (top < 8) top = clamp(y + 12, 8, rect.height - h - 8);
+	            popup.style.left = `${left}px`;
+	            popup.style.top = `${top}px`;
+	            popup.classList.add('is-visible');
+	          };
           let lastAt = 0;
           const handleTap = (clientX, clientY, ev) => {
             try {
