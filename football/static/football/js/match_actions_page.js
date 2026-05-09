@@ -17,6 +17,29 @@
       const fieldSurface = document.getElementById('field-surface');
       const interactiveSurface = fieldSurface || touchField;
       const fieldPopup = document.getElementById('field-popup');
+      // Guardrail: si faltan elementos base, no podemos inicializar el registro táctil.
+      // En ese caso, dejamos una pista visible en UI para poder diagnosticar desde iPad.
+      const pageStatusEl = document.getElementById('match-page-status');
+      const bootError = (msg) => {
+        try {
+          if (!pageStatusEl) return;
+          pageStatusEl.textContent = String(msg || 'Error inicializando el registro.');
+          pageStatusEl.style.display = 'block';
+          pageStatusEl.style.background = 'rgba(239,68,68,0.22)';
+          pageStatusEl.style.border = '1px solid rgba(239,68,68,0.28)';
+          pageStatusEl.style.color = '#fecaca';
+          pageStatusEl.style.padding = '0.55rem 0.75rem';
+          pageStatusEl.style.borderRadius = '14px';
+        } catch (e) {}
+      };
+      if (!interactiveSurface) {
+        bootError('No se encontró el campo (#field-surface).');
+        return;
+      }
+      if (!fieldPopup) {
+        bootError('No se encontró el popup (#field-popup).');
+        return;
+      }
       const quickHistoryModal = document.getElementById('quick-history-modal');
       const quickHistoryModalList = document.getElementById('quick-history-list');
 	      const quickHistoryModalTitle = document.getElementById('quick-history-title');
@@ -45,6 +68,10 @@
 	      const proClearPlayerBtn = document.getElementById('pro-clear-player');
 	      const proUndoBtn = document.getElementById('pro-undo');
 	      const popupForm = document.getElementById('field-popup-form');
+	      if (!popupForm) {
+	        bootError('No se encontró el formulario (#field-popup-form).');
+	        return;
+	      }
       const matchInfoCard = document.getElementById('match-info-card');
       const matchInfoEditBtn = document.getElementById('match-info-edit-btn');
       const matchInfoSaveBtn = document.getElementById('match-info-save-btn');
