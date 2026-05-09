@@ -47,9 +47,18 @@
       <div class="vs-head">
         <div style="display:flex; flex-direction:column; gap:0.15rem;">
           <h1>Video Studio (YouTube) · {{ video.title }}</h1>
-          <div class="vs-meta">{% if team %}{{ team.display_name }}{% endif %} · Clips y notas (sin descarga)</div>
+          <div class="vs-meta">{% if team %}{{ team.display_name }}{% else %}Biblioteca personal{% endif %} · Clips y notas (sin descarga)</div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          {% if not team and vs_assignable_teams %}
+            <select id="vs-assign-team" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
+              <option value="">Asignar a…</option>
+              {% for tid,label in vs_assignable_teams %}
+                <option value="{{ tid }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="button primary" id="vs-assign-btn">Asignar</button>
+          {% endif %}
           <a class="button ghost" href="{% url 'analysis' %}?tab=videos">Volver</a>
         </div>
       </div>
@@ -136,10 +145,10 @@
       <input type="hidden" id="vs-clips-url" value="{% url 'analysis-video-studio-clips-api' %}" />
       <input type="hidden" id="vs-clip-save-url" value="{% url 'analysis-video-studio-clip-save-api' %}" />
       <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
+      <input type="hidden" id="vs-assign-url" value="{% url 'analysis-video-studio-assign-api' %}" />
       <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
       <script src="{% static 'football/js/analysis_video_studio_youtube.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     </main>
   </body>
 </html>
-

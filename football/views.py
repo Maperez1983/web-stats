@@ -18130,8 +18130,6 @@ def match_video_links_api(request):
     if forbidden:
         return JsonResponse({'ok': False, 'error': 'El registro de acciones no está activo.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
     match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
     if not match:
         return JsonResponse({'ok': True, 'match_id': None, 'links': []})
@@ -41971,12 +41969,11 @@ def analysis_page(request):
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
             rival_team_id = _parse_int(request.POST.get('video_team_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
+            want_personal = str(request.POST.get('video_personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
             video_file = request.FILES.get('video_file')
             rival_team = Team.objects.filter(id=rival_team_id).first() if rival_team_id else None
             folder = AnalystVideoFolder.objects.filter(id=folder_id, team=primary_team).first() if folder_id and primary_team else None
-            if not primary_team:
-                video_error = 'No hay equipo principal configurado.'
-            elif not video_file:
+            if not video_file:
                 video_error = 'Selecciona un vídeo para subir.'
             else:
                 max_mb = int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0)
@@ -41984,9 +41981,10 @@ def analysis_page(request):
                     video_error = f'El vídeo supera el límite de {max_mb}MB.'
                 else:
                     entry = RivalVideo.objects.create(
-                        team=primary_team,
+                        team=None if want_personal else primary_team,
+                        folder=None if want_personal else folder,
+                        owner_user=request.user if want_personal else None,
                         rival_team=rival_team,
-                        folder=folder,
                         title=video_title,
                         video=video_file,
                         source=video_source if video_source in {c[0] for c in RivalVideo.SOURCE_CHOICES} else RivalVideo.SOURCE_MANUAL,
@@ -41997,32 +41995,36 @@ def analysis_page(request):
                         for player_id in (_parse_int(value) for value in request.POST.getlist('assigned_player_ids'))
                         if player_id
                     ]
-                    if assigned_player_ids:
+                    if assigned_player_ids and primary_team and not want_personal:
                         entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
                     video_message = 'Vídeo subido correctamente.'
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
-            if not primary_team:
-                video_error = 'No hay equipo principal configurado.'
+            entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
+            if not entry:
+                video_error = 'Vídeo no encontrado.'
             else:
-                entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
-                if not entry:
-                    video_error = 'Vídeo no encontrado.'
+                entry_team_id = int(getattr(entry, 'team_id', 0) or 0)
+                folder_team_id = int(getattr(getattr(entry, 'folder', None), 'team_id', 0) or 0)
+                is_personal = (not entry_team_id) and (not folder_team_id)
+                if is_personal:
+                    if int(getattr(entry, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+                        video_error = 'No autorizado.'
                 else:
-                    entry_team_id = int(getattr(entry, 'team_id', 0) or 0)
-                    folder_team_id = int(getattr(getattr(entry, 'folder', None), 'team_id', 0) or 0)
-                    if entry_team_id and entry_team_id != int(primary_team.id):
+                    if not primary_team:
+                        video_error = 'No hay equipo principal configurado.'
+                    elif entry_team_id and entry_team_id != int(primary_team.id):
                         video_error = 'No autorizado.'
                     elif folder_team_id and folder_team_id != int(primary_team.id):
                         video_error = 'No autorizado.'
-                    else:
-                        try:
-                            if entry.video:
-                                entry.video.delete(save=False)
-                        except Exception:
-                            pass
-                        entry.delete()
-                        video_message = 'Vídeo eliminado.'
+                if not video_error:
+                    try:
+                        if entry.video:
+                            entry.video.delete(save=False)
+                    except Exception:
+                        pass
+                    entry.delete()
+                    video_message = 'Vídeo eliminado.'
         elif form_action == 'assign_video_players':
             video_id = _parse_int(request.POST.get('video_id'))
             folder_id = _parse_int(request.POST.get('video_folder_id'))
@@ -42970,7 +42972,13 @@ def analysis_page(request):
     rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder').prefetch_related('assigned_players').order_by('-created_at')
     if primary_team:
         # Multi-equipo: no mezclar vídeos entre clubs/categorías.
-        rival_videos_qs = rival_videos_qs.filter(Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team))
+        rival_videos_qs = rival_videos_qs.filter(
+            Q(team=primary_team)
+            | Q(team__isnull=True, folder__team=primary_team)
+            | Q(team__isnull=True, folder__isnull=True, owner_user=request.user)
+        )
+    elif request.user.is_authenticated:
+        rival_videos_qs = rival_videos_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
     if selected_team:
         rival_videos_qs = rival_videos_qs.filter(rival_team=selected_team)
     else:
@@ -43365,18 +43373,9 @@ def analysis_video_studio_page(request, video_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return HttpResponse('Equipo principal no configurado.', status=400)
     video_id = int(video_id)
-    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    video, resolved_team = _video_studio_resolve_video_for_request(request, video_id=video_id)
     if not video:
-        raise Http404('Vídeo no disponible')
-    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
-    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
-    if entry_team_id and entry_team_id != int(primary_team.id):
-        raise Http404('Vídeo no disponible')
-    if folder_team_id and folder_team_id != int(primary_team.id):
         raise Http404('Vídeo no disponible')
     is_youtube = bool(
         getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
@@ -43389,10 +43388,11 @@ def analysis_video_studio_page(request, video_id):
         request,
         'football/analysis_video_studio_youtube.html' if yt_id else 'football/analysis_video_studio.html',
         {
-            'team': primary_team,
+            'team': resolved_team,
             'video': video,
             'youtube_id': yt_id,
             'initial_clip_id': int(initial_clip_id or 0),
+            'vs_assignable_teams': _video_studio_assignable_team_choices(request) if not resolved_team else [],
         },
     )
 
@@ -43405,15 +43405,11 @@ def analysis_video_clip_view_page(request, clip_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return HttpResponse('Equipo principal no configurado.', status=400)
-
     clip_id = int(clip_id)
     clip = (
         VideoClip.objects
         .select_related('video', 'video__folder', 'team')
-        .filter(id=clip_id, team=primary_team)
+        .filter(id=clip_id)
         .first()
     )
     if not clip or not getattr(clip, 'video', None):
@@ -43422,10 +43418,17 @@ def analysis_video_clip_view_page(request, clip_id):
     video = clip.video
     entry_team_id = int(getattr(video, 'team_id', 0) or 0)
     folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
-    if entry_team_id and entry_team_id != int(primary_team.id):
-        raise Http404('Clip no disponible')
-    if folder_team_id and folder_team_id != int(primary_team.id):
-        raise Http404('Clip no disponible')
+    effective_team_id = int(entry_team_id or folder_team_id or 0)
+    primary_team = None
+    if effective_team_id:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team or int(primary_team.id) != int(effective_team_id):
+            raise Http404('Clip no disponible')
+        if int(getattr(clip, 'team_id', 0) or 0) and int(getattr(clip, 'team_id', 0) or 0) != int(primary_team.id):
+            raise Http404('Clip no disponible')
+    else:
+        if int(getattr(clip, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+            raise Http404('Clip no disponible')
 
     is_youtube = bool(
         getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
@@ -44298,6 +44301,7 @@ def analysis_rival_video_import_youtube_api(request):
     rival_team_id = _parse_int(data.get('video_team_id'))
     folder_id = _parse_int(data.get('video_folder_id'))
     notes = _sanitize_task_text(str(data.get('video_notes') or '').strip(), multiline=True, max_len=4000)
+    want_personal = str(data.get('video_personal') or data.get('personal') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
     assigned = data.get('assigned_player_ids')
     if isinstance(assigned, str):
@@ -44315,8 +44319,13 @@ def analysis_rival_video_import_youtube_api(request):
             continue
     assigned_ids = [x for x in assigned_ids if x > 0][:200]
 
+    if not want_personal and not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
     rival_team = Team.objects.filter(id=int(rival_team_id)).first() if rival_team_id else None
-    folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first() if folder_id else None
+    folder = None
+    if folder_id and primary_team and not want_personal:
+        folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
 
     title = requested_title
     if not title:
@@ -44324,15 +44333,16 @@ def analysis_rival_video_import_youtube_api(request):
 
     try:
         entry = RivalVideo.objects.create(
-            team=primary_team,
+            team=None if want_personal else primary_team,
             rival_team=rival_team,
             folder=folder,
+            owner_user=request.user if want_personal else None,
             title=title[:180],
             source=RivalVideo.SOURCE_YOUTUBE,
             source_url=url[:600],
             notes=str(notes or '')[:4000],
         )
-        if assigned_ids:
+        if assigned_ids and primary_team and not want_personal:
             entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar el enlace del vídeo.'}, status=500)
@@ -44348,26 +44358,20 @@ def analysis_video_studio_projects_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     video_id = _parse_int(request.GET.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
-    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
-    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
-    if entry_team_id and entry_team_id != int(primary_team.id):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
-    if folder_team_id and folder_team_id != int(primary_team.id):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
 
+    qs = VideoTelestrationProject.objects.filter(video_id=int(video_id))
+    if scope_team:
+        qs = qs.filter(team=scope_team)
+    else:
+        qs = qs.filter(team__isnull=True, owner_user=request.user)
     items = list(
-        VideoTelestrationProject.objects
-        .filter(team=primary_team, video_id=int(video_id))
-        .order_by('-updated_at', '-id')[:60]
+        qs.order_by('-updated_at', '-id')[:60]
     )
     payload = []
     for obj in items:
@@ -44392,19 +44396,86 @@ def _video_studio_resolve_video(primary_team, *, video_id: int):
         return None
     entry_team_id = int(getattr(video, 'team_id', 0) or 0)
     folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    effective_team_id = int(entry_team_id or folder_team_id or 0)
+    # Importante: NO aceptar vídeos "personales" (sin team/folder). Esos se resuelven vía owner_user.
+    if not effective_team_id:
+        return None
     if entry_team_id and entry_team_id != int(primary_team.id):
         return None
     if folder_team_id and folder_team_id != int(primary_team.id):
         return None
-    # En el sistema nuevo, el vídeo debería llevar team; si no, lo arreglamos al vuelo.
-    try:
-        if not entry_team_id:
-            video.team = primary_team
-            video.save(update_fields=['team'])
-    except Exception:
-        pass
     return video
 
+
+def _video_studio_resolve_video_for_request(request, *, video_id: int):
+    """
+    Resuelve un vídeo de Video Studio con dos scopes posibles:
+
+    - Vídeo de equipo/repositorio (team o folder.team): exige que coincida con el equipo activo.
+    - Vídeo de biblioteca personal (sin team/folder): exige que `owner_user` sea el usuario actual.
+
+    Devuelve (video, team_or_none).
+    """
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return (None, None)
+    if not video_id:
+        return (None, None)
+    video = RivalVideo.objects.select_related('folder', 'team').filter(id=int(video_id)).first()
+    if not video:
+        return (None, None)
+    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
+    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
+    effective_team_id = int(entry_team_id or folder_team_id or 0)
+    if effective_team_id:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team or int(primary_team.id) != int(effective_team_id):
+            return (None, None)
+        return (video, primary_team)
+    if int(getattr(video, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+        return (None, None)
+    return (video, None)
+
+
+def _video_studio_assignable_team_choices(request):
+    """
+    Devuelve una lista de (team_id, label) donde el usuario puede asignar un vídeo personal.
+
+    Preferimos el workspace activo; si no, devolvemos el equipo activo si existe.
+    """
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return []
+    try:
+        ws = _get_active_workspace(request)
+    except Exception:
+        ws = None
+    links = []
+    if ws and getattr(ws, 'kind', '') == Workspace.KIND_CLUB:
+        try:
+            links = _workspace_team_links_for_user(ws, request.user)
+        except Exception:
+            links = []
+    teams = []
+    if links:
+        for link in links:
+            team = getattr(link, 'team', None)
+            if team and _user_can_access_team(request, team):
+                teams.append(team)
+    else:
+        try:
+            team = _get_active_team_for_request(request)
+        except Exception:
+            team = None
+        if team and _user_can_access_team(request, team):
+            teams.append(team)
+    payload = []
+    seen = set()
+    for team in teams:
+        tid = int(getattr(team, 'id', 0) or 0)
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        payload.append((tid, str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {tid}'))
+    return payload
 
 def _extract_youtube_video_id(url: str) -> str:
     """
@@ -44857,19 +44928,19 @@ def analysis_video_studio_clips_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     video_id = _parse_int(request.GET.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    qs = VideoClip.objects.filter(video_id=int(video_id))
+    if scope_team:
+        qs = qs.filter(team=scope_team)
+    else:
+        qs = qs.filter(team__isnull=True, owner_user=request.user)
     items = list(
-        VideoClip.objects
-        .filter(team=primary_team, video_id=int(video_id))
-        .order_by('-updated_at', '-id')[:120]
+        qs.order_by('-updated_at', '-id')[:120]
     )
     payload = []
     for obj in items:
@@ -44903,10 +44974,6 @@ def analysis_video_studio_clip_save_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
-
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -44919,7 +44986,7 @@ def analysis_video_studio_clip_save_api(request):
     video_id = _parse_int(data.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
 
@@ -44957,9 +45024,15 @@ def analysis_video_studio_clip_save_api(request):
 
     username = str(getattr(request.user, 'username', '') or '').strip()[:80]
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    is_personal = not bool(scope_team)
     try:
         if clip_id:
-            obj = VideoClip.objects.filter(id=clip_id, team=primary_team, video_id=int(video_id)).first()
+            qs = VideoClip.objects.filter(id=clip_id, video_id=int(video_id))
+            if scope_team:
+                qs = qs.filter(team=scope_team)
+            else:
+                qs = qs.filter(team__isnull=True, owner_user=request.user)
+            obj = qs.first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
             if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
@@ -44975,7 +45048,8 @@ def analysis_video_studio_clip_save_api(request):
             obj.save(update_fields=['title', 'collection', 'in_ms', 'out_ms', 'tags', 'notes', 'overlay', 'updated_at', 'created_by'])
         else:
             obj = VideoClip.objects.create(
-                team=primary_team,
+                team=scope_team if scope_team else None,
+                owner_user=request.user if is_personal else None,
                 video_id=int(video_id),
                 title=title,
                 collection=collection,
@@ -45001,9 +45075,6 @@ def analysis_video_studio_clip_delete_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -45014,9 +45085,18 @@ def analysis_video_studio_clip_delete_api(request):
     clip_id = _parse_int(data.get('id'))
     if not clip_id:
         return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
-    obj = VideoClip.objects.filter(id=clip_id, team=primary_team).first()
+    obj = VideoClip.objects.filter(id=clip_id).first()
     if not obj:
         return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(getattr(obj, 'video_id', 0) or 0))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    if scope_team:
+        if int(getattr(obj, 'team_id', 0) or 0) and int(getattr(obj, 'team_id', 0) or 0) != int(scope_team.id):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    else:
+        if int(getattr(obj, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
     username = str(getattr(request.user, 'username', '') or '').strip()
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
     if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
@@ -45028,6 +45108,68 @@ def analysis_video_studio_clip_delete_api(request):
     return JsonResponse({'ok': True})
 
 
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_assign_api(request):
+    """
+    Asigna un vídeo PERSONAL (sin team/folder) a un repositorio (equipo/categoría).
+
+    - El usuario edita en biblioteca personal (clips/timeline/proyectos).
+    - Al asignar, movemos el vídeo y su contenido asociado al equipo destino.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+    video_id = _parse_int(data.get('video_id'))
+    team_id = _parse_int(data.get('team_id'))
+    folder_id = _parse_int(data.get('folder_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    if not team_id:
+        return JsonResponse({'ok': False, 'error': 'team_id requerido.'}, status=400)
+
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if scope_team:
+        return JsonResponse({'ok': False, 'error': 'Este vídeo ya está asignado a un equipo.'}, status=400)
+    if int(getattr(video, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    target_team = Team.objects.filter(id=int(team_id)).first()
+    if not target_team or not _user_can_access_team(request, target_team):
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    folder = None
+    if folder_id:
+        folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=target_team).first()
+        if not folder:
+            return JsonResponse({'ok': False, 'error': 'Carpeta no válida.'}, status=400)
+
+    try:
+        video.team = target_team
+        video.folder = folder
+        video.save(update_fields=['team', 'folder'])
+        VideoClip.objects.filter(video=video, team__isnull=True, owner_user=request.user).update(team=target_team)
+        VideoTimelineEvent.objects.filter(video=video, team__isnull=True, owner_user=request.user).update(team=target_team)
+        VideoTelestrationProject.objects.filter(video=video, team__isnull=True, owner_user=request.user).update(team=target_team)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo asignar.'}, status=500)
+
+    return JsonResponse({'ok': True, 'video_id': int(video.id), 'team_id': int(target_team.id), 'folder_id': int(folder.id) if folder else 0})
+
+
 @login_required
 def analysis_video_studio_timeline_api(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -45036,19 +45178,19 @@ def analysis_video_studio_timeline_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     video_id = _parse_int(request.GET.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    qs = VideoTimelineEvent.objects.filter(video_id=int(video_id))
+    if scope_team:
+        qs = qs.filter(team=scope_team)
+    else:
+        qs = qs.filter(team__isnull=True, owner_user=request.user)
     items = list(
-        VideoTimelineEvent.objects
-        .filter(team=primary_team, video_id=int(video_id))
-        .order_by('time_ms', 'id')[:260]
+        qs.order_by('time_ms', 'id')[:260]
     )
     payload = []
     for obj in items:
@@ -45081,19 +45223,19 @@ def analysis_video_studio_timeline_export_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     video_id = _parse_int(request.GET.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    qs = VideoTimelineEvent.objects.filter(video_id=int(video_id))
+    if scope_team:
+        qs = qs.filter(team=scope_team)
+    else:
+        qs = qs.filter(team__isnull=True, owner_user=request.user)
     items = list(
-        VideoTimelineEvent.objects
-        .filter(team=primary_team, video_id=int(video_id))
-        .order_by('time_ms', 'id')[:2000]
+        qs.order_by('time_ms', 'id')[:2000]
     )
     payload = []
     for obj in items:
@@ -45112,7 +45254,7 @@ def analysis_video_studio_timeline_export_api(request):
     meta = {
         'video_id': int(video_id),
         'title': str(getattr(video, 'title', '') or '').strip(),
-        'team_id': int(primary_team.id),
+        'team_id': int(getattr(scope_team, 'id', 0) or 0),
     }
     if export_format == 'csv':
         out = io.StringIO()
@@ -45132,7 +45274,9 @@ def analysis_video_studio_timeline_export_api(request):
             rows_xml.append(
                 f'<event time_ms="{int(row.get("time_ms") or 0)}" kind="{_x(row.get("kind"))}" color="{_x(row.get("color"))}"><label>{_x(row.get("label"))}</label></event>'
             )
-        xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + f'<timeline video_id="{int(video_id)}" team_id="{int(primary_team.id)}"><title>{_x(meta["title"])}</title>' + ''.join(rows_xml) + '</timeline>'
+        team_id_xml = int(meta.get('team_id') or 0)
+        title_xml = _x(meta.get('title') or '')
+        xml = '<?xml version="1.0" encoding="UTF-8"?>\n' + f'<timeline video_id="{int(video_id)}" team_id="{team_id_xml}"><title>{title_xml}</title>' + ''.join(rows_xml) + '</timeline>'
         resp = HttpResponse(xml, content_type='application/xml; charset=utf-8')
         resp['Content-Disposition'] = f'attachment; filename="timeline-video-{int(video_id)}.xml"'
         return resp
@@ -45157,9 +45301,6 @@ def analysis_video_studio_timeline_import_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
     except Exception:
@@ -45167,7 +45308,7 @@ def analysis_video_studio_timeline_import_api(request):
     video_id = _parse_int(data.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
     mode = str(data.get('mode') or 'merge').strip().lower()
@@ -45216,12 +45357,22 @@ def analysis_video_studio_timeline_import_api(request):
         existing_keys = set()
         if mode == 'merge':
             try:
-                for ev in VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).only('time_ms', 'kind', 'label')[:3000]:
+                base_qs = VideoTimelineEvent.objects.filter(video_id=int(video_id))
+                if scope_team:
+                    base_qs = base_qs.filter(team=scope_team)
+                else:
+                    base_qs = base_qs.filter(team__isnull=True, owner_user=request.user)
+                for ev in base_qs.only('time_ms', 'kind', 'label')[:3000]:
                     existing_keys.add((int(ev.time_ms or 0), str(ev.kind or ''), str(ev.label or '').strip()))
             except Exception:
                 existing_keys.clear()
         elif mode == 'replace':
-            VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).delete()
+            base_qs = VideoTimelineEvent.objects.filter(video_id=int(video_id))
+            if scope_team:
+                base_qs = base_qs.filter(team=scope_team)
+            else:
+                base_qs = base_qs.filter(team__isnull=True, owner_user=request.user)
+            base_qs.delete()
 
         created = 0
         for ev in cleaned:
@@ -45230,7 +45381,8 @@ def analysis_video_studio_timeline_import_api(request):
                 continue
             try:
                 VideoTimelineEvent.objects.create(
-                    team=primary_team,
+                    team=scope_team if scope_team else None,
+                    owner_user=None if scope_team else request.user,
                     video_id=int(video_id),
                     time_ms=int(ev['time_ms']),
                     kind=ev['kind'],
@@ -45267,9 +45419,6 @@ def analysis_video_studio_timeline_clear_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -45280,11 +45429,16 @@ def analysis_video_studio_timeline_clear_api(request):
     video_id = _parse_int(data.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
     try:
-        VideoTimelineEvent.objects.filter(team=primary_team, video_id=int(video_id)).delete()
+        qs = VideoTimelineEvent.objects.filter(video_id=int(video_id))
+        if scope_team:
+            qs = qs.filter(team=scope_team)
+        else:
+            qs = qs.filter(team__isnull=True, owner_user=request.user)
+        qs.delete()
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo vaciar.'}, status=500)
     return JsonResponse({'ok': True})
@@ -45494,9 +45648,6 @@ def analysis_video_studio_timeline_save_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -45508,7 +45659,7 @@ def analysis_video_studio_timeline_save_api(request):
     video_id = _parse_int(data.get('video_id'))
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = _video_studio_resolve_video(primary_team, video_id=video_id)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
     time_ms = _video_ms_from_seconds(data.get('time_s'), default=_parse_int(data.get('time_ms')) or 0)
@@ -45536,7 +45687,12 @@ def analysis_video_studio_timeline_save_api(request):
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
     try:
         if event_id:
-            obj = VideoTimelineEvent.objects.filter(id=event_id, team=primary_team, video_id=int(video_id)).first()
+            qs = VideoTimelineEvent.objects.filter(id=event_id, video_id=int(video_id))
+            if scope_team:
+                qs = qs.filter(team=scope_team)
+            else:
+                qs = qs.filter(team__isnull=True, owner_user=request.user)
+            obj = qs.first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Evento no encontrado.'}, status=404)
             if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
@@ -45550,7 +45706,8 @@ def analysis_video_studio_timeline_save_api(request):
             obj.save(update_fields=['time_ms', 'kind', 'label', 'color', 'payload', 'updated_at', 'created_by'])
         else:
             obj = VideoTimelineEvent.objects.create(
-                team=primary_team,
+                team=scope_team if scope_team else None,
+                owner_user=None if scope_team else request.user,
                 video_id=int(video_id),
                 time_ms=int(time_ms or 0),
                 kind=kind,
@@ -45574,9 +45731,6 @@ def analysis_video_studio_timeline_delete_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -45587,9 +45741,18 @@ def analysis_video_studio_timeline_delete_api(request):
     event_id = _parse_int(data.get('id'))
     if not event_id:
         return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
-    obj = VideoTimelineEvent.objects.filter(id=event_id, team=primary_team).first()
+    obj = VideoTimelineEvent.objects.filter(id=event_id).first()
     if not obj:
         return JsonResponse({'ok': False, 'error': 'Evento no encontrado.'}, status=404)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(getattr(obj, 'video_id', 0) or 0))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    if scope_team:
+        if int(getattr(obj, 'team_id', 0) or 0) and int(getattr(obj, 'team_id', 0) or 0) != int(scope_team.id):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    else:
+        if int(getattr(obj, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
     username = str(getattr(request.user, 'username', '') or '').strip()
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
     if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
@@ -46949,9 +47112,6 @@ def analysis_video_studio_project_save_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -46972,21 +47132,20 @@ def analysis_video_studio_project_save_api(request):
         payload = {}
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
-    video = RivalVideo.objects.select_related('folder', 'team').filter(id=video_id).first()
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
-    entry_team_id = int(getattr(video, 'team_id', 0) or 0)
-    folder_team_id = int(getattr(getattr(video, 'folder', None), 'team_id', 0) or 0)
-    if entry_team_id and entry_team_id != int(primary_team.id):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
-    if folder_team_id and folder_team_id != int(primary_team.id):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
 
     username = str(getattr(request.user, 'username', '') or '').strip()[:80]
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
     try:
         if project_id:
-            obj = VideoTelestrationProject.objects.filter(id=project_id, team=primary_team, video=video).first()
+            qs = VideoTelestrationProject.objects.filter(id=project_id, video=video)
+            if scope_team:
+                qs = qs.filter(team=scope_team)
+            else:
+                qs = qs.filter(team__isnull=True, owner_user=request.user)
+            obj = qs.first()
             if not obj:
                 return JsonResponse({'ok': False, 'error': 'Proyecto no encontrado.'}, status=404)
             if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
@@ -46997,7 +47156,8 @@ def analysis_video_studio_project_save_api(request):
             obj.save(update_fields=['title', 'payload', 'updated_at', 'created_by'])
         else:
             obj = VideoTelestrationProject.objects.create(
-                team=primary_team,
+                team=scope_team if scope_team else None,
+                owner_user=None if scope_team else request.user,
                 video=video,
                 title=title,
                 payload=payload,
@@ -47018,9 +47178,6 @@ def analysis_video_studio_project_delete_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -47031,9 +47188,18 @@ def analysis_video_studio_project_delete_api(request):
     project_id = _parse_int(data.get('id'))
     if not project_id:
         return JsonResponse({'ok': False, 'error': 'id requerido.'}, status=400)
-    obj = VideoTelestrationProject.objects.filter(id=project_id, team=primary_team).first()
+    obj = VideoTelestrationProject.objects.filter(id=project_id).first()
     if not obj:
         return JsonResponse({'ok': False, 'error': 'Proyecto no encontrado.'}, status=404)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(getattr(obj, 'video_id', 0) or 0))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    if scope_team:
+        if int(getattr(obj, 'team_id', 0) or 0) and int(getattr(obj, 'team_id', 0) or 0) != int(scope_team.id):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    else:
+        if int(getattr(obj, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
     username = str(getattr(request.user, 'username', '') or '').strip()
     can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
     if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:

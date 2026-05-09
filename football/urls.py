@@ -105,6 +105,7 @@ urlpatterns = [
     path('api/analysis/video-studio/clips/', views.analysis_video_studio_clips_api, name='analysis-video-studio-clips-api'),
     path('api/analysis/video-studio/clips/save/', views.analysis_video_studio_clip_save_api, name='analysis-video-studio-clip-save-api'),
     path('api/analysis/video-studio/clips/delete/', views.analysis_video_studio_clip_delete_api, name='analysis-video-studio-clip-delete-api'),
+    path('api/analysis/video-studio/assign/', views.analysis_video_studio_assign_api, name='analysis-video-studio-assign-api'),
     path('api/analysis/video-studio/timeline/', views.analysis_video_studio_timeline_api, name='analysis-video-studio-timeline-api'),
     path('api/analysis/video-studio/timeline/save/', views.analysis_video_studio_timeline_save_api, name='analysis-video-studio-timeline-save-api'),
     path('api/analysis/video-studio/timeline/delete/', views.analysis_video_studio_timeline_delete_api, name='analysis-video-studio-timeline-delete-api'),

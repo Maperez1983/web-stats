@@ -1010,6 +1010,15 @@
                   {% endfor %}
                 </select>
               </div>
+              <div>
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:900;">
+                  <input type="checkbox" name="video_personal" value="1" checked />
+                  Guardar en biblioteca personal (asignar después)
+                </label>
+                <div class="meta" style="margin-top:0.35rem;">
+                  Video Studio funciona sin club: edita/corta y luego asigna el vídeo al equipo/carpeta que quieras.
+                </div>
+              </div>
 	              <div>
 	                <label for="video_file">Vídeo</label>
 	                <input id="video_file" name="video_file" type="file" accept="video/*" required />
@@ -1048,6 +1057,10 @@
                 <input type="hidden" name="video_team_id" value="{{ team_id }}" />
                 <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
                 <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Importar desde YouTube (beta)</div>
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:900; margin-bottom:0.35rem;">
+                  <input id="video_personal_youtube" type="checkbox" value="1" checked />
+                  Guardar en biblioteca personal (asignar después)
+                </label>
                 <div class="manual-grid">
                   <div style="grid-column:1/-1;">
                     <label for="youtube_url">Enlace</label>
@@ -1847,12 +1860,14 @@
               const folderEl = document.getElementById('video_folder_id');
               const titleEl = document.getElementById('video_title');
               const notesEl = document.getElementById('video_notes');
+              const personalEl = document.getElementById('video_personal_youtube');
               const payload = {
                 url: url,
                 video_team_id: String(teamInp && teamInp.value ? teamInp.value : '').trim(),
                 video_folder_id: String(folderEl && folderEl.value ? folderEl.value : '').trim(),
                 video_title: String(titleEl && titleEl.value ? titleEl.value : '').trim(),
                 video_notes: String(notesEl && notesEl.value ? notesEl.value : '').trim(),
+                video_personal: (personalEl && personalEl.checked) ? 1 : 0,
                 assigned_player_ids: selectedPlayerIds(),
               };
               const resp = await fetch(apiUrl, {

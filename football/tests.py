@@ -18,7 +18,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -6298,6 +6298,98 @@ class VideoStudioProApiTests(TestCase):
         self.assertIn('export.json', names)
         self.assertTrue(any(n.startswith('slides/slide-') for n in names))
         self.assertTrue(any(n.startswith('thumbs/thumb-') for n in names))
+
+
+class VideoStudioPersonalLibraryTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create_user(
+            username='video-studio-personal',
+            email='video-studio-personal@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        competition = Competition.objects.create(name='Liga VS Personal', slug='liga-vs-personal', region='Andalucia')
+        season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        group = Group.objects.create(season=season, name='Grupo VS Personal', slug='grupo-vs-personal')
+        self.team = Team.objects.create(name='Equipo VS Personal', slug='equipo-vs-personal', group=group, is_primary=True)
+        self.workspace = Workspace.objects.create(
+            name='Workspace VS Personal',
+            slug='workspace-vs-personal',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            enabled_modules={'analysis': True, 'dashboard': True},
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_ADMIN,
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = self.workspace.id
+        session['active_team_by_workspace'] = {str(self.workspace.id): int(self.team.id)}
+        session.save()
+
+        self.video = RivalVideo.objects.create(
+            team=None,
+            folder=None,
+            owner_user=self.user,
+            title='Personal clip',
+            video=SimpleUploadedFile('clip.mp4', b'fake-video', content_type='video/mp4'),
+            source=RivalVideo.SOURCE_MANUAL,
+            notes='',
+        )
+
+    def test_personal_video_can_create_clip_timeline_project_and_assign_to_team(self):
+        clip_save = self.client.post(
+            reverse('analysis-video-studio-clip-save-api'),
+            data=json.dumps(
+                {
+                    'video_id': self.video.id,
+                    'title': 'Salida de 3',
+                    'collection': 'Personal',
+                    'in_s': 1.0,
+                    'out_s': 2.0,
+                    'overlay': {'objects': []},
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(clip_save.status_code, 200)
+        self.assertTrue(clip_save.json().get('ok'))
+        self.assertTrue(VideoClip.objects.filter(video=self.video, team__isnull=True, owner_user=self.user).exists())
+
+        ev_save = self.client.post(
+            reverse('analysis-video-studio-timeline-save-api'),
+            data=json.dumps({'video_id': self.video.id, 'time_s': 1.2, 'kind': 'tag', 'label': 'Marca', 'color': '#22d3ee'}),
+            content_type='application/json',
+        )
+        self.assertEqual(ev_save.status_code, 200)
+        self.assertTrue(ev_save.json().get('ok'))
+        self.assertTrue(VideoTimelineEvent.objects.filter(video=self.video, team__isnull=True, owner_user=self.user).exists())
+
+        proj_save = self.client.post(
+            reverse('analysis-video-studio-project-save-api'),
+            data=json.dumps({'video_id': self.video.id, 'title': 'Proyecto', 'payload': {'a': 1}}),
+            content_type='application/json',
+        )
+        self.assertEqual(proj_save.status_code, 200)
+        self.assertTrue(proj_save.json().get('ok'))
+        self.assertTrue(VideoTelestrationProject.objects.filter(video=self.video, team__isnull=True, owner_user=self.user).exists())
+
+        assign = self.client.post(
+            reverse('analysis-video-studio-assign-api'),
+            data=json.dumps({'video_id': self.video.id, 'team_id': self.team.id}),
+            content_type='application/json',
+        )
+        self.assertEqual(assign.status_code, 200)
+        self.assertTrue(assign.json().get('ok'))
+        self.video.refresh_from_db()
+        self.assertEqual(self.video.team_id, self.team.id)
+        self.assertTrue(VideoClip.objects.filter(video=self.video, team=self.team).exists())
+        self.assertTrue(VideoTimelineEvent.objects.filter(video=self.video, team=self.team).exists())
+        self.assertTrue(VideoTelestrationProject.objects.filter(video=self.video, team=self.team).exists())
 
 
 class SessionsPlanningTests(TestCase):

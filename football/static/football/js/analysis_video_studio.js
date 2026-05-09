@@ -88,6 +88,9 @@
     const clipsUrl = safeText(document.getElementById('vs-clips-url')?.value);
     const clipSaveUrl = safeText(document.getElementById('vs-clip-save-url')?.value);
 	    const clipDeleteUrl = safeText(document.getElementById('vs-clip-delete-url')?.value);
+	    const assignUrl = safeText(document.getElementById('vs-assign-url')?.value);
+	    const assignTeamSelect = document.getElementById('vs-assign-team');
+	    const assignBtn = document.getElementById('vs-assign-btn');
 	    const shareClipCreateUrl = safeText(document.getElementById('vs-share-clip-create-url')?.value);
 	    const shareReportCreateUrl = safeText(document.getElementById('vs-share-report-create-url')?.value);
 	    const sharePlaylistCreateUrl = safeText(document.getElementById('vs-share-playlist-create-url')?.value);
@@ -203,6 +206,35 @@
     const wsPrefGetUrl = safeText(document.getElementById('vs-ws-pref-get-url')?.value);
     const wsPrefSetUrl = safeText(document.getElementById('vs-ws-pref-set-url')?.value);
     const teamId = Number(document.getElementById('vs-team-id')?.value || 0);
+
+    const initPersonalAssign = () => {
+      if (!assignUrl || !videoId || !assignTeamSelect || !assignBtn) return;
+      assignBtn.addEventListener('click', async () => {
+        const targetTeamId = Number(assignTeamSelect.value || 0);
+        if (!targetTeamId) {
+          setStatus('Selecciona un equipo para asignar el vídeo.', true);
+          return;
+        }
+        assignBtn.disabled = true;
+        try {
+          const resp = await fetch(assignUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            credentials: 'same-origin',
+            body: JSON.stringify({ video_id: videoId, team_id: targetTeamId }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo asignar.');
+          setStatus('Asignado. Recargando…');
+          window.location.reload();
+        } catch (e) {
+          setStatus(e?.message || 'No se pudo asignar.', true);
+        } finally {
+          assignBtn.disabled = false;
+        }
+      });
+    };
+    initPersonalAssign();
 
     const setPresetsStatus = (text, isError = false) => {
       if (!presetsStatusEl) return;

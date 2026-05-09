@@ -6,6 +6,7 @@
   var clipsUrl = String((byId('vs-clips-url') && byId('vs-clips-url').value) || '').trim();
   var clipSaveUrl = String((byId('vs-clip-save-url') && byId('vs-clip-save-url').value) || '').trim();
   var clipDeleteUrl = String((byId('vs-clip-delete-url') && byId('vs-clip-delete-url').value) || '').trim();
+  var assignUrl = String((byId('vs-assign-url') && byId('vs-assign-url').value) || '').trim();
   var csrf = '';
   try {
     var inp = document.querySelector('#vs-csrf input[name="csrfmiddlewaretoken"]');
@@ -33,6 +34,8 @@
   var btnRefresh = byId('vs-clip-refresh');
   var clipStatus = byId('vs-clip-status');
   var clipsList = byId('vs-clips');
+  var assignTeamSelect = byId('vs-assign-team');
+  var assignBtn = byId('vs-assign-btn');
 
   var player = null;
   var tickTimer = 0;
@@ -104,6 +107,26 @@
       return resp.json().catch(function () { return {}; }).then(function (data) {
         return { ok: resp.ok, data: data };
       });
+    });
+  }
+
+  function initAssign() {
+    if (!assignUrl || !videoId || !assignTeamSelect || !assignBtn) return;
+    assignBtn.addEventListener('click', function () {
+      var targetTeamId = Number(assignTeamSelect.value || 0) || 0;
+      if (!targetTeamId) {
+        setStatus('Selecciona un equipo para asignar el vídeo.');
+        return;
+      }
+      assignBtn.disabled = true;
+      jsonPost(assignUrl, { video_id: videoId, team_id: targetTeamId })
+        .then(function (res) {
+          if (!res || !res.ok || !res.data || !res.data.ok) throw new Error((res.data && res.data.error) ? res.data.error : 'No se pudo asignar.');
+          setStatus('Asignado. Recargando…');
+          window.location.reload();
+        })
+        .catch(function (e) { setStatus((e && e.message) ? e.message : 'No se pudo asignar.'); })
+        .finally(function () { assignBtn.disabled = false; });
     });
   }
 
@@ -420,6 +443,6 @@
   if (btnClear) btnClear.addEventListener('click', function () { clearForm(); });
   if (btnRefresh) btnRefresh.addEventListener('click', function () { refreshClips(); });
 
+  initAssign();
   initPlayer();
 })();
-

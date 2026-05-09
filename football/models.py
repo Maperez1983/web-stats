@@ -1612,6 +1612,14 @@ class RivalVideo(models.Model):
     ]
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='analysis_videos')
+    owner_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personal_rival_videos',
+        help_text='Propietario cuando el vídeo está en biblioteca personal (sin team/folder).',
+    )
     rival_team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='rival_videos')
     folder = models.ForeignKey(
         AnalystVideoFolder,
@@ -1676,7 +1684,15 @@ class VideoTelestrationProject(models.Model):
     Se guarda por equipo (para multiclub) y opcionalmente vinculado a `RivalVideo`.
     """
 
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_telestration_projects')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='video_telestration_projects')
+    owner_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personal_video_telestration_projects',
+        help_text='Propietario cuando el proyecto está en biblioteca personal.',
+    )
     video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='telestration_projects')
     title = models.CharField(max_length=180, blank=True)
     payload = models.JSONField(default=dict, blank=True)
@@ -1719,7 +1735,15 @@ class VideoTimelineEvent(models.Model):
         (KIND_SET_PIECE, 'ABP'),
     ]
 
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_timeline_events')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='video_timeline_events')
+    owner_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personal_video_timeline_events',
+        help_text='Propietario cuando el evento está en biblioteca personal.',
+    )
     video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='timeline_events')
     time_ms = models.PositiveIntegerField(default=0, db_index=True)
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_TAG)
@@ -1752,7 +1776,15 @@ class VideoClip(models.Model):
     Nota: usamos milisegundos para evitar problemas de float al recortar.
     """
 
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_clips')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, null=True, blank=True, related_name='video_clips')
+    owner_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personal_video_clips',
+        help_text='Propietario cuando el clip está en biblioteca personal.',
+    )
     video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='clips')
     title = models.CharField(max_length=180, blank=True)
     collection = models.CharField(max_length=120, blank=True, help_text='Nombre de la colección/playlist (simple).')
