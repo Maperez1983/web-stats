@@ -1697,7 +1697,7 @@ const urlWithMatchId = (baseUrl) => {
           }
         });
       }
-	      const hydrateLineupState = () => {
+		      const hydrateLineupState = () => {
 	        const parseEpoch = (value) => {
 	          const raw = String(value || '').trim();
 	          if (!raw) return 0;
@@ -1749,23 +1749,58 @@ const urlWithMatchId = (baseUrl) => {
 	            console.warn('No se pudo recuperar el 11 inicial persistido', err);
 	          }
 	        }
-        if (!lineupInput?.value) {
-          return;
-        }
+	        if (!lineupInput?.value) {
+	          return;
+	        }
 	        try {
 	          const current = JSON.parse(lineupInput.value);
 	          lineupState = current && typeof current === 'object' ? current : lineupState;
 	        } catch (err) {
 	          console.error('Invalid lineup payload', err);
 	        }
-	        try {
-	          if (!lineupState || typeof lineupState !== 'object') lineupState = { starters: [], bench: [] };
-	          if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
-	          if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
-	        } catch (e) {}
-	        lastLineupSignature = lineupSignature(lineupState);
-	        lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
-	      };
+		        try {
+		          if (!lineupState || typeof lineupState !== 'object') lineupState = { starters: [], bench: [] };
+		          if (!Array.isArray(lineupState.starters)) lineupState.starters = [];
+		          if (!Array.isArray(lineupState.bench)) lineupState.bench = [];
+		        } catch (e) {}
+            // Asegura que el 11 inicial esté en la misma orientación que el campo del registro (LR: izquierda→derecha).
+            // El editor de "11 inicial" histórico guardaba coordenadas TB (vertical). Eso rompe el auto-jugador por zonas.
+            try {
+              const clampPct = (value, min = 0, max = 100) => {
+                const n = Number(value);
+                if (!Number.isFinite(n)) return NaN;
+                return Math.max(min, Math.min(max, n));
+              };
+              lineupState._meta = (lineupState._meta && typeof lineupState._meta === 'object') ? lineupState._meta : {};
+              const orientationRaw = String(lineupState._meta.orientation || '').trim().toLowerCase();
+              const orientation = (orientationRaw === 'tb' || orientationRaw === 'portrait') ? 'tb' : 'lr';
+              const looksTb = (() => {
+                const starters = Array.isArray(lineupState?.starters) ? lineupState.starters : [];
+                if (!starters.length) return false;
+                const findGk = starters.find((p) => {
+                  const pos = String(p?.position || '').toLowerCase();
+                  return Number(p?.slot_index) === 0 || pos.includes('por') || pos.includes('gk');
+                }) || starters[0];
+                const x = clampPct(findGk?.x_pct, 0, 100);
+                const y = clampPct(findGk?.y_pct, 0, 100);
+                return Number.isFinite(x) && Number.isFinite(y) && x >= 35 && x <= 65 && y >= 70;
+              })();
+              if (orientation === 'tb' || (orientationRaw === '' && looksTb)) {
+                lineupState.starters = (lineupState.starters || []).map((row) => {
+                  const x = clampPct(row?.x_pct, 0, 100);
+                  const y = clampPct(row?.y_pct, 0, 100);
+                  if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
+                  // TB -> LR: x_lr = 100 - y_tb ; y_lr = x_tb
+                  return { ...row, x_pct: clampPct(100 - y, 0, 100), y_pct: clampPct(x, 0, 100) };
+                });
+                lineupState._meta.orientation = 'lr';
+              } else if (!orientationRaw) {
+                lineupState._meta.orientation = 'lr';
+              }
+            } catch (e) {}
+		        lastLineupSignature = lineupSignature(lineupState);
+		        lastSavedLineupSnapshot = JSON.stringify(lineupState || { starters: [], bench: [] });
+		      };
 	      const refreshLineupFromServer = async ({ quiet = true } = {}) => {
 	        if (!lineupGetUrl) return false;
 	        try {

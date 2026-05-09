@@ -1135,6 +1135,25 @@
               y_pct: clamp(Number(row?.y_pct ?? 50), 2, 98),
             }));
           recomputeBenchFromChecks();
+          // Importante: el registro de acciones usa un campo horizontal izquierda→derecha (x=profundidad).
+          // El editor de 11 inicial es vertical (y=profundidad). Guardamos en servidor SIEMPRE en orientación LR.
+          const rotateTbToLr = (row) => {
+            const x = Number(row?.x_pct);
+            const y = Number(row?.y_pct);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return row;
+            return {
+              ...row,
+              // TB -> LR: x_lr = 100 - y_tb ; y_lr = x_tb
+              x_pct: clamp(100 - y, 2, 98),
+              y_pct: clamp(x, 2, 98),
+            };
+          };
+          const lineupToSave = {
+            formation: lineupState.formation,
+            starters: (lineupState.starters || []).map(rotateTbToLr),
+            bench: (lineupState.bench || []).map((row) => ({ ...row })),
+            _meta: { ...(lineupState._meta && typeof lineupState._meta === 'object' ? lineupState._meta : {}), orientation: 'lr' },
+          };
           const response = await fetch(saveUrl, {
             method: 'POST',
             credentials: 'same-origin',
@@ -1143,7 +1162,7 @@
               'X-CSRFToken': csrfToken,
               Accept: 'application/json',
             },
-            body: JSON.stringify({ lineup: lineupState }),
+            body: JSON.stringify({ lineup: lineupToSave }),
           });
           const data = await response.json();
           if (!response.ok) {

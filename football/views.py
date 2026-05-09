@@ -17674,6 +17674,137 @@ def _build_default_lineup_payload_with_limit(convocation_players, *, starters_li
     )
 
 
+def _lineup_orientation_key(meta: dict) -> str:
+    if not isinstance(meta, dict):
+        return ''
+    try:
+        raw = str(meta.get('orientation') or '').strip().lower()
+    except Exception:
+        raw = ''
+    if raw in {'lr', 'landscape', 'horizontal', 'left_right', 'left-right'}:
+        return 'lr'
+    if raw in {'tb', 'portrait', 'vertical', 'top_bottom', 'top-bottom'}:
+        return 'tb'
+    return ''
+
+
+def _lineup_looks_like_tb_orientation(payload: dict) -> bool:
+    """
+    Heurística: detecta lineups guardados con coordenadas "verticales" (ataque arriba, defensa abajo),
+    típicos del editor de 11 inicial (portrait). En match_actions usamos zonas izquierda→derecha,
+    así que allí necesitamos coordenadas LR.
+    """
+    if not isinstance(payload, dict):
+        return False
+    starters = payload.get('starters')
+    if not isinstance(starters, list) or not starters:
+        return False
+    gk_candidate = None
+    for row in starters:
+        if not isinstance(row, dict):
+            continue
+        pos = str(row.get('position') or '').lower()
+        if row.get('slot_index') == 0 or 'por' in pos or 'gk' in pos:
+            gk_candidate = row
+            break
+    if not gk_candidate:
+        gk_candidate = starters[0] if isinstance(starters[0], dict) else None
+    if not isinstance(gk_candidate, dict):
+        return False
+    try:
+        x = float(gk_candidate.get('x_pct'))
+        y = float(gk_candidate.get('y_pct'))
+    except Exception:
+        return False
+    # En TB (portrait) el portero suele estar centrado abajo: x≈50, y≈85-95.
+    # En LR (landscape) el portero suele estar a la izquierda: x≈5-18, y≈50.
+    return (35.0 <= x <= 65.0) and (y >= 70.0)
+
+
+def _rotate_lineup_coords_tb_to_lr(payload: dict) -> dict:
+    """
+    Convierte coordenadas de un campo "vertical" (TB: profundidad en Y) a un campo "horizontal" (LR: profundidad en X).
+    Transformación (en porcentaje):
+      x_lr = 100 - y_tb
+      y_lr = x_tb
+    """
+    if not isinstance(payload, dict):
+        return payload
+    starters = payload.get('starters')
+    if not isinstance(starters, list):
+        return payload
+    for row in starters:
+        if not isinstance(row, dict):
+            continue
+        if row.get('x_pct') is None or row.get('y_pct') is None:
+            continue
+        try:
+            x_tb = float(row.get('x_pct'))
+            y_tb = float(row.get('y_pct'))
+        except Exception:
+            continue
+        x_lr = 100.0 - y_tb
+        y_lr = x_tb
+        row['x_pct'] = round(max(0.0, min(100.0, x_lr)), 2)
+        row['y_pct'] = round(max(0.0, min(100.0, y_lr)), 2)
+    return payload
+
+
+def _rotate_lineup_coords_lr_to_tb(payload: dict) -> dict:
+    """
+    Inversa de TB->LR:
+      x_tb = y_lr
+      y_tb = 100 - x_lr
+    """
+    if not isinstance(payload, dict):
+        return payload
+    starters = payload.get('starters')
+    if not isinstance(starters, list):
+        return payload
+    for row in starters:
+        if not isinstance(row, dict):
+            continue
+        if row.get('x_pct') is None or row.get('y_pct') is None:
+            continue
+        try:
+            x_lr = float(row.get('x_pct'))
+            y_lr = float(row.get('y_pct'))
+        except Exception:
+            continue
+        x_tb = y_lr
+        y_tb = 100.0 - x_lr
+        row['x_pct'] = round(max(0.0, min(100.0, x_tb)), 2)
+        row['y_pct'] = round(max(0.0, min(100.0, y_tb)), 2)
+    return payload
+
+
+def _ensure_lineup_orientation(payload: dict, *, target: str) -> dict:
+    """
+    target: 'lr' (match_actions) o 'tb' (editor 11 inicial).
+    """
+    if not isinstance(payload, dict):
+        return payload
+    target = 'lr' if str(target or '').strip().lower() == 'lr' else 'tb'
+    meta = payload.get('_meta') if isinstance(payload.get('_meta'), dict) else {}
+    current = _lineup_orientation_key(meta)
+    if not current:
+        # Sin orientación explícita: detecta si parece TB.
+        current = 'tb' if _lineup_looks_like_tb_orientation(payload) else 'lr'
+    if current == target:
+        if isinstance(meta, dict):
+            meta['orientation'] = target
+            payload['_meta'] = meta
+        return payload
+    if current == 'tb' and target == 'lr':
+        _rotate_lineup_coords_tb_to_lr(payload)
+    elif current == 'lr' and target == 'tb':
+        _rotate_lineup_coords_lr_to_tb(payload)
+    if isinstance(meta, dict):
+        meta['orientation'] = target
+        payload['_meta'] = meta
+    return payload
+
+
 def _matchday_quick_buttons_role_key(user) -> str:
     role = _get_user_role(user)
     if role == AppUserRole.ROLE_ANALYST:
@@ -17829,11 +17960,16 @@ def match_action_page(request):
     initial_lineup_payload = {'starters': [], 'bench': []}
     if convocation_record:
         stored_lineup = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        stored_meta = stored_lineup.get('_meta') if isinstance(stored_lineup.get('_meta'), dict) else {}
         normalized_stored = _normalize_lineup_payload_with_limit(
             stored_lineup,
             convocation_players,
             starters_limit=starters_limit,
         )
+        if stored_meta:
+            normalized_stored['_meta'] = stored_meta
+        # Registro de acciones usa coordenadas izquierda→derecha (FIELD_ZONES). Asegura orientación LR.
+        normalized_stored = _ensure_lineup_orientation(normalized_stored, target='lr')
         if normalized_stored['starters'] or normalized_stored['bench']:
             initial_lineup_payload = normalized_stored
         else:
@@ -18474,6 +18610,9 @@ def save_match_lineup(request):
     allowed_players = list(convocation_record.players.all())
     # Normaliza payload (limita titulares, dedup) y auto-rellena banquillo con el resto de convocados.
     normalized = _normalize_lineup_payload_with_limit(lineup, allowed_players, starters_limit=starters_limit)
+    # Preserva orientación declarada por el cliente (si la incluye) para evitar rotaciones erróneas.
+    client_meta = lineup.get('_meta') if isinstance(lineup, dict) and isinstance(lineup.get('_meta'), dict) else {}
+    orientation = _lineup_orientation_key(client_meta) if client_meta else ''
     starter_ids = {str(row.get('id')) for row in (normalized.get('starters') or []) if str(row.get('id') or '').strip()}
     bench_ids = {str(row.get('id')) for row in (normalized.get('bench') or []) if str(row.get('id') or '').strip()}
     remaining_players = [
@@ -18520,6 +18659,8 @@ def save_match_lineup(request):
         'match_id': int(getattr(target_match, 'id', 0) or 0),
         'source': 'match-lineup-save',
     }
+    if orientation:
+        normalized['_meta']['orientation'] = orientation
     convocation_record.lineup_data = normalized
     convocation_record.save(update_fields=['lineup_data'])
     _invalidate_team_dashboard_caches(primary_team)
@@ -18561,6 +18702,7 @@ def get_match_lineup(request):
     normalized = _normalize_lineup_payload_with_limit(stored, allowed_players, starters_limit=starters_limit)
     if meta:
         normalized['_meta'] = meta
+    normalized = _ensure_lineup_orientation(normalized, target='lr')
     return JsonResponse({'ok': True, 'lineup': normalized})
 
 
@@ -27958,7 +28100,12 @@ def initial_eleven_page(request):
     has_pending_convocation = bool(convocation_record and not convocation_players)
     if convocation_record:
         stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
+        stored_meta = stored.get('_meta') if isinstance(stored.get('_meta'), dict) else {}
         normalized = _normalize_lineup_payload_with_limit(stored, convocation_players, starters_limit=starters_limit)
+        if stored_meta:
+            normalized['_meta'] = stored_meta
+        # UI del editor de 11 inicial usa orientación vertical (ataque arriba). Asegura TB.
+        normalized = _ensure_lineup_orientation(normalized, target='tb')
         if normalized['starters'] or normalized['bench']:
             lineup_seed = normalized
         else:
