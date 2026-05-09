@@ -314,6 +314,9 @@
         position: absolute;
         inset: 0;
       }
+      .tactics-tokens.rival {
+        z-index: 2;
+      }
       .tactics-token {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -392,6 +395,18 @@
       }
       .tactics-token.is-dragging {
         z-index: 6;
+      }
+      .tactics-token.is-rival {
+        border-color: rgba(248, 113, 113, 0.55);
+        background: rgba(127, 29, 29, 0.32);
+      }
+      .tactics-token.is-rival .badge {
+        border-color: rgba(226, 232, 240, 0.38);
+        background: rgba(226, 232, 240, 0.12);
+        color: rgba(248, 250, 252, 0.96);
+      }
+      .tactics-token.is-rival .avatar {
+        opacity: 0.78;
       }
       body.pro-mode .tactics-token {
         width: 64px;
@@ -2804,20 +2819,23 @@
               </div>
               <p class="meta" id="match-plan-status" style="margin:0.45rem 0 0;">—</p>
             </article>
-            <article class="status-card tactics-board" id="tactics-board-card" style="margin-top:0.9rem;">
-              <div class="tactics-board-head">
-                <h5>Táctica · once en campo</h5>
-                <div class="tactics-board-actions">
-                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar once en una estructura base">Reset posiciones</button>
-                </div>
-              </div>
-              <div class="tactics-pitch" id="tactics-pitch" aria-label="Pizarra táctica (once)" role="application">
-                <div class="tactics-line-mid" aria-hidden="true"></div>
-                <div class="tactics-circle" aria-hidden="true"></div>
-                <div class="tactics-tokens" id="tactics-tokens"></div>
-              </div>
-              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el 11 inicial y mejoran la sugerencia automática).</p>
-            </article>
+	            <article class="status-card tactics-board" id="tactics-board-card" style="margin-top:0.9rem;">
+	              <div class="tactics-board-head">
+	                <h5>Táctica · once en campo</h5>
+	                <div class="tactics-board-actions">
+	                  <button type="button" class="toolbar-pill" id="tactics-toggle-rival" title="Mostrar/ocultar once del rival">Rival: OFF</button>
+	                  <a href="{% url 'coach-rival' %}?match_id={{ match_info.match_id }}" class="toolbar-pill" id="tactics-prep-rival" title="Selecciona convocatoria y 11 del rival">Preparar rival</a>
+	                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar once en una estructura base">Reset posiciones</button>
+	                </div>
+	              </div>
+	              <div class="tactics-pitch" id="tactics-pitch" aria-label="Pizarra táctica (once)" role="application">
+	                <div class="tactics-line-mid" aria-hidden="true"></div>
+	                <div class="tactics-circle" aria-hidden="true"></div>
+	                <div class="tactics-tokens" id="tactics-tokens"></div>
+	                <div class="tactics-tokens rival" id="tactics-rival-tokens" hidden></div>
+	              </div>
+	              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el 11 inicial y mejoran la sugerencia automática).</p>
+	            </article>
             <div class="pre-lineup-panel">
               <article class="status-card">
                 <h5>Once inicial</h5>
@@ -3510,11 +3528,12 @@
       </div>
     </div>
     {{ field_zone_defs|json_script:"field-zone-defs" }}
-    {{ team_fields|json_script:"team-fields-data" }}
-    {{ substitution_history|json_script:"substitution-history-data" }}
-    {{ initial_lineup_payload|json_script:"initial-lineup-server" }}
-    {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
-    {{ matchday_quick_actions|default:"[]"|json_script:"matchday-quick-actions" }}
+	    {{ team_fields|json_script:"team-fields-data" }}
+	    {{ substitution_history|json_script:"substitution-history-data" }}
+	    {{ initial_lineup_payload|json_script:"initial-lineup-server" }}
+	    {{ rival_lineup_payload|default:"{}"|json_script:"rival-lineup-server" }}
+	    {{ action_catalog|default:"[]"|json_script:"match-action-catalog" }}
+	    {{ matchday_quick_actions|default:"[]"|json_script:"matchday-quick-actions" }}
     <script>
       window.matchActionsBoot = {
         playerAvatarFallback: '{{ avatar_url|escapejs }}',
@@ -3535,11 +3554,13 @@
           matchVideoMarkerApiUrl: '{% url "match-video-marker-api" %}',
           analysisVideoStudioUrlTemplate: '{% url "analysis-video-studio" 0 %}',
           analysisVideoClipUrlTemplate: '{% url "analysis-video-clip-view" 0 %}',
-          lineupSaveUrl: '{% url "match-lineup-save" %}',
-          lineupGetUrl: '{% url "match-lineup-get" %}',
-          workspacePrefGetUrl: '{% url "workspace-pref-get" %}',
-          workspacePrefSetUrl: '{% url "workspace-pref-set" %}',
-        },
+	          lineupSaveUrl: '{% url "match-lineup-save" %}',
+	          lineupGetUrl: '{% url "match-lineup-get" %}',
+	          rivalLineupSaveUrl: '{% url "match-rival-lineup-save" %}',
+	          rivalLineupGetUrl: '{% url "match-rival-lineup-get" %}',
+	          workspacePrefGetUrl: '{% url "workspace-pref-get" %}',
+	          workspacePrefSetUrl: '{% url "workspace-pref-set" %}',
+	        },
       };
     </script>
     <script src="{% static 'football/js/match_actions_chrome.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
