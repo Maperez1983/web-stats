@@ -2006,6 +2006,47 @@ def _get_or_create_inbox_microcycle(team):
         )
     except Exception:
         return None
+
+
+def _week_bounds_for_date(value):
+    if not value:
+        return None, None
+    try:
+        weekday = int(value.weekday())
+    except Exception:
+        return None, None
+    week_start = value - timedelta(days=weekday)
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def _get_or_create_week_microcycle(team, session_date, *, title_hint=''):
+    """
+    Crea (si hace falta) un microciclo semanal real para una fecha.
+
+    Importante: evita meter sesiones importadas siempre en la bandeja "Sesiones sueltas",
+    para que se comporten igual que una sesión creada manualmente.
+    """
+    if not team or not session_date:
+        return None
+    week_start, week_end = _week_bounds_for_date(session_date)
+    if not week_start or not week_end:
+        return None
+    try:
+        existing = TrainingMicrocycle.objects.filter(team=team, week_start=week_start).first()
+        if existing:
+            return existing
+        return TrainingMicrocycle.objects.create(
+            team=team,
+            title=str(title_hint or 'Microciclo semanal').strip()[:140] or 'Microciclo semanal',
+            objective='',
+            week_start=week_start,
+            week_end=week_end,
+            status=TrainingMicrocycle.STATUS_DRAFT,
+            notes='(Sistema) Microciclo creado automáticamente desde sesión importada.',
+        )
+    except Exception:
+        return None
 TASK_SURFACE_CHOICES = [
     ('natural_grass', 'Hierba natural'),
     ('hybrid_grass', 'Hierba híbrida'),
@@ -16251,7 +16292,7 @@ def share_link_revoke(request, token):
     return JsonResponse({'ok': True})
 
 
-def _file_field_stream_with_range(request, file_field, *, content_type: str = '', filename: str = ''):
+def _file_field_stream_with_range(request, file_field, *, content_type: str = '', filename: str = '', as_attachment: bool = False):
     """
     Stream de archivos (vídeo) con soporte de `Range` (206) para reproducción eficiente.
 
@@ -16279,11 +16320,13 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
 
     resolved_ct = content_type or (mimetypes.guess_type(str(getattr(file_field, 'name', '') or ''))[0] or 'application/octet-stream')
     range_header = str(request.META.get('HTTP_RANGE') or '').strip()
+    disposition = 'attachment' if as_attachment else 'inline'
+
     if not range_header:
         response = FileResponse(fh, content_type=resolved_ct)
         response['Accept-Ranges'] = 'bytes'
         if filename:
-            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
         response['Cache-Control'] = 'private, max-age=60'
         return response
 
@@ -16319,7 +16362,7 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
         response = FileResponse(fh, content_type=resolved_ct)
         response['Accept-Ranges'] = 'bytes'
         if filename:
-            response['Content-Disposition'] = f'inline; filename="{filename}"'
+            response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
         response['Cache-Control'] = 'private, max-age=60'
         return response
 
@@ -16342,7 +16385,7 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
         resp['Content-Range'] = f'bytes {start}-{end}/{file_size}'
     resp['Accept-Ranges'] = 'bytes'
     if filename:
-        resp['Content-Disposition'] = f'inline; filename="{filename}"'
+        resp['Content-Disposition'] = f'{disposition}; filename="{filename}"'
     resp['Cache-Control'] = 'private, max-age=60'
     return resp
 
@@ -16822,11 +16865,13 @@ def share_video_export_stream(request, token):
     export = VideoExportAsset.objects.filter(id=int(export_id)).first()
     if not export or not getattr(export, 'file', None):
         raise Http404('Export no disponible')
+    want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
     return _file_field_stream_with_range(
         request,
         export.file,
         content_type=str(export.mime_type or '').strip() or 'video/mp4',
         filename=f'export-{export.id}.mp4',
+        as_attachment=want_download,
     )
 
 
@@ -28108,6 +28153,141 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
         raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
+def _parse_pdf_session_header_fields(extracted_text):
+    """
+    Extrae metadatos de cabecera típicos en PDFs de sesión (fecha, hora, micro/mesociclo, MD, nº sesión).
+    """
+    text = str(extracted_text or '')
+    if not text.strip():
+        return {}
+    cleaned = _polish_spanish_text(_repair_joined_words_text(text), multiline=True)
+    out = {}
+    try:
+        m = re.search(r'(?i)\bfecha\s*:\s*(\d{2}/\d{2}/\d{4})\b', cleaned)
+        if m:
+            out['date'] = datetime.strptime(m.group(1), '%d/%m/%Y').date()
+    except Exception:
+        pass
+    try:
+        m = re.search(r'(?i)\bhora\s*:\s*(\d{1,2})\s*[:h]\s*(\d{2})\b', cleaned)
+        if m:
+            hh = int(m.group(1))
+            mm = int(m.group(2))
+            if 0 <= hh <= 23 and 0 <= mm <= 59:
+                out['time'] = time(hh, mm)
+    except Exception:
+        pass
+    try:
+        m = re.search(r'(?i)\bmicro[\s\-]*ciclo\s*:\s*(?:n[º°o]\s*)?0*(\d{1,3})\b', cleaned)
+        if m:
+            out['microcycle_number'] = int(m.group(1))
+    except Exception:
+        pass
+    try:
+        m = re.search(r'(?i)\bmeso[\s\-]*ciclo\s*:\s*(?:n[º°o]\s*)?0*(\d{1,3})\b', cleaned)
+        if m:
+            out['mesocycle_number'] = int(m.group(1))
+    except Exception:
+        pass
+    try:
+        m = re.search(r'(?i)\bmd\s*:\s*([+\-]?\s*\d{1,2})\b', cleaned)
+        if m:
+            raw = m.group(1).replace(' ', '')
+            out['md'] = int(raw)
+    except Exception:
+        pass
+    try:
+        m = re.search(r'(?i)\b(?:sesion|sesión)\s*(?:n[º°o]\s*)?0*(\d{1,4})\b', cleaned)
+        if m:
+            out['session_number'] = int(m.group(1))
+    except Exception:
+        pass
+    return out
+
+
+def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_id=None):
+    """
+    Convierte el texto del PDF de sesión a los campos estructurados de `[2J_SESSION]`.
+
+    Objetivo: que la ficha de sesión quede limpia, sin volcar el texto crudo como "Notas".
+    """
+    text = str(extracted_text or '').strip()
+    if not text:
+        fields = {'notes': ''}
+        if imported_doc_id:
+            fields['agenda_hidden'] = f'imported_doc_id:{int(imported_doc_id)}'
+        return fields
+
+    cleaned = _polish_spanish_text(_repair_joined_words_text(text), multiline=True)
+
+    # Materiales: bloque tras "Material de entrenamiento".
+    materials = ''
+    try:
+        m = re.search(r'(?is)material\s+de\s+entrenamiento\s*(.+?)(?:\n\s*\n|(?:tarea\s*1\b)|$)', cleaned)
+        if m:
+            materials = m.group(1).strip()
+            materials = re.split(r'(?i)\btarea\s*1\b', materials, maxsplit=1)[0].strip()
+            materials = re.sub(r'\n{3,}', '\n\n', materials).strip()
+            if len(materials) > 800:
+                materials = materials[:800].strip()
+    except Exception:
+        materials = ''
+
+    # Objetivo: primera línea "larga" posterior a materiales, que suele llevar la idea + minutos.
+    objective = ''
+    try:
+        tail = cleaned
+        pos = cleaned.lower().find('material de entrenamiento')
+        if pos >= 0:
+            tail = cleaned[pos + len('material de entrenamiento'):]
+        lines = [ln.strip() for ln in tail.splitlines() if ln.strip()]
+        for ln in lines[:40]:
+            if len(ln) < 12:
+                continue
+            folded = _normalize_folded_text(ln)
+            if not folded:
+                continue
+            if any(tok in folded for tok in ('microciclo', 'mesociclo', 'fecha', 'hora', 'temporada', 'periodo', 'materialdeentrenamiento')):
+                continue
+            if re.search(r'\b\d{1,3}\s*(?:min|mins|minutos|[\'’`´])\b', ln, re.IGNORECASE):
+                objective = ln[:180].strip()
+                break
+    except Exception:
+        objective = ''
+
+    # Vuelta a la calma: desde "Estiramientos"/"Parte final" hasta el final.
+    cooldown = ''
+    try:
+        m = re.search(r'(?is)\b(estiramientos.*)$', cleaned)
+        if not m:
+            m = re.search(r'(?is)\b(parte\s+final.*)$', cleaned)
+        if m:
+            cooldown = m.group(1).strip()
+            cooldown = re.sub(r'\n{3,}', '\n\n', cooldown).strip()
+            cooldown = cooldown[:1800].strip()
+    except Exception:
+        cooldown = ''
+
+    fields = {
+        'warmup': '',
+        'activation': '',
+        'main': '',
+        'cooldown': cooldown,
+        'objective': objective,
+        'success_criteria': '',
+        'rpe_target': '',
+        'player_count': '',
+        'location': '',
+        'materials': materials,
+        'absences': '',
+        'agenda_hidden': cleaned[:8000].strip(),
+        'notes': '',
+    }
+    if imported_doc_id:
+        fields['agenda_hidden'] = (f'imported_doc_id:{int(imported_doc_id)}\n\n' + fields['agenda_hidden']).strip()
+    return fields
+
+
 def _analyze_preview_image_bytes(raw_bytes):
     if Image is None or not raw_bytes:
         return None
@@ -33273,6 +33453,25 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
 
                 # Fecha y microciclo destino.
                 session_date = getattr(doc, 'session_date', None) or timezone.localdate()
+                extracted_text_for_session = ''
+                try:
+                    try:
+                        doc.pdf.open('rb')
+                    except Exception:
+                        pass
+                    extracted_text_for_session = _extract_pdf_text(doc.pdf, max_chars=60000)
+                except Exception:
+                    extracted_text_for_session = ''
+                try:
+                    if hasattr(doc.pdf, 'seek'):
+                        doc.pdf.seek(0)
+                except Exception:
+                    pass
+                session_header = _parse_pdf_session_header_fields(extracted_text_for_session) if extracted_text_for_session else {}
+                plan_fields = _suggest_session_plan_fields_from_pdf_text(
+                    extracted_text_for_session,
+                    imported_doc_id=int(doc.id),
+                )
                 microcycle = None
                 try:
                     microcycle = (
@@ -33284,13 +33483,19 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 except Exception:
                     microcycle = None
                 if not microcycle:
-                    microcycle = _get_or_create_inbox_microcycle(primary_team)
+                    title_hint = ''
+                    try:
+                        mc_num = int((session_header or {}).get('microcycle_number') or 0)
+                    except Exception:
+                        mc_num = 0
+                    if mc_num:
+                        title_hint = f'Microciclo Nº{mc_num}'
+                    microcycle = _get_or_create_week_microcycle(primary_team, session_date, title_hint=title_hint) or _get_or_create_inbox_microcycle(primary_team)
                 if not microcycle:
                     raise ValueError('No se pudo preparar el microciclo destino.')
 
                 focus = str(getattr(doc, 'title', '') or f'Sesión importada #{doc.id}').strip()[:140] or f'Sesión importada #{doc.id}'
-                # Guardamos un marcador en `content.notes` para idempotencia/dedupe.
-                content = _serialize_session_plan_fields({'notes': f'imported_doc_id:{int(doc.id)}'})
+                content = _serialize_session_plan_fields(plan_fields)
 
                 session_obj = None
                 created = False
@@ -33312,7 +33517,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                         session_obj = TrainingSession.objects.create(
                             microcycle=microcycle,
                             session_date=session_date,
-                            start_time=None,
+                            start_time=(session_header.get('time') if isinstance(session_header.get('time'), time) else None),
                             duration_minutes=90,
                             intensity=TrainingSession.INTENSITY_MEDIUM,
                             focus=focus,
@@ -33321,8 +33526,26 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             order=next_order,
                         )
                         created = True
+
                 if not session_obj:
                     raise ValueError('No se pudo crear la sesión desde el PDF importado.')
+
+                # Ajusta focus a un título "de sistema" si el PDF trae MD/sesión (solo al crear).
+                if created and session_header:
+                    try:
+                        md = session_header.get('md')
+                        sess_no = session_header.get('session_number')
+                        md_label = ''
+                        if isinstance(md, int):
+                            md_label = 'MD' if md == 0 else f'MD{md:+d}'.replace('MD+-', 'MD-')
+                        if isinstance(sess_no, int) and sess_no > 0:
+                            pretty = f'{md_label} · Sesión {sess_no}' if md_label else f'Sesión {sess_no}'
+                            pretty = pretty.strip()[:140]
+                            if pretty:
+                                session_obj.focus = pretty
+                                session_obj.save(update_fields=['focus'])
+                    except Exception:
+                        pass
 
                 # Auto-convocatoria (igual que sesiones manuales).
                 if created:
@@ -33425,6 +33648,23 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             order=base_order + idx,
                             notes=f'Importada desde sesión PDF #{doc.id}',
                         )
+                        # Aplica análisis del PDF al layout (task_sheet, tags, materiales detectados, etc.)
+                        # para que la ficha de sesión quede igual que una tarea "analizada".
+                        if isinstance(analysis, dict) and analysis:
+                            try:
+                                _apply_analysis_to_task(new_task, analysis)
+                            except Exception:
+                                pass
+                            try:
+                                _learn_task_blueprint_from_pdf_import(
+                                    team=primary_team,
+                                    task=new_task,
+                                    analysis=analysis,
+                                    scope_key=scope_key,
+                                    actor_username=(getattr(request.user, 'username', '') or ''),
+                                )
+                            except Exception:
+                                pass
                         preview_bytes = b''
                         payload = preview_payloads[min(idx - 1, len(preview_payloads) - 1)] if preview_payloads else None
                         if payload:
@@ -43081,11 +43321,13 @@ def analysis_video_export_stream(request, export_id):
             ext = '.mp4'
     if not ext:
         ext = '.mp4'
+    want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
     return _file_field_stream_with_range(
         request,
         export.file,
         content_type=mime or 'video/mp4',
         filename=f'export-{export.id}{ext}',
+        as_attachment=want_download,
     )
 
 
@@ -46191,6 +46433,224 @@ def _video_studio_try_transcode_export_to_mp4(uploaded_file):
         except Exception:
             pass
         return uploaded_file, mime_type, filename, [in_path, out_path]
+
+
+def _video_studio_cut_source_to_mp4(*, source_path: str, start_s: float, end_s: float, base_name: str = 'export'):
+    """
+    Corta un segmento desde un archivo de vídeo local (RivalVideo.video) y genera MP4 (H.264/AAC).
+
+    Devuelve: (file_obj, mime_type, filename, cleanup_paths)
+    """
+    src = str(source_path or '').strip()
+    if not src:
+        raise ValueError('source_path requerido')
+    start = max(0.0, float(start_s or 0.0))
+    end = max(0.0, float(end_s or 0.0))
+    if end <= start:
+        raise ValueError('OUT debe ser mayor que IN')
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        raise RuntimeError('FFmpeg no disponible')
+
+    duration = max(0.01, end - start)
+    safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'export'
+
+    tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-cut-{safe_base}-', suffix='.mp4', delete=False)
+    out_path = tmp_out.name
+    tmp_out.close()
+
+    try:
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-ss',
+            f'{start:.3f}',
+            '-t',
+            f'{duration:.3f}',
+            '-i',
+            src,
+            '-map',
+            '0:v:0',
+            '-map',
+            '0:a:0?',
+            '-c:v',
+            'libx264',
+            '-pix_fmt',
+            'yuv420p',
+            '-preset',
+            'veryfast',
+            '-crf',
+            '23',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+
+        from django.core.files import File  # noqa: WPS433
+        handle = open(out_path, 'rb')
+        out_name = f'{safe_base}.mp4'
+        return File(handle, name=out_name), 'video/mp4', out_name, [out_path]
+    except Exception:
+        try:
+            logger.exception('Video Studio: no se pudo cortar MP4 en servidor')
+        except Exception:
+            pass
+        try:
+            os.unlink(out_path)
+        except Exception:
+            pass
+        raise
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_export_server_api(request):
+    """
+    Export en servidor (MP4) a partir de un clip guardado o del IN/OUT actual.
+
+    JSON:
+    - video_id (int)
+    - clip_id (int, opcional)
+    - in_s, out_s (float, opcional si clip_id)
+    - title (str, opcional)
+    - valid_days (int, opcional)
+    - password (str, opcional)
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    clip_id = _parse_int(data.get('clip_id'))
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180)
+    validity_days = _parse_int(data.get('valid_days')) or 14
+    validity_days = max(1, min(validity_days, 60))
+    password = (data.get('password') or '').strip()
+
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
+
+    clip = None
+    start_s = None
+    end_s = None
+    if clip_id:
+        clip = VideoClip.objects.filter(id=int(clip_id), team=primary_team, video_id=int(video.id)).first()
+        if not clip:
+            return JsonResponse({'ok': False, 'error': 'Clip no encontrado.'}, status=404)
+        start_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
+        end_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+        if not title:
+            title = _sanitize_task_text(str(getattr(clip, 'title', '') or '').strip(), multiline=False, max_len=180) or f'Clip {clip.id}'
+    else:
+        try:
+            start_s = float(data.get('in_s') or 0.0)
+            end_s = float(data.get('out_s') or 0.0)
+        except Exception:
+            start_s = 0.0
+            end_s = 0.0
+
+    if end_s is None or start_s is None or float(end_s) <= float(start_s):
+        return JsonResponse({'ok': False, 'error': 'Define IN/OUT (o clip_id).'}, status=400)
+
+    duration = float(end_s) - float(start_s)
+    max_seconds = float(getattr(settings, 'ANALYSIS_VIDEO_SERVER_EXPORT_MAX_SECONDS', 0) or 0) or (20 * 60.0)
+    if duration > max_seconds:
+        return JsonResponse({'ok': False, 'error': f'El export supera el máximo permitido ({int(max_seconds)}s).'}, status=400)
+
+    if not getattr(video, 'video', None):
+        return JsonResponse({'ok': False, 'error': 'Este vídeo no está subido como MP4. Sube el archivo para exportar en servidor.'}, status=400)
+    try:
+        source_path = str(video.video.path or '').strip()
+    except Exception:
+        source_path = ''
+    if not source_path:
+        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}, status=500)
+
+    try:
+        file_obj, mime_type, out_name, cleanup_paths = _video_studio_cut_source_to_mp4(
+            source_path=source_path,
+            start_s=float(start_s),
+            end_s=float(end_s),
+            base_name=title or f'export-{video_id}',
+        )
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except RuntimeError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=503)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo generar el MP4 en servidor.'}, status=500)
+
+    if not mime_type:
+        mime_type = mimetypes.guess_type(str(out_name or getattr(file_obj, 'name', '') or ''))[0] or 'video/mp4'
+
+    try:
+        asset = VideoExportAsset.objects.create(
+            team=primary_team,
+            video=video,
+            clip=clip,
+            title=title or (f'Export {video_id}' if video_id else 'Export vídeo'),
+            file=file_obj,
+            mime_type=str(mime_type or '').strip().lower()[:80],
+            created_by=request.user.get_username() if request.user.is_authenticated else '',
+        )
+    finally:
+        try:
+            if hasattr(file_obj, 'close'):
+                file_obj.close()
+        except Exception:
+            pass
+        for p in (cleanup_paths or []):
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+
+    link = ShareLink.objects.create(
+        token=ShareLink.generate_token(),
+        kind=ShareLink.KIND_VIDEO_EXPORT,
+        payload={'export_id': int(asset.id)},
+        password_hash=make_password(password) if password else '',
+        expires_at=timezone.now() + timedelta(days=validity_days),
+        created_by=request.user.get_username() if request.user.is_authenticated else '',
+        created_by_user=request.user if request.user.is_authenticated else None,
+        is_active=True,
+    )
+    share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    return JsonResponse(
+        {
+            'ok': True,
+            'id': int(asset.id),
+            'url': share_url,
+            'download_url': f'{share_url}?download=1',
+            'expires_at': link.expires_at,
+            'mime_type': str(getattr(asset, 'mime_type', '') or '').strip().lower(),
+            'format': 'mp4',
+        }
+    )
 
 
 @login_required

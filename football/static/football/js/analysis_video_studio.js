@@ -44,6 +44,7 @@
 	    const btnOut = document.getElementById('vs-mark-out');
 	    const btnExportSeg = document.getElementById('vs-export-seg');
 	    const btnExportShare = document.getElementById('vs-export-share');
+	    const btnExportServer = document.getElementById('vs-export-server');
 	    const btnExportRetry = document.getElementById('vs-export-retry');
 	    const btnRecord = document.getElementById('vs-record');
 	    const btnSnap = document.getElementById('vs-snap');
@@ -103,6 +104,7 @@
 	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
 	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
+	    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
 	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
@@ -1883,6 +1885,62 @@
 	      const coll = safeText(clipCollectionInput?.value, '').slice(0, 120);
 	      const t = baseTitle ? (coll ? `${baseTitle} · ${coll}` : baseTitle) : `Export ${fmtTimeShort(start)}-${fmtTimeShort(end)}`;
 	      return await startRecording({ from: start, to: end, destination: 'upload', uploadTitle: t, uploadClipId: activeClipId || 0 });
+	    });
+
+	    btnExportServer?.addEventListener('click', async () => {
+	      if (!exportServerUrl) {
+	        setStatus('No hay endpoint para MP4 server.', true);
+	        return;
+	      }
+	      const a = Number(inInput?.value || 0) || 0;
+	      const b = Number(outInput?.value || 0) || 0;
+	      const start = Math.max(0, Math.min(a, b));
+	      const end = Math.max(a, b);
+	      if (!end || end <= start) {
+	        setStatus('Define IN/OUT primero.', true);
+	        return;
+	      }
+	      const baseTitle = safeText(clipTitleInput?.value, '').slice(0, 180);
+	      const coll = safeText(clipCollectionInput?.value, '').slice(0, 120);
+	      const t = baseTitle ? (coll ? `${baseTitle} · ${coll}` : baseTitle) : `Clip ${fmtTimeShort(start)}-${fmtTimeShort(end)}`;
+
+	      try {
+	        btnExportServer.disabled = true;
+	        setStatus('Generando MP4 en servidor…');
+	        const payload = { video_id: videoId || 0, in_s: start, out_s: end, title: t };
+	        if (activeClipId) payload.clip_id = activeClipId;
+	        const resp = await fetch(exportServerUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify(payload),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok || !data?.url) {
+	          setStatus(data?.error || 'No se pudo exportar MP4 en servidor.', true);
+	          return;
+	        }
+	        const url = String(data.url);
+	        const downloadUrl = String(data.download_url || url);
+	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+	        lastExportShareUrl = url;
+	        try {
+	          if (navigator.clipboard?.writeText) {
+	            await navigator.clipboard.writeText(downloadUrl);
+	            setStatus('MP4 server listo. Link copiado.');
+	          } else {
+	            setStatus('MP4 server listo. Copia el link.');
+	            window.prompt('Copia este enlace:', downloadUrl);
+	          }
+	        } catch (e) {
+	          window.prompt('Copia este enlace:', downloadUrl);
+	        }
+	        refreshShareLinks();
+	      } catch (e) {
+	        setStatus('Error exportando MP4 en servidor.', true);
+	      } finally {
+	        btnExportServer.disabled = false;
+	      }
 	    });
 
 	    btnExportRetry?.addEventListener('click', async () => {
