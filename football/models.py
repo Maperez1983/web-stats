@@ -1908,6 +1908,31 @@ class VideoVoiceoverAsset(models.Model):
         return self.title or f'Voiceover {self.id}'
 
 
+class VideoMusicAsset(models.Model):
+    """
+    Música/BGM subida para mezclarla en exports del Video Studio.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_music_assets')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='music_assets')
+    title = models.CharField(max_length=180, blank=True)
+    file = models.FileField(upload_to='video-music/')
+    mime_type = models.CharField(max_length=80, blank=True)
+    duration_ms = models.IntegerField(default=0)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['video', '-created_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Music {self.id}'
+
+
 class VideoInboxItem(models.Model):
     """
     Elemento compartido internamente (sin enlaces públicos) para staff.
@@ -2167,6 +2192,81 @@ class ShareLink(models.Model):
 
     def __str__(self):
         return f'{self.kind} · {self.created_at:%Y-%m-%d %H:%M}'
+
+
+class VideoStudioExportJob(models.Model):
+    """
+    Job asíncrono de export (MP4) para Video Studio.
+
+    Se usa para evitar timeouts en exports largos (playlist/timeline) y permitir progreso/cancelación.
+    """
+
+    KIND_PLAYLIST_MP4 = 'playlist_mp4'
+    KIND_CHOICES = [
+        (KIND_PLAYLIST_MP4, 'Playlist MP4'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_ERROR = 'error'
+    STATUS_CANCELED = 'canceled'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_RUNNING, 'En progreso'),
+        (STATUS_DONE, 'Completado'),
+        (STATUS_ERROR, 'Error'),
+        (STATUS_CANCELED, 'Cancelado'),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_export_jobs')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='export_jobs')
+    kind = models.CharField(max_length=40, choices=KIND_CHOICES, default=KIND_PLAYLIST_MP4)
+    payload = models.JSONField(default=dict, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    progress = models.PositiveIntegerField(default=0)
+    message = models.CharField(max_length=220, blank=True)
+    error = models.TextField(blank=True)
+    cancel_requested = models.BooleanField(default=False)
+
+    export_asset = models.ForeignKey(
+        'VideoExportAsset',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='jobs',
+    )
+    share_link = models.ForeignKey(
+        'ShareLink',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_export_jobs',
+    )
+
+    created_by = models.CharField(max_length=80, blank=True)
+    created_by_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_export_jobs',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['team', 'status', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'VSJob {self.id} · {self.kind} · {self.status}'
 
 
 class AuditEvent(models.Model):
