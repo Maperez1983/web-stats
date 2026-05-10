@@ -190,19 +190,21 @@
         position: absolute;
         right: -8px;
         bottom: -8px;
-        min-width: 30px;
-        height: 26px;
+        min-width: 34px;
+        height: 30px;
         padding: 0 0.5rem;
         border-radius: 999px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.72rem;
+        font-size: 0.88rem;
         font-weight: 950;
         letter-spacing: 0.04em;
-        border: 1px solid rgba(244, 180, 0, 0.46);
-        background: rgba(244, 180, 0, 0.14);
-        color: rgba(255, 242, 199, 0.96);
+        border: 1px solid rgba(250, 204, 21, 0.78);
+        background: rgba(250, 204, 21, 0.26);
+        color: rgba(255, 248, 228, 0.98);
+        text-shadow: 0 1px 0 rgba(2, 6, 23, 0.85);
+        box-shadow: 0 10px 20px rgba(2, 6, 23, 0.45);
       }
       .player-card h3 {
         margin: 0;
@@ -421,15 +423,18 @@
                     <div class="broadcast-kpi"><div class="k">% Part.</div><div class="v">{{ card.participation_pct|default:0|floatformat:0 }}</div></div>
                     <div class="broadcast-kpi"><div class="k">% Disp.</div><div class="v">{{ card.availability_pct|default:0|floatformat:0 }}</div></div>
                   </div>
-	                  <div class="mini-kpis">
-	                    <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
-	                    <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
-	                    <span class="mini-kpi">G+A {{ card.goal_contrib|default:0 }}</span>
-	                    {% if card.shot_attempts or card.shots_on_target %}<span class="mini-kpi">TAP {{ card.shots_on_target|default:0 }}/{{ card.shot_attempts|default:0 }}</span>{% endif %}
-	                    {% if card.duels_total %}<span class="mini-kpi">Duel {{ card.duels_won|default:0 }}/{{ card.duels_total|default:0 }}</span>{% endif %}
-	                    {% if card.aerial_duels_total %}<span class="mini-kpi">Aéreo {{ card.aerial_duels_won|default:0 }}/{{ card.aerial_duels_total|default:0 }}</span>{% endif %}
-	                    {% if card.key_passes_completed %}<span class="mini-kpi">KP {{ card.key_passes_completed|default:0 }}</span>{% endif %}
-	                    {% if card.goalkeeper_saves %}<span class="mini-kpi">Par {{ card.goalkeeper_saves|default:0 }}</span>{% endif %}
+		                  <div class="mini-kpis">
+		                    <span class="mini-kpi">PJ {{ card.pj|default:0 }}</span>
+		                    <span class="mini-kpi">Min {{ card.minutes|default:0 }}</span>
+		                    <span class="mini-kpi" title="Goles">⚽ {{ card.goals|default:0 }}</span>
+		                    <span class="mini-kpi" title="Asistencias">🅰️ {{ card.assists|default:0 }}</span>
+		                    <span class="mini-kpi" title="Tarjetas amarillas">🟨 {{ card.yellow_cards|default:0 }}</span>
+		                    <span class="mini-kpi" title="Tarjetas rojas">🟥 {{ card.red_cards|default:0 }}</span>
+		                    {% if card.shot_attempts or card.shots_on_target %}<span class="mini-kpi">TAP {{ card.shots_on_target|default:0 }}/{{ card.shot_attempts|default:0 }}</span>{% endif %}
+		                    {% if card.duels_total %}<span class="mini-kpi">Duel {{ card.duels_won|default:0 }}/{{ card.duels_total|default:0 }}</span>{% endif %}
+		                    {% if card.aerial_duels_total %}<span class="mini-kpi">Aéreo {{ card.aerial_duels_won|default:0 }}/{{ card.aerial_duels_total|default:0 }}</span>{% endif %}
+		                    {% if card.key_passes_completed %}<span class="mini-kpi">KP {{ card.key_passes_completed|default:0 }}</span>{% endif %}
+		                    {% if card.goalkeeper_saves %}<span class="mini-kpi">Par {{ card.goalkeeper_saves|default:0 }}</span>{% endif %}
 	                    <span class="mini-kpi">% {{ card.success_rate|default:0 }}</span>
 	                    {% if card.actions_per90 %}<span class="mini-kpi">A/90 {{ card.actions_per90|default:0 }}</span>{% endif %}
 	                  </div>
