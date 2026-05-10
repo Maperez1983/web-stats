@@ -18120,18 +18120,39 @@ def match_action_page(request):
         else:
             message = "Completa el jugador y el tipo de acción."
     # Persistencia de registro en vivo:
-    # prioriza siempre las acciones pendientes del partido activo (touch-field)
-    # para que al recargar no "desaparezcan" hasta guardar/finalizar.
+    # - Mientras el partido está activo, mostramos pendientes (touch-field) y también las ya guardadas
+    #   (touch-field-final) para que el usuario vea "qué se ha guardado" tras pulsar Guardar.
+    # - Orden: pendientes primero (más recientes), luego guardadas (más recientes).
     if active_match:
-        recent_events = (
-            MatchEvent.objects.filter(
-                match=active_match,
-                source_file='registro-acciones',
-                system='touch-field',
+        try:
+            from django.db.models import Case, IntegerField, Value, When  # noqa: WPS433 (local import)
+
+            system_order = Case(
+                When(system='touch-field', then=Value(0)),
+                When(system='touch-field-final', then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
             )
-            .select_related('player')
-            .order_by('-created_at', '-id')[:120]
-        )
+            recent_events = (
+                MatchEvent.objects.filter(
+                    match=active_match,
+                    source_file='registro-acciones',
+                    system__in=['touch-field', 'touch-field-final'],
+                )
+                .select_related('player')
+                .annotate(_sys_order=system_order)
+                .order_by('_sys_order', '-id')[:120]
+            )
+        except Exception:
+            recent_events = (
+                MatchEvent.objects.filter(
+                    match=active_match,
+                    source_file='registro-acciones',
+                    system__in=['touch-field', 'touch-field-final'],
+                )
+                .select_related('player')
+                .order_by('-created_at', '-id')[:120]
+            )
     else:
         recent_match_ids = list(
             Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))

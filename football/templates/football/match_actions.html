@@ -3678,18 +3678,23 @@
             <section class="history-panel">
               <h3>Historial reciente</h3>
               <div class="history-grid" id="history-list">
-              {% for event in recent_events %}
-	              <article class="history-item" data-event-id="{{ event.id }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
-                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
-                {% with event_player=event.player %}
-                <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador"|upper }}</strong>
-                {% endwith %}
-                <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
-                <div class="history-actions">
-                  <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
-                </div>
-              </article>
-              {% empty %}
+	              {% for event in recent_events %}
+		              <article class="history-item" data-event-id="{{ event.id }}" data-system="{{ event.system|default:'' }}"{% if event.player_id %} data-player-id="{{ event.player_id }}"{% endif %}>
+	                <span class="hist-minute">{{ event.minute|default:"??" }}'</span>
+                  {% if event.system == 'touch-field-final' %}
+                    <span class="pending-pill" style="background: rgba(47,125,50,0.16); border-color: rgba(47,125,50,0.35); color: rgba(226,255,232,0.92);">GUARDADA</span>
+                  {% endif %}
+	                {% with event_player=event.player %}
+	                <strong>#{{ event_player.number|default:"--" }} {{ event_player.name|default:"Jugador"|upper }}</strong>
+	                {% endwith %}
+	                <p class="hist-text">{{ event.event_type }} · {{ event.zone|default:"-" }} · {{ event.result|default:"" }}</p>
+	                <div class="history-actions">
+                    {% if event.system != 'touch-field-final' %}
+	                  <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+                    {% endif %}
+	                </div>
+	              </article>
+	              {% empty %}
               <article class="history-item">
                 <span class="hist-minute">—</span>
                 <strong>Sin acciones todavía</strong>

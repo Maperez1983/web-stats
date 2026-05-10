@@ -1231,12 +1231,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     applyQuickButton(btn);
   });
 
-  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, video_link = null }) => {
+  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, video_link = null, system = '' }) => {
     if (!historyList) return false;
     if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) return false;
     const item = document.createElement('article');
     item.className = 'history-item';
     if (pending) item.classList.add('is-offline-pending');
+    const sys = String(system || '').trim() || (pending ? 'offline' : 'touch-field');
+    if (sys) item.dataset.system = sys;
     if (player?.id) {
       item.dataset.playerId = String(player.id);
     }
@@ -1252,12 +1254,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const playerName = String(player?.name || 'EQUIPO').toUpperCase();
     item.innerHTML = `
       <span class="hist-minute">${minuteLabel}</span>
-      ${pending ? `<span class="pending-pill">PENDIENTE</span>` : ''}
+      ${pending ? `<span class="pending-pill">PENDIENTE</span>` : (sys === 'touch-field-final' ? `<span class="pending-pill" style="background: rgba(47,125,50,0.16); border-color: rgba(47,125,50,0.35); color: rgba(226,255,232,0.92);">GUARDADA</span>` : '')}
       <strong>#${playerNumber} ${playerName}</strong>
       <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
       <div class="history-actions">
         ${vTimeMs ? `<button type="button" class="history-replay" aria-label="Replay vídeo" data-vtime="${vTimeMs}" data-velapsed="${vElapsedMs}" data-vkickoff="${vKickoffMs}" data-vid="${vVideoId}" data-vclip="${vClipId}">🎬</button>` : ''}
-        <button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>
+        ${(sys === 'touch-field-final') ? '' : '<button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>'}
       </div>
     `;
     if (event_id) item.dataset.eventId = event_id;
@@ -1279,6 +1281,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const minute = parseInt(String(minuteText || '').replace(/[^\d]/g, ''), 10);
     const text = item.querySelector('.hist-text')?.textContent || '';
     const [action = '', zone = '', result = ''] = text.split('·').map((part) => part.trim());
+    const sys = String(item.dataset.system || '').trim();
     registerLiveEvent({
       id: item.dataset.eventId || null,
       action,
@@ -1286,6 +1289,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       result,
       minute: Number.isFinite(minute) ? minute : null,
     });
+    // Si el item viene renderizado como "guardado", aseguramos que el botón de delete no actúe.
+    try {
+      if (sys === 'touch-field-final') {
+        item.querySelectorAll('.history-delete').forEach((btn) => btn.remove());
+      }
+    } catch (e) {}
   });
 
   historyList.addEventListener('click', async (event) => {
@@ -1385,7 +1394,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
 
   if (undoLastActionBtn) {
     undoLastActionBtn.addEventListener('click', async () => {
-      const latestArticle = historyList?.querySelector('[data-event-id]');
+      const items = Array.from(historyList?.querySelectorAll?.('[data-event-id]') || []);
+      const latestArticle = items.find((el) => {
+        const sys = String(el?.dataset?.system || '').trim();
+        // Solo deshacer pendientes (server) u offline locales.
+        return sys !== 'touch-field-final';
+      });
       if (!latestArticle) {
         showPageStatus('No hay acciones pendientes para deshacer.', 'warning', 2600);
         return;
