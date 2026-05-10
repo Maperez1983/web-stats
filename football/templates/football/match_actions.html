@@ -1200,7 +1200,8 @@
         margin-top: 0.5rem;
         flex-wrap: wrap;
       }
-      .match-info-card .match-info-actions button {
+      .match-info-card .match-info-actions button,
+      .match-info-card .match-info-actions a {
         background: transparent;
         border: 1px solid rgba(255, 255, 255, 0.35);
         color: #f8fafc;
@@ -1210,6 +1211,7 @@
         font-size: 0.65rem;
         letter-spacing: 0.2em;
         text-transform: uppercase;
+        text-decoration: none;
       }
       .match-info-card .match-info-actions button.save,
       .match-info-card .match-info-actions button.reset {
@@ -2852,6 +2854,9 @@
                   <button type="button" id="match-info-edit-btn">Editar</button>
                   <button type="button" id="match-info-save-btn" class="save">Guardar</button>
                   <button type="button" id="match-info-reset-btn" class="reset">Restablecer</button>
+                  {% if edit_match_url %}
+                  <a href="{{ edit_match_url }}" target="_blank" rel="noopener">Editar partido</a>
+                  {% endif %}
                 </div>
                 <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
                 <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">

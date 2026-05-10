@@ -18301,6 +18301,12 @@ def match_action_page(request):
         _team_match_queryset(primary_team).order_by('-date', '-id')
     )
     selected_match_id = active_match.id if active_match else None
+    edit_match_url = ''
+    if active_match and getattr(active_match, 'id', None):
+        try:
+            edit_match_url = reverse('match-editor', args=[int(active_match.id)]) + f'?team={int(primary_team.id)}'
+        except Exception:
+            edit_match_url = ''
     return render(
         request,
         'football/match_actions.html',
@@ -18337,6 +18343,7 @@ def match_action_page(request):
             'can_manage_workspace': can_manage_workspace,
             'active_workspace': active_ws,
             'matchday_role_key': _matchday_quick_buttons_role_key(request.user),
+            'edit_match_url': edit_match_url,
         },
     )
 
