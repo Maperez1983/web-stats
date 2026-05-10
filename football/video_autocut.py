@@ -274,9 +274,110 @@ def _pick_top_times(points: list[tuple[float, float]], *, top_n: int, min_gap_s:
     return chosen
 
 
+def _moving_average(values: list[float], window: int) -> list[float]:
+    if not values:
+        return []
+    w = max(1, int(window or 1))
+    if w <= 1:
+        return [float(v) for v in values]
+    out: list[float] = []
+    acc = 0.0
+    q: list[float] = []
+    for v in values:
+        fv = float(v)
+        q.append(fv)
+        acc += fv
+        if len(q) > w:
+            acc -= q.pop(0)
+        out.append(float(acc / max(1, len(q))))
+    return out
+
+
+def _segments_from_series(
+    times: list[float],
+    scores: list[float],
+    *,
+    thr_high: float,
+    thr_low: float,
+    min_len_s: float = 2.0,
+    max_len_s: float = 60.0,
+    merge_gap_s: float = 3.0,
+) -> list[tuple[float, float, float, float]]:
+    """
+    Extrae segmentos continuos de alta intensidad usando histéresis (high/low).
+
+    Devuelve lista: (start_s, end_s, peak_t, peak_score).
+    """
+    if not times or not scores or len(times) != len(scores):
+        return []
+    hi = float(thr_high or 0.0)
+    lo = float(thr_low or 0.0)
+    if lo > hi:
+        lo, hi = hi, lo
+
+    started = False
+    start_t = 0.0
+    peak_t = 0.0
+    peak_s = -1.0
+    raw: list[tuple[float, float, float, float]] = []
+    for t, s in zip(times, scores, strict=False):
+        tt = float(t)
+        ss = float(s)
+        if not started:
+            if ss >= hi:
+                started = True
+                start_t = tt
+                peak_t = tt
+                peak_s = ss
+            continue
+        if ss > peak_s:
+            peak_s = ss
+            peak_t = tt
+        if ss < lo:
+            started = False
+            raw.append((float(start_t), float(tt), float(peak_t), float(peak_s)))
+    if started:
+        raw.append((float(start_t), float(times[-1]), float(peak_t), float(peak_s)))
+
+    cleaned: list[tuple[float, float, float, float]] = []
+    for a, b, pt, ps in raw:
+        if b < a:
+            a, b = b, a
+        dur = float(b - a)
+        if dur < float(min_len_s or 0.0):
+            continue
+        if float(max_len_s or 0.0) > 0 and dur > float(max_len_s):
+            half = float(max_len_s) / 2.0
+            a2 = max(float(a), float(pt) - half)
+            b2 = min(float(b), float(pt) + half)
+            if b2 - a2 >= float(min_len_s or 0.0):
+                a, b = a2, b2
+        cleaned.append((float(a), float(b), float(pt), float(ps)))
+
+    if not cleaned:
+        return []
+
+    cleaned.sort(key=lambda x: float(x[0]))
+    merged: list[tuple[float, float, float, float]] = []
+    cur_a, cur_b, cur_pt, cur_ps = cleaned[0]
+    for a, b, pt, ps in cleaned[1:]:
+        if float(a) - float(cur_b) <= float(merge_gap_s or 0.0):
+            cur_b = max(float(cur_b), float(b))
+            if float(ps) > float(cur_ps):
+                cur_ps = float(ps)
+                cur_pt = float(pt)
+            continue
+        merged.append((float(cur_a), float(cur_b), float(cur_pt), float(cur_ps)))
+        cur_a, cur_b, cur_pt, cur_ps = float(a), float(b), float(pt), float(ps)
+    merged.append((float(cur_a), float(cur_b), float(cur_pt), float(cur_ps)))
+    return merged
+
+
 def suggest_autocuts(
     video_path: str,
     *,
+    profile: str = 'balanced',
+    include_kinds: Iterable[str] | None = None,
     max_moments: int = 18,
     min_gap_s: float = 25.0,
     pre_s: float = 8.0,
@@ -338,20 +439,80 @@ def suggest_autocuts(
                 set_pieces.append((float(t), float(0.7 + 0.3 * m)))
             idle_count = 0
 
-    # Top general moments.
-    peaks = [(t, s) for (t, s, _a, _m) in combined]
-    chosen = _pick_top_times(peaks, top_n=int(max_moments), min_gap_s=float(min_gap_s), min_score=0.55)
+    prof = str(profile or 'balanced').strip().lower()
+    if prof not in {'balanced', 'highlights', 'tactical'}:
+        prof = 'balanced'
+    if prof == 'highlights':
+        p_hi = 92.0
+        min_score = 0.62
+        seg_min_len = 3.0
+        merge_gap = 4.0
+    elif prof == 'tactical':
+        p_hi = 80.0
+        min_score = 0.50
+        seg_min_len = 4.0
+        merge_gap = 2.5
+    else:
+        p_hi = 86.0
+        min_score = 0.55
+        seg_min_len = 3.0
+        merge_gap = 3.0
+
+    times = [t for (t, _s, _a, _m) in combined]
+    scores = [s for (_t, s, _a, _m) in combined]
+    scores_sm = _moving_average(scores, window=5)
+    thr_high = _percentile(scores_sm, p_hi)
+    thr_low = max(0.25, thr_high * 0.72)
+
+    segments = _segments_from_series(
+        times,
+        scores_sm,
+        thr_high=float(thr_high),
+        thr_low=float(thr_low),
+        min_len_s=float(seg_min_len),
+        max_len_s=80.0 if prof != 'highlights' else 55.0,
+        merge_gap_s=float(merge_gap),
+    )
+    seg_peaks = [(pt, ps) for (_a, _b, pt, ps) in segments]
+    chosen = _pick_top_times(seg_peaks, top_n=int(max_moments), min_gap_s=float(min_gap_s), min_score=float(min_score))
     chosen_set = _pick_top_times(set_pieces, top_n=max(4, int(max_moments // 4)), min_gap_s=35.0, min_score=0.72)
+
+    seg_by_peak: dict[float, tuple[float, float, float, float]] = {float(seg[2]): seg for seg in segments}
+
+    def _nearest_features(tt: float) -> tuple[float, float]:
+        if not combined:
+            return (0.0, 0.0)
+        best = 10**9
+        hit_a = 0.0
+        hit_m = 0.0
+        for t0, _s0, a0, m0 in combined:
+            d = abs(float(t0) - float(tt))
+            if d < best:
+                best = d
+                hit_a = float(a0)
+                hit_m = float(m0)
+        return (float(hit_a), float(hit_m))
+
+    def _classify(a: float, m: float, s: float) -> tuple[str, str]:
+        if a >= 0.93 and s >= 0.86:
+            return ('goal', 'Auto · Gol (posible)')
+        if m >= 0.84 and s >= 0.72:
+            return ('shot', 'Auto · Finalización (posible)')
+        if m >= 0.92 and a <= 0.58 and s >= 0.72:
+            return ('press', 'Auto · Presión / transición (posible)')
+        return ('tag', 'Auto · Acción (revisar)')
 
     moments: list[AutoCutMoment] = []
     for t, s in chosen:
+        a, m = _nearest_features(float(t))
+        kind, label = _classify(float(a), float(m), float(s))
         moments.append(
             AutoCutMoment(
                 time_s=float(t),
-                kind='tag',
+                kind=str(kind),
                 score=float(s),
-                label='Auto · Momento clave',
-                meta={'source': 'audio+motion', 'pre_s': float(pre_s), 'post_s': float(post_s)},
+                label=str(label),
+                meta={'source': 'segment_peak', 'pre_s': float(pre_s), 'post_s': float(post_s), 'a': float(a), 'm': float(m), 'profile': prof},
             )
         )
     for t, s in chosen_set:
@@ -361,7 +522,7 @@ def suggest_autocuts(
                 kind='abp',
                 score=float(s),
                 label='Auto · ABP / reinicio (posible)',
-                meta={'source': 'motion_transition', 'pre_s': float(pre_s), 'post_s': float(post_s)},
+                meta={'source': 'motion_transition', 'pre_s': float(pre_s), 'post_s': float(post_s), 'profile': prof},
             )
         )
 
@@ -376,12 +537,31 @@ def suggest_autocuts(
             break
     dedup.sort(key=lambda m: float(m.time_s))
 
+    allowed = {'tag', 'abp', 'goal', 'shot', 'press', 'turnover', 'note'}
+    include_set = None
+    if include_kinds is not None:
+        try:
+            include_set = {str(x or '').strip().lower() for x in include_kinds if str(x or '').strip()}
+            include_set = {k for k in include_set if k in allowed}
+        except Exception:
+            include_set = None
+        if not include_set:
+            include_set = None
+
     # Clip ranges.
     out_moments = []
     for m in dedup:
+        if include_set is not None and str(m.kind).lower() not in include_set:
+            continue
         t = float(m.time_s)
-        start = max(0.0, t - float(pre_s))
-        end = t + float(post_s)
+        seg = seg_by_peak.get(float(m.time_s)) if 'seg_by_peak' in locals() else None
+        if seg:
+            seg_a, seg_b, _pt, _ps = seg
+            start = max(0.0, float(seg_a) - float(pre_s))
+            end = float(seg_b) + float(post_s)
+        else:
+            start = max(0.0, t - float(pre_s))
+            end = t + float(post_s)
         if scan_limit and scan_limit > 0:
             end = min(float(scan_limit), end)
         out_moments.append(
