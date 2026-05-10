@@ -12746,6 +12746,9 @@
       loadCanvasSnapshot(sourceState, () => {
         renderTimeline();
         if (options.pushHistory) pushHistory();
+        // Importante: al rehidratar desde JSON (abrir tarea, undo/redo, cambiar paso),
+        // el banco de jugadores debe recalcular "usados" con el canvas ya cargado.
+        try { schedulePlayerBankUpdate(); } catch (e) { /* ignore */ }
       }, { sourceWidth, sourceHeight });
     };
 	    const pushHistory = () => {
