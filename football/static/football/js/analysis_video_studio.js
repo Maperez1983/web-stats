@@ -5091,43 +5091,7 @@
       timelineToClipsBtn.disabled = true;
       let created = 0;
       try {
-        const buildAutofxOverlayForEvent = ({ kind, timeS }) => {
-          const k = safeText(kind, 'tag').toLowerCase();
-          const t = Number(timeS) || 0;
-          const w = Math.max(1, Number(fxEl?.width) || 1);
-          const h = Math.max(1, Number(fxEl?.height) || 1);
-          const minSide = Math.max(1, Math.min(w, h));
-          const mkSpot = ({ tIn, tOut, cx, cy, r, intensity = 0.68, feather = 0.18 }) => ({
-            id: 1,
-            uid: `autofx-${k}-${Math.round(t * 10)}`,
-            kind: 'spotlight',
-            t_in_s: Math.max(0, Number(tIn) || 0),
-            t_out_s: Math.max(0, Number(tOut) || 0),
-            fade_in_ms: 160,
-            fade_out_ms: 180,
-            cx: clamp(Number(cx) || (w * 0.5), 0, w),
-            cy: clamp(Number(cy) || (h * 0.5), 0, h),
-            r: clamp(Number(r) || (minSide * 0.22), 10, minSide * 0.9),
-            intensity: clamp(Number(intensity) || 0.68, 0.2, 0.9),
-            feather: clamp(Number(feather) || 0.18, 0.02, 0.6),
-          });
-
-          // FX sugeridos para que los clips ya salgan "marcados" al estilo software pro.
-          // El entrenador puede ajustar/añadir flechas/texto en el editor.
-          if (k === 'goal') {
-            return { objects: [], version: '5.3.0', fx: { layers: [mkSpot({ tIn: t - 1.2, tOut: t + 4.0, r: minSide * 0.26, intensity: 0.76, feather: 0.22 })] } };
-          }
-          if (k === 'shot') {
-            return { objects: [], version: '5.3.0', fx: { layers: [mkSpot({ tIn: t - 0.8, tOut: t + 2.5, r: minSide * 0.22, intensity: 0.72, feather: 0.20 })] } };
-          }
-          if (k === 'abp') {
-            return { objects: [], version: '5.3.0', fx: { layers: [mkSpot({ tIn: t - 1.0, tOut: t + 6.0, r: minSide * 0.30, intensity: 0.66, feather: 0.26 })] } };
-          }
-          if (k === 'press' || k === 'turnover') {
-            return { objects: [], version: '5.3.0', fx: { layers: [mkSpot({ tIn: t - 1.0, tOut: t + 3.2, r: minSide * 0.28, intensity: 0.62, feather: 0.28 })] } };
-          }
-          return { objects: [], version: '5.3.0', fx: { layers: [] } };
-        };
+        const buildAutofxOverlayForEvent = () => ({ objects: [], version: '5.3.0', fx: { layers: [] } });
 
         for (let i = 0; i < batch.length; i += 1) {
           setStatus(`Creando clips… (${i + 1}/${batch.length})`);

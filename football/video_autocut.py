@@ -255,6 +255,284 @@ def extract_motion_series(
     return out
 
 
+def extract_field_context_series(
+    video_path: str,
+    *,
+    sample_fps: float = 1.0,
+    resize_w: int = 160,
+    resize_h: int = 90,
+    max_seconds: float | None = None,
+) -> list[tuple[float, float, float]]:
+    """
+    Serie temporal ligera para ayudar a refinar cortes:
+    - green_ratio: % de píxeles "césped" (HSV)
+    - cut_score: diferencia frame-to-frame (proxy de corte/replay/cambio plano)
+
+    Devuelve: [(time_s, green_ratio, cut_score)].
+    """
+    ffmpeg = shutil.which('ffmpeg')
+    if not ffmpeg:
+        return []
+    fps = max(0.25, float(sample_fps or 1.0))
+    w = int(resize_w or 160)
+    h = int(resize_h or 90)
+    frame_size = max(1, w * h * 3)  # rgb24
+    vf = f'fps={fps},scale={w}:{h}:flags=fast_bilinear,format=rgb24'
+    cmd = [
+        ffmpeg,
+        '-nostdin',
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-i',
+        str(video_path),
+        '-an',
+        '-sn',
+        '-vf',
+        vf,
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'rgb24',
+        'pipe:1',
+    ]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603
+    out: list[tuple[float, float, float]] = []
+    prev_gray = None
+    idx = 0
+    try:
+        while proc.stdout:
+            buf = proc.stdout.read(frame_size)
+            if not buf or len(buf) < frame_size:
+                break
+            frame = np.frombuffer(buf, dtype=np.uint8)
+            if frame.size != frame_size:
+                break
+            frame = frame.reshape((h, w, 3))
+            t = float(idx) / float(fps)
+            idx += 1
+            if max_seconds is not None and t >= float(max_seconds):
+                break
+
+            # Green ratio in HSV.
+            try:
+                hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+                # Hue rango césped (aprox). S/V > 40 filtra grises.
+                lower = np.array([35, 40, 40], dtype=np.uint8)
+                upper = np.array([95, 255, 255], dtype=np.uint8)
+                mask = cv2.inRange(hsv, lower, upper)
+                green_ratio = float(np.mean(mask > 0))
+            except Exception:
+                green_ratio = 0.0
+
+            # Cut score: mean abs diff in grayscale.
+            try:
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+                if prev_gray is None:
+                    cut_score = 0.0
+                else:
+                    diff = cv2.absdiff(gray, prev_gray)
+                    cut_score = float(np.mean(diff) / 255.0)
+                prev_gray = gray
+            except Exception:
+                cut_score = 0.0
+
+            out.append((float(t), float(green_ratio), float(cut_score)))
+    finally:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+    return out
+
+
+def _ball_in_play_series(
+    ctx: list[tuple[float, float, float]],
+    *,
+    green_lo: float = 0.14,
+    green_hi: float = 0.34,
+    cut_penalty_thr: float = 0.22,
+) -> list[tuple[float, float]]:
+    """
+    Devuelve [(time_s, in_play_score)] en [0..1].
+
+    - Score alto si hay césped y no hay corte de plano.
+    """
+    out: list[tuple[float, float]] = []
+    for t, green, cut in ctx:
+        g = _clamp((float(green) - float(green_lo)) / max(1e-6, float(green_hi - green_lo)), 0.0, 1.0)
+        c = float(cut)
+        if c >= float(cut_penalty_thr):
+            # Penaliza cerca de cortes / replays.
+            g *= float(_clamp(1.0 - ((c - float(cut_penalty_thr)) / 0.25), 0.0, 1.0))
+        out.append((float(t), float(_clamp(g, 0.0, 1.0))))
+    return out
+
+
+def _scene_cut_times(ctx: list[tuple[float, float, float]]) -> list[float]:
+    """
+    Lista de tiempos (s) donde hay probabilidad de corte de plano.
+    """
+    if not ctx:
+        return []
+    cuts = [float(c) for (_t, _g, c) in ctx]
+    thr = max(0.20, _percentile(cuts, 95.0))
+    return [float(t) for (t, _g, c) in ctx if float(c) >= float(thr)]
+
+
+def _refine_clip_bounds(
+    *,
+    kind: str,
+    t_peak: float,
+    clip_in_s: float,
+    clip_out_s: float,
+    in_play: list[tuple[float, float]],
+    cut_times: list[float],
+    step_s: float = 1.0,
+) -> tuple[float, float, dict]:
+    """
+    Refina IN/OUT para que el clip represente acción real (no post-gol / paseos / replay).
+    """
+    k = str(kind or 'tag').strip().lower()
+    tp = float(max(0.0, t_peak))
+    start0 = float(max(0.0, clip_in_s))
+    end0 = float(max(start0 + 0.2, clip_out_s))
+
+    # Ventanas por tipo.
+    if k == 'goal':
+        # Para goles el "pico" suele venir tarde (celebración). Forzamos buscar IN más atrás
+        # y evitar quedarse con el saque de centro.
+        in_a, in_b = tp - 55.0, tp - 12.0
+        out_a, out_b = tp + 1.0, tp + 12.0
+        min_dur = 10.0
+    elif k == 'shot':
+        in_a, in_b = tp - 20.0, tp - 5.0
+        out_a, out_b = tp + 0.6, tp + 10.0
+        min_dur = 8.0
+    elif k == 'abp':
+        in_a, in_b = tp - 22.0, tp - 6.0
+        out_a, out_b = tp + 2.0, tp + 20.0
+        min_dur = 12.0
+    elif k == 'press' or k == 'turnover':
+        in_a, in_b = tp - 20.0, tp - 5.0
+        out_a, out_b = tp + 1.0, tp + 14.0
+        min_dur = 10.0
+    else:
+        in_a, in_b = tp - 18.0, tp - 5.0
+        out_a, out_b = tp + 1.0, tp + 14.0
+        min_dur = 10.0
+
+    # Índices en serie in_play (asumimos paso ~step_s).
+    times = [float(t) for (t, _s) in in_play]
+    scores = [float(s) for (_t, s) in in_play]
+    if not times or len(times) != len(scores):
+        return (start0, end0, {'refined': False, 'reason': 'no_series'})
+
+    def _idx_for_time(t: float) -> int:
+        # Aproximación: series uniformes.
+        i = int(round(float(t) / float(step_s)))
+        return max(0, min(len(times) - 1, i))
+
+    # Helper: busca runs de in_play >= thr durante run_len segundos.
+    def _find_run_start_latest(a: float, b: float, thr: float, run_len_s: float) -> float | None:
+        ia = _idx_for_time(max(0.0, a))
+        ib = _idx_for_time(max(0.0, b))
+        if ib <= ia:
+            return None
+        need = max(2, int(round(run_len_s / float(step_s))))
+        latest = None
+        # Iteramos hacia atrás para quedarnos con el inicio más cercano al desenlace.
+        for i in range(ib, ia, -1):
+            ok = True
+            # run que termine en i (incluye i)
+            for j in range(need):
+                kx = i - j
+                if kx < ia:
+                    ok = False
+                    break
+                if float(scores[kx]) < float(thr):
+                    ok = False
+                    break
+            if ok:
+                # inicio del run
+                latest = float(times[i - (need - 1)])
+                break
+        return latest
+
+    def _first_cut_after(t0: float, t1: float) -> float | None:
+        for ct in cut_times:
+            if float(ct) >= float(t0) and float(ct) <= float(t1):
+                return float(ct)
+        return None
+
+    # IN: último run estable de bola en juego.
+    in_thr = 0.60 if k == 'goal' else 0.62
+    run_len = 6.0 if k == 'goal' else (5.0 if k == 'abp' else 4.0)
+    in_run = _find_run_start_latest(in_a, in_b, thr=in_thr, run_len_s=run_len)
+    refined_in = start0
+    in_reason = 'keep'
+    if in_run is not None:
+        refined_in = max(0.0, float(in_run))
+        in_reason = 'ball_in_play_run'
+
+    # Si es gol y encontramos un corte fuerte cercano al pico, evitamos el post-evento:
+    # - si hay corte en (tp-3 .. tp+10), asumimos que el juego se rompe ahí (replay/celebración)
+    #   y hacemos OUT antes de ese corte.
+    if k == 'goal':
+        near_cut = _first_cut_after(tp - 3.0, tp + 10.0)
+        if near_cut is not None:
+            refined_out = min(refined_out, float(near_cut))
+            out_reason = f'{out_reason}|goal_near_cut'
+
+    # OUT: primer corte fuerte o caída de bola en juego, con guardrail de tiempo.
+    refined_out = end0
+    out_reason = 'keep'
+    cut_t = _first_cut_after(out_a, out_b)
+    if cut_t is not None:
+        refined_out = float(cut_t)
+        out_reason = 'scene_cut'
+    else:
+        # caída de in_play sostenida tras out_a
+        ia = _idx_for_time(out_a)
+        ib = _idx_for_time(out_b)
+        low_need = max(2, int(round(2.0 / float(step_s))))
+        for i in range(ia, ib):
+            ok_low = True
+            for j in range(low_need):
+                kx = i + j
+                if kx >= ib:
+                    ok_low = False
+                    break
+                if float(scores[kx]) >= 0.35:
+                    ok_low = False
+                    break
+            if ok_low:
+                refined_out = float(times[i])
+                out_reason = 'ball_out_play'
+                break
+
+    # Guardrails.
+    if refined_out <= refined_in + 4.0:
+        refined_out = max(refined_in + float(min_dur), refined_out, end0)
+        out_reason = f'{out_reason}|min_dur'
+    # Recorta para no irse a paseos.
+    max_len = 65.0 if k == 'abp' else 50.0
+    if refined_out - refined_in > max_len:
+        refined_out = refined_in + max_len
+        out_reason = f'{out_reason}|cap'
+
+    return (
+        float(refined_in),
+        float(max(refined_in + 0.2, refined_out)),
+        {
+            'refined': True,
+            'in_reason': in_reason,
+            'out_reason': out_reason,
+            'in_play_thr': 0.62,
+            'out_low_thr': 0.35,
+        },
+    )
+
 def _pick_top_times(points: list[tuple[float, float]], *, top_n: int, min_gap_s: float, min_score: float) -> list[tuple[float, float]]:
     """
     Selección greedy por score, respetando separación temporal.
@@ -384,6 +662,7 @@ def suggest_autocuts(
     pre_s: float = 8.0,
     post_s: float = 8.0,
     max_seconds_scan: float | None = None,
+    refine: bool = True,
 ) -> dict:
     """
     Genera momentos candidatos (timeline + clips) a partir de señales básicas:
@@ -402,6 +681,11 @@ def suggest_autocuts(
     # `sample_fps` bajo = más rápido. 1 fps suele ser suficiente para detectar cambios de ritmo
     # (celebraciones, saques, reinicios, etc.) sin tardar minutos en un partido completo.
     motion = extract_motion_series(video_path, sample_fps=1.0, max_seconds=scan_limit)
+    ctx = extract_field_context_series(video_path, sample_fps=1.0, max_seconds=scan_limit) if refine else []
+    in_play = _ball_in_play_series(ctx) if ctx else []
+    cut_times = _scene_cut_times(ctx) if ctx else []
+    # sample_fps fijo en extract_field_context_series
+    step_s = 1.0
 
     audio_t = [t for t, _ in audio]
     audio_db = [v for _, v in audio]
@@ -495,11 +779,14 @@ def suggest_autocuts(
         return (float(hit_a), float(hit_m))
 
     def _classify(a: float, m: float, s: float) -> tuple[str, str]:
-        if a >= 0.93 and s >= 0.86:
+        # Nota: el pico suele estar DESPUÉS del desenlace (celebración / reacción).
+        # 'goal' se usa como hipótesis para activar reglas de recorte fino.
+        if a >= 0.93 and s >= 0.84:
             return ('goal', 'Auto · Gol (posible)')
-        if m >= 0.84 and s >= 0.72:
+        if m >= 0.84 and s >= 0.70:
             return ('shot', 'Auto · Finalización (posible)')
-        if m >= 0.92 and a <= 0.58 and s >= 0.72:
+        # Turnover/press (ritmo alto pero sin explosión de audio).
+        if m >= 0.90 and a <= 0.62 and s >= 0.68:
             return ('press', 'Auto · Presión / transición (posible)')
         return ('tag', 'Auto · Acción (revisar)')
 
@@ -565,6 +852,31 @@ def suggest_autocuts(
             end = t + float(post_s)
         if scan_limit and scan_limit > 0:
             end = min(float(scan_limit), end)
+
+        refine_meta = {'refined': False}
+        if refine and in_play:
+            try:
+                r_in, r_out, refine_meta = _refine_clip_bounds(
+                    kind=str(m.kind),
+                    t_peak=float(t),
+                    clip_in_s=float(start),
+                    clip_out_s=float(end),
+                    in_play=in_play,
+                    cut_times=cut_times,
+                    step_s=float(step_s),
+                )
+                start, end = float(r_in), float(r_out)
+            except Exception:
+                refine_meta = {'refined': False, 'reason': 'refine_error'}
+
+        # Confianza simple (v1): score + refinamiento.
+        try:
+            conf = float(_clamp(0.35 + (0.65 * float(m.score)), 0.0, 1.0))
+            if refine_meta.get('refined'):
+                conf = float(_clamp(conf + 0.08, 0.0, 1.0))
+        except Exception:
+            conf = 0.5
+
         out_moments.append(
             {
                 'time_s': float(t),
@@ -573,7 +885,7 @@ def suggest_autocuts(
                 'label': str(m.label),
                 'clip_in_s': float(start),
                 'clip_out_s': float(max(start + 0.2, end)),
-                'meta': dict(m.meta or {}),
+                'meta': dict(m.meta or {}) | {'refine': refine_meta, 'confidence': float(conf)},
             }
         )
 

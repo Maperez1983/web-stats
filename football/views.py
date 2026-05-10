@@ -48515,6 +48515,7 @@ def _video_studio_apply_autocut_suggestions(
             pre_s=float(pre_s),
             post_s=float(post_s),
             max_seconds_scan=max_scan_s,
+            refine=True,
         )
     except Exception:
         return {'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}
@@ -48732,6 +48733,9 @@ def analysis_video_studio_autocut_api(request):
     if max_scan_s is not None:
         max_scan_s = max(60.0, min(float(max_scan_s), 140.0 * 60.0))
 
+    raw_refine = str(data.get('refine') if data.get('refine') is not None else '1').strip().lower()
+    refine = raw_refine in {'1', 'true', 'yes', 'on'}
+
     profile = str(data.get('profile') or 'balanced').strip().lower()
     if profile not in {'balanced', 'highlights', 'tactical'}:
         profile = 'balanced'
@@ -48763,6 +48767,7 @@ def analysis_video_studio_autocut_api(request):
             pre_s=float(pre_s),
             post_s=float(post_s),
             max_seconds_scan=max_scan_s,
+            refine=bool(refine),
         )
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}, status=500)
