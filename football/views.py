@@ -2600,17 +2600,37 @@ def resolve_player_photo_static_path(player):
     if not players_dir.exists():
         return ''
 
+    team_obj = getattr(player, 'team', None)
+    team_id = getattr(team_obj, 'id', None)
+    team_slug = str(getattr(team_obj, 'slug', '') or '').strip()
+    try:
+        is_primary_team = bool(getattr(team_obj, 'is_primary', False))
+    except Exception:
+        is_primary_team = False
+
+    # Multicategoría: evita mezclar fotos entre equipos con el mismo dorsal.
+    # Si existen carpetas por equipo, las usamos para desambiguar:
+    #   static/football/images/players/team-<id>/
+    #   static/football/images/players/<team_slug>/
+    team_dirs = []
+    try:
+        if team_id:
+            team_dirs.append(players_dir / f'team-{int(team_id)}')
+        if team_slug:
+            team_dirs.append(players_dir / team_slug)
+    except Exception:
+        team_dirs = []
+    team_dirs = [d for d in team_dirs if d and d.exists()]
+
     name_slug = slugify(player.name or '')
     number_value = player.number if player.number is not None else ''
+    id_candidates = [
+        f'player-{player.id}.png',
+        f'player-{player.id}.jpg',
+        f'player-{player.id}.jpeg',
+        f'player-{player.id}.webp',
+    ]
     candidates = []
-    candidates.extend(
-        [
-            f'player-{player.id}.png',
-            f'player-{player.id}.jpg',
-            f'player-{player.id}.jpeg',
-            f'player-{player.id}.webp',
-        ]
-    )
     if name_slug and number_value != '':
         candidates.extend(
             [
@@ -2637,14 +2657,37 @@ def resolve_player_photo_static_path(player):
             ]
         )
 
+    def _resolve_in_dirs(filename: str, dirs: list) -> str:
+        for base_dir in dirs:
+            file_path = base_dir / filename
+            if file_path.exists():
+                try:
+                    rel_dir = base_dir.relative_to(players_dir)
+                    if str(rel_dir) == '.':
+                        return f'football/images/players/{filename}'
+                    return f'football/images/players/{rel_dir.as_posix()}/{filename}'
+                except Exception:
+                    return f'football/images/players/{filename}'
+        return ''
+
+    # 1) Siempre intentamos primero candidatos por ID (únicos globalmente).
+    for filename in id_candidates:
+        resolved = _resolve_in_dirs(filename, team_dirs + [players_dir])
+        if resolved:
+            return resolved
+
+    # 2) El resto (nombre/dorsal) solo se busca en:
+    # - equipo principal (carpeta global), o
+    # - carpetas por equipo si existen.
+    name_dirs = team_dirs + ([players_dir] if is_primary_team else [])
     seen = set()
     for filename in candidates:
         if filename in seen:
             continue
         seen.add(filename)
-        file_path = players_dir / filename
-        if file_path.exists():
-            return f'football/images/players/{filename}'
+        resolved = _resolve_in_dirs(filename, name_dirs)
+        if resolved:
+            return resolved
     # Fallback por dorsal (wildcard):
     # - Legacy: en el equipo principal funcionaba bien porque el set de fotos era único.
     # - Multicategoría: el dorsal se repite y puede mezclar fotos entre equipos.
@@ -2652,10 +2695,6 @@ def resolve_player_photo_static_path(player):
     #   - es equipo principal, o
     #   - SOLO hay una coincidencia para ese dorsal, o
     #   - podemos desambiguar por tokens del nombre (mejor esfuerzo).
-    try:
-        is_primary_team = bool(getattr(getattr(player, 'team', None), 'is_primary', False))
-    except Exception:
-        is_primary_team = False
     if number_value != '':
         wildcard_patterns = [
             f'*-n{number_value}-final.*',
@@ -2663,21 +2702,32 @@ def resolve_player_photo_static_path(player):
             f'*-n{number_value}-crop.*',
             f'*-n{number_value}.*',
         ]
+        wildcard_dirs = [players_dir] if is_primary_team else []
+        wildcard_dirs = team_dirs + wildcard_dirs
         wildcard_matches = []
         try:
             seen_matches = set()
             for pattern in wildcard_patterns:
-                for file_path in players_dir.glob(pattern):
-                    if not file_path.is_file():
-                        continue
-                    if file_path.name in seen_matches:
-                        continue
-                    seen_matches.add(file_path.name)
-                    wildcard_matches.append(file_path)
+                for base_dir in wildcard_dirs:
+                    for file_path in base_dir.glob(pattern):
+                        if not file_path.is_file():
+                            continue
+                        signature = f'{base_dir}:{file_path.name}'
+                        if signature in seen_matches:
+                            continue
+                        seen_matches.add(signature)
+                        wildcard_matches.append(file_path)
         except Exception:
             wildcard_matches = []
         if len(wildcard_matches) == 1:
-            return f'football/images/players/{wildcard_matches[0].name}'
+            chosen = wildcard_matches[0]
+            try:
+                rel_dir = chosen.parent.relative_to(players_dir)
+                if str(rel_dir) == '.':
+                    return f'football/images/players/{chosen.name}'
+                return f'football/images/players/{rel_dir.as_posix()}/{chosen.name}'
+            except Exception:
+                return f'football/images/players/{chosen.name}'
         if wildcard_matches:
             # Si hay varias, intentamos elegir la que más "se parece" al nombre del jugador.
             try:
@@ -2688,10 +2738,23 @@ def resolve_player_photo_static_path(player):
                 scored = sorted(((int(_score(p)), p) for p in wildcard_matches), key=lambda it: (-it[0], it[1].name))
                 best_score, best_path = scored[0]
                 if is_primary_team or best_score > 0:
-                    return f'football/images/players/{best_path.name}'
+                    try:
+                        rel_dir = best_path.parent.relative_to(players_dir)
+                        if str(rel_dir) == '.':
+                            return f'football/images/players/{best_path.name}'
+                        return f'football/images/players/{rel_dir.as_posix()}/{best_path.name}'
+                    except Exception:
+                        return f'football/images/players/{best_path.name}'
             except Exception:
                 if is_primary_team:
-                    return f'football/images/players/{wildcard_matches[0].name}'
+                    chosen = wildcard_matches[0]
+                    try:
+                        rel_dir = chosen.parent.relative_to(players_dir)
+                        if str(rel_dir) == '.':
+                            return f'football/images/players/{chosen.name}'
+                        return f'football/images/players/{rel_dir.as_posix()}/{chosen.name}'
+                    except Exception:
+                        return f'football/images/players/{chosen.name}'
     return ''
 
 
