@@ -16,6 +16,7 @@ import shutil
 import math
 import hashlib
 import random
+import threading
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
@@ -25323,7 +25324,8 @@ def training_session_detail_page(request, session_id):
                 # PRG: evita re-POST en iPad/Safari y asegura que la UI refleje el contenido recién guardado.
                 msg = quote(message or 'Ficha guardada.')
                 detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
-                return redirect(f'{detail_url}?msg={msg}')
+                # Mantener la UI en modo edición tras guardar (iPad/WKWebView suele "perder" el estado visual).
+                return redirect(f'{detail_url}?msg={msg}&return_to=edit')
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar.'
 
@@ -25560,7 +25562,8 @@ def training_session_detail_page(request, session_id):
             if not error:
                 msg = quote(message or 'Asistencia guardada.')
                 detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
-                return redirect(f'{detail_url}?msg={msg}#asistencia')
+                # Mantener la UI en el bloque de asistencia tras guardar.
+                return redirect(f'{detail_url}?msg={msg}&return_to=attendance#asistencia')
         # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).
 
     # Refresca post-sesión / auditoría tras POST.
@@ -42165,6 +42168,16 @@ def analysis_page(request):
                     if assigned_player_ids and primary_team and not want_personal:
                         entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_player_ids))
                     video_message = 'Vídeo subido correctamente.'
+                    # AutoCut automático (background): crea colección "AutoCut" + marcadores.
+                    try:
+                        _video_studio_schedule_autocut_after_upload(
+                            video_id=int(entry.id),
+                            team_id=int(getattr(entry, 'team_id', 0) or 0) or None,
+                            owner_user_id=int(getattr(entry, 'owner_user_id', 0) or 0) or None,
+                            created_by=request.user.get_username() if request.user.is_authenticated else '',
+                        )
+                    except Exception:
+                        pass
         elif form_action == 'delete_video':
             video_id = _parse_int(request.POST.get('video_id'))
             entry = RivalVideo.objects.select_related('folder').filter(id=video_id).first()
@@ -44385,6 +44398,16 @@ def analysis_rival_video_chunk_finish_api(request):
             entry.video.save(Path(session.original_name or 'video.mp4').name, File(assembled), save=True)
             if assigned_ids:
                 entry.assigned_players.set(Player.objects.filter(team=primary_team, id__in=assigned_ids))
+            # AutoCut automático (background): crea colección "AutoCut" + marcadores.
+            try:
+                _video_studio_schedule_autocut_after_upload(
+                    video_id=int(entry.id),
+                    team_id=int(getattr(primary_team, 'id', 0) or 0) or None,
+                    owner_user_id=None,
+                    created_by=request.user.get_username() if request.user.is_authenticated else '',
+                )
+            except Exception:
+                pass
     except Exception:
         logger.exception('Chunk finish: no se pudo ensamblar/subir vídeo')
         return JsonResponse({'ok': False, 'error': 'No se pudo finalizar la subida.'}, status=500)
@@ -47530,6 +47553,261 @@ def analysis_video_studio_export_server_api(request):
             'format': 'mp4',
         }
     )
+
+
+def _video_studio_autocut_enabled() -> bool:
+    """
+    Controla si AutoCut se ejecuta automáticamente tras subir un MP4.
+
+    Env:
+    - `ANALYSIS_AUTOCUT_ON_UPLOAD`: si se define y NO es truthy, deshabilita.
+      Si no se define, queda habilitado por defecto.
+    """
+    try:
+        raw = str(os.getenv('ANALYSIS_AUTOCUT_ON_UPLOAD') or '').strip().lower()
+    except Exception:
+        raw = ''
+    if raw and raw not in {'1', 'true', 'yes', 'on'}:
+        return False
+    return True
+
+
+def _video_studio_apply_autocut_suggestions(
+    *,
+    video,
+    scope_team=None,
+    owner_user=None,
+    created_by: str = '',
+    max_moments: int = 18,
+    min_gap_s: float = 25.0,
+    pre_s: float = 8.0,
+    post_s: float = 8.0,
+    max_scan_s=None,
+    replace: bool = True,
+) -> dict:
+    """
+    Core AutoCut: analiza el MP4 y crea clips/eventos sugeridos.
+
+    Importante: reemplaza SOLO lo generado automáticamente (colección 'AutoCut' + payload.autocut=True).
+    """
+    if not video or not getattr(video, 'id', None):
+        return {'ok': False, 'error': 'Vídeo no encontrado.'}
+    if not getattr(video, 'video', None):
+        return {'ok': False, 'error': 'AutoCut requiere MP4 subido (no YouTube).'}
+    try:
+        video_path = str(video.video.path or '').strip()
+    except Exception:
+        video_path = ''
+    if not video_path:
+        return {'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}
+
+    try:
+        max_moments = int(max_moments or 18)
+    except Exception:
+        max_moments = 18
+    max_moments = max(4, min(max_moments, 40))
+    try:
+        min_gap_s = float(min_gap_s or 25.0)
+    except Exception:
+        min_gap_s = 25.0
+    min_gap_s = max(8.0, min(min_gap_s, 90.0))
+    try:
+        pre_s = float(pre_s or 8.0)
+    except Exception:
+        pre_s = 8.0
+    try:
+        post_s = float(post_s or 8.0)
+    except Exception:
+        post_s = 8.0
+    pre_s = max(0.0, min(pre_s, 60.0))
+    post_s = max(0.0, min(post_s, 60.0))
+    if max_scan_s is not None:
+        try:
+            max_scan_s = float(max_scan_s)
+        except Exception:
+            max_scan_s = None
+    if max_scan_s is not None:
+        max_scan_s = max(60.0, min(float(max_scan_s), 140.0 * 60.0))
+
+    from football.video_autocut import suggest_autocuts  # noqa: WPS433
+
+    try:
+        result = suggest_autocuts(
+            video_path,
+            max_moments=int(max_moments),
+            min_gap_s=float(min_gap_s),
+            pre_s=float(pre_s),
+            post_s=float(post_s),
+            max_seconds_scan=max_scan_s,
+        )
+    except Exception:
+        return {'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}
+
+    moments = result.get('moments') if isinstance(result, dict) else None
+    if not isinstance(moments, list) or not moments:
+        return {'ok': True, 'created_events': 0, 'created_clips': 0, 'moments': []}
+
+    # Reemplazar sugerencias anteriores (solo AutoCut).
+    if replace:
+        try:
+            VideoTimelineEvent.objects.filter(
+                video=video,
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                payload__autocut=True,
+            ).delete()
+        except Exception:
+            pass
+        try:
+            VideoClip.objects.filter(
+                video=video,
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                collection='AutoCut',
+            ).delete()
+        except Exception:
+            pass
+
+    username = str(created_by or '')[:80]
+    ev_objs = []
+    clip_objs = []
+    for m in moments[: max_moments * 2]:
+        try:
+            t = float(m.get('time_s') or 0.0)
+            kind = str(m.get('kind') or VideoTimelineEvent.KIND_TAG).strip() or VideoTimelineEvent.KIND_TAG
+            label = _sanitize_task_text(str(m.get('label') or '').strip(), multiline=False, max_len=160) or 'Auto · Momento'
+            score = float(m.get('score') or 0.0)
+            clip_in_s = float(m.get('clip_in_s') or max(0.0, t - float(pre_s)))
+            clip_out_s = float(m.get('clip_out_s') or (t + float(post_s)))
+        except Exception:
+            continue
+        payload = m.get('meta') if isinstance(m.get('meta'), dict) else {}
+        payload = dict(payload) if isinstance(payload, dict) else {}
+        payload['autocut'] = True
+        payload['score'] = float(score)
+        ev_objs.append(
+            VideoTimelineEvent(
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                video=video,
+                time_ms=int(max(0.0, t) * 1000.0),
+                kind=kind if kind in {k for k, _ in VideoTimelineEvent.KIND_CHOICES} else VideoTimelineEvent.KIND_TAG,
+                label=label[:160],
+                color='#22d3ee',
+                payload=payload,
+                created_by=username,
+            )
+        )
+        clip_objs.append(
+            VideoClip(
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                video=video,
+                title=label[:180],
+                collection='AutoCut',
+                in_ms=int(max(0.0, clip_in_s) * 1000.0),
+                out_ms=int(max(0.0, max(clip_in_s + 0.2, clip_out_s)) * 1000.0),
+                tags=['autocut', kind],
+                notes='',
+                overlay={},
+                created_by=username,
+            )
+        )
+
+    created_events = 0
+    created_clips = 0
+    try:
+        if ev_objs:
+            VideoTimelineEvent.objects.bulk_create(ev_objs[: max_moments], ignore_conflicts=False)
+            created_events = min(len(ev_objs), int(max_moments))
+    except Exception:
+        for obj in ev_objs[: max_moments]:
+            try:
+                obj.save()
+                created_events += 1
+            except Exception:
+                pass
+    try:
+        if clip_objs:
+            VideoClip.objects.bulk_create(clip_objs[: max_moments], ignore_conflicts=False)
+            created_clips = min(len(clip_objs), int(max_moments))
+    except Exception:
+        for obj in clip_objs[: max_moments]:
+            try:
+                obj.save()
+                created_clips += 1
+            except Exception:
+                pass
+
+    return {'ok': True, 'created_events': int(created_events), 'created_clips': int(created_clips), 'moments': moments[: max_moments]}
+
+
+def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, created_by: str = '') -> None:
+    """
+    Ejecuta AutoCut en background al subir un MP4 (sin bloquear el request).
+    """
+    if not _video_studio_autocut_enabled():
+        return
+
+    def _runner():
+        try:
+            entry = RivalVideo.objects.filter(id=int(video_id)).first()
+            if not entry or not getattr(entry, 'video', None):
+                return
+            scope_team = Team.objects.filter(id=int(team_id)).first() if team_id else None
+            owner_user = User.objects.filter(id=int(owner_user_id)).first() if owner_user_id else None
+            job_event = None
+            try:
+                job_event = VideoTimelineEvent.objects.create(
+                    team=scope_team if scope_team else None,
+                    owner_user=owner_user if owner_user else None,
+                    video=entry,
+                    time_ms=0,
+                    kind=VideoTimelineEvent.KIND_NOTE,
+                    label='AutoCut: analizando…',
+                    color='#f4b400',
+                    payload={'autocut': True, 'autocut_job': True, 'state': 'running'},
+                    created_by=str(created_by or '')[:80],
+                )
+            except Exception:
+                job_event = None
+
+            res = _video_studio_apply_autocut_suggestions(
+                video=entry,
+                scope_team=scope_team,
+                owner_user=owner_user,
+                created_by=str(created_by or '')[:80],
+                max_moments=18,
+                min_gap_s=25.0,
+                pre_s=8.0,
+                post_s=8.0,
+                max_scan_s=None,
+                replace=True,
+            )
+            if job_event:
+                try:
+                    if res.get('ok'):
+                        job_event.delete()
+                    else:
+                        job_event.label = 'AutoCut: error'
+                        job_event.payload = {'autocut': True, 'autocut_job': True, 'state': 'error'}
+                        job_event.save(update_fields=['label', 'payload', 'updated_at'])
+                except Exception:
+                    pass
+        except Exception:
+            logger.exception('AutoCut after upload failed', extra={'video_id': video_id})
+
+    def _start():
+        try:
+            t = threading.Thread(target=_runner, name=f'autocut-video-{int(video_id)}', daemon=True)
+            t.start()
+        except Exception:
+            pass
+
+    try:
+        transaction.on_commit(_start)
+    except Exception:
+        _start()
 
 
 @csrf_exempt
