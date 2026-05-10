@@ -19215,6 +19215,16 @@ def finalize_match_actions(request):
     except Exception:
         pass
     _invalidate_team_dashboard_caches(primary_team)
+    # UX: al finalizar un partido, limpiamos el match "activo" en sesión para que el siguiente
+    # acceso arranque en un flujo nuevo (prepartido) en vez de volver al match ya cerrado.
+    try:
+        if hasattr(request, 'session'):
+            mapping = request.session.get('active_match_by_team')
+            if isinstance(mapping, dict) and str(primary_team.id) in mapping:
+                mapping.pop(str(primary_team.id), None)
+                request.session['active_match_by_team'] = mapping
+    except Exception:
+        pass
     try:
         is_home = match.home_team_id == primary_team.id
         score_for = match.home_score if is_home else match.away_score
@@ -51984,9 +51994,18 @@ def player_match_stats_page(request, player_id, match_id):
 @authenticated_write
 @require_POST
 def refresh_scraping(request):
-    # Evitar CSRF 403 en Render (cookies/hosts) y limitar acceso a administradores.
-    if not (_is_admin_user(request.user) or _can_access_platform(request.user)):
-        return JsonResponse({'status': 'error', 'message': 'Solo administradores pueden actualizar la clasificación.'}, status=403)
+    # Evitar CSRF 403 en Render (cookies/hosts) y limitar acceso:
+    # - Platform/admin siempre puede.
+    # - En clientes Club, owner/admin del workspace también debe poder refrescar (sin depender de Platform).
+    workspace = _get_active_workspace(request)
+    can_refresh = bool(_is_admin_user(request.user) or _can_access_platform(request.user))
+    if not can_refresh and workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
+        try:
+            can_refresh = bool(_can_manage_workspace(request.user, workspace))
+        except Exception:
+            can_refresh = False
+    if not can_refresh:
+        return JsonResponse({'status': 'error', 'message': 'No autorizado para actualizar la clasificación.'}, status=403)
     if not cache.add(SCRAPE_LOCK_KEY, "1", timeout=SCRAPE_LOCK_TIMEOUT_SECONDS):
         return JsonResponse(
             {'status': 'error', 'message': 'Ya hay una actualización en curso. Inténtalo en unos minutos.'},
@@ -51996,7 +52015,6 @@ def refresh_scraping(request):
     if forbidden:
         return JsonResponse({'status': 'error', 'message': 'El dashboard no está activo en el workspace actual.'}, status=403)
     primary_team = _get_primary_team_for_request(request)
-    workspace = _get_active_workspace(request)
     context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace and primary_team else None
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower() if context else ''
     refresh_message = ''

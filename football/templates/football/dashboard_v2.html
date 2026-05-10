@@ -2113,7 +2113,16 @@
         btn.addEventListener('click', async () => {
           btn.disabled = true;
           try {
-            await fetch(buildDashboardRefreshUrl(), { credentials: 'same-origin' });
+            const resp = await fetch(buildDashboardRefreshUrl(), {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+              body: '',
+            });
+            if (!resp.ok) {
+              const text = await resp.text().catch(() => '');
+              throw new Error(`dash_http_${resp.status}:${text.slice(0, 180)}`);
+            }
           } catch (err) {
             console.warn(err);
           }
