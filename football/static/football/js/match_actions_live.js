@@ -1017,6 +1017,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     fieldPopup.style.left = `${left}px`;
     fieldPopup.style.top = `${top}px`;
     fieldPopup.classList.add('is-visible');
+    // UX iPad: no bloquear el flujo obligando a elegir "Resultado" cada vez.
+    ensureResultSelected(String(actionInput?.value || '').trim());
     syncAutoFields();
   };
   const hidePopup = () => {
@@ -1032,6 +1034,24 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   fieldPopup.addEventListener('click', (event) => event.stopPropagation());
   const resultSelect = popupForm?.querySelector?.('select[name="result"]') || null;
   const teamOnlyInput = popupForm?.querySelector?.('input[name="team_only"]') || null;
+  const ensureResultSelected = (actionLabel = '') => {
+    if (!resultSelect) return '';
+    const current = String(resultSelect.value || '').trim();
+    if (current) return current;
+    const options = Array.from(resultSelect.options || [])
+      .map((opt) => String(opt.value || '').trim())
+      .filter(Boolean);
+    if (!options.length) return '';
+    const key = String(actionLabel || '').trim().toLowerCase();
+    const isShot = key.includes('disparo') || key.includes('tiro') || key.includes('remate') || key.includes('chut') || key.includes('shot');
+    const preferredShot = options.find((v) => String(v).toLowerCase() === 'a puerta');
+    const preferred = (isShot && preferredShot) ? preferredShot : options[0];
+    try {
+      resultSelect.value = preferred;
+      resultSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) {}
+    return preferred;
+  };
   const setResultValue = (value) => {
     const v = String(value || '').trim();
     if (!resultSelect || !v) return false;
@@ -1090,6 +1110,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (btn.dataset.result) setResultValue(btn.dataset.result);
     } catch (e) {}
     try {
+      // Si el atajo no define resultado, usa default para permitir auto-enviar.
+      ensureResultSelected(action);
+    } catch (e) {}
+    try {
       actionInput?.dispatchEvent?.(new Event('input', { bubbles: true }));
     } catch (e) {}
     try {
@@ -1114,6 +1138,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (!currentAction) return;
       const isTeamOnlyAction = isTeamOnlyActionValue(currentAction);
       if (!isTeamOnlyAction && !String(playerInput?.value || '').trim()) return;
+      ensureResultSelected(currentAction);
       if (!String(resultSelect?.value || '').trim()) return;
       // En popup (modo iPad), la zona viene del tap en el campo. Sin zona, preferimos no auto-enviar.
       if (!String(zoneInput?.value || '').trim()) return;
@@ -1565,11 +1590,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           showPageStatus('Selecciona un jugador.', 'warning', 2400);
           return;
         }
-        if (!resultSelect?.value) {
-          showPopup(fieldX, fieldY);
-          showPageStatus('Selecciona un resultado.', 'warning', 2400);
-          return;
-        }
+        ensureResultSelected(currentAction);
         const payload = new FormData(popupForm);
         void submitPopupAction(payload, { isTeamOnlyAction, source: 'pro_autosend' });
         return;
@@ -1834,10 +1855,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       showPageStatus('Selecciona primero un jugador convocado.', 'warning', 3600);
       return;
     }
-    if (!resultSelect?.value) {
-      showPageStatus('Selecciona un resultado.', 'warning', 3200);
-      return;
-    }
+    ensureResultSelected(currentAction);
     syncAutoFields();
     const payload = new FormData(popupForm);
     await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
@@ -1952,10 +1970,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       showPageStatus('Selecciona un jugador.', 'warning', 2200);
       return false;
     }
-    if (!resultSelect?.value) {
-      showPageStatus('Selecciona un resultado.', 'warning', 2200);
-      return false;
-    }
+    ensureResultSelected(currentAction);
     zoneInput.value = lastZoneLabel;
     syncAutoFields({ zone: lastZoneLabel });
     const payload = new FormData(popupForm);
