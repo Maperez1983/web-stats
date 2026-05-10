@@ -64,7 +64,8 @@ def _ocr_scorebar_image(img_path: str) -> str:
 
 def _extract_scorebar_frame(*, video_path: str, at_seconds: float, out_path: str) -> None:
     # Crop tuned for typical broadcast overlays (top bar).
-    vf = "crop=640:120:0:0,scale=1280:-1"
+    # Marbella/Baeza (y similares): marcador en esquina superior izquierda.
+    vf = "crop=800:160:0:0,scale=1280:-1"
     _run(
         [
             "ffmpeg",
