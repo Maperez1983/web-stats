@@ -120,10 +120,18 @@
 	    const tlClearBtn = document.getElementById('vs-tl-clear');
 	    const tlSaveBtn = document.getElementById('vs-tl-save-project');
 	    const tlLoadBtn = document.getElementById('vs-tl-load-project');
+	    const tlIncludeAudioToggle = document.getElementById('vs-tl-include-audio');
 	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
 	    const tlItemsEl = document.getElementById('vs-tl-items');
 	    const tlTotalEl = document.getElementById('vs-tl-total');
 	    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+	    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
+	    const tlSpeedStartInput = document.getElementById('vs-tl-speed-start');
+	    const tlSpeedEndInput = document.getElementById('vs-tl-speed-end');
+	    const tlFadeInInput = document.getElementById('vs-tl-fade-in');
+	    const tlFadeOutInput = document.getElementById('vs-tl-fade-out');
+	    const tlItemResetBtn = document.getElementById('vs-tl-item-reset');
+	    const tlItemSaveBtn = document.getElementById('vs-tl-item-save');
 
 	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
 	    const aiForceBtn = document.getElementById('vs-ai-force');
@@ -4015,8 +4023,6 @@
 
     const runAutoCut = async () => {
       if (!autocutUrl || !videoId) { setStatus('AutoCut no disponible.', true); return; }
-      const ok = window.confirm('AutoCut analizará el MP4 (audio + movimiento) y creará eventos + clips sugeridos. ¿Continuar?');
-      if (!ok) return;
       const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
       const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 60);
       const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 60);
