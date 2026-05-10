@@ -867,12 +867,15 @@
         ensureStarterPositionsFromTemplate({ force: false });
 
         // Render tokens libres (arrastre).
-        const renderedIds = new Set();
+        const renderedKeys = new Set();
         (lineupState.starters || []).forEach((player) => {
           const pid = String(player?.id || '').trim();
           if (!pid) return;
-          if (renderedIds.has(pid)) return;
-          renderedIds.add(pid);
+          const num = (player?.number != null && String(player.number).trim()) ? String(player.number).trim() : '--';
+          const nameKey = String(player?.name || '').toUpperCase().trim();
+          const key = (num && num !== '--') ? `#${num}` : `${pid}:${nameKey}`;
+          if (renderedKeys.has(key)) return;
+          renderedKeys.add(key);
           const x = clamp(Number(player.x_pct ?? 50), 2, 98);
           const y = clamp(Number(player.y_pct ?? 50), 2, 98);
           const wrap = document.createElement('div');
@@ -884,7 +887,6 @@
             wrap.classList.add('is-active');
           }
           const role = String(player.role || roleFromPosition(player.position) || 'mid');
-          const num = (player.number != null && String(player.number).trim()) ? String(player.number).trim() : '--';
           wrap.innerHTML = `
             <div class="token token--${role}">
               <span class="token-num">${num === '--' ? '--' : num}</span>
