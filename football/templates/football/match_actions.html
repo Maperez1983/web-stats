@@ -2669,25 +2669,62 @@
 		            </div>
 	          </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
-            <a
-              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=pre{% else %}?stage=pre{% endif %}"
-              class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}"
-              data-stage-tab="pre"
-              role="button"
-            >Prepartido</a>
-            <a
-              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=live{% else %}?stage=live{% endif %}"
-              class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}"
-              data-stage-tab="live"
-              role="button"
-            >En vivo</a>
-            <a
-              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=close{% else %}?stage=close{% endif %}"
-              class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}"
-              data-stage-tab="close"
-              role="button"
-            >Cierre</a>
+            <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
+            <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
+            <button type="button" class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}" data-stage-tab="close">Cierre</button>
           </nav>
+          <script>
+            // Stage tabs: inline & fast (no navegación). Mantiene el flujo aunque fallen scripts externos/caché PWA.
+            (function () {
+              if (window.__matchActionsStageTabsBound) return;
+              window.__matchActionsStageTabsBound = true;
+              const ready = (fn) => {
+                if (document.readyState !== 'loading') fn();
+                else document.addEventListener('DOMContentLoaded', fn, { once: true });
+              };
+              ready(() => {
+                const tabs = Array.from(document.querySelectorAll('[data-stage-tab]') || []);
+                const panels = Array.from(document.querySelectorAll('[data-stage-panel]') || []);
+                if (!tabs.length || !panels.length) return;
+                const popupForm = document.getElementById('field-popup-form');
+                const setUrlStage = (stage) => {
+                  try {
+                    const params = new URLSearchParams(window.location.search || '');
+                    if (stage) params.set('stage', stage);
+                    const next = params.toString();
+                    const url = next ? `${window.location.pathname}?${next}` : window.location.pathname;
+                    window.history.replaceState(null, '', url);
+                  } catch (e) {}
+                };
+                const setFormStage = (stage) => {
+                  try {
+                    const input = popupForm?.querySelector?.('input[name="stage"]');
+                    if (input) input.value = String(stage || '');
+                  } catch (e) {}
+                };
+                const activate = (stage, { updateUrl = true } = {}) => {
+                  tabs.forEach((t) => t.classList.toggle('is-active', t.dataset.stageTab === stage));
+                  panels.forEach((p) => p.classList.toggle('is-active', p.dataset.stagePanel === stage));
+                  setFormStage(stage);
+                  if (updateUrl) setUrlStage(stage);
+                };
+                // Estado inicial: respeta querystring si existe.
+                let initial = '';
+                try {
+                  const params = new URLSearchParams(window.location.search || '');
+                  initial = String(params.get('stage') || '').trim().toLowerCase();
+                } catch (e) {}
+                if (!['pre', 'live', 'close'].includes(initial)) {
+                  const activeTab = tabs.find((t) => t.classList.contains('is-active'));
+                  initial = activeTab?.dataset?.stageTab || 'pre';
+                }
+                activate(initial, { updateUrl: false });
+                tabs.forEach((tab) => {
+                  tab.addEventListener('click', () => activate(tab.dataset.stageTab));
+                });
+              });
+            })();
+          </script>
 	          <div class="clock-card">
 	            <div class="clock-card-inner">
 		              <div class="position-fixed-clock">
