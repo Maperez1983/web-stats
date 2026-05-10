@@ -1686,9 +1686,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         headers: { 'X-CSRFToken': csrfToken, Accept: 'application/json' },
         body: payload,
       });
-      const data = await response.json().catch(() => ({}));
+      const ctype = String(response?.headers?.get?.('content-type') || '');
+      let data = {};
+      if (ctype.includes('application/json')) {
+        data = await response.json().catch(() => ({}));
+      } else {
+        const raw = await response.text().catch(() => '');
+        data = { error: raw ? raw.slice(0, 180) : '' };
+      }
       if (!response.ok) {
-        showPageStatus(data.error || 'No se pudo guardar la acción.', 'danger', 5200);
+        const msg = String(data?.error || '').trim();
+        showPageStatus(msg || `No se pudo guardar la acción (HTTP ${response.status}).`, 'danger', 5200);
         return null;
       }
       if (isEdit) {

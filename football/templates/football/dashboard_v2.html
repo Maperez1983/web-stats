@@ -210,6 +210,62 @@
         box-shadow: 0 0 0 3px rgba(47, 125, 50, 0.16);
       }
 
+      .team-switcher {
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .team-switcher select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        border-radius: 999px;
+        padding: 0.55rem 2rem 0.55rem 0.9rem;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.62);
+        color: rgba(235, 244, 255, 0.92);
+        font-weight: 700;
+        font-size: 0.85rem;
+        line-height: 1;
+        cursor: pointer;
+        max-width: 260px;
+      }
+
+      .team-switcher {
+        position: relative;
+      }
+
+      .team-switcher::after {
+        content: '▾';
+        position: absolute;
+        right: 0.85rem;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        opacity: 0.7;
+        font-size: 0.85rem;
+      }
+
+      .net-badge.debug-pill {
+        border-color: rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.42);
+        color: rgba(235, 244, 255, 0.82);
+        text-transform: none;
+        letter-spacing: 0.02em;
+        font-size: 0.75rem;
+      }
+
+      .net-badge.debug-pill.ok {
+        border-color: rgba(47, 125, 50, 0.32);
+        background: rgba(47, 125, 50, 0.12);
+        color: rgba(226, 255, 232, 0.92);
+      }
+
+      .net-badge.debug-pill.ok .dot {
+        background: rgba(47, 125, 50, 0.95);
+        box-shadow: 0 0 0 3px rgba(47, 125, 50, 0.16);
+      }
+
       .tabs {
         margin-top: 0.85rem;
         border: 1px solid var(--line);
@@ -1222,11 +1278,32 @@
           </div>
           <div class="brand-copy">
             <div class="brand-title">Segunda Jugada · 2J Club</div>
-            <div id="top-subtitle" class="brand-subtitle">{{ current_role_label|default:"Entrenador" }}</div>
+            <div id="top-subtitle" class="brand-subtitle">
+              {% if active_team %}
+                {{ active_team.category|default:""|title }}{% if active_team.category %} · {% endif %}{{ active_team.display_name|default:active_team.name|default:"" }}
+                · {{ current_role_label|default:"Entrenador" }}
+              {% else %}
+                {{ current_role_label|default:"Entrenador" }}
+              {% endif %}
+            </div>
           </div>
         </div>
         <div class="top-actions">
           <span id="net-badge" class="net-badge" hidden><span class="dot"></span><span>Offline</span></span>
+          <span id="op-badge" class="net-badge debug-pill" hidden><span class="dot"></span><span>—</span></span>
+          {% if active_team_options and active_team_options|length > 1 and team_switcher_enabled %}
+          <form class="team-switcher" method="post" action="{% url 'workspace-active-team' %}">
+            {% csrf_token %}
+            <select name="team_id" aria-label="Cambiar equipo" onchange="this.form.submit()">
+              {% for opt in active_team_options %}
+              <option value="{{ opt.id }}" {% if active_team and opt.id == active_team.id %}selected{% endif %}>
+                {{ opt.label }}
+              </option>
+              {% endfor %}
+            </select>
+            <input type="hidden" name="next" value="{{ active_team_current_path|default:'' }}" />
+          </form>
+          {% endif %}
           <button id="refresh-btn" class="pill-btn secondary" type="button">Actualizar</button>
           <button id="theme-btn" class="pill-btn" type="button">Oscuro</button>
         </div>
@@ -1419,6 +1496,7 @@
       const effectiveWorkspaceId = activeWorkspaceId || String(urlParams.get('workspace') || '').trim();
       const effectiveTeamId = activeTeamId || String(urlParams.get('team') || urlParams.get('team_id') || '').trim();
       const effectiveHome = String(urlParams.get('home') || '').trim();
+      const debugMode = String(urlParams.get('debug') || '').trim() === '1';
       const heroFallbackPool = demoMode
         ? []
         : [
@@ -1490,6 +1568,33 @@
 
       const dashLastOkKey = 'sj_dash_last_ok';
       let dashLastSource = 'network';
+
+      function setOpBadge({ show = false, ok = false, text = '' } = {}) {
+        const badge = document.getElementById('op-badge');
+        if (!badge) return;
+        if (!show) {
+          badge.hidden = true;
+          badge.classList.remove('ok');
+          return;
+        }
+        badge.hidden = false;
+        badge.classList.toggle('ok', !!ok);
+        const textEl = badge.querySelector('span:last-child');
+        if (textEl) textEl.textContent = String(text || '—');
+      }
+
+      async function loadBuildInfo() {
+        if (!debugMode) return;
+        try {
+          const resp = await fetch('/api/build/', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
+          const data = await resp.json().catch(() => ({}));
+          const id = String(data?.build?.id || '').trim();
+          if (id) setOpBadge({ show: true, ok: true, text: `Build: ${id.slice(0, 12)}` });
+          else setOpBadge({ show: true, ok: false, text: 'Build: (sin id)' });
+        } catch (e) {
+          setOpBadge({ show: true, ok: false, text: 'Build: error' });
+        }
+      }
 
       function formatAgo(tsMs) {
         const ts = clampNumber(tsMs, 0);
@@ -2112,6 +2217,7 @@
         if (!btn) return;
         btn.addEventListener('click', async () => {
           btn.disabled = true;
+          setOpBadge({ show: true, ok: false, text: 'Actualizando…' });
           try {
             const resp = await fetch(buildDashboardRefreshUrl(), {
               method: 'POST',
@@ -2123,17 +2229,29 @@
               const text = await resp.text().catch(() => '');
               throw new Error(`dash_http_${resp.status}:${text.slice(0, 180)}`);
             }
+            const data = await resp.json().catch(() => ({}));
+            const msg = String(data?.message || '').trim();
+            const updated = String(data?.standings_last_updated || '').trim();
+            const label = [msg, updated ? `(${updated.replace('T', ' ').slice(0, 19)})` : ''].filter(Boolean).join(' ');
+            setOpBadge({ show: true, ok: true, text: label || 'Actualizado.' });
           } catch (err) {
             console.warn(err);
+            setOpBadge({ show: true, ok: false, text: `Error: ${String(err?.message || err || 'fallo').slice(0, 64)}` });
           }
           await renderDashboard({ fresh: true });
           btn.disabled = false;
+          window.setTimeout(() => {
+            // Si estamos en debug, dejamos el badge para el build-info.
+            if (debugMode) return;
+            setOpBadge({ show: false });
+          }, 4200);
         });
       }
 
       initTheme();
       initRefresh();
       initHeroImage();
+      loadBuildInfo();
       renderDashboard();
     </script>
   </body>
