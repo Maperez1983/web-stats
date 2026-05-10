@@ -1982,6 +1982,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     pollInFlight = true;
     try {
       const url = new URL(eventsUrl, window.location.origin);
+      if (currentMatchId) url.searchParams.set('match_id', String(currentMatchId));
       if (maxServerEventId) url.searchParams.set('since_id', String(maxServerEventId));
       url.searchParams.set('limit', '80');
       const response = await fetch(url.toString(), { method: 'GET', credentials: 'same-origin', headers: { Accept: 'application/json' } });
