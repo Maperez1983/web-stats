@@ -1289,7 +1289,9 @@ def _read_match_list_sheet():
 
 DEFAULT_QUICK_ACTIONS = [
     'Disparo',
+    'Pase',
     'Pase clave',
+    'Pase a la espalda',
     'Robo',
     'Falta',
     'Cambio',
