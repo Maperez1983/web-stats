@@ -867,13 +867,17 @@
         ensureStarterPositionsFromTemplate({ force: false });
 
         // Render tokens libres (arrastre).
+        const renderedIds = new Set();
         (lineupState.starters || []).forEach((player) => {
-          if (!player?.id) return;
+          const pid = String(player?.id || '').trim();
+          if (!pid) return;
+          if (renderedIds.has(pid)) return;
+          renderedIds.add(pid);
           const x = clamp(Number(player.x_pct ?? 50), 2, 98);
           const y = clamp(Number(player.y_pct ?? 50), 2, 98);
           const wrap = document.createElement('div');
           wrap.className = 'field-token';
-          wrap.dataset.playerId = String(player.id);
+          wrap.dataset.playerId = pid;
           wrap.style.left = `${x}%`;
           wrap.style.top = `${y}%`;
           if (activePlayerId && String(activePlayerId) === String(player.id)) {
