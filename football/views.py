@@ -18077,12 +18077,8 @@ def match_action_page(request):
     if not primary_team:
         raise Http404('Equipo principal no configurado')
     starters_limit = _required_starters_for_team(primary_team)
-    requested_match = get_requested_match(request, primary_team)
-    if requested_match:
-        active_match = requested_match
-    else:
-        # Si hay registro en vivo pendiente, prioriza ese partido para evitar "pérdidas" al refrescar.
-        active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    # Match "activo" del flujo matchday (robusto ante refrescos/reinicios en iPad).
+    active_match = _resolve_active_match_for_flow(request, primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=active_match,
@@ -18312,6 +18308,7 @@ def match_action_page(request):
             'message': message,
             'team_name': primary_team.name,
             'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True) or '',
+            'primary_team_id': int(primary_team.id),
             'quick_actions': matchday_quick_buttons,
             'matchday_quick_actions': matchday_quick_buttons,
             'action_catalog': load_match_actions(),
@@ -18614,9 +18611,20 @@ def register_match_action(request):
 
     def _redirect_back():
         match_id = str(request.POST.get('match_id') or '').strip()
+        stage = str(request.POST.get('stage') or '').strip().lower()
+        team_id = str(request.POST.get('team') or request.POST.get('team_id') or '').strip()
+        if stage not in {'pre', 'live', 'close'}:
+            stage = ''
+        if not stage:
+            # Seguridad UX: el POST desde el popup suele venir de "En vivo".
+            stage = 'live'
         base = reverse('match-action-page')
         if match_id:
-            qs = urlencode({'match_id': match_id})
+            payload = {'match_id': match_id}
+            payload['stage'] = stage
+            if team_id:
+                payload['team'] = team_id
+            qs = urlencode(payload)
             return redirect(f'{base}?{qs}')
         return redirect('match-action-page')
 
@@ -18659,8 +18667,7 @@ def register_match_action(request):
     player_id = request.POST.get('player')
     action_type = (request.POST.get('action_type') or '').strip()
     action_type_key = action_type.lower()
-    requested_match = get_requested_match(request, primary_team)
-    target_match = requested_match or get_active_match(primary_team)
+    target_match = _resolve_active_match_for_flow(request, primary_team)
     convocation_record = get_current_convocation_record(
         primary_team,
         match=target_match,
@@ -19016,8 +19023,7 @@ def update_match_action(request):
     if not event_id:
         return JsonResponse({'error': 'Evento no válido'}, status=400)
 
-    requested_match = get_requested_match(request, primary_team)
-    match = requested_match or get_active_match(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido disponible para actualizar acciones'}, status=400)
 
@@ -19119,8 +19125,7 @@ def match_actions_events_api(request):
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
 
-    requested_match = get_requested_match(request, primary_team)
-    match = requested_match or get_active_match(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido disponible'}, status=400)
 
@@ -19261,8 +19266,7 @@ def save_match_info(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
-    requested_match = get_requested_match(request, primary_team)
-    match = requested_match or get_latest_live_match(primary_team) or get_active_match(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar.'}, status=400)
 
@@ -19355,8 +19359,7 @@ def reset_match_action_register(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
-    requested_match = get_requested_match(request, primary_team)
-    match = requested_match or get_active_match(primary_team)
+    match = _resolve_active_match_for_flow(request, primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para reiniciar'}, status=400)
     deleted_count, _ = MatchEvent.objects.filter(
@@ -54923,8 +54926,9 @@ def _resolve_active_match_for_flow(request, primary_team):
     Prioridad:
     1) match_id explícito en query/body.
     2) match guardado en sesión por equipo (para permitir Torneos/Amistosos sin desplazar la Liga).
-    3) último partido en vivo con acciones.
-    4) próximo/último partido de Liga (get_active_match).
+    3) match de la convocatoria actual (ConvocationRecord.is_current).
+    4) último partido en vivo con acciones.
+    5) próximo/último partido de Liga (get_active_match).
     """
     if not primary_team:
         return None
@@ -54950,7 +54954,26 @@ def _resolve_active_match_for_flow(request, primary_team):
         except Exception:
             active_match = None
     if not active_match:
+        # Si el staff ya guardó una convocatoria, ese match es el más fiable incluso tras reinicios de PWA.
+        try:
+            record = get_current_convocation_record(primary_team, match=None, fallback_to_latest=True)
+            candidate = getattr(record, 'match', None) if record else None
+            if candidate:
+                active_match = candidate
+        except Exception:
+            active_match = None
+    if not active_match:
         active_match = get_latest_live_match(primary_team) or get_active_match(primary_team)
+    # Persistir selección para estabilizar navegación (menú → Registro) dentro del mismo partido.
+    if active_match and hasattr(request, 'session'):
+        try:
+            mapping = request.session.get('active_match_by_team')
+            if not isinstance(mapping, dict):
+                mapping = {}
+            mapping[str(primary_team.id)] = int(active_match.id)
+            request.session['active_match_by_team'] = mapping
+        except Exception:
+            pass
     return active_match
 
 

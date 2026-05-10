@@ -1039,19 +1039,23 @@
         border: 1px solid rgba(148, 163, 184, 0.18);
         overflow-x: auto;
       }
-      .match-stage-tab {
-        border: none;
-        border-radius: 999px;
-        padding: 0.9rem 1.2rem;
-        background: transparent;
-        color: rgba(226, 232, 240, 0.78);
+	      .match-stage-tab {
+	        display: inline-flex;
+	        align-items: center;
+	        justify-content: center;
+	        border: none;
+	        border-radius: 999px;
+	        padding: 0.9rem 1.2rem;
+	        background: transparent;
+	        color: rgba(226, 232, 240, 0.78);
         font-size: 0.92rem;
         font-weight: 800;
         letter-spacing: 0.08em;
-        text-transform: uppercase;
-        white-space: nowrap;
-        cursor: pointer;
-      }
+	        text-transform: uppercase;
+	        text-decoration: none;
+	        white-space: nowrap;
+	        cursor: pointer;
+	      }
       .match-stage-tab.is-active {
         background: linear-gradient(135deg, rgba(250, 204, 21, 0.22), rgba(249, 115, 22, 0.18));
         color: #f8fafc;
@@ -3098,10 +3102,12 @@
                 data-submit-url="{% url 'match-action-record' %}"
                 data-update-url="{% url 'match-action-update' %}"
               >
-                {% csrf_token %}
-                <input type="hidden" name="event_id" value="" />
-                <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
-                <input type="hidden" name="team_only" value="0" />
+	                {% csrf_token %}
+	                <input type="hidden" name="event_id" value="" />
+	                <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
+	                <input type="hidden" name="team" value="{{ primary_team_id|default:'' }}" />
+	                <input type="hidden" name="stage" value="live" />
+	                <input type="hidden" name="team_only" value="0" />
                 <div class="popup-header">
                   <strong>Registrar acción</strong>
                   <div class="popup-header-actions">

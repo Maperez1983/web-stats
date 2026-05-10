@@ -1083,6 +1083,37 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     try {
       actionInput?.dispatchEvent?.(new Event('input', { bubbles: true }));
     } catch (e) {}
+    try {
+      schedulePopupAutoSend('quick_action');
+    } catch (e) {}
+  };
+
+  let popupAutoSendTimer = null;
+  const schedulePopupAutoSend = (source) => {
+    if (!isProAutoSendEnabled()) return;
+    if (!fieldPopup?.classList?.contains('is-visible')) return;
+    // Evita auto-enviar mientras el usuario está corrigiendo una acción existente.
+    try {
+      const editingId = getEditingEventId && typeof getEditingEventId === 'function' ? getEditingEventId() : null;
+      if (editingId) return;
+    } catch (e) {}
+    if (popupAutoSendTimer) window.clearTimeout(popupAutoSendTimer);
+    popupAutoSendTimer = window.setTimeout(() => {
+      popupAutoSendTimer = null;
+      if (actionSubmitInFlight) return;
+      const currentAction = String(actionInput?.value || '').trim();
+      if (!currentAction) return;
+      const isTeamOnlyAction = isTeamOnlyActionValue(currentAction);
+      if (!isTeamOnlyAction && !String(playerInput?.value || '').trim()) return;
+      if (!String(resultSelect?.value || '').trim()) return;
+      // En popup (modo iPad), la zona viene del tap en el campo. Sin zona, preferimos no auto-enviar.
+      if (!String(zoneInput?.value || '').trim()) return;
+      try {
+        syncAutoFields();
+      } catch (e) {}
+      const payload = new FormData(popupForm);
+      void submitPopupAction(payload, { isTeamOnlyAction, source: 'pro_autosend' });
+    }, 60);
   };
 
   // Delegación: soporta re-render de atajos sin reiniciar la página.
@@ -1097,6 +1128,25 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       applyQuickButton(btn);
     });
   }
+
+  // Auto-enviar desde popup: cuando ya están todos los campos, guarda y vuelve al campo.
+  try {
+    if (playerInput) {
+      playerInput.addEventListener('change', () => schedulePopupAutoSend('player'));
+      playerInput.addEventListener('input', () => schedulePopupAutoSend('player'));
+    }
+    if (actionInput) {
+      actionInput.addEventListener('input', () => schedulePopupAutoSend('action'));
+      actionInput.addEventListener('change', () => schedulePopupAutoSend('action'));
+    }
+    if (resultSelect) {
+      resultSelect.addEventListener('change', () => schedulePopupAutoSend('result'));
+    }
+    if (zoneInput) {
+      zoneInput.addEventListener('input', () => schedulePopupAutoSend('zone'));
+      zoneInput.addEventListener('change', () => schedulePopupAutoSend('zone'));
+    }
+  } catch (e) {}
 
   // Hotkeys: rehace lookup dinámico (por si se reconfiguran atajos).
   window.addEventListener('keydown', (event) => {

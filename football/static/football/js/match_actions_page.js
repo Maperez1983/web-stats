@@ -126,13 +126,22 @@
 	          try { localStorage.setItem(proModeStorageKey, on ? '1' : '0'); } catch (e) {}
 	        }
 	      };
+	      const hasProAutoSendPreference = () => {
+	        try {
+	          const raw = localStorage.getItem(proAutoSendStorageKey);
+	          return !(raw === null || raw === undefined || raw === '');
+	        } catch (e) {
+	          return false;
+	        }
+	      };
 	      const getProAutoSend = () => {
 	        try {
 	          const raw = localStorage.getItem(proAutoSendStorageKey);
-	          if (raw === null || raw === undefined || raw === '') return false;
+	          // Default UX: en iPad/touch, Auto-enviar ON para maximizar velocidad de registro.
+	          if (raw === null || raw === undefined || raw === '') return wantsProByDefault();
 	          return String(raw) === '1';
 	        } catch (e) {
-	          return false;
+	          return wantsProByDefault();
 	        }
 	      };
 	      const setProAutoSendUi = (enabled) => {
@@ -159,7 +168,8 @@
 	      };
 	      // Aplica estado inicial cuanto antes (para no "reflow" visual).
 	      setProMode(loadProMode(), { persist: false });
-	      setProAutoSend(getProAutoSend(), { persist: false });
+	      const initialProAutoSend = getProAutoSend();
+	      setProAutoSend(initialProAutoSend, { persist: !hasProAutoSendPreference() });
 	      if (proModeToggleBtn) {
 	        proModeToggleBtn.addEventListener('click', () => {
 	          const next = !document.body.classList.contains('pro-mode');
@@ -3541,11 +3551,15 @@ const urlWithMatchId = (baseUrl) => {
 	          });
 	        }
 	      };
-	      const activateStage = (stage) => {
-	        activeStage = stage;
-	        stageTabs.forEach((tab) => {
-	          tab.classList.toggle('is-active', tab.dataset.stageTab === stage);
-	        });
+		      const activateStage = (stage) => {
+		        activeStage = stage;
+		        try {
+		          const stageInput = popupForm?.querySelector?.('input[name="stage"]') || null;
+		          if (stageInput) stageInput.value = String(stage || '');
+		        } catch (e) {}
+		        stageTabs.forEach((tab) => {
+		          tab.classList.toggle('is-active', tab.dataset.stageTab === stage);
+		        });
 	        stagePanels.forEach((panel) => {
 	          panel.classList.toggle('is-active', panel.dataset.stagePanel === stage);
 	        });
