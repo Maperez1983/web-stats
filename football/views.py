@@ -25531,36 +25531,38 @@ def training_session_detail_page(request, session_id):
                             updated += 1
                         continue
 
-                        if status_key not in allowed_values:
-                            continue
+                    if status_key not in allowed_values:
+                        continue
 
-                        next_notes = notes
-                        if status_key == TrainingSessionAttendance.STATUS_INJURED:
-                            next_notes = _pack_injury_note(
-                                catalog_id=int(catalog_id) if catalog_id else None,
-                                return_date=injury_return_date,
-                                detail=injury_text,
-                                note=notes,
-                            )
+                    next_notes = notes
+                    if status_key == TrainingSessionAttendance.STATUS_INJURED:
+                        next_notes = _pack_injury_note(
+                            catalog_id=int(catalog_id) if catalog_id else None,
+                            return_date=injury_return_date,
+                            detail=injury_text,
+                            note=notes,
+                        )
 
-                        if existing:
-                            if existing.status != status_key or (existing.notes or '') != next_notes:
-                                existing.status = status_key
-                                existing.notes = next_notes
-                                existing.marked_by = request.user
-                                existing.updated_at = now
-                                existing.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
-                                updated += 1
-                        else:
-                            obj = TrainingSessionAttendance.objects.create(
-                                session=session_obj,
-                                player=p,
-                                status=status_key,
-                                notes=next_notes,
-                                marked_by=request.user,
-                            )
-                        marks[int(p.id)] = obj
+                    obj = existing
+                    if existing:
+                        if existing.status != status_key or (existing.notes or '') != next_notes:
+                            existing.status = status_key
+                            existing.notes = next_notes
+                            existing.marked_by = request.user
+                            existing.updated_at = now
+                            existing.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
+                            updated += 1
+                    else:
+                        obj = TrainingSessionAttendance.objects.create(
+                            session=session_obj,
+                            player=p,
+                            status=status_key,
+                            notes=next_notes,
+                            marked_by=request.user,
+                        )
                         updated += 1
+
+                    marks[int(p.id)] = obj
 
                     # Si se marca "Lesionado", sincroniza con ficha del jugador y crea registro.
                     if status_key == TrainingSessionAttendance.STATUS_INJURED:
