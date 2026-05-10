@@ -53,7 +53,7 @@ from django.utils.dateparse import parse_date
 from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.cache import cache_control
+from django.views.decorators.cache import cache_control, never_cache
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
@@ -25075,6 +25075,7 @@ def session_plan_pdf(request, session_id):
     return _build_pdf_response_or_html_fallback(request, html, filename)
 
 
+@never_cache
 @login_required
 def training_session_detail_page(request, session_id):
     """
