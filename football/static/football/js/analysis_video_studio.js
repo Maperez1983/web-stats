@@ -112,6 +112,7 @@
 	    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
 	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
+	    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
 
 	    // Timeline editor (clips)
@@ -173,6 +174,7 @@
     const presetsStatusEl = document.getElementById('vs-presets-status');
     const eventAddBtn = document.getElementById('vs-event-add');
     const eventRefreshBtn = document.getElementById('vs-event-refresh');
+    const autocutRunBtn = document.getElementById('vs-autocut-run');
     const timelineList = document.getElementById('vs-timeline');
 	    const timelineSearchInput = document.getElementById('vs-timeline-search');
 	    const timelineKindFilterSelect = document.getElementById('vs-timeline-filter-kind');
@@ -4010,6 +4012,43 @@
       }
     };
     eventAddBtn?.addEventListener('click', addTimelineEvent);
+
+    const runAutoCut = async () => {
+      if (!autocutUrl || !videoId) { setStatus('AutoCut no disponible.', true); return; }
+      const ok = window.confirm('AutoCut analizará el MP4 (audio + movimiento) y creará eventos + clips sugeridos. ¿Continuar?');
+      if (!ok) return;
+      const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+      const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 60);
+      const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 60);
+      try {
+        if (autocutRunBtn) autocutRunBtn.disabled = true;
+        setStatus('AutoCut: analizando… (puede tardar)');
+        const resp = await fetch(autocutUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+          body: JSON.stringify({
+            video_id: videoId,
+            max_moments: 18,
+            min_gap_s: 25,
+            pre_s: pre,
+            post_s: post,
+            replace: false,
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo ejecutar AutoCut.');
+        await refreshTimeline();
+        await refreshClips();
+        setStatus(`AutoCut OK · eventos ${Number(data?.created_events || 0)} · clips ${Number(data?.created_clips || 0)}`);
+      } catch (e) {
+        setStatus('AutoCut: error analizando.', true);
+        try { alert(String(e?.message || 'Error AutoCut')); } catch (err) { /* ignore */ }
+      } finally {
+        if (autocutRunBtn) autocutRunBtn.disabled = false;
+      }
+    };
+    autocutRunBtn?.addEventListener('click', runAutoCut);
 
     const defaultEventPresets = () => ([
       { kind: 'press', label: 'Presión tras pérdida', hotkey: '1', color: '#22d3ee' },

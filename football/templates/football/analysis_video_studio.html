@@ -480,6 +480,7 @@
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
                 <button type="button" class="button" id="vs-event-add">Añadir en tiempo actual</button>
                 <button type="button" class="button" id="vs-event-refresh">Actualizar</button>
+                <button type="button" class="button primary" id="vs-autocut-run" title="Analiza audio + movimiento para proponer cortes automáticamente (beta)">AutoCut</button>
                 <select id="vs-timeline-format" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem;">
                   <option value="json" selected>JSON</option>
                   <option value="csv">CSV</option>
@@ -575,8 +576,9 @@
 	    <input type="hidden" id="vs-export-server-url" value="{% url 'analysis-video-studio-export-server-api' %}" />
 	    <input type="hidden" id="vs-export-server-playlist-url" value="{% url 'analysis-video-studio-export-server-playlist-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
-	    <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
-	    <input type="hidden" id="vs-dorsal-ocr-url" value="{% url 'analysis-video-studio-ocr-dorsal-api' %}" />
+    <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
+    <input type="hidden" id="vs-autocut-url" value="{% url 'analysis-video-studio-autocut-api' %}" />
+    <input type="hidden" id="vs-dorsal-ocr-url" value="{% url 'analysis-video-studio-ocr-dorsal-api' %}" />
 	    <input type="hidden" id="vs-ws-pref-get-url" value="{% url 'workspace-pref-get' %}" />
 	    <input type="hidden" id="vs-ws-pref-set-url" value="{% url 'workspace-pref-set' %}" />
 	    <input type="hidden" id="vs-team-id" value="{% if team %}{{ team.id }}{% endif %}" />
