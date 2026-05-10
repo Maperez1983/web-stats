@@ -19235,6 +19235,22 @@ def finalize_match_actions(request):
                 request.session['active_match_by_team'] = mapping
     except Exception:
         pass
+    # Reinicio total (matchday): al guardar el partido, la convocatoria "actual" ya no debe
+    # quedar enganchada como `is_current`, porque bloquearía el siguiente partido (p.ej. Marbella).
+    # Conservamos el registro para histórico, solo desactivamos el flag current.
+    try:
+        record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+    except Exception:
+        record = None
+    if record and bool(getattr(record, 'is_current', False)):
+        try:
+            record.is_current = False
+            record.save(update_fields=['is_current', 'updated_at'])
+        except Exception:
+            try:
+                record.save(update_fields=['is_current'])
+            except Exception:
+                pass
     try:
         is_home = match.home_team_id == primary_team.id
         score_for = match.home_score if is_home else match.away_score
