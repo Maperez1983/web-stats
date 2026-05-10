@@ -669,10 +669,53 @@
         color: rgba(248, 250, 252, 0.72);
         letter-spacing: 0.12em;
       }
-	      .lineup-chip.selected {
-	        border-color: rgba(244, 180, 0, 0.7);
-	        background: rgba(244, 180, 0, 0.08);
-	      }
+      .lineup-chip.selected {
+        border-color: rgba(244, 180, 0, 0.7);
+        background: rgba(244, 180, 0, 0.08);
+      }
+
+      /* iPad / pantallas pequeñas: 11 inicial más compacto (menos scroll). */
+      @media (max-width: 980px) {
+        .sidebar-lineup-builder {
+          gap: 0.65rem;
+          margin-bottom: 0.65rem;
+        }
+        .lineup-slot {
+          padding: 0.65rem;
+        }
+        .lineup-slot-header {
+          margin-bottom: 0.35rem;
+          font-size: 0.62rem;
+          letter-spacing: 0.24em;
+        }
+        .lineup-drop-area {
+          min-height: 82px;
+          padding: 0.5rem;
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 0.35rem;
+        }
+        .lineup-chip {
+          flex-direction: row;
+          justify-content: flex-start;
+          gap: 0.45rem;
+          padding: 0.35rem 0.5rem;
+          border-radius: 12px;
+          font-size: 0.68rem;
+        }
+        .lineup-chip img,
+        .lineup-chip-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+        }
+        .lineup-chip-name {
+          text-align: left;
+        }
+        .lineup-chip-number {
+          font-size: 0.6rem;
+        }
+      }
       .lineup-placeholder {
         font-size: 0.75rem;
         letter-spacing: 0.28em;
@@ -2021,14 +2064,24 @@
 	        object-position: center;
 	        padding: 4px;
 	      }
+      /* Antes ocultábamos los asignados al 11/banquillo para “no duplicar” UI.
+         En iPad esto empeora la toma de datos: el staff necesita ver y tocar el 11 rápido.
+         Ahora los dejamos visibles y los marcamos por sección. */
       .convocation-card.is-assigned {
-        opacity: 0;
-        pointer-events: none;
-        height: 0;
-        margin: 0;
-        padding: 0;
-        border: none;
-        overflow: hidden;
+        border-color: rgba(244, 180, 0, 0.35);
+        background: rgba(244, 180, 0, 0.06);
+        /* Sube los asignados arriba para selección rápida en partido. */
+        order: -1;
+      }
+      .convocation-card.is-assigned[data-assigned-section="starters"] {
+        border-color: rgba(74, 222, 128, 0.45);
+        background: rgba(74, 222, 128, 0.08);
+        order: -2;
+      }
+      .convocation-card.is-assigned[data-assigned-section="bench"] {
+        border-color: rgba(34, 211, 238, 0.35);
+        background: rgba(34, 211, 238, 0.06);
+        order: -1;
       }
       .convocation-card header {
         display: flex;
@@ -3041,6 +3094,7 @@
                 id="field-popup-form"
                 class="popup-form"
                 method="post"
+                action="{% url 'match-action-record' %}"
                 data-submit-url="{% url 'match-action-record' %}"
                 data-update-url="{% url 'match-action-update' %}"
               >

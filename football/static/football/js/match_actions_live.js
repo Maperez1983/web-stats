@@ -1418,6 +1418,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           ? `Partido guardado. ${updatedCount} acciones consolidadas${dedupCount ? ` · ${dedupCount} duplicadas descartadas` : ''}.`
           : 'Partido guardado. No había acciones nuevas para consolidar.';
         showPageStatus(message, 'success', 5200);
+        // Reinicio total: tras guardar un partido, volvemos a prepartido para arrancar limpio
+        // (nuevo match / nueva convocatoria / nuevo 11). Evita quedarse "atrapado" en el match ya cerrado en iPad.
+        try {
+          window.setTimeout(() => {
+            const base = String(window.location.pathname || '/registro-acciones/').trim() || '/registro-acciones/';
+            window.location.href = `${base}?stage=pre`;
+          }, 650);
+        } catch (e) {}
       } catch (err) {
         console.error(err);
         showPageStatus('Error al guardar el partido.', 'danger', 5200);
