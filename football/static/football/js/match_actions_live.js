@@ -1071,7 +1071,16 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     try {
       btn.classList.add('quake-action-active');
     } catch (e) {}
-    const action = String(btn.dataset.action || '').trim();
+    const action = String(
+      btn.dataset.action
+        || btn.dataset.eventType
+        || btn.dataset.actionType
+        || btn.getAttribute?.('data-action')
+        || btn.getAttribute?.('data-event-type')
+        || btn.getAttribute?.('data-action-type')
+        || btn.textContent
+        || ''
+    ).trim();
     if (actionInput && action) actionInput.value = action;
     if (action) pushRecentAction(action);
     try {
