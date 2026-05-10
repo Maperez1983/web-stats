@@ -156,6 +156,66 @@ def extract_motion_series(
     """
     Serie temporal de movimiento basada en diferencia frame-to-frame (media abs diff).
     """
+    # Fast path: usa FFmpeg para muestrear frames (mucho más rápido que decodificar frame-a-frame en Python).
+    ffmpeg = shutil.which('ffmpeg')
+    if ffmpeg:
+        fps = max(0.25, float(sample_fps or 2.0))
+        w = int(resize_w or 160)
+        h = int(resize_h or 90)
+        frame_size = max(1, w * h)
+        vf = f'fps={fps},scale={w}:{h}:flags=fast_bilinear,format=gray'
+        cmd = [
+            ffmpeg,
+            '-nostdin',
+            '-hide_banner',
+            '-loglevel',
+            'error',
+            # Decodifica solo keyframes cuando sea posible (acelera mucho en partidos largos).
+            '-skip_frame',
+            'nokey',
+            '-i',
+            str(video_path),
+            '-an',
+            '-sn',
+            '-vf',
+            vf,
+            '-f',
+            'rawvideo',
+            '-pix_fmt',
+            'gray',
+            'pipe:1',
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603
+        out: list[tuple[float, float]] = []
+        prev = None
+        idx = 0
+        try:
+            while proc.stdout:
+                buf = proc.stdout.read(frame_size)
+                if not buf or len(buf) < frame_size:
+                    break
+                frame = np.frombuffer(buf, dtype=np.uint8)
+                if frame.size != frame_size:
+                    break
+                frame = frame.reshape((h, w))
+                t = float(idx) / float(fps)
+                idx += 1
+                if max_seconds is not None and t >= float(max_seconds):
+                    break
+                if prev is None:
+                    prev = frame
+                    continue
+                diff = cv2.absdiff(frame, prev)
+                prev = frame
+                motion = float(np.mean(diff) / 255.0)
+                out.append((float(t), float(motion)))
+        finally:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        return out
+
     cap = cv2.VideoCapture(str(video_path))
     if not cap or not cap.isOpened():
         return []
@@ -237,7 +297,9 @@ def suggest_autocuts(
     scan_limit = dur if dur and dur > 0 else max_seconds_scan
 
     audio = extract_audio_dbfs_series(video_path, window_s=0.5, max_seconds=scan_limit)
-    motion = extract_motion_series(video_path, sample_fps=2.0, max_seconds=scan_limit)
+    # `sample_fps` bajo = más rápido. 1 fps suele ser suficiente para detectar cambios de ritmo
+    # (celebraciones, saques, reinicios, etc.) sin tardar minutos en un partido completo.
+    motion = extract_motion_series(video_path, sample_fps=1.0, max_seconds=scan_limit)
 
     audio_t = [t for t, _ in audio]
     audio_db = [v for _, v in audio]
@@ -340,4 +402,3 @@ def suggest_autocuts(
         'scan_limit_s': float(scan_limit or 0.0) if scan_limit else 0.0,
         'moments': out_moments,
     }
-
