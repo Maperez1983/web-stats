@@ -853,6 +853,22 @@
         text-transform: none;
         letter-spacing: 0.01em;
       }
+      /* Importante: evitamos que la regla global `input { width:100%... }` rompa los checkboxes en pills. */
+      .check-pill input[type="checkbox"] {
+        width: auto;
+        min-width: 16px;
+        height: 16px;
+        padding: 0;
+        margin: 0;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        background: rgba(2, 10, 22, 0.35);
+        accent-color: rgba(244, 180, 0, 0.95);
+      }
+      .check-pill input[type="checkbox"]:focus {
+        outline: 2px solid rgba(244, 180, 0, 0.35);
+        outline-offset: 2px;
+      }
       .create-board {
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 14px;
