@@ -1883,6 +1883,31 @@ class VideoExportAsset(models.Model):
         return self.title or f'Export {self.id}'
 
 
+class VideoVoiceoverAsset(models.Model):
+    """
+    Voz en off subida/grabada para mezclarla en exports del Video Studio.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='video_voiceovers')
+    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='voiceovers')
+    title = models.CharField(max_length=180, blank=True)
+    file = models.FileField(upload_to='video-voiceovers/')
+    mime_type = models.CharField(max_length=80, blank=True)
+    duration_ms = models.IntegerField(default=0)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'video', '-created_at']),
+            models.Index(fields=['video', '-created_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Voiceover {self.id}'
+
+
 class VideoInboxItem(models.Model):
     """
     Elemento compartido internamente (sin enlaces públicos) para staff.

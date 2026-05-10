@@ -154,6 +154,7 @@ from football.models import (
     VideoClip,
     VideoAiInsight,
     VideoExportAsset,
+    VideoVoiceoverAsset,
     VideoInboxItem,
     VideoInboxComment,
     ChunkedRivalVideoUpload,
@@ -45154,6 +45155,154 @@ def analysis_video_studio_clips_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
+@login_required
+def analysis_video_studio_voiceovers_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if not scope_team:
+        return JsonResponse({'ok': True, 'items': []})
+
+    items = list(
+        VideoVoiceoverAsset.objects
+        .filter(team=scope_team, video_id=int(video_id))
+        .order_by('-created_at', '-id')[:40]
+    )
+    payload = []
+    for obj in items:
+        try:
+            file_url = obj.file.url if getattr(obj, 'file', None) else ''
+        except Exception:
+            file_url = ''
+        payload.append(
+            {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'mime_type': str(obj.mime_type or '').strip(),
+                'duration_ms': int(obj.duration_ms or 0),
+                'file_url': file_url,
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_voiceover_upload_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+
+    video_id = _parse_int(request.POST.get('video_id') or request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if not scope_team:
+        return JsonResponse({'ok': False, 'error': 'Asigna el vídeo a un equipo para usar voz en off.'}, status=400)
+
+    up = request.FILES.get('file')
+    if not up:
+        return JsonResponse({'ok': False, 'error': 'Archivo requerido.'}, status=400)
+
+    title = _sanitize_task_text(str(request.POST.get('title') or '').strip(), multiline=False, max_len=180)
+    mime_type = str(getattr(up, 'content_type', '') or '').strip().lower()[:80]
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+
+    try:
+        obj = VideoVoiceoverAsset.objects.create(
+            team=scope_team,
+            video=video,
+            title=title[:180],
+            file=up,
+            mime_type=mime_type,
+            duration_ms=0,
+            created_by=username,
+        )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo subir la voz en off.'}, status=500)
+
+    try:
+        file_url = obj.file.url if getattr(obj, 'file', None) else ''
+    except Exception:
+        file_url = ''
+    return JsonResponse(
+        {
+            'ok': True,
+            'item': {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'mime_type': str(obj.mime_type or '').strip(),
+                'duration_ms': int(obj.duration_ms or 0),
+                'file_url': file_url,
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+            },
+        }
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_voiceover_delete_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = request.POST.dict() if hasattr(request, 'POST') else {}
+    voiceover_id = _parse_int(data.get('id') or data.get('voiceover_id'))
+    video_id = _parse_int(data.get('video_id'))
+    if not voiceover_id or not video_id:
+        return JsonResponse({'ok': False, 'error': 'id y video_id requeridos.'}, status=400)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if not scope_team:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    obj = VideoVoiceoverAsset.objects.filter(id=int(voiceover_id), team=scope_team, video_id=int(video_id)).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Voz en off no encontrada.'}, status=404)
+
+    username = str(getattr(request.user, 'username', '') or '').strip()
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(obj.created_by or '').strip() != username:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    try:
+        try:
+            if getattr(obj, 'file', None):
+                obj.file.delete(save=False)
+        except Exception:
+            pass
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -47410,6 +47559,165 @@ def _video_studio_render_timeline_items_to_mp4(
         raise
 
 
+def _video_studio_mp4_has_audio(mp4_path: str) -> bool:
+    path = str(mp4_path or '').strip()
+    if not path:
+        return False
+    ffprobe_path = shutil.which('ffprobe')
+    if not ffprobe_path:
+        return True
+    try:
+        proc = subprocess.run(
+            [
+                ffprobe_path,
+                '-v',
+                'error',
+                '-select_streams',
+                'a:0',
+                '-show_entries',
+                'stream=codec_type',
+                '-of',
+                'csv=p=0',
+                path,
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )  # noqa: S603
+        out = (proc.stdout or b'').decode('utf-8', errors='ignore').strip()
+        return bool(out)
+    except Exception:
+        return True
+
+
+def _video_studio_mix_voiceover_to_mp4(
+    *,
+    mp4_path: str,
+    voiceover_path=None,
+    include_video_audio: bool,
+    video_volume: float = 1.0,
+    voiceover_volume: float = 1.0,
+    base_name: str = 'mix',
+):  # -> str | None
+    """
+    Mezcla (o ajusta volumen) en un MP4 ya renderizado:
+    - Copia vídeo (no re-encode).
+    - Re-encode solo audio a AAC.
+    """
+    src = str(mp4_path or '').strip()
+    if not src:
+        raise ValueError('mp4_path requerido')
+    vo = str(voiceover_path or '').strip() or None
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        raise RuntimeError('FFmpeg no disponible')
+
+    has_audio = _video_studio_mp4_has_audio(src) if include_video_audio else False
+
+    vv = float(video_volume or 1.0)
+    vo_v = float(voiceover_volume or 1.0)
+    vv = max(0.0, min(vv, 2.0))
+    vo_v = max(0.0, min(vo_v, 2.0))
+
+    # Solo volumen del audio original.
+    if not vo:
+        if (not include_video_audio) or (not has_audio) or abs(vv - 1.0) < 1e-6:
+            return None
+        safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'mix'
+        tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-audio-{safe_base}-', suffix='.mp4', delete=False)
+        out_path = tmp_out.name
+        tmp_out.close()
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-i',
+            src,
+            '-map',
+            '0:v:0',
+            '-map',
+            '0:a:0',
+            '-c:v',
+            'copy',
+            '-af',
+            f'volume={vv:.6f}',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        return out_path
+
+    # Con voz en off.
+    safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'mix'
+    tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-audio-{safe_base}-', suffix='.mp4', delete=False)
+    out_path = tmp_out.name
+    tmp_out.close()
+
+    if include_video_audio and has_audio:
+        fc = (
+            f'[0:a]volume={vv:.6f}[a0];'
+            f'[1:a]volume={vo_v:.6f}[a1];'
+            '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+        )
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-i',
+            src,
+            '-i',
+            vo,
+            '-filter_complex',
+            fc,
+            '-map',
+            '0:v:0',
+            '-map',
+            '[aout]',
+            '-c:v',
+            'copy',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-shortest',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+    else:
+        cmd = [
+            ffmpeg_path,
+            '-y',
+            '-i',
+            src,
+            '-i',
+            vo,
+            '-map',
+            '0:v:0',
+            '-map',
+            '1:a:0',
+            '-c:v',
+            'copy',
+            '-af',
+            f'volume={vo_v:.6f}',
+            '-c:a',
+            'aac',
+            '-b:a',
+            '128k',
+            '-shortest',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+
+    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+    return out_path
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -48030,6 +48338,18 @@ def analysis_video_studio_export_server_playlist_api(request):
         include_audio = include_audio.strip().lower() not in {'0', 'false', 'no', 'off'}
     include_audio = bool(include_audio)
 
+    voiceover_id = _parse_int(data.get('voiceover_id'))
+    try:
+        voiceover_volume = float(data.get('voiceover_volume') if data.get('voiceover_volume') is not None else 1.0)
+    except Exception:
+        voiceover_volume = 1.0
+    try:
+        video_volume = float(data.get('video_volume') if data.get('video_volume') is not None else 1.0)
+    except Exception:
+        video_volume = 1.0
+    voiceover_volume = max(0.0, min(float(voiceover_volume), 2.0))
+    video_volume = max(0.0, min(float(video_volume), 2.0))
+
     # Nueva forma (timeline): items = [{clip_id, in_s?, out_s?, speed?, speed_start?, speed_end?, fade_in?, fade_out?}, ...]
     raw_items = data.get('items')
     if isinstance(raw_items, str):
@@ -48184,6 +48504,54 @@ def analysis_video_studio_export_server_playlist_api(request):
 
     if not mime_type:
         mime_type = 'video/mp4'
+
+    # Post-proceso de audio: volumen del vídeo + voz en off (si existe).
+    voiceover_path = None
+    if voiceover_id:
+        vo = VideoVoiceoverAsset.objects.filter(id=int(voiceover_id), team=primary_team, video=video).first()
+        if not vo:
+            return JsonResponse({'ok': False, 'error': 'Voz en off no encontrada.'}, status=404)
+        try:
+            voiceover_path = str(vo.file.path or '').strip() if getattr(vo, 'file', None) else ''
+        except Exception:
+            voiceover_path = ''
+        if not voiceover_path:
+            return JsonResponse({'ok': False, 'error': 'El archivo de voz en off no está disponible.'}, status=400)
+
+    wants_audio_mix = bool(voiceover_path) or (include_audio and abs(float(video_volume) - 1.0) >= 1e-6)
+    if wants_audio_mix:
+        base_mp4_path = ''
+        try:
+            base_mp4_path = str(getattr(getattr(file_obj, 'file', None), 'name', '') or '').strip()
+        except Exception:
+            base_mp4_path = ''
+        if base_mp4_path:
+            mixed_path = None
+            try:
+                mixed_path = _video_studio_mix_voiceover_to_mp4(
+                    mp4_path=base_mp4_path,
+                    voiceover_path=voiceover_path,
+                    include_video_audio=include_audio,
+                    video_volume=float(video_volume),
+                    voiceover_volume=float(voiceover_volume),
+                    base_name=title or f'playlist-{video_id}',
+                )
+            except Exception:
+                return JsonResponse({'ok': False, 'error': 'No se pudo mezclar el audio (voz en off).'}, status=500)
+            if mixed_path:
+                from django.core.files import File  # noqa: WPS433
+
+                try:
+                    if hasattr(file_obj, 'close'):
+                        file_obj.close()
+                except Exception:
+                    pass
+                try:
+                    cleanup_paths = list(cleanup_paths or [])
+                    cleanup_paths.append(str(mixed_path))
+                except Exception:
+                    cleanup_paths = [str(mixed_path)]
+                file_obj = File(open(str(mixed_path), 'rb'), name=str(out_name or 'timeline.mp4'))
 
     try:
         asset = VideoExportAsset.objects.create(

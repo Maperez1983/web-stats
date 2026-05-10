@@ -333,11 +333,61 @@
                         <button type="button" class="button ghost" id="vs-tl-clear">Vaciar timeline</button>
                         <button type="button" class="button" id="vs-tl-save-project">Guardar timeline</button>
                         <button type="button" class="button" id="vs-tl-load-project">Cargar timeline</button>
+                        <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0; margin-left:auto;">
+                          <input type="checkbox" id="vs-tl-include-audio" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                          Audio original
+                        </label>
                         <select id="vs-tl-project-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
                           <option value="">(Proyecto)</option>
                         </select>
                       </div>
                       <div class="list" id="vs-tl-items"></div>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                        <select id="vs-voiceover-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
+                          <option value="">(Voz en off)</option>
+                        </select>
+                        <button type="button" class="button" id="vs-voiceover-record">Grabar voz</button>
+                        <button type="button" class="button danger" id="vs-voiceover-delete">Borrar voz</button>
+                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
+                          Vol voz
+                          <input type="number" id="vs-voiceover-vol" min="0" max="2" step="0.05" value="1" style="width:90px;" />
+                        </label>
+                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
+                          Vol vídeo
+                          <input type="number" id="vs-video-vol" min="0" max="2" step="0.05" value="1" style="width:90px;" />
+                        </label>
+                      </div>
+                      <dialog id="vs-tl-item-dialog" style="border:1px solid rgba(255,255,255,0.18); background:rgba(9,16,29,0.98); color:#f3f7ff; border-radius:14px; padding:1rem; max-width:520px;">
+                        <form method="dialog" style="display:grid; gap:0.65rem;">
+                          <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase;">Clip FX</div>
+                          <div class="hint">Velocidad por clip (constante o ramp) + fades.</div>
+                          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+                            <label style="margin:0;">
+                              Speed inicio
+                              <input type="number" id="vs-tl-speed-start" min="0.1" max="4" step="0.05" value="1" />
+                            </label>
+                            <label style="margin:0;">
+                              Speed final
+                              <input type="number" id="vs-tl-speed-end" min="0.1" max="4" step="0.05" value="1" />
+                            </label>
+                          </div>
+                          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.55rem;">
+                            <label style="margin:0;">
+                              Fade in (s)
+                              <input type="number" id="vs-tl-fade-in" min="0" max="2" step="0.05" value="0" />
+                            </label>
+                            <label style="margin:0;">
+                              Fade out (s)
+                              <input type="number" id="vs-tl-fade-out" min="0" max="2" step="0.05" value="0" />
+                            </label>
+                          </div>
+                          <menu style="display:flex; gap:0.45rem; justify-content:flex-end; margin:0; padding:0;">
+                            <button class="button ghost" value="cancel">Cancelar</button>
+                            <button class="button" value="reset">Reset</button>
+                            <button class="button primary" value="save">Guardar</button>
+                          </menu>
+                        </form>
+                      </dialog>
                       <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
                         <div class="hint" id="vs-tl-total" style="align-self:center;">—</div>
                         <button type="button" class="button" id="vs-tl-export-mp4">Export MP4 timeline</button>
@@ -575,6 +625,9 @@
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />
 	    <input type="hidden" id="vs-export-server-url" value="{% url 'analysis-video-studio-export-server-api' %}" />
 	    <input type="hidden" id="vs-export-server-playlist-url" value="{% url 'analysis-video-studio-export-server-playlist-api' %}" />
+	    <input type="hidden" id="vs-voiceovers-url" value="{% url 'analysis-video-studio-voiceovers-api' %}" />
+	    <input type="hidden" id="vs-voiceover-upload-url" value="{% url 'analysis-video-studio-voiceover-upload-api' %}" />
+	    <input type="hidden" id="vs-voiceover-delete-url" value="{% url 'analysis-video-studio-voiceover-delete-api' %}" />
 	    <input type="hidden" id="vs-report-pdf-url" value="{% url 'analysis-video-studio-report-pdf-api' %}" />
     <input type="hidden" id="vs-ai-url" value="{% url 'analysis-video-studio-ai-api' %}" />
     <input type="hidden" id="vs-autocut-url" value="{% url 'analysis-video-studio-autocut-api' %}" />

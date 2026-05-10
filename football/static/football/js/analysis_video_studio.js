@@ -2242,7 +2242,7 @@
     };
     projectSaveBtn?.addEventListener('click', saveProject);
     projectRefreshBtn?.addEventListener('click', refreshProjects);
-    refreshProjects();
+    // refreshProjects() se dispara más abajo, cuando el Timeline editor ya ha definido sus helpers.
 
 	    // Clips (server)
 	    let activeClipId = 0;
@@ -2295,14 +2295,56 @@
 	      }
 	    };
 
-	    // Timeline editor (beta)
-	    let tlIds = [];
+	    // Timeline editor (beta) - v2 (FX por clip + export servidor)
+	    const voiceoversUrl = safeText(document.getElementById('vs-voiceovers-url')?.value);
+	    const voiceoverUploadUrl = safeText(document.getElementById('vs-voiceover-upload-url')?.value);
+	    const voiceoverDeleteUrl = safeText(document.getElementById('vs-voiceover-delete-url')?.value);
+	    const voiceoverSelect = document.getElementById('vs-voiceover-select');
+	    const voiceoverRecordBtn = document.getElementById('vs-voiceover-record');
+	    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
+	    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
+	    const videoVolInput = document.getElementById('vs-video-vol');
+
+	    let tlItems = [];
 	    let tlLastLoadedProjectId = 0;
+	    let tlEditingIdx = -1;
+
+	    const tlNum = (v, d = 0) => {
+	      try {
+	        if (v == null || v === '') return Number(d) || 0;
+	        const n = Number(v);
+	        return Number.isFinite(n) ? n : (Number(d) || 0);
+	      } catch (e) {
+	        return Number(d) || 0;
+	      }
+	    };
+	    const tlClamp = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
+
+	    const tlNormalizeItem = (raw) => {
+	      if (!raw || typeof raw !== 'object') return null;
+	      const clipId = Number(raw.clip_id || raw.id || raw.clip) || 0;
+	      if (!clipId) return null;
+	      const speed = tlClamp(tlNum(raw.speed, 1), 0.1, 4);
+	      const spA = tlClamp(tlNum(raw.speed_start, speed), 0.1, 4);
+	      const spB = tlClamp(tlNum(raw.speed_end, spA), 0.1, 4);
+	      const fadeIn = tlClamp(tlNum(raw.fade_in, 0), 0, 2);
+	      const fadeOut = tlClamp(tlNum(raw.fade_out, 0), 0, 2);
+	      return {
+	        clip_id: clipId,
+	        speed,
+	        speed_start: spA,
+	        speed_end: spB,
+	        fade_in: fadeIn,
+	        fade_out: fadeOut,
+	      };
+	    };
+	    const tlDefaultItem = (clipId) => tlNormalizeItem({ clip_id: clipId, speed: 1, speed_start: 1, speed_end: 1, fade_in: 0, fade_out: 0 });
 
 	    const isTimelineProject = (p) => {
 	      const payload = p?.payload;
 	      if (!payload || typeof payload !== 'object') return false;
-	      return String(payload?.kind || '') === 'timeline_v1' && Array.isArray(payload?.clip_ids);
+	      const kind = String(payload?.kind || '');
+	      return (kind === 'timeline_v2' && Array.isArray(payload?.items)) || (kind === 'timeline_v1' && Array.isArray(payload?.clip_ids));
 	    };
 
 	    const renderTimelineProjectSelect = (items) => {
@@ -2329,27 +2371,39 @@
 
 	    const tlTotalSeconds = () => {
 	      let sum = 0;
-	      for (const id of tlIds) {
-	        const c = clipById(id);
+	      for (const it of (Array.isArray(tlItems) ? tlItems : [])) {
+	        const clipId = Number(it?.clip_id) || 0;
+	        if (!clipId) continue;
+	        const c = clipById(clipId);
 	        if (!c) continue;
 	        const a = Number(c?.in_s) || 0;
 	        const b = Number(c?.out_s) || 0;
-	        const d = Math.max(0, (b || a) - a);
-	        sum += d;
+	        const srcDur = Math.max(0, (b || a) - a);
+	        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
+	        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
+	        const avg = Math.max(0.1, (spA + spB) / 2);
+	        sum += (srcDur / avg);
 	      }
 	      return sum;
 	    };
 
 	    const renderTimelineItems = () => {
 	      if (!tlItemsEl) return;
-	      const rows = tlIds.map((id, idx) => {
+	      const rows = (Array.isArray(tlItems) ? tlItems : []).map((it, idx) => {
+	        const id = Number(it?.clip_id) || 0;
 	        const c = clipById(id);
 	        const title = escHtml(safeText(c?.title, `Clip ${id}`));
 	        const coll = escHtml(safeText(c?.collection, ''));
 	        const a = Number(c?.in_s) || 0;
 	        const b = Number(c?.out_s) || 0;
-	        const dur = Math.max(0, (b || a) - a);
-	        const label = `${fmtTimeShort(a)} → ${fmtTimeShort(b || a)} · ${fmtDur(dur)}`;
+	        const srcDur = Math.max(0, (b || a) - a);
+	        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
+	        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
+	        const avg = Math.max(0.1, (spA + spB) / 2);
+	        const outDur = srcDur / avg;
+	        const fi = tlClamp(tlNum(it?.fade_in, 0), 0, 2);
+	        const fo = tlClamp(tlNum(it?.fade_out, 0), 0, 2);
+	        const label = `${fmtTimeShort(a)} → ${fmtTimeShort(b || a)} · ${fmtDur(outDur)} · x${Math.round(spA * 100) / 100}${Math.abs(spA - spB) >= 1e-3 ? `→${Math.round(spB * 100) / 100}` : ''}${(fi || fo) ? ` · fade ${fi}/${fo}` : ''}`;
 	        return `
 	          <div class="row" draggable="true" data-tl-idx="${idx}" style="gap:0.75rem;">
 	            <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0;">
@@ -2357,6 +2411,7 @@
 	              <small>${coll ? `${coll} · ` : ''}${label}</small>
 	            </div>
 	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
+	              <button type="button" class="button" data-tl-fx="${idx}">FX</button>
 	              <button type="button" class="button" data-tl-open="${id}">Editar</button>
 	              <button type="button" class="button" data-tl-jump="${id}">Ir</button>
 	              <button type="button" class="button" data-tl-up="${idx}">↑</button>
@@ -2367,14 +2422,13 @@
 	        `;
 	      }).join('');
 	      tlItemsEl.innerHTML = rows || '<div class="meta">Sin clips en timeline. Selecciona clips y pulsa “Cargar selección”.</div>';
-	      if (tlTotalEl) tlTotalEl.textContent = tlIds.length ? `${tlIds.length} clips · ${fmtDur(tlTotalSeconds())}` : '—';
+	      if (tlTotalEl) tlTotalEl.textContent = tlItems.length ? `${tlItems.length} clips · ${fmtDur(tlTotalSeconds())}` : '—';
 
-	      // botones
 	      Array.from(tlItemsEl.querySelectorAll('[data-tl-rm]')).forEach((btn) => {
 	        btn.addEventListener('click', () => {
 	          const idx = Number(btn.getAttribute('data-tl-rm') || -1);
-	          if (idx < 0 || idx >= tlIds.length) return;
-	          tlIds.splice(idx, 1);
+	          if (idx < 0 || idx >= tlItems.length) return;
+	          tlItems.splice(idx, 1);
 	          renderTimelineItems();
 	          updatePlaylistExportAvailability();
 	        });
@@ -2382,21 +2436,35 @@
 	      Array.from(tlItemsEl.querySelectorAll('[data-tl-up]')).forEach((btn) => {
 	        btn.addEventListener('click', () => {
 	          const idx = Number(btn.getAttribute('data-tl-up') || -1);
-	          if (idx <= 0 || idx >= tlIds.length) return;
-	          const tmp = tlIds[idx - 1];
-	          tlIds[idx - 1] = tlIds[idx];
-	          tlIds[idx] = tmp;
+	          if (idx <= 0 || idx >= tlItems.length) return;
+	          const tmp = tlItems[idx - 1];
+	          tlItems[idx - 1] = tlItems[idx];
+	          tlItems[idx] = tmp;
 	          renderTimelineItems();
 	        });
 	      });
 	      Array.from(tlItemsEl.querySelectorAll('[data-tl-down]')).forEach((btn) => {
 	        btn.addEventListener('click', () => {
 	          const idx = Number(btn.getAttribute('data-tl-down') || -1);
-	          if (idx < 0 || idx >= tlIds.length - 1) return;
-	          const tmp = tlIds[idx + 1];
-	          tlIds[idx + 1] = tlIds[idx];
-	          tlIds[idx] = tmp;
+	          if (idx < 0 || idx >= tlItems.length - 1) return;
+	          const tmp = tlItems[idx + 1];
+	          tlItems[idx + 1] = tlItems[idx];
+	          tlItems[idx] = tmp;
 	          renderTimelineItems();
+	        });
+	      });
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-fx]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const idx = Number(btn.getAttribute('data-tl-fx') || -1);
+	          if (!tlItemDialog || idx < 0 || idx >= tlItems.length) return;
+	          tlEditingIdx = idx;
+	          const it = tlItems[idx] || {};
+	          try { tlItemDialog.returnValue = ''; } catch (e) { /* ignore */ }
+	          if (tlSpeedStartInput) tlSpeedStartInput.value = String(tlClamp(tlNum(it.speed_start, tlNum(it.speed, 1)), 0.1, 4));
+	          if (tlSpeedEndInput) tlSpeedEndInput.value = String(tlClamp(tlNum(it.speed_end, tlNum(it.speed_start, tlNum(it.speed, 1))), 0.1, 4));
+	          if (tlFadeInInput) tlFadeInInput.value = String(tlClamp(tlNum(it.fade_in, 0), 0, 2));
+	          if (tlFadeOutInput) tlFadeOutInput.value = String(tlClamp(tlNum(it.fade_out, 0), 0, 2));
+	          try { tlItemDialog.showModal(); } catch (e2) { /* ignore */ }
 	        });
 	      });
 	      Array.from(tlItemsEl.querySelectorAll('[data-tl-jump]')).forEach((btn) => {
@@ -2435,7 +2503,6 @@
 	        });
 	      });
 
-	      // drag & drop
 	      const rowsEls = Array.from(tlItemsEl.querySelectorAll('[data-tl-idx]'));
 	      rowsEls.forEach((row) => {
 	        row.addEventListener('dragstart', (ev) => {
@@ -2447,8 +2514,8 @@
 	          const fromIdx = Number((ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || -1);
 	          const toIdx = Number(row.getAttribute('data-tl-idx') || -1);
 	          if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
-	          const moved = tlIds.splice(fromIdx, 1)[0];
-	          tlIds.splice(toIdx, 0, moved);
+	          const moved = tlItems.splice(fromIdx, 1)[0];
+	          tlItems.splice(toIdx, 0, moved);
 	          renderTimelineItems();
 	        });
 	      });
@@ -2456,23 +2523,23 @@
 
 	    const tlLoadFromSelection = () => {
 	      const items = selectedClipsOrdered();
-	      tlIds = items.map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	      tlItems = items.map((c) => tlDefaultItem(Number(c?.id) || 0)).filter(Boolean);
 	      renderTimelineItems();
 	      updatePlaylistExportAvailability();
 	    };
 
 	    const tlClear = () => {
-	      tlIds = [];
+	      tlItems = [];
 	      renderTimelineItems();
 	      updatePlaylistExportAvailability();
 	    };
 
 	    const tlSaveProject = async () => {
 	      if (!projectSaveUrl || !videoId) return;
-	      if (!tlIds.length) { setStatus('No hay clips en timeline.', true); return; }
-	      const title = window.prompt('Nombre del timeline:', `Timeline · ${tlIds.length} clips`);
+	      if (!tlItems.length) { setStatus('No hay clips en timeline.', true); return; }
+	      const title = window.prompt('Nombre del timeline:', `Timeline · ${tlItems.length} clips`);
 	      if (!title) return;
-	      const payload = { kind: 'timeline_v1', clip_ids: tlIds.slice(0, 200) };
+	      const payload = { kind: 'timeline_v2', items: tlItems.slice(0, 200), clip_ids: tlItems.map((x) => Number(x?.clip_id) || 0).filter((x) => x > 0).slice(0, 200) };
 	      try {
 	        const resp = await fetch(projectSaveUrl, {
 	          method: 'POST',
@@ -2495,8 +2562,13 @@
 	      try {
 	        const found = (Array.isArray(projectsCache) ? projectsCache : []).find((x) => Number(x?.id) === id);
 	        const payload = found?.payload || {};
-	        const ids = Array.isArray(payload?.clip_ids) ? payload.clip_ids : [];
-	        tlIds = ids.map((x) => Number(x) || 0).filter((x) => x > 0);
+	        const raw = Array.isArray(payload?.items) ? payload.items : null;
+	        if (raw && Array.isArray(raw)) {
+	          tlItems = raw.map(tlNormalizeItem).filter(Boolean);
+	        } else {
+	          const ids = Array.isArray(payload?.clip_ids) ? payload.clip_ids : [];
+	          tlItems = ids.map((x) => tlDefaultItem(Number(x) || 0)).filter(Boolean);
+	        }
 	        tlLastLoadedProjectId = id;
 	        renderTimelineItems();
 	        setStatus('Timeline cargado.');
@@ -2508,16 +2580,36 @@
 	    const tlExportMp4 = async () => {
 	      if (!exportServerPlaylistUrl) { setStatus('No hay endpoint MP4 playlist.', true); return; }
 	      if (!teamId) { setStatus('Asigna el vídeo a un equipo antes de exportar MP4.', true); return; }
-	      if (tlIds.length < 2) { setStatus('Añade al menos 2 clips al timeline.', true); return; }
-	      const t = `Timeline · ${tlIds.length} clips`;
+	      if (tlItems.length < 2) { setStatus('Añade al menos 2 clips al timeline.', true); return; }
+	      const t = `Timeline · ${tlItems.length} clips`;
 	      try {
 	        tlExportBtn.disabled = true;
 	        setStatus('Generando MP4 timeline en servidor…');
+	        const includeAudio = tlIncludeAudioToggle ? Boolean(tlIncludeAudioToggle.checked) : true;
+	        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
+	        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
+	        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
+	        const items = tlItems.slice(0, 60).map((it) => ({
+	          clip_id: Number(it?.clip_id) || 0,
+	          speed: tlClamp(tlNum(it?.speed, 1), 0.1, 4),
+	          speed_start: tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4),
+	          speed_end: tlClamp(tlNum(it?.speed_end, tlNum(it?.speed_start, tlNum(it?.speed, 1))), 0.1, 4),
+	          fade_in: tlClamp(tlNum(it?.fade_in, 0), 0, 2),
+	          fade_out: tlClamp(tlNum(it?.fade_out, 0), 0, 2),
+	        })).filter((x) => x.clip_id > 0);
 	        const resp = await fetch(exportServerPlaylistUrl, {
 	          method: 'POST',
 	          credentials: 'same-origin',
 	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
-	          body: JSON.stringify({ video_id: videoId || 0, clip_ids: tlIds.slice(0, 60), title: t }),
+	          body: JSON.stringify({
+	            video_id: videoId || 0,
+	            items,
+	            title: t,
+	            include_audio: includeAudio,
+	            voiceover_id: voiceoverId > 0 ? voiceoverId : undefined,
+	            voiceover_volume: voiceoverVol,
+	            video_volume: videoVol,
+	          }),
 	        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok || !data?.url) {
@@ -2547,11 +2639,178 @@
 	      }
 	    };
 
+	    if (tlItemDialog) {
+	      tlItemDialog.addEventListener('close', () => {
+	        const action = safeText(tlItemDialog.returnValue, '');
+	        const idx = Number(tlEditingIdx);
+	        tlEditingIdx = -1;
+	        if (idx < 0 || idx >= tlItems.length) return;
+	        if (action === 'reset') {
+	          const id = Number(tlItems[idx]?.clip_id) || 0;
+	          tlItems[idx] = tlDefaultItem(id);
+	          renderTimelineItems();
+	          return;
+	        }
+	        if (action !== 'save') return;
+	        const spA = tlClamp(tlNum(tlSpeedStartInput?.value, 1), 0.1, 4);
+	        const spB = tlClamp(tlNum(tlSpeedEndInput?.value, spA), 0.1, 4);
+	        const fi = tlClamp(tlNum(tlFadeInInput?.value, 0), 0, 2);
+	        const fo = tlClamp(tlNum(tlFadeOutInput?.value, 0), 0, 2);
+	        const prev = tlItems[idx] || {};
+	        tlItems[idx] = { ...prev, speed: spA, speed_start: spA, speed_end: spB, fade_in: fi, fade_out: fo };
+	        renderTimelineItems();
+	      });
+	    }
+
+	    const voiceoverKey = () => `vs_voiceover_settings:v1:${teamId || 'na'}:${videoId || 'na'}`;
+	    const loadVoiceoverSettings = () => {
+	      try {
+	        const raw = window.localStorage.getItem(voiceoverKey()) || '';
+	        return raw ? JSON.parse(raw) : {};
+	      } catch (e) { return {}; }
+	    };
+	    const saveVoiceoverSettings = () => {
+	      try {
+	        const payload = {
+	          voiceover_id: Number(voiceoverSelect?.value || 0) || 0,
+	          voiceover_vol: tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2),
+	          video_vol: tlClamp(tlNum(videoVolInput?.value, 1), 0, 2),
+	        };
+	        window.localStorage.setItem(voiceoverKey(), JSON.stringify(payload));
+	      } catch (e) { /* ignore */ }
+	    };
+	    const refreshVoiceovers = async () => {
+	      if (!voiceoversUrl || !videoId || !voiceoverSelect) return;
+	      try {
+	        const resp = await fetch(`${voiceoversUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        const items = Array.isArray(data?.items) ? data.items : [];
+	        const current = Number(voiceoverSelect.value || 0) || 0;
+	        const opts = ['<option value=\"\">(Voz en off)</option>'].concat(items.map((it) => {
+	          const id = Number(it?.id) || 0;
+	          if (!id) return '';
+	          const title = escHtml(safeText(it?.title, `Voz ${id}`));
+	          return `<option value=\"${id}\">${title}</option>`;
+	        }).filter(Boolean));
+	        voiceoverSelect.innerHTML = opts.join('');
+	        if (current && items.some((x) => Number(x?.id) === current)) {
+	          voiceoverSelect.value = String(current);
+	        }
+	      } catch (e) { /* ignore */ }
+	    };
+	    const pickRecordMime = () => {
+	      const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg'];
+	      for (const m of cands) {
+	        try { if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m; } catch (e) { /* ignore */ }
+	      }
+	      return '';
+	    };
+	    let voRecorder = null;
+	    let voChunks = [];
+	    let voStream = null;
+	    const stopVoiceStream = () => {
+	      try { (voStream?.getTracks?.() || []).forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+	      voStream = null;
+	    };
+	    const uploadVoiceoverBlob = async (blob) => {
+	      if (!voiceoverUploadUrl || !videoId) return;
+	      const ext = (String(blob?.type || '').includes('mp4')) ? 'm4a' : (String(blob?.type || '').includes('ogg') ? 'ogg' : 'webm');
+	      const fd = new FormData();
+	      fd.append('video_id', String(videoId));
+	      fd.append('title', `Voz · ${new Date().toLocaleString()}`.slice(0, 180));
+	      fd.append('file', blob, `voiceover.${ext}`);
+	      const resp = await fetch(voiceoverUploadUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf }, body: fd });
+	      const data = await resp.json().catch(() => ({}));
+	      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo subir voz.');
+	      await refreshVoiceovers();
+	      const id = Number(data?.item?.id) || 0;
+	      if (id && voiceoverSelect) voiceoverSelect.value = String(id);
+	      saveVoiceoverSettings();
+	    };
+	    const toggleVoiceRecording = async () => {
+	      if (!voiceoverRecordBtn) return;
+	      if (voRecorder && voRecorder.state === 'recording') {
+	        try { voRecorder.stop(); } catch (e) { /* ignore */ }
+	        voiceoverRecordBtn.textContent = 'Grabar voz';
+	        return;
+	      }
+	      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+	        setStatus('Grabación no soportada en este navegador.', true);
+	        return;
+	      }
+	      voiceoverRecordBtn.textContent = 'Parar';
+	      setStatus('Grabando voz en off…');
+	      try {
+	        voStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+	        const mimeType = pickRecordMime();
+	        voChunks = [];
+	        voRecorder = new MediaRecorder(voStream, mimeType ? { mimeType } : undefined);
+	        voRecorder.addEventListener('dataavailable', (ev) => {
+	          if (ev?.data && ev.data.size > 0) voChunks.push(ev.data);
+	        });
+	        voRecorder.addEventListener('stop', async () => {
+	          stopVoiceStream();
+	          const blob = new Blob(voChunks, { type: voRecorder?.mimeType || '' });
+	          voRecorder = null;
+	          voChunks = [];
+	          try {
+	            setStatus('Subiendo voz en off…');
+	            await uploadVoiceoverBlob(blob);
+	            setStatus('Voz en off guardada.');
+	          } catch (e) {
+	            setStatus(e?.message || 'No se pudo subir voz.', true);
+	          }
+	        });
+	        voRecorder.start(250);
+	      } catch (e) {
+	        stopVoiceStream();
+	        voRecorder = null;
+	        voChunks = [];
+	        voiceoverRecordBtn.textContent = 'Grabar voz';
+	        setStatus('No se pudo acceder al micrófono.', true);
+	      }
+	    };
+	    const deleteSelectedVoiceover = async () => {
+	      const id = Number(voiceoverSelect?.value || 0) || 0;
+	      if (!id || !voiceoverDeleteUrl || !videoId) return;
+	      if (!window.confirm('¿Borrar esta voz en off?')) return;
+	      try {
+	        const resp = await fetch(voiceoverDeleteUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          body: JSON.stringify({ id, video_id: videoId }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        await refreshVoiceovers();
+	        if (voiceoverSelect) voiceoverSelect.value = '';
+	        saveVoiceoverSettings();
+	        setStatus('Voz borrada.');
+	      } catch (e) {
+	        setStatus('No se pudo borrar la voz.', true);
+	      }
+	    };
+
+	    try {
+	      const s = loadVoiceoverSettings();
+	      if (voiceoverVolInput && s.voiceover_vol != null) voiceoverVolInput.value = String(s.voiceover_vol);
+	      if (videoVolInput && s.video_vol != null) videoVolInput.value = String(s.video_vol);
+	    } catch (e) { /* ignore */ }
+	    voiceoverSelect?.addEventListener('change', saveVoiceoverSettings);
+	    voiceoverVolInput?.addEventListener('change', saveVoiceoverSettings);
+	    videoVolInput?.addEventListener('change', saveVoiceoverSettings);
+	    voiceoverRecordBtn?.addEventListener('click', toggleVoiceRecording);
+	    voiceoverDeleteBtn?.addEventListener('click', deleteSelectedVoiceover);
+
 	    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
 	    tlClearBtn?.addEventListener('click', tlClear);
 	    tlSaveBtn?.addEventListener('click', tlSaveProject);
 	    tlLoadBtn?.addEventListener('click', tlLoadProject);
 	    tlExportBtn?.addEventListener('click', tlExportMp4);
+	    refreshVoiceovers();
+	    refreshProjects();
 
 	    const setReviewed = async ({ kind, objectId, done }) => {
 	      if (!reviewUrl || !videoId) return false;
