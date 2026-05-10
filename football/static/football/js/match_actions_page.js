@@ -1672,17 +1672,17 @@ const urlWithMatchId = (baseUrl) => {
           Object.assign(matchInfoState, collectMatchInfoPayload());
           renderMatchInfoState(matchInfoState);
           setMatchInfoEditing(false);
-          try {
-            const response = await fetch(matchInfoSaveUrl, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-                Accept: 'application/json',
-              },
-              body: JSON.stringify({ match_info: matchInfoState }),
-            });
+	          try {
+	            const response = await fetch(urlWithMatchId(matchInfoSaveUrl), {
+	              method: 'POST',
+	              credentials: 'same-origin',
+	              headers: {
+	                'Content-Type': 'application/json',
+	                'X-CSRFToken': csrfToken,
+	                Accept: 'application/json',
+	              },
+	              body: JSON.stringify({ match_id: currentMatchId, match_info: matchInfoState }),
+	            });
             const data = await response.json().catch(() => ({}));
             if (!response.ok) {
               showPageStatus(data.error || data.message || 'No se pudo guardar el partido.', 'danger', 5200);
@@ -1850,12 +1850,12 @@ const urlWithMatchId = (baseUrl) => {
 	            if (!reachable) return false;
 	          }
 	        } catch (e) {}
-	        try {
-	          const response = await fetch(lineupGetUrl, {
-	            method: 'GET',
-	            credentials: 'same-origin',
-	            headers: { Accept: 'application/json' },
-	          });
+		        try {
+		          const response = await fetch(urlWithMatchId(lineupGetUrl), {
+		            method: 'GET',
+		            credentials: 'same-origin',
+		            headers: { Accept: 'application/json' },
+		          });
 	          const data = await response.json().catch(() => ({}));
 	          if (!response.ok || !data || data.ok !== true || typeof data.lineup !== 'object') {
 	            return false;
@@ -1920,18 +1920,18 @@ const urlWithMatchId = (baseUrl) => {
         if (lineupPersistTimer) {
           clearTimeout(lineupPersistTimer);
         }
-        lineupPersistTimer = setTimeout(async () => {
-          try {
-            const response = await fetch(lineupSaveUrl, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken,
-                Accept: 'application/json',
-              },
-              body: JSON.stringify({ lineup: lineupState }),
-            });
+	        lineupPersistTimer = setTimeout(async () => {
+	          try {
+	            const response = await fetch(urlWithMatchId(lineupSaveUrl), {
+	              method: 'POST',
+	              credentials: 'same-origin',
+	              headers: {
+	                'Content-Type': 'application/json',
+	                'X-CSRFToken': csrfToken,
+	                Accept: 'application/json',
+	              },
+	              body: JSON.stringify({ match_id: currentMatchId, lineup: lineupState }),
+	            });
             if (!response.ok) {
               const data = await response.json().catch(() => ({}));
               if (response.status === 403) {
@@ -3569,11 +3569,26 @@ const urlWithMatchId = (baseUrl) => {
 	        updatePlayerQuickPanel();
 	      };
       stageTabs.forEach((tab) => {
-        tab.addEventListener('click', () => activateStage(tab.dataset.stageTab));
+        tab.addEventListener('click', (event) => {
+          // Si la pestaña es un <a>, evitamos navegación para no recargar la pantalla.
+          try {
+            if (tab && String(tab.tagName || '').toUpperCase() === 'A') {
+              event.preventDefault();
+            }
+          } catch (e) {}
+          activateStage(tab.dataset.stageTab);
+        });
       });
-	      stageJumpButtons.forEach((button) => {
-	        button.addEventListener('click', () => activateStage(button.dataset.stageJump));
-	      });
+		      stageJumpButtons.forEach((button) => {
+		        button.addEventListener('click', (event) => {
+              try {
+                if (button && String(button.tagName || '').toUpperCase() === 'A') {
+                  event.preventDefault();
+                }
+              } catch (e) {}
+              activateStage(button.dataset.stageJump);
+            });
+		      });
 	      // Inicializa el estado del cierre (deshabilita Guardar si falta rival/marcador/11).
 	      requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
       if (copyBriefingBtn && copyBriefingBtn.dataset.bound !== '1') {
