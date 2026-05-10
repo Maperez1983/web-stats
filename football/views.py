@@ -4242,8 +4242,18 @@ def pdf_graphic_asset_delete_api(request):
 
 def resolve_player_photo_url(request, player):
     resolved_storage_name = ''
+    storage = None
+    try:
+        storage = storages['default']
+        if isinstance(storage, FileSystemStorage):
+            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
+    except Exception:
+        storage = None
     for storage_name in _player_photo_storage_candidates(player):
         try:
+            if storage and storage.exists(storage_name):
+                resolved_storage_name = storage_name
+                break
             if default_storage.exists(storage_name):
                 resolved_storage_name = storage_name
                 break
@@ -4270,7 +4280,11 @@ def resolve_player_photo_url(request, player):
                 version = ''
             if not version:
                 try:
-                    modified = default_storage.get_modified_time(resolved_storage_name)
+                    modified = None
+                    if storage:
+                        modified = storage.get_modified_time(resolved_storage_name)
+                    if not modified:
+                        modified = default_storage.get_modified_time(resolved_storage_name)
                     if modified:
                         version = str(int(modified.timestamp()))
                 except Exception:
@@ -18471,14 +18485,58 @@ def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, a
 @authenticated_write
 @require_POST
 def register_match_action(request):
+    accept = str(request.META.get('HTTP_ACCEPT') or '')
+    if not accept:
+        try:
+            accept = str(request.headers.get('Accept') or '')
+        except Exception:
+            accept = ''
+    wants_html = ('text/html' in accept) or ('application/xhtml+xml' in accept)
+
+    def _redirect_back():
+        match_id = str(request.POST.get('match_id') or '').strip()
+        base = reverse('match-action-page')
+        if match_id:
+            qs = urlencode({'match_id': match_id})
+            return redirect(f'{base}?{qs}')
+        return redirect('match-action-page')
+
+    def _error(msg, status=400):
+        if wants_html:
+            try:
+                messages.error(request, msg)
+            except Exception:
+                pass
+            resp = _redirect_back()
+            try:
+                resp.status_code = 303
+            except Exception:
+                pass
+            return resp
+        return JsonResponse({'error': msg}, status=status)
+
+    def _info(msg):
+        if not wants_html:
+            return None
+        try:
+            messages.info(request, msg)
+        except Exception:
+            pass
+        resp = _redirect_back()
+        try:
+            resp.status_code = 303
+        except Exception:
+            pass
+        return resp
+
     if not _can_edit_match_actions(request.user):
-        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
+        return _error('Solo el cuerpo técnico puede editar estadísticas de partido.', status=403)
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
-        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+        return _error('El registro de acciones no está activo en el workspace actual.', status=403)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
-        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+        return _error('Equipo principal no configurado', status=400)
     player_id = request.POST.get('player')
     action_type = (request.POST.get('action_type') or '').strip()
     action_type_key = action_type.lower()
@@ -18490,21 +18548,21 @@ def register_match_action(request):
         fallback_to_latest=True,
     )
     if not convocation_record:
-        return JsonResponse({'error': 'No hay convocatoria activa guardada para registrar acciones'}, status=400)
+        return _error('No hay convocatoria activa guardada para registrar acciones', status=400)
 
     player = None
     if not _is_team_only_action(action_type_key):
         player = convocation_record.players.filter(id=player_id).first()
         if not player:
-            return JsonResponse({'error': 'Selecciona un jugador convocado válido'}, status=400)
+            return _error('Selecciona un jugador convocado válido', status=400)
 
     if not action_type:
-        return JsonResponse({'error': 'Especifica el tipo de acción'}, status=400)
+        return _error('Especifica el tipo de acción', status=400)
     match = target_match
     if not match:
-        return JsonResponse({'error': 'No hay partido disponible para registrar acciones'}, status=400)
+        return _error('No hay partido disponible para registrar acciones', status=400)
     if player and (not convocation_record.players.filter(id=player.id).exists()):
-        return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido'}, status=400)
+        return _error('Jugador fuera de convocatoria para este partido', status=400)
     minute = _parse_int(request.POST.get('minute'))
     if minute is not None:
         minute = max(0, min(minute, 120))
@@ -18532,6 +18590,9 @@ def register_match_action(request):
         if client_event_uid:
             try:
                 if str((existing.raw_data or {}).get('client_event_uid') or '') == client_event_uid:
+                    info_resp = _info('Acción ya registrada (reintento detectado).')
+                    if info_resp is not None:
+                        return info_resp
                     return JsonResponse(_serialize_match_event(existing, duplicate=True))
             except Exception:
                 continue
@@ -18545,6 +18606,9 @@ def register_match_action(request):
             and _canonical_action_value(existing.tercio) == _canonical_action_value(tercio)
             and _canonical_action_value(existing.observation) == _canonical_action_value(observation)
         ):
+            info_resp = _info('Acción ya registrada (doble click detectado).')
+            if info_resp is not None:
+                return info_resp
             return JsonResponse(_serialize_match_event(existing, duplicate=True))
 
     event = MatchEvent.objects.create(
@@ -18572,6 +18636,17 @@ def register_match_action(request):
         payload['video_link'] = video_link
         if video_link.get('clip_id'):
             payload['video_clip_id'] = int(video_link['clip_id'])
+    if wants_html:
+        try:
+            messages.success(request, 'Acción guardada.')
+        except Exception:
+            pass
+        resp = _redirect_back()
+        try:
+            resp.status_code = 303
+        except Exception:
+            pass
+        return resp
     return JsonResponse(payload)
 
 
