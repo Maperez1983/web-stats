@@ -155,6 +155,7 @@ from football.models import (
     VideoAiInsight,
     VideoExportAsset,
     VideoVoiceoverAsset,
+    VideoMusicAsset,
     VideoInboxItem,
     VideoInboxComment,
     ChunkedRivalVideoUpload,
@@ -163,6 +164,7 @@ from football.models import (
     AppUserRole,
     UserInvitation,
     ShareLink,
+    VideoStudioExportJob,
     AuditEvent,
     VideoReviewMark,
     TaskBlueprint,
@@ -2643,24 +2645,53 @@ def resolve_player_photo_static_path(player):
         file_path = players_dir / filename
         if file_path.exists():
             return f'football/images/players/{filename}'
-    # Fallback por dorsal (wildcard) SOLO para el equipo principal legacy.
-    # En multicategoría (Prebenjamín/Senior), el dorsal se repite y este fallback mezclaba fotos
-    # entre equipos. Para categorías no-primary, preferimos mostrar avatar antes que foto errónea.
+    # Fallback por dorsal (wildcard):
+    # - Legacy: en el equipo principal funcionaba bien porque el set de fotos era único.
+    # - Multicategoría: el dorsal se repite y puede mezclar fotos entre equipos.
+    # Para mantener UX (y evitar "desaparecer" fotos), permitimos wildcard cuando:
+    #   - es equipo principal, o
+    #   - SOLO hay una coincidencia para ese dorsal, o
+    #   - podemos desambiguar por tokens del nombre (mejor esfuerzo).
     try:
         is_primary_team = bool(getattr(getattr(player, 'team', None), 'is_primary', False))
     except Exception:
         is_primary_team = False
-    if is_primary_team and number_value != '':
+    if number_value != '':
         wildcard_patterns = [
             f'*-n{number_value}-final.*',
             f'*-n{number_value}-cut.*',
             f'*-n{number_value}-crop.*',
             f'*-n{number_value}.*',
         ]
-        for pattern in wildcard_patterns:
-            for file_path in players_dir.glob(pattern):
-                if file_path.is_file():
-                    return f'football/images/players/{file_path.name}'
+        wildcard_matches = []
+        try:
+            seen_matches = set()
+            for pattern in wildcard_patterns:
+                for file_path in players_dir.glob(pattern):
+                    if not file_path.is_file():
+                        continue
+                    if file_path.name in seen_matches:
+                        continue
+                    seen_matches.add(file_path.name)
+                    wildcard_matches.append(file_path)
+        except Exception:
+            wildcard_matches = []
+        if len(wildcard_matches) == 1:
+            return f'football/images/players/{wildcard_matches[0].name}'
+        if wildcard_matches:
+            # Si hay varias, intentamos elegir la que más "se parece" al nombre del jugador.
+            try:
+                tokens = [t for t in str(name_slug or '').split('-') if t]
+                def _score(path_obj):
+                    fname = str(path_obj.name or '').lower()
+                    return sum(1 for t in tokens if t and t in fname)
+                scored = sorted(((int(_score(p)), p) for p in wildcard_matches), key=lambda it: (-it[0], it[1].name))
+                best_score, best_path = scored[0]
+                if is_primary_team or best_score > 0:
+                    return f'football/images/players/{best_path.name}'
+            except Exception:
+                if is_primary_team:
+                    return f'football/images/players/{wildcard_matches[0].name}'
     return ''
 
 
