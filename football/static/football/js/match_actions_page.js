@@ -210,8 +210,11 @@
       const setPopupEditMode = (enabled, { focusField = false } = {}) => {
         const isEdit = Boolean(enabled);
         if (popupEditToggle) {
+          // `dataset.mode` indica el modo ACTUAL (no el destino).
           popupEditToggle.dataset.mode = isEdit ? 'edit' : 'ipad';
-          popupEditToggle.textContent = isEdit ? 'Modo edición' : 'Modo iPad';
+          // El texto debe describir la ACCIÓN: qué modo activará al pulsar.
+          // Si estamos en iPad (readonly), ofrecer "Modo edición". Si estamos en edición, ofrecer "Modo iPad".
+          popupEditToggle.textContent = isEdit ? 'Modo iPad' : 'Modo edición';
         }
         if (actionInput) {
           actionInput.readOnly = !isEdit;
@@ -230,7 +233,8 @@
       };
       if (popupEditToggle) {
         popupEditToggle.addEventListener('click', () => {
-          setPopupEditMode(popupEditToggle.dataset.mode !== 'edit', { focusField: true });
+          const isCurrentlyEdit = String(popupEditToggle.dataset.mode || '') === 'edit';
+          setPopupEditMode(!isCurrentlyEdit, { focusField: !isCurrentlyEdit });
         });
       }
       setPopupEditMode(false);
@@ -573,21 +577,43 @@
 	      if (proOpenActionPickerBtn) {
 	        proOpenActionPickerBtn.addEventListener('click', () => openActionPicker());
 	      }
-	      if (actionInput) {
-	        const persistActionPick = () => {
-	          try {
-	            writeProState({
-	              action: String(actionInput.value || '').trim(),
-	              player_id: String(selectedPlayerId || '').trim(),
-	              result: String(resultSelect?.value || '').trim(),
-	            });
-	          } catch (e) {}
-	        };
-	        actionInput.addEventListener('click', (event) => {
-	          if (!actionInput.readOnly) return;
-	          event.preventDefault();
-	          openActionPicker();
-	        });
+		      if (actionInput) {
+		        const persistActionPick = () => {
+		          try {
+		            writeProState({
+		              action: String(actionInput.value || '').trim(),
+		              player_id: String(selectedPlayerId || '').trim(),
+		              result: String(resultSelect?.value || '').trim(),
+		            });
+		          } catch (e) {}
+		        };
+            // iOS/iPad: aunque el input sea `readonly`, a veces el teclado aparece al recibir foco.
+            // En "Modo iPad" (readonly) interceptamos el pointer/touch para abrir el selector sin enfocar.
+            const openActionPickerWithoutFocus = (event) => {
+              try {
+                if (!actionInput.readOnly) return;
+                event.preventDefault();
+                event.stopPropagation();
+              } catch (e) {}
+              try { closeActionPicker && closeActionPicker(); } catch (e) {}
+              try { openActionPicker && openActionPicker(); } catch (e) {}
+              try { actionInput.blur && actionInput.blur(); } catch (e) {}
+            };
+            try {
+              actionInput.addEventListener('pointerdown', openActionPickerWithoutFocus, { passive: false });
+            } catch (e) {
+              try { actionInput.addEventListener('pointerdown', openActionPickerWithoutFocus); } catch (e2) {}
+            }
+            try {
+              actionInput.addEventListener('touchstart', openActionPickerWithoutFocus, { passive: false });
+            } catch (e) {
+              try { actionInput.addEventListener('touchstart', openActionPickerWithoutFocus); } catch (e2) {}
+            }
+		        actionInput.addEventListener('click', (event) => {
+		          if (!actionInput.readOnly) return;
+		          event.preventDefault();
+		          openActionPicker();
+		        });
 	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
 	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
 	      }

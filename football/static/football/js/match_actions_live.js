@@ -1687,8 +1687,9 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         body: payload,
       });
       const ctype = String(response?.headers?.get?.('content-type') || '');
+      const isJson = ctype.includes('application/json');
       let data = {};
-      if (ctype.includes('application/json')) {
+      if (isJson) {
         data = await response.json().catch(() => ({}));
       } else {
         const raw = await response.text().catch(() => '');
@@ -1697,6 +1698,15 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (!response.ok) {
         const msg = String(data?.error || '').trim();
         showPageStatus(msg || `No se pudo guardar la acción (HTTP ${response.status}).`, 'danger', 5200);
+        return null;
+      }
+      if (!isJson) {
+        const msg = String(data?.error || '').trim();
+        showPageStatus(
+          msg || 'No se pudo guardar la acción (respuesta no JSON).',
+          'danger',
+          5200
+        );
         return null;
       }
       if (isEdit) {
