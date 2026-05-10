@@ -320,7 +320,8 @@ def _segments_from_series(
     peak_t = 0.0
     peak_s = -1.0
     raw: list[tuple[float, float, float, float]] = []
-    for t, s in zip(times, scores, strict=False):
+    # Python 3.9 compat: `zip(..., strict=...)` no existe.
+    for t, s in zip(times, scores):
         tt = float(t)
         ss = float(s)
         if not started:
