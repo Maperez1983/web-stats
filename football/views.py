@@ -25531,25 +25531,34 @@ def training_session_detail_page(request, session_id):
                             updated += 1
                         continue
 
-                    if status_key not in allowed_values:
-                        continue
+                        if status_key not in allowed_values:
+                            continue
 
-                    if existing:
-                        if existing.status != status_key or (existing.notes or '') != notes:
-                            existing.status = status_key
-                            existing.notes = notes
-                            existing.marked_by = request.user
-                            existing.updated_at = now
-                            existing.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
-                            updated += 1
-                    else:
-                        obj = TrainingSessionAttendance.objects.create(
-                            session=session_obj,
-                            player=p,
-                            status=status_key,
-                            notes=notes,
-                            marked_by=request.user,
-                        )
+                        next_notes = notes
+                        if status_key == TrainingSessionAttendance.STATUS_INJURED:
+                            next_notes = _pack_injury_note(
+                                catalog_id=int(catalog_id) if catalog_id else None,
+                                return_date=injury_return_date,
+                                detail=injury_text,
+                                note=notes,
+                            )
+
+                        if existing:
+                            if existing.status != status_key or (existing.notes or '') != next_notes:
+                                existing.status = status_key
+                                existing.notes = next_notes
+                                existing.marked_by = request.user
+                                existing.updated_at = now
+                                existing.save(update_fields=['status', 'notes', 'marked_by', 'updated_at'])
+                                updated += 1
+                        else:
+                            obj = TrainingSessionAttendance.objects.create(
+                                session=session_obj,
+                                player=p,
+                                status=status_key,
+                                notes=next_notes,
+                                marked_by=request.user,
+                            )
                         marks[int(p.id)] = obj
                         updated += 1
 
@@ -47381,6 +47390,7 @@ def _video_studio_render_timeline_items_to_mp4(
     items: list[dict],
     base_name: str = 'timeline',
     include_audio: bool = True,
+    transition_s: float = 0.0,
 ):
     """
     Renderiza un timeline (lista de items) a MP4 final.
@@ -47403,6 +47413,7 @@ def _video_studio_render_timeline_items_to_mp4(
     ffmpeg_path = shutil.which('ffmpeg')
     if not ffmpeg_path:
         raise RuntimeError('FFmpeg no disponible')
+    ffprobe_path = shutil.which('ffprobe')
 
     safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'timeline'
 
@@ -47441,6 +47452,32 @@ def _video_studio_render_timeline_items_to_mp4(
     cleanup_paths: list[str] = []
     try:
         part_paths: list[str] = []
+        part_durs: list[float] = []
+
+        def _ffprobe_duration_seconds(path: str) -> float:
+            p = str(path or '').strip()
+            if not p or not ffprobe_path:
+                return 0.0
+            try:
+                proc = subprocess.run(
+                    [
+                        ffprobe_path,
+                        '-v',
+                        'error',
+                        '-show_entries',
+                        'format=duration',
+                        '-of',
+                        'default=noprint_wrappers=1:nokey=1',
+                        p,
+                    ],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )  # noqa: S603
+                out = (proc.stdout or b'').decode('utf-8', errors='ignore').strip()
+                return max(0.0, float(out or 0.0))
+            except Exception:
+                return 0.0
 
         ramp_slices_default = 5
         max_fade_s = 2.0
@@ -47556,45 +47593,122 @@ def _video_studio_render_timeline_items_to_mp4(
 
                 subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
                 part_paths.append(part_path)
+                part_durs.append(_ffprobe_duration_seconds(part_path))
 
         if not part_paths:
             raise ValueError('No hay items válidos.')
-
-        list_file = tempfile.NamedTemporaryFile(
-            prefix=f'2j-vs-tl-concat-{safe_base}-',
-            suffix='.txt',
-            delete=False,
-            mode='w',
-            encoding='utf-8',
-        )
-        list_path = list_file.name
-        for p in part_paths:
-            safe_path = str(p).replace("'", "'\\''")
-            list_file.write(f"file '{safe_path}'\n")
-        list_file.close()
-        cleanup_paths.append(list_path)
 
         tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-tl-{safe_base}-', suffix='.mp4', delete=False)
         out_path = tmp_out.name
         tmp_out.close()
         cleanup_paths.append(out_path)
 
-        cmd_concat = [
-            ffmpeg_path,
-            '-y',
-            '-f',
-            'concat',
-            '-safe',
-            '0',
-            '-i',
-            list_path,
-            '-c',
-            'copy',
-            '-movflags',
-            '+faststart',
-            out_path,
-        ]
-        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        try:
+            transition_s = float(transition_s or 0.0)
+        except Exception:
+            transition_s = 0.0
+        transition_s = max(0.0, min(float(transition_s), 1.0))
+
+        if transition_s > 0 and len(part_paths) >= 2:
+            # Crossfade en servidor (re-encode). Para evitar comandos enormes, limitamos.
+            if len(part_paths) > 20:
+                transition_s = 0.0
+            # Si no podemos medir duraciones, desactivamos transiciones (offsets quedarían mal).
+            if not ffprobe_path or not part_durs or any(float(d or 0.0) <= 0.0 for d in part_durs):
+                transition_s = 0.0
+
+        if transition_s > 0 and len(part_paths) >= 2:
+            inputs = []
+            for p in part_paths:
+                inputs += ['-i', p]
+
+            # Ajuste seguro de duración (no puede ser mayor que ninguno de los clips).
+            safe_d = transition_s
+            for d in part_durs:
+                if d > 0:
+                    safe_d = min(safe_d, max(0.0, d * 0.45))
+            safe_d = max(0.0, float(safe_d))
+            if safe_d <= 1e-3:
+                transition_s = 0.0
+
+        if transition_s > 0 and len(part_paths) >= 2:
+            n = len(part_paths)
+            # Construye filter_complex iterativo: xfade + acrossfade.
+            fc_parts = []
+            for i in range(n):
+                fc_parts.append(f'[{i}:v]setpts=PTS-STARTPTS,format=yuv420p[v{i}]')
+                if include_audio:
+                    fc_parts.append(f'[{i}:a]aformat=sample_fmts=fltp:channel_layouts=stereo,aresample=48000:async=1[a{i}]')
+            v_prev = 'v0'
+            a_prev = 'a0' if include_audio else None
+            cum = float(part_durs[0] or 0.0)
+            for i in range(1, n):
+                dur_i = float(part_durs[i] or 0.0)
+                offset = max(0.0, cum - transition_s)
+                fc_parts.append(f'[{v_prev}][v{i}]xfade=transition=fade:duration={transition_s:.3f}:offset={offset:.3f}[vxf{i}]')
+                v_prev = f'vxf{i}'
+                if include_audio:
+                    fc_parts.append(f'[{a_prev}][a{i}]acrossfade=d={transition_s:.3f}:c1=tri:c2=tri[axf{i}]')
+                    a_prev = f'axf{i}'
+                cum = cum + dur_i - transition_s
+            fc = ';'.join(fc_parts)
+
+            cmd = [ffmpeg_path, '-y'] + inputs + [
+                '-filter_complex',
+                fc,
+                '-map',
+                f'[{v_prev}]',
+            ]
+            if include_audio:
+                cmd += ['-map', f'[{a_prev}]']
+            else:
+                cmd += ['-an']
+            cmd += [
+                '-c:v',
+                'libx264',
+                '-pix_fmt',
+                'yuv420p',
+                '-preset',
+                'veryfast',
+                '-crf',
+                '23',
+            ]
+            if include_audio:
+                cmd += ['-c:a', 'aac', '-b:a', '128k']
+            cmd += ['-movflags', '+faststart', out_path]
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        else:
+            # Concat rápido sin re-encode.
+            list_file = tempfile.NamedTemporaryFile(
+                prefix=f'2j-vs-tl-concat-{safe_base}-',
+                suffix='.txt',
+                delete=False,
+                mode='w',
+                encoding='utf-8',
+            )
+            list_path = list_file.name
+            for p in part_paths:
+                safe_path = str(p).replace("'", "'\\''")
+                list_file.write(f"file '{safe_path}'\n")
+            list_file.close()
+            cleanup_paths.append(list_path)
+
+            cmd_concat = [
+                ffmpeg_path,
+                '-y',
+                '-f',
+                'concat',
+                '-safe',
+                '0',
+                '-i',
+                list_path,
+                '-c',
+                'copy',
+                '-movflags',
+                '+faststart',
+                out_path,
+            ]
+            subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
 
         from django.core.files import File  # noqa: WPS433
 
@@ -47654,6 +47768,7 @@ def _video_studio_mix_voiceover_to_mp4(
     voiceover_volume: float = 1.0,
     ducking: bool = False,
     duck_strength: float = 1.0,
+    voiceover_offset_s: float = 0.0,
     base_name: str = 'mix',
 ):  # -> str | None
     """
@@ -47681,6 +47796,11 @@ def _video_studio_mix_voiceover_to_mp4(
     except Exception:
         duck_strength = 1.0
     ducking = bool(ducking)
+    try:
+        voiceover_offset_s = float(voiceover_offset_s or 0.0)
+    except Exception:
+        voiceover_offset_s = 0.0
+    voiceover_offset_s = max(-600.0, min(float(voiceover_offset_s), 600.0))
 
     # Solo volumen del audio original.
     if not vo:
@@ -47723,23 +47843,32 @@ def _video_studio_mix_voiceover_to_mp4(
     wants_ducking = bool(ducking and duck_strength > 0)
     fallback_fc = None
 
+    # Pre-proceso VO: offset (delay/trim) + formateo.
+    vo_chain = f'volume={vo_v:.6f}'
+    if voiceover_offset_s >= 0.02:
+        ms = int(round(voiceover_offset_s * 1000.0))
+        vo_chain = f'{vo_chain},adelay={ms}|{ms}'
+    elif voiceover_offset_s <= -0.02:
+        st = abs(float(voiceover_offset_s))
+        vo_chain = f'{vo_chain},atrim=start={st:.3f},asetpts=PTS-STARTPTS'
+
     if include_video_audio and has_audio:
         if wants_ducking:
             fallback_fc = (
                 f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]volume={vo_v:.6f}[a1];'
+                f'[1:a]{vo_chain}[a1];'
                 '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
             )
             fc = (
                 f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]volume={vo_v:.6f}[a1];'
+                f'[1:a]{vo_chain}[a1];'
                 f'[a0][a1]sidechaincompress=threshold=0.05:ratio=10:attack=20:release=250:mix={duck_strength:.6f}[duck];'
                 '[duck][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
             )
         else:
             fc = (
                 f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]volume={vo_v:.6f}[a1];'
+                f'[1:a]{vo_chain}[a1];'
                 '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
             )
         cmd = [
@@ -47781,7 +47910,7 @@ def _video_studio_mix_voiceover_to_mp4(
             '-c:v',
             'copy',
             '-af',
-            f'volume={vo_v:.6f}',
+            vo_chain,
             '-c:a',
             'aac',
             '-b:a',
@@ -47974,6 +48103,8 @@ def _video_studio_apply_autocut_suggestions(
     scope_team=None,
     owner_user=None,
     created_by: str = '',
+    profile: str = 'balanced',
+    include_kinds=None,
     max_moments: int = 18,
     min_gap_s: float = 25.0,
     pre_s: float = 8.0,
@@ -48030,6 +48161,8 @@ def _video_studio_apply_autocut_suggestions(
     try:
         result = suggest_autocuts(
             video_path,
+            profile=str(profile or 'balanced'),
+            include_kinds=include_kinds,
             max_moments=int(max_moments),
             min_gap_s=float(min_gap_s),
             pre_s=float(pre_s),
@@ -48173,6 +48306,7 @@ def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, 
                 scope_team=scope_team,
                 owner_user=owner_user,
                 created_by=str(created_by or '')[:80],
+                profile=str(os.environ.get('ANALYSIS_AUTOCUT_PROFILE') or 'balanced'),
                 max_moments=18,
                 min_gap_s=25.0,
                 pre_s=8.0,
@@ -48251,6 +48385,13 @@ def analysis_video_studio_autocut_api(request):
     if max_scan_s is not None:
         max_scan_s = max(60.0, min(float(max_scan_s), 140.0 * 60.0))
 
+    profile = str(data.get('profile') or 'balanced').strip().lower()
+    if profile not in {'balanced', 'highlights', 'tactical'}:
+        profile = 'balanced'
+    include_kinds = data.get('include_kinds')
+    if not isinstance(include_kinds, list):
+        include_kinds = None
+
     video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
@@ -48268,6 +48409,8 @@ def analysis_video_studio_autocut_api(request):
     try:
         result = suggest_autocuts(
             video_path,
+            profile=profile,
+            include_kinds=include_kinds,
             max_moments=int(max_moments),
             min_gap_s=float(min_gap_s),
             pre_s=float(pre_s),
@@ -48448,6 +48591,18 @@ def analysis_video_studio_export_server_playlist_api(request):
         duck_strength = 1.0
     duck_strength = max(0.0, min(float(duck_strength), 1.0))
 
+    try:
+        transition_s = float(data.get('transition_s') if data.get('transition_s') is not None else 0.0)
+    except Exception:
+        transition_s = 0.0
+    transition_s = max(0.0, min(float(transition_s), 1.0))
+
+    try:
+        voiceover_offset_s = float(data.get('voiceover_offset_s') if data.get('voiceover_offset_s') is not None else 0.0)
+    except Exception:
+        voiceover_offset_s = 0.0
+    voiceover_offset_s = max(-600.0, min(float(voiceover_offset_s), 600.0))
+
     # Nueva forma (timeline): items = [{clip_id, in_s?, out_s?, speed?, speed_start?, speed_end?, fade_in?, fade_out?}, ...]
     raw_items = data.get('items')
     if isinstance(raw_items, str):
@@ -48586,6 +48741,7 @@ def analysis_video_studio_export_server_playlist_api(request):
                 items=timeline_items,
                 base_name=title or f'playlist-{video_id}',
                 include_audio=include_audio,
+                transition_s=transition_s,
             )
         else:
             file_obj, mime_type, out_name, cleanup_paths = _video_studio_concat_segments_to_mp4(
@@ -48634,6 +48790,7 @@ def analysis_video_studio_export_server_playlist_api(request):
                     voiceover_volume=float(voiceover_volume),
                     ducking=ducking,
                     duck_strength=duck_strength,
+                    voiceover_offset_s=voiceover_offset_s,
                     base_name=title or f'playlist-{video_id}',
                 )
             except Exception:

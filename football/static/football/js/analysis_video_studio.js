@@ -122,9 +122,10 @@
 	    const tlLoadBtn = document.getElementById('vs-tl-load-project');
 	    const tlIncludeAudioToggle = document.getElementById('vs-tl-include-audio');
 	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
-	    const tlItemsEl = document.getElementById('vs-tl-items');
+		    const tlItemsEl = document.getElementById('vs-tl-items');
 		    const tlTotalEl = document.getElementById('vs-tl-total');
 		    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+		    const tlTransitionInput = document.getElementById('vs-tl-transition');
 		    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
 		    const tlItemInInput = document.getElementById('vs-tl-item-in');
 		    const tlItemOutInput = document.getElementById('vs-tl-item-out');
@@ -2306,6 +2307,7 @@
 		    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
 		    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
 		    const videoVolInput = document.getElementById('vs-video-vol');
+		    const voiceoverOffsetInput = document.getElementById('vs-voiceover-offset');
 		    const voiceoverDuckingToggle = document.getElementById('vs-voiceover-ducking');
 		    const voiceoverDuckStrengthInput = document.getElementById('vs-voiceover-duck-strength');
 
@@ -2648,6 +2650,8 @@
 		        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
 		        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
 		        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
+		        const transitionS = tlClamp(tlNum(tlTransitionInput?.value, 0), 0, 1);
+		        const voiceoverOffsetS = tlClamp(tlNum(voiceoverOffsetInput?.value, 0), -600, 600);
 		        const ducking = voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false;
 		        const duckStrength = tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1);
 		        const items = tlItems.slice(0, 60).map((it) => ({
@@ -2674,6 +2678,8 @@
 		            video_volume: videoVol,
 		            ducking,
 		            duck_strength: duckStrength,
+		            transition_s: transitionS,
+		            voiceover_offset_s: voiceoverOffsetS,
 		          }),
 		        });
 	        const data = await resp.json().catch(() => ({}));
@@ -2750,6 +2756,8 @@
 		          voiceover_id: Number(voiceoverSelect?.value || 0) || 0,
 		          voiceover_vol: tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2),
 		          video_vol: tlClamp(tlNum(videoVolInput?.value, 1), 0, 2),
+		          transition_s: tlClamp(tlNum(tlTransitionInput?.value, 0), 0, 1),
+		          voiceover_offset_s: tlClamp(tlNum(voiceoverOffsetInput?.value, 0), -600, 600),
 		          ducking: voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false,
 		          duck_strength: tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1),
 		        };
@@ -2875,12 +2883,16 @@
 		      if (voiceoverSelect && s.voiceover_id) voiceoverSelect.value = String(s.voiceover_id);
 		      if (voiceoverVolInput && s.voiceover_vol != null) voiceoverVolInput.value = String(s.voiceover_vol);
 		      if (videoVolInput && s.video_vol != null) videoVolInput.value = String(s.video_vol);
+		      if (tlTransitionInput && s.transition_s != null) tlTransitionInput.value = String(s.transition_s);
+		      if (voiceoverOffsetInput && s.voiceover_offset_s != null) voiceoverOffsetInput.value = String(s.voiceover_offset_s);
 		      if (voiceoverDuckingToggle && s.ducking != null) voiceoverDuckingToggle.checked = Boolean(s.ducking);
 		      if (voiceoverDuckStrengthInput && s.duck_strength != null) voiceoverDuckStrengthInput.value = String(s.duck_strength);
 		    } catch (e) { /* ignore */ }
 		    voiceoverSelect?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverVolInput?.addEventListener('change', saveVoiceoverSettings);
 		    videoVolInput?.addEventListener('change', saveVoiceoverSettings);
+		    tlTransitionInput?.addEventListener('change', saveVoiceoverSettings);
+		    voiceoverOffsetInput?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverDuckingToggle?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverDuckStrengthInput?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverRecordBtn?.addEventListener('click', toggleVoiceRecording);
@@ -4362,27 +4374,38 @@
     };
     eventAddBtn?.addEventListener('click', addTimelineEvent);
 
-    const runAutoCut = async () => {
-      if (!autocutUrl || !videoId) { setStatus('AutoCut no disponible.', true); return; }
-      const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
-      const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 60);
-      const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 60);
-      try {
-        if (autocutRunBtn) autocutRunBtn.disabled = true;
-        setStatus('AutoCut: analizando… (puede tardar)');
-        const resp = await fetch(autocutUrl, {
-          method: 'POST',
+	    const runAutoCut = async () => {
+	      if (!autocutUrl || !videoId) { setStatus('AutoCut no disponible.', true); return; }
+	      const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+	      const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 60);
+	      const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 60);
+	      const profile = safeText(document.getElementById('vs-autocut-profile')?.value, 'balanced');
+	      const includeKinds = [];
+	      try {
+	        if (document.getElementById('vs-autocut-kind-goal')?.checked) includeKinds.push('goal');
+	        if (document.getElementById('vs-autocut-kind-shot')?.checked) includeKinds.push('shot');
+	        if (document.getElementById('vs-autocut-kind-abp')?.checked) includeKinds.push('abp');
+	        if (document.getElementById('vs-autocut-kind-press')?.checked) includeKinds.push('press');
+	        if (document.getElementById('vs-autocut-kind-tag')?.checked) includeKinds.push('tag');
+	      } catch (e) { /* ignore */ }
+	      try {
+	        if (autocutRunBtn) autocutRunBtn.disabled = true;
+	        setStatus('AutoCut: analizando… (puede tardar)');
+	        const resp = await fetch(autocutUrl, {
+	          method: 'POST',
           credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
-          body: JSON.stringify({
-            video_id: videoId,
-            max_moments: 18,
-            min_gap_s: 25,
-            pre_s: pre,
-            post_s: post,
-            replace: false,
-          }),
-        });
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({
+	            video_id: videoId,
+	            profile,
+	            include_kinds: includeKinds.length ? includeKinds : undefined,
+	            max_moments: 18,
+	            min_gap_s: 25,
+	            pre_s: pre,
+	            post_s: post,
+	            replace: false,
+	          }),
+	        });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo ejecutar AutoCut.');
         await refreshTimeline();

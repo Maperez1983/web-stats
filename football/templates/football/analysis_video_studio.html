@@ -352,10 +352,18 @@
 	                          Vol voz
 	                          <input type="number" id="vs-voiceover-vol" min="0" max="2" step="0.05" value="1" style="width:90px;" />
 	                        </label>
-	                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
-	                          Vol vídeo
-	                          <input type="number" id="vs-video-vol" min="0" max="2" step="0.05" value="1" style="width:90px;" />
-	                        </label>
+		                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
+		                          Vol vídeo
+		                          <input type="number" id="vs-video-vol" min="0" max="2" step="0.05" value="1" style="width:90px;" />
+		                        </label>
+		                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
+		                          Transición (s)
+		                          <input type="number" id="vs-tl-transition" min="0" max="1" step="0.05" value="0" style="width:90px;" />
+		                        </label>
+		                        <label style="margin:0; display:flex; align-items:center; gap:0.35rem; text-transform:none; letter-spacing:0;">
+		                          Offset voz (s)
+		                          <input type="number" id="vs-voiceover-offset" min="-600" max="600" step="0.1" value="0" style="width:110px;" />
+		                        </label>
 	                        <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
 	                          <input type="checkbox" id="vs-voiceover-ducking" style="width:18px;height:18px;accent-color:#22d3ee;" />
 	                          Ducking
@@ -543,6 +551,44 @@
                     <button type="button" class="button ghost" id="vs-presets-reset">Reset</button>
                   </div>
                   <div class="hint" id="vs-presets-status">—</div>
+                </div>
+              </details>
+              <details style="margin-top:0.55rem;">
+                <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:rgba(226,232,240,0.82);">AutoCut · ajustes</summary>
+                <div style="display:grid; gap:0.55rem; padding-top:0.55rem;">
+                  <label style="margin:0;">
+                    Perfil
+                    <select id="vs-autocut-profile">
+                      <option value="balanced" selected>Balance</option>
+                      <option value="highlights">Highlights</option>
+                      <option value="tactical">Táctico</option>
+                    </select>
+                  </label>
+                  <div class="hint" style="font-size:0.82rem;">
+                    Qué corta: detecta <span class="k">segmentos de alta intensidad</span> (audio+movimiento) y sugiere acciones. “Highlights” es más estricto; “Táctico” sugiere más jugadas.
+                  </div>
+                  <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center;">
+                    <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                      <input type="checkbox" id="vs-autocut-kind-goal" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      Gol
+                    </label>
+                    <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                      <input type="checkbox" id="vs-autocut-kind-shot" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      Disparo
+                    </label>
+                    <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                      <input type="checkbox" id="vs-autocut-kind-abp" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      ABP
+                    </label>
+                    <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                      <input type="checkbox" id="vs-autocut-kind-press" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      Presión
+                    </label>
+                    <label style="margin:0; display:flex; align-items:center; gap:0.4rem; text-transform:none; letter-spacing:0;">
+                      <input type="checkbox" id="vs-autocut-kind-tag" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      Genérico
+                    </label>
+                  </div>
                 </div>
               </details>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
