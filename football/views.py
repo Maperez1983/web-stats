@@ -45266,6 +45266,150 @@ def analysis_video_studio_voiceovers_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
+@login_required
+def analysis_video_studio_music_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    video_id = _parse_int(request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if not scope_team:
+        return JsonResponse({'ok': True, 'items': []})
+
+    items = list(
+        VideoMusicAsset.objects
+        .filter(team=scope_team, video_id=int(video_id))
+        .order_by('-created_at', '-id')[:40]
+    )
+    payload = []
+    for obj in items:
+        try:
+            file_url = obj.file.url if getattr(obj, 'file', None) else ''
+        except Exception:
+            file_url = ''
+        payload.append(
+            {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'mime_type': str(obj.mime_type or '').strip(),
+                'duration_ms': int(obj.duration_ms or 0),
+                'file_url': file_url,
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+            }
+        )
+    return JsonResponse({'ok': True, 'items': payload})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_music_upload_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+
+    video_id = _parse_int(request.POST.get('video_id') or request.GET.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    if not scope_team:
+        return JsonResponse({'ok': False, 'error': 'Asigna el vídeo a un equipo para usar música.'}, status=400)
+
+    up = request.FILES.get('file')
+    if not up:
+        return JsonResponse({'ok': False, 'error': 'Archivo requerido.'}, status=400)
+
+    title = _sanitize_task_text(str(request.POST.get('title') or '').strip(), multiline=False, max_len=180)
+    mime_type = str(getattr(up, 'content_type', '') or '').strip().lower()[:80]
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+
+    try:
+        obj = VideoMusicAsset.objects.create(
+            team=scope_team,
+            video=video,
+            title=title[:180],
+            file=up,
+            mime_type=mime_type,
+            duration_ms=0,
+            created_by=username,
+        )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo subir la música.'}, status=500)
+
+    try:
+        file_url = obj.file.url if getattr(obj, 'file', None) else ''
+    except Exception:
+        file_url = ''
+    return JsonResponse(
+        {
+            'ok': True,
+            'item': {
+                'id': int(obj.id),
+                'title': str(obj.title or '').strip(),
+                'mime_type': str(obj.mime_type or '').strip(),
+                'duration_ms': int(obj.duration_ms or 0),
+                'file_url': file_url,
+                'created_by': str(obj.created_by or '').strip(),
+                'created_at': obj.created_at.isoformat() if getattr(obj, 'created_at', None) else None,
+            },
+        }
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_music_delete_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    music_id = _parse_int(data.get('id'))
+    video_id = _parse_int(data.get('video_id'))
+    if not music_id or not video_id:
+        return JsonResponse({'ok': False, 'error': 'id y video_id requeridos.'}, status=400)
+    _video, scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not scope_team:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    obj = VideoMusicAsset.objects.filter(id=int(music_id), team=scope_team, video_id=int(video_id)).first()
+    if not obj:
+        return JsonResponse({'ok': False, 'error': 'Música no encontrada.'}, status=404)
+    username = str(getattr(request.user, 'username', '') or '').strip()[:80]
+    can_manage = _can_manage_workspace(request.user, _get_active_workspace(request))
+    if not bool(getattr(request.user, 'is_superuser', False)) and not can_manage and str(getattr(obj, 'created_by', '') or '').strip() != username:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    try:
+        try:
+            if getattr(obj, 'file', None):
+                obj.file.delete(save=False)
+        except Exception:
+            pass
+        obj.delete()
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo borrar.'}, status=500)
+    return JsonResponse({'ok': True})
+
+
 @csrf_exempt
 @login_required
 @require_POST
