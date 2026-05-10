@@ -25141,6 +25141,16 @@ def training_session_detail_page(request, session_id):
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
 
     plan_fields = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
+    requested_return_to = ''
+    try:
+        if request.method == 'POST':
+            requested_return_to = str(request.POST.get('return_to') or '').strip().lower()
+        else:
+            requested_return_to = str(request.GET.get('return_to') or '').strip().lower()
+    except Exception:
+        requested_return_to = ''
+    if requested_return_to not in {'', 'view', 'edit', 'attendance'}:
+        requested_return_to = ''
     # Botón “➕ Tareas”: lleva a Biblioteca (tareas creadas) preseleccionando esta sesión.
     library_repository = _normalize_library_repository(request.GET.get('library_repo') or LIBRARY_REPOSITORY_TRADITIONAL)
 
@@ -25803,6 +25813,7 @@ def training_session_detail_page(request, session_id):
             'season_label': season_label,
             'team': primary_team,
             'plan_fields': plan_fields,
+            'return_to': requested_return_to,
             'players': players,
             'injury_catalog_entries': injury_catalog_entries,
             'marks': marks,
@@ -47137,6 +47148,245 @@ def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tup
         raise
 
 
+def _video_studio_render_timeline_items_to_mp4(
+    *,
+    source_path: str,
+    items: list[dict],
+    base_name: str = 'timeline',
+    include_audio: bool = True,
+):
+    """
+    Renderiza un timeline (lista de items) a MP4 final.
+
+    Cada item:
+    - start_s (float), end_s (float)
+    - speed (float, opcional, por defecto 1.0)
+    - speed_start/speed_end (float, opcional) para "ramp" (aprox. por tramos)
+    - fade_in (float, opcional, segundos)
+    - fade_out (float, opcional, segundos)
+
+    Nota: para speed ramp se aproxima dividiendo el item en varios tramos con velocidad constante.
+    """
+    src = str(source_path or '').strip()
+    if not src:
+        raise ValueError('source_path requerido')
+    if not items:
+        raise ValueError('items requerido')
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        raise RuntimeError('FFmpeg no disponible')
+
+    safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'timeline'
+
+    def _num(v, default=0.0):
+        try:
+            if v is None or v == '':
+                return float(default)
+            return float(v)
+        except Exception:
+            return float(default)
+
+    def _clamp(v, a, b):
+        try:
+            return max(a, min(b, float(v)))
+        except Exception:
+            return float(a)
+
+    def _atempo_chain(speed: float) -> str:
+        s = float(speed or 1.0)
+        if s <= 0:
+            s = 1.0
+        parts: list[str] = []
+        # atempo soporta 0.5..2.0
+        while s > 2.0:
+            parts.append('atempo=2.0')
+            s /= 2.0
+        while s < 0.5:
+            parts.append('atempo=0.5')
+            s /= 0.5
+        if abs(s - 1.0) < 1e-6:
+            parts.append('atempo=1.0')
+        else:
+            parts.append(f'atempo={s:.6f}')
+        return ','.join(parts)
+
+    cleanup_paths: list[str] = []
+    try:
+        part_paths: list[str] = []
+
+        ramp_slices_default = 5
+        max_fade_s = 2.0
+
+        for item_idx, row in enumerate(items[:60], start=1):
+            if not isinstance(row, dict):
+                continue
+            start = max(0.0, _num(row.get('start_s')))
+            end = max(0.0, _num(row.get('end_s')))
+            if end <= start:
+                continue
+            src_dur = max(0.01, end - start)
+
+            speed = _clamp(_num(row.get('speed') or 1.0, 1.0), 0.1, 4.0)
+            speed_start = row.get('speed_start', None)
+            speed_end = row.get('speed_end', None)
+            sp_a = _clamp(_num(speed_start, speed), 0.1, 4.0)
+            sp_b = _clamp(_num(speed_end, sp_a), 0.1, 4.0)
+            has_ramp = abs(sp_a - sp_b) >= 1e-3
+
+            fade_in = _clamp(_num(row.get('fade_in') or 0.0, 0.0), 0.0, max_fade_s)
+            fade_out = _clamp(_num(row.get('fade_out') or 0.0, 0.0), 0.0, max_fade_s)
+
+            slices = ramp_slices_default if has_ramp else 1
+            src_slice = src_dur / float(slices)
+
+            for slice_idx in range(slices):
+                is_first = slice_idx == 0
+                is_last = slice_idx == slices - 1
+                rel = (float(slice_idx) / float(slices - 1)) if slices > 1 else 0.0
+                sp = (sp_a + (sp_b - sp_a) * rel) if has_ramp else sp_a
+                sp = _clamp(sp, 0.1, 4.0)
+
+                slice_start = start + (src_slice * float(slice_idx))
+                slice_dur = src_slice
+                out_dur = max(0.01, slice_dur / sp)
+
+                fi = fade_in if (is_first and fade_in > 0) else 0.0
+                fo = fade_out if (is_last and fade_out > 0) else 0.0
+                fi = min(fi, out_dur)
+                fo = min(fo, out_dur)
+
+                vf_parts = [f'setpts=PTS/{sp:.6f}']
+                if fi > 0:
+                    vf_parts.append(f'fade=t=in:st=0:d={fi:.3f}')
+                if fo > 0:
+                    st = max(0.0, out_dur - fo)
+                    vf_parts.append(f'fade=t=out:st={st:.3f}:d={fo:.3f}')
+                vf = ','.join(vf_parts)
+
+                af = None
+                if include_audio:
+                    af_parts = [_atempo_chain(sp)]
+                    if fi > 0:
+                        af_parts.append(f'afade=t=in:st=0:d={fi:.3f}')
+                    if fo > 0:
+                        st = max(0.0, out_dur - fo)
+                        af_parts.append(f'afade=t=out:st={st:.3f}:d={fo:.3f}')
+                    af = ','.join(af_parts)
+
+                tmp_part = tempfile.NamedTemporaryFile(
+                    prefix=f'2j-vs-tl-{safe_base}-{item_idx:02d}-{slice_idx + 1:02d}-',
+                    suffix='.mp4',
+                    delete=False,
+                )
+                part_path = tmp_part.name
+                tmp_part.close()
+                cleanup_paths.append(part_path)
+
+                cmd = [
+                    ffmpeg_path,
+                    '-y',
+                    '-ss',
+                    f'{slice_start:.3f}',
+                    '-t',
+                    f'{slice_dur:.3f}',
+                    '-i',
+                    src,
+                    '-map',
+                    '0:v:0',
+                ]
+                if include_audio:
+                    cmd += ['-map', '0:a:0?']
+                else:
+                    cmd += ['-an']
+
+                cmd += [
+                    '-vf',
+                    vf,
+                    '-c:v',
+                    'libx264',
+                    '-pix_fmt',
+                    'yuv420p',
+                    '-preset',
+                    'veryfast',
+                    '-crf',
+                    '23',
+                ]
+                if include_audio:
+                    cmd += [
+                        '-af',
+                        af or 'anull',
+                        '-c:a',
+                        'aac',
+                        '-b:a',
+                        '128k',
+                    ]
+                cmd += [
+                    '-movflags',
+                    '+faststart',
+                    part_path,
+                ]
+
+                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+                part_paths.append(part_path)
+
+        if not part_paths:
+            raise ValueError('No hay items válidos.')
+
+        list_file = tempfile.NamedTemporaryFile(
+            prefix=f'2j-vs-tl-concat-{safe_base}-',
+            suffix='.txt',
+            delete=False,
+            mode='w',
+            encoding='utf-8',
+        )
+        list_path = list_file.name
+        for p in part_paths:
+            safe_path = str(p).replace("'", "'\\''")
+            list_file.write(f"file '{safe_path}'\n")
+        list_file.close()
+        cleanup_paths.append(list_path)
+
+        tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-tl-{safe_base}-', suffix='.mp4', delete=False)
+        out_path = tmp_out.name
+        tmp_out.close()
+        cleanup_paths.append(out_path)
+
+        cmd_concat = [
+            ffmpeg_path,
+            '-y',
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            list_path,
+            '-c',
+            'copy',
+            '-movflags',
+            '+faststart',
+            out_path,
+        ]
+        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+
+        from django.core.files import File  # noqa: WPS433
+
+        handle = open(out_path, 'rb')
+        out_name = f'{safe_base}.mp4'
+        return File(handle, name=out_name), 'video/mp4', out_name, cleanup_paths
+    except Exception:
+        try:
+            logger.exception('Video Studio: no se pudo renderizar timeline a MP4 en servidor')
+        except Exception:
+            pass
+        for p in cleanup_paths:
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+        raise
+
+
 @csrf_exempt
 @login_required
 @require_POST
@@ -47497,6 +47747,41 @@ def analysis_video_studio_export_server_playlist_api(request):
     validity_days = max(1, min(validity_days, 60))
     password = (data.get('password') or '').strip()
 
+    include_audio = data.get('include_audio', True)
+    if isinstance(include_audio, str):
+        include_audio = include_audio.strip().lower() not in {'0', 'false', 'no', 'off'}
+    include_audio = bool(include_audio)
+
+    # Nueva forma (timeline): items = [{clip_id, in_s?, out_s?, speed?, speed_start?, speed_end?, fade_in?, fade_out?}, ...]
+    raw_items = data.get('items')
+    if isinstance(raw_items, str):
+        try:
+            raw_items = json.loads(raw_items)
+        except Exception:
+            raw_items = []
+    if not isinstance(raw_items, list):
+        raw_items = []
+
+    requested_items: list[dict] = []
+    for row in raw_items[:60]:
+        if not isinstance(row, dict):
+            continue
+        cid = _parse_int(row.get('clip_id') or row.get('id') or row.get('clip'))
+        if not cid:
+            continue
+        requested_items.append(
+            {
+                'clip_id': int(cid),
+                'in_s': row.get('in_s', None),
+                'out_s': row.get('out_s', None),
+                'speed': row.get('speed', None),
+                'speed_start': row.get('speed_start', None),
+                'speed_end': row.get('speed_end', None),
+                'fade_in': row.get('fade_in', None),
+                'fade_out': row.get('fade_out', None),
+            }
+        )
+
     clip_ids = data.get('clip_ids')
     if isinstance(clip_ids, str):
         try:
@@ -47512,11 +47797,13 @@ def analysis_video_studio_export_server_playlist_api(request):
         except Exception:
             continue
     cleaned_clip_ids = [x for x in cleaned_clip_ids if x > 0][:60]
+    if requested_items and not cleaned_clip_ids:
+        cleaned_clip_ids = [int(x.get('clip_id') or 0) for x in requested_items if int(x.get('clip_id') or 0) > 0][:60]
 
     if not video_id:
         return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
     if len(cleaned_clip_ids) < 2:
-        return JsonResponse({'ok': False, 'error': 'clip_ids debe contener al menos 2 clips.'}, status=400)
+        return JsonResponse({'ok': False, 'error': 'clip_ids (o items) debe contener al menos 2 clips.'}, status=400)
 
     video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
     if not video:
@@ -47538,17 +47825,40 @@ def analysis_video_studio_export_server_playlist_api(request):
     )
     clip_by_id = {int(c.id): c for c in clips if getattr(c, 'id', None)}
     ordered_segments = []
+    timeline_items: list[dict] = []
     total_s = 0.0
-    for cid in cleaned_clip_ids:
+    req_iter = requested_items if requested_items else [{'clip_id': cid} for cid in cleaned_clip_ids]
+    for row in req_iter:
+        cid = int(row.get('clip_id') or 0)
+        if cid <= 0:
+            continue
         clip = clip_by_id.get(int(cid))
         if not clip:
             continue
         start_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
         end_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+        try:
+            if row.get('in_s') is not None and row.get('in_s') != '':
+                start_s = float(row.get('in_s') or 0.0)
+            if row.get('out_s') is not None and row.get('out_s') != '':
+                end_s = float(row.get('out_s') or 0.0)
+        except Exception:
+            pass
         if end_s <= start_s:
             continue
         ordered_segments.append((start_s, end_s))
         total_s += (end_s - start_s)
+        timeline_items.append(
+            {
+                'start_s': float(start_s),
+                'end_s': float(end_s),
+                'speed': row.get('speed', None),
+                'speed_start': row.get('speed_start', None),
+                'speed_end': row.get('speed_end', None),
+                'fade_in': row.get('fade_in', None),
+                'fade_out': row.get('fade_out', None),
+            }
+        )
 
     if len(ordered_segments) < 2:
         return JsonResponse({'ok': False, 'error': 'No hay clips válidos para exportar.'}, status=400)
@@ -47560,12 +47870,33 @@ def analysis_video_studio_export_server_playlist_api(request):
     if not title:
         title = f'Playlist · {len(ordered_segments)} clips'
 
+    wants_timeline_fx = False
+    for it in timeline_items:
+        if not isinstance(it, dict):
+            continue
+        if it.get('speed') not in (None, '', 1, 1.0):
+            wants_timeline_fx = True
+            break
+        if it.get('speed_start') not in (None, '', 1, 1.0) or it.get('speed_end') not in (None, '', 1, 1.0):
+            wants_timeline_fx = True
+            break
+        if it.get('fade_in') not in (None, '', 0, 0.0) or it.get('fade_out') not in (None, '', 0, 0.0):
+            wants_timeline_fx = True
+            break
     try:
-        file_obj, mime_type, out_name, cleanup_paths = _video_studio_concat_segments_to_mp4(
-            source_path=source_path,
-            segments=ordered_segments,
-            base_name=title or f'playlist-{video_id}',
-        )
+        if requested_items or wants_timeline_fx or (include_audio is False):
+            file_obj, mime_type, out_name, cleanup_paths = _video_studio_render_timeline_items_to_mp4(
+                source_path=source_path,
+                items=timeline_items,
+                base_name=title or f'playlist-{video_id}',
+                include_audio=include_audio,
+            )
+        else:
+            file_obj, mime_type, out_name, cleanup_paths = _video_studio_concat_segments_to_mp4(
+                source_path=source_path,
+                segments=ordered_segments,
+                base_name=title or f'playlist-{video_id}',
+            )
     except ValueError as exc:
         return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
     except RuntimeError as exc:

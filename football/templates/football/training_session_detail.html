@@ -530,13 +530,14 @@
           <button type="button" class="btn" id="toggle-view">👁️ Vista</button>
         </div>
 
-        <form method="post" class="form-grid">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save" />
-          <label class="full">
-            Nombre / foco
-            <input type="text" name="focus" maxlength="140" value="{{ session.focus }}" required />
-          </label>
+	        <form method="post" class="form-grid">
+	          {% csrf_token %}
+	          <input type="hidden" name="action" value="save" />
+	          <input type="hidden" name="return_to" value="edit" />
+	          <label class="full">
+	            Nombre / foco
+	            <input type="text" name="focus" maxlength="140" value="{{ session.focus }}" required />
+	          </label>
           <label>
             Fecha
             <input type="date" name="session_date" value="{{ session.session_date|date:'Y-m-d' }}" required />
@@ -672,10 +673,11 @@
             <div class="meta">Cierra la sesión: estado Realizada + minutos reales por tarea.</div>
           </div>
         </div>
-        <form method="post" style="margin-top:0.7rem;">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="confirm" />
-          <div class="form-grid" style="margin:0;">
+	        <form method="post" style="margin-top:0.7rem;">
+	          {% csrf_token %}
+	          <input type="hidden" name="action" value="confirm" />
+	          <input type="hidden" name="return_to" value="edit" />
+	          <div class="form-grid" style="margin:0;">
             {% for block in tasks_by_block %}
               {% for t in block.tasks %}
                 <label>
@@ -689,26 +691,28 @@
             </div>
           </div>
         </form>
-        <form method="post" style="margin-top:0.55rem; display:flex; justify-content:flex-end;" onsubmit="return confirm('¿Enviar esta sesión a la papelera? (Se puede restaurar)');">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="delete_session" />
-          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Papelera</button>
-        </form>
+	        <form method="post" style="margin-top:0.55rem; display:flex; justify-content:flex-end;" onsubmit="return confirm('¿Enviar esta sesión a la papelera? (Se puede restaurar)');">
+	          {% csrf_token %}
+	          <input type="hidden" name="action" value="delete_session" />
+	          <input type="hidden" name="return_to" value="edit" />
+	          <button class="btn secondary" type="submit" style="border-color:rgba(239,68,68,0.35); color:#fecaca;">🗑️ Papelera</button>
+	        </form>
 
         <hr style="border:0; border-top:1px solid rgba(148,163,184,0.16); margin:0.95rem 0;" />
 
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
-          <div>
-            <div style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Asistencia</div>
-            <div class="meta">Marca excepciones (ausencias, tarde, lesión…).</div>
-          </div>
-        </div>
-        <form method="post" style="margin-top:0.65rem;">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="attendance" />
-          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
-            <table>
-              <tbody>
+	        <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem; flex-wrap:wrap;">
+	          <div>
+	            <div id="asistencia-edit" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Asistencia</div>
+	            <div class="meta">Marca excepciones (ausencias, tarde, lesión…).</div>
+	          </div>
+	        </div>
+	        <form method="post" style="margin-top:0.65rem;">
+	          {% csrf_token %}
+	          <input type="hidden" name="action" value="attendance" />
+	          <input type="hidden" name="return_to" value="attendance" />
+	          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
+	            <table>
+	              <tbody>
                 {% for row in attendance_rows %}
                   {% with p=row.player mark=row.mark %}
                   <tr>
@@ -753,17 +757,28 @@
     </main>
 
     <script>
-      (() => {
-        const view = document.getElementById('session-view');
-        const edit = document.getElementById('session-edit');
-        const toEdit = document.getElementById('toggle-edit');
-        const toView = document.getElementById('toggle-view');
-        if (!view || !edit || !toEdit || !toView) return;
-        const showEdit = () => { view.classList.add('view-hidden'); edit.classList.remove('view-hidden'); try { edit.scrollIntoView({ block:'start' }); } catch (e) {} };
-        const showView = () => { edit.classList.add('view-hidden'); view.classList.remove('view-hidden'); try { view.scrollIntoView({ block:'start' }); } catch (e) {} };
-        toEdit.addEventListener('click', showEdit);
-        toView.addEventListener('click', showView);
-      })();
+	      (() => {
+	        const view = document.getElementById('session-view');
+	        const edit = document.getElementById('session-edit');
+	        const toEdit = document.getElementById('toggle-edit');
+	        const toView = document.getElementById('toggle-view');
+	        if (!view || !edit || !toEdit || !toView) return;
+	        const showEdit = () => { view.classList.add('view-hidden'); edit.classList.remove('view-hidden'); try { edit.scrollIntoView({ block:'start' }); } catch (e) {} };
+	        const showView = () => { edit.classList.add('view-hidden'); view.classList.remove('view-hidden'); try { view.scrollIntoView({ block:'start' }); } catch (e) {} };
+	        toEdit.addEventListener('click', showEdit);
+	        toView.addEventListener('click', showView);
+
+	        const returnTo = "{{ return_to|default:''|escapejs }}";
+	        if (returnTo === 'edit' || returnTo === 'attendance') {
+	          showEdit();
+	          if (returnTo === 'attendance') {
+	            const anchor = document.getElementById('asistencia-edit');
+	            if (anchor) {
+	              try { anchor.scrollIntoView({ block: 'start' }); } catch (e) {}
+	            }
+	          }
+	        }
+	      })();
 
       (() => {
         const rows = Array.from(document.querySelectorAll('tr'));
