@@ -1061,6 +1061,15 @@
                   <input id="video_personal_youtube" type="checkbox" value="1" checked />
                   Guardar en biblioteca personal (asignar después)
                 </label>
+                <label style="display:flex; align-items:flex-start; gap:0.5rem; font-weight:900; margin:0.15rem 0 0.35rem;">
+                  <input id="youtube_rights_confirm" type="checkbox" value="1" />
+                  <span>
+                    Confirmo que tengo permiso para usar este vídeo (cumplo derechos/condiciones).
+                    <span class="meta" style="display:block; font-weight:800; margin-top:0.15rem;">
+                      Importar YouTube no descarga el vídeo: guarda el enlace y permite crear clips (IN/OUT), tags y notas.
+                    </span>
+                  </span>
+                </label>
                 <div class="manual-grid">
                   <div style="grid-column:1/-1;">
                     <label for="youtube_url">Enlace</label>
@@ -1819,12 +1828,23 @@
           const submit = document.getElementById('video-youtube-submit');
           const status = document.getElementById('video-youtube-status');
           const urlInput = document.getElementById('youtube_url');
+          const rightsConfirm = document.getElementById('youtube_rights_confirm');
           const apiUrl = "{% url 'analysis-rival-video-import-youtube-api' %}";
 
           if (!enabled) {
             if (submit) submit.disabled = true;
             if (status) status.textContent = 'Deshabilitado en este entorno.';
           }
+          const syncRights = () => {
+            if (!submit) return;
+            if (!enabled) return;
+            const ok = Boolean(rightsConfirm && rightsConfirm.checked);
+            submit.disabled = !ok;
+            if (!ok && status) status.textContent = 'Confirma permiso para habilitar.';
+            if (ok && status && status.textContent === 'Confirma permiso para habilitar.') status.textContent = '';
+          };
+          try { rightsConfirm?.addEventListener('change', syncRights); } catch (e) {}
+          syncRights();
 
           function getCsrf() {
             const inp = form.querySelector('input[name="csrfmiddlewaretoken"]');
@@ -1844,6 +1864,11 @@
             if (!enabled) {
               if (status) status.textContent = 'Deshabilitado en este entorno.';
               alert('Importación desde YouTube deshabilitada en este entorno.');
+              return;
+            }
+            if (!(rightsConfirm && rightsConfirm.checked)) {
+              if (status) status.textContent = 'Confirma permiso para continuar.';
+              alert('Confirma que tienes permiso para usar ese vídeo.');
               return;
             }
             const url = String(urlInput && urlInput.value ? urlInput.value : '').trim();
@@ -1868,6 +1893,7 @@
                 video_title: String(titleEl && titleEl.value ? titleEl.value : '').trim(),
                 video_notes: String(notesEl && notesEl.value ? notesEl.value : '').trim(),
                 video_personal: (personalEl && personalEl.checked) ? 1 : 0,
+                confirmed_rights: 1,
                 assigned_player_ids: selectedPlayerIds(),
               };
               const resp = await fetch(apiUrl, {
