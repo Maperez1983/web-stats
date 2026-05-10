@@ -324,6 +324,21 @@
         align-items: center;
         gap: 0.25rem;
         box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+        position: relative;
+      }
+      .token-photo {
+        position: absolute;
+        top: -18px;
+        left: -6px;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        object-fit: cover;
+        object-position: 50% 20%;
+        border: 2px solid rgba(2, 6, 23, 0.92);
+        background: rgba(2, 6, 23, 0.7);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+        pointer-events: none;
       }
       .token-num {
         width: 26px;
@@ -760,7 +775,12 @@
       const upsertStarterWithPosition = (playerPayload, { x, y } = {}) => {
         if (!playerPayload?.id) return;
         const pid = String(playerPayload.id);
-        const next = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
+        const candNum = String(playerPayload?.number ?? '').trim();
+        let next = (lineupState.starters || []).filter((row) => String(row?.id || '') !== pid);
+        if (candNum && candNum !== '--') {
+          // En algunas plantillas puede venir el mismo jugador duplicado con distinto ID; evitamos dobles por dorsal.
+          next = next.filter((row) => String(row?.number ?? '').trim() !== candNum);
+        }
         const candidate = {
           ...playerPayload,
           role: String(playerPayload.role || roleFromPosition(playerPayload.position) || "mid"),
@@ -887,8 +907,12 @@
             wrap.classList.add('is-active');
           }
           const role = String(player.role || roleFromPosition(player.position) || 'mid');
+          const photoRaw = String(player.photo || '').trim();
+          const photoSafe = photoRaw ? photoRaw.replace(/'/g, '%27') : '';
+          const photoHtml = photoSafe ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
           wrap.innerHTML = `
             <div class="token token--${role}">
+              ${photoHtml}
               <span class="token-num">${num === '--' ? '--' : num}</span>
               <span>
                 <span class="token-name">${String(player.name || '').toUpperCase()}</span>
@@ -896,6 +920,12 @@
               </span>
             </div>
           `;
+          const photoEl = wrap.querySelector('.token-photo');
+          if (photoEl) {
+            photoEl.onerror = () => {
+              try { photoEl.remove(); } catch (_) {}
+            };
+          }
           wrap.addEventListener('pointerdown', (event) => {
             if (hasPendingConvocation) return;
             event.preventDefault();
