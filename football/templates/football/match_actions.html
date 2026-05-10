@@ -2673,58 +2673,322 @@
             <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
             <button type="button" class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}" data-stage-tab="close">Cierre</button>
           </nav>
-          <script>
-            // Stage tabs: inline & fast (no navegación). Mantiene el flujo aunque fallen scripts externos/caché PWA.
-            (function () {
-              if (window.__matchActionsStageTabsBound) return;
-              window.__matchActionsStageTabsBound = true;
-              const ready = (fn) => {
-                if (document.readyState !== 'loading') fn();
-                else document.addEventListener('DOMContentLoaded', fn, { once: true });
-              };
-              ready(() => {
-                const tabs = Array.from(document.querySelectorAll('[data-stage-tab]') || []);
-                const panels = Array.from(document.querySelectorAll('[data-stage-panel]') || []);
-                if (!tabs.length || !panels.length) return;
-                const popupForm = document.getElementById('field-popup-form');
-                const setUrlStage = (stage) => {
-                  try {
-                    const params = new URLSearchParams(window.location.search || '');
-                    if (stage) params.set('stage', stage);
-                    const next = params.toString();
-                    const url = next ? `${window.location.pathname}?${next}` : window.location.pathname;
-                    window.history.replaceState(null, '', url);
-                  } catch (e) {}
-                };
-                const setFormStage = (stage) => {
-                  try {
-                    const input = popupForm?.querySelector?.('input[name="stage"]');
-                    if (input) input.value = String(stage || '');
-                  } catch (e) {}
-                };
-                const activate = (stage, { updateUrl = true } = {}) => {
-                  tabs.forEach((t) => t.classList.toggle('is-active', t.dataset.stageTab === stage));
-                  panels.forEach((p) => p.classList.toggle('is-active', p.dataset.stagePanel === stage));
-                  setFormStage(stage);
-                  if (updateUrl) setUrlStage(stage);
-                };
-                // Estado inicial: respeta querystring si existe.
-                let initial = '';
-                try {
-                  const params = new URLSearchParams(window.location.search || '');
-                  initial = String(params.get('stage') || '').trim().toLowerCase();
-                } catch (e) {}
-                if (!['pre', 'live', 'close'].includes(initial)) {
-                  const activeTab = tabs.find((t) => t.classList.contains('is-active'));
-                  initial = activeTab?.dataset?.stageTab || 'pre';
-                }
-                activate(initial, { updateUrl: false });
-                tabs.forEach((tab) => {
-                  tab.addEventListener('click', () => activate(tab.dataset.stageTab));
-                });
-              });
-            })();
-          </script>
+	          <script>
+	            // Core ES5 binder (iPad legacy-safe): stage tabs + registro mínimo si fallan scripts modernos.
+	            (function () {
+	              if (window.__matchActionsCoreEs5Bound) return;
+	              window.__matchActionsCoreEs5Bound = true;
+
+	              var ready = function (fn) {
+	                if (document.readyState !== 'loading') fn();
+	                else document.addEventListener('DOMContentLoaded', fn);
+	              };
+
+	              var hasClass = function (el, cls) {
+	                if (!el) return false;
+	                return (' ' + (el.className || '') + ' ').indexOf(' ' + cls + ' ') >= 0;
+	              };
+	              var addClass = function (el, cls) {
+	                if (!el || hasClass(el, cls)) return;
+	                el.className = (el.className ? el.className + ' ' : '') + cls;
+	              };
+	              var removeClass = function (el, cls) {
+	                if (!el) return;
+	                el.className = (' ' + (el.className || '') + ' ').replace(' ' + cls + ' ', ' ').replace(/\s+/g, ' ').trim();
+	              };
+
+	              var showStatus = function (msg, tone) {
+	                var el = document.getElementById('match-page-status');
+	                if (!el) return;
+	                el.textContent = String(msg || '');
+	                el.style.display = 'block';
+	                el.style.background = tone === 'danger' ? 'rgba(239,68,68,0.22)' : (tone === 'success' ? 'rgba(34,197,94,0.18)' : 'rgba(56,189,248,0.12)');
+	                el.style.border = '1px solid rgba(148,163,184,0.22)';
+	                el.style.color = 'rgba(248,250,252,0.95)';
+	                try { window.clearTimeout(window.__matchActionsStatusTimer); } catch (e) {}
+	                window.__matchActionsStatusTimer = window.setTimeout(function () { try { el.style.display = 'none'; } catch (e) {} }, 2600);
+	              };
+
+	              var setUrlParam = function (key, value) {
+	                try {
+	                  var qs = String(window.location.search || '');
+	                  var base = String(window.location.pathname || '');
+	                  var params = {};
+	                  if (qs && qs.charAt(0) === '?') qs = qs.slice(1);
+	                  if (qs) {
+	                    var parts = qs.split('&');
+	                    for (var i = 0; i < parts.length; i++) {
+	                      var p = parts[i];
+	                      if (!p) continue;
+	                      var idx = p.indexOf('=');
+	                      var k = idx >= 0 ? decodeURIComponent(p.slice(0, idx)) : decodeURIComponent(p);
+	                      var v = idx >= 0 ? decodeURIComponent(p.slice(idx + 1)) : '';
+	                      params[k] = v;
+	                    }
+	                  }
+	                  if (value === null || value === undefined || value === '') delete params[key];
+	                  else params[key] = String(value);
+	                  var out = [];
+	                  for (var kk in params) {
+	                    if (!Object.prototype.hasOwnProperty.call(params, kk)) continue;
+	                    out.push(encodeURIComponent(kk) + '=' + encodeURIComponent(params[kk]));
+	                  }
+	                  var next = out.length ? (base + '?' + out.join('&')) : base;
+	                  window.history.replaceState(null, '', next);
+	                } catch (e) {}
+	              };
+
+	              var activateStage = function (stage) {
+	                var tabs = document.querySelectorAll('[data-stage-tab]');
+	                var panels = document.querySelectorAll('[data-stage-panel]');
+	                for (var i = 0; i < tabs.length; i++) {
+	                  var t = tabs[i];
+	                  if (t && t.getAttribute('data-stage-tab') === stage) addClass(t, 'is-active');
+	                  else removeClass(t, 'is-active');
+	                }
+	                for (var j = 0; j < panels.length; j++) {
+	                  var p = panels[j];
+	                  if (p && p.getAttribute('data-stage-panel') === stage) addClass(p, 'is-active');
+	                  else removeClass(p, 'is-active');
+	                }
+	                try {
+	                  var form = document.getElementById('field-popup-form');
+	                  var input = form ? form.querySelector('input[name=\"stage\"]') : null;
+	                  if (input) input.value = stage;
+	                } catch (e) {}
+	                setUrlParam('stage', stage);
+	              };
+
+	              var getCurrentMatchId = function () {
+	                try {
+	                  var form = document.getElementById('field-popup-form');
+	                  var v = form ? form.querySelector('input[name=\"match_id\"]') : null;
+	                  var val = v ? String(v.value || '').trim() : '';
+	                  if (val) return val;
+	                } catch (e) {}
+	                try {
+	                  var qs = String(window.location.search || '');
+	                  if (qs && qs.indexOf('match_id=') >= 0) {
+	                    var m = qs.match(/[?&]match_id=([^&]+)/);
+	                    if (m && m[1]) return decodeURIComponent(m[1]);
+	                  }
+	                } catch (e2) {}
+	                return '';
+	              };
+
+	              var appendHistory = function (data) {
+	                var list = document.getElementById('history-list');
+	                if (!list) return;
+	                try {
+	                  var empty = list.querySelector('.history-item:not([data-event-id])');
+	                  if (empty) empty.parentNode.removeChild(empty);
+	                } catch (e) {}
+	                var item = document.createElement('article');
+	                item.className = 'history-item';
+	                if (data && data.id) item.setAttribute('data-event-id', String(data.id));
+	                if (data && data.player_id) item.setAttribute('data-player-id', String(data.player_id));
+	                var minute = (data && (data.minute !== undefined && data.minute !== null)) ? String(data.minute) : '??';
+	                var playerLabel = (data && data.player_label) ? String(data.player_label) : 'Equipo';
+	                var text = '';
+	                if (data) {
+	                  var ev = data.action || data.event_type || data.eventType || '';
+	                  var zone = data.zone || '-';
+	                  var res = data.result || '';
+	                  text = String(ev) + ' · ' + String(zone || '-') + ' · ' + String(res || '');
+	                }
+	                item.innerHTML = '<span class=\"hist-minute\">' + minute + \"'\" + '</span><strong>' + playerLabel + '</strong><p class=\"hist-text\">' + text + '</p><div class=\"history-actions\"><button type=\"button\" class=\"history-delete\" aria-label=\"Eliminar acción\">🗑</button></div>';
+	                try {
+	                  if (list.firstChild) list.insertBefore(item, list.firstChild);
+	                  else list.appendChild(item);
+	                } catch (e2) {}
+	              };
+
+	              var postAction = function (fields, onOk) {
+	                var form = document.getElementById('field-popup-form');
+	                if (!form) return;
+	                var url = form.getAttribute('action') || '';
+	                if (!url) return;
+	                var xhr = new XMLHttpRequest();
+	                xhr.open('POST', url, true);
+	                xhr.setRequestHeader('Accept', 'application/json');
+	                try {
+	                  var csrf = form.querySelector('input[name=\"csrfmiddlewaretoken\"]');
+	                  if (csrf && csrf.value) xhr.setRequestHeader('X-CSRFToken', csrf.value);
+	                } catch (e) {}
+	                xhr.onreadystatechange = function () {
+	                  if (xhr.readyState !== 4) return;
+	                  var ok = (xhr.status >= 200 && xhr.status < 300);
+	                  var payload = null;
+	                  try { payload = JSON.parse(xhr.responseText || '{}'); } catch (e2) { payload = null; }
+	                  if (!ok) {
+	                    var msg = (payload && payload.error) ? payload.error : ('Error al guardar (' + xhr.status + ')');
+	                    showStatus(msg, 'danger');
+	                    return;
+	                  }
+	                  showStatus('Acción registrada.', 'success');
+	                  try { if (typeof onOk === 'function') onOk(payload || {}); } catch (e3) {}
+	                };
+	                var body = [];
+	                for (var k in fields) {
+	                  if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+	                  body.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(fields[k])));
+	                }
+	                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+	                xhr.send(body.join('&'));
+	              };
+
+	              ready(function () {
+	                // Si el JS principal se ha inicializado, no enlazamos fallback para evitar dobles envíos.
+	                try {
+	                  if (window.__matchActionsMainBound) return;
+	                } catch (e0) {}
+	                // Stage tabs
+	                var tabs = document.querySelectorAll('[data-stage-tab]');
+	                for (var i = 0; i < tabs.length; i++) {
+	                  (function (tab) {
+	                    tab.addEventListener('click', function () {
+	                      activateStage(tab.getAttribute('data-stage-tab'));
+	                    });
+	                  })(tabs[i]);
+	                }
+	                // Initial stage from URL if provided.
+	                try {
+	                  var qs = String(window.location.search || '');
+	                  var sm = qs.match(/[?&]stage=([^&]+)/);
+	                  var st = sm && sm[1] ? decodeURIComponent(sm[1]).toLowerCase() : '';
+	                  if (st === 'pre' || st === 'live' || st === 'close') activateStage(st);
+	                } catch (e) {}
+
+	                // Player selection (convocation cards)
+	                var selectedPlayerInput = document.getElementById('selected-player');
+	                var cards = document.querySelectorAll('.convocation-card[data-player-id]');
+	                for (var c = 0; c < cards.length; c++) {
+	                  (function (card) {
+	                    card.addEventListener('click', function () {
+	                      for (var j = 0; j < cards.length; j++) removeClass(cards[j], 'selected');
+	                      addClass(card, 'selected');
+	                      if (selectedPlayerInput) selectedPlayerInput.value = String(card.getAttribute('data-player-id') || '');
+	                    });
+	                  })(cards[c]);
+	                }
+
+	                // Quick actions inside popup
+	                var popup = document.getElementById('field-popup');
+	                var form = document.getElementById('field-popup-form');
+	                if (form) {
+	                  var actionInput = form.querySelector('input[name=\"action_type\"]');
+	                  var resultSelect = form.querySelector('select[name=\"result\"]');
+	                  var zoneInput = form.querySelector('input[name=\"zone\"]');
+	                  var teamOnlyInput = form.querySelector('input[name=\"team_only\"]');
+	                  var closeBtns = popup ? popup.querySelectorAll('.close-popup') : [];
+	                  var hidePopup = function () { try { removeClass(popup, 'is-visible'); } catch (e) {} };
+	                  for (var cb = 0; cb < closeBtns.length; cb++) {
+	                    closeBtns[cb].addEventListener('click', function (ev) { try { ev.preventDefault(); } catch (e) {} hidePopup(); });
+	                  }
+
+	                  // Bind quick-action buttons (pills)
+	                  var quickBtns = form.querySelectorAll('.quick-action');
+	                  for (var qb = 0; qb < quickBtns.length; qb++) {
+	                    (function (btn) {
+	                      btn.addEventListener('click', function () {
+	                        var act = btn.getAttribute('data-action') || '';
+	                        var res = btn.getAttribute('data-result') || '';
+	                        var teamOnly = btn.getAttribute('data-team-only') ? '1' : '0';
+	                        if (actionInput) {
+	                          actionInput.readOnly = false;
+	                          actionInput.value = String(act);
+	                          actionInput.readOnly = true;
+	                        }
+	                        if (res && resultSelect) resultSelect.value = res;
+	                        if (teamOnlyInput) teamOnlyInput.value = teamOnly;
+	                      });
+	                    })(quickBtns[qb]);
+	                  }
+
+	                  // Quick-drop (amarillas, rojas, corners, subs) direct register
+	                  var drops = document.querySelectorAll('.quick-drop[data-event-type]');
+	                  for (var d = 0; d < drops.length; d++) {
+	                    (function (drop) {
+	                      drop.addEventListener('click', function () {
+	                        var actionType = drop.getAttribute('data-event-type') || '';
+	                        var result = drop.getAttribute('data-result') || '';
+	                        var zoneLabel = drop.getAttribute('data-zone-label') || '';
+	                        var teamOnly = drop.getAttribute('data-team-only') ? '1' : '0';
+	                        var mid = getCurrentMatchId();
+	                        if (!mid) { showStatus('No hay match_id activo.', 'danger'); return; }
+	                        var pid = selectedPlayerInput ? String(selectedPlayerInput.value || '').trim() : '';
+	                        if (teamOnly !== '1' && !pid) { showStatus('Selecciona un jugador antes.', 'warning'); return; }
+	                        var fields = {
+	                          match_id: mid,
+	                          player: pid,
+	                          action_type: actionType,
+	                          result: result,
+	                          zone: zoneLabel,
+	                          minute: '0',
+	                          period: '1',
+	                          stage: 'live',
+	                          team_only: teamOnly
+	                        };
+	                        postAction(fields, function (payload) {
+	                          // Normalize history label
+	                          var playerLabel = teamOnly === '1' ? 'Equipo' : (drop.getAttribute('data-player-name') || '');
+	                          if (!playerLabel && teamOnly !== '1') {
+	                            try {
+	                              var sel = document.querySelector('.convocation-card.selected');
+	                              var name = sel ? sel.getAttribute('data-player-name') : '';
+	                              var num = sel ? sel.getAttribute('data-player-number') : '';
+	                              playerLabel = (num ? ('#' + num + ' ') : '') + (name || 'Jugador');
+	                            } catch (e) { playerLabel = 'Jugador'; }
+	                          }
+	                          payload.player_label = playerLabel;
+	                          appendHistory(payload);
+	                        });
+	                      });
+	                    })(drops[d]);
+	                  }
+
+	                  // Popup submit: register as action too (ES5)
+	                  form.addEventListener('submit', function (ev) {
+	                    try { ev.preventDefault(); } catch (e) {}
+	                    var mid = getCurrentMatchId();
+	                    var pid = selectedPlayerInput ? String(selectedPlayerInput.value || '').trim() : '';
+	                    var act = actionInput ? String(actionInput.value || '').trim() : '';
+	                    var res = resultSelect ? String(resultSelect.value || '').trim() : '';
+	                    var zone = zoneInput ? String(zoneInput.value || '').trim() : '';
+	                    var teamOnly = teamOnlyInput ? String(teamOnlyInput.value || '0') : '0';
+	                    if (!mid) { showStatus('No hay match_id activo.', 'danger'); return; }
+	                    if (!act) { showStatus('Elige una acción.', 'warning'); return; }
+	                    if (!res) { showStatus('Selecciona un resultado.', 'warning'); return; }
+	                    if (teamOnly !== '1' && !pid) { showStatus('Selecciona un jugador antes.', 'warning'); return; }
+	                    postAction({
+	                      match_id: mid,
+	                      player: pid,
+	                      action_type: act,
+	                      result: res,
+	                      zone: zone,
+	                      minute: '0',
+	                      period: '1',
+	                      stage: 'live',
+	                      team_only: teamOnly
+	                    }, function (payload) {
+	                      var playerLabel = teamOnly === '1' ? 'Equipo' : '';
+	                      if (!playerLabel) {
+	                        try {
+	                          var sel = document.querySelector('.convocation-card.selected');
+	                          var name = sel ? sel.getAttribute('data-player-name') : '';
+	                          var num = sel ? sel.getAttribute('data-player-number') : '';
+	                          playerLabel = (num ? ('#' + num + ' ') : '') + (name || 'Jugador');
+	                        } catch (e) { playerLabel = 'Jugador'; }
+	                      }
+	                      payload.player_label = playerLabel;
+	                      appendHistory(payload);
+	                      hidePopup();
+	                    });
+	                  });
+	                }
+	              });
+	            })();
+	          </script>
 	          <div class="clock-card">
 	            <div class="clock-card-inner">
 		              <div class="position-fixed-clock">

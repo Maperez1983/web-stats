@@ -1,5 +1,7 @@
 /* Extracted from templates/football/match_actions.html to shrink HTML payload. */
 (function () {
+  // Flag para evitar que el fallback ES5 (inline) duplique listeners / envíos.
+  try { window.__matchActionsMainBound = true; } catch (e) {}
   const boot = (window.matchActionsBoot || {});
       const getInitials = (value) => {
         const raw = String(value || '').trim();
