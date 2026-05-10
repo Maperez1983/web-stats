@@ -114,6 +114,16 @@
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
 
+	    // Timeline editor (clips)
+	    const tlFromSelectionBtn = document.getElementById('vs-tl-from-selection');
+	    const tlClearBtn = document.getElementById('vs-tl-clear');
+	    const tlSaveBtn = document.getElementById('vs-tl-save-project');
+	    const tlLoadBtn = document.getElementById('vs-tl-load-project');
+	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
+	    const tlItemsEl = document.getElementById('vs-tl-items');
+	    const tlTotalEl = document.getElementById('vs-tl-total');
+	    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+
 	    const aiGenerateBtn = document.getElementById('vs-ai-generate');
 	    const aiForceBtn = document.getElementById('vs-ai-force');
 	    const aiToTimelineBtn = document.getElementById('vs-ai-to-timeline');
@@ -143,6 +153,8 @@
 	    const playlistShareBtn = document.getElementById('vs-playlist-share');
 	    const playlistCountEl = document.getElementById('vs-playlist-count');
 	    const clipSaveBtn = document.getElementById('vs-clip-save');
+	    const clipDupBtn = document.getElementById('vs-clip-dup');
+	    const clipSplitBtn = document.getElementById('vs-clip-split');
 	    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
 	    const clipsList = document.getElementById('vs-clips');
 	    const dashboardEl = document.getElementById('vs-dashboard');
@@ -167,9 +179,10 @@
 	    const timelineCountEl = document.getElementById('vs-timeline-count');
 	    const timelinePrevBtn = document.getElementById('vs-timeline-prev');
 	    const timelineNextBtn = document.getElementById('vs-timeline-next');
-	    const timelineFormatSelect = document.getElementById('vs-timeline-format');
-	    const timelineExportBtn = document.getElementById('vs-timeline-export');
+    const timelineFormatSelect = document.getElementById('vs-timeline-format');
+    const timelineExportBtn = document.getElementById('vs-timeline-export');
     const timelineImportBtn = document.getElementById('vs-timeline-import');
+    const timelineToClipsBtn = document.getElementById('vs-timeline-to-clips');
     const timelineClearBtn = document.getElementById('vs-timeline-clear');
     const timelineImportFile = document.getElementById('vs-timeline-import-file');
 
@@ -208,6 +221,36 @@
     const wsPrefGetUrl = safeText(document.getElementById('vs-ws-pref-get-url')?.value);
     const wsPrefSetUrl = safeText(document.getElementById('vs-ws-pref-set-url')?.value);
     const teamId = Number(document.getElementById('vs-team-id')?.value || 0);
+
+    // Export settings persistence (client-side, sin coste servidor).
+    const exportSettingsKey = () => `vs_export_settings:v1:${teamId || 'personal'}`;
+    const loadExportSettings = () => {
+      try {
+        const raw = window.localStorage.getItem(exportSettingsKey()) || '';
+        const obj = raw ? JSON.parse(raw) : {};
+        if (obj && typeof obj === 'object') return obj;
+      } catch (e) { /* ignore */ }
+      return {};
+    };
+    const saveExportSettings = () => {
+      try {
+        const payload = {
+          quality: safeText(qualitySelect?.value, 'med'),
+          fps: safeText(fpsSelect?.value, ''),
+          audio: Boolean(audioToggle?.checked),
+        };
+        window.localStorage.setItem(exportSettingsKey(), JSON.stringify(payload));
+      } catch (e) { /* ignore */ }
+    };
+    try {
+      const s = loadExportSettings();
+      if (qualitySelect && s.quality) qualitySelect.value = String(s.quality);
+      if (fpsSelect && (s.fps !== undefined)) fpsSelect.value = String(s.fps);
+      if (audioToggle && (s.audio !== undefined)) audioToggle.checked = Boolean(s.audio);
+    } catch (e) { /* ignore */ }
+    qualitySelect?.addEventListener('change', saveExportSettings);
+    fpsSelect?.addEventListener('change', saveExportSettings);
+    audioToggle?.addEventListener('change', saveExportSettings);
 
     const initPersonalAssign = () => {
       if (!assignUrl || !videoId || !assignTeamSelect || !assignBtn) return;
@@ -2150,15 +2193,20 @@
       });
     };
 
+    let projectsCache = [];
     const refreshProjects = async () => {
       if (!projectsUrl || !videoId) return;
       try {
         const resp = await fetch(`${projectsUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
-        renderProjects(Array.isArray(data?.items) ? data.items : []);
+        projectsCache = Array.isArray(data?.items) ? data.items : [];
+        renderProjects(projectsCache);
+        try { renderTimelineProjectSelect(projectsCache); } catch (e) { /* ignore */ }
       } catch (e) {
+        projectsCache = [];
         renderProjects([]);
+        try { renderTimelineProjectSelect([]); } catch (e2) { /* ignore */ }
       }
     };
 
@@ -2236,6 +2284,264 @@
 	        reviewedEventIds.clear();
 	      }
 	    };
+
+	    // Timeline editor (beta)
+	    let tlIds = [];
+	    let tlLastLoadedProjectId = 0;
+
+	    const isTimelineProject = (p) => {
+	      const payload = p?.payload;
+	      if (!payload || typeof payload !== 'object') return false;
+	      return String(payload?.kind || '') === 'timeline_v1' && Array.isArray(payload?.clip_ids);
+	    };
+
+	    const renderTimelineProjectSelect = (items) => {
+	      if (!tlProjectSelect) return;
+	      const timelines = (Array.isArray(items) ? items : []).filter(isTimelineProject).slice(0, 80);
+	      const opts = [`<option value=\"\">(Proyecto)</option>`].concat(
+	        timelines.map((p) => {
+	          const id = Number(p?.id) || 0;
+	          if (!id) return '';
+	          const title = escHtml(safeText(p?.title, `Timeline ${id}`));
+	          return `<option value=\"${id}\">${title}</option>`;
+	        }).filter(Boolean)
+	      );
+	      tlProjectSelect.innerHTML = opts.join('');
+	      if (tlLastLoadedProjectId) {
+	        try { tlProjectSelect.value = String(tlLastLoadedProjectId); } catch (e) { /* ignore */ }
+	      }
+	    };
+
+	    const fmtDur = (s) => {
+	      const v = Math.max(0, Number(s) || 0);
+	      return `${Math.round(v * 10) / 10}s`;
+	    };
+
+	    const tlTotalSeconds = () => {
+	      let sum = 0;
+	      for (const id of tlIds) {
+	        const c = clipById(id);
+	        if (!c) continue;
+	        const a = Number(c?.in_s) || 0;
+	        const b = Number(c?.out_s) || 0;
+	        const d = Math.max(0, (b || a) - a);
+	        sum += d;
+	      }
+	      return sum;
+	    };
+
+	    const renderTimelineItems = () => {
+	      if (!tlItemsEl) return;
+	      const rows = tlIds.map((id, idx) => {
+	        const c = clipById(id);
+	        const title = escHtml(safeText(c?.title, `Clip ${id}`));
+	        const coll = escHtml(safeText(c?.collection, ''));
+	        const a = Number(c?.in_s) || 0;
+	        const b = Number(c?.out_s) || 0;
+	        const dur = Math.max(0, (b || a) - a);
+	        const label = `${fmtTimeShort(a)} → ${fmtTimeShort(b || a)} · ${fmtDur(dur)}`;
+	        return `
+	          <div class="row" draggable="true" data-tl-idx="${idx}" style="gap:0.75rem;">
+	            <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0;">
+	              <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${idx + 1}. ${title}</strong>
+	              <small>${coll ? `${coll} · ` : ''}${label}</small>
+	            </div>
+	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
+	              <button type="button" class="button" data-tl-open="${id}">Editar</button>
+	              <button type="button" class="button" data-tl-jump="${id}">Ir</button>
+	              <button type="button" class="button" data-tl-up="${idx}">↑</button>
+	              <button type="button" class="button" data-tl-down="${idx}">↓</button>
+	              <button type="button" class="button danger" data-tl-rm="${idx}">✕</button>
+	            </div>
+	          </div>
+	        `;
+	      }).join('');
+	      tlItemsEl.innerHTML = rows || '<div class="meta">Sin clips en timeline. Selecciona clips y pulsa “Cargar selección”.</div>';
+	      if (tlTotalEl) tlTotalEl.textContent = tlIds.length ? `${tlIds.length} clips · ${fmtDur(tlTotalSeconds())}` : '—';
+
+	      // botones
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-rm]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const idx = Number(btn.getAttribute('data-tl-rm') || -1);
+	          if (idx < 0 || idx >= tlIds.length) return;
+	          tlIds.splice(idx, 1);
+	          renderTimelineItems();
+	          updatePlaylistExportAvailability();
+	        });
+	      });
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-up]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const idx = Number(btn.getAttribute('data-tl-up') || -1);
+	          if (idx <= 0 || idx >= tlIds.length) return;
+	          const tmp = tlIds[idx - 1];
+	          tlIds[idx - 1] = tlIds[idx];
+	          tlIds[idx] = tmp;
+	          renderTimelineItems();
+	        });
+	      });
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-down]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const idx = Number(btn.getAttribute('data-tl-down') || -1);
+	          if (idx < 0 || idx >= tlIds.length - 1) return;
+	          const tmp = tlIds[idx + 1];
+	          tlIds[idx + 1] = tlIds[idx];
+	          tlIds[idx] = tmp;
+	          renderTimelineItems();
+	        });
+	      });
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-jump]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const id = Number(btn.getAttribute('data-tl-jump') || 0);
+	          const c = clipById(id);
+	          if (!c) return;
+	          try { video.currentTime = Number(c?.in_s) || 0; } catch (e) { /* ignore */ }
+	          video.play().catch(() => {});
+	        });
+	      });
+	      Array.from(tlItemsEl.querySelectorAll('[data-tl-open]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const id = Number(btn.getAttribute('data-tl-open') || 0);
+	          const c = clipById(id);
+	          if (!c) return;
+	          activeClipId = id;
+	          if (clipTitleInput) clipTitleInput.value = safeText(c?.title);
+	          if (clipCollectionInput) clipCollectionInput.value = safeText(c?.collection);
+	          if (clipTagsInput) clipTagsInput.value = (Array.isArray(c?.tags) ? c.tags : []).map((t) => safeText(t)).filter(Boolean).join(', ');
+	          if (clipNotesInput) clipNotesInput.value = safeText(c?.notes, '');
+	          if (inInput) inInput.value = String((Number(c?.in_s) || 0).toFixed(1));
+	          if (outInput) outInput.value = String((Number(c?.out_s) || 0).toFixed(1));
+	          const overlay = c?.overlay || {};
+	          if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) restoreJson(overlay);
+	          const fxPayload = overlay?.fx;
+	          if (fxPayload && typeof fxPayload === 'object' && Array.isArray(fxPayload?.layers)) {
+	            fxState.layers = fxPayload.layers.map((l) => ({ ...l }));
+	            selectedFxId = 0;
+	            reseedFxSeq();
+	            renderFxList();
+	          }
+	          pushHistory();
+	          updateLayerPanel();
+	          setStatus('Clip cargado.');
+	        });
+	      });
+
+	      // drag & drop
+	      const rowsEls = Array.from(tlItemsEl.querySelectorAll('[data-tl-idx]'));
+	      rowsEls.forEach((row) => {
+	        row.addEventListener('dragstart', (ev) => {
+	          try { ev.dataTransfer.setData('text/plain', String(row.getAttribute('data-tl-idx') || '')); } catch (e) { /* ignore */ }
+	        });
+	        row.addEventListener('dragover', (ev) => { ev.preventDefault(); });
+	        row.addEventListener('drop', (ev) => {
+	          ev.preventDefault();
+	          const fromIdx = Number((ev.dataTransfer && ev.dataTransfer.getData('text/plain')) || -1);
+	          const toIdx = Number(row.getAttribute('data-tl-idx') || -1);
+	          if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+	          const moved = tlIds.splice(fromIdx, 1)[0];
+	          tlIds.splice(toIdx, 0, moved);
+	          renderTimelineItems();
+	        });
+	      });
+	    };
+
+	    const tlLoadFromSelection = () => {
+	      const items = selectedClipsOrdered();
+	      tlIds = items.map((c) => Number(c?.id) || 0).filter((x) => x > 0);
+	      renderTimelineItems();
+	      updatePlaylistExportAvailability();
+	    };
+
+	    const tlClear = () => {
+	      tlIds = [];
+	      renderTimelineItems();
+	      updatePlaylistExportAvailability();
+	    };
+
+	    const tlSaveProject = async () => {
+	      if (!projectSaveUrl || !videoId) return;
+	      if (!tlIds.length) { setStatus('No hay clips en timeline.', true); return; }
+	      const title = window.prompt('Nombre del timeline:', `Timeline · ${tlIds.length} clips`);
+	      if (!title) return;
+	      const payload = { kind: 'timeline_v1', clip_ids: tlIds.slice(0, 200) };
+	      try {
+	        const resp = await fetch(projectSaveUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({ id: 0, video_id: videoId, title: String(title).slice(0, 180), payload }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        await refreshProjects();
+	        setStatus('Timeline guardado.');
+	      } catch (e) {
+	        setStatus('No se pudo guardar timeline.', true);
+	      }
+	    };
+
+	    const tlLoadProject = async () => {
+	      const id = Number(tlProjectSelect?.value || 0);
+	      if (!id) { setStatus('Selecciona un proyecto timeline.', true); return; }
+	      try {
+	        const found = (Array.isArray(projectsCache) ? projectsCache : []).find((x) => Number(x?.id) === id);
+	        const payload = found?.payload || {};
+	        const ids = Array.isArray(payload?.clip_ids) ? payload.clip_ids : [];
+	        tlIds = ids.map((x) => Number(x) || 0).filter((x) => x > 0);
+	        tlLastLoadedProjectId = id;
+	        renderTimelineItems();
+	        setStatus('Timeline cargado.');
+	      } catch (e) {
+	        setStatus('No se pudo cargar timeline.', true);
+	      }
+	    };
+
+	    const tlExportMp4 = async () => {
+	      if (!exportServerPlaylistUrl) { setStatus('No hay endpoint MP4 playlist.', true); return; }
+	      if (!teamId) { setStatus('Asigna el vídeo a un equipo antes de exportar MP4.', true); return; }
+	      if (tlIds.length < 2) { setStatus('Añade al menos 2 clips al timeline.', true); return; }
+	      const t = `Timeline · ${tlIds.length} clips`;
+	      try {
+	        tlExportBtn.disabled = true;
+	        setStatus('Generando MP4 timeline en servidor…');
+	        const resp = await fetch(exportServerPlaylistUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({ video_id: videoId || 0, clip_ids: tlIds.slice(0, 60), title: t }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok || !data?.url) {
+	          setStatus(data?.error || 'No se pudo exportar MP4 timeline.', true);
+	          return;
+	        }
+	        const url = String(data.url);
+	        const downloadUrl = String(data.download_url || url);
+	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+	        lastExportShareUrl = url;
+	        try {
+	          if (navigator.clipboard?.writeText) {
+	            await navigator.clipboard.writeText(downloadUrl);
+	            setStatus('MP4 timeline listo. Link copiado.');
+	          } else {
+	            setStatus('MP4 timeline listo. Copia el link.');
+	            window.prompt('Copia este enlace:', downloadUrl);
+	          }
+	        } catch (e) {
+	          window.prompt('Copia este enlace:', downloadUrl);
+	        }
+	        refreshShareLinks();
+	      } catch (e) {
+	        setStatus('Error exportando MP4 timeline.', true);
+	      } finally {
+	        tlExportBtn.disabled = false;
+	      }
+	    };
+
+	    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
+	    tlClearBtn?.addEventListener('click', tlClear);
+	    tlSaveBtn?.addEventListener('click', tlSaveProject);
+	    tlLoadBtn?.addEventListener('click', tlLoadProject);
+	    tlExportBtn?.addEventListener('click', tlExportMp4);
 
 	    const setReviewed = async ({ kind, objectId, done }) => {
 	      if (!reviewUrl || !videoId) return false;
@@ -3170,7 +3476,100 @@
         setStatus('No se pudo guardar clip.', true);
       }
 	    };
+
+	    const duplicateActiveClip = async () => {
+	      if (!clipSaveUrl || !videoId) return;
+	      if (!activeClipId) { setStatus('Abre un clip primero.', true); return; }
+	      const c = clipById(activeClipId);
+	      if (!c) { setStatus('Clip no encontrado en cache.', true); return; }
+	      const title = (safeText(c?.title, '').slice(0, 160) || `Clip ${activeClipId}`) + ' (copia)';
+	      try {
+	        const resp = await fetch(clipSaveUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({
+	            id: 0,
+	            video_id: videoId,
+	            title,
+	            collection: safeText(c?.collection, '').slice(0, 120),
+	            in_s: Number(c?.in_s) || 0,
+	            out_s: Number(c?.out_s) || 0,
+	            tags: Array.isArray(c?.tags) ? c.tags : [],
+	            notes: safeText(c?.notes, ''),
+	            overlay: c?.overlay || {},
+	          }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        await refreshClips();
+	        setStatus('Clip duplicado.');
+	      } catch (e) {
+	        setStatus('No se pudo duplicar.', true);
+	      }
+	    };
+
+	    const splitActiveClipAtPlayhead = async () => {
+	      if (!clipSaveUrl || !videoId) return;
+	      if (!activeClipId) { setStatus('Abre un clip primero.', true); return; }
+	      const c = clipById(activeClipId);
+	      if (!c) { setStatus('Clip no encontrado en cache.', true); return; }
+	      const inS = Number(c?.in_s) || 0;
+	      const outS = Number(c?.out_s) || 0;
+	      const t = Number(video.currentTime || 0) || 0;
+	      if (!outS || outS <= inS) { setStatus('Clip sin OUT válido.', true); return; }
+	      if (t <= inS + 0.05 || t >= outS - 0.05) { setStatus('El playhead debe estar dentro del clip.', true); return; }
+	      try {
+	        // 1) Actualiza el clip actual (OUT = t)
+	        const resp1 = await fetch(clipSaveUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({
+	            id: activeClipId,
+	            video_id: videoId,
+	            title: safeText(c?.title, '').slice(0, 180),
+	            collection: safeText(c?.collection, '').slice(0, 120),
+	            in_s: inS,
+	            out_s: t,
+	            tags: Array.isArray(c?.tags) ? c.tags : [],
+	            notes: safeText(c?.notes, ''),
+	            overlay: c?.overlay || {},
+	          }),
+	        });
+	        const data1 = await resp1.json().catch(() => ({}));
+	        if (!resp1.ok || !data1?.ok) throw new Error(data1?.error || 'error');
+
+	        // 2) Crea el segundo clip (IN = t, OUT = oldOut)
+	        const title2 = (safeText(c?.title, '').slice(0, 160) || `Clip ${activeClipId}`) + ' (2)';
+	        const resp2 = await fetch(clipSaveUrl, {
+	          method: 'POST',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          credentials: 'same-origin',
+	          body: JSON.stringify({
+	            id: 0,
+	            video_id: videoId,
+	            title: title2,
+	            collection: safeText(c?.collection, '').slice(0, 120),
+	            in_s: t,
+	            out_s: outS,
+	            tags: Array.isArray(c?.tags) ? c.tags : [],
+	            notes: safeText(c?.notes, ''),
+	            overlay: c?.overlay || {},
+	          }),
+	        });
+	        const data2 = await resp2.json().catch(() => ({}));
+	        if (!resp2.ok || !data2?.ok) throw new Error(data2?.error || 'error');
+
+	        await refreshClips();
+	        setStatus('Clip dividido.');
+	      } catch (e) {
+	        setStatus('No se pudo dividir.', true);
+	      }
+	    };
 	    clipSaveBtn?.addEventListener('click', saveClip);
+	    clipDupBtn?.addEventListener('click', duplicateActiveClip);
+	    clipSplitBtn?.addEventListener('click', splitActiveClipAtPlayhead);
 	    clipRefreshBtn?.addEventListener('click', refreshClips);
 	    clipSearchInput?.addEventListener('input', () => renderClips(applyClipFilters(clipsCache)));
 	    clipCollectionFilterSelect?.addEventListener('change', () => renderClips(applyClipFilters(clipsCache)));
@@ -3364,9 +3763,9 @@
           ? `<span class="k" style="border-radius:999px; padding:0.12rem 0.6rem; min-width:auto;">${escHtml([ctxTeam, ctxPhase].filter(Boolean).join(' · '))}</span>`
           : '';
         const at = fmtTimeShort(Number(ev?.time_s) || 0);
-        const timeVal = (Number(ev?.time_s) || 0).toFixed(1);
-        const reviewed = reviewedEventIds.has(id);
-        return `
+      const timeVal = (Number(ev?.time_s) || 0).toFixed(1);
+      const reviewed = reviewedEventIds.has(id);
+      return `
           <div class="row" style="${reviewed ? 'opacity:0.86;' : ''}">
             <div style="display:grid; gap:0.4rem; width:100%;">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:0.6rem;">
@@ -3378,6 +3777,7 @@
                   <button type="button" class="button ${reviewed ? 'primary' : 'ghost'}" data-vs-ev-review="${id}" title="Marcar revisado">${reviewed ? '✓' : '○'}</button>
                   <button type="button" class="button" data-vs-ev-go="${id}">Ir</button>
                   <button type="button" class="button" data-vs-ev-now="${id}">Ahora</button>
+                  <button type="button" class="button" data-vs-ev-clip="${id}" title="Crear clip alrededor de este evento">Clip</button>
                   <button type="button" class="button" data-vs-ev-save="${id}">Guardar</button>
                   <button type="button" class="button danger" data-vs-ev-del="${id}">Borrar</button>
                 </div>
@@ -3430,6 +3830,52 @@
           } catch (e) {
             setStatus('No se pudo ir al evento.', true);
           }
+        });
+      });
+
+      const createClipFromEvent = async (evItem) => {
+        if (!clipSaveUrl || !videoId) return false;
+        const timeS = Number(evItem?.time_s) || 0;
+        const kind = safeText(evItem?.kind, 'tag').toLowerCase();
+        const label = safeText(evItem?.label, '');
+        const payload = (evItem && typeof evItem.payload === 'object' && evItem.payload) ? evItem.payload : {};
+        const ctxTeam = safeText(payload?.team, safeText(ctxTeamSelect?.value, '')).toUpperCase();
+        const ctxPhase = safeText(payload?.phase, safeText(ctxPhaseSelect?.value, ''));
+        // Usamos el mismo pre/post que el auto-clip de presets (aunque esté desactivado).
+        const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 90);
+        const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 90);
+        const inS = Math.max(0, timeS - pre);
+        const outS = Math.max(inS + 0.2, timeS + post);
+        const title = (label || `${kind.toUpperCase()} · ${fmtTimeShort(timeS)}`).slice(0, 180);
+        let collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
+        if (!collection) collection = ctxTeam || (activePresetsPack === 'own' ? 'Propio' : 'Rival');
+        const tags = [kind, 'timeline', ctxTeam ? `team:${ctxTeam}` : '', ctxPhase ? `phase:${ctxPhase}` : ''].filter(Boolean);
+        try {
+          const resp = await fetch(clipSaveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ id: 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay: {}, tags, notes: '' }),
+          });
+          const data = await resp.json().catch(() => ({}));
+          return Boolean(resp.ok && data?.ok);
+        } catch (e) {
+          return false;
+        }
+      };
+
+      Array.from(timelineList.querySelectorAll('[data-vs-ev-clip]')).forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-vs-ev-clip') || 0);
+          if (!id) return;
+          const found = (Array.isArray(timelineCache) ? timelineCache : []).find((x) => Number(x?.id) === id) || null;
+          if (!found) return;
+          btn.disabled = true;
+          const ok = await createClipFromEvent(found);
+          btn.disabled = false;
+          if (!ok) { setStatus('No se pudo crear clip desde evento.', true); return; }
+          await refreshClips();
+          setStatus('Clip creado desde evento.');
         });
       });
       Array.from(timelineList.querySelectorAll('[data-vs-ev-del]')).forEach((btn) => {
@@ -4020,6 +4466,61 @@
     });
     timelineImportBtn?.addEventListener('click', () => {
       try { timelineImportFile?.click(); } catch (e) { /* ignore */ }
+    });
+
+    timelineToClipsBtn?.addEventListener('click', async () => {
+      if (!clipSaveUrl || !videoId) { setStatus('No disponible.', true); return; }
+      const items = applyTimelineFilters(timelineCache);
+      if (!items.length) { setStatus('No hay eventos para convertir.', true); return; }
+      const ok = window.confirm(`Esto creará clips para ${items.length} eventos (máx 30 por seguridad). ¿Continuar?`);
+      if (!ok) return;
+      const batch = items.slice(0, 30);
+      timelineToClipsBtn.disabled = true;
+      let created = 0;
+      try {
+        for (let i = 0; i < batch.length; i += 1) {
+          setStatus(`Creando clips… (${i + 1}/${batch.length})`);
+          // eslint-disable-next-line no-await-in-loop
+          const did = await (async () => {
+            if (!clipSaveUrl || !videoId) return false;
+            const timeS = Number(batch[i]?.time_s) || 0;
+            const kind = safeText(batch[i]?.kind, 'tag').toLowerCase();
+            const label = safeText(batch[i]?.label, '');
+            const payload = (batch[i] && typeof batch[i].payload === 'object' && batch[i].payload) ? batch[i].payload : {};
+            const ctxTeam = safeText(payload?.team, safeText(ctxTeamSelect?.value, '')).toUpperCase();
+            const ctxPhase = safeText(payload?.phase, safeText(ctxPhaseSelect?.value, ''));
+            const pre = clamp(Number(autoClipState?.pre ?? 8) || 8, 0, 90);
+            const post = clamp(Number(autoClipState?.post ?? 8) || 8, 0, 90);
+            const inS = Math.max(0, timeS - pre);
+            const outS = Math.max(inS + 0.2, timeS + post);
+            const title = (label || `${kind.toUpperCase()} · ${fmtTimeShort(timeS)}`).slice(0, 180);
+            let collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
+            if (!collection) collection = ctxTeam || (activePresetsPack === 'own' ? 'Propio' : 'Rival');
+            const tags = [kind, 'timeline', ctxTeam ? `team:${ctxTeam}` : '', ctxPhase ? `phase:${ctxPhase}` : ''].filter(Boolean);
+            try {
+              const resp = await fetch(clipSaveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ id: 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay: {}, tags, notes: '' }),
+              });
+              const data = await resp.json().catch(() => ({}));
+              return Boolean(resp.ok && data?.ok);
+            } catch (e) {
+              return false;
+            }
+          })();
+          if (did) created += 1;
+          // eslint-disable-next-line no-await-in-loop
+          await sleep(120);
+        }
+        await refreshClips();
+        setStatus(`OK · clips creados: ${created}/${batch.length}`);
+      } catch (e) {
+        setStatus('Error creando clips desde timeline.', true);
+      } finally {
+        timelineToClipsBtn.disabled = false;
+      }
     });
     timelineImportFile?.addEventListener('change', async () => {
       const file = timelineImportFile?.files?.[0];

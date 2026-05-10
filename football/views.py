@@ -47084,7 +47084,8 @@ def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tup
         list_file = tempfile.NamedTemporaryFile(prefix=f'2j-vs-concat-{safe_base}-', suffix='.txt', delete=False, mode='w', encoding='utf-8')
         list_path = list_file.name
         for p in part_paths:
-            list_file.write(f'file {p}\n')
+            safe_path = str(p).replace("'", "'\\''")
+            list_file.write(f"file '{safe_path}'\n")
         list_file.close()
         cleanup_paths.append(list_path)
 

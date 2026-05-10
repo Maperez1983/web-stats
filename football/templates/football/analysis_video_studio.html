@@ -322,6 +322,28 @@
                     <button type="button" class="button primary" id="vs-playlist-share">Compartir lista</button>
                     <div class="hint" id="vs-playlist-count" style="align-self:center;">0 seleccionados</div>
                   </div>
+                  <details id="vs-edit-timeline" style="margin-top:0.35rem;">
+                    <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85);">
+                      Timeline editor (beta)
+                    </summary>
+                    <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
+                      <div class="hint">Reordena clips, ajusta IN/OUT y velocidad, y exporta un MP4 de la lista.</div>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                        <button type="button" class="button" id="vs-tl-from-selection">Cargar selección</button>
+                        <button type="button" class="button ghost" id="vs-tl-clear">Vaciar timeline</button>
+                        <button type="button" class="button" id="vs-tl-save-project">Guardar timeline</button>
+                        <button type="button" class="button" id="vs-tl-load-project">Cargar timeline</button>
+                        <select id="vs-tl-project-select" style="height:38px;border-radius:12px;padding:0 0.65rem;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f3f7ff;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;font-size:0.72rem; min-width: 220px;">
+                          <option value="">(Proyecto)</option>
+                        </select>
+                      </div>
+                      <div class="list" id="vs-tl-items"></div>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                        <div class="hint" id="vs-tl-total" style="align-self:center;">—</div>
+                        <button type="button" class="button" id="vs-tl-export-mp4">Export MP4 timeline</button>
+                      </div>
+                    </div>
+                  </details>
 	                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
 	              </div>
 	              <label>
@@ -342,6 +364,8 @@
 	              </label>
 	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
 	                <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
+	                <button type="button" class="button" id="vs-clip-dup">Duplicar</button>
+	                <button type="button" class="button" id="vs-clip-split">Split</button>
 	                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
 	              </div>
 	              <div class="meta" style="margin-top:0.2rem;">
@@ -463,6 +487,7 @@
                 </select>
                 <button type="button" class="button" id="vs-timeline-export">Export</button>
                 <button type="button" class="button" id="vs-timeline-import">Import</button>
+                <button type="button" class="button" id="vs-timeline-to-clips">Timeline → clips</button>
                 <button type="button" class="button danger" id="vs-timeline-clear">Vaciar</button>
               </div>
               <input type="file" id="vs-timeline-import-file" accept="application/json,text/csv,application/xml,.json,.csv,.xml" hidden />
