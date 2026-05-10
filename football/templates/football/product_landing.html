@@ -241,17 +241,38 @@
         background: linear-gradient(180deg, rgba(8,17,29,.05), rgba(8,17,29,.24));
         pointer-events: none;
       }
+      .capture-frame.cycle img { opacity: 0; will-change: opacity; }
+      .capture-frame.cycle img:nth-child(1) { animation: studioShotA 11s ease-in-out infinite; }
+      .capture-frame.cycle img:nth-child(2) { animation: studioShotB 11s ease-in-out infinite; }
+      @keyframes studioShotA {
+        0%, 44% { opacity: 1; }
+        50%, 94% { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      @keyframes studioShotB {
+        0%, 44% { opacity: 0; }
+        50%, 94% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .capture-frame.cycle img { animation: none !important; }
+        .capture-frame.cycle img:nth-child(1) { opacity: 1; }
+        .capture-frame.cycle img:nth-child(2) { display: none; }
+      }
       .capture-copy {
-        padding: 1rem 1rem 1.1rem;
+        padding: 1rem 1.05rem 1.15rem;
+        border-top: 1px solid rgba(255,255,255,.08);
+        background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.03));
       }
       .capture-copy strong {
         display: block;
-        margin-bottom: .28rem;
-        font-size: 1rem;
+        margin-bottom: .3rem;
+        font-size: 1.1rem;
+        letter-spacing: .01em;
       }
       .capture-copy p {
         margin: 0;
-        color: var(--slate);
+        color: rgba(219, 228, 240, 0.78);
         line-height: 1.55;
       }
       .hero-panel, .track-card, .proof-card, .cta-band {
@@ -411,12 +432,13 @@
             <div class="shot-dots"><span></span><span></span><span></span></div>
             <strong>2J Studio</strong>
           </div>
-          <div class="capture-frame studio">
-            <img src="{% static 'football/images/marketing/task-studio-home.png' %}" alt="2J Studio screenshot" loading="lazy" />
+          <div class="capture-frame studio cycle">
+            <img src="{% static 'football/images/marketing/task-studio-task.png' %}" alt="Editor visual de tareas en 2J Studio" loading="lazy" />
+            <img src="{% static 'football/images/marketing/task-studio-home.png' %}" alt="" aria-hidden="true" loading="lazy" />
           </div>
           <div class="capture-copy">
-            <strong>Creador de tareas y sesiones</strong>
-            <p>Pizarra táctica, secuencia animada y documentos listos para imprimir o compartir.</p>
+            <strong>Tareas, tácticas y sesiones (visual)</strong>
+            <p>Pizarra táctica con representación gráfica, animación y PDF listo para compartir con el staff.</p>
           </div>
         </article>
         <article class="capture-card">
