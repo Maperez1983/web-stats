@@ -25140,6 +25140,60 @@ def training_session_detail_page(request, session_id):
             .exclude(status=TrainingSessionAttendance.STATUS_PRESENT)
         )
     }
+
+    # Persistencia de lesión por sesión sin migraciones:
+    # se serializa catálogo/detalle/alta estimada dentro de `TrainingSessionAttendance.notes`.
+    INJURY_NOTE_PREFIX = 'inj1|'
+
+    def _sanitize_injury_note_value(value: str) -> str:
+        v = str(value or '')
+        v = v.replace('\n', ' ').replace('\r', ' ').replace('|', ' ').strip()
+        v = re.sub(r'\s+', ' ', v).strip()
+        return v
+
+    def _pack_injury_note(*, catalog_id, return_date, detail: str, note: str) -> str:
+        c = str(int(catalog_id) if catalog_id else '').strip()
+        r = str(return_date.isoformat() if return_date else '').strip()
+        d = _sanitize_injury_note_value(detail)[:120]
+        n = _sanitize_injury_note_value(note)[:120]
+        payload = f'{INJURY_NOTE_PREFIX}c={c}|r={r}|d={d}|n={n}'
+        return payload[:180]
+
+    def _unpack_injury_note(raw: str) -> dict:
+        text = str(raw or '').strip()
+        if not text.startswith(INJURY_NOTE_PREFIX):
+            return {}
+        body = text[len(INJURY_NOTE_PREFIX):]
+        data = {}
+        for part in body.split('|'):
+            if '=' not in part:
+                continue
+            key, value = part.split('=', 1)
+            key = str(key or '').strip().lower()
+            value = str(value or '').strip()
+            if key:
+                data[key] = value
+        return data
+
+    for mark in marks.values():
+        try:
+            if str(getattr(mark, 'status', '') or '') != TrainingSessionAttendance.STATUS_INJURED:
+                continue
+            parsed = _unpack_injury_note(getattr(mark, 'notes', '') or '')
+            if not parsed:
+                continue
+            cid = _parse_int(parsed.get('c'))
+            mark.injury_catalog_entry_id = int(cid) if cid else None
+            mark.injury_detail = str(parsed.get('d') or '').strip()[:180]
+            mark.notes = str(parsed.get('n') or '').strip()[:180]
+            r = str(parsed.get('r') or '').strip()
+            if r:
+                try:
+                    mark.injury_return_date = date.fromisoformat(r)
+                except Exception:
+                    mark.injury_return_date = None
+        except Exception:
+            continue
     attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
 
@@ -47598,6 +47652,8 @@ def _video_studio_mix_voiceover_to_mp4(
     include_video_audio: bool,
     video_volume: float = 1.0,
     voiceover_volume: float = 1.0,
+    ducking: bool = False,
+    duck_strength: float = 1.0,
     base_name: str = 'mix',
 ):  # -> str | None
     """
@@ -47620,6 +47676,11 @@ def _video_studio_mix_voiceover_to_mp4(
     vo_v = float(voiceover_volume or 1.0)
     vv = max(0.0, min(vv, 2.0))
     vo_v = max(0.0, min(vo_v, 2.0))
+    try:
+        duck_strength = max(0.0, min(float(duck_strength or 0.0), 1.0))
+    except Exception:
+        duck_strength = 1.0
+    ducking = bool(ducking)
 
     # Solo volumen del audio original.
     if not vo:
@@ -47659,12 +47720,28 @@ def _video_studio_mix_voiceover_to_mp4(
     out_path = tmp_out.name
     tmp_out.close()
 
+    wants_ducking = bool(ducking and duck_strength > 0)
+    fallback_fc = None
+
     if include_video_audio and has_audio:
-        fc = (
-            f'[0:a]volume={vv:.6f}[a0];'
-            f'[1:a]volume={vo_v:.6f}[a1];'
-            '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
-        )
+        if wants_ducking:
+            fallback_fc = (
+                f'[0:a]volume={vv:.6f}[a0];'
+                f'[1:a]volume={vo_v:.6f}[a1];'
+                '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+            )
+            fc = (
+                f'[0:a]volume={vv:.6f}[a0];'
+                f'[1:a]volume={vo_v:.6f}[a1];'
+                f'[a0][a1]sidechaincompress=threshold=0.05:ratio=10:attack=20:release=250:mix={duck_strength:.6f}[duck];'
+                '[duck][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+            )
+        else:
+            fc = (
+                f'[0:a]volume={vv:.6f}[a0];'
+                f'[1:a]volume={vo_v:.6f}[a1];'
+                '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+            )
         cmd = [
             ffmpeg_path,
             '-y',
@@ -47715,7 +47792,17 @@ def _video_studio_mix_voiceover_to_mp4(
             out_path,
         ]
 
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+    except Exception:
+        if include_video_audio and has_audio and wants_ducking and fallback_fc:
+            # Fallback si el build de FFmpeg no incluye sidechaincompress.
+            cmd2 = list(cmd)
+            ix = cmd2.index('-filter_complex')
+            cmd2[ix + 1] = fallback_fc
+            subprocess.run(cmd2, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        else:
+            raise
     return out_path
 
 
@@ -48351,6 +48438,16 @@ def analysis_video_studio_export_server_playlist_api(request):
     voiceover_volume = max(0.0, min(float(voiceover_volume), 2.0))
     video_volume = max(0.0, min(float(video_volume), 2.0))
 
+    ducking = data.get('ducking', False)
+    if isinstance(ducking, str):
+        ducking = ducking.strip().lower() in {'1', 'true', 'yes', 'on'}
+    ducking = bool(ducking)
+    try:
+        duck_strength = float(data.get('duck_strength') if data.get('duck_strength') is not None else 1.0)
+    except Exception:
+        duck_strength = 1.0
+    duck_strength = max(0.0, min(float(duck_strength), 1.0))
+
     # Nueva forma (timeline): items = [{clip_id, in_s?, out_s?, speed?, speed_start?, speed_end?, fade_in?, fade_out?}, ...]
     raw_items = data.get('items')
     if isinstance(raw_items, str):
@@ -48535,6 +48632,8 @@ def analysis_video_studio_export_server_playlist_api(request):
                     include_video_audio=include_audio,
                     video_volume=float(video_volume),
                     voiceover_volume=float(voiceover_volume),
+                    ducking=ducking,
+                    duck_strength=duck_strength,
                     base_name=title or f'playlist-{video_id}',
                 )
             except Exception:

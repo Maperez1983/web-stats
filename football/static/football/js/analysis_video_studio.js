@@ -123,13 +123,15 @@
 	    const tlIncludeAudioToggle = document.getElementById('vs-tl-include-audio');
 	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
 	    const tlItemsEl = document.getElementById('vs-tl-items');
-	    const tlTotalEl = document.getElementById('vs-tl-total');
-	    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
-	    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
-	    const tlSpeedStartInput = document.getElementById('vs-tl-speed-start');
-	    const tlSpeedEndInput = document.getElementById('vs-tl-speed-end');
-	    const tlFadeInInput = document.getElementById('vs-tl-fade-in');
-	    const tlFadeOutInput = document.getElementById('vs-tl-fade-out');
+		    const tlTotalEl = document.getElementById('vs-tl-total');
+		    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+		    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
+		    const tlItemInInput = document.getElementById('vs-tl-item-in');
+		    const tlItemOutInput = document.getElementById('vs-tl-item-out');
+		    const tlSpeedStartInput = document.getElementById('vs-tl-speed-start');
+		    const tlSpeedEndInput = document.getElementById('vs-tl-speed-end');
+		    const tlFadeInInput = document.getElementById('vs-tl-fade-in');
+		    const tlFadeOutInput = document.getElementById('vs-tl-fade-out');
 	    const tlItemResetBtn = document.getElementById('vs-tl-item-reset');
 	    const tlItemSaveBtn = document.getElementById('vs-tl-item-save');
 
@@ -2300,10 +2302,12 @@
 	    const voiceoverUploadUrl = safeText(document.getElementById('vs-voiceover-upload-url')?.value);
 	    const voiceoverDeleteUrl = safeText(document.getElementById('vs-voiceover-delete-url')?.value);
 	    const voiceoverSelect = document.getElementById('vs-voiceover-select');
-	    const voiceoverRecordBtn = document.getElementById('vs-voiceover-record');
-	    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
-	    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
-	    const videoVolInput = document.getElementById('vs-video-vol');
+		    const voiceoverRecordBtn = document.getElementById('vs-voiceover-record');
+		    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
+		    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
+		    const videoVolInput = document.getElementById('vs-video-vol');
+		    const voiceoverDuckingToggle = document.getElementById('vs-voiceover-ducking');
+		    const voiceoverDuckStrengthInput = document.getElementById('vs-voiceover-duck-strength');
 
 	    let tlItems = [];
 	    let tlLastLoadedProjectId = 0;
@@ -2320,24 +2324,28 @@
 	    };
 	    const tlClamp = (v, a, b) => Math.max(a, Math.min(b, Number(v) || 0));
 
-	    const tlNormalizeItem = (raw) => {
-	      if (!raw || typeof raw !== 'object') return null;
-	      const clipId = Number(raw.clip_id || raw.id || raw.clip) || 0;
-	      if (!clipId) return null;
-	      const speed = tlClamp(tlNum(raw.speed, 1), 0.1, 4);
-	      const spA = tlClamp(tlNum(raw.speed_start, speed), 0.1, 4);
-	      const spB = tlClamp(tlNum(raw.speed_end, spA), 0.1, 4);
-	      const fadeIn = tlClamp(tlNum(raw.fade_in, 0), 0, 2);
-	      const fadeOut = tlClamp(tlNum(raw.fade_out, 0), 0, 2);
-	      return {
-	        clip_id: clipId,
-	        speed,
-	        speed_start: spA,
-	        speed_end: spB,
-	        fade_in: fadeIn,
-	        fade_out: fadeOut,
-	      };
-	    };
+		    const tlNormalizeItem = (raw) => {
+		      if (!raw || typeof raw !== 'object') return null;
+		      const clipId = Number(raw.clip_id || raw.id || raw.clip) || 0;
+		      if (!clipId) return null;
+		      const speed = tlClamp(tlNum(raw.speed, 1), 0.1, 4);
+		      const spA = tlClamp(tlNum(raw.speed_start, speed), 0.1, 4);
+		      const spB = tlClamp(tlNum(raw.speed_end, spA), 0.1, 4);
+		      const fadeIn = tlClamp(tlNum(raw.fade_in, 0), 0, 2);
+		      const fadeOut = tlClamp(tlNum(raw.fade_out, 0), 0, 2);
+		      const inS = (raw.in_s != null && raw.in_s !== '') ? Math.max(0, tlNum(raw.in_s, 0)) : null;
+		      const outS = (raw.out_s != null && raw.out_s !== '') ? Math.max(0, tlNum(raw.out_s, 0)) : null;
+		      return {
+		        clip_id: clipId,
+		        in_s: inS,
+		        out_s: outS,
+		        speed,
+		        speed_start: spA,
+		        speed_end: spB,
+		        fade_in: fadeIn,
+		        fade_out: fadeOut,
+		      };
+		    };
 	    const tlDefaultItem = (clipId) => tlNormalizeItem({ clip_id: clipId, speed: 1, speed_start: 1, speed_end: 1, fade_in: 0, fade_out: 0 });
 
 	    const isTimelineProject = (p) => {
@@ -2371,50 +2379,58 @@
 
 	    const tlTotalSeconds = () => {
 	      let sum = 0;
-	      for (const it of (Array.isArray(tlItems) ? tlItems : [])) {
-	        const clipId = Number(it?.clip_id) || 0;
-	        if (!clipId) continue;
-	        const c = clipById(clipId);
-	        if (!c) continue;
-	        const a = Number(c?.in_s) || 0;
-	        const b = Number(c?.out_s) || 0;
-	        const srcDur = Math.max(0, (b || a) - a);
-	        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
-	        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
-	        const avg = Math.max(0.1, (spA + spB) / 2);
-	        sum += (srcDur / avg);
-	      }
+		      for (const it of (Array.isArray(tlItems) ? tlItems : [])) {
+		        const clipId = Number(it?.clip_id) || 0;
+		        if (!clipId) continue;
+		        const c = clipById(clipId);
+		        if (!c) continue;
+		        const clipIn = Number(c?.in_s) || 0;
+		        const clipOut = Number(c?.out_s) || 0;
+		        const a = (it?.in_s != null) ? Math.max(0, Number(it.in_s) || 0) : clipIn;
+		        const b0 = (it?.out_s != null) ? Math.max(0, Number(it.out_s) || 0) : clipOut;
+		        const b = (b0 > a) ? b0 : Math.max(a, (clipOut || a));
+		        const srcDur = Math.max(0, b - a);
+		        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
+		        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
+		        const avg = Math.max(0.1, (spA + spB) / 2);
+		        sum += (srcDur / avg);
+		      }
 	      return sum;
 	    };
 
 	    const renderTimelineItems = () => {
 	      if (!tlItemsEl) return;
-	      const rows = (Array.isArray(tlItems) ? tlItems : []).map((it, idx) => {
-	        const id = Number(it?.clip_id) || 0;
-	        const c = clipById(id);
-	        const title = escHtml(safeText(c?.title, `Clip ${id}`));
-	        const coll = escHtml(safeText(c?.collection, ''));
-	        const a = Number(c?.in_s) || 0;
-	        const b = Number(c?.out_s) || 0;
-	        const srcDur = Math.max(0, (b || a) - a);
-	        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
-	        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
-	        const avg = Math.max(0.1, (spA + spB) / 2);
-	        const outDur = srcDur / avg;
-	        const fi = tlClamp(tlNum(it?.fade_in, 0), 0, 2);
-	        const fo = tlClamp(tlNum(it?.fade_out, 0), 0, 2);
-	        const label = `${fmtTimeShort(a)} → ${fmtTimeShort(b || a)} · ${fmtDur(outDur)} · x${Math.round(spA * 100) / 100}${Math.abs(spA - spB) >= 1e-3 ? `→${Math.round(spB * 100) / 100}` : ''}${(fi || fo) ? ` · fade ${fi}/${fo}` : ''}`;
-	        return `
-	          <div class="row" draggable="true" data-tl-idx="${idx}" style="gap:0.75rem;">
+		      const rows = (Array.isArray(tlItems) ? tlItems : []).map((it, idx) => {
+		        const id = Number(it?.clip_id) || 0;
+		        const c = clipById(id);
+		        const title = escHtml(safeText(c?.title, `Clip ${id}`));
+		        const coll = escHtml(safeText(c?.collection, ''));
+		        const clipIn = Number(c?.in_s) || 0;
+		        const clipOut = Number(c?.out_s) || 0;
+		        const a = (it?.in_s != null) ? Math.max(0, Number(it.in_s) || 0) : clipIn;
+		        const b0 = (it?.out_s != null) ? Math.max(0, Number(it.out_s) || 0) : clipOut;
+		        const b = (b0 > a) ? b0 : Math.max(a, (clipOut || a));
+		        const srcDur = Math.max(0, b - a);
+		        const spA = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
+		        const spB = tlClamp(tlNum(it?.speed_end, spA), 0.1, 4);
+		        const avg = Math.max(0.1, (spA + spB) / 2);
+		        const outDur = srcDur / avg;
+		        const fi = tlClamp(tlNum(it?.fade_in, 0), 0, 2);
+		        const fo = tlClamp(tlNum(it?.fade_out, 0), 0, 2);
+		        const label = `${fmtTimeShort(a)} → ${fmtTimeShort(b || a)} · ${fmtDur(outDur)} · x${Math.round(spA * 100) / 100}${Math.abs(spA - spB) >= 1e-3 ? `→${Math.round(spB * 100) / 100}` : ''}${(fi || fo) ? ` · fade ${fi}/${fo}` : ''}`;
+		        return `
+		          <div class="row" draggable="true" data-tl-idx="${idx}" style="gap:0.75rem;">
 	            <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0;">
 	              <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${idx + 1}. ${title}</strong>
 	              <small>${coll ? `${coll} · ` : ''}${label}</small>
-	            </div>
-	            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
-	              <button type="button" class="button" data-tl-fx="${idx}">FX</button>
-	              <button type="button" class="button" data-tl-open="${id}">Editar</button>
-	              <button type="button" class="button" data-tl-jump="${id}">Ir</button>
-	              <button type="button" class="button" data-tl-up="${idx}">↑</button>
+		            </div>
+		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
+		              <button type="button" class="button" data-tl-fx="${idx}">FX</button>
+		              <button type="button" class="button ghost" data-tl-dup="${idx}">Dup</button>
+		              <button type="button" class="button ghost" data-tl-split="${idx}">Split</button>
+		              <button type="button" class="button" data-tl-open="${id}">Editar</button>
+		              <button type="button" class="button" data-tl-jump="${id}">Ir</button>
+		              <button type="button" class="button" data-tl-up="${idx}">↑</button>
 	              <button type="button" class="button" data-tl-down="${idx}">↓</button>
 	              <button type="button" class="button danger" data-tl-rm="${idx}">✕</button>
 	            </div>
@@ -2424,19 +2440,53 @@
 	      tlItemsEl.innerHTML = rows || '<div class="meta">Sin clips en timeline. Selecciona clips y pulsa “Cargar selección”.</div>';
 	      if (tlTotalEl) tlTotalEl.textContent = tlItems.length ? `${tlItems.length} clips · ${fmtDur(tlTotalSeconds())}` : '—';
 
-	      Array.from(tlItemsEl.querySelectorAll('[data-tl-rm]')).forEach((btn) => {
-	        btn.addEventListener('click', () => {
-	          const idx = Number(btn.getAttribute('data-tl-rm') || -1);
-	          if (idx < 0 || idx >= tlItems.length) return;
-	          tlItems.splice(idx, 1);
-	          renderTimelineItems();
-	          updatePlaylistExportAvailability();
-	        });
-	      });
-	      Array.from(tlItemsEl.querySelectorAll('[data-tl-up]')).forEach((btn) => {
-	        btn.addEventListener('click', () => {
-	          const idx = Number(btn.getAttribute('data-tl-up') || -1);
-	          if (idx <= 0 || idx >= tlItems.length) return;
+		      Array.from(tlItemsEl.querySelectorAll('[data-tl-rm]')).forEach((btn) => {
+		        btn.addEventListener('click', () => {
+		          const idx = Number(btn.getAttribute('data-tl-rm') || -1);
+		          if (idx < 0 || idx >= tlItems.length) return;
+		          tlItems.splice(idx, 1);
+		          renderTimelineItems();
+		          updatePlaylistExportAvailability();
+		        });
+		      });
+		      Array.from(tlItemsEl.querySelectorAll('[data-tl-dup]')).forEach((btn) => {
+		        btn.addEventListener('click', () => {
+		          const idx = Number(btn.getAttribute('data-tl-dup') || -1);
+		          if (idx < 0 || idx >= tlItems.length) return;
+		          const it = tlItems[idx] || {};
+		          tlItems.splice(idx + 1, 0, { ...it });
+		          renderTimelineItems();
+		          updatePlaylistExportAvailability();
+		        });
+		      });
+		      Array.from(tlItemsEl.querySelectorAll('[data-tl-split]')).forEach((btn) => {
+		        btn.addEventListener('click', () => {
+		          const idx = Number(btn.getAttribute('data-tl-split') || -1);
+		          if (idx < 0 || idx >= tlItems.length) return;
+		          const it = tlItems[idx] || {};
+		          const clipId = Number(it?.clip_id) || 0;
+		          const c = clipById(clipId);
+		          if (!c) return;
+		          const clipIn = Number(c?.in_s) || 0;
+		          const clipOut = Number(c?.out_s) || 0;
+		          const a = (it?.in_s != null) ? Math.max(0, Number(it.in_s) || 0) : clipIn;
+		          const b0 = (it?.out_s != null) ? Math.max(0, Number(it.out_s) || 0) : clipOut;
+		          const b = (b0 > a) ? b0 : Math.max(a, (clipOut || a));
+		          const t = Number(video.currentTime) || 0;
+		          const splitAt = Math.max(a + 0.05, Math.min(b - 0.05, t));
+		          if (!(splitAt > a) || !(b > splitAt)) return;
+		          const first = { ...it, out_s: splitAt, fade_out: 0 };
+		          const second = { ...it, in_s: splitAt, fade_in: 0 };
+		          tlItems[idx] = first;
+		          tlItems.splice(idx + 1, 0, second);
+		          renderTimelineItems();
+		          updatePlaylistExportAvailability();
+		        });
+		      });
+		      Array.from(tlItemsEl.querySelectorAll('[data-tl-up]')).forEach((btn) => {
+		        btn.addEventListener('click', () => {
+		          const idx = Number(btn.getAttribute('data-tl-up') || -1);
+		          if (idx <= 0 || idx >= tlItems.length) return;
 	          const tmp = tlItems[idx - 1];
 	          tlItems[idx - 1] = tlItems[idx];
 	          tlItems[idx] = tmp;
@@ -2453,20 +2503,29 @@
 	          renderTimelineItems();
 	        });
 	      });
-	      Array.from(tlItemsEl.querySelectorAll('[data-tl-fx]')).forEach((btn) => {
-	        btn.addEventListener('click', () => {
-	          const idx = Number(btn.getAttribute('data-tl-fx') || -1);
-	          if (!tlItemDialog || idx < 0 || idx >= tlItems.length) return;
-	          tlEditingIdx = idx;
-	          const it = tlItems[idx] || {};
-	          try { tlItemDialog.returnValue = ''; } catch (e) { /* ignore */ }
-	          if (tlSpeedStartInput) tlSpeedStartInput.value = String(tlClamp(tlNum(it.speed_start, tlNum(it.speed, 1)), 0.1, 4));
-	          if (tlSpeedEndInput) tlSpeedEndInput.value = String(tlClamp(tlNum(it.speed_end, tlNum(it.speed_start, tlNum(it.speed, 1))), 0.1, 4));
-	          if (tlFadeInInput) tlFadeInInput.value = String(tlClamp(tlNum(it.fade_in, 0), 0, 2));
-	          if (tlFadeOutInput) tlFadeOutInput.value = String(tlClamp(tlNum(it.fade_out, 0), 0, 2));
-	          try { tlItemDialog.showModal(); } catch (e2) { /* ignore */ }
-	        });
-	      });
+		      Array.from(tlItemsEl.querySelectorAll('[data-tl-fx]')).forEach((btn) => {
+		        btn.addEventListener('click', () => {
+		          const idx = Number(btn.getAttribute('data-tl-fx') || -1);
+		          if (!tlItemDialog || idx < 0 || idx >= tlItems.length) return;
+		          tlEditingIdx = idx;
+		          const it = tlItems[idx] || {};
+		          try { tlItemDialog.returnValue = ''; } catch (e) { /* ignore */ }
+		          const clipId = Number(it?.clip_id) || 0;
+		          const c = clipById(clipId);
+		          const clipIn = Number(c?.in_s) || 0;
+		          const clipOut = Number(c?.out_s) || 0;
+		          const inS = (it?.in_s != null) ? Math.max(0, Number(it.in_s) || 0) : clipIn;
+		          const outS0 = (it?.out_s != null) ? Math.max(0, Number(it.out_s) || 0) : clipOut;
+		          const outS = (outS0 > inS) ? outS0 : Math.max(inS, (clipOut || inS));
+		          if (tlItemInInput) tlItemInInput.value = String(inS);
+		          if (tlItemOutInput) tlItemOutInput.value = String(outS);
+		          if (tlSpeedStartInput) tlSpeedStartInput.value = String(tlClamp(tlNum(it.speed_start, tlNum(it.speed, 1)), 0.1, 4));
+		          if (tlSpeedEndInput) tlSpeedEndInput.value = String(tlClamp(tlNum(it.speed_end, tlNum(it.speed_start, tlNum(it.speed, 1))), 0.1, 4));
+		          if (tlFadeInInput) tlFadeInInput.value = String(tlClamp(tlNum(it.fade_in, 0), 0, 2));
+		          if (tlFadeOutInput) tlFadeOutInput.value = String(tlClamp(tlNum(it.fade_out, 0), 0, 2));
+		          try { tlItemDialog.showModal(); } catch (e2) { /* ignore */ }
+		        });
+		      });
 	      Array.from(tlItemsEl.querySelectorAll('[data-tl-jump]')).forEach((btn) => {
 	        btn.addEventListener('click', () => {
 	          const id = Number(btn.getAttribute('data-tl-jump') || 0);
@@ -2585,18 +2644,22 @@
 	      try {
 	        tlExportBtn.disabled = true;
 	        setStatus('Generando MP4 timeline en servidor…');
-	        const includeAudio = tlIncludeAudioToggle ? Boolean(tlIncludeAudioToggle.checked) : true;
-	        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
-	        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
-	        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
-	        const items = tlItems.slice(0, 60).map((it) => ({
-	          clip_id: Number(it?.clip_id) || 0,
-	          speed: tlClamp(tlNum(it?.speed, 1), 0.1, 4),
-	          speed_start: tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4),
-	          speed_end: tlClamp(tlNum(it?.speed_end, tlNum(it?.speed_start, tlNum(it?.speed, 1))), 0.1, 4),
-	          fade_in: tlClamp(tlNum(it?.fade_in, 0), 0, 2),
-	          fade_out: tlClamp(tlNum(it?.fade_out, 0), 0, 2),
-	        })).filter((x) => x.clip_id > 0);
+		        const includeAudio = tlIncludeAudioToggle ? Boolean(tlIncludeAudioToggle.checked) : true;
+		        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
+		        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
+		        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
+		        const ducking = voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false;
+		        const duckStrength = tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1);
+		        const items = tlItems.slice(0, 60).map((it) => ({
+		          clip_id: Number(it?.clip_id) || 0,
+		          in_s: (it?.in_s != null) ? (Number(it.in_s) || 0) : undefined,
+		          out_s: (it?.out_s != null) ? (Number(it.out_s) || 0) : undefined,
+		          speed: tlClamp(tlNum(it?.speed, 1), 0.1, 4),
+		          speed_start: tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4),
+		          speed_end: tlClamp(tlNum(it?.speed_end, tlNum(it?.speed_start, tlNum(it?.speed, 1))), 0.1, 4),
+		          fade_in: tlClamp(tlNum(it?.fade_in, 0), 0, 2),
+		          fade_out: tlClamp(tlNum(it?.fade_out, 0), 0, 2),
+		        })).filter((x) => x.clip_id > 0);
 	        const resp = await fetch(exportServerPlaylistUrl, {
 	          method: 'POST',
 	          credentials: 'same-origin',
@@ -2605,12 +2668,14 @@
 	            video_id: videoId || 0,
 	            items,
 	            title: t,
-	            include_audio: includeAudio,
-	            voiceover_id: voiceoverId > 0 ? voiceoverId : undefined,
-	            voiceover_volume: voiceoverVol,
-	            video_volume: videoVol,
-	          }),
-	        });
+		            include_audio: includeAudio,
+		            voiceover_id: voiceoverId > 0 ? voiceoverId : undefined,
+		            voiceover_volume: voiceoverVol,
+		            video_volume: videoVol,
+		            ducking,
+		            duck_strength: duckStrength,
+		          }),
+		        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok || !data?.url) {
 	          setStatus(data?.error || 'No se pudo exportar MP4 timeline.', true);
@@ -2650,17 +2715,27 @@
 	          tlItems[idx] = tlDefaultItem(id);
 	          renderTimelineItems();
 	          return;
-	        }
-	        if (action !== 'save') return;
-	        const spA = tlClamp(tlNum(tlSpeedStartInput?.value, 1), 0.1, 4);
-	        const spB = tlClamp(tlNum(tlSpeedEndInput?.value, spA), 0.1, 4);
-	        const fi = tlClamp(tlNum(tlFadeInInput?.value, 0), 0, 2);
-	        const fo = tlClamp(tlNum(tlFadeOutInput?.value, 0), 0, 2);
-	        const prev = tlItems[idx] || {};
-	        tlItems[idx] = { ...prev, speed: spA, speed_start: spA, speed_end: spB, fade_in: fi, fade_out: fo };
-	        renderTimelineItems();
-	      });
-	    }
+		        }
+		        if (action !== 'save') return;
+		        const clipId = Number(tlItems[idx]?.clip_id) || 0;
+		        const c = clipById(clipId);
+		        const clipIn = Number(c?.in_s) || 0;
+		        const clipOut = Number(c?.out_s) || 0;
+		        const rawIn = tlNum(tlItemInInput?.value, clipIn);
+		        const rawOut = tlNum(tlItemOutInput?.value, clipOut || rawIn);
+		        const inS = Math.max(0, Math.min(rawIn, rawOut));
+		        const outS = Math.max(inS, rawOut);
+		        const spA = tlClamp(tlNum(tlSpeedStartInput?.value, 1), 0.1, 4);
+		        const spB = tlClamp(tlNum(tlSpeedEndInput?.value, spA), 0.1, 4);
+		        const fi = tlClamp(tlNum(tlFadeInInput?.value, 0), 0, 2);
+		        const fo = tlClamp(tlNum(tlFadeOutInput?.value, 0), 0, 2);
+		        const prev = tlItems[idx] || {};
+		        const saveIn = (Math.abs(inS - clipIn) >= 1e-3) ? inS : null;
+		        const saveOut = (Math.abs(outS - (clipOut || inS)) >= 1e-3) ? outS : null;
+		        tlItems[idx] = { ...prev, in_s: saveIn, out_s: saveOut, speed: spA, speed_start: spA, speed_end: spB, fade_in: fi, fade_out: fo };
+		        renderTimelineItems();
+		      });
+		    }
 
 	    const voiceoverKey = () => `vs_voiceover_settings:v1:${teamId || 'na'}:${videoId || 'na'}`;
 	    const loadVoiceoverSettings = () => {
@@ -2669,16 +2744,18 @@
 	        return raw ? JSON.parse(raw) : {};
 	      } catch (e) { return {}; }
 	    };
-	    const saveVoiceoverSettings = () => {
-	      try {
-	        const payload = {
-	          voiceover_id: Number(voiceoverSelect?.value || 0) || 0,
-	          voiceover_vol: tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2),
-	          video_vol: tlClamp(tlNum(videoVolInput?.value, 1), 0, 2),
-	        };
-	        window.localStorage.setItem(voiceoverKey(), JSON.stringify(payload));
-	      } catch (e) { /* ignore */ }
-	    };
+		    const saveVoiceoverSettings = () => {
+		      try {
+		        const payload = {
+		          voiceover_id: Number(voiceoverSelect?.value || 0) || 0,
+		          voiceover_vol: tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2),
+		          video_vol: tlClamp(tlNum(videoVolInput?.value, 1), 0, 2),
+		          ducking: voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false,
+		          duck_strength: tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1),
+		        };
+		        window.localStorage.setItem(voiceoverKey(), JSON.stringify(payload));
+		      } catch (e) { /* ignore */ }
+		    };
 	    const refreshVoiceovers = async () => {
 	      if (!voiceoversUrl || !videoId || !voiceoverSelect) return;
 	      try {
@@ -2793,16 +2870,21 @@
 	      }
 	    };
 
-	    try {
-	      const s = loadVoiceoverSettings();
-	      if (voiceoverVolInput && s.voiceover_vol != null) voiceoverVolInput.value = String(s.voiceover_vol);
-	      if (videoVolInput && s.video_vol != null) videoVolInput.value = String(s.video_vol);
-	    } catch (e) { /* ignore */ }
-	    voiceoverSelect?.addEventListener('change', saveVoiceoverSettings);
-	    voiceoverVolInput?.addEventListener('change', saveVoiceoverSettings);
-	    videoVolInput?.addEventListener('change', saveVoiceoverSettings);
-	    voiceoverRecordBtn?.addEventListener('click', toggleVoiceRecording);
-	    voiceoverDeleteBtn?.addEventListener('click', deleteSelectedVoiceover);
+		    try {
+		      const s = loadVoiceoverSettings();
+		      if (voiceoverSelect && s.voiceover_id) voiceoverSelect.value = String(s.voiceover_id);
+		      if (voiceoverVolInput && s.voiceover_vol != null) voiceoverVolInput.value = String(s.voiceover_vol);
+		      if (videoVolInput && s.video_vol != null) videoVolInput.value = String(s.video_vol);
+		      if (voiceoverDuckingToggle && s.ducking != null) voiceoverDuckingToggle.checked = Boolean(s.ducking);
+		      if (voiceoverDuckStrengthInput && s.duck_strength != null) voiceoverDuckStrengthInput.value = String(s.duck_strength);
+		    } catch (e) { /* ignore */ }
+		    voiceoverSelect?.addEventListener('change', saveVoiceoverSettings);
+		    voiceoverVolInput?.addEventListener('change', saveVoiceoverSettings);
+		    videoVolInput?.addEventListener('change', saveVoiceoverSettings);
+		    voiceoverDuckingToggle?.addEventListener('change', saveVoiceoverSettings);
+		    voiceoverDuckStrengthInput?.addEventListener('change', saveVoiceoverSettings);
+		    voiceoverRecordBtn?.addEventListener('click', toggleVoiceRecording);
+		    voiceoverDeleteBtn?.addEventListener('click', deleteSelectedVoiceover);
 
 	    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
 	    tlClearBtn?.addEventListener('click', tlClear);
