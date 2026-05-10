@@ -2603,10 +2603,29 @@ def resolve_player_photo_static_path(player):
     team_obj = getattr(player, 'team', None)
     team_id = getattr(team_obj, 'id', None)
     team_slug = str(getattr(team_obj, 'slug', '') or '').strip()
+    team_category = ''
+    try:
+        team_category = normalize_label(getattr(team_obj, 'category', '') or '')
+    except Exception:
+        team_category = ''
     try:
         is_primary_team = bool(getattr(team_obj, 'is_primary', False))
     except Exception:
         is_primary_team = False
+    is_youth_category = False
+    if team_category:
+        # Producto: en categorías base los dorsales se repiten con más frecuencia y es peor
+        # mostrar una foto incorrecta (p.ej. del Senior) que no mostrar ninguna.
+        youth_tokens = {
+            'prebenjamin',
+            'pre benjamin',
+            'benjamin',
+            'alevin',
+            'infantil',
+            'cadete',
+            'juvenil',
+        }
+        is_youth_category = any(token in team_category for token in youth_tokens)
 
     # Multicategoría: evita mezclar fotos entre equipos con el mismo dorsal.
     # Si existen carpetas por equipo, las usamos para desambiguar:
@@ -2679,7 +2698,8 @@ def resolve_player_photo_static_path(player):
     # 2) El resto (nombre/dorsal) solo se busca en:
     # - equipo principal (carpeta global), o
     # - carpetas por equipo si existen.
-    name_dirs = team_dirs + ([players_dir] if is_primary_team else [])
+    allow_global_dir = bool(is_primary_team and not is_youth_category)
+    name_dirs = team_dirs + ([players_dir] if allow_global_dir else [])
     seen = set()
     for filename in candidates:
         if filename in seen:
@@ -2702,7 +2722,7 @@ def resolve_player_photo_static_path(player):
             f'*-n{number_value}-crop.*',
             f'*-n{number_value}.*',
         ]
-        wildcard_dirs = [players_dir] if is_primary_team else []
+        wildcard_dirs = [players_dir] if allow_global_dir else []
         wildcard_dirs = team_dirs + wildcard_dirs
         wildcard_matches = []
         try:
@@ -8982,6 +9002,11 @@ def _universo_payload_matches_category(live_payload: dict, category: str) -> boo
         if value:
             candidates.append(str(value))
     combined = normalize_label(' '.join(candidates))
+    # Universo (especialmente en fútbol base) a veces no incluye en la respuesta
+    # ningún campo "competición/grupo/categoría" fiable para validar. En ese caso,
+    # no podemos aplicar el guardrail sin riesgo de ocultar la clasificación correcta.
+    if not combined:
+        return True
     return any(hint in combined for hint in hints)
 
 
