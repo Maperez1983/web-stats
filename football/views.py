@@ -18175,6 +18175,7 @@ def match_action_page(request):
 
     substitution_history = []
     match_info = None
+    explicit_match_id = _parse_int(request.GET.get('match_id') or request.POST.get('match_id'))
     default_stage = str(request.GET.get('stage') or '').strip().lower()
     if default_stage not in {'pre', 'live', 'close'}:
         default_stage = ''
@@ -18196,7 +18197,9 @@ def match_action_page(request):
             'score_for': '' if score_for is None else str(score_for),
             'score_against': '' if score_against is None else str(score_against),
         }
-        if official_next:
+        # Si el usuario ha abierto un match concreto (match_id=...), NO debemos mezclar
+        # datos del "próximo partido" de Universo, porque puede ser otro rival.
+        if official_next and not explicit_match_id:
             official_opponent = _payload_opponent_name(official_next)
             official_round = str(official_next.get('round') or '').strip()
             official_location = str(official_next.get('location') or '').strip()

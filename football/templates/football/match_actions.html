@@ -2667,9 +2667,24 @@
 		            </div>
 	          </div>
           <nav class="match-stage-tabs" aria-label="Fases del registro">
-            <button type="button" class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}" data-stage-tab="pre">Prepartido</button>
-            <button type="button" class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}" data-stage-tab="live">En vivo</button>
-            <button type="button" class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}" data-stage-tab="close">Cierre</button>
+            <a
+              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=pre{% else %}?stage=pre{% endif %}"
+              class="match-stage-tab {% if default_stage == 'pre' %}is-active{% endif %}"
+              data-stage-tab="pre"
+              role="button"
+            >Prepartido</a>
+            <a
+              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=live{% else %}?stage=live{% endif %}"
+              class="match-stage-tab {% if default_stage == 'live' %}is-active{% endif %}"
+              data-stage-tab="live"
+              role="button"
+            >En vivo</a>
+            <a
+              href="{% url 'match-action-page' %}{% if selected_match_id %}?match_id={{ selected_match_id }}&stage=close{% else %}?stage=close{% endif %}"
+              class="match-stage-tab {% if default_stage == 'close' %}is-active{% endif %}"
+              data-stage-tab="close"
+              role="button"
+            >Cierre</a>
           </nav>
 	          <div class="clock-card">
 	            <div class="clock-card-inner">
