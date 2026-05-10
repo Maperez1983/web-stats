@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from datetime import timedelta
 
 from django.http import HttpRequest, HttpResponse, JsonResponse
@@ -11,13 +12,37 @@ from django.utils.timezone import now
 
 
 def _build_id() -> str:
-    return (
+    build = (
         os.getenv("RENDER_GIT_COMMIT")
         or os.getenv("RENDER_DEPLOY_ID")
         or os.getenv("SOURCE_VERSION")
         or os.getenv("GIT_SHA")
         or ""
-    ).strip() or "dev"
+    ).strip()
+    if build:
+        return build
+    # Dev/local: usa mtimes de assets clave para que iPad/Safari no se quede enganchado a un SW antiguo.
+    try:
+        base_dir = Path(__file__).resolve().parent.parent
+        candidates = [
+            base_dir / "football" / "static" / "football" / "js" / "match_actions_live.js",
+            base_dir / "football" / "static" / "football" / "js" / "match_actions_page.js",
+            base_dir / "football" / "static" / "football" / "js" / "match_actions_chrome.js",
+            base_dir / "static" / "football" / "css" / "product_system.css",
+            base_dir / "static" / "football" / "css" / "commercial.css",
+        ]
+        mtimes = []
+        for path in candidates:
+            try:
+                if path.exists():
+                    mtimes.append(int(path.stat().st_mtime))
+            except Exception:
+                continue
+        if mtimes:
+            return str(max(mtimes))
+    except Exception:
+        pass
+    return "dev"
 
 
 def pwa_manifest(request: HttpRequest) -> HttpResponse:

@@ -19173,7 +19173,9 @@ def finalize_match_actions(request):
         requested_match = _team_match_queryset(primary_team).filter(id=payload_match_id).first()
     if not requested_match:
         requested_match = get_requested_match(request, primary_team)
-    match = requested_match or get_active_match(primary_team)
+    # Importante: el cierre debe aplicarse al mismo partido que el flujo matchday considera "activo"
+    # (evita cerrar el "próximo partido de Liga" cuando en realidad estamos registrando un Torneo/Amistoso).
+    match = requested_match or _resolve_active_match_for_flow(request, primary_team) or get_active_match(primary_team)
     if not match:
         return JsonResponse({'error': 'No hay partido activo para guardar'}, status=400)
     _apply_match_info_overrides(match, primary_team, payload.get('match_info'))

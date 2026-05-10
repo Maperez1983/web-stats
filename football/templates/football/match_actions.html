@@ -3712,6 +3712,92 @@
       })();
     </script>
     <script>
+      // Fallback crítico: permitir "Guardar partido" aunque el JS principal no haya cargado.
+      // Hace POST JSON hacia `match-action-finalize` y vuelve a prepartido.
+      (function () {
+        const ready = (fn) => {
+          if (document.readyState !== 'loading') fn();
+          else document.addEventListener('DOMContentLoaded', fn, { once: true });
+        };
+        ready(() => {
+          if (window.__matchActionsFinalizeFallbackBound) return;
+          const btns = [
+            document.getElementById('match-finalize-btn'),
+            document.getElementById('match-finalize-btn-top'),
+          ].filter(Boolean);
+          if (!btns.length) return;
+          const popupForm = document.getElementById('field-popup-form');
+          const csrf = popupForm?.querySelector?.('input[name="csrfmiddlewaretoken"]')?.value || '';
+          const teamId = popupForm?.querySelector?.('input[name="team"]')?.value || '';
+          const finalizeUrl = (window.matchActionsBoot && window.matchActionsBoot.urls && window.matchActionsBoot.urls.finalizeUrl)
+            ? String(window.matchActionsBoot.urls.finalizeUrl)
+            : '{% url "match-action-finalize" %}';
+          if (!csrf || !finalizeUrl) return;
+
+          const statusEl = document.getElementById('match-page-status');
+          const show = (msg, kind = 'info') => {
+            try {
+              if (!statusEl) return;
+              statusEl.textContent = String(msg || '').trim();
+              statusEl.style.display = 'block';
+              const palette = {
+                info: ['rgba(34, 211, 238, 0.12)', 'rgba(34, 211, 238, 0.22)', '#e0f2fe'],
+                success: ['rgba(34, 197, 94, 0.16)', 'rgba(34, 197, 94, 0.22)', '#dcfce7'],
+                danger: ['rgba(239, 68, 68, 0.18)', 'rgba(239, 68, 68, 0.24)', '#fecaca'],
+              }[kind] || ['rgba(34, 211, 238, 0.12)', 'rgba(34, 211, 238, 0.22)', '#e0f2fe'];
+              statusEl.style.background = palette[0];
+              statusEl.style.border = `1px solid ${palette[1]}`;
+              statusEl.style.color = palette[2];
+              statusEl.style.padding = '0.55rem 0.75rem';
+              statusEl.style.borderRadius = '14px';
+            } catch (e) {}
+          };
+
+          const resolveMatchId = () => {
+            const fromForm = String(popupForm?.querySelector?.('input[name="match_id"]')?.value || '').trim();
+            if (fromForm) return fromForm;
+            try {
+              const params = new URLSearchParams(window.location.search || '');
+              const q = String(params.get('match_id') || '').trim();
+              return q || '';
+            } catch (e) {
+              return '';
+            }
+          };
+
+          const handler = async (ev) => {
+            try { ev.preventDefault(); } catch (e) {}
+            const matchId = resolveMatchId();
+            show('Guardando partido…', 'info');
+            try {
+              const response = await fetch(finalizeUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+                body: JSON.stringify({ match_id: matchId || null, match_info: {} }),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                show(data.error || 'No se pudo guardar el partido.', 'danger');
+                return;
+              }
+              show('Partido guardado. Reiniciando…', 'success');
+              window.setTimeout(() => {
+                const base = String(window.location.pathname || '/registro-acciones/').trim() || '/registro-acciones/';
+                const qs = teamId ? `?stage=pre&team=${encodeURIComponent(teamId)}` : '?stage=pre';
+                window.location.href = `${base}${qs}`;
+              }, 650);
+            } catch (e) {
+              show('Error al guardar el partido. Revisa conexión y prueba de nuevo.', 'danger');
+            }
+          };
+
+          btns.forEach((btn) => btn.addEventListener('click', handler));
+          window.__matchActionsFinalizeFallbackBound = true;
+        });
+      })();
+    </script>
+    <script>
       // Fallback crítico para cronómetro: si el live controller no llega a inicializar,
       // el staff necesita que el reloj funcione sí o sí (aunque sea solo local).
       (function () {
