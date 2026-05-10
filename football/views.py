@@ -49080,6 +49080,551 @@ def analysis_video_studio_export_server_playlist_api(request):
     )
 
 
+class _VideoStudioJobCanceled(Exception):
+    pass
+
+
+def _video_studio_export_job_should_cancel(job_id: int) -> bool:
+    try:
+        row = (
+            VideoStudioExportJob.objects
+            .filter(id=int(job_id))
+            .values('cancel_requested', 'status')
+            .first()
+        )
+    except Exception:
+        return False
+    if not row:
+        return False
+    if bool(row.get('cancel_requested')):
+        return True
+    return str(row.get('status') or '').strip().lower() == VideoStudioExportJob.STATUS_CANCELED
+
+
+def _video_studio_export_job_update(job_id: int, *, status=None, progress=None, message=None, error=None, **extra_fields):
+    payload = {}
+    if status is not None:
+        payload['status'] = status
+    if progress is not None:
+        try:
+            payload['progress'] = int(progress)
+        except Exception:
+            payload['progress'] = 0
+    if message is not None:
+        payload['message'] = str(message or '')[:220]
+    if error is not None:
+        payload['error'] = str(error or '')
+    payload.update(extra_fields or {})
+    if not payload:
+        return
+    try:
+        VideoStudioExportJob.objects.filter(id=int(job_id)).update(**payload)
+    except Exception:
+        pass
+
+
+def _video_studio_export_job_process(job_id: int):
+    now = timezone.now()
+    claimed = False
+    try:
+        claimed = bool(
+            VideoStudioExportJob.objects
+            .filter(id=int(job_id), status=VideoStudioExportJob.STATUS_PENDING)
+            .update(status=VideoStudioExportJob.STATUS_RUNNING, started_at=now, progress=1, message='Iniciando…')
+        )
+    except Exception:
+        claimed = False
+    if not claimed:
+        return
+
+    try:
+        job = VideoStudioExportJob.objects.select_related('team', 'video', 'created_by_user').filter(id=int(job_id)).first()
+        if not job:
+            return
+        if _video_studio_export_job_should_cancel(job_id):
+            raise _VideoStudioJobCanceled()
+
+        team = getattr(job, 'team', None)
+        video = getattr(job, 'video', None)
+        if not team or not video:
+            raise ValueError('Job inválido (team/video).')
+        if not getattr(video, 'video', None):
+            raise ValueError('Este vídeo no está subido como MP4.')
+        try:
+            source_path = str(video.video.path or '').strip()
+        except Exception:
+            source_path = ''
+        if not source_path:
+            raise ValueError('No se pudo resolver el archivo del vídeo.')
+
+        payload = getattr(job, 'payload', None) if isinstance(getattr(job, 'payload', None), dict) else {}
+        payload = dict(payload or {})
+
+        title = _sanitize_task_text(str(payload.get('title') or '').strip(), multiline=False, max_len=180) or f'Playlist · job {job_id}'
+        validity_days = _parse_int(payload.get('valid_days')) or 14
+        validity_days = max(1, min(validity_days, 60))
+        password = str(payload.get('password') or '').strip()
+
+        include_audio = payload.get('include_audio', True)
+        if isinstance(include_audio, str):
+            include_audio = include_audio.strip().lower() not in {'0', 'false', 'no', 'off'}
+        include_audio = bool(include_audio)
+
+        voiceover_id = _parse_int(payload.get('voiceover_id'))
+        music_id = _parse_int(payload.get('music_id'))
+        voiceover_volume = float(payload.get('voiceover_volume') if payload.get('voiceover_volume') is not None else 1.0)
+        video_volume = float(payload.get('video_volume') if payload.get('video_volume') is not None else 1.0)
+        music_volume = float(payload.get('music_volume') if payload.get('music_volume') is not None else 1.0)
+        voiceover_volume = max(0.0, min(float(voiceover_volume), 2.0))
+        video_volume = max(0.0, min(float(video_volume), 2.0))
+        music_volume = max(0.0, min(float(music_volume), 2.0))
+
+        normalize = payload.get('normalize', False)
+        if isinstance(normalize, str):
+            normalize = normalize.strip().lower() in {'1', 'true', 'yes', 'on'}
+        normalize = bool(normalize)
+
+        limiter = payload.get('limiter', False)
+        if isinstance(limiter, str):
+            limiter = limiter.strip().lower() in {'1', 'true', 'yes', 'on'}
+        limiter = bool(limiter)
+
+        ducking = payload.get('ducking', False)
+        if isinstance(ducking, str):
+            ducking = ducking.strip().lower() in {'1', 'true', 'yes', 'on'}
+        ducking = bool(ducking)
+        duck_strength = float(payload.get('duck_strength') if payload.get('duck_strength') is not None else 1.0)
+        duck_strength = max(0.0, min(float(duck_strength), 1.0))
+
+        transition_s = float(payload.get('transition_s') if payload.get('transition_s') is not None else 0.0)
+        transition_s = max(0.0, min(float(transition_s), 1.0))
+
+        voiceover_offset_s = float(payload.get('voiceover_offset_s') if payload.get('voiceover_offset_s') is not None else 0.0)
+        voiceover_offset_s = max(-600.0, min(float(voiceover_offset_s), 600.0))
+
+        raw_items = payload.get('items') if isinstance(payload.get('items'), list) else []
+        requested_items: list[dict] = []
+        for row in raw_items[:60]:
+            if not isinstance(row, dict):
+                continue
+            cid = _parse_int(row.get('clip_id') or row.get('id') or row.get('clip'))
+            if not cid:
+                continue
+            requested_items.append(
+                {
+                    'clip_id': int(cid),
+                    'in_s': row.get('in_s', None),
+                    'out_s': row.get('out_s', None),
+                    'speed': row.get('speed', None),
+                    'speed_start': row.get('speed_start', None),
+                    'speed_end': row.get('speed_end', None),
+                    'fade_in': row.get('fade_in', None),
+                    'fade_out': row.get('fade_out', None),
+                }
+            )
+        if len(requested_items) < 2:
+            raise ValueError('items debe contener al menos 2 clips.')
+
+        clip_ids = [int(r.get('clip_id') or 0) for r in requested_items if int(r.get('clip_id') or 0) > 0][:60]
+        clips = list(
+            VideoClip.objects
+            .filter(team=team, video_id=int(video.id), id__in=clip_ids)
+            .only('id', 'in_ms', 'out_ms', 'title')
+        )
+        clip_by_id = {int(c.id): c for c in clips if getattr(c, 'id', None)}
+        ordered_segments = []
+        timeline_items: list[dict] = []
+        total_s = 0.0
+        for row in requested_items:
+            if _video_studio_export_job_should_cancel(job_id):
+                raise _VideoStudioJobCanceled()
+            cid = int(row.get('clip_id') or 0)
+            clip = clip_by_id.get(int(cid))
+            if not clip:
+                continue
+            start_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
+            end_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+            try:
+                if row.get('in_s') is not None and row.get('in_s') != '':
+                    start_s = float(row.get('in_s') or 0.0)
+                if row.get('out_s') is not None and row.get('out_s') != '':
+                    end_s = float(row.get('out_s') or 0.0)
+            except Exception:
+                pass
+            if end_s <= start_s:
+                continue
+            ordered_segments.append((start_s, end_s))
+            total_s += (end_s - start_s)
+            timeline_items.append(
+                {
+                    'start_s': float(start_s),
+                    'end_s': float(end_s),
+                    'speed': row.get('speed', None),
+                    'speed_start': row.get('speed_start', None),
+                    'speed_end': row.get('speed_end', None),
+                    'fade_in': row.get('fade_in', None),
+                    'fade_out': row.get('fade_out', None),
+                }
+            )
+        if len(ordered_segments) < 2:
+            raise ValueError('No hay clips válidos para exportar.')
+        max_seconds = float(getattr(settings, 'ANALYSIS_VIDEO_SERVER_EXPORT_MAX_SECONDS', 0) or 0) or (20 * 60.0)
+        if total_s > max_seconds:
+            raise ValueError(f'El export supera el máximo permitido ({int(max_seconds)}s).')
+
+        wants_timeline_fx = False
+        for it in timeline_items:
+            if not isinstance(it, dict):
+                continue
+            if it.get('speed') not in (None, '', 1, 1.0):
+                wants_timeline_fx = True
+                break
+            if it.get('speed_start') not in (None, '', 1, 1.0) or it.get('speed_end') not in (None, '', 1, 1.0):
+                wants_timeline_fx = True
+                break
+            if it.get('fade_in') not in (None, '', 0, 0.0) or it.get('fade_out') not in (None, '', 0, 0.0):
+                wants_timeline_fx = True
+                break
+
+        _video_studio_export_job_update(job_id, progress=10, message='Renderizando timeline…')
+        if _video_studio_export_job_should_cancel(job_id):
+            raise _VideoStudioJobCanceled()
+
+        if wants_timeline_fx or (include_audio is False):
+            file_obj, mime_type, out_name, cleanup_paths = _video_studio_render_timeline_items_to_mp4(
+                source_path=source_path,
+                items=timeline_items,
+                base_name=title or f'playlist-{int(video.id)}',
+                include_audio=include_audio,
+                transition_s=transition_s,
+            )
+        else:
+            file_obj, mime_type, out_name, cleanup_paths = _video_studio_concat_segments_to_mp4(
+                source_path=source_path,
+                segments=ordered_segments,
+                base_name=title or f'playlist-{int(video.id)}',
+            )
+
+        if not mime_type:
+            mime_type = 'video/mp4'
+
+        voiceover_path = None
+        if voiceover_id:
+            vo = VideoVoiceoverAsset.objects.filter(id=int(voiceover_id), team=team, video=video).first()
+            if not vo:
+                raise ValueError('Voz en off no encontrada.')
+            try:
+                voiceover_path = str(vo.file.path or '').strip() if getattr(vo, 'file', None) else ''
+            except Exception:
+                voiceover_path = ''
+            if not voiceover_path:
+                raise ValueError('El archivo de voz en off no está disponible.')
+
+        music_path = None
+        if music_id:
+            mu = VideoMusicAsset.objects.filter(id=int(music_id), team=team, video=video).first()
+            if not mu:
+                raise ValueError('Música no encontrada.')
+            try:
+                music_path = str(mu.file.path or '').strip() if getattr(mu, 'file', None) else ''
+            except Exception:
+                music_path = ''
+            if not music_path:
+                raise ValueError('El archivo de música no está disponible.')
+
+        _video_studio_export_job_update(job_id, progress=70, message='Mezclando audio…')
+        if _video_studio_export_job_should_cancel(job_id):
+            raise _VideoStudioJobCanceled()
+
+        wants_audio_mix = (
+            bool(voiceover_path)
+            or bool(music_path)
+            or bool(normalize or limiter)
+            or (include_audio and abs(float(video_volume) - 1.0) >= 1e-6)
+        )
+        if wants_audio_mix:
+            base_mp4_path = ''
+            try:
+                base_mp4_path = str(getattr(getattr(file_obj, 'file', None), 'name', '') or '').strip()
+            except Exception:
+                base_mp4_path = ''
+            if base_mp4_path:
+                mixed_path = _video_studio_mix_voiceover_to_mp4(
+                    mp4_path=base_mp4_path,
+                    voiceover_path=voiceover_path,
+                    music_path=music_path,
+                    include_video_audio=include_audio,
+                    video_volume=float(video_volume),
+                    voiceover_volume=float(voiceover_volume),
+                    music_volume=float(music_volume),
+                    ducking=ducking,
+                    duck_strength=duck_strength,
+                    voiceover_offset_s=voiceover_offset_s,
+                    normalize=normalize,
+                    limiter=limiter,
+                    base_name=title or f'playlist-{int(video.id)}',
+                )
+                if mixed_path:
+                    from django.core.files import File  # noqa: WPS433
+
+                    try:
+                        if hasattr(file_obj, 'close'):
+                            file_obj.close()
+                    except Exception:
+                        pass
+                    cleanup_paths = list(cleanup_paths or [])
+                    cleanup_paths.append(str(mixed_path))
+                    file_obj = File(open(str(mixed_path), 'rb'), name=str(out_name or 'timeline.mp4'))
+
+        username = str(getattr(job, 'created_by', '') or '').strip()
+        created_by_user = getattr(job, 'created_by_user', None)
+        try:
+            asset = VideoExportAsset.objects.create(
+                team=team,
+                video=video,
+                clip=None,
+                title=title[:180],
+                file=file_obj,
+                mime_type=str(mime_type or '').strip().lower()[:80],
+                created_by=username,
+            )
+        finally:
+            try:
+                if hasattr(file_obj, 'close'):
+                    file_obj.close()
+            except Exception:
+                pass
+            for p in (cleanup_paths or []):
+                try:
+                    os.unlink(p)
+                except Exception:
+                    pass
+
+        link = ShareLink.objects.create(
+            token=ShareLink.generate_token(),
+            kind=ShareLink.KIND_VIDEO_EXPORT,
+            payload={'export_id': int(asset.id)},
+            password_hash=make_password(password) if password else '',
+            expires_at=timezone.now() + timedelta(days=validity_days),
+            created_by=username,
+            created_by_user=created_by_user,
+            is_active=True,
+        )
+        _video_studio_export_job_update(
+            job_id,
+            status=VideoStudioExportJob.STATUS_DONE,
+            progress=100,
+            message='Listo.',
+            export_asset_id=int(asset.id),
+            share_link_id=int(link.id),
+            finished_at=timezone.now(),
+        )
+    except _VideoStudioJobCanceled:
+        _video_studio_export_job_update(
+            job_id,
+            status=VideoStudioExportJob.STATUS_CANCELED,
+            progress=0,
+            message='Cancelado.',
+            finished_at=timezone.now(),
+        )
+    except Exception as exc:
+        try:
+            logger.exception('Video Studio job: error procesando export')
+        except Exception:
+            pass
+        _video_studio_export_job_update(
+            job_id,
+            status=VideoStudioExportJob.STATUS_ERROR,
+            message='Error.',
+            error=str(exc),
+            finished_at=timezone.now(),
+        )
+
+
+def _video_studio_export_job_start_async(job_id: int):
+    def _runner():
+        _video_studio_export_job_process(int(job_id))
+
+    try:
+        t = threading.Thread(target=_runner, name=f'vs-export-job-{int(job_id)}', daemon=True)
+        t.start()
+    except Exception:
+        _video_studio_export_job_process(int(job_id))
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_export_job_create_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o no autorizado.'}, status=404)
+
+    raw_items = data.get('items')
+    if isinstance(raw_items, str):
+        try:
+            raw_items = json.loads(raw_items)
+        except Exception:
+            raw_items = []
+    if not isinstance(raw_items, list) or len(raw_items) < 2:
+        return JsonResponse({'ok': False, 'error': 'items debe contener al menos 2 clips.'}, status=400)
+
+    title = _sanitize_task_text(str(data.get('title') or '').strip(), multiline=False, max_len=180) or f'Playlist · {len(raw_items[:60])} clips'
+    payload = {
+        'video_id': int(video_id),
+        'title': title,
+        'items': raw_items[:60],
+        'include_audio': data.get('include_audio', True),
+        'voiceover_id': data.get('voiceover_id', None),
+        'voiceover_volume': data.get('voiceover_volume', None),
+        'video_volume': data.get('video_volume', None),
+        'ducking': data.get('ducking', False),
+        'duck_strength': data.get('duck_strength', None),
+        'transition_s': data.get('transition_s', None),
+        'voiceover_offset_s': data.get('voiceover_offset_s', None),
+        'valid_days': data.get('valid_days', None),
+        'password': data.get('password', None),
+        'music_id': data.get('music_id', None),
+        'music_volume': data.get('music_volume', None),
+        'normalize': data.get('normalize', None),
+        'limiter': data.get('limiter', None),
+    }
+
+    username = request.user.get_username() if request.user and request.user.is_authenticated else ''
+    job = VideoStudioExportJob.objects.create(
+        team=primary_team,
+        video=video,
+        kind=VideoStudioExportJob.KIND_PLAYLIST_MP4,
+        payload=payload,
+        status=VideoStudioExportJob.STATUS_PENDING,
+        progress=0,
+        message='En cola.',
+        created_by=username[:80],
+        created_by_user=request.user if request.user.is_authenticated else None,
+    )
+    _video_studio_export_job_start_async(int(job.id))
+    return JsonResponse({'ok': True, 'job_id': int(job.id), 'status': str(job.status)})
+
+
+@login_required
+def analysis_video_studio_export_job_status_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    job_id = _parse_int(request.GET.get('job_id') or request.GET.get('id'))
+    if not job_id:
+        return JsonResponse({'ok': False, 'error': 'job_id requerido.'}, status=400)
+
+    job = (
+        VideoStudioExportJob.objects
+        .select_related('export_asset', 'share_link', 'video')
+        .filter(id=int(job_id), team=primary_team)
+        .first()
+    )
+    if not job:
+        return JsonResponse({'ok': False, 'error': 'Job no encontrado.'}, status=404)
+
+    share_url = ''
+    download_url = ''
+    link = getattr(job, 'share_link', None)
+    if link and getattr(link, 'token', None):
+        share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+        download_url = f'{share_url}?download=1'
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'job': {
+                'id': int(job.id),
+                'status': str(job.status),
+                'progress': int(getattr(job, 'progress', 0) or 0),
+                'message': str(getattr(job, 'message', '') or ''),
+                'error': str(getattr(job, 'error', '') or ''),
+                'export_id': int(getattr(job, 'export_asset_id', 0) or 0) or None,
+                'url': share_url or None,
+                'download_url': download_url or None,
+                'created_at': job.created_at.isoformat() if getattr(job, 'created_at', None) else None,
+                'started_at': job.started_at.isoformat() if getattr(job, 'started_at', None) else None,
+                'finished_at': job.finished_at.isoformat() if getattr(job, 'finished_at', None) else None,
+            },
+        }
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_export_job_cancel_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está disponible.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+    try:
+        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = {}
+    job_id = _parse_int(data.get('job_id') or data.get('id'))
+    if not job_id:
+        return JsonResponse({'ok': False, 'error': 'job_id requerido.'}, status=400)
+
+    job = VideoStudioExportJob.objects.filter(id=int(job_id), team=primary_team).first()
+    if not job:
+        return JsonResponse({'ok': False, 'error': 'Job no encontrado.'}, status=404)
+
+    status = str(getattr(job, 'status', '') or '').strip().lower()
+    if status in {VideoStudioExportJob.STATUS_DONE, VideoStudioExportJob.STATUS_ERROR, VideoStudioExportJob.STATUS_CANCELED}:
+        return JsonResponse({'ok': True, 'status': status})
+
+    try:
+        if status == VideoStudioExportJob.STATUS_PENDING:
+            VideoStudioExportJob.objects.filter(id=int(job_id)).update(
+                status=VideoStudioExportJob.STATUS_CANCELED,
+                cancel_requested=True,
+                progress=0,
+                message='Cancelado.',
+                finished_at=timezone.now(),
+            )
+        else:
+            VideoStudioExportJob.objects.filter(id=int(job_id)).update(
+                cancel_requested=True,
+                message='Cancelando…',
+            )
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo cancelar.'}, status=500)
+
+    job = VideoStudioExportJob.objects.filter(id=int(job_id)).first()
+    return JsonResponse({'ok': True, 'status': str(getattr(job, 'status', '') or '').strip().lower()})
+
+
 @login_required
 @require_POST
 def analysis_video_studio_export_upload_api(request):
