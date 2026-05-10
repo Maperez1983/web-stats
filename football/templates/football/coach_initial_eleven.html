@@ -688,6 +688,22 @@
       };
 
       const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const dedupeById = (rows) => {
+        const seen = new Set();
+        return (rows || []).filter((row) => {
+          const id = String(row?.id || '').trim();
+          if (!id) return false;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      };
+      // Safety: si por cualquier motivo llegan duplicados (seed/autofill/clicks), los eliminamos.
+      try {
+        lineupState.starters = dedupeById(lineupState.starters).slice(0, STARTERS_REQUIRED);
+        const starterIds = new Set((lineupState.starters || []).map((row) => String(row?.id || '')));
+        lineupState.bench = dedupeById(lineupState.bench).filter((row) => row?.id && !starterIds.has(String(row.id)));
+      } catch (_) {}
       const fieldPctFromClient = (clientX, clientY) => {
         const rect = field.getBoundingClientRect();
         const x = ((clientX - rect.left) / Math.max(1, rect.width)) * 100;
@@ -759,7 +775,7 @@
           }
         }
         next.push(candidate);
-        lineupState.starters = next.slice(0, STARTERS_REQUIRED);
+        lineupState.starters = dedupeById(next).slice(0, STARTERS_REQUIRED);
         recomputeBenchFromChecks();
       };
       const ensureStarterPositionsFromTemplate = ({ force = false } = {}) => {
@@ -1034,7 +1050,7 @@
         const starterIds = new Set(starters.map((row) => String(row?.id || '')));
         const bench = (players || []).filter((p) => p?.id && !starterIds.has(String(p.id)));
         bench.sort((a, b) => numberValue(a) - numberValue(b));
-        return { starters: starters.slice(0, STARTERS_REQUIRED), bench };
+        return { starters: dedupeById(starters).slice(0, STARTERS_REQUIRED), bench };
       };
 
       const syncFromChecks = () => {
