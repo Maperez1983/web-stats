@@ -126,6 +126,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     subs: document.getElementById('sub-count'),
     corner_for: document.getElementById('corner-for-count'),
     corner_against: document.getElementById('corner-against-count'),
+    goal: document.getElementById('goal-count'),
+    assist: document.getElementById('assist-count'),
   };
   const statusCounters = {
     amarilla: document.getElementById('status-yellow-count'),
@@ -134,6 +136,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     subsLeft: document.getElementById('status-subs-left-count'),
     cornerFor: document.getElementById('status-corner-for-count'),
     cornerAgainst: document.getElementById('status-corner-against-count'),
+    goal: document.getElementById('status-goal-count'),
+    assist: document.getElementById('status-assist-count'),
   };
   const MAX_SUBSTITUTIONS = 5;
   const quickStats = {
@@ -142,6 +146,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     subs: 0,
     corner_for: 0,
     corner_against: 0,
+    goal: 0,
+    assist: 0,
   };
   const undoLastActionBtn = document.getElementById('undo-last-action-btn');
   const offlineQueueBadge = document.getElementById('offline-queue-badge');
@@ -528,6 +534,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       subs: quickStats.subs,
       cornerFor: quickStats.corner_for,
       cornerAgainst: quickStats.corner_against,
+      goals: quickStats.goal,
+      assists: quickStats.assist,
       elapsedSeconds: elapsedRef.value,
       matchInfo: { ...matchInfoState },
     });
@@ -558,6 +566,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (statusCounters.cornerFor) statusCounters.cornerFor.textContent = quickStats.corner_for;
     if (statusCounters.cornerAgainst) statusCounters.cornerAgainst.textContent = quickStats.corner_against;
     if (quickCounters.subs) quickCounters.subs.textContent = String(quickStats.subs);
+    if (statusCounters.goal) statusCounters.goal.textContent = String(quickStats.goal || 0);
+    if (statusCounters.assist) statusCounters.assist.textContent = String(quickStats.assist || 0);
+    if (quickCounters.goal) quickCounters.goal.textContent = String(quickStats.goal || 0);
+    if (quickCounters.assist) quickCounters.assist.textContent = String(quickStats.assist || 0);
     emitSummaryChange();
   };
 
@@ -568,6 +580,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       subs: document.getElementById('sub-history'),
       corner_for: document.getElementById('corner-for-history'),
       corner_against: document.getElementById('corner-against-history'),
+      goal: document.getElementById('goal-history'),
+      assist: document.getElementById('assist-history'),
     };
     const container = quickHistoryContainers[historyKey];
     if (!container) return;
@@ -631,6 +645,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     quickStats.subs = 0;
     quickStats.corner_for = 0;
     quickStats.corner_against = 0;
+    quickStats.goal = 0;
+    quickStats.assist = 0;
     Object.keys(quickHistoryState).forEach((key) => {
       quickHistoryState[key] = [];
       renderQuickHistoryPreview(key);
@@ -651,6 +667,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         ? 'corner_for'
         : dropKey === 'corner_against'
         ? 'corner_against'
+        : dropKey === 'goal'
+        ? 'goal'
+        : dropKey === 'assist'
+        ? 'assist'
         : 'subs';
     if (counterKey !== 'subs') {
       quickStats[counterKey] += 1;
@@ -672,6 +692,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const classifyCounterDropKey = ({ action = '', result = '' }) => {
     const actionText = String(action || '').toLowerCase();
     const resultText = String(result || '').toLowerCase();
+    if (actionText.includes('asist') || resultText.includes('asist')) return 'assist';
+    if (actionText.includes('gol') || resultText.includes('gol')) return 'goal';
     if (actionText.includes('roja') || resultText.includes('roja')) return 'roja';
     if (actionText.includes('amarilla') || resultText.includes('amarilla')) return 'amarilla';
     if (actionText.includes('saque de esquina a favor') || actionText.includes('corner a favor') || resultText.includes('a favor')) return 'corner_for';
@@ -687,7 +709,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     // El servidor renderiza el historial de acciones pendientes al cargar la página, pero los contadores
     // (amarillas/rojas/córners/cambios) se recalculan en cliente. Si no lo hacemos, la UI muestra 0 aunque
     // el historial tenga acciones.
-    const resetKeys = ['amarilla', 'roja', 'corner_for', 'corner_against'];
+    const resetKeys = ['amarilla', 'roja', 'corner_for', 'corner_against', 'goal', 'assist'];
     resetKeys.forEach((key) => {
       quickStats[key] = 0;
       quickHistoryState[key] = [];
@@ -730,6 +752,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       } else if (derived === 'corner_against') {
         quickStats.corner_against += 1;
         pushHistoryRow('corner_against', normalizedPlayer, minuteLabel, result || action);
+      } else if (derived === 'goal') {
+        quickStats.goal += 1;
+        pushHistoryRow('goal', normalizedPlayer, minuteLabel, result || action || 'Gol');
+      } else if (derived === 'assist') {
+        quickStats.assist += 1;
+        pushHistoryRow('assist', normalizedPlayer, minuteLabel, result || action || 'Asistencia');
       } else if (shouldBootstrapSubs && (derived === 'subida' || derived === 'bajada')) {
         pushHistoryRow('subs', normalizedPlayer, minuteLabel, result || action || 'Sustitución');
       }
@@ -740,10 +768,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (quickCounters.roja) quickCounters.roja.textContent = String(quickStats.roja || 0);
     if (quickCounters.corner_for) quickCounters.corner_for.textContent = String(quickStats.corner_for || 0);
     if (quickCounters.corner_against) quickCounters.corner_against.textContent = String(quickStats.corner_against || 0);
+    if (quickCounters.goal) quickCounters.goal.textContent = String(quickStats.goal || 0);
+    if (quickCounters.assist) quickCounters.assist.textContent = String(quickStats.assist || 0);
     renderQuickHistoryPreview('amarilla');
     renderQuickHistoryPreview('roja');
     renderQuickHistoryPreview('corner_for');
     renderQuickHistoryPreview('corner_against');
+    renderQuickHistoryPreview('goal');
+    renderQuickHistoryPreview('assist');
     if (shouldBootstrapSubs) renderQuickHistoryPreview('subs');
     refreshStatusCounters();
   };
@@ -754,6 +786,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     subs: document.getElementById('sub-history'),
     corner_for: document.getElementById('corner-for-history'),
     corner_against: document.getElementById('corner-against-history'),
+    goal: document.getElementById('goal-history'),
+    assist: document.getElementById('assist-history'),
   }).forEach(([historyKey, container]) => {
     if (!container) return;
     container.style.cursor = 'pointer';
@@ -763,6 +797,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           : historyKey === 'roja' ? 'Expulsiones (rojas)'
           : historyKey === 'corner_for' ? 'Córners a favor'
           : historyKey === 'corner_against' ? 'Córners en contra'
+          : historyKey === 'goal' ? 'Goles'
+          : historyKey === 'assist' ? 'Asistencias'
           : 'Sustituciones';
       showQuickHistoryModal(historyKey, title);
     });

@@ -3279,10 +3279,15 @@
               <p>A favor · <span class="status-value" id="status-corner-for-count">0</span></p>
               <p>En contra · <span class="status-value" id="status-corner-against-count">0</span></p>
             </article>
+            <article class="status-card">
+              <h5>Goles</h5>
+              <p>Goles · <span class="status-value" id="status-goal-count">0</span></p>
+              <p>Asistencias · <span class="status-value" id="status-assist-count">0</span></p>
+            </article>
           </div>
-          <div class="quick-action-columns">
-            <div class="quick-action-column">
-              <div class="quick-action-card">
+	          <div class="quick-action-columns">
+	            <div class="quick-action-column">
+	              <div class="quick-action-card">
                 <div class="quick-action-header">
                   <span>Tarjetas</span>
                   <div class="quick-action-counts">
@@ -3356,8 +3361,8 @@
                 <div class="quick-history-meta" id="sub-history-meta">Pulsa para ver todos los cambios</div>
               </div>
             </div>
-            <div class="quick-action-column">
-              <div class="quick-action-card">
+	            <div class="quick-action-column">
+	              <div class="quick-action-card">
                 <div class="quick-action-header">
                   <span>Córners</span>
                   <div class="quick-action-counts">
@@ -3389,11 +3394,46 @@
                     <span>Córner en contra</span>
                   </div>
                 </div>
-                <div class="quick-history" id="corner-for-history" title="Pulsa para ver todas"></div>
-                <div class="quick-history" id="corner-against-history" title="Pulsa para ver todas"></div>
+	                <div class="quick-history" id="corner-for-history" title="Pulsa para ver todas"></div>
+	                <div class="quick-history" id="corner-against-history" title="Pulsa para ver todas"></div>
+	              </div>
+	            </div>
+              <div class="quick-action-column">
+                <div class="quick-action-card">
+                  <div class="quick-action-header">
+                    <span>Goles</span>
+                    <div class="quick-action-counts">
+                      <span>Goles · <strong id="goal-count">0</strong></span>
+                      <span>Asist. · <strong id="assist-count">0</strong></span>
+                    </div>
+                  </div>
+                  <div class="quick-drop-row">
+                    <div
+                      class="quick-drop"
+                      data-drop-key="goal"
+                      data-event-type="Gol"
+                      data-zone-label="Gol"
+                      data-result="Gol"
+                    >
+                      <span class="quick-icon">⚽️</span>
+                      <span>Gol</span>
+                    </div>
+                    <div
+                      class="quick-drop"
+                      data-drop-key="assist"
+                      data-event-type="Asistencia"
+                      data-zone-label="Asistencia"
+                      data-result="OK"
+                    >
+                      <span class="quick-icon">🅰️</span>
+                      <span>Asistencia</span>
+                    </div>
+                  </div>
+                  <div class="quick-history" id="goal-history" title="Pulsa para ver todas"></div>
+                  <div class="quick-history" id="assist-history" title="Pulsa para ver todas"></div>
+                </div>
               </div>
-            </div>
-          </div>
+	          </div>
           <div class="field-wrapper">
             <div class="touch-field" id="touch-field">
             <div class="field-surface" id="field-surface">
