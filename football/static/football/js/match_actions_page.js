@@ -554,31 +554,33 @@
         if (!total) actionPickerCount.textContent = '0';
         else actionPickerCount.textContent = `${shown}/${total}`;
       };
-      const openActionPicker = () => {
-        if (!actionPickerOverlay) return;
-        actionPickerOverlay.classList.add('is-open');
-        actionPickerOverlay.setAttribute('aria-hidden', 'false');
-        const { favorites, counts } = computeFavorites();
-        renderActionPickerButtons(actionPickerFavorites, favorites.length ? favorites : loadFallbackFavorites(), { showCounts: true, counts });
-        const list = filterCatalog(actionPickerSearch?.value || '');
-        renderActionPickerButtons(actionPickerList, list, { showCounts: false });
-        syncActionPickerCount(list.length, actionCatalog.length);
-        try {
-          actionPickerSearch?.focus();
-          actionPickerSearch?.select?.();
-        } catch (e) {}
-      };
+	      const openActionPicker = ({ focusSearch = true } = {}) => {
+	        if (!actionPickerOverlay) return;
+	        actionPickerOverlay.classList.add('is-open');
+	        actionPickerOverlay.setAttribute('aria-hidden', 'false');
+	        const { favorites, counts } = computeFavorites();
+	        renderActionPickerButtons(actionPickerFavorites, favorites.length ? favorites : loadFallbackFavorites(), { showCounts: true, counts });
+	        const list = filterCatalog(actionPickerSearch?.value || '');
+	        renderActionPickerButtons(actionPickerList, list, { showCounts: false });
+	        syncActionPickerCount(list.length, actionCatalog.length);
+	        try {
+	          if (focusSearch) {
+	            actionPickerSearch?.focus();
+	            actionPickerSearch?.select?.();
+	          }
+	        } catch (e) {}
+	      };
       const closeActionPicker = () => {
         if (!actionPickerOverlay) return;
         actionPickerOverlay.classList.remove('is-open');
         actionPickerOverlay.setAttribute('aria-hidden', 'true');
       };
-	      if (actionPickerOpenBtn) {
-	        actionPickerOpenBtn.addEventListener('click', () => openActionPicker());
-	      }
-	      if (proOpenActionPickerBtn) {
-	        proOpenActionPickerBtn.addEventListener('click', () => openActionPicker());
-	      }
+		      if (actionPickerOpenBtn) {
+		        actionPickerOpenBtn.addEventListener('click', () => openActionPicker({ focusSearch: !(actionInput && actionInput.readOnly) }));
+		      }
+		      if (proOpenActionPickerBtn) {
+		        proOpenActionPickerBtn.addEventListener('click', () => openActionPicker({ focusSearch: !(actionInput && actionInput.readOnly) }));
+		      }
 		      if (actionInput) {
 		        const persistActionPick = () => {
 		          try {
@@ -597,8 +599,7 @@
                 event.preventDefault();
                 event.stopPropagation();
               } catch (e) {}
-              try { closeActionPicker && closeActionPicker(); } catch (e) {}
-              try { openActionPicker && openActionPicker(); } catch (e) {}
+              try { openActionPicker && openActionPicker({ focusSearch: false }); } catch (e) {}
               try { actionInput.blur && actionInput.blur(); } catch (e) {}
             };
             try {
@@ -614,7 +615,7 @@
 		        actionInput.addEventListener('click', (event) => {
 		          if (!actionInput.readOnly) return;
 		          event.preventDefault();
-		          openActionPicker();
+		          openActionPicker({ focusSearch: false });
 		        });
 	        actionInput.addEventListener('input', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
 	        actionInput.addEventListener('change', () => { syncResultOptionsForAction(actionInput.value); persistActionPick(); });
