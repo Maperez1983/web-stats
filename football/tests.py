@@ -6333,6 +6333,84 @@ class VideoStudioProApiTests(TestCase):
         self.assertEqual(resp.status_code, 503)
         self.assertFalse(resp.json().get('ok'))
 
+    def test_video_studio_music_upload_list_and_delete(self):
+        up = SimpleUploadedFile('bgm.mp3', b'fake-audio', content_type='audio/mpeg')
+        upload = self.client.post(
+            reverse('analysis-video-studio-music-upload-api'),
+            data={'video_id': self.video.id, 'title': 'BGM', 'file': up},
+        )
+        self.assertEqual(upload.status_code, 200)
+        data = upload.json()
+        self.assertTrue(data.get('ok'))
+        music_id = int(data['item']['id'])
+
+        listing = self.client.get(reverse('analysis-video-studio-music-api') + f'?video_id={self.video.id}')
+        self.assertEqual(listing.status_code, 200)
+        items = listing.json().get('items') or []
+        self.assertTrue(any(int(row.get('id') or 0) == music_id for row in items))
+
+        delete = self.client.post(
+            reverse('analysis-video-studio-music-delete-api'),
+            data=json.dumps({'id': music_id, 'video_id': self.video.id}),
+            content_type='application/json',
+        )
+        self.assertEqual(delete.status_code, 200)
+        self.assertTrue(delete.json().get('ok'))
+
+        listing2 = self.client.get(reverse('analysis-video-studio-music-api') + f'?video_id={self.video.id}')
+        self.assertEqual(listing2.status_code, 200)
+        items2 = listing2.json().get('items') or []
+        self.assertFalse(any(int(row.get('id') or 0) == music_id for row in items2))
+
+    def test_video_studio_export_job_create_and_cancel(self):
+        c1 = VideoClip.objects.create(
+            team=self.team,
+            video=self.video,
+            title='C1',
+            collection='',
+            in_ms=0,
+            out_ms=1000,
+            tags=[],
+            notes='',
+            overlay={},
+            created_by=self.user.username,
+        )
+        c2 = VideoClip.objects.create(
+            team=self.team,
+            video=self.video,
+            title='C2',
+            collection='',
+            in_ms=1500,
+            out_ms=2500,
+            tags=[],
+            notes='',
+            overlay={},
+            created_by=self.user.username,
+        )
+        with patch('football.views.shutil.which', return_value=None):
+            create = self.client.post(
+                reverse('analysis-video-studio-export-job-create-api'),
+                data=json.dumps({'video_id': self.video.id, 'items': [{'clip_id': c1.id}, {'clip_id': c2.id}], 'title': 'Job'}),
+                content_type='application/json',
+            )
+        self.assertEqual(create.status_code, 200)
+        payload = create.json()
+        self.assertTrue(payload.get('ok'))
+        job_id = int(payload['job_id'])
+
+        cancel = self.client.post(
+            reverse('analysis-video-studio-export-job-cancel-api'),
+            data=json.dumps({'job_id': job_id}),
+            content_type='application/json',
+        )
+        self.assertEqual(cancel.status_code, 200)
+        self.assertTrue(cancel.json().get('ok'))
+
+        status = self.client.get(reverse('analysis-video-studio-export-job-status-api') + f'?job_id={job_id}')
+        self.assertEqual(status.status_code, 200)
+        job = status.json().get('job') or {}
+        self.assertIn(job.get('status'), {'canceled', 'pending', 'running', 'error'})
+
 
 class VideoStudioPersonalLibraryTests(TestCase):
     def setUp(self):

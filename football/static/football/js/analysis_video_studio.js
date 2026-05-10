@@ -107,10 +107,13 @@
 	    const reviewUrl = safeText(document.getElementById('vs-review-url')?.value);
 	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
 	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
-	    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
-	    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
-	    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
-	    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
+		    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
+		    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
+		    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
+		    const exportJobCreateUrl = safeText(document.getElementById('vs-export-job-create-url')?.value);
+		    const exportJobStatusUrl = safeText(document.getElementById('vs-export-job-status-url')?.value);
+		    const exportJobCancelUrl = safeText(document.getElementById('vs-export-job-cancel-url')?.value);
+		    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
 	    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
@@ -122,10 +125,14 @@
 	    const tlLoadBtn = document.getElementById('vs-tl-load-project');
 	    const tlIncludeAudioToggle = document.getElementById('vs-tl-include-audio');
 	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
-		    const tlItemsEl = document.getElementById('vs-tl-items');
-		    const tlTotalEl = document.getElementById('vs-tl-total');
-		    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
-		    const tlTransitionInput = document.getElementById('vs-tl-transition');
+			    const tlItemsEl = document.getElementById('vs-tl-items');
+			    const tlTotalEl = document.getElementById('vs-tl-total');
+			    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+			    const tlExportCancelBtn = document.getElementById('vs-tl-export-cancel');
+			    const tlJobWrap = document.getElementById('vs-tl-job-wrap');
+			    const tlJobMsg = document.getElementById('vs-tl-job-msg');
+			    const tlJobProgress = document.getElementById('vs-tl-job-progress');
+			    const tlTransitionInput = document.getElementById('vs-tl-transition');
 		    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
 		    const tlItemInInput = document.getElementById('vs-tl-item-in');
 		    const tlItemOutInput = document.getElementById('vs-tl-item-out');
@@ -2298,22 +2305,34 @@
 	      }
 	    };
 
-	    // Timeline editor (beta) - v2 (FX por clip + export servidor)
-	    const voiceoversUrl = safeText(document.getElementById('vs-voiceovers-url')?.value);
-	    const voiceoverUploadUrl = safeText(document.getElementById('vs-voiceover-upload-url')?.value);
-	    const voiceoverDeleteUrl = safeText(document.getElementById('vs-voiceover-delete-url')?.value);
-	    const voiceoverSelect = document.getElementById('vs-voiceover-select');
-		    const voiceoverRecordBtn = document.getElementById('vs-voiceover-record');
-		    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
-		    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
-		    const videoVolInput = document.getElementById('vs-video-vol');
-		    const voiceoverOffsetInput = document.getElementById('vs-voiceover-offset');
-		    const voiceoverDuckingToggle = document.getElementById('vs-voiceover-ducking');
-		    const voiceoverDuckStrengthInput = document.getElementById('vs-voiceover-duck-strength');
+		    // Timeline editor (beta) - v2 (FX por clip + export servidor)
+		    const voiceoversUrl = safeText(document.getElementById('vs-voiceovers-url')?.value);
+		    const voiceoverUploadUrl = safeText(document.getElementById('vs-voiceover-upload-url')?.value);
+		    const voiceoverDeleteUrl = safeText(document.getElementById('vs-voiceover-delete-url')?.value);
+		    const musicUrl = safeText(document.getElementById('vs-music-url')?.value);
+		    const musicUploadUrl = safeText(document.getElementById('vs-music-upload-url')?.value);
+		    const musicDeleteUrl = safeText(document.getElementById('vs-music-delete-url')?.value);
+		    const voiceoverSelect = document.getElementById('vs-voiceover-select');
+			    const voiceoverRecordBtn = document.getElementById('vs-voiceover-record');
+			    const voiceoverDeleteBtn = document.getElementById('vs-voiceover-delete');
+			    const voiceoverVolInput = document.getElementById('vs-voiceover-vol');
+			    const videoVolInput = document.getElementById('vs-video-vol');
+			    const musicSelect = document.getElementById('vs-music-select');
+			    const musicFileInput = document.getElementById('vs-music-file');
+			    const musicUploadBtn = document.getElementById('vs-music-upload');
+			    const musicDeleteBtn = document.getElementById('vs-music-delete');
+			    const musicVolInput = document.getElementById('vs-music-vol');
+			    const audioNormalizeToggle = document.getElementById('vs-audio-normalize');
+			    const audioLimiterToggle = document.getElementById('vs-audio-limiter');
+			    const voiceoverOffsetInput = document.getElementById('vs-voiceover-offset');
+			    const voiceoverDuckingToggle = document.getElementById('vs-voiceover-ducking');
+			    const voiceoverDuckStrengthInput = document.getElementById('vs-voiceover-duck-strength');
 
-	    let tlItems = [];
-	    let tlLastLoadedProjectId = 0;
-	    let tlEditingIdx = -1;
+		    let tlItems = [];
+		    let tlLastLoadedProjectId = 0;
+		    let tlEditingIdx = -1;
+		    let tlActiveExportJobId = 0;
+		    let tlExportPollToken = 0;
 
 	    const tlNum = (v, d = 0) => {
 	      try {
@@ -2638,22 +2657,80 @@
 	      }
 	    };
 
-	    const tlExportMp4 = async () => {
-	      if (!exportServerPlaylistUrl) { setStatus('No hay endpoint MP4 playlist.', true); return; }
-	      if (!teamId) { setStatus('Asigna el vídeo a un equipo antes de exportar MP4.', true); return; }
-	      if (tlItems.length < 2) { setStatus('Añade al menos 2 clips al timeline.', true); return; }
-	      const t = `Timeline · ${tlItems.length} clips`;
-	      try {
-	        tlExportBtn.disabled = true;
-	        setStatus('Generando MP4 timeline en servidor…');
-		        const includeAudio = tlIncludeAudioToggle ? Boolean(tlIncludeAudioToggle.checked) : true;
-		        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
-		        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
-		        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
-		        const transitionS = tlClamp(tlNum(tlTransitionInput?.value, 0), 0, 1);
-		        const voiceoverOffsetS = tlClamp(tlNum(voiceoverOffsetInput?.value, 0), -600, 600);
-		        const ducking = voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false;
-		        const duckStrength = tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1);
+		    const tlExportMp4 = async () => {
+		      const supportsJobs = Boolean(exportJobCreateUrl && exportJobStatusUrl && exportJobCancelUrl);
+		      if (!supportsJobs && !exportServerPlaylistUrl) { setStatus('No hay endpoint MP4 playlist.', true); return; }
+		      if (!teamId) { setStatus('Asigna el vídeo a un equipo antes de exportar MP4.', true); return; }
+		      if (tlItems.length < 2) { setStatus('Añade al menos 2 clips al timeline.', true); return; }
+		      const t = `Timeline · ${tlItems.length} clips`;
+
+		      const setJobUi = ({ show, msg, progress, canCancel } = {}) => {
+		        try {
+		          if (tlJobWrap) tlJobWrap.style.display = show ? 'block' : 'none';
+		          if (tlExportCancelBtn) tlExportCancelBtn.style.display = (show && canCancel) ? 'inline-block' : 'none';
+		          if (tlJobMsg && msg != null) tlJobMsg.textContent = safeText(msg, '—');
+		          if (tlJobProgress && progress != null) tlJobProgress.value = clamp(Number(progress) || 0, 0, 100);
+		        } catch (e) { /* ignore */ }
+		      };
+
+		      const pollJobUntilDone = async (jobId) => {
+		        const token = ++tlExportPollToken;
+		        const started = Date.now();
+		        const maxWaitMs = 20 * 60 * 1000;
+		        while (Date.now() - started < maxWaitMs) {
+		          if (token !== tlExportPollToken) return null;
+		          try {
+		            const resp = await fetch(`${exportJobStatusUrl}?job_id=${encodeURIComponent(String(jobId))}`, { credentials: 'same-origin' });
+		            const data = await resp.json().catch(() => ({}));
+		            const job = data?.job || {};
+		            const st = safeText(job?.status, '');
+		            setJobUi({ show: true, msg: safeText(job?.message, st || '—'), progress: Number(job?.progress) || 0, canCancel: st === 'pending' || st === 'running' });
+		            if (st === 'done') return job;
+		            if (st === 'error') throw new Error(safeText(job?.error, 'Job error'));
+		            if (st === 'canceled') throw new Error('Cancelado');
+		          } catch (e) {
+		            if (token !== tlExportPollToken) return null;
+		            const elapsed = Date.now() - started;
+		            if (elapsed > 15 * 1000) throw e;
+		          }
+		          await sleep(1200);
+		        }
+		        throw new Error('Timeout esperando el export.');
+		      };
+
+		      const cancelActiveJob = async () => {
+		        const jobId = Number(tlActiveExportJobId) || 0;
+		        if (!jobId || !exportJobCancelUrl) return;
+		        try {
+		          await fetch(exportJobCancelUrl, {
+		            method: 'POST',
+		            credentials: 'same-origin',
+		            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+		            body: JSON.stringify({ job_id: jobId }),
+		          });
+		        } catch (e) { /* ignore */ }
+		        tlExportPollToken += 1;
+		        tlActiveExportJobId = 0;
+		        setJobUi({ show: false, canCancel: false });
+		        setStatus('Cancelado.', true);
+		      };
+
+		      if (tlExportCancelBtn) tlExportCancelBtn.onclick = cancelActiveJob;
+		      try {
+		        tlExportBtn.disabled = true;
+		        setStatus('Preparando export…');
+			        const includeAudio = tlIncludeAudioToggle ? Boolean(tlIncludeAudioToggle.checked) : true;
+			        const voiceoverId = Number(voiceoverSelect?.value || 0) || 0;
+			        const voiceoverVol = tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2);
+			        const musicId = Number(musicSelect?.value || 0) || 0;
+			        const musicVol = tlClamp(tlNum(musicVolInput?.value, 0.4), 0, 2);
+			        const videoVol = tlClamp(tlNum(videoVolInput?.value, 1), 0, 2);
+			        const normalize = audioNormalizeToggle ? Boolean(audioNormalizeToggle.checked) : false;
+			        const limiter = audioLimiterToggle ? Boolean(audioLimiterToggle.checked) : false;
+			        const transitionS = tlClamp(tlNum(tlTransitionInput?.value, 0), 0, 1);
+			        const voiceoverOffsetS = tlClamp(tlNum(voiceoverOffsetInput?.value, 0), -600, 600);
+			        const ducking = voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false;
+			        const duckStrength = tlClamp(tlNum(voiceoverDuckStrengthInput?.value, 1), 0, 1);
 		        const items = tlItems.slice(0, 60).map((it) => ({
 		          clip_id: Number(it?.clip_id) || 0,
 		          in_s: (it?.in_s != null) ? (Number(it.in_s) || 0) : undefined,
@@ -2664,37 +2741,69 @@
 		          fade_in: tlClamp(tlNum(it?.fade_in, 0), 0, 2),
 		          fade_out: tlClamp(tlNum(it?.fade_out, 0), 0, 2),
 		        })).filter((x) => x.clip_id > 0);
-	        const resp = await fetch(exportServerPlaylistUrl, {
-	          method: 'POST',
-	          credentials: 'same-origin',
-	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
-	          body: JSON.stringify({
-	            video_id: videoId || 0,
-	            items,
-	            title: t,
-		            include_audio: includeAudio,
-		            voiceover_id: voiceoverId > 0 ? voiceoverId : undefined,
-		            voiceover_volume: voiceoverVol,
-		            video_volume: videoVol,
-		            ducking,
-		            duck_strength: duckStrength,
-		            transition_s: transitionS,
-		            voiceover_offset_s: voiceoverOffsetS,
-		          }),
-		        });
-	        const data = await resp.json().catch(() => ({}));
-	        if (!resp.ok || !data?.ok || !data?.url) {
-	          setStatus(data?.error || 'No se pudo exportar MP4 timeline.', true);
-	          return;
-	        }
-	        const url = String(data.url);
-	        const downloadUrl = String(data.download_url || url);
-	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
-	        lastExportShareUrl = url;
-	        try {
-	          if (navigator.clipboard?.writeText) {
-	            await navigator.clipboard.writeText(downloadUrl);
-	            setStatus('MP4 timeline listo. Link copiado.');
+		        const exportPayload = {
+		          video_id: videoId || 0,
+		          items,
+		          title: t,
+		          include_audio: includeAudio,
+		          voiceover_id: voiceoverId > 0 ? voiceoverId : undefined,
+		          voiceover_volume: voiceoverVol,
+		          music_id: musicId > 0 ? musicId : undefined,
+		          music_volume: musicVol,
+		          video_volume: videoVol,
+		          normalize,
+		          limiter,
+		          ducking,
+		          duck_strength: duckStrength,
+		          transition_s: transitionS,
+		          voiceover_offset_s: voiceoverOffsetS,
+		        };
+
+		        let url = '';
+		        let downloadUrl = '';
+		        if (supportsJobs) {
+		          setStatus('Export en cola…');
+		          setJobUi({ show: true, msg: 'En cola…', progress: 0, canCancel: true });
+		          const createResp = await fetch(exportJobCreateUrl, {
+		            method: 'POST',
+		            credentials: 'same-origin',
+		            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+		            body: JSON.stringify(exportPayload),
+		          });
+		          const createData = await createResp.json().catch(() => ({}));
+		          if (!createResp.ok || !createData?.ok || !createData?.job_id) throw new Error(createData?.error || 'No se pudo crear job.');
+		          tlActiveExportJobId = Number(createData.job_id) || 0;
+		          const job = await pollJobUntilDone(tlActiveExportJobId);
+		          url = safeText(job?.url, '');
+		          downloadUrl = safeText(job?.download_url, url);
+		          lastExportAssetId = Number(job?.export_id) || lastExportAssetId || 0;
+		          lastExportShareUrl = url || lastExportShareUrl || '';
+		          setJobUi({ show: false, canCancel: false });
+		          tlActiveExportJobId = 0;
+		        } else {
+		          setStatus('Generando MP4 timeline en servidor…');
+		          const resp = await fetch(exportServerPlaylistUrl, {
+		            method: 'POST',
+		            credentials: 'same-origin',
+		            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+		            body: JSON.stringify(exportPayload),
+		          });
+		          const data = await resp.json().catch(() => ({}));
+		          if (!resp.ok || !data?.ok || !data?.url) throw new Error(data?.error || 'No se pudo exportar MP4 timeline.');
+		          url = String(data.url);
+		          downloadUrl = String(data.download_url || url);
+		          lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
+		          lastExportShareUrl = url;
+		        }
+
+		        if (!url) {
+		          setStatus('No se pudo exportar MP4 timeline.', true);
+		          return;
+		        }
+		        try {
+		          if (navigator.clipboard?.writeText) {
+		            await navigator.clipboard.writeText(downloadUrl);
+		            setStatus('MP4 timeline listo. Link copiado.');
 	          } else {
 	            setStatus('MP4 timeline listo. Copia el link.');
 	            window.prompt('Copia este enlace:', downloadUrl);
@@ -2702,13 +2811,15 @@
 	        } catch (e) {
 	          window.prompt('Copia este enlace:', downloadUrl);
 	        }
-	        refreshShareLinks();
-	      } catch (e) {
-	        setStatus('Error exportando MP4 timeline.', true);
-	      } finally {
-	        tlExportBtn.disabled = false;
-	      }
-	    };
+		        refreshShareLinks();
+		      } catch (e) {
+		        setJobUi({ show: false, canCancel: false });
+		        tlActiveExportJobId = 0;
+		        setStatus(e?.message || 'Error exportando MP4 timeline.', true);
+		      } finally {
+		        tlExportBtn.disabled = false;
+		      }
+		    };
 
 	    if (tlItemDialog) {
 	      tlItemDialog.addEventListener('close', () => {
@@ -2755,7 +2866,11 @@
 		        const payload = {
 		          voiceover_id: Number(voiceoverSelect?.value || 0) || 0,
 		          voiceover_vol: tlClamp(tlNum(voiceoverVolInput?.value, 1), 0, 2),
+		          music_id: Number(musicSelect?.value || 0) || 0,
+		          music_vol: tlClamp(tlNum(musicVolInput?.value, 0.4), 0, 2),
 		          video_vol: tlClamp(tlNum(videoVolInput?.value, 1), 0, 2),
+		          normalize: audioNormalizeToggle ? Boolean(audioNormalizeToggle.checked) : false,
+		          limiter: audioLimiterToggle ? Boolean(audioLimiterToggle.checked) : false,
 		          transition_s: tlClamp(tlNum(tlTransitionInput?.value, 0), 0, 1),
 		          voiceover_offset_s: tlClamp(tlNum(voiceoverOffsetInput?.value, 0), -600, 600),
 		          ducking: voiceoverDuckingToggle ? Boolean(voiceoverDuckingToggle.checked) : false,
@@ -2783,6 +2898,72 @@
 	          voiceoverSelect.value = String(current);
 	        }
 	      } catch (e) { /* ignore */ }
+	    };
+
+	    const refreshMusic = async () => {
+	      if (!musicUrl || !videoId || !musicSelect) return;
+	      try {
+	        const resp = await fetch(`${musicUrl}?video_id=${encodeURIComponent(String(videoId))}`, { credentials: 'same-origin' });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        const items = Array.isArray(data?.items) ? data.items : [];
+	        const current = Number(musicSelect.value || 0) || 0;
+	        const opts = ['<option value=\"\">(Música / BGM)</option>'].concat(items.map((it) => {
+	          const id = Number(it?.id) || 0;
+	          if (!id) return '';
+	          const title = escHtml(safeText(it?.title, `Música ${id}`));
+	          return `<option value=\"${id}\">${title}</option>`;
+	        }).filter(Boolean));
+	        musicSelect.innerHTML = opts.join('');
+	        if (current && items.some((x) => Number(x?.id) === current)) {
+	          musicSelect.value = String(current);
+	        }
+	      } catch (e) { /* ignore */ }
+	    };
+
+	    const uploadMusicFile = async (file) => {
+	      if (!musicUploadUrl || !videoId || !file) return;
+	      const fd = new FormData();
+	      fd.append('video_id', String(videoId));
+	      const fallbackTitle = `Música · ${new Date().toLocaleString()}`.slice(0, 180);
+	      const rawName = safeText(file?.name, fallbackTitle);
+	      fd.append('title', rawName.slice(0, 180));
+	      fd.append('file', file, rawName);
+	      const resp = await fetch(musicUploadUrl, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf }, body: fd });
+	      const data = await resp.json().catch(() => ({}));
+	      if (!resp.ok || !data?.ok) throw new Error(data?.error || 'No se pudo subir música.');
+	      await refreshMusic();
+	      const id = Number(data?.item?.id) || 0;
+	      if (id && musicSelect) musicSelect.value = String(id);
+	      saveVoiceoverSettings();
+	    };
+
+	    const pickMusicUpload = async () => {
+	      if (!musicFileInput) return;
+	      try { musicFileInput.value = ''; } catch (e) { /* ignore */ }
+	      musicFileInput.click();
+	    };
+
+	    const deleteSelectedMusic = async () => {
+	      const id = Number(musicSelect?.value || 0) || 0;
+	      if (!id || !musicDeleteUrl || !videoId) return;
+	      if (!window.confirm('¿Borrar esta música?')) return;
+	      try {
+	        const resp = await fetch(musicDeleteUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+	          body: JSON.stringify({ id, video_id: videoId }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        await refreshMusic();
+	        if (musicSelect) musicSelect.value = '';
+	        saveVoiceoverSettings();
+	        setStatus('Música borrada.');
+	      } catch (e) {
+	        setStatus('No se pudo borrar la música.', true);
+	      }
 	    };
 	    const pickRecordMime = () => {
 	      const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg'];
@@ -2882,7 +3063,11 @@
 		      const s = loadVoiceoverSettings();
 		      if (voiceoverSelect && s.voiceover_id) voiceoverSelect.value = String(s.voiceover_id);
 		      if (voiceoverVolInput && s.voiceover_vol != null) voiceoverVolInput.value = String(s.voiceover_vol);
+		      if (musicSelect && s.music_id) musicSelect.value = String(s.music_id);
+		      if (musicVolInput && s.music_vol != null) musicVolInput.value = String(s.music_vol);
 		      if (videoVolInput && s.video_vol != null) videoVolInput.value = String(s.video_vol);
+		      if (audioNormalizeToggle && s.normalize != null) audioNormalizeToggle.checked = Boolean(s.normalize);
+		      if (audioLimiterToggle && s.limiter != null) audioLimiterToggle.checked = Boolean(s.limiter);
 		      if (tlTransitionInput && s.transition_s != null) tlTransitionInput.value = String(s.transition_s);
 		      if (voiceoverOffsetInput && s.voiceover_offset_s != null) voiceoverOffsetInput.value = String(s.voiceover_offset_s);
 		      if (voiceoverDuckingToggle && s.ducking != null) voiceoverDuckingToggle.checked = Boolean(s.ducking);
@@ -2891,12 +3076,30 @@
 		    voiceoverSelect?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverVolInput?.addEventListener('change', saveVoiceoverSettings);
 		    videoVolInput?.addEventListener('change', saveVoiceoverSettings);
+		    musicSelect?.addEventListener('change', saveVoiceoverSettings);
+		    musicVolInput?.addEventListener('change', saveVoiceoverSettings);
+		    audioNormalizeToggle?.addEventListener('change', saveVoiceoverSettings);
+		    audioLimiterToggle?.addEventListener('change', saveVoiceoverSettings);
 		    tlTransitionInput?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverOffsetInput?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverDuckingToggle?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverDuckStrengthInput?.addEventListener('change', saveVoiceoverSettings);
 		    voiceoverRecordBtn?.addEventListener('click', toggleVoiceRecording);
 		    voiceoverDeleteBtn?.addEventListener('click', deleteSelectedVoiceover);
+		    musicUploadBtn?.addEventListener('click', pickMusicUpload);
+		    musicDeleteBtn?.addEventListener('click', deleteSelectedMusic);
+
+		    musicFileInput?.addEventListener('change', async () => {
+		      const file = (musicFileInput && musicFileInput.files && musicFileInput.files[0]) ? musicFileInput.files[0] : null;
+		      if (!file) return;
+		      try {
+		        setStatus('Subiendo música…');
+		        await uploadMusicFile(file);
+		        setStatus('Música guardada.');
+		      } catch (e) {
+		        setStatus(e?.message || 'No se pudo subir música.', true);
+		      }
+		    });
 
 	    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
 	    tlClearBtn?.addEventListener('click', tlClear);
@@ -2904,6 +3107,7 @@
 	    tlLoadBtn?.addEventListener('click', tlLoadProject);
 	    tlExportBtn?.addEventListener('click', tlExportMp4);
 	    refreshVoiceovers();
+	    refreshMusic();
 	    refreshProjects();
 
 	    const setReviewed = async ({ kind, objectId, done }) => {

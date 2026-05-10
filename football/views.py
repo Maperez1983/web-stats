@@ -48081,12 +48081,16 @@ def _video_studio_mix_voiceover_to_mp4(
     *,
     mp4_path: str,
     voiceover_path=None,
+    music_path=None,
     include_video_audio: bool,
     video_volume: float = 1.0,
     voiceover_volume: float = 1.0,
+    music_volume: float = 1.0,
     ducking: bool = False,
     duck_strength: float = 1.0,
     voiceover_offset_s: float = 0.0,
+    normalize: bool = False,
+    limiter: bool = False,
     base_name: str = 'mix',
 ):  # -> str | None
     """
@@ -48098,6 +48102,7 @@ def _video_studio_mix_voiceover_to_mp4(
     if not src:
         raise ValueError('mp4_path requerido')
     vo = str(voiceover_path or '').strip() or None
+    music = str(music_path or '').strip() or None
 
     ffmpeg_path = shutil.which('ffmpeg')
     if not ffmpeg_path:
@@ -48107,8 +48112,10 @@ def _video_studio_mix_voiceover_to_mp4(
 
     vv = float(video_volume or 1.0)
     vo_v = float(voiceover_volume or 1.0)
+    mu_v = float(music_volume or 1.0)
     vv = max(0.0, min(vv, 2.0))
     vo_v = max(0.0, min(vo_v, 2.0))
+    mu_v = max(0.0, min(mu_v, 2.0))
     try:
         duck_strength = max(0.0, min(float(duck_strength or 0.0), 1.0))
     except Exception:
@@ -48120,14 +48127,27 @@ def _video_studio_mix_voiceover_to_mp4(
         voiceover_offset_s = 0.0
     voiceover_offset_s = max(-600.0, min(float(voiceover_offset_s), 600.0))
 
-    # Solo volumen del audio original.
-    if not vo:
-        if (not include_video_audio) or (not has_audio) or abs(vv - 1.0) < 1e-6:
+    def _post_audio_chain() -> str:
+        parts: list[str] = []
+        if bool(normalize):
+            parts.append('loudnorm=I=-16:LRA=11:TP=-1.5')
+        if bool(limiter):
+            parts.append('alimiter=limit=0.95')
+        return ','.join(parts)
+
+    post_chain = _post_audio_chain()
+
+    # Solo volumen (y/o post-pro) del audio original.
+    if not vo and not music:
+        if (not include_video_audio) or (not has_audio) or (abs(vv - 1.0) < 1e-6 and not post_chain):
             return None
         safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'mix'
         tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-audio-{safe_base}-', suffix='.mp4', delete=False)
         out_path = tmp_out.name
         tmp_out.close()
+        af = f'volume={vv:.6f}'
+        if post_chain:
+            af = f'{af},{post_chain}'
         cmd = [
             ffmpeg_path,
             '-y',
@@ -48140,7 +48160,7 @@ def _video_studio_mix_voiceover_to_mp4(
             '-c:v',
             'copy',
             '-af',
-            f'volume={vv:.6f}',
+            af,
             '-c:a',
             'aac',
             '-b:a',
@@ -48152,7 +48172,7 @@ def _video_studio_mix_voiceover_to_mp4(
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
         return out_path
 
-    # Con voz en off.
+    # Con voz en off y/o música.
     safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'mix'
     tmp_out = tempfile.NamedTemporaryFile(prefix=f'2j-vs-audio-{safe_base}-', suffix='.mp4', delete=False)
     out_path = tmp_out.name
@@ -48170,74 +48190,83 @@ def _video_studio_mix_voiceover_to_mp4(
         st = abs(float(voiceover_offset_s))
         vo_chain = f'{vo_chain},atrim=start={st:.3f},asetpts=PTS-STARTPTS'
 
+    input_args = ['-i', src]
+    vo_ix = None
+    music_ix = None
+    if vo:
+        vo_ix = len([x for x in input_args if x == '-i'])
+        input_args += ['-i', vo]
+    if music:
+        music_ix = len([x for x in input_args if x == '-i'])
+        input_args += ['-stream_loop', '-1', '-i', music]
+
+    fc_parts: list[str] = []
+    base_inputs: list[str] = []
     if include_video_audio and has_audio:
-        if wants_ducking:
+        fc_parts.append(f'[0:a]volume={vv:.6f}[a0]')
+        base_inputs.append('[a0]')
+
+    if music and music_ix is not None:
+        fc_parts.append(f'[{music_ix}:a]volume={mu_v:.6f}[amusic]')
+        base_inputs.append('[amusic]')
+
+    a_voice = None
+    if vo and vo_ix is not None:
+        fc_parts.append(f'[{vo_ix}:a]{vo_chain}[avo]')
+        a_voice = '[avo]'
+
+    if not base_inputs and not a_voice:
+        raise ValueError('No hay audio que mezclar.')
+
+    if len(base_inputs) == 1:
+        fc_parts.append(f'{base_inputs[0]}anull[abase]')
+    elif len(base_inputs) >= 2:
+        mix_in = ''.join(base_inputs)
+        fc_parts.append(f'{mix_in}amix=inputs={len(base_inputs)}:duration=first:dropout_transition=2:normalize=0[abase]')
+
+    if a_voice:
+        if wants_ducking and base_inputs:
             fallback_fc = (
-                f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]{vo_chain}[a1];'
-                '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+                ';'.join(fc_parts)
+                + f';[abase]{a_voice}amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
             )
-            fc = (
-                f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]{vo_chain}[a1];'
-                f'[a0][a1]sidechaincompress=threshold=0.05:ratio=10:attack=20:release=250:mix={duck_strength:.6f}[duck];'
-                '[duck][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
+            fc_parts.append(
+                f'[abase]{a_voice}sidechaincompress=threshold=0.05:ratio=10:attack=20:release=250:mix={duck_strength:.6f}[duck]'
             )
+            fc_parts.append(f'[duck]{a_voice}amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]')
         else:
-            fc = (
-                f'[0:a]volume={vv:.6f}[a0];'
-                f'[1:a]{vo_chain}[a1];'
-                '[a0][a1]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]'
-            )
-        cmd = [
-            ffmpeg_path,
-            '-y',
-            '-i',
-            src,
-            '-i',
-            vo,
-            '-filter_complex',
-            fc,
-            '-map',
-            '0:v:0',
-            '-map',
-            '[aout]',
-            '-c:v',
-            'copy',
-            '-c:a',
-            'aac',
-            '-b:a',
-            '128k',
-            '-shortest',
-            '-movflags',
-            '+faststart',
-            out_path,
-        ]
+            fc_parts.append(f'[abase]{a_voice}amix=inputs=2:duration=first:dropout_transition=2:normalize=0[aout]')
     else:
-        cmd = [
-            ffmpeg_path,
-            '-y',
-            '-i',
-            src,
-            '-i',
-            vo,
-            '-map',
-            '0:v:0',
-            '-map',
-            '1:a:0',
-            '-c:v',
-            'copy',
-            '-af',
-            vo_chain,
-            '-c:a',
-            'aac',
-            '-b:a',
-            '128k',
-            '-shortest',
-            '-movflags',
-            '+faststart',
-            out_path,
-        ]
+        fc_parts.append('[abase]anull[aout]')
+
+    if post_chain:
+        fc_parts.append(f'[aout]{post_chain}[afinal]')
+        out_label = '[afinal]'
+    else:
+        out_label = '[aout]'
+
+    fc = ';'.join(fc_parts)
+    cmd = [
+        ffmpeg_path,
+        '-y',
+    ] + input_args + [
+        '-filter_complex',
+        fc,
+        '-map',
+        '0:v:0',
+        '-map',
+        out_label,
+        '-c:v',
+        'copy',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-shortest',
+        '-movflags',
+        '+faststart',
+        out_path,
+    ]
 
     try:
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
