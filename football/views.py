@@ -44538,6 +44538,9 @@ def analysis_rival_video_import_youtube_api(request):
     url = str(data.get('url') or data.get('youtube_url') or '').strip()
     if not url:
         return JsonResponse({'ok': False, 'error': 'url requerido.'}, status=400)
+    confirmed_rights = str(data.get('confirmed_rights') or data.get('confirm_rights') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if not confirmed_rights:
+        return JsonResponse({'ok': False, 'error': 'Debes confirmar que tienes permiso para usar ese vídeo.'}, status=400)
 
     try:
         from urllib.parse import urlparse  # noqa: WPS433 (lazy import)
@@ -52524,6 +52527,32 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     if can_use_cache:
         cached_rows = cache.get(cache_key)
         if isinstance(cached_rows, list):
+            # Refresca la URL de foto incluso cuando los KPIs vienen de caché:
+            # evita tarjetas con foto antigua en clientes móviles (cache-buster `?v=`).
+            try:
+                cached_ids = sorted({
+                    int(_parse_int(row.get('player_id')) or 0)
+                    for row in cached_rows
+                    if isinstance(row, dict) and _parse_int(row.get('player_id'))
+                })
+                cached_ids = [pid for pid in cached_ids if pid][:120]
+                if cached_ids:
+                    photo_by_id = {
+                        int(player.id): str(resolve_player_photo_url(None, player) or '').strip()
+                        for player in (
+                            Player.objects
+                            .filter(team=primary_team, id__in=cached_ids)
+                            .only('id', 'team_id', 'photo_updated_at')
+                        )
+                    }
+                    for row in cached_rows:
+                        if not isinstance(row, dict):
+                            continue
+                        pid = _parse_int(row.get('player_id'))
+                        if pid and int(pid) in photo_by_id and photo_by_id[int(pid)]:
+                            row['photo_url'] = photo_by_id[int(pid)]
+            except Exception:
+                pass
             return cached_rows
     player_stats = {}
     competition_total_rounds = get_competition_total_rounds(primary_team)
