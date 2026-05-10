@@ -732,18 +732,18 @@
                       <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% endif %}" />
                     </td>
                     <td style="width:240px;">
-                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
-                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
-                          <option value="">Lesión (catálogo)…</option>
-                          {% for entry in injury_catalog_entries %}
-                            <option value="{{ entry.id }}">{{ entry.get_region_display }} · {{ entry.name }}</option>
-                          {% endfor %}
-                        </select>
-                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="" style="flex:1;" />
-                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="" title="Alta estimada" style="width:140px;" />
-                      </div>
-                    </td>
-                  </tr>
+	                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
+	                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
+	                          <option value="">Lesión (catálogo)…</option>
+	                          {% for entry in injury_catalog_entries %}
+	                            <option value="{{ entry.id }}" {% if mark and mark.injury_catalog_entry_id == entry.id %}selected{% endif %}>{{ entry.get_region_display }} · {{ entry.name }}</option>
+	                          {% endfor %}
+	                        </select>
+	                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="{% if mark %}{{ mark.injury_detail }}{% endif %}" style="flex:1;" />
+	                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="{% if mark and mark.injury_return_date %}{{ mark.injury_return_date|date:'Y-m-d' }}{% endif %}" title="Alta estimada" style="width:140px;" />
+	                      </div>
+	                    </td>
+	                  </tr>
                   {% endwith %}
                 {% endfor %}
               </tbody>
