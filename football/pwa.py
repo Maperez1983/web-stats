@@ -28,6 +28,10 @@ def _build_id() -> str:
             base_dir / "football" / "static" / "football" / "js" / "match_actions_live.js",
             base_dir / "football" / "static" / "football" / "js" / "match_actions_page.js",
             base_dir / "football" / "static" / "football" / "js" / "match_actions_chrome.js",
+            # Video Studio (telestración + clips): importante para iPad/Safari.
+            base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio.js",
+            base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_simple_ui.js",
+            base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_youtube.js",
             base_dir / "static" / "football" / "css" / "product_system.css",
             base_dir / "static" / "football" / "css" / "commercial.css",
         ]
