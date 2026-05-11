@@ -2252,7 +2252,49 @@
       }
     };
 
+    // Freeze "modo trabajo": bloquea la reproducción/click-to-play para poder dibujar encima sin que el vídeo arranque
+    // (especialmente en Safari, donde al tocar el <video> se reanuda).
+    let freezeHoldOn = false;
+    let freezeHoldPrevControls = null;
+    const setFreezeHold = (on) => {
+      freezeHoldOn = Boolean(on);
+      try {
+        btnFreeze?.classList?.toggle?.('primary', freezeHoldOn);
+        if (btnFreeze) btnFreeze.textContent = freezeHoldOn ? 'Freeze ✓' : 'Freeze';
+      } catch (e) { /* ignore */ }
+      try {
+        if (freezeHoldOn) {
+          if (freezeHoldPrevControls === null) freezeHoldPrevControls = Boolean(video?.controls);
+          try { video.pause?.(); } catch (e) { /* ignore */ }
+          try { video.controls = false; } catch (e) { /* ignore */ }
+          try { video.style.pointerEvents = 'none'; } catch (e) { /* ignore */ }
+        } else {
+          try { if (freezeHoldPrevControls !== null) video.controls = Boolean(freezeHoldPrevControls); } catch (e) { /* ignore */ }
+          freezeHoldPrevControls = null;
+          try { video.style.pointerEvents = ''; } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
+    };
+
+    try {
+      video.addEventListener('play', () => {
+        if (!freezeHoldOn) return;
+        try { video.pause?.(); } catch (e) { /* ignore */ }
+      }, { passive: true });
+      video.addEventListener('click', (ev) => {
+        if (!freezeHoldOn) return;
+        try { ev.preventDefault?.(); } catch (e) { /* ignore */ }
+        try { ev.stopPropagation?.(); } catch (e) { /* ignore */ }
+        try { video.pause?.(); } catch (e) { /* ignore */ }
+      }, { passive: false });
+    } catch (e) { /* ignore */ }
+
     btnFreeze?.addEventListener('click', () => {
+      if (freezeHoldOn) {
+        setFreezeHold(false);
+        setStatus('Freeze desactivado.');
+        return;
+      }
       const img = captureVideoFrameDataUrl();
       if (!img) {
         setStatus('No se pudo capturar freeze.', true);
@@ -2269,6 +2311,7 @@
       selectedFxId = layer.id;
       renderFxList();
       updateLayerPanel();
+      setFreezeHold(true);
       setStatus(`Freeze creado en ${fmtTimeShort(now)}.`);
     });
 
