@@ -16650,13 +16650,23 @@ def _safe_download_filename(*, title: str = '', fallback: str = 'video', ext: st
     """
     Genera un nombre de archivo razonable para Content-Disposition.
 
-    - Usa `slugify` para minimizar caracteres problemáticos.
+    - Mantiene el título lo más parecido posible al que ve el usuario.
+    - Elimina caracteres problemáticos en sistemas de archivos (Windows/macOS/Linux).
     - Mantiene extensión controlada por el servidor.
     """
     raw = str(title or '').strip()
-    base = slugify(raw)[:140] if raw else ''
+    base = raw
+    # Quita caracteres de control.
+    base = re.sub(r'[\x00-\x1f\x7f]+', ' ', base)
+    # Evita caracteres inválidos en Windows y separadores de ruta.
+    base = re.sub(r'[<>:"/\\\\|?*]+', ' ', base)
+    base = re.sub(r'\s+', ' ', base).strip()
+    # Evita nombres raros.
+    base = base.strip('. ').strip()
     if not base:
-        base = slugify(str(fallback or '').strip())[:140] or 'download'
+        base = str(fallback or '').strip() or 'download'
+    base = re.sub(r'\s+', ' ', base).strip()
+    base = base[:140].strip()
     safe_ext = str(ext or '').strip().lower()
     if not safe_ext.startswith('.'):
         safe_ext = f'.{safe_ext}' if safe_ext else '.mp4'
