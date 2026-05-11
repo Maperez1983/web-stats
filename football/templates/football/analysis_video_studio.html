@@ -65,6 +65,31 @@
         70% { box-shadow: 0 0 0 1px rgba(34,211,238,0.18); background: rgba(34,211,238,0.06); }
         100% { box-shadow: 0 0 0 0 rgba(34,211,238,0.0); background: rgba(255,255,255,0.03); }
       }
+
+      /* Tabs (modo simple) */
+      .vs-tabs { display:flex; gap:0.45rem; align-items:center; margin-bottom:0.65rem; }
+      .vs-tab {
+        flex: 1 1 0;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.04);
+        color:#f3f7ff;
+        padding:0.65rem 0.85rem;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        cursor: pointer;
+      }
+      .vs-tab[aria-selected="true"] { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .vs-panel { display:grid; gap:0.65rem; }
+
+      /* Clips bajo el vídeo */
+      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
+      .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
+      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
+      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -103,16 +128,17 @@
 	                <option value="1.5">1.5x</option>
 	                <option value="2">2x</option>
 	              </select>
-	              <button type="button" class="button" id="vs-mark-in">IN</button>
-	              <button type="button" class="button" id="vs-mark-out">OUT</button>
-	              <button type="button" class="button" id="vs-export-seg">Export segmento</button>
-	              <button type="button" class="button primary" id="vs-export-share">Export + compartir</button>
-	              <button type="button" class="button" id="vs-export-server" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 server</button>
-	              <button type="button" class="button" id="vs-export-server-playlist" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
-	              <button type="button" class="button" id="vs-export-retry" hidden>Reintentar upload</button>
-	              <button type="button" class="button" id="vs-record">Grabar</button>
+		              <button type="button" class="button" id="vs-mark-in">IN</button>
+		              <button type="button" class="button" id="vs-mark-out">OUT</button>
+		              <button type="button" class="button primary" id="vs-clip-save-quick" title="Crea un clip con el segmento IN/OUT">Guardar</button>
+		              <button type="button" class="button" id="vs-export-seg" data-vs-advanced="1">Export segmento</button>
+		              <button type="button" class="button primary" id="vs-export-share" data-vs-advanced="1">Export + compartir</button>
+		              <button type="button" class="button" id="vs-export-server" data-vs-advanced="1" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 server</button>
+		              <button type="button" class="button" id="vs-export-server-playlist" data-vs-advanced="1" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
+		              <button type="button" class="button" id="vs-export-retry" data-vs-advanced="1" hidden>Reintentar upload</button>
+		              <button type="button" class="button" id="vs-record" data-vs-advanced="1">Grabar</button>
 	              <button type="button" class="button" id="vs-snap">PNG</button>
-	              <button type="button" class="button" id="vs-dorsal-ocr" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
+		              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
 	              <button type="button" class="button" id="vs-freeze">Freeze</button>
             </div>
             <div class="right">
@@ -139,19 +165,61 @@
 	            <canvas id="vs-canvas"></canvas>
 	            <div id="vs-roi" aria-hidden="true"></div>
 	          </div>
-	          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer;">
-	            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
-	            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
-	          </div>
-	          <div class="status" id="vs-status">Listo.</div>
-	        </section>
+		          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer;">
+		            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
+		            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
+		          </div>
+		          <div class="status" id="vs-status">Listo.</div>
+              <div class="vs-clips-zone">
+                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
+                <div class="hint" style="margin-bottom:0.55rem;">Marca <span class="k">IN</span>/<span class="k">OUT</span>, pulsa <span class="k">Guardar</span> y después abre el clip para anotar.</div>
+                <div class="list vs-clips-grid" id="vs-clips"></div>
+              </div>
+		        </section>
 
-        <aside class="card">
-          <div class="field">
-            <label>
-              Proyecto
-              <input type="text" id="vs-project-title" placeholder="Ej: J2 · Presión alta (clips)" />
-            </label>
+	        <aside class="card">
+	          <div class="field">
+              <div class="vs-tabs" role="tablist" aria-label="Video Studio">
+                <button type="button" class="vs-tab" id="vs-tab-clip" role="tab" aria-selected="true" aria-controls="vs-panel-clip">Clip</button>
+                <button type="button" class="vs-tab" id="vs-tab-advanced" role="tab" aria-selected="false" aria-controls="vs-panel-advanced" tabindex="-1">Avanzado</button>
+              </div>
+
+              <div class="vs-panel" id="vs-panel-clip" role="tabpanel" tabindex="-1">
+                <label>
+                  Título del clip
+                  <input type="text" id="vs-clip-title" placeholder="Ej: Gol en contra · ajuste línea" />
+                </label>
+                <label>
+                  Notas (opcional)
+                  <textarea id="vs-clip-notes" style="min-height:90px;" placeholder="Qué pasó, qué corregir, qué mirar..."></textarea>
+                </label>
+                <details>
+                  <summary style="cursor:pointer; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85);">Más campos</summary>
+                  <div style="margin-top:0.55rem; display:grid; gap:0.55rem;">
+                    <label>
+                      Colección
+                      <input type="text" id="vs-clip-collection" placeholder="Ej: Torremoya · J2" />
+                    </label>
+                    <label>
+                      Tags (coma)
+                      <input type="text" id="vs-clip-tags" placeholder="Ej: presión, salida, finalización" />
+                    </label>
+                  </div>
+                </details>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                  <button type="button" class="button primary" id="vs-clip-save">Guardar</button>
+                  <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
+                  <button type="button" class="button" id="vs-clip-dup">Duplicar</button>
+                  <button type="button" class="button" id="vs-clip-split">Split</button>
+                </div>
+                <div class="hint" id="vs-clip-saved-msg" style="margin-top:0.15rem;">—</div>
+              </div>
+
+              <div class="vs-panel" id="vs-panel-advanced" role="tabpanel" tabindex="-1" hidden>
+	            <label>
+	              Proyecto
+	              <input type="text" id="vs-project-title" placeholder="Ej: J2 · Presión alta (clips)" />
+	            </label>
             <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
               <button type="button" class="button" id="vs-project-save">Guardar</button>
               <button type="button" class="button" id="vs-project-refresh">Actualizar</button>
@@ -472,36 +540,11 @@
                       </div>
                     </div>
                   </details>
-	                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
-	              </div>
-	              <label>
-	                Título
-	                <input type="text" id="vs-clip-title" placeholder="Ej: Presión tras pérdida" />
-	              </label>
-	              <label>
-	                Colección
-	                <input type="text" id="vs-clip-collection" placeholder="Ej: J2 · Torremoya" />
-	              </label>
-	              <label>
-	                Tags (separados por coma)
-	                <input type="text" id="vs-clip-tags" placeholder="Ej: presión, robo, finalización" />
-	              </label>
-	              <label>
-	                Notas
-	                <textarea id="vs-clip-notes" style="min-height:90px;" placeholder="Qué mirar, consignas, correcciones..."></textarea>
-	              </label>
-	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
-	                <button type="button" class="button primary" id="vs-clip-save">Guardar clip</button>
-	                <button type="button" class="button" id="vs-clip-dup">Duplicar</button>
-	                <button type="button" class="button" id="vs-clip-split">Split</button>
-	                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
-	              </div>
-                <div class="hint" id="vs-clip-saved-msg" style="margin-top:0.35rem;">—</div>
-	              <div class="meta" style="margin-top:0.2rem;">
-	                Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">I</span>/<span class="k">S</span> IN · <span class="k">O</span>/<span class="k">R</span> OUT · <span class="k">C</span> guardar clip · <span class="k">T</span> tag.
-	              </div>
-	              <div class="list" id="vs-clips"></div>
-	            </div>
+		                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
+		              </div>
+                  <div class="hint" style="margin-top:0.35rem;">Creación/edición rápida: pestaña <span class="k">Clip</span>.</div>
+			              <div class="hint" style="margin-top:0.35rem;">Los clips aparecen debajo del vídeo.</div>
+			            </div>
 
             <div class="split">
               <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Timeline</div>
@@ -709,12 +752,14 @@
                   <button type="button" class="button" id="vs-inbox-send-report">Enviar informe</button>
                 </div>
               </div>
+	            </div>
             </div>
-          </div>
-        </aside>
+	          </div>
+	        </aside>
       </div>
     </main>
 
+      <input type="hidden" id="vs-ui-mode" value="simple" />
 	    <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
 	    <input type="hidden" id="vs-initial-clip-id" value="{{ request.GET.clip|default:'' }}" />
 	    <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
@@ -766,6 +811,7 @@
 	    <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/analysis_video_studio_simple_ui.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/analysis_video_studio.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>
 </html>

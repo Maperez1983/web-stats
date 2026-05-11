@@ -184,6 +184,8 @@
     const templateClearBtn = document.getElementById('vs-template-clear');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
+	    const uiMode = safeText(document.getElementById('vs-ui-mode')?.value || '').toLowerCase();
+	    const simpleUI = uiMode === 'simple';
 	    const initialClipId = Number(document.getElementById('vs-initial-clip-id')?.value || 0);
 	    const projectsUrl = safeText(document.getElementById('vs-projects-url')?.value);
     const projectSaveUrl = safeText(document.getElementById('vs-project-save-url')?.value);
@@ -270,13 +272,14 @@
 	    const clipCountEl = document.getElementById('vs-clip-count');
 	    const playlistPlayBtn = document.getElementById('vs-playlist-play');
 	    const playlistStopBtn = document.getElementById('vs-playlist-stop');
-	    const playlistClearBtn = document.getElementById('vs-playlist-clear');
-	    const playlistShareBtn = document.getElementById('vs-playlist-share');
-	    const playlistCountEl = document.getElementById('vs-playlist-count');
-	    const clipSaveBtn = document.getElementById('vs-clip-save');
-	    const clipDupBtn = document.getElementById('vs-clip-dup');
-	    const clipSplitBtn = document.getElementById('vs-clip-split');
-	    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
+		    const playlistClearBtn = document.getElementById('vs-playlist-clear');
+		    const playlistShareBtn = document.getElementById('vs-playlist-share');
+		    const playlistCountEl = document.getElementById('vs-playlist-count');
+		    const clipSaveBtn = document.getElementById('vs-clip-save');
+        const clipSaveQuickBtn = document.getElementById('vs-clip-save-quick');
+		    const clipDupBtn = document.getElementById('vs-clip-dup');
+		    const clipSplitBtn = document.getElementById('vs-clip-split');
+		    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
 	    const clipsList = document.getElementById('vs-clips');
 	    const dashboardEl = document.getElementById('vs-dashboard');
 	    const filterUnreviewedClipsToggle = document.getElementById('vs-filter-unreviewed-clips');
@@ -3418,14 +3421,16 @@
 		      }
 		    });
 
-	    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
-	    tlClearBtn?.addEventListener('click', tlClear);
-	    tlSaveBtn?.addEventListener('click', tlSaveProject);
-	    tlLoadBtn?.addEventListener('click', tlLoadProject);
-	    tlExportBtn?.addEventListener('click', tlExportMp4);
-	    refreshVoiceovers();
-	    refreshMusic();
-	    refreshProjects();
+		    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
+		    tlClearBtn?.addEventListener('click', tlClear);
+		    tlSaveBtn?.addEventListener('click', tlSaveProject);
+		    tlLoadBtn?.addEventListener('click', tlLoadProject);
+		    tlExportBtn?.addEventListener('click', tlExportMp4);
+        if (!simpleUI) {
+		      refreshVoiceovers();
+		      refreshMusic();
+		      refreshProjects();
+        }
 
 	    const setReviewed = async ({ kind, objectId, done }) => {
 	      if (!reviewUrl || !videoId) return false;
@@ -4492,8 +4497,9 @@
 	        setStatus('No se pudo dividir.', true);
 	      }
 	    };
-	    clipSaveBtn?.addEventListener('click', saveClip);
-	    clipDupBtn?.addEventListener('click', duplicateActiveClip);
+		    clipSaveBtn?.addEventListener('click', saveClip);
+        clipSaveQuickBtn?.addEventListener('click', saveClip);
+		    clipDupBtn?.addEventListener('click', duplicateActiveClip);
 	    clipSplitBtn?.addEventListener('click', splitActiveClipAtPlayhead);
 	    clipRefreshBtn?.addEventListener('click', refreshClips);
 	    clipSearchInput?.addEventListener('input', () => renderClips(applyClipFilters(clipsCache)));
@@ -4642,8 +4648,8 @@
 	      }
 	    });
 
-	    shareRefreshBtn?.addEventListener('click', refreshShareLinks);
-	    refreshShareLinks();
+		    shareRefreshBtn?.addEventListener('click', refreshShareLinks);
+        if (!simpleUI) refreshShareLinks();
 
     // Timeline (server)
     const timelineSelectedKinds = () => {
@@ -5553,13 +5559,27 @@
         setStatus('No se pudo vaciar.', true);
       }
     });
-    const bootstrapReviewState = async () => {
-      await refreshReviewState();
-      renderClips(applyClipFilters(clipsCache));
-      renderTimeline(timelineCache);
-      renderDashboard();
-    };
-    refreshTimeline().then(bootstrapReviewState);
+	    const bootstrapReviewState = async () => {
+	      await refreshReviewState();
+	      renderClips(applyClipFilters(clipsCache));
+	      renderTimeline(timelineCache);
+	      renderDashboard();
+	    };
+	    let advancedEnabled = false;
+	    const enableAdvancedFeatures = async () => {
+	      if (advancedEnabled) return;
+	      advancedEnabled = true;
+	      try { await refreshVoiceovers(); } catch (e) { /* ignore */ }
+	      try { await refreshMusic(); } catch (e) { /* ignore */ }
+	      try { await refreshProjects(); } catch (e) { /* ignore */ }
+	      try { await refreshShareLinks(); } catch (e) { /* ignore */ }
+	      try { await refreshTimeline(); } catch (e) { /* ignore */ }
+	      try { await bootstrapReviewState(); } catch (e) { /* ignore */ }
+	    };
+	    try {
+	      window.__vsEnableAdvancedFeatures = () => { enableAdvancedFeatures(); };
+	    } catch (e) { /* ignore */ }
+	    if (!simpleUI) enableAdvancedFeatures();
 
     // Slides + Export Pro
     let slides = [];
