@@ -223,6 +223,16 @@
         if (actionInput) {
           actionInput.readOnly = !isEdit;
           actionInput.inputMode = isEdit ? 'text' : 'none';
+          // iPad UX: en modo "iPad" queremos evitar que el teclado aparezca al tocar el input.
+          // Se rellena por atajos / picker, no escribiendo.
+          try {
+            if (!isEdit) {
+              actionInput.setAttribute('tabindex', '-1');
+              actionInput.blur();
+            } else {
+              actionInput.removeAttribute('tabindex');
+            }
+          } catch (e) {}
         }
         if (observationInput) {
           observationInput.readOnly = false;
@@ -235,6 +245,19 @@
           }
         }
       };
+      // Seguridad extra iOS: aunque readonly + inputmode=none, algunos WebViews muestran teclado al enfocar.
+      // Si estamos en modo iPad, forzamos blur.
+      try {
+        if (actionInput && !actionInput.dataset.boundNoKeyboard) {
+          actionInput.addEventListener('focus', () => {
+            try {
+              const mode = String(popupEditToggle?.dataset?.mode || 'ipad');
+              if (mode !== 'edit') actionInput.blur();
+            } catch (e) {}
+          });
+          actionInput.dataset.boundNoKeyboard = '1';
+        }
+      } catch (e) {}
       if (popupEditToggle) {
         popupEditToggle.addEventListener('click', () => {
           const isCurrentlyEdit = String(popupEditToggle.dataset.mode || '') === 'edit';
@@ -4105,6 +4128,14 @@ const urlWithMatchId = (baseUrl) => {
       updatePlayerQuickPanel();
 
       // Marca que el JS principal quedó inicializado correctamente (permite desactivar el fallback ES5).
-      try { window.__matchActionsMainOk = true; } catch (e) {}
+      // Importante: en iPad/Safari a veces se rompe parte del JS (cache / orden de carga) y el submit del popup
+      // vuelve a hacer POST HTML (recarga, para cronómetro y deselecciona jugador). Solo desactivamos el fallback
+      // si el controlador LIVE ha interceptado el submit.
+      try {
+        const liveBound = popupForm && popupForm.dataset && String(popupForm.dataset.liveBound || '') === '1';
+        window.__matchActionsMainOk = Boolean(liveBound);
+      } catch (e) {
+        try { window.__matchActionsMainOk = false; } catch (e2) {}
+      }
 
 })();

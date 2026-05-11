@@ -1929,6 +1929,11 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const payload = new FormData(popupForm);
     await submitPopupAction(payload, { isTeamOnlyAction, source: 'popup' });
   });
+  // Señal para que el HTML fallback (ES5) sepa que el submit ya está interceptado.
+  // Evita que, por caching/orden de scripts, se quede activado el fallback y genere dobles envíos.
+  try {
+    if (popupForm && popupForm.dataset) popupForm.dataset.liveBound = '1';
+  } catch (e) {}
 
   function parseHistoryArticle(article) {
     if (!article) return null;

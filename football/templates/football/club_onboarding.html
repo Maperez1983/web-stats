@@ -401,6 +401,41 @@
         </form>
 
         <div class="notice" style="margin-top:1rem;">
+          <strong>Temporada del club:</strong> al iniciar una nueva temporada, todo lo anterior queda como histórico.
+          Solo se hereda la plantilla como <em>pendiente de confirmar</em> (el staff la va validando conforme avanza el año).
+        </div>
+        <form method="post" style="margin-top:0.8rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="season_rollover" />
+          <div class="grid">
+            <div style="grid-column: 1 / -1;">
+              {% if active_club_season %}
+                <p style="margin:0;color:rgba(226,232,240,0.92);">
+                  Temporada activa: <strong>{{ active_club_season.label }}</strong>
+                  · inicio {{ active_club_season.start_date }}
+                  {% if active_club_season.end_date %}· fin {{ active_club_season.end_date }}{% endif %}
+                </p>
+              {% else %}
+                <p style="margin:0;color:rgba(226,232,240,0.92);">No hay temporada activa configurada todavía.</p>
+              {% endif %}
+            </div>
+            <div>
+              <label for="id_season_label">Etiqueta</label>
+              <input id="id_season_label" type="text" name="season_label" value="{{ season_form.label|default:'' }}" placeholder="2026/2027" required />
+            </div>
+            <div>
+              <label for="id_season_start_date">Inicio</label>
+              <input id="id_season_start_date" type="date" name="season_start_date" value="{{ season_form.start_date|default:'' }}" required />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary" type="submit" onclick="return confirm('Esto archivará la temporada actual y creará una nueva. ¿Continuar?');">
+              Iniciar nueva temporada
+            </button>
+          </div>
+        </form>
+
+        <div class="notice" style="margin-top:1rem;">
           <strong>Escudo y portada:</strong> personaliza la identidad visual del club (se verá en la Home y exportaciones).
         </div>
         <form method="post" enctype="multipart/form-data" style="margin-top:0.8rem;">

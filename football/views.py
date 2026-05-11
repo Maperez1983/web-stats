@@ -12614,52 +12614,7 @@ def club_onboarding_page(request):
         except Exception:
             error = 'No se pudo completar el onboarding.'
 
-    if workspace and primary_team and not competition_context:
-        competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
-    setup_checklist = []
-    setup_progress = {'required_total': 0, 'required_done': 0}
-    try:
-        if workspace and primary_team:
-            active_match = None
-            try:
-                active_match = get_active_match(primary_team)
-            except Exception:
-                active_match = None
-            convocation_record = None
-            try:
-                convocation_record = get_current_convocation_record(primary_team)
-            except Exception:
-                convocation_record = None
-            setup_checklist = _build_team_setup_checklist(
-                request,
-                workspace,
-                primary_team,
-                match=active_match,
-                convocation_record=convocation_record,
-            )
-            if isinstance(setup_checklist, list) and setup_checklist:
-                required_items = [item for item in setup_checklist if bool(item.get('required'))]
-                setup_progress['required_total'] = len(required_items)
-                setup_progress['required_done'] = len([item for item in required_items if bool(item.get('ok'))])
-    except Exception:
-        setup_checklist = []
-    return render(
-        request,
-        'football/club_onboarding.html',
-        {
-            'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
-            'competition_context': competition_context,
-            'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
-            'universo_candidates': universo_candidates,
-            'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
-            'form': form,
-            'theme_form': theme_form,
-            'setup_checklist': setup_checklist or [],
-            'setup_progress': setup_progress,
-            'error': error,
-            'success': success,
-        },
-    )
+    return _render_onboarding_page(status=200)
 
 
 def _split_full_name(value):
@@ -28012,6 +27967,16 @@ def coach_roster_page(request):
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope_value)
     message = ''
     error = ''
+    active_club_season = None
+    try:
+        active_club_season = getattr(workspace, 'active_season', None)
+        if active_club_season and getattr(active_club_season, 'is_active', True) is False:
+            active_club_season = None
+    except Exception:
+        active_club_season = None
+
+    season_confirmed_total = 0
+    season_pending_total = 0
     if request.method == 'POST':
         if not can_edit:
             return HttpResponse('No tienes permisos para editar la plantilla.', status=403)
@@ -28023,7 +27988,29 @@ def coach_roster_page(request):
         is_active = (request.POST.get('is_active') or '1').strip() in {'1', 'true', 'on', 'yes'}
 
         try:
-            if action == 'deactivate':
+            if action in {'confirm_season_player', 'unconfirm_season_player'}:
+                if not active_club_season:
+                    raise ValueError('No hay temporada activa. Iníciala desde Configuración.')
+                if not player_id:
+                    raise ValueError('Jugador no válido.')
+                membership, _created = WorkspaceSeasonPlayer.objects.get_or_create(
+                    season=active_club_season,
+                    player_id=player_id,
+                    defaults={'is_confirmed': False},
+                )
+                if action == 'confirm_season_player':
+                    membership.is_confirmed = True
+                    membership.confirmed_at = timezone.now()
+                    membership.confirmed_by = request.user
+                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'updated_at'])
+                    message = 'Jugador confirmado en la temporada.'
+                else:
+                    membership.is_confirmed = False
+                    membership.confirmed_at = None
+                    membership.confirmed_by = None
+                    membership.save(update_fields=['is_confirmed', 'confirmed_at', 'confirmed_by', 'updated_at'])
+                    message = 'Jugador marcado como pendiente para la temporada.'
+            elif action == 'deactivate':
                 if not player_id:
                     raise ValueError('Jugador no válido para desactivar.')
                 player = Player.objects.filter(id=player_id, team=primary_team).first()
@@ -28036,19 +28023,19 @@ def coach_roster_page(request):
                 if not name:
                     raise ValueError('El nombre es obligatorio.')
                 number = _parse_int(number_raw) if number_raw else None
-                player = (
+                target_player = (
                     Player.objects.filter(team=primary_team, name__iexact=name)
                     .order_by('id')
                     .first()
                 )
-                if player:
-                    player.number = number
-                    player.position = position
-                    player.is_active = is_active
-                    player.save(update_fields=['number', 'position', 'is_active'])
-                    message = f'Jugador actualizado: {player.name}.'
+                if target_player:
+                    target_player.number = number
+                    target_player.position = position
+                    target_player.is_active = is_active
+                    target_player.save(update_fields=['number', 'position', 'is_active'])
+                    message = f'Jugador actualizado: {target_player.name}.'
                 else:
-                    Player.objects.create(
+                    target_player = Player.objects.create(
                         team=primary_team,
                         name=name,
                         number=number,
@@ -28056,12 +28043,47 @@ def coach_roster_page(request):
                         is_active=is_active,
                     )
                     message = f'Jugador añadido: {name}.'
+
+                # Si hay temporada activa, aseguramos ficha de temporada (pendiente por defecto).
+                try:
+                    if active_club_season and target_player:
+                        WorkspaceSeasonPlayer.objects.get_or_create(
+                            season=active_club_season,
+                            player=target_player,
+                            defaults={'is_confirmed': False},
+                        )
+                except Exception:
+                    pass
         except ValueError as exc:
             error = str(exc)
         except Exception:
             error = 'No se pudo guardar el jugador. Revisa los datos.'
 
-    players = Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name')
+    players = list(Player.objects.filter(team=primary_team).order_by('is_active', 'number', 'name'))
+    if active_club_season and players:
+        try:
+            player_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
+            existing_ids = set(
+                WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids)
+                .values_list('player_id', flat=True)
+            )
+            missing = [WorkspaceSeasonPlayer(season=active_club_season, player_id=pid, is_confirmed=False) for pid in player_ids if pid not in existing_ids]
+            if missing:
+                WorkspaceSeasonPlayer.objects.bulk_create(missing, ignore_conflicts=True)
+            memberships = {
+                int(row.player_id): bool(row.is_confirmed)
+                for row in WorkspaceSeasonPlayer.objects.filter(season=active_club_season, player_id__in=player_ids).only('player_id', 'is_confirmed')
+            }
+            for p in players:
+                confirmed = bool(memberships.get(int(p.id)))
+                setattr(p, 'season_confirmed', confirmed)
+                if confirmed:
+                    season_confirmed_total += 1
+                else:
+                    season_pending_total += 1
+        except Exception:
+            for p in players:
+                setattr(p, 'season_confirmed', False)
     player_cards = []
     if active_tab == 'stats':
         try:
@@ -28119,6 +28141,10 @@ def coach_roster_page(request):
             'team_name': primary_team.display_name,
             'players': players,
             'player_cards': player_cards,
+            'active_club_season': active_club_season,
+            'season_confirmed_total': season_confirmed_total,
+            'season_pending_total': season_pending_total,
+            'can_edit': can_edit,
             'active_tab': active_tab,
             'scope_value': scope_value,
             'tournament_filter': tournament_filter,

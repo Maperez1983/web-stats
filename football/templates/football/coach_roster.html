@@ -143,6 +143,22 @@
         padding: 0.3rem 0.5rem;
         cursor: pointer;
       }
+      button.inline-ok {
+        border: 1px solid rgba(16, 185, 129, 0.45);
+        background: rgba(16, 185, 129, 0.2);
+        color: #bbf7d0;
+        border-radius: 8px;
+        padding: 0.3rem 0.5rem;
+        cursor: pointer;
+      }
+      button.inline-ghost {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(2, 6, 23, 0.35);
+        color: rgba(226, 232, 240, 0.92);
+        border-radius: 8px;
+        padding: 0.3rem 0.5rem;
+        cursor: pointer;
+      }
       .card-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -539,8 +555,18 @@
 	                render(svg, values);
 	              });
 	            })();
-	          </script>
+	        </script>
 	        {% else %}
+          {% if active_club_season %}
+            <p style="margin:0 0 0.85rem;color:rgba(226,232,240,0.92);">
+              Temporada activa: <strong>{{ active_club_season.label }}</strong>
+              · Confirmados {{ season_confirmed_total|default:0 }} · Pendientes {{ season_pending_total|default:0 }}
+            </p>
+          {% else %}
+            <p style="margin:0 0 0.85rem;color:#94a3b8;">
+              No hay temporada activa. Iníciala desde <a style="color:#e2e8f0;" href="{% url 'club-onboarding' %}">Configuración</a>.
+            </p>
+          {% endif %}
 	        <form method="post" class="add">
           {% csrf_token %}
           <input type="hidden" name="action" value="add" />
@@ -573,6 +599,7 @@
               <th>Nombre</th>
               <th>Posición</th>
               <th>Estado</th>
+              <th>Temporada</th>
               <th>Acción</th>
             </tr>
           </thead>
@@ -590,13 +617,39 @@
                 {% endif %}
               </td>
               <td>
+                {% if active_club_season %}
+                  {% if player.season_confirmed %}
+                    <span class="badge ok">Confirmado</span>
+                  {% else %}
+                    <span class="badge off">Pendiente</span>
+                  {% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
                 {% if player.is_active %}
-                <form method="post" style="margin:0;">
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                  {% if active_club_season and can_edit %}
+                    <form method="post" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="player_id" value="{{ player.id }}" />
+                      {% if player.season_confirmed %}
+                        <input type="hidden" name="action" value="unconfirm_season_player" />
+                        <button class="inline-ghost" type="submit">Pendiente</button>
+                      {% else %}
+                        <input type="hidden" name="action" value="confirm_season_player" />
+                        <button class="inline-ok" type="submit">Confirmar</button>
+                      {% endif %}
+                    </form>
+                  {% endif %}
+                  <form method="post" style="margin:0;">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="deactivate" />
                   <input type="hidden" name="player_id" value="{{ player.id }}" />
                   <button class="inline" type="submit">Desactivar</button>
-                </form>
+                  </form>
+                </div>
                 {% else %}
                 -
                 {% endif %}
@@ -604,7 +657,7 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="5">No hay jugadores en plantilla.</td>
+              <td colspan="6">No hay jugadores en plantilla.</td>
             </tr>
             {% endfor %}
           </tbody>
