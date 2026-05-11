@@ -778,6 +778,10 @@
         const c = new fabric.Canvas(canvasEl, { preserveObjectStacking: true, selection: true });
         try { c.freeDrawingBrush.width = 6; } catch (e) { /* ignore */ }
         try { c.freeDrawingBrush.color = '#22d3ee'; } catch (e) { /* ignore */ }
+        // Asegura que el `upper-canvas` (que recibe los eventos) quede por encima del <video>.
+        try { if (c.upperCanvasEl) c.upperCanvasEl.style.zIndex = '3'; } catch (e) { /* ignore */ }
+        try { if (c.lowerCanvasEl) c.lowerCanvasEl.style.zIndex = '3'; } catch (e) { /* ignore */ }
+        try { if (c.wrapperEl) c.wrapperEl.style.zIndex = '3'; } catch (e) { /* ignore */ }
         return c;
       }
       // Stub para que el resto del editor (IN/OUT, clips, timeline) no rompa si Fabric no está.
