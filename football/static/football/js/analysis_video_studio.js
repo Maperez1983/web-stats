@@ -1267,7 +1267,7 @@
         if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
         const number = safeText(rawNumber, '').trim().slice(0, 3);
         const name = safeText(rawName, '').trim().toUpperCase().slice(0, 18);
-        if (!number || !name) return null;
+        if (!number) return null;
 
         const p = { x: point.x, y: point.y };
         const radius = 22 + Math.round(strokeWidth() / 2);
@@ -1331,9 +1331,10 @@
         tagRect.set({ left: p.x + tagOffsetX, top: p.y });
         nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
 
-        const objects = (prefsStyle === 'circle')
-          ? [ringOuter, numText]
-          : [ringOuter, numText, tagRect, nameText];
+        const showTag = prefsStyle !== 'circle' && Boolean(name);
+        const objects = showTag
+          ? [ringOuter, numText, tagRect, nameText]
+          : [ringOuter, numText];
 
         const group = new fabric.Group(objects, { selectable: true });
         group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name, team: prefsTeam, style: prefsStyle });
@@ -1719,12 +1720,12 @@
         if (!playerPopCanvasPos) return;
         const number = safeText(playerNumberInput?.value, '').trim();
         const name = safeText(playerNameInput?.value, '').trim();
-        if (!number || !name) { setStatus('Completa dorsal y nombre.', true); return; }
+        if (!number) { setStatus('Indica al menos el dorsal.', true); return; }
         const created = createPlayerMarkerAt(playerPopCanvasPos, number, name, playerPrefs);
         if (!created) { setStatus('No se pudo crear marcador.', true); return; }
         pushPlayerRecent(created.number, created.name);
         closePlayerPop();
-        setStatus(`Jugador: ${created.number} ${created.name}`);
+        setStatus(`Jugador: ${created.number}${created.name ? ` ${created.name}` : ''}`);
       });
       const handlePlayerKey = (ev) => {
         const key = safeText(ev?.key, '');
