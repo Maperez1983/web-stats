@@ -4072,6 +4072,19 @@
 	      try { thumbVideo.currentTime = Math.max(0, Number(t) || 0); } catch (e) { resolve(false); }
 	    });
 
+	    const captureThumbDataUrlAt = async (t) => {
+	      try {
+	        if (!thumbVideo.src) return null;
+	        // Mantenerlo ligero: best-effort. Si no se puede (CORS/seek), devolvemos null.
+	        const ok = await seekThumb(t);
+	        if (!ok) return null;
+	        await sleep(70);
+	        return drawThumbDataUrl();
+	      } catch (e) {
+	        return null;
+	      }
+	    };
+
 	    const processThumbQueue = async () => {
 	      if (thumbBusy) return;
 	      if (thumbQueue.length === 0) return;
@@ -4303,6 +4316,7 @@
 	        if (!id) return '';
 	        const title = safeText(c?.title, `Clip ${id}`);
 	        const coll = safeText(c?.collection, '');
+	        const thumbUrl = safeText(c?.thumbnail_url, '');
 	        const inS = Number(c?.in_s) || 0;
 	        const outS = Number(c?.out_s) || 0;
 	        const tags = Array.isArray(c?.tags) ? c.tags : [];
@@ -4315,7 +4329,7 @@
 	            <div style="display:flex; gap:0.6rem; align-items:flex-start; width:100%;">
                 <input type="checkbox" data-vs-clip-select="${id}" ${checked} style="margin-top:0.25rem; width:18px;height:18px;accent-color:#22d3ee; flex:0 0 auto;" />
                 <div style="width:76px;height:46px;border-radius:12px;overflow:hidden;background:rgba(2,6,23,0.35);border:1px solid rgba(148,163,184,0.14);flex:0 0 auto;">
-                  <img data-vs-clip-thumb="${id}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
+                  <img data-vs-clip-thumb="${id}" data-vs-clip-thumb-url="${escHtml(thumbUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
                 </div>
 	              <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0; flex:1;">
 	                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</strong>
@@ -4351,6 +4365,12 @@
         }
         Array.from(clipsList.querySelectorAll('[data-vs-clip-thumb]')).forEach((img) => {
           const id = Number(img.getAttribute('data-vs-clip-thumb') || 0);
+          const serverUrl = safeText(img.getAttribute('data-vs-clip-thumb-url'), '');
+          if (serverUrl) {
+            img.src = serverUrl;
+            try { if (thumbObserver) thumbObserver.unobserve(img); } catch (e) { /* ignore */ }
+            return;
+          }
           const cached = id ? thumbCache.get(id) : '';
           if (cached) {
             img.src = cached;
@@ -4605,10 +4625,10 @@
 		      setStatus('Nuevo clip.');
 		    };
 
-		    const saveClip = async (opts = {}) => {
-		      if (!clipSaveUrl || !videoId) return;
-		      const forceNew = Boolean(opts?.forceNew);
-		      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
+	    const saveClip = async (opts = {}) => {
+	      if (!clipSaveUrl || !videoId) return;
+	      const forceNew = Boolean(opts?.forceNew);
+	      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
 	      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
 	      const ctxPhase = safeText(ctxPhaseSelect?.value, '');
 	      let collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
@@ -4626,11 +4646,14 @@
 	      const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
 	      try {
 	        const clipId = forceNew ? 0 : (activeClipId || 0);
+	        const thumbDataUrl = await captureThumbDataUrlAt(inS);
+	        const payload = { id: clipId, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay, tags, notes };
+	        if (thumbDataUrl) payload.thumbnail_data_url = thumbDataUrl;
 		        const resp = await fetch(clipSaveUrl, {
 		          method: 'POST',
 		          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
 		          credentials: 'same-origin',
-		          body: JSON.stringify({ id: clipId, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay, tags, notes }),
+		          body: JSON.stringify(payload),
 		        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');

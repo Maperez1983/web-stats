@@ -45845,10 +45845,15 @@ def analysis_video_studio_clips_api(request):
     )
     payload = []
     for obj in items:
+        try:
+            thumb_url = obj.thumbnail.url if getattr(obj, 'thumbnail', None) else ''
+        except Exception:
+            thumb_url = ''
         payload.append(
                 {
                     'id': int(obj.id),
                     'view_url': reverse('analysis-video-clip-view', args=[int(obj.id)]),
+                    'thumbnail_url': thumb_url,
                     'title': str(obj.title or '').strip(),
                     'collection': str(obj.collection or '').strip(),
                     'in_ms': int(obj.in_ms or 0),
@@ -46207,6 +46212,28 @@ def analysis_video_studio_clip_save_api(request):
             overlay = {}
     if not isinstance(overlay, dict):
         overlay = {}
+
+    # Thumbnail (carátula) opcional: data URL base64 (JPEG/PNG/WebP) capturado en cliente.
+    thumbnail_data_url = data.get('thumbnail_data_url')
+    if thumbnail_data_url is None:
+        thumbnail_data_url = data.get('thumb_data_url')
+    try:
+        thumbnail_data_url = str(thumbnail_data_url or '').strip()
+    except Exception:
+        thumbnail_data_url = ''
+    thumb_payload = None
+    if thumbnail_data_url.startswith('data:image/') and ';base64,' in thumbnail_data_url:
+        try:
+            header, payload = thumbnail_data_url.split(';base64,', 1)
+            mime = header.split(':', 1)[1].strip().lower()
+            if mime not in ('image/jpeg', 'image/png', 'image/webp'):
+                mime = ''
+            raw_bytes = base64.b64decode(payload.encode('ascii'))
+            if raw_bytes and len(raw_bytes) <= 650_000 and mime:
+                ext = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}.get(mime, '.jpg')
+                thumb_payload = (raw_bytes, ext)
+        except Exception:
+            thumb_payload = None
     # Límite de tamaño razonable.
     try:
         raw = json.dumps({'overlay': overlay, 'notes': notes, 'tags': tags}, ensure_ascii=False).encode('utf-8')
@@ -46253,6 +46280,20 @@ def analysis_video_studio_clip_save_api(request):
                 overlay=overlay,
                 created_by=username,
             )
+
+        # Guarda carátula si viene (no es obligatoria).
+        if thumb_payload:
+            try:
+                raw_bytes, ext = thumb_payload
+                try:
+                    if getattr(obj, 'thumbnail', None):
+                        obj.thumbnail.delete(save=False)
+                except Exception:
+                    pass
+                filename = f'clip-{int(obj.id)}-{int(obj.in_ms or 0)}ms{ext}'
+                obj.thumbnail.save(filename, ContentFile(raw_bytes), save=True)
+            except Exception:
+                pass
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
     return JsonResponse({'ok': True, 'id': int(obj.id)})

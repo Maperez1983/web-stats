@@ -1866,6 +1866,12 @@ class VideoClip(models.Model):
     tags = models.JSONField(default=list, blank=True)
     notes = models.TextField(blank=True)
     overlay = models.JSONField(default=dict, blank=True, help_text='Estado de la pizarra (fabric/canvas) para este clip.')
+    thumbnail = models.ImageField(
+        upload_to='video-clips/thumbs/',
+        null=True,
+        blank=True,
+        help_text='Carátula del clip (snapshot del primer frame en IN).',
+    )
     created_by = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
