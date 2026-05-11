@@ -16531,12 +16531,31 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
     range_header = str(request.META.get('HTTP_RANGE') or '').strip()
     disposition = 'attachment' if as_attachment else 'inline'
 
+    # Descargas: en iOS/Safari y algunas webviews, un 206 (Range) suele abrir el vídeo en el player
+    # en vez de ofrecer "archivo". Forzamos respuesta completa (200) y `octet-stream` para que se trate
+    # como descarga "normal".
+    if as_attachment:
+        range_header = ''
+        if resolved_ct.startswith('video/'):
+            resolved_ct = 'application/octet-stream'
+
+    def _set_content_disposition(response):
+        if not filename:
+            return
+        # filename*= (RFC5987) mejora compatibilidad con espacios/UTF-8.
+        safe = str(filename).replace('"', '').strip() or 'download'
+        try:
+            encoded = quote(safe)
+        except Exception:
+            encoded = safe
+        response['Content-Disposition'] = f'{disposition}; filename="{safe}"; filename*=UTF-8\'\'{encoded}'
+
     if not range_header:
         response = FileResponse(fh, content_type=resolved_ct)
         response['Accept-Ranges'] = 'bytes'
-        if filename:
-            response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+        _set_content_disposition(response)
         response['Cache-Control'] = 'private, max-age=60'
+        response['X-Content-Type-Options'] = 'nosniff'
         return response
 
     # bytes=start-end
@@ -16570,9 +16589,9 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
         # fallback sin Range real (storage sin seek)
         response = FileResponse(fh, content_type=resolved_ct)
         response['Accept-Ranges'] = 'bytes'
-        if filename:
-            response['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+        _set_content_disposition(response)
         response['Cache-Control'] = 'private, max-age=60'
+        response['X-Content-Type-Options'] = 'nosniff'
         return response
 
     chunk_size = 1024 * 256
@@ -16593,9 +16612,9 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
     if file_size:
         resp['Content-Range'] = f'bytes {start}-{end}/{file_size}'
     resp['Accept-Ranges'] = 'bytes'
-    if filename:
-        resp['Content-Disposition'] = f'{disposition}; filename="{filename}"'
+    _set_content_disposition(resp)
     resp['Cache-Control'] = 'private, max-age=60'
+    resp['X-Content-Type-Options'] = 'nosniff'
     return resp
 
 
