@@ -1678,10 +1678,16 @@
       updateLayerPanel();
     });
     layerDelBtn?.addEventListener('click', () => {
+      deleteCurrentLayer({ confirm: true });
+    });
+
+    const deleteCurrentLayer = ({ confirm = false } = {}) => {
       const target = currentLayerTarget();
-      if (!target) return;
-      const ok = window.confirm('¿Borrar capa seleccionada?');
-      if (!ok) return;
+      if (!target) return false;
+      if (confirm) {
+        const ok = window.confirm('¿Borrar capa seleccionada?');
+        if (!ok) return false;
+      }
       if (target.type === 'fx') {
         fxState.layers = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((x) => Number(x?.id) !== Number(target.fx.id));
         selectedFxId = 0;
@@ -1689,13 +1695,17 @@
         renderFxList();
         updateLayerPanel();
         renderDrawLayers();
-        return;
+        setStatus('Capa borrada.');
+        return true;
       }
       try { fabricCanvas.remove(target.obj); } catch (e) { /* ignore */ }
+      try { fabricCanvas.discardActiveObject?.(); } catch (e) { /* ignore */ }
       pushHistory();
       updateLayerPanel();
       renderDrawLayers();
-    });
+      setStatus('Capa borrada.');
+      return true;
+    };
 
 	    fabricCanvas.on('mouse:down', (opt) => {
 	      if (tool === 'arrow' || tool === 'curve') {
@@ -2609,6 +2619,14 @@
       if (k === 'd') {
         ev.preventDefault();
         toggleDorsalMode();
+      }
+      if (k === 'delete' || k === 'backspace') {
+        // Borrar capa/efecto seleccionado (dibujo o FX) con teclado.
+        const did = deleteCurrentLayer({ confirm: false });
+        if (did) {
+          ev.preventDefault();
+          try { ev.stopPropagation?.(); } catch (e) { /* ignore */ }
+        }
       }
       if (k === 'escape') {
         // Cancelar borrador de área.
