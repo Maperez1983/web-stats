@@ -332,6 +332,10 @@
           if (!playerPop || !stage || !canvasEl) return;
           const tgt = ev.target;
           if (tgt && playerPop.contains(tgt)) return;
+          // Si el pop-up ya está abierto, no lo re-dispares.
+          try {
+            if (playerPop.style && String(playerPop.style.display || '') !== 'none') return;
+          } catch (e0) { /* ignore */ }
           const rect = canvasEl.getBoundingClientRect();
           const x = clamp((ev.clientX ?? 0) - rect.left, 0, rect.width);
           const y = clamp((ev.clientY ?? 0) - rect.top, 0, rect.height);
@@ -342,6 +346,10 @@
       };
       try {
         canvasEl.addEventListener('pointerdown', domPlayerPointerHandler, { passive: false });
+      } catch (e) { /* ignore */ }
+      try {
+        // Capture en el contenedor para cubrir el caso de Fabric (upperCanvasEl) u otros overlays.
+        stage.addEventListener('pointerdown', domPlayerPointerHandler, { passive: false, capture: true });
       } catch (e) { /* ignore */ }
 
 	    // Timeline editor (clips)
