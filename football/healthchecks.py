@@ -32,6 +32,48 @@ def _dependency_status():
     return checks
 
 
+def _s3_media_status():
+    """
+    Best-effort check that the configured S3 bucket works for media storage.
+
+    - Avoids leaking secrets; reports only non-sensitive config.
+    - Uses django-storages backend when USE_S3_MEDIA=true.
+    """
+    if not bool(getattr(settings, 'USE_S3_MEDIA', False)):
+        return {'ok': True, 'detail': 'disabled'}
+    bucket = str(getattr(settings, 'AWS_STORAGE_BUCKET_NAME', '') or '').strip()
+    region = str(getattr(settings, 'AWS_S3_REGION_NAME', '') or '').strip()
+    media_url = str(getattr(settings, 'MEDIA_URL', '') or '').strip()
+    detail = {
+        'bucket': bucket,
+        'region': region,
+        'media_url': media_url,
+        'can_write': False,
+        'note': 'S3 status is best-effort',
+    }
+    try:
+        from django.core.files.base import ContentFile  # noqa: WPS433
+        from django.core.files.storage import default_storage  # noqa: WPS433
+
+        key = f'healthcheck/{bucket or "bucket"}/ping.txt'
+        saved = default_storage.save(key, ContentFile(b'ping'))
+        # Read-back (optional but helps detect permission issues).
+        try:
+            with default_storage.open(saved, 'rb') as fh:
+                _ = fh.read(8)
+        except Exception:
+            pass
+        try:
+            default_storage.delete(saved)
+        except Exception:
+            pass
+        detail['can_write'] = True
+        return {'ok': True, 'detail': detail}
+    except Exception as exc:
+        detail['error'] = f'{exc.__class__.__name__}: {exc}'
+        return {'ok': False, 'detail': detail}
+
+
 def run_system_healthcheck():
     results = {
         'database': {'ok': False, 'detail': 'not checked'},
@@ -71,6 +113,7 @@ def run_system_healthcheck():
             'ok': True,
             'detail': 'S3 (USE_S3_MEDIA=true)',
         }
+        results['s3_media'] = _s3_media_status()
 
     overall_ok = (
         results['database']['ok']
