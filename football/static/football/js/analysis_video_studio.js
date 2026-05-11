@@ -1388,9 +1388,17 @@
           shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
         });
 
-        const tagOffsetX = radius + 10 + (nameW / 2);
-        tagRect.set({ left: p.x + tagOffsetX, top: p.y });
-        nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
+        const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+        const canvasH = Number(fabricCanvas.getHeight?.()) || 0;
+        const safeY = (canvasH && nameH) ? clamp(p.y, nameH / 2 + 2, canvasH - (nameH / 2) - 2) : p.y;
+        // Por defecto, etiqueta a la derecha. Si no cabe, la pasamos a la izquierda.
+        const defaultOffX = radius + 10 + (nameW / 2);
+        const fitsRight = canvasW ? ((p.x + defaultOffX + (nameW / 2)) <= (canvasW - 4)) : true;
+        const fitsLeft = canvasW ? ((p.x - defaultOffX - (nameW / 2)) >= 4) : true;
+        const tagOffsetX = fitsRight ? defaultOffX : (fitsLeft ? -defaultOffX : defaultOffX);
+        const tagX = canvasW ? clamp(p.x + tagOffsetX, (nameW / 2) + 2, canvasW - (nameW / 2) - 2) : (p.x + tagOffsetX);
+        tagRect.set({ left: tagX, top: safeY });
+        nameText.set({ left: tagX, top: safeY + 0.5 });
 
         const showTag = prefsStyle !== 'circle' && Boolean(name);
         const objects = showTag
@@ -2397,6 +2405,41 @@
 	    let lastExportShareUrl = '';
 	    let lastFailedExport = null;
 
+      const triggerDownload = (url, { filename = '' } = {}) => {
+        const href = safeText(url, '');
+        if (!href) return false;
+        try {
+          const a = document.createElement('a');
+          a.href = href;
+          a.rel = 'noopener';
+          a.target = '_blank';
+          if (filename) a.download = safeText(filename, '').slice(0, 180);
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          return true;
+        } catch (e) {
+          try {
+            window.open(href, '_blank', 'noopener');
+            return true;
+          } catch (e2) { /* ignore */ }
+        }
+        return false;
+      };
+
+      const tryCopy = async (text) => {
+        try {
+          const value = safeText(text, '');
+          if (!value) return false;
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(value);
+            return true;
+          }
+        } catch (e) { /* ignore */ }
+        return false;
+      };
+
 	    const stopRecording = async () => {
       if (!recActive) return;
       recActive = false;
@@ -2702,17 +2745,9 @@
 	        const downloadUrl = String(data.download_url || url);
 	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
 	        lastExportShareUrl = url;
-	        try {
-	          if (navigator.clipboard?.writeText) {
-	            await navigator.clipboard.writeText(downloadUrl);
-	            setStatus('MP4 server listo. Link copiado.');
-	          } else {
-	            setStatus('MP4 server listo. Copia el link.');
-	            window.prompt('Copia este enlace:', downloadUrl);
-	          }
-	        } catch (e) {
-	          window.prompt('Copia este enlace:', downloadUrl);
-	        }
+          triggerDownload(downloadUrl);
+          try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
+          setStatus('MP4 listo. Descargando…');
 	        refreshShareLinks();
 	      } catch (e) {
 	        setStatus('Error exportando MP4 en servidor.', true);
@@ -2761,17 +2796,9 @@
 	        const downloadUrl = String(data.download_url || url);
 	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
 	        lastExportShareUrl = url;
-	        try {
-	          if (navigator.clipboard?.writeText) {
-	            await navigator.clipboard.writeText(downloadUrl);
-	            setStatus('MP4 playlist listo. Link copiado.');
-	          } else {
-	            setStatus('MP4 playlist listo. Copia el link.');
-	            window.prompt('Copia este enlace:', downloadUrl);
-	          }
-	        } catch (e) {
-	          window.prompt('Copia este enlace:', downloadUrl);
-	        }
+          triggerDownload(downloadUrl);
+          try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
+          setStatus('MP4 playlist listo. Descargando…');
 	        refreshShareLinks();
 	      } catch (e) {
 	        setStatus('Error exportando MP4 playlist en servidor.', true);
@@ -3481,17 +3508,9 @@
 		          setStatus('No se pudo exportar MP4 timeline.', true);
 		          return;
 		        }
-		        try {
-		          if (navigator.clipboard?.writeText) {
-		            await navigator.clipboard.writeText(downloadUrl);
-		            setStatus('MP4 timeline listo. Link copiado.');
-	          } else {
-	            setStatus('MP4 timeline listo. Copia el link.');
-	            window.prompt('Copia este enlace:', downloadUrl);
-	          }
-	        } catch (e) {
-	          window.prompt('Copia este enlace:', downloadUrl);
-	        }
+            triggerDownload(downloadUrl);
+            try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
+            setStatus('MP4 timeline listo. Descargando…');
 		        refreshShareLinks();
 		      } catch (e) {
 		        setJobUi({ show: false, canCancel: false });
