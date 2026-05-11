@@ -94,6 +94,13 @@
       /* Panel lateral usable: scroll interno, tabs siempre visibles */
       .vs-side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow:auto; padding-right: 0.1rem; }
       @media (max-width: 980px) { .vs-side { position: static; max-height: none; overflow: visible; } }
+
+      /* Accordion para evitar scroll infinito */
+      details.vs-acc { margin-top: 1rem; padding-top: 0.25rem; border-top: 1px solid rgba(148,163,184,0.16); }
+      details.vs-acc > summary { cursor:pointer; font-weight: 950; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem; color: rgba(226,232,240,0.85); list-style:none; }
+      details.vs-acc > summary::-webkit-details-marker { display:none; }
+      details.vs-acc[open] > summary { color: #e9fbff; }
+      details.vs-acc .vs-acc-body { margin-top:0.55rem; display:grid; gap:0.55rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -232,25 +239,29 @@
             <div class="meta" style="margin-top:0.2rem;">Guarda la capa de dibujo actual para reutilizarla.</div>
             <div class="list" id="vs-projects"></div>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Dashboard</div>
-              <div class="hint">Resumen rápido de <span class="k">timeline</span> y <span class="k">clips</span>.</div>
-              <div class="list" id="vs-dashboard" style="margin-top:0.55rem;"></div>
-              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
-                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
-                  <input type="checkbox" id="vs-filter-unreviewed-clips" style="width:18px;height:18px;accent-color:#22d3ee;" />
-                  Clips: solo no revisados
-                </label>
-                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
-                  <input type="checkbox" id="vs-filter-unreviewed-events" style="width:18px;height:18px;accent-color:#22d3ee;" />
-                  Timeline: solo no revisados
-                </label>
-              </div>
-            </div>
+	            <details class="vs-acc" open>
+                <summary>Dashboard</summary>
+                <div class="vs-acc-body">
+	              <div class="hint">Resumen rápido de <span class="k">timeline</span> y <span class="k">clips</span>.</div>
+	              <div class="list" id="vs-dashboard" style="margin-top:0.1rem;"></div>
+	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.25rem;">
+	                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+	                  <input type="checkbox" id="vs-filter-unreviewed-clips" style="width:18px;height:18px;accent-color:#22d3ee;" />
+	                  Clips: solo no revisados
+	                </label>
+	                <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+	                  <input type="checkbox" id="vs-filter-unreviewed-events" style="width:18px;height:18px;accent-color:#22d3ee;" />
+	                  Timeline: solo no revisados
+	                </label>
+	              </div>
+                </div>
+	            </details>
 
-	            <div style="margin-top:0.9rem; display:grid; gap:0.45rem;">
-                <div style="padding:0.6rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03);">
-                  <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;">Corte base</div>
+		            <details class="vs-acc">
+                  <summary>Edición</summary>
+                  <div class="vs-acc-body">
+	                <div style="padding:0.6rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03);">
+	                  <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;">Corte base</div>
                   <div class="hint" style="margin-bottom:0.45rem;">Define el tramo útil del vídeo (quita anuncios/esperas) para trabajar siempre ahí.</div>
                   <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
                     <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0; margin:0;">
@@ -295,51 +306,57 @@
 	                  <option value="60">60</option>
 	                </select>
 	              </label>
-	              <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
-	                <input type="checkbox" id="vs-video-audio" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
-	                Incluir audio (si el dispositivo lo permite)
-	              </label>
-	            </div>
+		              <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+		                <input type="checkbox" id="vs-video-audio" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+		                Incluir audio (si el dispositivo lo permite)
+		              </label>
+                  </div>
+		            </details>
 
-	            <div class="split">
-	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Export Pro</div>
-	              <div class="hint">Crea <span class="k">slides</span> (capturas con telestración) para imprimir o compartir.</div>
-	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
-	                <button type="button" class="button" id="vs-slide-add">Añadir slide</button>
-	                <button type="button" class="button" id="vs-slides-from-timeline">Timeline → slides</button>
-	                <button type="button" class="button danger" id="vs-slides-clear">Limpiar</button>
-	              </div>
-	              <div class="list" id="vs-slides"></div>
-	              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.55rem;">
-	                <button type="button" class="button primary" id="vs-export-pdf">PDF slides</button>
-	                <button type="button" class="button" id="vs-export-package">Paquete ZIP</button>
-	                <button type="button" class="button" id="vs-report-pdf">Informe PDF</button>
-	                <button type="button" class="button" id="vs-report-share">Compartir informe</button>
-	              </div>
-	            </div>
+		            <details class="vs-acc">
+                  <summary>Exportar</summary>
+                  <div class="vs-acc-body">
+		              <div class="hint">Crea <span class="k">slides</span> (capturas con telestración) para imprimir o compartir.</div>
+		              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+		                <button type="button" class="button" id="vs-slide-add">Añadir slide</button>
+		                <button type="button" class="button" id="vs-slides-from-timeline">Timeline → slides</button>
+		                <button type="button" class="button danger" id="vs-slides-clear">Limpiar</button>
+		              </div>
+		              <div class="list" id="vs-slides"></div>
+		              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+		                <button type="button" class="button primary" id="vs-export-pdf">PDF slides</button>
+		                <button type="button" class="button" id="vs-export-package">Paquete ZIP</button>
+		                <button type="button" class="button" id="vs-report-pdf">Informe PDF</button>
+		                <button type="button" class="button" id="vs-report-share">Compartir informe</button>
+		              </div>
+                  </div>
+		            </details>
 
-              <div class="split">
-                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Plantillas</div>
-                <div class="hint">Añade guías rápidas (carriles, zonas) para telestración.</div>
-                <label>
-                  Plantilla
-                  <select id="vs-template">
+	              <details class="vs-acc">
+                  <summary>Plantillas</summary>
+                  <div class="vs-acc-body">
+	                <div class="hint">Añade guías rápidas (carriles, zonas) para telestración.</div>
+	                <label>
+	                  Plantilla
+	                  <select id="vs-template">
                     <option value="">—</option>
                     <option value="lanes">Carriles (5)</option>
                     <option value="central_box">Caja central</option>
                     <option value="final_third">Último tercio</option>
                   </select>
                 </label>
-                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
-                  <button type="button" class="button" id="vs-template-apply">Aplicar</button>
-                  <button type="button" class="button danger" id="vs-template-clear">Quitar plantillas</button>
-                </div>
-              </div>
+	                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
+	                  <button type="button" class="button" id="vs-template-apply">Aplicar</button>
+	                  <button type="button" class="button danger" id="vs-template-clear">Quitar plantillas</button>
+	                </div>
+                  </div>
+	              </details>
 
-	            <div class="split">
-	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Capa seleccionada</div>
-	              <div class="hint" id="vs-layer-empty">Selecciona un dibujo o un FX para editar su entrada/salida.</div>
-	              <div id="vs-layer-form" style="display:none; gap:0.45rem;">
+		            <details class="vs-acc" open>
+                  <summary>Telestración</summary>
+                  <div class="vs-acc-body">
+		              <div class="hint" id="vs-layer-empty">Selecciona un dibujo o un FX para editar su entrada/salida.</div>
+		              <div id="vs-layer-form" style="display:none; gap:0.45rem;">
                 <div class="hint" id="vs-layer-kind"></div>
                 <label>
                   Entrada / salida (segundos)
@@ -384,25 +401,31 @@
                       <input type="number" id="vs-fx-opacity" min="0" max="1" step="0.05" value="1" />
                     </div>
                   </label>
-                </div>
-              </div>
+		              </div>
+                  </div>
+		            </details>
             </div>
 
-	            <div class="split">
-	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">FX (Spotlight / Blur / Freeze)</div>
-	              <div class="hint">Crea FX con <span class="k">Spotlight</span>, <span class="k">Blur</span> o <span class="k">Freeze</span> y edita su timing aquí.</div>
-	              <div class="list" id="vs-fx-layers"></div>
-	            </div>
+		            <details class="vs-acc">
+                  <summary>FX</summary>
+                  <div class="vs-acc-body">
+		              <div class="hint">Crea FX con <span class="k">Spotlight</span>, <span class="k">Blur</span> o <span class="k">Freeze</span> y edita su timing aquí.</div>
+		              <div class="list" id="vs-fx-layers"></div>
+                  </div>
+		            </details>
 
-              <div class="split">
-                <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Capas (dibujos)</div>
-                <div class="hint">Acceso rápido a dibujos con timing. Útil para telestración por capas.</div>
-                <div class="list" id="vs-draw-layers"></div>
-              </div>
+	              <details class="vs-acc">
+                  <summary>Capas (dibujos)</summary>
+                  <div class="vs-acc-body">
+	                <div class="hint">Acceso rápido a dibujos con timing. Útil para telestración por capas.</div>
+	                <div class="list" id="vs-draw-layers"></div>
+                  </div>
+	              </details>
 
-	            <div class="split">
-	              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
-	              <div style="display:grid; gap:0.45rem; margin-bottom:0.55rem;">
+		            <details class="vs-acc">
+                  <summary>Clips</summary>
+                  <div class="vs-acc-body">
+		              <div style="display:grid; gap:0.45rem; margin-bottom:0.55rem;">
 	                <label style="margin:0;">
 	                  Buscar
 	                  <input type="text" id="vs-clip-search" placeholder="Título, notas, tags…" />
@@ -548,15 +571,17 @@
 		                <div id="vs-clip-collections" style="display:flex; flex-wrap:wrap; gap:0.4rem;"></div>
 		              </div>
                   <div class="hint" style="margin-top:0.35rem;">Creación/edición rápida: pestaña <span class="k">Clip</span>.</div>
-			              <div class="hint" style="margin-top:0.35rem;">Los clips aparecen debajo del vídeo.</div>
-			            </div>
+				              <div class="hint" style="margin-top:0.35rem;">Los clips aparecen debajo del vídeo.</div>
+                  </div>
+				            </details>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Timeline</div>
-              <label>
-                Buscar
-                <input type="text" id="vs-timeline-search" placeholder="Ej: presión, ABP, robo..." />
-              </label>
+	            <details class="vs-acc">
+                <summary>Timeline</summary>
+                <div class="vs-acc-body">
+	              <label>
+	                Buscar
+	                <input type="text" id="vs-timeline-search" placeholder="Ej: presión, ABP, robo..." />
+	              </label>
               <label>
                 Filtro tipo
                 <select id="vs-timeline-filter-kind" multiple size="4" style="min-height:104px;">
@@ -706,13 +731,15 @@
                 <button type="button" class="button" id="vs-timeline-to-clips">Timeline → clips</button>
                 <button type="button" class="button danger" id="vs-timeline-clear">Vaciar</button>
               </div>
-              <input type="file" id="vs-timeline-import-file" accept="application/json,text/csv,application/xml,.json,.csv,.xml" hidden />
-              <div class="list" id="vs-timeline"></div>
-            </div>
+	              <input type="file" id="vs-timeline-import-file" accept="application/json,text/csv,application/xml,.json,.csv,.xml" hidden />
+	              <div class="list" id="vs-timeline"></div>
+                </div>
+	            </details>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Asistente IA</div>
-              <div class="hint">Genera un resumen y sugerencias usando <span class="k">timeline</span> + <span class="k">clips</span>.</div>
+	            <details class="vs-acc">
+                <summary>Asistente IA</summary>
+                <div class="vs-acc-body">
+	              <div class="hint">Genera un resumen y sugerencias usando <span class="k">timeline</span> + <span class="k">clips</span>.</div>
               <label style="margin-top:0.55rem;">
                 Contexto (opcional)
                 <textarea id="vs-ai-context" style="min-height:72px;" placeholder="Ej: Analiza presión tras pérdida, salida vs presión rival, ocupación de área..."></textarea>
@@ -728,20 +755,22 @@
                 Incluir en Informe PDF
               </label>
               <div class="hint" id="vs-ai-meta" style="margin-top:0.35rem;">—</div>
-              <pre id="vs-ai-output" style="margin:0.55rem 0 0; white-space:pre-wrap; word-break:break-word; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); padding:0.7rem 0.75rem; font-weight:800; color: rgba(226,232,240,0.82); min-height:84px;"></pre>
-            </div>
+	              <pre id="vs-ai-output" style="margin:0.55rem 0 0; white-space:pre-wrap; word-break:break-word; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background:rgba(255,255,255,0.03); padding:0.7rem 0.75rem; font-weight:800; color: rgba(226,232,240,0.82); min-height:84px;"></pre>
+                </div>
+	            </details>
 
-            <div class="split">
-              <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Compartir</div>
-              <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>
+	            <details class="vs-acc">
+                <summary>Compartir</summary>
+                <div class="vs-acc-body">
+	              <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>
               <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.4rem;">
                 <button type="button" class="button" id="vs-share-refresh">Actualizar</button>
                 <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
               </div>
               <div class="list" id="vs-share-links" style="margin-top:0.45rem;"></div>
 
-              <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(148,163,184,0.16); display:grid; gap:0.45rem;">
-                <div class="hint"><span class="k">Interno</span> Envía a miembros del workspace (sin enlace público).</div>
+	              <div style="margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(148,163,184,0.16); display:grid; gap:0.45rem;">
+	                <div class="hint"><span class="k">Interno</span> Envía a miembros del workspace (sin enlace público).</div>
                 <label>
                   Destinatarios
                   <select id="vs-inbox-users" multiple size="5" style="min-height:132px;"></select>
@@ -755,8 +784,9 @@
                   <button type="button" class="button" id="vs-inbox-send-playlist">Enviar playlist</button>
                   <button type="button" class="button" id="vs-inbox-send-export">Enviar export</button>
                   <button type="button" class="button" id="vs-inbox-send-report">Enviar informe</button>
+	              </div>
                 </div>
-              </div>
+		            </details>
 	            </div>
             </div>
 	          </div>

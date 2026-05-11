@@ -1144,8 +1144,18 @@
     video.addEventListener('loadeddata', scheduleResize);
     scheduleResize();
 
-    const strokeColor = () => safeText(colorInput?.value, '#22d3ee');
-    const strokeWidth = () => clamp(Number(widthInput?.value || 6), 1, 26);
+	    const strokeColor = () => safeText(colorInput?.value, '#22d3ee');
+	    const strokeWidth = () => clamp(Number(widthInput?.value || 6), 1, 26);
+
+      const parsePlayerMarkerInput = (raw) => {
+        const txt = safeText(raw, '').trim();
+        if (!txt) return { number: '', name: '' };
+        const m = txt.match(/^\s*(\d{1,3})\s*[-–—.:]*\s*(.*)\s*$/);
+        if (!m) return { number: '', name: '' };
+        const number = safeText(m[1], '').trim();
+        const name = safeText(m[2], '').trim();
+        return { number, name };
+      };
     colorInput?.addEventListener('change', () => {
       try { fabricCanvas.freeDrawingBrush.color = strokeColor(); } catch (e) { /* ignore */ }
     });
@@ -1361,32 +1371,85 @@
 	      }
 	      if (tool === 'player') {
 	        const p = fabricCanvas.getPointer(opt.e);
-	        const raw = window.prompt('Dorsal / texto (ej: 9 o "9 ALEX")', '');
-	        const label = safeText(raw, '').slice(0, 12) || String(calloutSeq++);
+	        let number = '';
+	        let name = '';
+	        for (let tries = 0; tries < 2; tries += 1) {
+	          const raw = window.prompt('Jugador (ej: 9 ALEX)', `${number ? `${number} ` : ''}${name}`);
+	          const parsed = parsePlayerMarkerInput(raw);
+	          number = safeText(parsed.number, '');
+	          name = safeText(parsed.name, '');
+	          if (number && name) break;
+	          if (number && !name) {
+	            const rawName = window.prompt('Nombre (ej: ALEX)', '');
+	            name = safeText(rawName, '').trim();
+	            if (name) break;
+	          }
+	        }
+	        if (!number || !name) return;
+
 	        const radius = 22 + Math.round(strokeWidth() / 2);
-	        const ring = new fabric.Circle({
+	        const color = strokeColor();
+
+	        // Broadcast-style: círculo con dorsal + etiqueta con nombre
+	        const ringOuter = new fabric.Circle({
 	          left: p.x,
 	          top: p.y,
 	          radius,
-	          fill: 'rgba(2,6,23,0.25)',
-	          stroke: strokeColor(),
-	          strokeWidth: 4,
+	          fill: color,
+	          stroke: 'rgba(255,255,255,0.92)',
+	          strokeWidth: 3,
 	          originX: 'center',
 	          originY: 'center',
 	          shadow: 'rgba(0,0,0,0.35) 0 2px 6px',
 	        });
-	        const text = new fabric.Text(label, {
+	        const numText = new fabric.Text(String(number).slice(0, 3), {
 	          left: p.x,
-	          top: p.y,
+	          top: p.y + 1,
 	          fill: '#ffffff',
-	          fontSize: 16,
+	          fontSize: 18,
 	          fontWeight: '950',
 	          originX: 'center',
 	          originY: 'center',
-	          shadow: 'rgba(0,0,0,0.55) 0 1px 2px',
+	          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
 	        });
-	        const group = new fabric.Group([ring, text], { selectable: true });
-	        group.data = seedLayerDataNow({ kind: 'player_marker', label });
+
+	        const label = safeText(name, '').toUpperCase().slice(0, 18);
+	        const nameText = new fabric.Text(label, {
+	          left: p.x,
+	          top: p.y,
+	          fill: '#ffffff',
+	          fontSize: 14,
+	          fontWeight: '950',
+	          originX: 'center',
+	          originY: 'center',
+	          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
+	        });
+	        try { nameText.initDimensions(); } catch (e) { /* ignore */ }
+	        const padX = 12;
+	        const padY = 7;
+	        const nameW = Math.max(52, Math.round((nameText.width || 0) + padX * 2));
+	        const nameH = Math.max(26, Math.round((nameText.height || 0) + padY * 2));
+	        const tagRect = new fabric.Rect({
+	          left: p.x,
+	          top: p.y,
+	          width: nameW,
+	          height: nameH,
+	          rx: 999,
+	          ry: 999,
+	          fill: 'rgba(2,6,23,0.68)',
+	          stroke: 'rgba(255,255,255,0.18)',
+	          strokeWidth: 1,
+	          originX: 'center',
+	          originY: 'center',
+	          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+	        });
+
+	        const tagOffsetX = radius + 10 + (nameW / 2);
+	        tagRect.set({ left: p.x + tagOffsetX, top: p.y });
+	        nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
+
+	        const group = new fabric.Group([ringOuter, numText, tagRect, nameText], { selectable: true });
+	        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name: label });
 	        fabricCanvas.add(group);
 	        pushHistory();
 	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
