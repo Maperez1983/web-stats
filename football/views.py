@@ -17692,6 +17692,9 @@ def _regulation_minutes_for_team(team):
     if category:
         # Match total minutes by category keyword.
         # We detect by substring to tolerate "Benjamín A", "Prebenjamín 2ª", etc.
+        # RFAF: "Cadete femenino" suele ser 80' (40' por parte).
+        if 'cadete' in category and ('femen' in category or ' fem' in f' {category}'):
+            return 80
         rules = [
             (('bebe', 'bebé'), 40),
             (('prebenjamin', 'pre benjamin', 'pre-benjamin'), 50),
