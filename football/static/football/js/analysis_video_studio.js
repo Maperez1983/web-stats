@@ -2628,6 +2628,36 @@
           try { ev.stopPropagation?.(); } catch (e) { /* ignore */ }
         }
       }
+      if (k === '[' || k === ']') {
+        // Atajos tipo KlipDraw: ajustar IN/OUT de la capa seleccionada al playhead.
+        const target = currentLayerTarget();
+        if (!target) return;
+        ev.preventDefault();
+        const now = Number(video.currentTime) || 0;
+        if (k === '[') {
+          if (target.type === 'fx') {
+            target.fx.t_in_s = now;
+            renderFxList();
+          } else {
+            ensureLayerData(target.obj);
+            target.obj.data.t_in_s = now;
+            pushHistory();
+          }
+          updateLayerPanel();
+          setStatus('IN=Ahora');
+        } else {
+          if (target.type === 'fx') {
+            target.fx.t_out_s = now;
+            renderFxList();
+          } else {
+            ensureLayerData(target.obj);
+            target.obj.data.t_out_s = now;
+            pushHistory();
+          }
+          updateLayerPanel();
+          setStatus('OUT=Ahora');
+        }
+      }
       if (k === 'escape') {
         // Cancelar borrador de área.
         if (tool === 'area') {
