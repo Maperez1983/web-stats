@@ -957,18 +957,20 @@
       let scrubRaf = null;
       let scrubTarget = null;
       let lastPointerAt = 0;
-      const seekFromMiniEvent = (ev, { commit = false, showLabel = false } = {}) => {
+      const seekFromMiniEvent = (ev, { commit = false, showLabel = false, preferTargetSeek = true } = {}) => {
         const dur = Number(video.duration) || 0;
         if (!dur || !Number.isFinite(dur)) return;
         let t = null;
-        try {
-          const hasAttr = Boolean(ev?.target?.getAttribute?.('data-seek') != null);
-          if (hasAttr) {
-            const direct = Number(ev?.target?.getAttribute?.('data-seek'));
-            if (Number.isFinite(direct) && direct >= 0) t = direct;
+        if (preferTargetSeek) {
+          try {
+            const hasAttr = Boolean(ev?.target?.getAttribute?.('data-seek') != null);
+            if (hasAttr) {
+              const direct = Number(ev?.target?.getAttribute?.('data-seek'));
+              if (Number.isFinite(direct) && direct >= 0) t = direct;
+            }
+          } catch (e) {
+            t = null;
           }
-        } catch (e) {
-          t = null;
         }
         if (t == null) {
           const rect = scrubRect || miniTimeline.getBoundingClientRect();
@@ -1003,14 +1005,16 @@
           lastPointerAt = Date.now();
           try { miniTimeline.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
           try { ev.preventDefault(); } catch (e) { /* ignore */ }
-          seekFromMiniEvent(ev);
+          // Primer salto: si toca un clip/marker, permite "snap" al inicio.
+          seekFromMiniEvent(ev, { preferTargetSeek: true });
         });
         miniTimeline.addEventListener('pointermove', (ev) => {
           if (!scrubActive) return;
           if (scrubPointerId != null && ev.pointerId !== scrubPointerId) return;
           lastPointerAt = Date.now();
           try { ev.preventDefault(); } catch (e) { /* ignore */ }
-          seekFromMiniEvent(ev);
+          // Durante el drag, ignora `data-seek` del target inicial (Pointer Events mantiene `target` fijo).
+          seekFromMiniEvent(ev, { preferTargetSeek: false });
         });
         const endScrub = (ev) => {
           if (!scrubActive) return;
@@ -1019,7 +1023,7 @@
           scrubPointerId = null;
           scrubRect = null;
           // En el final, un seek "commit" para fijar y mostrar feedback.
-          try { if (ev) seekFromMiniEvent(ev, { commit: true, showLabel: true }); } catch (e) { /* ignore */ }
+          try { if (ev) seekFromMiniEvent(ev, { commit: true, showLabel: true, preferTargetSeek: false }); } catch (e) { /* ignore */ }
         };
         miniTimeline.addEventListener('pointerup', endScrub);
         miniTimeline.addEventListener('pointercancel', endScrub);
@@ -1032,8 +1036,9 @@
         if (Date.now() - (lastPointerAt || 0) < 450) return;
 	      const dur = Number(video.duration) || 0;
 	      if (!dur || !Number.isFinite(dur)) return;
-	      const targetSeek = Number(ev.target?.getAttribute?.('data-seek') || 0);
-	      if (targetSeek) {
+	      const hasAttr = (ev.target?.getAttribute?.('data-seek') != null);
+	      const targetSeek = hasAttr ? Number(ev.target?.getAttribute?.('data-seek')) : NaN;
+	      if (Number.isFinite(targetSeek) && targetSeek >= 0) {
 	        seekToTrim(targetSeek, '→');
 	        return;
 	      }
