@@ -24,6 +24,7 @@ from django.contrib.auth import views as auth_views
 
 from football.auth_views import RoleAwareLoginView
 from football import views as football_views
+from webstats.media import protected_media_serve
 
 urlpatterns = [
     path('.well-known/apple-app-site-association', football_views.apple_app_site_association, name='apple-app-site-association'),
@@ -38,5 +39,5 @@ urlpatterns = [
 # Se protege con login para que las fotos/archivos solo se vean con sesión iniciada.
 if str(settings.MEDIA_URL).startswith('/') and not getattr(settings, 'USE_S3_MEDIA', False):
     urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', login_required(serve), {'document_root': settings.MEDIA_ROOT}),
+        re_path(r'^media/(?P<path>.*)$', protected_media_serve),
     ]

@@ -6411,6 +6411,19 @@ class VideoStudioProApiTests(TestCase):
         job = status.json().get('job') or {}
         self.assertIn(job.get('status'), {'canceled', 'pending', 'running', 'error'})
 
+    def test_media_video_supports_range_requests_for_safari(self):
+        # Safari/iOS requiere 206 (Range) para cargar metadata y permitir seek en <video>.
+        media_url = self.video.video.url
+        self.assertTrue(media_url.startswith('/media/'))
+
+        response = self.client.get(media_url, HTTP_RANGE='bytes=0-99')
+        self.assertEqual(response.status_code, 206)
+        size = int(getattr(self.video.video, 'size', 0) or 0)
+        self.assertGreater(size, 0)
+        expected_end = min(99, size - 1)
+        self.assertTrue(response.get('Content-Range', '').startswith(f'bytes 0-{expected_end}/'))
+        self.assertEqual(int(response.get('Content-Length') or 0), (expected_end - 0) + 1)
+
 
 class VideoStudioPersonalLibraryTests(TestCase):
     def setUp(self):
