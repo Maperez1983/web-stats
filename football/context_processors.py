@@ -28,6 +28,8 @@ def _static_build_id() -> str:
         candidates = [
             base_dir / 'football' / 'static' / 'football' / 'js' / 'sessions_tactical_pad.js',
             base_dir / 'football' / 'static' / 'football' / 'js' / 'match_actions_page.js',
+            base_dir / 'football' / 'static' / 'football' / 'js' / 'analysis_video_studio.js',
+            base_dir / 'football' / 'static' / 'football' / 'js' / 'analysis_video_studio_simple_ui.js',
             base_dir / 'static' / 'football' / 'css' / 'product_system.css',
             base_dir / 'static' / 'football' / 'css' / 'commercial.css',
         ]
