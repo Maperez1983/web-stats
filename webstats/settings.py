@@ -461,11 +461,19 @@ if USE_S3_MEDIA:
     AWS_S3_SIGNATURE_VERSION = 's3v4'
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
-    AWS_QUERYSTRING_AUTH = False
+    # Si el bucket no es público, necesitamos URLs firmadas para poder cargar vídeos/archivos desde el navegador.
+    # Safari además hace múltiples requests (Range) y debe poder autenticarse con la misma URL.
+    AWS_QUERYSTRING_AUTH = os.getenv('AWS_QUERYSTRING_AUTH', 'true').strip().lower() in {'1', 'true', 'yes', 'on'}
+    AWS_QUERYSTRING_EXPIRE = _env_int('AWS_QUERYSTRING_EXPIRE', 60 * 60 * 12)  # 12h
     AWS_S3_ADDRESSING_STYLE = 'virtual'
 
     AWS_MEDIA_LOCATION = os.getenv('AWS_MEDIA_LOCATION', 'media').strip().strip('/')
     AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN', '').strip()
+    # Nota: `storages.backends.s3.S3Storage` NO genera URLs firmadas si se usa `custom_domain` a pelo
+    # (solo firma si hay CloudFront signer). Para buckets privados queremos presigned URLs → desactiva
+    # custom_domain en ese caso.
+    if AWS_QUERYSTRING_AUTH and AWS_S3_CUSTOM_DOMAIN:
+        AWS_S3_CUSTOM_DOMAIN = ''
     STORAGES = {
         'default': {
             'BACKEND': 'storages.backends.s3.S3Storage',
@@ -475,6 +483,7 @@ if USE_S3_MEDIA:
                 'default_acl': AWS_DEFAULT_ACL,
                 'file_overwrite': AWS_S3_FILE_OVERWRITE,
                 'querystring_auth': AWS_QUERYSTRING_AUTH,
+                'querystring_expire': AWS_QUERYSTRING_EXPIRE,
                 'location': AWS_MEDIA_LOCATION,
                 'custom_domain': AWS_S3_CUSTOM_DOMAIN or None,
             },
