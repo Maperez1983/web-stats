@@ -1,7 +1,9 @@
 /* Extracted from templates/football/match_actions.html to shrink HTML payload. */
 (function () {
-  // Flag para evitar que el fallback ES5 (inline) duplique listeners / envíos.
-  try { window.__matchActionsMainBound = true; } catch (e) {}
+  // Señales globales para coordinar con el fallback ES5 (inline):
+  // - `__matchActionsMainOk`: true solo cuando el JS principal queda inicializado correctamente.
+  //   Si falla a mitad (Safari/iPad caches/errores), permitimos que el fallback se active.
+  try { window.__matchActionsMainOk = false; } catch (e) {}
   const boot = (window.matchActionsBoot || {});
       const getInitials = (value) => {
         const raw = String(value || '').trim();
@@ -4074,7 +4076,10 @@ const urlWithMatchId = (baseUrl) => {
 	          }
 	        });
 	      });
-	      updateCloseSummary();
-	      updatePlayerQuickPanel();
+      updateCloseSummary();
+      updatePlayerQuickPanel();
+
+      // Marca que el JS principal quedó inicializado correctamente (permite desactivar el fallback ES5).
+      try { window.__matchActionsMainOk = true; } catch (e) {}
 
 })();

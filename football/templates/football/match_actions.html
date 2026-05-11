@@ -2838,10 +2838,10 @@
 	              };
 
 	              ready(function () {
-	                // Si el JS principal se ha inicializado, no enlazamos fallback para evitar dobles envíos.
-	                try {
-	                  if (window.__matchActionsMainBound) return;
-	                } catch (e0) {}
+		                // Si el JS principal se ha inicializado correctamente, no enlazamos fallback para evitar dobles envíos.
+		                try {
+		                  if (window.__matchActionsMainOk) return;
+		                } catch (e0) {}
 	                // Stage tabs
 	                var tabs = document.querySelectorAll('[data-stage-tab]');
 	                for (var i = 0; i < tabs.length; i++) {
