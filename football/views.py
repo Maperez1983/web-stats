@@ -8980,6 +8980,12 @@ def _universo_payload_matches_category(live_payload: dict, category: str) -> boo
     hints = _universo_category_hints(category)
     if not hints:
         return True
+    # "Senior" rara vez aparece en el nombre de la competición/grupo en Universo/RFAF
+    # (p.ej. "1ª Andaluza Jaén"). Si aplicamos el guardrail para Senior podemos ocultar
+    # la clasificación correcta y parecer que "no se actualiza".
+    hints = [hint for hint in hints if hint != 'senior']
+    if not hints:
+        return True
     if not isinstance(live_payload, dict):
         return False
     # Universo no siempre devuelve la categoría explícita en `competicion`/`grupo` (sobre todo en base).
@@ -10761,7 +10767,11 @@ def _build_demo_dashboard_payload(request):
 def dashboard_data(request):
     """Devuelve los datos principales que alimentarán la home cuerpo técnico/jugador."""
     def _json(obj, *, status=200):
-        return JsonResponse(obj, status=status, json_dumps_params={'separators': (',', ':')})
+        response = JsonResponse(obj, status=status, json_dumps_params={'separators': (',', ':')})
+        # Safari/iOS puede cachear respuestas GET de JSON aunque cambie el contenido; la caché real
+        # la gestionamos en servidor (Django cache) y/o en el Service Worker.
+        response['Cache-Control'] = 'no-store'
+        return response
 
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:

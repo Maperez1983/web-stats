@@ -2168,7 +2168,11 @@
           loading.textContent = 'Cargando datos del dashboard…';
         }
         try {
-          const response = await fetch(buildDashboardUrl({ fresh }), { credentials: 'same-origin' });
+          const response = await fetch(buildDashboardUrl({ fresh }), {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+          });
           dashLastSource = (String(response.headers.get('x-webstats-cache') || '').trim() === '1') ? 'cache' : 'network';
           const ctype = String(response.headers.get('content-type') || '');
           if (!response.ok) throw new Error(`DASH_HTTP_${response.status}`);
@@ -2239,8 +2243,16 @@
               body: '',
             });
             if (!resp.ok) {
-              const text = await resp.text().catch(() => '');
-              throw new Error(`dash_http_${resp.status}:${text.slice(0, 180)}`);
+              const ctype = String(resp.headers.get('content-type') || '');
+              let detail = '';
+              if (ctype.includes('application/json')) {
+                const data = await resp.json().catch(() => ({}));
+                detail = String(data?.message || data?.error || '').trim();
+              } else {
+                detail = String(await resp.text().catch(() => '') || '').trim();
+              }
+              const cleaned = (detail || '').replace(/\s+/g, ' ').slice(0, 260);
+              throw new Error(`dash_http_${resp.status}${cleaned ? `: ${cleaned}` : ''}`);
             }
             const data = await resp.json().catch(() => ({}));
             const msg = String(data?.message || '').trim();
@@ -2249,7 +2261,7 @@
             setOpBadge({ show: true, ok: true, text: label || 'Actualizado.' });
           } catch (err) {
             console.warn(err);
-            setOpBadge({ show: true, ok: false, text: `Error: ${String(err?.message || err || 'fallo').slice(0, 64)}` });
+            setOpBadge({ show: true, ok: false, text: `Error: ${String(err?.message || err || 'fallo').slice(0, 140)}` });
           }
           await renderDashboard({ fresh: true });
           btn.disabled = false;
