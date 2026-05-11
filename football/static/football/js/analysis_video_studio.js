@@ -380,9 +380,21 @@
 
     const allowedEventKinds = new Set(['tag', 'note', 'goal', 'shot', 'press', 'turnover', 'abp']);
 
-    const prefKeyForEventPresets = () => {
+    const prefKeyForPackSelection = () => `vs_event_presets_pack:v1:${teamId || 'personal'}`;
+
+    const prefKeyForEventPresets = (pack) => {
+      const p = (safeText(pack, 'rival') === 'own') ? 'own' : 'rival';
+      return `vs_event_presets:v2:${teamId || 'personal'}:${p}`;
+    };
+
+    const legacyPrefKeyForEventPresets = () => {
       if (!teamId) return '';
       return `vs_event_presets:team:${teamId}`;
+    };
+
+    const prefKeyForAutoClip = (pack) => {
+      const p = (safeText(pack, 'rival') === 'own') ? 'own' : 'rival';
+      return `vs_event_autoclip:v1:${teamId || 'personal'}:${p}`;
     };
 
     const wsPrefGet = async (key) => {
@@ -4816,22 +4828,36 @@
       } catch (e) { /* ignore */ }
     };
 
-    const loadEventPresets = async () => {
-      const key = prefKeyForEventPresets(activePresetsPack);
-      if (!key || !wsPrefGetUrl) {
-        eventPresets = defaultEventPresetsForPack(activePresetsPack);
-        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
-        await loadAutoClipPrefs();
-        return;
-      }
-      try {
-        const value = await wsPrefGet(key);
-        const buttons = Array.isArray(value?.buttons) ? value.buttons : (Array.isArray(value) ? value : null);
-        if (buttons) {
-          const sanitized = sanitizeEventPresets(buttons);
-          if (sanitized.length) eventPresets = sanitized;
-          else eventPresets = defaultEventPresetsForPack(activePresetsPack);
-        } else {
+	    const loadEventPresets = async () => {
+	      const key = prefKeyForEventPresets(activePresetsPack);
+	      if (!key || !wsPrefGetUrl) {
+	        eventPresets = defaultEventPresetsForPack(activePresetsPack);
+	        if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
+	        await loadAutoClipPrefs();
+	        return;
+	      }
+	      try {
+	        let value = await wsPrefGet(key);
+	        let buttons = Array.isArray(value?.buttons) ? value.buttons : (Array.isArray(value) ? value : null);
+	        if ((!buttons || !buttons.length) && teamId) {
+	          // Backward-compat: lee el formato legacy si no hay presets guardados con key v2.
+	          try {
+	            const legacyKey = legacyPrefKeyForEventPresets();
+	            if (legacyKey) {
+	              const legacyValue = await wsPrefGet(legacyKey);
+	              const legacyButtons = Array.isArray(legacyValue?.buttons) ? legacyValue.buttons : (Array.isArray(legacyValue) ? legacyValue : null);
+	              if (legacyButtons && legacyButtons.length) {
+	                value = legacyValue;
+	                buttons = legacyButtons;
+	              }
+	            }
+	          } catch (e) { /* ignore */ }
+	        }
+	        if (buttons) {
+	          const sanitized = sanitizeEventPresets(buttons);
+	          if (sanitized.length) eventPresets = sanitized;
+	          else eventPresets = defaultEventPresetsForPack(activePresetsPack);
+	        } else {
           eventPresets = defaultEventPresetsForPack(activePresetsPack);
         }
         if (presetsJson) presetsJson.value = presetsToJson(eventPresets);
