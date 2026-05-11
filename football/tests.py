@@ -5090,6 +5090,18 @@ class MatchActionWorkflowTests(TestCase):
             1,
         )
 
+    def test_match_actions_page_auto_creates_convocation_when_missing(self):
+        ConvocationRecord.objects.filter(team=self.team).delete()
+        self.assertIsNone(get_current_convocation_record(self.team, match=self.match, fallback_to_latest=False))
+
+        response = self.client.get(f"{reverse('match-action-page')}?match_id={self.match.id}")
+        self.assertEqual(response.status_code, 200)
+
+        record = get_current_convocation_record(self.team, match=self.match, fallback_to_latest=False)
+        self.assertIsNotNone(record)
+        self.assertTrue(record.is_current)
+        self.assertGreater(record.players.count(), 0)
+
     def test_register_match_action_allows_identical_same_minute_actions_with_distinct_client_uids(self):
         # En fútbol, es habitual registrar varias acciones iguales en el mismo minuto (pases, duelos, etc.).
         # El servidor solo debe deduplicar reintentos de red, no acciones reales consecutivas.

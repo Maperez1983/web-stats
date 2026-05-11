@@ -11954,6 +11954,57 @@ def club_onboarding_page(request):
             theme_form['text_light'] = str(override.get('text_light') or default.get('text_light') or theme_form['text_light']).strip() or theme_form['text_light']
     except Exception:
         pass
+
+    active_club_season = None
+    season_form = {'label': '', 'start_date': ''}
+    try:
+        if workspace:
+            active_club_season = getattr(workspace, 'active_season', None)
+    except Exception:
+        active_club_season = None
+    try:
+        today = timezone.localdate()
+        next_start_year = today.year if (today.month, today.day) < (7, 1) else (today.year + 1)
+        default_start = date(next_start_year, 7, 1)
+        season_form['label'] = f'{next_start_year}/{next_start_year + 1}'
+        season_form['start_date'] = default_start.isoformat()
+    except Exception:
+        season_form['label'] = ''
+        season_form['start_date'] = ''
+
+    kit_form = {
+        'home_main': '#06814d',
+        'home_trim': '#ffffff',
+        'away_main': '#0b1220',
+        'away_trim': '#f4b400',
+        'gk_main': '#7c2d12',
+        'gk_trim': '#ffffff',
+    }
+    try:
+        if workspace and primary_team:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').first()
+            raw = pref.value if pref and isinstance(pref.value, dict) else {}
+            default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+            teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
+            override = teams.get(str(int(primary_team.id))) if isinstance(teams.get(str(int(primary_team.id))), dict) else {}
+            for key in list(kit_form.keys()):
+                kit_form[key] = str(override.get(key) or default.get(key) or kit_form.get(key) or '').strip() or kit_form[key]
+    except Exception:
+        pass
+
+    crest_preview_url = ''
+    cover_preview_url = ''
+    try:
+        crest_preview_url = resolve_team_crest_url(request, primary_team, sync=False) if primary_team else ''
+    except Exception:
+        crest_preview_url = ''
+    try:
+        if primary_team and getattr(primary_team, 'cover_image', None):
+            updated_at = getattr(primary_team, 'cover_updated_at', None) or timezone.now()
+            version = str(int(updated_at.timestamp()))
+            cover_preview_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+    except Exception:
+        cover_preview_url = ''
     form = {
         'workspace_name': str(getattr(workspace, 'name', '') or '').strip() if workspace else '',
         'team_name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else (str(getattr(workspace, 'name', '') or '').strip() if workspace else ''),
@@ -11963,6 +12014,62 @@ def club_onboarding_page(request):
         'external_source_url': str(getattr(competition_context, 'external_source_url', '') or '').strip() if competition_context else '',
         'replace_roster': False,
     }
+
+    def _render_onboarding_page(*, status=200):
+        ctx_competition_context = competition_context
+        if workspace and primary_team and not ctx_competition_context:
+            ctx_competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+        setup_checklist = []
+        setup_progress = {'required_total': 0, 'required_done': 0}
+        try:
+            if workspace and primary_team:
+                active_match = None
+                try:
+                    active_match = get_active_match(primary_team)
+                except Exception:
+                    active_match = None
+                convocation_record = None
+                try:
+                    convocation_record = get_current_convocation_record(primary_team)
+                except Exception:
+                    convocation_record = None
+                setup_checklist = _build_team_setup_checklist(
+                    request,
+                    workspace,
+                    primary_team,
+                    match=active_match,
+                    convocation_record=convocation_record,
+                )
+                if isinstance(setup_checklist, list) and setup_checklist:
+                    required_items = [item for item in setup_checklist if bool(item.get('required'))]
+                    setup_progress['required_total'] = len(required_items)
+                    setup_progress['required_done'] = len([item for item in required_items if bool(item.get('ok'))])
+        except Exception:
+            setup_checklist = []
+        return render(
+            request,
+            'football/club_onboarding.html',
+            {
+                'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
+                'primary_team': primary_team,
+                'crest_preview_url': crest_preview_url,
+                'cover_preview_url': cover_preview_url,
+                'active_club_season': active_club_season,
+                'season_form': season_form,
+                'competition_context': ctx_competition_context,
+                'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
+                'universo_candidates': universo_candidates,
+                'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
+                'form': form,
+                'theme_form': theme_form,
+                'kit_form': kit_form,
+                'setup_checklist': setup_checklist or [],
+                'setup_progress': setup_progress,
+                'error': error,
+                'success': success,
+            },
+            status=int(status or 200),
+        )
     if request.method == 'POST':
         action = str(request.POST.get('action') or 'save_and_sync').strip().lower()
         if action == 'brand_theme':
@@ -17576,29 +17683,28 @@ def _regulation_minutes_for_team(team):
         fmt = ''
     category = _norm_cat(getattr(team, 'category', '') or '')
 
-    # Por categoría (club): reglas más realistas que un único env global para todo F7/F11.
-    # Si tu club usa otros minutos por categoría, se puede ajustar aquí.
-    if fmt == Team.GAME_FORMAT_F7:
-        half_by_cat = {
-            'prebenjamin': 25,
-            'pre benjamin': 25,
-            'benjamin': 30,
-            'alevin': 35,
-        }
-        half = half_by_cat.get(category)
-        if half:
-            return max(1, int(half) * 2)
-    if fmt == Team.GAME_FORMAT_F11:
-        half_by_cat = {
-            'infantil': 40,
-            'cadete': 40,
-            'juvenil': 45,
-            'senior': 45,
-            'aficionado': 45,
-        }
-        half = half_by_cat.get(category)
-        if half:
-            return max(1, int(half) * 2)
+    # Por categoría (club): basado en normativa típica de la RFAF (Andalucía).
+    # Fuente (duración total): bebé 40', prebenjamín 50', benjamín 60', alevín 70',
+    # infantil 80', cadete/juvenil/senior 90'. (Descanso no afecta al cronómetro.)
+    #
+    # Nota: esto se aplica independientemente de si juegan en F7/F11, porque el "formato"
+    # suele venir implícito por la propia categoría en fútbol base.
+    if category:
+        # Match total minutes by category keyword.
+        # We detect by substring to tolerate "Benjamín A", "Prebenjamín 2ª", etc.
+        rules = [
+            (('bebe', 'bebé'), 40),
+            (('prebenjamin', 'pre benjamin', 'pre-benjamin'), 50),
+            (('benjamin', 'benjamín'), 60),
+            (('alevin', 'alevín'), 70),
+            (('infantil',), 80),
+            (('cadete',), 90),
+            (('juvenil',), 90),
+            (('senior', 'sénior', 'aficionado'), 90),
+        ]
+        for keys, total in rules:
+            if any(k in category for k in keys):
+                return max(1, int(total))
 
     if fmt == Team.GAME_FORMAT_F7:
         try:
@@ -18120,6 +18226,67 @@ def matchday_quick_buttons_api(request):
     return JsonResponse({'ok': True, 'role': role_key, 'updated_at': obj.updated_at})
 
 
+def _ensure_matchday_convocation_record(primary_team, *, match=None):
+    """
+    Garantiza que exista una ConvocationRecord `is_current=True` para el flujo de partido.
+
+    Motivo:
+    - `register_match_action` y `save_match_lineup` dependen de Convocatoria activa.
+    - En iPad/Safari es habitual entrar directo a `/registro-acciones` (sin pasar por Convocatoria).
+      Si no existe convocatoria, el registro se bloquea y el "11 inicial" no se mantiene tras reinicios.
+    """
+    if not primary_team or not match:
+        return None
+
+    # Preferimos el registro actual del mismo partido para no mezclar partidos distintos.
+    record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+    if record:
+        return record
+
+    opponent_team = None
+    try:
+        opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+    except Exception:
+        opponent_team = None
+    opponent_name = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+
+    starters_limit = _required_starters_for_team(primary_team)
+    players = list(Player.objects.filter(team=primary_team, is_active=True).order_by('number', 'name', 'id'))
+
+    with transaction.atomic():
+        ConvocationRecord.objects.filter(team=primary_team, is_current=True).update(is_current=False)
+        record = ConvocationRecord.objects.create(
+            team=primary_team,
+            match=match,
+            round=str(getattr(match, 'round', '') or '').strip(),
+            match_date=getattr(match, 'date', None),
+            match_time=getattr(match, 'kickoff_time', None),
+            location=str(getattr(match, 'location', '') or '').strip(),
+            opponent_name=opponent_name,
+            lineup_data={},
+            is_current=True,
+        )
+        if players:
+            record.players.set(players)
+            try:
+                lineup_payload = _build_default_lineup_payload_with_limit(players, starters_limit=starters_limit)
+            except Exception:
+                lineup_payload = {'starters': [], 'bench': []}
+            try:
+                lineup_payload['_meta'] = {
+                    'saved_at': timezone.now().isoformat(),
+                    'starters_limit': int(starters_limit or 11),
+                    'match_id': int(getattr(match, 'id', 0) or 0),
+                    'source': 'auto-convocation-seed',
+                }
+            except Exception:
+                pass
+            record.lineup_data = lineup_payload
+            record.save(update_fields=['lineup_data'])
+
+    return record
+
+
 @login_required
 def match_action_page(request):
     if not _can_edit_match_actions(request.user):
@@ -18138,6 +18305,8 @@ def match_action_page(request):
         match=active_match,
         fallback_to_latest=True,
     )
+    if active_match and not convocation_record:
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=active_match)
     convocation_players = convocation_record.players.order_by('name') if convocation_record else Player.objects.none()
     convocation_players = list(convocation_players)
     for player in convocation_players:
@@ -18758,6 +18927,8 @@ def register_match_action(request):
         match=target_match,
         fallback_to_latest=True,
     )
+    if not convocation_record and target_match:
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
         return _error('No hay convocatoria activa guardada para registrar acciones', status=400)
 
@@ -18887,6 +19058,8 @@ def save_match_lineup(request):
         match=target_match,
         fallback_to_latest=True,
     )
+    if not convocation_record and target_match:
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
         return JsonResponse({'error': 'No hay convocatoria activa para guardar el 11'}, status=400)
     payload = {}
@@ -18982,6 +19155,8 @@ def get_match_lineup(request):
         match=target_match,
         fallback_to_latest=True,
     )
+    if not convocation_record and target_match:
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
         return JsonResponse({'error': 'No hay convocatoria activa para este partido.'}, status=404)
     stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
@@ -52107,7 +52282,14 @@ def refresh_scraping(request):
     can_refresh = bool(_is_admin_user(request.user) or _can_access_platform(request.user))
     if not can_refresh and workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB:
         try:
-            can_refresh = bool(_can_manage_workspace(request.user, workspace))
+            membership = _workspace_membership_for_user(workspace, request.user)
+            can_refresh = bool(
+                _can_manage_workspace(request.user, workspace)
+                or (
+                    membership
+                    and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN, WorkspaceMembership.ROLE_MEMBER}
+                )
+            )
         except Exception:
             can_refresh = False
     if not can_refresh:

@@ -1854,14 +1854,15 @@ const urlWithMatchId = (baseUrl) => {
 	        if (!lineupGetUrl) return false;
 	        try {
 	          // `navigator.onLine` no es fiable en iOS/WKWebView: si reporta offline, verificamos contra servidor.
-	          const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
-	          if (reportedOffline) {
-	            let reachable = false;
-	            try {
-	              const url = keepaliveUrl || '/api/session/keepalive/';
-	              const opts = { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
-	              if (typeof AbortController !== 'undefined') {
-	                const ctrl = new AbortController();
+		          const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
+		          if (reportedOffline) {
+		            let reachable = false;
+		            try {
+		              // Endpoint público: evita confundir sesión caducada con "offline".
+		              const url = '/api/build/';
+		              const opts = { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
+		              if (typeof AbortController !== 'undefined') {
+		                const ctrl = new AbortController();
 	                const timer = window.setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 2500);
 	                try {
 	                  const resp = await fetch(url, { ...opts, signal: ctrl.signal });
@@ -3733,11 +3734,12 @@ const urlWithMatchId = (baseUrl) => {
         playerInput,
         submitUrl,
         updateUrl,
-        eventsUrl,
-        keepaliveUrl,
-        csrfToken,
-        currentMatchId,
-        deleteUrl,
+	        eventsUrl,
+	        keepaliveUrl,
+	        reachabilityUrl: '/api/build/',
+	        csrfToken,
+	        currentMatchId,
+	        deleteUrl,
         resetRegisterUrl,
         finalizeUrl,
         matchFinalizeBtn,

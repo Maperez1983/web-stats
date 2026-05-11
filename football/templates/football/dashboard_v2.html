@@ -1632,7 +1632,8 @@
       async function verifyConnectivity() {
         // `navigator.onLine` / evento offline no es fiable en iOS/WKWebView. Verificamos contra servidor.
         try {
-          const url = '/api/session/keepalive/';
+          // Endpoint público: evita confundir "sesión caducada" con "offline".
+          const url = '/api/build/';
           const opts = { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
           if (typeof AbortController !== 'undefined') {
             const ctrl = new AbortController();

@@ -43,6 +43,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     updateUrl,
     eventsUrl,
     keepaliveUrl,
+    reachabilityUrl: reachabilityUrlFromOptions,
     csrfToken,
     currentMatchId,
     deleteUrl,
@@ -191,7 +192,8 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
 
   // `navigator.onLine` no es fiable en iOS/WKWebView. Si reporta offline, verificamos contra servidor.
-  const reachabilityUrl = String(keepaliveUrl || '/api/session/keepalive/').trim() || '/api/session/keepalive/';
+  // Importante: endpoint público para no confundir "sesión caducada" con "offline".
+  const reachabilityUrl = String(reachabilityUrlFromOptions || '/api/build/').trim() || '/api/build/';
   const isServerReachable = async () => {
     try {
       const opts = { method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } };
@@ -372,7 +374,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
   const isProModeEnabled = () => document.body.classList.contains('pro-mode');
   const isProAutoSendEnabled = () => {
-    if (!isProModeEnabled()) return false;
     if (!canUseStorage) return false;
     try {
       return String(window.localStorage.getItem(proAutoSendStorageKey) || '') === '1';
