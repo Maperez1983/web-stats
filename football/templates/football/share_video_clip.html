@@ -185,6 +185,19 @@
               try { video.currentTime = inS; } catch (e) {}
             }
           };
+          const enforceClipBound = () => {
+            if (!outS || outS <= inS) return;
+            if (loopActive) return;
+            const now = Number(video.currentTime) || 0;
+            if (now < inS - 0.04) {
+              try { video.currentTime = inS; } catch (e) {}
+              return;
+            }
+            if (now >= outS - 0.02) {
+              try { video.pause(); } catch (e) {}
+              try { video.currentTime = outS; } catch (e) {}
+            }
+          };
 
           video.addEventListener('loadedmetadata', () => {
             syncSizes();
@@ -192,6 +205,7 @@
           });
           video.addEventListener('timeupdate', () => {
             enforceLoop();
+            enforceClipBound();
             renderFx(Number(video.currentTime) || 0);
           });
 
@@ -223,4 +237,3 @@
     </main>
   </body>
 </html>
-

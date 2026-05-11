@@ -16646,6 +16646,42 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
     return resp
 
 
+def _safe_download_filename(*, title: str = '', fallback: str = 'video', ext: str = '.mp4') -> str:
+    """
+    Genera un nombre de archivo razonable para Content-Disposition.
+
+    - Usa `slugify` para minimizar caracteres problemáticos.
+    - Mantiene extensión controlada por el servidor.
+    """
+    raw = str(title or '').strip()
+    base = slugify(raw)[:140] if raw else ''
+    if not base:
+        base = slugify(str(fallback or '').strip())[:140] or 'download'
+    safe_ext = str(ext or '').strip().lower()
+    if not safe_ext.startswith('.'):
+        safe_ext = f'.{safe_ext}' if safe_ext else '.mp4'
+    if safe_ext in {'.', '..'}:
+        safe_ext = '.mp4'
+    return f'{base}{safe_ext}'
+
+
+def _guess_video_file_ext(*, mime: str = '', name: str = '') -> str:
+    ext = ''
+    try:
+        ext = Path(str(name or '')).suffix.lower()
+    except Exception:
+        ext = ''
+    if not ext:
+        m = str(mime or '').strip().lower()
+        if 'webm' in m:
+            ext = '.webm'
+        elif 'mp4' in m:
+            ext = '.mp4'
+    if not ext:
+        ext = '.mp4'
+    return ext
+
+
 def _share_link_lookup(token: str, kind: str):
     token = str(token or '').strip()
     if not token:
@@ -16779,7 +16815,7 @@ def share_video_clip_stream(request, token):
             request,
             clip.video.video,
             content_type='video/mp4',
-            filename=f'clip-{clip.id}.mp4',
+            filename=_safe_download_filename(title=str(getattr(clip, 'title', '') or '').strip(), fallback=f'clip-{clip.id}', ext='.mp4'),
         )
 
     # Descarga “archivo normal”: generamos (y cacheamos) un MP4 real del segmento IN→OUT.
@@ -16813,11 +16849,14 @@ def share_video_clip_stream(request, token):
         )
     if asset and getattr(asset, 'file', None):
         try:
+            mime = str(getattr(asset, 'mime_type', '') or '').strip().lower()
+            name = str(getattr(getattr(asset, 'file', None), 'name', '') or '').strip()
+            ext = _guess_video_file_ext(mime=mime, name=name)
             return _file_field_stream_with_range(
                 request,
                 asset.file,
-                content_type=str(getattr(asset, 'mime_type', '') or '').strip() or 'video/mp4',
-                filename=f'clip-{clip.id}.mp4',
+                content_type=mime or 'video/mp4',
+                filename=_safe_download_filename(title=str(getattr(clip, 'title', '') or '').strip(), fallback=f'clip-{clip.id}', ext=ext),
                 as_attachment=True,
             )
         except Exception:
@@ -16865,11 +16904,14 @@ def share_video_clip_stream(request, token):
             except Exception:
                 pass
 
+    mime = str(getattr(asset, 'mime_type', '') or '').strip().lower()
+    name = str(getattr(getattr(asset, 'file', None), 'name', '') or '').strip()
+    ext = _guess_video_file_ext(mime=mime, name=name)
     return _file_field_stream_with_range(
         request,
         asset.file,
-        content_type=str(getattr(asset, 'mime_type', '') or '').strip() or 'video/mp4',
-        filename=f'clip-{clip.id}.mp4',
+        content_type=mime or 'video/mp4',
+        filename=_safe_download_filename(title=str(getattr(clip, 'title', '') or '').strip(), fallback=f'clip-{clip.id}', ext=ext),
         as_attachment=True,
     )
 
@@ -17215,11 +17257,15 @@ def share_video_export_stream(request, token):
     if not export or not getattr(export, 'file', None):
         raise Http404('Export no disponible')
     want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
+    mime = str(getattr(export, 'mime_type', '') or '').strip().lower()
+    name = str(getattr(getattr(export, 'file', None), 'name', '') or '').strip()
+    ext = _guess_video_file_ext(mime=mime, name=name)
+    filename = _safe_download_filename(title=str(getattr(export, 'title', '') or '').strip(), fallback=f'export-{export.id}', ext=ext)
     return _file_field_stream_with_range(
         request,
         export.file,
-        content_type=str(export.mime_type or '').strip() or 'video/mp4',
-        filename=f'export-{export.id}.mp4',
+        content_type=mime or 'video/mp4',
+        filename=filename,
         as_attachment=want_download,
     )
 
@@ -44620,22 +44666,14 @@ def analysis_video_export_stream(request, export_id):
         raise Http404('Export no disponible')
     mime = str(getattr(export, 'mime_type', '') or '').strip().lower()
     name = str(getattr(getattr(export, 'file', None), 'name', '') or '').strip()
-    ext = ''
-    if name:
-        ext = Path(name).suffix.lower()
-    if not ext:
-        if 'webm' in mime:
-            ext = '.webm'
-        elif 'mp4' in mime:
-            ext = '.mp4'
-    if not ext:
-        ext = '.mp4'
+    ext = _guess_video_file_ext(mime=mime, name=name)
     want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
+    filename = _safe_download_filename(title=str(getattr(export, 'title', '') or '').strip(), fallback=f'export-{export.id}', ext=ext)
     return _file_field_stream_with_range(
         request,
         export.file,
         content_type=mime or 'video/mp4',
-        filename=f'export-{export.id}{ext}',
+        filename=filename,
         as_attachment=want_download,
     )
 

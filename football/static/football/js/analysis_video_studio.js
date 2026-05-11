@@ -1063,39 +1063,89 @@
       return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     };
 
-    const ensureLayerData = (obj) => {
-      if (!obj) return;
-      if (!obj.data || typeof obj.data !== 'object') obj.data = {};
-      if (!safeText(obj.data.uid)) obj.data.uid = newUid();
-      if (obj.data.t_in_s == null) obj.data.t_in_s = 0;
-      if (obj.data.t_out_s == null) obj.data.t_out_s = 0;
-      if (obj.data.fade_in_ms == null) obj.data.fade_in_ms = 0;
-      if (obj.data.fade_out_ms == null) obj.data.fade_out_ms = 0;
-      if (obj.data.anim == null) obj.data.anim = 'none';
-      if (obj.data.base_sx == null) obj.data.base_sx = Number(obj.scaleX) || 1;
-      if (obj.data.base_sy == null) obj.data.base_sy = Number(obj.scaleY) || 1;
-    };
+	    const ensureLayerData = (obj) => {
+	      if (!obj) return;
+	      if (!obj.data || typeof obj.data !== 'object') obj.data = {};
+	      if (!safeText(obj.data.uid)) obj.data.uid = newUid();
+	      if (obj.data.t_in_s == null) obj.data.t_in_s = 0;
+	      if (obj.data.t_out_s == null) obj.data.t_out_s = 0;
+	      if (obj.data.fade_in_ms == null) obj.data.fade_in_ms = 0;
+	      if (obj.data.fade_out_ms == null) obj.data.fade_out_ms = 0;
+	      if (obj.data.anim == null) obj.data.anim = 'none';
+	      if (obj.data.base_sx == null) obj.data.base_sx = Number(obj.scaleX) || 1;
+	      if (obj.data.base_sy == null) obj.data.base_sy = Number(obj.scaleY) || 1;
+	    };
 
-    const seedLayerDataNow = (extra = {}) => {
-      const tIn = Number(video.currentTime) || 0;
+	    const seedLayerDataNow = (extra = {}) => {
+	      const tIn = Number(video.currentTime) || 0;
       // Por defecto, limita la capa al tramo actual (OUT) si existe.
       // Esto evita que FX (spotlight/blur) y anotaciones se queden "para todo el vídeo" por sorpresa.
-      let tOut = 0;
-      try {
-        const rawOut = Number(outInput?.value);
-        if (Number.isFinite(rawOut) && rawOut > (tIn + 0.05)) tOut = rawOut;
-      } catch (e) { /* ignore */ }
-      if (!tOut) tOut = tIn + 2.0;
-      return {
-        uid: newUid(),
-        t_in_s: tIn,
-        t_out_s: tOut,
+	      let tOut = 0;
+	      try {
+	        const rawOut = Number(outInput?.value);
+	        if (Number.isFinite(rawOut) && rawOut > (tIn + 0.05)) tOut = rawOut;
+	      } catch (e) { /* ignore */ }
+	      // Duración por defecto (si el usuario no ha marcado OUT).
+	      // Player marker se usa para “seguir” al jugador un rato → por defecto 5s.
+	      const kind = safeText(extra?.kind, '');
+	      const defaultDur = kind === 'player_marker' ? 5.0 : 2.0;
+	      if (!tOut) tOut = tIn + defaultDur;
+	      return {
+	        uid: newUid(),
+	        t_in_s: tIn,
+	        t_out_s: tOut,
         fade_in_ms: 0,
         fade_out_ms: 0,
         anim: 'none',
-        ...extra,
-      };
-    };
+	        ...extra,
+	      };
+	    };
+
+	    const normalizeKeyframes = (raw) => {
+	      const arr = Array.isArray(raw) ? raw : [];
+	      const items = arr
+	        .map((k) => ({
+	          t: Number(k?.t),
+	          x: Number(k?.x),
+	          y: Number(k?.y),
+	        }))
+	        .filter((k) => Number.isFinite(k.t) && Number.isFinite(k.x) && Number.isFinite(k.y))
+	        .sort((a, b) => a.t - b.t);
+	      // Dedup por tiempo (dejamos el último por si el usuario reajusta en el mismo instante)
+	      const out = [];
+	      for (const k of items) {
+	        const last = out[out.length - 1];
+	        if (last && Math.abs(last.t - k.t) < 0.04) out[out.length - 1] = k;
+	        else out.push(k);
+	      }
+	      return out.slice(0, 80);
+	    };
+
+	    const upsertKeyframe = (obj, { t, x, y } = {}) => {
+	      if (!obj || !obj.data) return;
+	      if (!Number.isFinite(t) || !Number.isFinite(x) || !Number.isFinite(y)) return;
+	      const next = normalizeKeyframes([...(Array.isArray(obj.data.kf) ? obj.data.kf : []), { t, x, y }]);
+	      obj.data.kf = next;
+	    };
+
+	    const interpKeyframes = (kf, nowS) => {
+	      const frames = normalizeKeyframes(kf);
+	      if (!frames.length) return null;
+	      if (frames.length === 1) return { x: frames[0].x, y: frames[0].y };
+	      const t = Number(nowS) || 0;
+	      if (t <= frames[0].t) return { x: frames[0].x, y: frames[0].y };
+	      const last = frames[frames.length - 1];
+	      if (t >= last.t) return { x: last.x, y: last.y };
+	      for (let i = 0; i < frames.length - 1; i += 1) {
+	        const a = frames[i];
+	        const b = frames[i + 1];
+	        if (t < a.t || t > b.t) continue;
+	        const span = Math.max(0.001, b.t - a.t);
+	        const u = clamp((t - a.t) / span, 0, 1);
+	        return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+	      }
+	      return { x: last.x, y: last.y };
+	    };
 
     const computeTimedAlpha = (timing, nowS) => {
       const tIn = Math.max(0, Number(timing?.t_in_s) || 0);
@@ -1461,23 +1511,24 @@
         return { number, name };
       };
 
-      const teamColor = (team) => {
-        const t = safeText(team, 'home').toLowerCase();
-        if (t === 'away') return '#f59e0b'; // amber
-        return '#22d3ee'; // cyan
-      };
+	      const teamColor = (team) => {
+	        const t = safeText(team, 'home').toLowerCase();
+	        if (t === 'away') return '#f59e0b'; // amber
+	        return '#22d3ee'; // cyan
+	      };
 
-    const createPlayerMarkerAt = (point, rawNumber, rawName, prefs) => {
+	    const createPlayerMarkerAt = (point, rawNumber, rawName, prefs) => {
         if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
         const number = safeText(rawNumber, '').trim().slice(0, 3);
         const name = safeText(rawName, '').trim().toUpperCase().slice(0, 18);
         if (!number) return null;
 
         const p = { x: point.x, y: point.y };
-        const radius = 22 + Math.round(strokeWidth() / 2);
-        const prefsTeam = safeText(prefs?.team, 'home');
-        const prefsStyle = safeText(prefs?.style, 'tag');
-        const color = teamColor(prefsTeam) || strokeColor();
+	        const radius = 22 + Math.round(strokeWidth() / 2);
+	        const prefsTeam = safeText(prefs?.team, 'home');
+	        const prefsStyle = safeText(prefs?.style, 'tag');
+	        // Por defecto respeta el color del editor. El selector Local/Rival actúa como preset (y metadato).
+	        const color = strokeColor() || teamColor(prefsTeam);
 
         const ringOuter = new fabric.Circle({
           left: p.x,
@@ -1548,11 +1599,19 @@
           ? [ringOuter, numText, tagRect, nameText]
           : [ringOuter, numText];
 
-        const group = new fabric.Group(objects, { selectable: true });
-        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name, team: prefsTeam, style: prefsStyle });
-        fabricCanvas.add(group);
-        pushHistory();
-        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	        const group = new fabric.Group(objects, { selectable: true });
+	        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name, team: prefsTeam, style: prefsStyle, track: true });
+	        // Keyframes: permite “seguir” al jugador moviendo el marcador y guardando posiciones por tiempo.
+	        // En reproducción interpolamos entre keyframes (útil en clips donde el jugador se desplaza).
+	        try {
+	          const t0 = Number(group.data?.t_in_s) || (Number(video.currentTime) || 0);
+	          const cx0 = Number(p.x) || 0;
+	          const cy0 = Number(p.y) || 0;
+	          group.data.kf = normalizeKeyframes([{ t: t0, x: cx0, y: cy0 }]);
+	        } catch (e) { /* ignore */ }
+	        fabricCanvas.add(group);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
         selectedFxId = 0;
         updateLayerPanel();
         renderFxList();
@@ -2296,13 +2355,30 @@
       renderDrawLayers();
       arrowStart = null;
     });
-    fabricCanvas.on('path:created', (opt) => {
-      const p = opt?.path;
-      if (p) p.data = seedLayerDataNow();
-      pushHistory();
-      updateLayerPanel();
-      renderDrawLayers();
-    });
+	    fabricCanvas.on('path:created', (opt) => {
+	      const p = opt?.path;
+	      if (p) p.data = seedLayerDataNow();
+	      pushHistory();
+	      updateLayerPanel();
+	      renderDrawLayers();
+	    });
+	    // Guardar keyframes al mover un marcador de jugador (tracking manual).
+	    fabricCanvas.on('object:modified', (opt) => {
+	      const obj = opt?.target;
+	      if (!obj || !obj.data) return;
+	      if (safeText(obj.data.kind) !== 'player_marker') return;
+	      if (!obj.data.track) return;
+	      try {
+	        const t = Number(video.currentTime) || 0;
+	        const c = obj.getCenterPoint ? obj.getCenterPoint() : null;
+	        const x = Number(c?.x ?? obj.left) || 0;
+	        const y = Number(c?.y ?? obj.top) || 0;
+	        upsertKeyframe(obj, { t, x, y });
+	        pushHistory();
+	        renderDrawLayers();
+	        setStatus(`Jugador: posición guardada @ ${fmtTime(t)}`);
+	      } catch (e) { /* ignore */ }
+	    });
     fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
@@ -2330,18 +2406,23 @@
       };
 
       playerCancelBtn?.addEventListener('click', closePlayerPop);
-      const segWire = (wrap, key) => {
-        if (!wrap) return;
-        Array.from(wrap.querySelectorAll('button')).forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const value = key === 'team' ? safeText(btn.getAttribute('data-vs-team'), '') : safeText(btn.getAttribute('data-vs-style'), '');
-            if (!value) return;
-            playerPrefs = { ...playerPrefs, [key]: value };
-            savePlayerPrefs(playerPrefs);
-            setSegActive(wrap, key, value);
-          });
-        });
-      };
+	      const segWire = (wrap, key) => {
+	        if (!wrap) return;
+	        Array.from(wrap.querySelectorAll('button')).forEach((btn) => {
+	          btn.addEventListener('click', () => {
+	            const value = key === 'team' ? safeText(btn.getAttribute('data-vs-team'), '') : safeText(btn.getAttribute('data-vs-style'), '');
+	            if (!value) return;
+	            playerPrefs = { ...playerPrefs, [key]: value };
+	            savePlayerPrefs(playerPrefs);
+	            setSegActive(wrap, key, value);
+	            // UX: Local/Rival actúa como preset de color (para que el usuario vea el cambio).
+	            if (key === 'team' && colorInput) {
+	              const preset = teamColor(value);
+	              if (preset) colorInput.value = preset;
+	            }
+	          });
+	        });
+	      };
       segWire(playerTeamSeg, 'team');
       segWire(playerStyleSeg, 'style');
 
@@ -6918,22 +6999,40 @@
     reportPdfBtn?.addEventListener('click', exportVideoReportPdf);
     reportShareBtn?.addEventListener('click', shareVideoReport);
 
-    const applyTimedLayers = () => {
-      const nowS = Number(video.currentTime) || 0;
+	    const applyTimedLayers = () => {
+	      const nowS = Number(video.currentTime) || 0;
       let anyAnim = false;
       let activeAlpha = 1;
       const activeObj = (() => {
         try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; }
       })();
-      for (const obj of fabricCanvas.getObjects()) {
-        ensureLayerData(obj);
-        const alpha = computeTimedAlpha(obj.data, nowS);
-        obj.visible = alpha > 0.001;
-        obj.opacity = clamp(alpha, 0, 1);
-        if (activeObj && obj === activeObj) activeAlpha = alpha;
+	      const isTransforming = Boolean(fabricCanvas?._currentTransform);
+	      for (const obj of fabricCanvas.getObjects()) {
+	        ensureLayerData(obj);
+	        const alpha = computeTimedAlpha(obj.data, nowS);
+	        obj.visible = alpha > 0.001;
+	        obj.opacity = clamp(alpha, 0, 1);
+	        if (activeObj && obj === activeObj) activeAlpha = alpha;
 
-        const anim = safeText(obj.data.anim, 'none');
-        if (anim === 'pulse') {
+	        // Player marker tracking (manual). Durante reproducción y scrubbing, interpolamos.
+	        // En edición (drag), no sobreescribimos la posición.
+	        if (safeText(obj?.data?.kind) === 'player_marker' && obj.visible && obj.data?.track && Array.isArray(obj.data.kf)) {
+	          if (!(video.paused && isTransforming)) {
+	            const pos = interpKeyframes(obj.data.kf, nowS);
+	            if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+	              try {
+	                obj.setPositionByOrigin(new fabric.Point(pos.x, pos.y), 'center', 'center');
+	              } catch (e) {
+	                obj.set({ left: pos.x, top: pos.y });
+	              }
+	              try { obj.setCoords?.(); } catch (e) { /* ignore */ }
+	              obj.dirty = true;
+	            }
+	          }
+	        }
+
+	        const anim = safeText(obj.data.anim, 'none');
+	        if (anim === 'pulse') {
           anyAnim = true;
           const tIn = Math.max(0, Number(obj.data.t_in_s) || 0);
           const baseX = Number(obj.data.base_sx) || 1;
