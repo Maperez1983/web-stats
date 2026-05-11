@@ -87,8 +87,6 @@
 	          document.getElementById('vs-record'),
 	          document.getElementById('vs-export-seg'),
 	          document.getElementById('vs-export-share'),
-	          document.getElementById('vs-export-server'),
-	          document.getElementById('vs-export-server-playlist'),
 	        ]
 	          .filter(Boolean)
 	          .forEach((btn) => {
@@ -601,6 +599,7 @@
         toDatalessJSON: () => ({}),
         getWidth: () => 0,
         getHeight: () => 0,
+        getPointer: () => ({ x: 0, y: 0 }),
         setWidth: () => {},
         setHeight: () => {},
         renderAll: () => {},
@@ -610,6 +609,8 @@
         getActiveObject: () => null,
         discardActiveObject: () => {},
         getObjects: () => [],
+        setActiveObject: () => {},
+        loadFromJSON: (_json, cb) => { try { cb && cb(); } catch (e) { /* ignore */ } },
         on: () => {},
         requestRenderAll: () => {},
       };
