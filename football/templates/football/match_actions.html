@@ -4340,14 +4340,11 @@
 	              } catch (e6) {}
 	            }
 	            fields.match_id = String(fields.match_id || resolveMatchId() || '').trim();
-	            if (!fields.minute || String(fields.minute) === '0') {
-	              var inferredMinute = parseMinuteFromUi();
-	              if (inferredMinute) fields.minute = inferredMinute;
-	            }
-	            if (!fields.period || String(fields.period) === '1') {
-	              fields.period = parseHalfFromUi();
-	            }
-	            fields.stage = 'live';
+		            // Forzamos minuto/parte desde UI para evitar quedarnos con el "0" inicial.
+		            var inferredMinute = parseMinuteFromUi();
+		            if (inferredMinute) fields.minute = inferredMinute;
+		            fields.period = parseHalfFromUi();
+		            fields.stage = 'live';
 	            var csrf = '';
 	            try {
 	              var csrfEl = form.querySelector('input[name="csrfmiddlewaretoken"]');

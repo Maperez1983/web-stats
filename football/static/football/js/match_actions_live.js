@@ -1756,6 +1756,14 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       // UID por envío para poder deduplicar reintentos de red sin bloquear acciones reales consecutivas.
       if (!payload.get('client_event_uid')) payload.set('client_event_uid', makeClientEventUid());
       if (currentMatchId && !payload.get('match_id')) payload.set('match_id', currentMatchId);
+      // iOS/Safari: en algunos casos el valor de inputs hidden puede no reflejarse a tiempo en el POST.
+      // Forzamos minuto/parte desde el estado real del cronómetro antes de enviar.
+      try {
+        payload.set('minute', String(getCurrentMatchMinute()));
+      } catch (e) {}
+      try {
+        payload.set('period', String(Number(currentHalf) === 2 ? 2 : 1));
+      } catch (e) {}
       if (isTeamOnlyAction) payload.delete('player');
 
       const editingId = getEditingEventId();
