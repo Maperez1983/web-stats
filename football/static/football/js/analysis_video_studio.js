@@ -25,16 +25,83 @@
     } catch (e) { /* ignore */ }
   };
 
-  const init = () => {
-    const video = document.getElementById('vs-video');
-    const canvasEl = document.getElementById('vs-canvas');
-    const fxEl = document.getElementById('vs-fx');
-	    const stage = document.getElementById('vs-stage');
-	    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
+	  const init = () => {
+	    const video = document.getElementById('vs-video');
+	    const canvasEl = document.getElementById('vs-canvas');
+	    const fxEl = document.getElementById('vs-fx');
+		    const stage = document.getElementById('vs-stage');
+		    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
 
-	    const miniTimeline = document.getElementById('vs-mini-timeline');
-	    const miniTrack = document.getElementById('vs-mini-track');
-	    const miniCursor = document.getElementById('vs-mini-cursor');
+	    // Safari/iOS: si el vídeo viene de S3 sin CORS, `crossorigin="anonymous"` puede bloquear la carga
+	    // y el vídeo se queda negro. En ese caso activamos un fallback (sin CORS) para que al menos se vea.
+	    // Nota: en modo fallback no se puede dibujar el vídeo en canvas (export/miniaturas pueden degradar).
+	    const appendUrlParam = (url, key, value) => {
+	      const raw = safeText(url, '');
+	      if (!raw) return raw;
+	      try {
+	        const u = new URL(raw, window.location.href);
+	        u.searchParams.set(String(key), String(value));
+	        return u.toString();
+	      } catch (e) {
+	        const joiner = raw.includes('?') ? '&' : '?';
+	        return `${raw}${joiner}${encodeURIComponent(String(key))}=${encodeURIComponent(String(value))}`;
+	      }
+	    };
+	    const videoSource = (() => {
+	      try { return video.querySelector('source'); } catch (e) { return null; }
+	    })();
+	    let compatNoCorsApplied = false;
+	    const disableCanvasDependentActions = () => {
+	      try {
+	        [
+	          document.getElementById('vs-snap'),
+	          document.getElementById('vs-freeze'),
+	          document.getElementById('vs-record'),
+	          document.getElementById('vs-export-seg'),
+	          document.getElementById('vs-export-share'),
+	          document.getElementById('vs-export-server'),
+	          document.getElementById('vs-export-server-playlist'),
+	        ]
+	          .filter(Boolean)
+	          .forEach((btn) => {
+	            btn.disabled = true;
+	            btn.title = 'El vídeo se ha cargado en modo compatibilidad (sin CORS). Para exportar, configura CORS en el bucket S3.';
+	          });
+	      } catch (e) { /* ignore */ }
+	    };
+	    const applyNoCorsCompatMode = (reason) => {
+	      if (compatNoCorsApplied) return;
+	      compatNoCorsApplied = true;
+	      try { video.removeAttribute('crossorigin'); } catch (e) { /* ignore */ }
+	      try { video.crossOrigin = null; } catch (e) { /* ignore */ }
+	      const src = safeText(videoSource?.getAttribute?.('src') || videoSource?.src || '', '');
+	      if (src && videoSource) {
+	        const nextSrc = appendUrlParam(appendUrlParam(src, 'vs_nocors', '1'), 'vs_ts', String(Date.now()));
+	        try { videoSource.setAttribute('src', nextSrc); } catch (e) { /* ignore */ }
+	      }
+	      try { video.load(); } catch (e) { /* ignore */ }
+	      setStatus(`El vídeo estaba bloqueado (${safeText(reason, 'CORS')}). Activado modo compatibilidad.`, true);
+	      disableCanvasDependentActions();
+	    };
+	    try {
+	      video.addEventListener('error', () => {
+	        // Evita bucles: solo una vez.
+	        applyNoCorsCompatMode('CORS/permiso');
+	      }, { once: true });
+	      // Si tras unos segundos sigue sin metadata, suele indicar bloqueo por CORS/403.
+	      window.setTimeout(() => {
+	        try {
+	          if (compatNoCorsApplied) return;
+	          const rs = video.readyState || 0;
+	          const hasMeta = rs >= 1 || Number.isFinite(video.duration) && video.duration > 0;
+	          if (!hasMeta) applyNoCorsCompatMode('sin respuesta');
+	        } catch (e) { /* ignore */ }
+	      }, 4500);
+	    } catch (e) { /* ignore */ }
+
+		    const miniTimeline = document.getElementById('vs-mini-timeline');
+		    const miniTrack = document.getElementById('vs-mini-track');
+		    const miniCursor = document.getElementById('vs-mini-cursor');
 
 	    const btnPlay = document.getElementById('vs-play');
 	    const btnPause = document.getElementById('vs-pause');
