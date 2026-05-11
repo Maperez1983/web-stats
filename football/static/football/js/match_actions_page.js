@@ -2774,17 +2774,17 @@ const urlWithMatchId = (baseUrl) => {
         const startersWrapper = lineupSections.starters?.wrapper;
         if (startersWrapper) {
           startersWrapper.classList.remove('is-valid', 'is-invalid');
-          if (startersCount === 11) {
+          if (startersCount === startersLimit) {
             startersWrapper.classList.add('is-valid');
           } else if (startersCount > 0) {
             startersWrapper.classList.add('is-invalid');
           }
         }
         if (lineupStatusMsg) {
-          if (startersCount === 11) {
-            lineupStatusMsg.textContent = 'Once inicial completo y listo (11/11).';
+          if (startersCount === startersLimit) {
+            lineupStatusMsg.textContent = `Once inicial completo y listo (${startersLimit}/${startersLimit}).`;
           } else {
-            lineupStatusMsg.textContent = `Faltan ${Math.max(0, 11 - startersCount)} titulares para completar el once.`;
+            lineupStatusMsg.textContent = `Faltan ${Math.max(0, startersLimit - startersCount)} titulares para completar el once.`;
           }
         }
 	        updateLineupInput();
@@ -3457,6 +3457,9 @@ const urlWithMatchId = (baseUrl) => {
       const closeSummaryBreakdown = document.getElementById('close-summary-breakdown');
       const closeSummaryClock = document.getElementById('close-summary-clock');
       const closeSummaryCorners = document.getElementById('close-summary-corners');
+      const closeSummaryShots = document.getElementById('close-summary-shots');
+      const closeSummaryPasses = document.getElementById('close-summary-passes');
+      const closeSummaryPossession = document.getElementById('close-summary-possession');
       const closeSummaryAlerts = document.getElementById('close-summary-alerts');
 	      const closeFinalizeBtn = document.getElementById('match-finalize-btn');
       const copyBriefingBtn = document.getElementById('match-copy-briefing');
@@ -3552,8 +3555,28 @@ const urlWithMatchId = (baseUrl) => {
         if (closeSummaryCorners) {
           closeSummaryCorners.textContent = `${liveSummaryState.cornerFor || 0} córners a favor · ${liveSummaryState.cornerAgainst || 0} en contra`;
         }
-	        if (closeSummaryAlerts) {
-	          const alerts = [];
+        // Stats generales (disparos/pases/posesión) desde el HUD en vivo (si existe).
+        try {
+          const totals = liveHudSnapshot?.totals || null;
+          const extra = liveHudSnapshot?.extra || null;
+          if (closeSummaryShots) {
+            const shots = totals ? (Number(totals.shots) || 0) : 0;
+            const shotsTarget = totals ? (Number(totals.shotsTarget) || 0) : 0;
+            closeSummaryShots.textContent = `${shots} disparos · ${shotsTarget} a puerta`;
+          }
+          if (closeSummaryPasses) {
+            const ok = totals ? (Number(totals.passesOk) || 0) : 0;
+            const total = totals ? (Number(totals.passes) || 0) : 0;
+            const passAcc = extra ? (Number(extra.passAcc) || 0) : 0;
+            closeSummaryPasses.textContent = `${ok}/${total} pases OK · ${passAcc}%`;
+          }
+          if (closeSummaryPossession) {
+            const poss = extra ? (Number(extra.possessionApprox) || 50) : 50;
+            closeSummaryPossession.textContent = `Posesión aprox: ${poss}%`;
+          }
+        } catch (e) {}
+        if (closeSummaryAlerts) {
+          const alerts = [];
           const forValue = String(summaryInfo.score_for || '').trim();
           const againstValue = String(summaryInfo.score_against || '').trim();
           if (!summaryInfo.opponent) {

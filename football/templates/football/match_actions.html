@@ -2861,17 +2861,28 @@
 		                  var items = list ? list.querySelectorAll('[data-event-id]') : [];
 		                  var totalActions = items ? items.length : 0;
 		
-		                  var yellow = 0, red = 0, subs = 0, cornerFor = 0, cornerAgainst = 0, goals = 0, assists = 0;
-		                  // Sustituciones: contamos entradas para aproximar "realizadas".
-		                  for (var i = 0; i < (items ? items.length : 0); i++) {
-		                    var row = parseHistoryRow(items[i]);
-		                    if (!row) continue;
-		                    var a = safeLower(row.action);
-		                    var r = safeLower(row.result);
-		                    var z = safeLower(row.zone);
-		                    if (a.indexOf('tarjeta amarilla') >= 0 || r === 'amarilla') yellow += 1;
-		                    else if (a.indexOf('tarjeta roja') >= 0 || r === 'roja') red += 1;
-		                    else if (a.indexOf('sustit') >= 0 && (r.indexOf('entrada') >= 0)) subs += 1;
+			                  var yellow = 0, red = 0, subs = 0, cornerFor = 0, cornerAgainst = 0, goals = 0, assists = 0;
+			                  var shots = 0, shotsTarget = 0, passes = 0, passesOk = 0;
+			                  // Sustituciones: contamos entradas para aproximar "realizadas".
+			                  for (var i = 0; i < (items ? items.length : 0); i++) {
+			                    var row = parseHistoryRow(items[i]);
+			                    if (!row) continue;
+			                    var a = safeLower(row.action);
+			                    var r = safeLower(row.result);
+			                    var z = safeLower(row.zone);
+			                    var isShot = (a.indexOf('disparo') >= 0) || (a.indexOf('tiro') >= 0) || (a.indexOf('remate') >= 0) || (a.indexOf('chut') >= 0);
+			                    var isPass = (a.indexOf('pase') >= 0);
+			                    if (isShot) {
+			                      shots += 1;
+			                      if (r.indexOf('a puerta') >= 0 || r.indexOf('apuerta') >= 0 || r === 'ok' || r.indexOf('gol') >= 0 || a.indexOf('gol') >= 0) shotsTarget += 1;
+			                    }
+			                    if (isPass) {
+			                      passes += 1;
+			                      if (r.indexOf('ok') >= 0 || r.indexOf('ganad') >= 0 || r.indexOf('complet') >= 0) passesOk += 1;
+			                    }
+			                    if (a.indexOf('tarjeta amarilla') >= 0 || r === 'amarilla') yellow += 1;
+			                    else if (a.indexOf('tarjeta roja') >= 0 || r === 'roja') red += 1;
+			                    else if (a.indexOf('sustit') >= 0 && (r.indexOf('entrada') >= 0)) subs += 1;
 		                    else if ((a.indexOf('esquina') >= 0 || a.indexOf('corner') >= 0) && (r.indexOf('a favor') >= 0 || r.indexOf('favor') >= 0)) cornerFor += 1;
 		                    else if ((a.indexOf('esquina') >= 0 || a.indexOf('corner') >= 0) && (r.indexOf('en contra') >= 0 || r.indexOf('contra') >= 0)) cornerAgainst += 1;
 		                    else if (a === 'gol' || r === 'gol' || a.indexOf('gol') >= 0) goals += 1;
@@ -2901,9 +2912,15 @@
 		                  setText('status-subs-used-count', subs);
 		                  setText('status-subs-left-count', Math.max(0, 5 - subs));
 		                  setText('status-corner-for-count', cornerFor);
-		                  setText('status-corner-against-count', cornerAgainst);
-		                  setText('status-goal-count', goals);
-		                  setText('status-assist-count', assists);
+			                  setText('status-corner-against-count', cornerAgainst);
+			                  setText('status-goal-count', goals);
+			                  setText('status-assist-count', assists);
+			                  // Cierre: stats generales
+			                  setText('close-summary-shots', String(shots) + ' disparos · ' + String(shotsTarget) + ' a puerta');
+			                  var passAcc = passes ? Math.round((passesOk / Math.max(1, passes)) * 100) : 0;
+			                  setText('close-summary-passes', String(passesOk) + '/' + String(passes) + ' pases OK · ' + String(passAcc) + '%');
+			                  setText('close-summary-possession', 'Posesión aprox: 50%');
+			                  setText('persistent-possession', '50%');
 		
 		                  // HUD fijo.
 		                  setText('persistent-yellow', yellow);
@@ -2923,9 +2940,15 @@
 		                    if (closeActions) closeActions.textContent = String(totalActions);
 		                    var closeBreak = document.getElementById('close-summary-breakdown');
 		                    if (closeBreak) closeBreak.textContent = String(yellow) + ' amarillas · ' + String(red) + ' rojas · ' + String(subs) + ' sustituciones';
-		                    var closeCorners = document.getElementById('close-summary-corners');
-		                    if (closeCorners) closeCorners.textContent = String(cornerFor) + ' córners a favor · ' + String(cornerAgainst) + ' en contra';
-		                    var closeClock = document.getElementById('close-summary-clock');
+			                    var closeCorners = document.getElementById('close-summary-corners');
+			                    if (closeCorners) closeCorners.textContent = String(cornerFor) + ' córners a favor · ' + String(cornerAgainst) + ' en contra';
+			                    var closeShots = document.getElementById('close-summary-shots');
+			                    if (closeShots) closeShots.textContent = String(shots) + ' disparos · ' + String(shotsTarget) + ' a puerta';
+			                    var closePasses = document.getElementById('close-summary-passes');
+			                    if (closePasses) closePasses.textContent = String(passesOk) + '/' + String(passes) + ' pases OK · ' + String(passAcc) + '%';
+			                    var closePoss = document.getElementById('close-summary-possession');
+			                    if (closePoss) closePoss.textContent = 'Posesión aprox: 50%';
+			                    var closeClock = document.getElementById('close-summary-clock');
 		                    if (closeClock) {
 		                      var sec = parseClockSeconds();
 		                      var mm = Math.floor(sec / 60);
@@ -3894,11 +3917,14 @@
                   <h4>Acciones registradas</h4>
                   <strong id="close-summary-actions">0</strong>
                   <p id="close-summary-breakdown">0 amarillas · 0 rojas · 0 sustituciones</p>
+                  <p id="close-summary-shots">0 disparos · 0 a puerta</p>
+                  <p id="close-summary-passes">0/0 pases OK · 0%</p>
                 </article>
                 <article class="closure-card">
                   <h4>Tiempo en vivo</h4>
                   <strong id="close-summary-clock">00:00</strong>
                   <p id="close-summary-corners">0 córners a favor · 0 en contra</p>
+                  <p id="close-summary-possession">Posesión aprox: 50%</p>
                 </article>
               </div>
               <article class="closure-card">
