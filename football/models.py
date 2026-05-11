@@ -1702,6 +1702,10 @@ class RivalVideo(models.Model):
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     source_url = models.URLField(max_length=600, blank=True, help_text='URL de origen (p.ej. YouTube) si aplica.')
     notes = models.TextField(blank=True)
+    is_base = models.BooleanField(
+        default=False,
+        help_text='Marca el vídeo como “base” (partido completo) para que aparezca fijado arriba y sea fácil seguir recortando.',
+    )
     trim_enabled = models.BooleanField(
         default=False,
         help_text='Si está activo, Video Studio limita la reproducción al rango IN/OUT definido.',

@@ -43006,6 +43006,54 @@ def analysis_page(request):
                             folder.base_video = video_obj
                             folder.save(update_fields=['base_video'])
                             video_message = f'Vídeo base asignado: {video_obj.title}'
+        elif form_action == 'set_video_base_flag':
+            video_id_value = _parse_int(request.POST.get('video_id'))
+            if not primary_team:
+                video_error = 'No hay equipo principal configurado.'
+            elif not video_id_value:
+                video_error = 'Vídeo no válido.'
+            else:
+                video_obj = (
+                    RivalVideo.objects
+                    .select_related('folder')
+                    .filter(id=int(video_id_value))
+                    .first()
+                )
+                if not video_obj:
+                    video_error = 'Vídeo no encontrado.'
+                else:
+                    # Seguridad: sólo permitir marcar base en vídeos visibles en este contexto.
+                    # - Si el vídeo tiene team, debe coincidir con primary_team
+                    # - Si es personal, debe pertenecer al usuario
+                    if getattr(video_obj, 'team_id', None):
+                        if int(video_obj.team_id) != int(primary_team.id):
+                            video_error = 'Vídeo no disponible.'
+                    else:
+                        if int(getattr(video_obj, 'owner_user_id', 0) or 0) != int(getattr(request.user, 'id', 0) or 0):
+                            video_error = 'Vídeo no disponible.'
+                    if not video_error:
+                        # Si pertenece a una carpeta, mejor usar la base por carpeta.
+                        # Aquí usamos flag global (especialmente útil si no hay carpeta).
+                        want_on = not bool(getattr(video_obj, 'is_base', False))
+                        scope_qs = RivalVideo.objects.all()
+                        if getattr(video_obj, 'team_id', None):
+                            scope_qs = scope_qs.filter(team=primary_team)
+                        else:
+                            scope_qs = scope_qs.filter(team__isnull=True, folder__isnull=True, owner_user=request.user)
+                        # No mezclar carpetas: si el vídeo no tiene folder, afecta sólo a vídeos sin folder.
+                        if getattr(video_obj, 'folder_id', None):
+                            scope_qs = scope_qs.filter(folder_id=video_obj.folder_id)
+                        else:
+                            scope_qs = scope_qs.filter(folder__isnull=True)
+                        # Mantén un único base por “scope”
+                        if want_on:
+                            try:
+                                scope_qs.exclude(id=video_obj.id).update(is_base=False)
+                            except Exception:
+                                pass
+                        video_obj.is_base = bool(want_on)
+                        video_obj.save(update_fields=['is_base'])
+                        video_message = 'Vídeo base asignado.' if want_on else 'Vídeo base quitado.'
         elif form_action == 'upload_video':
             video_title = (request.POST.get('video_title') or '').strip() or 'Vídeo rival'
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
@@ -44021,7 +44069,7 @@ def analysis_page(request):
             except Exception:
                 video_inbox_unread_count = 0
 
-    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-created_at')
+    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-is_base', '-created_at')
     if primary_team:
         # Multi-equipo: no mezclar vídeos entre clubs/categorías.
         rival_videos_qs = rival_videos_qs.filter(
