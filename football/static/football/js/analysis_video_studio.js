@@ -2328,10 +2328,18 @@
       try { await video.play(); } catch (e) { /* ignore */ }
       syncPlayButtons();
     });
-    btnPause?.addEventListener('click', () => { try { video.pause(); } catch (e) { /* ignore */ } syncPlayButtons(); });
-    video.addEventListener('play', syncPlayButtons);
-    video.addEventListener('pause', syncPlayButtons);
-    syncPlayButtons();
+	    btnPause?.addEventListener('click', () => { try { video.pause(); } catch (e) { /* ignore */ } syncPlayButtons(); });
+	    video.addEventListener('play', syncPlayButtons);
+	    video.addEventListener('play', () => {
+	      // En reproducción, oculta la selección para evitar marcos flotantes al entrar/salir capas.
+	      try { fabricCanvas.discardActiveObject?.(); } catch (e) { /* ignore */ }
+	      selectedFxId = 0;
+	      try { updateLayerPanel(); } catch (e) { /* ignore */ }
+	      try { renderFxList(); } catch (e) { /* ignore */ }
+	      try { renderDrawLayers(); } catch (e) { /* ignore */ }
+	    });
+	    video.addEventListener('pause', syncPlayButtons);
+	    syncPlayButtons();
 
     const markIn = () => {
       const t = Number(video.currentTime) || 0;
@@ -6662,11 +6670,16 @@
     const applyTimedLayers = () => {
       const nowS = Number(video.currentTime) || 0;
       let anyAnim = false;
+      let activeAlpha = 1;
+      const activeObj = (() => {
+        try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; }
+      })();
       for (const obj of fabricCanvas.getObjects()) {
         ensureLayerData(obj);
         const alpha = computeTimedAlpha(obj.data, nowS);
         obj.visible = alpha > 0.001;
         obj.opacity = clamp(alpha, 0, 1);
+        if (activeObj && obj === activeObj) activeAlpha = alpha;
 
         const anim = safeText(obj.data.anim, 'none');
         if (anim === 'pulse') {
@@ -6708,6 +6721,12 @@
             }
           }
         }
+      }
+      // Durante reproducción, no queremos ver el "marco de selección" (controles) flotando
+      // cuando la capa está entrando/saliendo (la selección no sigue el alpha).
+      // En iOS/Safari esto distrae mucho y parece un bug visual.
+      if (!video.paused && activeObj && activeAlpha < 0.35) {
+        try { fabricCanvas.discardActiveObject?.(); } catch (e) { /* ignore */ }
       }
       if (!video.paused || anyAnim) {
         try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
