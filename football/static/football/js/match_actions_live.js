@@ -2207,6 +2207,69 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
 
   const quickDropTargets = document.querySelectorAll('.quick-drop');
   quickDropTargets.forEach((dropTarget) => {
+    let lastQuickDropTapAt = 0;
+    const buildSelectedPlayerPayload = () => {
+      const pid = String(playerInput?.value || '').trim();
+      if (!pid) return null;
+      let card = null;
+      try {
+        card = document.querySelector(`.convocation-card.selected[data-player-id="${CSS.escape(pid)}"]`);
+      } catch (e) {
+        card = null;
+      }
+      if (!card) {
+        try {
+          // Fallback: busca por id aunque la tarjeta no esté marcada como selected.
+          card = Array.from(convocationCards || []).find((c) => String(c?.dataset?.playerId || '') === pid) || null;
+        } catch (e) {
+          card = null;
+        }
+      }
+      return {
+        id: pid,
+        name: String(card?.dataset?.playerName || '').trim() || 'Jugador',
+        number: String(card?.dataset?.playerNumber || '').trim() || '--',
+        photo: String(card?.dataset?.playerPhoto || '').trim(),
+        position: String(card?.dataset?.playerPosition || '').trim(),
+      };
+    };
+    const handleQuickDropTap = async (event) => {
+      const now = Date.now();
+      // Evita doble disparo (touchend/pointerup + click).
+      if (event?.type === 'click' && now - lastQuickDropTapAt < 360) return;
+      lastQuickDropTapAt = now;
+      try { event?.preventDefault?.(); } catch (e) {}
+      try { event?.stopPropagation?.(); } catch (e) {}
+
+      const config = {
+        eventType: dropTarget.dataset.eventType,
+        zoneLabel: dropTarget.dataset.zoneLabel,
+        result: dropTarget.dataset.result,
+        dropKey: dropTarget.dataset.dropKey,
+        teamOnly: dropTarget.dataset.teamOnly || '',
+      };
+      const isTeamOnly = String(config.teamOnly || '').toLowerCase() === 'true';
+      try {
+        const data = await postQuickDropAction({
+          player: isTeamOnly ? null : buildSelectedPlayerPayload(),
+          eventType: config.eventType,
+          zoneLabel: config.zoneLabel,
+          result: config.result || '',
+          dropKey: config.dropKey,
+          teamOnly: isTeamOnly,
+        });
+        if (!data) {
+          if (!isTeamOnly) {
+            showPageStatus('Selecciona un jugador para usar este atajo.', 'warning', 2600);
+          }
+          return;
+        }
+        showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2200);
+      } catch (err) {
+        console.error(err);
+        showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
+      }
+    };
     dropTarget.addEventListener('dragover', (event) => {
       event.preventDefault();
       dropTarget.classList.add('is-drag-over');
@@ -2244,24 +2307,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
       }
     });
-    dropTarget.addEventListener('click', async () => {
-      if (String(dropTarget.dataset.teamOnly || '').toLowerCase() !== 'true') return;
-      try {
-        const data = await postQuickDropAction({
-          player: null,
-          eventType: dropTarget.dataset.eventType,
-          zoneLabel: dropTarget.dataset.zoneLabel,
-          result: dropTarget.dataset.result || '',
-          dropKey: dropTarget.dataset.dropKey,
-          teamOnly: true,
-        });
-        if (!data) return;
-        showPageStatus(`Acción rápida registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`, data.duplicate ? 'warning' : 'success', 2600);
-      } catch (err) {
-        console.error(err);
-        showPageStatus('Error al registrar la acción rápida.', 'danger', 5200);
-      }
-    });
+    // iPad/WKWebView: `click` puede fallar o llegar tarde; `pointerup/touchend` es más fiable.
+    dropTarget.addEventListener('pointerup', handleQuickDropTap);
+    dropTarget.addEventListener('touchend', handleQuickDropTap, { passive: false });
+    dropTarget.addEventListener('click', handleQuickDropTap);
   });
 
   return {

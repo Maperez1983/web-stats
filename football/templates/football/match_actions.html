@@ -2905,11 +2905,31 @@
 	                    })(quickBtns[qb]);
 	                  }
 
-	                  // Quick-drop (amarillas, rojas, corners, subs) direct register
-	                  var drops = document.querySelectorAll('.quick-drop[data-event-type]');
-	                  for (var d = 0; d < drops.length; d++) {
-	                    (function (drop) {
-	                      drop.addEventListener('click', function () {
+		                  // Quick-drop (amarillas, rojas, corners, subs) direct register
+		                  var parseMinuteFromClock = function () {
+		                    try {
+		                      var clock = document.getElementById('match-clock-display');
+		                      var raw = String(clock ? clock.textContent : '').trim();
+		                      var parts = raw.split(':');
+		                      if (parts.length >= 2) {
+		                        var mm = parseInt(parts[0], 10);
+		                        if (isFinite(mm) && mm >= 0) return String(mm);
+		                      }
+		                    } catch (e) {}
+		                    return '0';
+		                  };
+		                  var parseHalfFromBtn = function () {
+		                    try {
+		                      var halfBtn = document.getElementById('change-half-btn');
+		                      var label = String(halfBtn ? halfBtn.textContent : '').toLowerCase();
+		                      if (label.indexOf('2') >= 0) return '2';
+		                    } catch (e) {}
+		                    return '1';
+		                  };
+		                  var drops = document.querySelectorAll('.quick-drop[data-event-type]');
+		                  for (var d = 0; d < drops.length; d++) {
+		                    (function (drop) {
+		                      drop.addEventListener('click', function () {
 	                        var actionType = drop.getAttribute('data-event-type') || '';
 	                        var result = drop.getAttribute('data-result') || '';
 	                        var zoneLabel = drop.getAttribute('data-zone-label') || '';
@@ -2918,18 +2938,18 @@
 	                        if (!mid) { showStatus('No hay match_id activo.', 'danger'); return; }
 	                        var pid = selectedPlayerInput ? String(selectedPlayerInput.value || '').trim() : '';
 	                        if (teamOnly !== '1' && !pid) { showStatus('Selecciona un jugador antes.', 'warning'); return; }
-	                        var fields = {
-	                          match_id: mid,
-	                          player: pid,
-	                          action_type: actionType,
-	                          result: result,
-	                          zone: zoneLabel,
-	                          minute: '0',
-	                          period: '1',
-	                          stage: 'live',
-	                          team_only: teamOnly
-	                        };
-	                        postAction(fields, function (payload) {
+		                        var fields = {
+		                          match_id: mid,
+		                          player: pid,
+		                          action_type: actionType,
+		                          result: result,
+		                          zone: zoneLabel,
+		                          minute: parseMinuteFromClock(),
+		                          period: parseHalfFromBtn(),
+		                          stage: 'live',
+		                          team_only: teamOnly
+		                        };
+		                        postAction(fields, function (payload) {
 	                          // Normalize history label
 	                          var playerLabel = teamOnly === '1' ? 'Equipo' : (drop.getAttribute('data-player-name') || '');
 	                          if (!playerLabel && teamOnly !== '1') {
