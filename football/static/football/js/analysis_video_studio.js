@@ -848,12 +848,12 @@
 	    });
 	    speedSelect?.addEventListener('change', () => {
 	      const sp = Number(speedSelect.value || 1) || 1;
-	      try { video.playbackRate = clamp(sp, 0.25, 4); } catch (e) { /* ignore */ }
+	      try { video.playbackRate = clamp(sp, 0.25, 5); } catch (e) { /* ignore */ }
 	      setStatus(`Velocidad: ${String(video.playbackRate || sp)}x`);
 	    });
 	    try {
 	      const sp0 = Number(speedSelect?.value || 1) || 1;
-	      video.playbackRate = clamp(sp0, 0.25, 4);
+	      video.playbackRate = clamp(sp0, 0.25, 5);
 	    } catch (e) { /* ignore */ }
 
 	    const enforceLoop = () => {
@@ -871,10 +871,11 @@
       const enforceClipBound = () => {
         if (!clipBoundActive) return;
         if (playlistActive) return;
-        const a = Number(inInput?.value || 0) || 0;
-        const b = Number(outInput?.value || 0) || 0;
-        const start = Math.max(0, Math.min(a, b));
-        const end = Math.max(a, b);
+        // Usa los límites cacheados como fuente de verdad; si no existen, cae a inputs.
+        const rawA = Number.isFinite(Number(clipBoundStart)) && (Number(clipBoundStart) > 0) ? Number(clipBoundStart) : (Number(inInput?.value || 0) || 0);
+        const rawB = Number.isFinite(Number(clipBoundEnd)) && (Number(clipBoundEnd) > 0) ? Number(clipBoundEnd) : (Number(outInput?.value || 0) || 0);
+        const start = Math.max(0, Math.min(rawA, rawB));
+        const end = Math.max(rawA, rawB);
         if (!end || end <= start) return;
         clipBoundStart = start;
         clipBoundEnd = end;
@@ -884,9 +885,11 @@
           return;
         }
         if (now >= end - 0.02) {
-          try { video.pause(); } catch (e) { /* ignore */ }
-          try { video.currentTime = end; } catch (e) { /* ignore */ }
-          // Si el usuario activó Loop, dejamos que enforceLoop lo lleve al inicio.
+          // Si hay Loop activo, NO pausamos: dejamos que enforceLoop haga wrap a IN.
+          if (!loopActive) {
+            try { video.pause(); } catch (e) { /* ignore */ }
+            try { video.currentTime = end; } catch (e) { /* ignore */ }
+          }
         }
       };
 	    const updateMiniCursor = () => {
@@ -946,7 +949,87 @@
 	      updateMiniCursor();
 	    };
 
+      // Scrubbing en mini-timeline (iPad friendly): soporta drag con Pointer Events.
+      // Motivo: `click` en iOS es lento/errático y no permite arrastrar.
+      let scrubActive = false;
+      let scrubPointerId = null;
+      let scrubRect = null;
+      let scrubRaf = null;
+      let scrubTarget = null;
+      let lastPointerAt = 0;
+      const seekFromMiniEvent = (ev, { commit = false, showLabel = false } = {}) => {
+        const dur = Number(video.duration) || 0;
+        if (!dur || !Number.isFinite(dur)) return;
+        let t = null;
+        try {
+          const hasAttr = Boolean(ev?.target?.getAttribute?.('data-seek') != null);
+          if (hasAttr) {
+            const direct = Number(ev?.target?.getAttribute?.('data-seek'));
+            if (Number.isFinite(direct) && direct >= 0) t = direct;
+          }
+        } catch (e) {
+          t = null;
+        }
+        if (t == null) {
+          const rect = scrubRect || miniTimeline.getBoundingClientRect();
+          const clientX = Number(ev?.clientX);
+          if (!Number.isFinite(clientX)) return;
+          const pct = clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+          t = pct * dur;
+        }
+        const next = clampToTrim(t);
+        scrubTarget = next;
+        if (scrubRaf) return;
+        scrubRaf = window.requestAnimationFrame(() => {
+          scrubRaf = null;
+          const target = Number(scrubTarget);
+          if (!Number.isFinite(target)) return;
+          try { video.currentTime = target; } catch (e) { /* ignore */ }
+          try {
+            const pct = clamp(target / dur, 0, 1) * 100;
+            if (miniCursor) miniCursor.style.left = `${pct}%`;
+          } catch (e) { /* ignore */ }
+          if (commit && showLabel) setStatus(`→ ${fmtTimeShort(target)}`);
+        });
+      };
+
+      try {
+        miniTimeline.addEventListener('pointerdown', (ev) => {
+          const dur = Number(video.duration) || 0;
+          if (!dur || !Number.isFinite(dur)) return;
+          scrubActive = true;
+          scrubPointerId = ev.pointerId;
+          scrubRect = miniTimeline.getBoundingClientRect();
+          lastPointerAt = Date.now();
+          try { miniTimeline.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+          seekFromMiniEvent(ev);
+        });
+        miniTimeline.addEventListener('pointermove', (ev) => {
+          if (!scrubActive) return;
+          if (scrubPointerId != null && ev.pointerId !== scrubPointerId) return;
+          lastPointerAt = Date.now();
+          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+          seekFromMiniEvent(ev);
+        });
+        const endScrub = (ev) => {
+          if (!scrubActive) return;
+          if (scrubPointerId != null && ev && ev.pointerId != null && ev.pointerId !== scrubPointerId) return;
+          scrubActive = false;
+          scrubPointerId = null;
+          scrubRect = null;
+          // En el final, un seek "commit" para fijar y mostrar feedback.
+          try { if (ev) seekFromMiniEvent(ev, { commit: true, showLabel: true }); } catch (e) { /* ignore */ }
+        };
+        miniTimeline.addEventListener('pointerup', endScrub);
+        miniTimeline.addEventListener('pointercancel', endScrub);
+      } catch (e) {
+        // Si no hay Pointer Events, el `click` seguirá funcionando.
+      }
+
 	    miniTimeline?.addEventListener('click', (ev) => {
+        // Evita "ghost click" tras pointerup/touch.
+        if (Date.now() - (lastPointerAt || 0) < 450) return;
 	      const dur = Number(video.duration) || 0;
 	      if (!dur || !Number.isFinite(dur)) return;
 	      const targetSeek = Number(ev.target?.getAttribute?.('data-seek') || 0);
@@ -2473,11 +2556,26 @@
       if (btnPlay) btnPlay.hidden = playing;
       if (btnPause) btnPause.hidden = !playing;
     };
-    btnPlay?.addEventListener('click', async () => {
-      enforceTrimPlayback();
-      try { await video.play(); } catch (e) { /* ignore */ }
-      syncPlayButtons();
-    });
+	    btnPlay?.addEventListener('click', async () => {
+	      enforceTrimPlayback();
+        // Si hay un segmento IN/OUT válido, reprodúcelo como “clip” (se detiene en OUT).
+        try {
+          const a = Number(inInput?.value || 0) || 0;
+          const b = Number(outInput?.value || 0) || 0;
+          const start = Math.max(0, Math.min(a, b));
+          const end = Math.max(a, b);
+          if (end && end > start) {
+            clipBoundActive = true;
+            clipBoundStart = start;
+            clipBoundEnd = end;
+            if ((Number(video.currentTime) || 0) < start - 0.04) {
+              try { video.currentTime = start; } catch (e) { /* ignore */ }
+            }
+          }
+        } catch (e) { /* ignore */ }
+	      try { await video.play(); } catch (e) { /* ignore */ }
+	      syncPlayButtons();
+	    });
 	    btnPause?.addEventListener('click', () => { try { video.pause(); } catch (e) { /* ignore */ } syncPlayButtons(); });
 	    video.addEventListener('play', syncPlayButtons);
 	    video.addEventListener('play', () => {
@@ -2491,16 +2589,19 @@
 	    video.addEventListener('pause', syncPlayButtons);
 	    syncPlayButtons();
 
-    const markIn = () => {
-      const t = Number(video.currentTime) || 0;
-      if (inInput) inInput.value = String(t.toFixed(1));
-      setStatus(`IN: ${fmtTime(t)}`);
-    };
-    const markOut = () => {
-      const t = Number(video.currentTime) || 0;
-      if (outInput) outInput.value = String(t.toFixed(1));
-      setStatus(`OUT: ${fmtTime(t)}`);
-    };
+	    const markIn = () => {
+	      const t = Number(video.currentTime) || 0;
+	      if (inInput) inInput.value = String(t.toFixed(1));
+        // Mantén el bound alineado para que play pare en OUT cuando esté definido.
+        clipBoundStart = Math.max(0, t);
+	      setStatus(`IN: ${fmtTime(t)}`);
+	    };
+	    const markOut = () => {
+	      const t = Number(video.currentTime) || 0;
+	      if (outInput) outInput.value = String(t.toFixed(1));
+        clipBoundEnd = Math.max(0, t);
+	      setStatus(`OUT: ${fmtTime(t)}`);
+	    };
     btnIn?.addEventListener('click', markIn);
     btnOut?.addEventListener('click', markOut);
 
