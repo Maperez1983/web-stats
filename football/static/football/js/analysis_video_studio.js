@@ -1486,6 +1486,8 @@
     let tool = 'select';
     let arrowStart = null;
     let moveStart = null;
+    let lastArrowSig = '';
+    let lastArrowAt = 0;
     let calloutSeq = 1;
     // Surface Area (polígono)
     let areaDraftPoints = [];
@@ -1958,9 +1960,28 @@
       const end = fabricCanvas.getPointer(opt.e);
       const sw = strokeWidth();
       const color = strokeColor();
-	      if (tool === 'curve') {
-	        const dx = end.x - arrowStart.x;
-	        const dy = end.y - arrowStart.y;
+      // iOS/Safari puede disparar eventos duplicados (touchend + mouseup) → evita duplicar flechas.
+      try {
+        const sig = [
+          tool,
+          Math.round((arrowStart.x || 0) / 3),
+          Math.round((arrowStart.y || 0) / 3),
+          Math.round((end.x || 0) / 3),
+          Math.round((end.y || 0) / 3),
+          Math.round(sw || 0),
+          String(color || ''),
+        ].join(':');
+        const nowTs = Date.now();
+        if (sig && sig === lastArrowSig && (nowTs - lastArrowAt) < 260) {
+          arrowStart = null;
+          return;
+        }
+        lastArrowSig = sig;
+        lastArrowAt = nowTs;
+      } catch (e) { /* ignore */ }
+      if (tool === 'curve') {
+        const dx = end.x - arrowStart.x;
+        const dy = end.y - arrowStart.y;
 	        const dist = Math.max(1, Math.hypot(dx, dy));
 	        const mx = (arrowStart.x + end.x) / 2;
 	        const my = (arrowStart.y + end.y) / 2;
