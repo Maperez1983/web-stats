@@ -48112,6 +48112,27 @@ def _video_studio_cut_source_to_mp4(*, source_path: str, start_s: float, end_s: 
         raise
 
 
+def _video_studio_resolve_rival_video_input_ref(video) -> str:
+    """
+    Devuelve una referencia de entrada para FFmpeg:
+    - Si el storage soporta `.path`, devuelve ruta local.
+    - Si no (S3), devuelve `.url` (presigned URL si aplica).
+    """
+    if not video or not getattr(video, 'video', None):
+        return ''
+    try:
+        p = str(getattr(video.video, 'path', '') or '').strip()
+    except Exception:
+        p = ''
+    if p:
+        return p
+    try:
+        u = str(getattr(video.video, 'url', '') or '').strip()
+    except Exception:
+        u = ''
+    return u
+
+
 def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tuple[float, float]], base_name: str = 'playlist'):
     """
     Concatena varios segmentos (IN/OUT) del mismo vídeo en un MP4 final.
@@ -48886,12 +48907,9 @@ def analysis_video_studio_export_server_api(request):
 
     if not getattr(video, 'video', None):
         return JsonResponse({'ok': False, 'error': 'Este vídeo no está subido como MP4. Sube el archivo para exportar en servidor.'}, status=400)
-    try:
-        source_path = str(video.video.path or '').strip()
-    except Exception:
-        source_path = ''
+    source_path = _video_studio_resolve_rival_video_input_ref(video)
     if not source_path:
-        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}, status=500)
+        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el vídeo (ruta o URL).'}, status=500)
 
     try:
         file_obj, mime_type, out_name, cleanup_paths = _video_studio_cut_source_to_mp4(
@@ -49543,12 +49561,9 @@ def analysis_video_studio_export_server_playlist_api(request):
 
     if not getattr(video, 'video', None):
         return JsonResponse({'ok': False, 'error': 'Este vídeo no está subido como MP4. Sube el archivo para exportar en servidor.'}, status=400)
-    try:
-        source_path = str(video.video.path or '').strip()
-    except Exception:
-        source_path = ''
+    source_path = _video_studio_resolve_rival_video_input_ref(video)
     if not source_path:
-        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}, status=500)
+        return JsonResponse({'ok': False, 'error': 'No se pudo resolver el vídeo (ruta o URL).'}, status=500)
 
     clips = list(
         VideoClip.objects
@@ -49807,12 +49822,9 @@ def _video_studio_export_job_process(job_id: int):
             raise ValueError('Job inválido (team/video).')
         if not getattr(video, 'video', None):
             raise ValueError('Este vídeo no está subido como MP4.')
-        try:
-            source_path = str(video.video.path or '').strip()
-        except Exception:
-            source_path = ''
+        source_path = _video_studio_resolve_rival_video_input_ref(video)
         if not source_path:
-            raise ValueError('No se pudo resolver el archivo del vídeo.')
+            raise ValueError('No se pudo resolver el vídeo (ruta o URL).')
 
         payload = getattr(job, 'payload', None) if isinstance(getattr(job, 'payload', None), dict) else {}
         payload = dict(payload or {})
