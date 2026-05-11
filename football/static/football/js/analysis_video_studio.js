@@ -2648,7 +2648,9 @@
           const a = document.createElement('a');
           a.href = href;
           a.rel = 'noopener';
-          a.target = '_blank';
+          // En Safari (Mac), `target=_blank` a veces abre el player en una pestaña nueva.
+          // Preferimos navegar en la misma pestaña para que `Content-Disposition: attachment`
+          // se traduzca en descarga “normal”.
           if (filename) a.download = safeText(filename, '').slice(0, 180);
           a.style.display = 'none';
           document.body.appendChild(a);
@@ -2657,7 +2659,7 @@
           return true;
         } catch (e) {
           try {
-            window.open(href, '_blank', 'noopener');
+            window.location.assign(href);
             return true;
           } catch (e2) { /* ignore */ }
         }
