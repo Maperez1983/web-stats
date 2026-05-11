@@ -62,7 +62,7 @@
 	        }
 	      }
 	    } catch (e) { /* ignore */ }
-	    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
+		    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
 		    const canTelestrate = Boolean(hasFabric && canvasEl && fxEl && stage);
 		    if (!canTelestrate) {
 		      // Sin Fabric (o sin canvas): mantenemos el editor de tiempo (IN/OUT, loop, clips) funcionando.
@@ -76,6 +76,9 @@
 		          document.getElementById('vs-tool-text'),
 		          document.getElementById('vs-tool-player'),
 		          document.getElementById('vs-tool-callout'),
+		          document.getElementById('vs-tool-base'),
+		          document.getElementById('vs-tool-area'),
+		          document.getElementById('vs-tool-move'),
 		          document.getElementById('vs-tool-spot'),
 		          document.getElementById('vs-tool-blur'),
 		          document.getElementById('vs-undo'),
@@ -184,6 +187,9 @@
     const btnText = document.getElementById('vs-tool-text');
     const btnPlayer = document.getElementById('vs-tool-player');
     const btnCallout = document.getElementById('vs-tool-callout');
+    const btnBase = document.getElementById('vs-tool-base');
+    const btnArea = document.getElementById('vs-tool-area');
+    const btnMove = document.getElementById('vs-tool-move');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
     const btnUndo = document.getElementById('vs-undo');
@@ -1425,7 +1431,12 @@
 
     let tool = 'select';
     let arrowStart = null;
+    let moveStart = null;
     let calloutSeq = 1;
+    // Surface Area (polígono)
+    let areaDraftPoints = [];
+    let areaDraftPolyline = null;
+    let areaLastClickAt = 0;
 
 	    const setTool = (next) => {
 	      tool = next;
@@ -1438,7 +1449,7 @@
       if (tool !== 'spot' && tool !== 'blur') fxPreview = null;
       fxEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'auto' : 'none';
 
-	      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+	      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
 	      if (tool === 'select') btnSelect?.classList.add('primary');
 	      if (tool === 'pen') btnPen?.classList.add('primary');
 	      if (tool === 'arrow') btnArrow?.classList.add('primary');
@@ -1446,10 +1457,34 @@
 	      if (tool === 'text') btnText?.classList.add('primary');
 	      if (tool === 'player') btnPlayer?.classList.add('primary');
 	      if (tool === 'callout') btnCallout?.classList.add('primary');
+	      if (tool === 'base') btnBase?.classList.add('primary');
+	      if (tool === 'area') btnArea?.classList.add('primary');
+	      if (tool === 'move') btnMove?.classList.add('primary');
 	      if (tool === 'spot') btnSpot?.classList.add('primary');
 	      if (tool === 'blur') btnBlur?.classList.add('primary');
         if (tool !== 'player') closePlayerPop();
-	      setStatus(`Herramienta: ${tool}`);
+        if (tool !== 'area') {
+          // Cancela borrador de área si cambiamos de herramienta.
+          try { if (areaDraftPolyline) fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
+          areaDraftPolyline = null;
+          areaDraftPoints = [];
+        }
+	      const toolLabel = (() => {
+	        if (tool === 'select') return 'Select';
+	        if (tool === 'pen') return 'Pen';
+	        if (tool === 'arrow') return 'Arrow';
+	        if (tool === 'curve') return 'Curve';
+	        if (tool === 'text') return 'Texto';
+	        if (tool === 'player') return 'Jugador';
+	        if (tool === 'callout') return 'Callout';
+	        if (tool === 'base') return 'Base';
+	        if (tool === 'area') return 'Área';
+	        if (tool === 'move') return 'Trayectoria';
+	        if (tool === 'spot') return 'Spotlight';
+	        if (tool === 'blur') return 'Blur';
+	        return String(tool || '');
+	      })();
+	      setStatus(`Herramienta: ${toolLabel}`);
 	    };
     setTool('select');
 
@@ -1610,6 +1645,9 @@
 	      if (tool === 'arrow' || tool === 'curve') {
 	        arrowStart = fabricCanvas.getPointer(opt.e);
 	      }
+	      if (tool === 'move') {
+	        moveStart = fabricCanvas.getPointer(opt.e);
+	      }
 	      if (tool === 'text') {
 	        const p = fabricCanvas.getPointer(opt.e);
 	        const t = new fabric.IText('Texto', {
@@ -1634,6 +1672,137 @@
 	      if (tool === 'player') {
 	        const p = fabricCanvas.getPointer(opt.e);
 	        openPlayerPopAt({ x: p.x, y: p.y }, { x: opt?.e?.clientX || 0, y: opt?.e?.clientY || 0 });
+	      }
+	      if (tool === 'base') {
+	        const p = fabricCanvas.getPointer(opt.e);
+	        const rx = clamp(26 + Math.round(strokeWidth() * 1.6), 18, 170);
+	        const ry = clamp(14 + Math.round(strokeWidth() * 1.1), 10, 130);
+	        const c = strokeColor();
+	        const colorToRgba = (color, alpha, fallback) => {
+	          if (color && color.startsWith('#') && (color.length === 7 || color.length === 4)) {
+	            const hex = color.length === 4
+	              ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+	              : color;
+	            const r = parseInt(hex.slice(1, 3), 16);
+	            const g = parseInt(hex.slice(3, 5), 16);
+	            const b = parseInt(hex.slice(5, 7), 16);
+	            return `rgba(${r},${g},${b},${alpha})`;
+	          }
+	          return fallback;
+	        };
+	        // Efecto "peana TV": relleno suave + aro brillante.
+	        const fill = colorToRgba(c, 0.24, 'rgba(250,204,21,0.24)');
+	        const glow = colorToRgba(c, 0.55, 'rgba(250,204,21,0.55)');
+	        const baseFill = new fabric.Ellipse({
+	          left: p.x,
+	          top: p.y,
+	          rx,
+	          ry,
+	          originX: 'center',
+	          originY: 'center',
+	          fill,
+	          stroke: 'rgba(255,255,255,0.12)',
+	          strokeWidth: 1,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const baseRing = new fabric.Ellipse({
+	          left: p.x,
+	          top: p.y,
+	          rx: rx + 2,
+	          ry: ry + 2,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: 'rgba(255,255,255,0.78)',
+	          strokeWidth: 2,
+	          shadow: `rgba(0,0,0,0.35) 0 6px 14px`,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const baseGlow = new fabric.Ellipse({
+	          left: p.x,
+	          top: p.y,
+	          rx: rx + 6,
+	          ry: ry + 6,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: glow,
+	          strokeWidth: 10,
+	          opacity: 0.35,
+	          selectable: false,
+	          evented: false,
+	        });
+	        const group = new fabric.Group([baseGlow, baseFill, baseRing], { selectable: true });
+	        group.data = seedLayerDataNow({ kind: 'base' });
+	        fabricCanvas.add(group);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	      }
+	      if (tool === 'area') {
+	        const p = fabricCanvas.getPointer(opt.e);
+	        const now = Date.now();
+	        const isDouble = (now - areaLastClickAt) < 380;
+	        areaLastClickAt = now;
+	        if (!areaDraftPolyline) {
+	          areaDraftPoints = [{ x: p.x, y: p.y }];
+	          areaDraftPolyline = new fabric.Polyline(areaDraftPoints, {
+	            fill: 'rgba(0,0,0,0)',
+	            stroke: 'rgba(250,204,21,0.95)',
+	            strokeWidth: 2,
+	            strokeDashArray: [8, 6],
+	            selectable: false,
+	            evented: false,
+	          });
+	          fabricCanvas.add(areaDraftPolyline);
+	          setStatus('Área: añade puntos y doble clic para cerrar.');
+	          return;
+	        }
+	        // Añade punto
+	        areaDraftPoints = [...areaDraftPoints, { x: p.x, y: p.y }];
+	        try { areaDraftPolyline.set({ points: areaDraftPoints }); } catch (e) { /* ignore */ }
+	        try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+
+	        if (isDouble && areaDraftPoints.length >= 3) {
+	          // Cierra polígono
+	          try { fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
+	          areaDraftPolyline = null;
+	          const poly = new fabric.Polygon(areaDraftPoints, {
+	            fill: (() => {
+	              const c = strokeColor();
+	              if (c && c.startsWith('#') && (c.length === 7 || c.length === 4)) {
+	                const hex = c.length === 4
+	                  ? `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`
+	                  : c;
+	                const r = parseInt(hex.slice(1, 3), 16);
+	                const g = parseInt(hex.slice(3, 5), 16);
+	                const b = parseInt(hex.slice(5, 7), 16);
+	                return `rgba(${r},${g},${b},0.22)`;
+	              }
+	              return 'rgba(245,158,11,0.22)';
+	            })(),
+	            stroke: 'rgba(255,255,255,0.35)',
+	            strokeWidth: 1,
+	            shadow: 'rgba(0,0,0,0.25) 0 10px 22px',
+	            selectable: true,
+	            objectCaching: false,
+	          });
+	          poly.data = seedLayerDataNow({ kind: 'surface_area' });
+	          fabricCanvas.add(poly);
+	          pushHistory();
+	          try { fabricCanvas.setActiveObject(poly); } catch (e) { /* ignore */ }
+	          selectedFxId = 0;
+	          updateLayerPanel();
+	          renderFxList();
+	          renderDrawLayers();
+	          areaDraftPoints = [];
+	          setStatus('Área creada.');
+	        }
 	      }
 	      if (tool === 'callout') {
 	        const p = fabricCanvas.getPointer(opt.e);
@@ -1668,8 +1837,63 @@
         renderFxList();
         renderDrawLayers();
       }
-    });
+	    });
     fabricCanvas.on('mouse:up', (opt) => {
+      if (tool === 'move' && moveStart) {
+        const end = fabricCanvas.getPointer(opt.e);
+        const sw = strokeWidth();
+        const color = strokeColor();
+        const dx = end.x - moveStart.x;
+        const dy = end.y - moveStart.y;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const steps = clamp(Math.round(dist / 32), 2, 18);
+        const pts = [];
+        for (let i = 0; i <= steps; i += 1) {
+          const t = i / steps;
+          pts.push({ x: moveStart.x + dx * t, y: moveStart.y + dy * t });
+        }
+        const path = new fabric.Polyline(pts, {
+          fill: 'rgba(0,0,0,0)',
+          stroke: color,
+          strokeWidth: clamp(sw, 2, 18),
+          strokeLineCap: 'round',
+          strokeLineJoin: 'round',
+          strokeDashArray: [10, 8],
+          selectable: false,
+          evented: false,
+          objectCaching: false,
+          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+        });
+        const ang = Math.atan2(dy, dx);
+        const headLen = clamp(18 + sw * 1.2, 16, 42);
+        const headW = clamp(10 + sw * 0.8, 10, 28);
+        const hx1 = end.x - headLen * Math.cos(ang) + headW * Math.cos(ang + Math.PI / 2);
+        const hy1 = end.y - headLen * Math.sin(ang) + headW * Math.sin(ang + Math.PI / 2);
+        const hx2 = end.x - headLen * Math.cos(ang) + headW * Math.cos(ang - Math.PI / 2);
+        const hy2 = end.y - headLen * Math.sin(ang) + headW * Math.sin(ang - Math.PI / 2);
+        const head = new fabric.Polygon([
+          { x: end.x, y: end.y },
+          { x: hx1, y: hy1 },
+          { x: hx2, y: hy2 },
+        ], {
+          fill: color,
+          stroke: 'rgba(255,255,255,0.65)',
+          strokeWidth: 1,
+          selectable: false,
+          evented: false,
+          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+        });
+        const group = new fabric.Group([path, head], { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'movement_line' });
+        fabricCanvas.add(group);
+        pushHistory();
+        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+        selectedFxId = 0;
+        updateLayerPanel();
+        renderFxList();
+        renderDrawLayers();
+        moveStart = null;
+      }
       if ((tool !== 'arrow' && tool !== 'curve') || !arrowStart) return;
       const end = fabricCanvas.getPointer(opt.e);
       const sw = strokeWidth();
@@ -1758,6 +1982,9 @@
 	    btnText?.addEventListener('click', () => setTool('text'));
 	    btnPlayer?.addEventListener('click', () => setTool('player'));
 	    btnCallout?.addEventListener('click', () => setTool('callout'));
+	    btnBase?.addEventListener('click', () => setTool('base'));
+	    btnArea?.addEventListener('click', () => setTool('area'));
+	    btnMove?.addEventListener('click', () => setTool('move'));
 	    btnSpot?.addEventListener('click', () => setTool('spot'));
 	    btnBlur?.addEventListener('click', () => setTool('blur'));
 
@@ -2301,6 +2528,15 @@
       if (k === 'd') {
         ev.preventDefault();
         toggleDorsalMode();
+      }
+      if (k === 'escape') {
+        // Cancelar borrador de área.
+        if (tool === 'area') {
+          try { if (areaDraftPolyline) fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
+          areaDraftPolyline = null;
+          areaDraftPoints = [];
+          setStatus('Área cancelada.');
+        }
       }
     }, { passive: false });
 
