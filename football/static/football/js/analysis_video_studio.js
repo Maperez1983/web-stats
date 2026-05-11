@@ -31,7 +31,7 @@
 	    const fxEl = document.getElementById('vs-fx');
 		    const stage = document.getElementById('vs-stage');
 		    if (!video) return;
-		    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
+	    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
 		    const canTelestrate = Boolean(hasFabric && canvasEl && fxEl && stage);
 		    if (!canTelestrate) {
 		      // Sin Fabric (o sin canvas): mantenemos el editor de tiempo (IN/OUT, loop, clips) funcionando.
@@ -224,6 +224,72 @@
 	    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
 	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
 
+      // Popover marcador jugador (sin prompts)
+      const playerPop = document.getElementById('vs-player-pop');
+      const playerNumberInput = document.getElementById('vs-player-number');
+      const playerNameInput = document.getElementById('vs-player-name');
+      const playerOkBtn = document.getElementById('vs-player-ok');
+      const playerCancelBtn = document.getElementById('vs-player-cancel');
+      const playerRecentsWrap = document.getElementById('vs-player-recents');
+      let playerPopCanvasPos = null;
+      const playerRecentsKey = 'vs_player_recents_v1';
+
+      const loadPlayerRecents = () => {
+        try {
+          const raw = window.localStorage?.getItem?.(playerRecentsKey) || '[]';
+          const arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr.slice(0, 12) : [];
+        } catch (e) {
+          return [];
+        }
+      };
+      const savePlayerRecents = (items) => {
+        try { window.localStorage?.setItem?.(playerRecentsKey, JSON.stringify((Array.isArray(items) ? items : []).slice(0, 12))); } catch (e) { /* ignore */ }
+      };
+      const renderPlayerRecents = () => {
+        if (!playerRecentsWrap) return;
+        const items = loadPlayerRecents();
+        if (!items.length) { playerRecentsWrap.innerHTML = ''; return; }
+        playerRecentsWrap.innerHTML = items
+          .map((it, idx) => {
+            const num = safeText(it?.number, '').trim();
+            const name = safeText(it?.name, '').trim();
+            if (!num || !name) return '';
+            const label = `${num} ${name}`.trim();
+            return `<button type="button" class="button ghost" data-vs-player-recent="${idx}">${escHtml(label)}</button>`;
+          })
+          .filter(Boolean)
+          .join('');
+        Array.from(playerRecentsWrap.querySelectorAll('[data-vs-player-recent]')).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.getAttribute('data-vs-player-recent') || -1);
+            const items2 = loadPlayerRecents();
+            const it = items2[idx];
+            if (!it) return;
+            if (playerNumberInput) playerNumberInput.value = safeText(it.number, '');
+            if (playerNameInput) playerNameInput.value = safeText(it.name, '');
+            try { playerNameInput?.focus?.(); } catch (e) { /* ignore */ }
+          });
+        });
+      };
+      const closePlayerPop = () => {
+        playerPopCanvasPos = null;
+        if (!playerPop) return;
+        playerPop.style.display = 'none';
+      };
+      const openPlayerPopAt = (canvasPoint, clientPoint) => {
+        if (!playerPop || !stage) return;
+        playerPopCanvasPos = canvasPoint || null;
+        renderPlayerRecents();
+        const rect = stage.getBoundingClientRect();
+        const x = clamp((clientPoint?.x ?? (rect.left + rect.width * 0.5)) - rect.left, 8, Math.max(8, rect.width - 328));
+        const y = clamp((clientPoint?.y ?? (rect.top + rect.height * 0.5)) - rect.top, 8, Math.max(8, rect.height - 180));
+        playerPop.style.left = `${Math.round(x)}px`;
+        playerPop.style.top = `${Math.round(y)}px`;
+        playerPop.style.display = 'block';
+        try { (playerNumberInput || playerNameInput)?.focus?.(); } catch (e) { /* ignore */ }
+      };
+
 	    // Timeline editor (clips)
 	    const tlFromSelectionBtn = document.getElementById('vs-tl-from-selection');
 	    const tlClearBtn = document.getElementById('vs-tl-clear');
@@ -239,7 +305,7 @@
 			    const tlJobMsg = document.getElementById('vs-tl-job-msg');
 			    const tlJobProgress = document.getElementById('vs-tl-job-progress');
 			    const tlTransitionInput = document.getElementById('vs-tl-transition');
-		    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
+    const tlItemDialog = document.getElementById('vs-tl-item-dialog');
 		    const tlItemInInput = document.getElementById('vs-tl-item-in');
 		    const tlItemOutInput = document.getElementById('vs-tl-item-out');
 		    const tlSpeedStartInput = document.getElementById('vs-tl-speed-start');
@@ -258,7 +324,7 @@
 	    const aiMetaEl = document.getElementById('vs-ai-meta');
 	    const aiOutputEl = document.getElementById('vs-ai-output');
 
-    const projectTitleInput = document.getElementById('vs-project-title');
+	    const projectTitleInput = document.getElementById('vs-project-title');
     const projectSaveBtn = document.getElementById('vs-project-save');
     const projectRefreshBtn = document.getElementById('vs-project-refresh');
     const projectsList = document.getElementById('vs-projects');
@@ -279,10 +345,12 @@
 		    const playlistCountEl = document.getElementById('vs-playlist-count');
 		    const clipSaveBtn = document.getElementById('vs-clip-save');
         const clipSaveQuickBtn = document.getElementById('vs-clip-save-quick');
+        const openMainCutBtn = document.getElementById('vs-open-main-cut');
 		    const clipDupBtn = document.getElementById('vs-clip-dup');
 		    const clipSplitBtn = document.getElementById('vs-clip-split');
 		    const clipRefreshBtn = document.getElementById('vs-clip-refresh');
-	    const clipsList = document.getElementById('vs-clips');
+		    const clipsList = document.getElementById('vs-clips');
+        const clipsCountSimpleEl = document.getElementById('vs-clips-count-simple');
 	    const dashboardEl = document.getElementById('vs-dashboard');
 	    const filterUnreviewedClipsToggle = document.getElementById('vs-filter-unreviewed-clips');
 	    const filterUnreviewedEventsToggle = document.getElementById('vs-filter-unreviewed-events');
@@ -1156,6 +1224,84 @@
         const name = safeText(m[2], '').trim();
         return { number, name };
       };
+
+      const createPlayerMarkerAt = (point, rawNumber, rawName) => {
+        if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
+        const number = safeText(rawNumber, '').trim().slice(0, 3);
+        const name = safeText(rawName, '').trim().toUpperCase().slice(0, 18);
+        if (!number || !name) return null;
+
+        const p = { x: point.x, y: point.y };
+        const radius = 22 + Math.round(strokeWidth() / 2);
+        const color = strokeColor();
+
+        const ringOuter = new fabric.Circle({
+          left: p.x,
+          top: p.y,
+          radius,
+          fill: color,
+          stroke: 'rgba(255,255,255,0.92)',
+          strokeWidth: 3,
+          originX: 'center',
+          originY: 'center',
+          shadow: 'rgba(0,0,0,0.35) 0 2px 6px',
+        });
+        const numText = new fabric.Text(String(number), {
+          left: p.x,
+          top: p.y + 1,
+          fill: '#ffffff',
+          fontSize: 18,
+          fontWeight: '950',
+          originX: 'center',
+          originY: 'center',
+          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
+        });
+
+        const nameText = new fabric.Text(name, {
+          left: p.x,
+          top: p.y,
+          fill: '#ffffff',
+          fontSize: 14,
+          fontWeight: '950',
+          originX: 'center',
+          originY: 'center',
+          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
+        });
+        try { nameText.initDimensions(); } catch (e) { /* ignore */ }
+        const padX = 12;
+        const padY = 7;
+        const nameW = Math.max(52, Math.round((nameText.width || 0) + padX * 2));
+        const nameH = Math.max(26, Math.round((nameText.height || 0) + padY * 2));
+        const tagRect = new fabric.Rect({
+          left: p.x,
+          top: p.y,
+          width: nameW,
+          height: nameH,
+          rx: 999,
+          ry: 999,
+          fill: 'rgba(2,6,23,0.68)',
+          stroke: 'rgba(255,255,255,0.18)',
+          strokeWidth: 1,
+          originX: 'center',
+          originY: 'center',
+          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+        });
+
+        const tagOffsetX = radius + 10 + (nameW / 2);
+        tagRect.set({ left: p.x + tagOffsetX, top: p.y });
+        nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
+
+        const group = new fabric.Group([ringOuter, numText, tagRect, nameText], { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name });
+        fabricCanvas.add(group);
+        pushHistory();
+        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+        selectedFxId = 0;
+        updateLayerPanel();
+        renderFxList();
+        renderDrawLayers();
+        return { number, name };
+      };
     colorInput?.addEventListener('change', () => {
       try { fabricCanvas.freeDrawingBrush.color = strokeColor(); } catch (e) { /* ignore */ }
     });
@@ -1167,8 +1313,8 @@
     let arrowStart = null;
     let calloutSeq = 1;
 
-    const setTool = (next) => {
-      tool = next;
+	    const setTool = (next) => {
+	      tool = next;
       const isSelect = tool === 'select';
       const isPen = tool === 'pen';
       fabricCanvas.isDrawingMode = isPen;
@@ -1187,6 +1333,7 @@
 	      if (tool === 'callout') btnCallout?.classList.add('primary');
 	      if (tool === 'spot') btnSpot?.classList.add('primary');
 	      if (tool === 'blur') btnBlur?.classList.add('primary');
+        if (tool !== 'player') closePlayerPop();
 	      setStatus(`Herramienta: ${tool}`);
 	    };
     setTool('select');
@@ -1371,92 +1518,7 @@
 	      }
 	      if (tool === 'player') {
 	        const p = fabricCanvas.getPointer(opt.e);
-	        let number = '';
-	        let name = '';
-	        for (let tries = 0; tries < 2; tries += 1) {
-	          const raw = window.prompt('Jugador (ej: 9 ALEX)', `${number ? `${number} ` : ''}${name}`);
-	          const parsed = parsePlayerMarkerInput(raw);
-	          number = safeText(parsed.number, '');
-	          name = safeText(parsed.name, '');
-	          if (number && name) break;
-	          if (number && !name) {
-	            const rawName = window.prompt('Nombre (ej: ALEX)', '');
-	            name = safeText(rawName, '').trim();
-	            if (name) break;
-	          }
-	        }
-	        if (!number || !name) return;
-
-	        const radius = 22 + Math.round(strokeWidth() / 2);
-	        const color = strokeColor();
-
-	        // Broadcast-style: círculo con dorsal + etiqueta con nombre
-	        const ringOuter = new fabric.Circle({
-	          left: p.x,
-	          top: p.y,
-	          radius,
-	          fill: color,
-	          stroke: 'rgba(255,255,255,0.92)',
-	          strokeWidth: 3,
-	          originX: 'center',
-	          originY: 'center',
-	          shadow: 'rgba(0,0,0,0.35) 0 2px 6px',
-	        });
-	        const numText = new fabric.Text(String(number).slice(0, 3), {
-	          left: p.x,
-	          top: p.y + 1,
-	          fill: '#ffffff',
-	          fontSize: 18,
-	          fontWeight: '950',
-	          originX: 'center',
-	          originY: 'center',
-	          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
-	        });
-
-	        const label = safeText(name, '').toUpperCase().slice(0, 18);
-	        const nameText = new fabric.Text(label, {
-	          left: p.x,
-	          top: p.y,
-	          fill: '#ffffff',
-	          fontSize: 14,
-	          fontWeight: '950',
-	          originX: 'center',
-	          originY: 'center',
-	          shadow: 'rgba(0,0,0,0.45) 0 1px 2px',
-	        });
-	        try { nameText.initDimensions(); } catch (e) { /* ignore */ }
-	        const padX = 12;
-	        const padY = 7;
-	        const nameW = Math.max(52, Math.round((nameText.width || 0) + padX * 2));
-	        const nameH = Math.max(26, Math.round((nameText.height || 0) + padY * 2));
-	        const tagRect = new fabric.Rect({
-	          left: p.x,
-	          top: p.y,
-	          width: nameW,
-	          height: nameH,
-	          rx: 999,
-	          ry: 999,
-	          fill: 'rgba(2,6,23,0.68)',
-	          stroke: 'rgba(255,255,255,0.18)',
-	          strokeWidth: 1,
-	          originX: 'center',
-	          originY: 'center',
-	          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
-	        });
-
-	        const tagOffsetX = radius + 10 + (nameW / 2);
-	        tagRect.set({ left: p.x + tagOffsetX, top: p.y });
-	        nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
-
-	        const group = new fabric.Group([ringOuter, numText, tagRect, nameText], { selectable: true });
-	        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name: label });
-	        fabricCanvas.add(group);
-	        pushHistory();
-	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
-	        selectedFxId = 0;
-	        updateLayerPanel();
-	        renderFxList();
-	        renderDrawLayers();
+	        openPlayerPopAt({ x: p.x, y: p.y }, { x: opt?.e?.clientX || 0, y: opt?.e?.clientY || 0 });
 	      }
 	      if (tool === 'callout') {
 	        const p = fabricCanvas.getPointer(opt.e);
@@ -1583,6 +1645,35 @@
 	    btnCallout?.addEventListener('click', () => setTool('callout'));
 	    btnSpot?.addEventListener('click', () => setTool('spot'));
 	    btnBlur?.addEventListener('click', () => setTool('blur'));
+
+      const pushPlayerRecent = (number, name) => {
+        const n = safeText(number, '').trim();
+        const nm = safeText(name, '').trim().toUpperCase();
+        if (!n || !nm) return;
+        const items = loadPlayerRecents();
+        const next = [{ number: n, name: nm }, ...items.filter((x) => !(safeText(x?.number, '').trim() === n && safeText(x?.name, '').trim().toUpperCase() === nm))].slice(0, 12);
+        savePlayerRecents(next);
+      };
+
+      playerCancelBtn?.addEventListener('click', closePlayerPop);
+      playerOkBtn?.addEventListener('click', () => {
+        if (!playerPopCanvasPos) return;
+        const number = safeText(playerNumberInput?.value, '').trim();
+        const name = safeText(playerNameInput?.value, '').trim();
+        if (!number || !name) { setStatus('Completa dorsal y nombre.', true); return; }
+        const created = createPlayerMarkerAt(playerPopCanvasPos, number, name);
+        if (!created) { setStatus('No se pudo crear marcador.', true); return; }
+        pushPlayerRecent(created.number, created.name);
+        closePlayerPop();
+        setStatus(`Jugador: ${created.number} ${created.name}`);
+      });
+      const handlePlayerKey = (ev) => {
+        const key = safeText(ev?.key, '');
+        if (key === 'Escape') { ev.preventDefault(); closePlayerPop(); return; }
+        if (key === 'Enter') { ev.preventDefault(); playerOkBtn?.click?.(); }
+      };
+      playerNumberInput?.addEventListener('keydown', handlePlayerKey);
+      playerNameInput?.addEventListener('keydown', handlePlayerKey);
 
     const clearTemplates = () => {
       const toRemove = [];
@@ -4133,8 +4224,8 @@
 	    });
 	    loadInboxRecipients();
 
-	    const renderClips = (items) => {
-	      if (!clipsList) return;
+		    const renderClips = (items) => {
+		      if (!clipsList) return;
 	      const total = Array.isArray(clipsCache) ? clipsCache.length : 0;
 	      const baseItems = Array.isArray(items) ? items : [];
 	      const filteredItems = reviewFilterState.clipsOnlyUnreviewed
@@ -4143,8 +4234,11 @@
 	          return id > 0 && !reviewedClipIds.has(id);
 	        })
 	        : baseItems;
-	      const shown = filteredItems.length;
-	      if (clipCountEl) clipCountEl.textContent = `${shown}/${total} clips`;
+		      const shown = filteredItems.length;
+		      if (clipCountEl) clipCountEl.textContent = `${shown}/${total} clips`;
+          if (clipsCountSimpleEl) {
+            clipsCountSimpleEl.textContent = (shown === total) ? `${total} clips` : `${shown}/${total} clips`;
+          }
 	      const rows = filteredItems.slice(0, 120).map((c) => {
 	        const id = Number(c?.id) || 0;
 	        if (!id) return '';
@@ -4218,8 +4312,9 @@
             const items2 = Array.isArray(data?.items) ? data.items : [];
             const found = items2.find((x) => Number(x?.id) === id);
             if (!found) return;
-	            activeClipId = id;
-	            if (clipTitleInput) clipTitleInput.value = safeText(found?.title);
+		            activeClipId = id;
+                updateClipUiState();
+		            if (clipTitleInput) clipTitleInput.value = safeText(found?.title);
 	            if (clipCollectionInput) clipCollectionInput.value = safeText(found?.collection);
 	            if (clipTagsInput) clipTagsInput.value = (Array.isArray(found?.tags) ? found.tags : []).map((t) => safeText(t)).filter(Boolean).join(', ');
 	            if (clipNotesInput) clipNotesInput.value = safeText(found?.notes, '');
@@ -4436,9 +4531,25 @@
 		      }
 		    };
 
-	    const saveClip = async () => {
-	      if (!clipSaveUrl || !videoId) return;
-	      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
+		    const updateClipUiState = () => {
+		      try {
+		        const isEditing = Boolean(activeClipId);
+		        if (clipSaveBtn) clipSaveBtn.textContent = isEditing ? 'Actualizar' : 'Guardar';
+		        if (clipSaveBtn) clipSaveBtn.title = isEditing ? 'Actualiza el clip cargado' : 'Crea un clip nuevo';
+		        if (clipSaveQuickBtn) clipSaveQuickBtn.title = 'Crea un clip nuevo con el segmento IN/OUT';
+		      } catch (e) { /* ignore */ }
+		    };
+
+		    const clearActiveClip = () => {
+		      activeClipId = 0;
+		      updateClipUiState();
+		      setStatus('Nuevo clip.');
+		    };
+
+		    const saveClip = async (opts = {}) => {
+		      if (!clipSaveUrl || !videoId) return;
+		      const forceNew = Boolean(opts?.forceNew);
+		      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
 	      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
 	      const ctxPhase = safeText(ctxPhaseSelect?.value, '');
 	      let collection = safeText(clipCollectionInput?.value, '').slice(0, 120);
@@ -4453,26 +4564,32 @@
         setStatus('Define IN/OUT para el clip.', true);
         return;
       }
-      const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
-      try {
-	        const resp = await fetch(clipSaveUrl, {
-	          method: 'POST',
-	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-	          credentials: 'same-origin',
-	          body: JSON.stringify({ id: activeClipId || 0, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay, tags, notes }),
-	        });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
-        activeClipId = Number(data?.id) || activeClipId;
-        await refreshClips();
-        try {
-          const d = new Date();
+	      const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
+	      try {
+	        const clipId = forceNew ? 0 : (activeClipId || 0);
+		        const resp = await fetch(clipSaveUrl, {
+		          method: 'POST',
+		          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+		          credentials: 'same-origin',
+		          body: JSON.stringify({ id: clipId, video_id: videoId, title, collection, in_s: inS, out_s: outS, overlay, tags, notes }),
+		        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+	        // Si estamos editando un clip cargado, conserva `activeClipId`. Si estamos creando uno nuevo, no lo dejes activo
+	        // para que el siguiente Guardar cree otro (flujo multi-clips).
+	        if (!forceNew && clipId) activeClipId = Number(data?.id) || activeClipId;
+	        await refreshClips();
+	        if (!clipId || forceNew) activeClipId = 0;
+	        updateClipUiState();
+	        try {
+	          const d = new Date();
           const hh = String(d.getHours()).padStart(2, '0');
           const mm = String(d.getMinutes()).padStart(2, '0');
           const ss = String(d.getSeconds()).padStart(2, '0');
           const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS)}`;
-          if (clipSavedMsg) clipSavedMsg.textContent = `Guardado ✓ · ${hh}:${mm}:${ss} · id ${activeClipId || ''} · ${label}`;
-        } catch (e) { /* ignore */ }
+	          const savedId = Number(data?.id) || activeClipId || 0;
+	          if (clipSavedMsg) clipSavedMsg.textContent = `Guardado ✓ · ${hh}:${mm}:${ss} · id ${savedId || ''} · ${label}`;
+	        } catch (e) { /* ignore */ }
         try {
           if (clipSaveBtn) {
             const old = clipSaveBtn.textContent;
@@ -4489,15 +4606,16 @@
             el.classList.add('vs-flash');
             window.setTimeout(() => { try { el.classList.remove('vs-flash'); } catch (e2) { /* ignore */ } }, 1800);
           };
-          const revealClipRow = () => {
-            if (!activeClipId || !clipsList) return false;
-            const btn = clipsList.querySelector?.(`[data-vs-clip-load="${activeClipId}"]`);
-            const row = btn?.closest?.('.row') || btn?.parentElement;
-            if (!row) return false;
-            try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
-            flash(row);
-            return true;
-          };
+	          const revealClipRow = () => {
+	            const savedId = Number(data?.id) || activeClipId || 0;
+	            if (!savedId || !clipsList) return false;
+	            const btn = clipsList.querySelector?.(`[data-vs-clip-load="${savedId}"]`);
+	            const row = btn?.closest?.('.row') || btn?.parentElement;
+	            if (!row) return false;
+	            try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
+	            flash(row);
+	            return true;
+	          };
           const hasFilters = Boolean(safeText(clipSearchInput?.value, '') || safeText(clipCollectionFilterSelect?.value, '') || Boolean(filterUnreviewedClipsToggle?.checked));
           let ok = revealClipRow();
           if (!ok && hasFilters && clipClearFiltersBtn) {
@@ -4601,12 +4719,25 @@
 	      } catch (e) {
 	        setStatus('No se pudo dividir.', true);
 	      }
-	    };
-		    clipSaveBtn?.addEventListener('click', saveClip);
-        clipSaveQuickBtn?.addEventListener('click', saveClip);
+		    };
+		    clipSaveBtn?.addEventListener('click', () => saveClip({ forceNew: false }));
+        clipSaveQuickBtn?.addEventListener('click', () => saveClip({ forceNew: true }));
+        openMainCutBtn?.addEventListener('click', () => {
+          try {
+            const tabAdvanced = document.getElementById('vs-tab-advanced');
+            tabAdvanced?.click?.();
+          } catch (e) { /* ignore */ }
+          window.setTimeout(() => {
+            try {
+              const details = document.getElementById('vs-acc-edit');
+              if (details && details.tagName === 'DETAILS') details.open = true;
+              details?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+            } catch (e) { /* ignore */ }
+          }, 50);
+        });
 		    clipDupBtn?.addEventListener('click', duplicateActiveClip);
-	    clipSplitBtn?.addEventListener('click', splitActiveClipAtPlayhead);
-	    clipRefreshBtn?.addEventListener('click', refreshClips);
+		    clipSplitBtn?.addEventListener('click', splitActiveClipAtPlayhead);
+		    clipRefreshBtn?.addEventListener('click', refreshClips);
 	    clipSearchInput?.addEventListener('input', () => renderClips(applyClipFilters(clipsCache)));
 	    clipCollectionFilterSelect?.addEventListener('change', () => renderClips(applyClipFilters(clipsCache)));
 	    filterUnreviewedClipsToggle?.addEventListener('change', () => {
@@ -4628,8 +4759,9 @@
 	        return '';
 	      }
 	    })();
-	    refreshClips().then(() => {
-	      if (initialCollection && clipCollectionFilterSelect) {
+		    refreshClips().then(() => {
+          updateClipUiState();
+		      if (initialCollection && clipCollectionFilterSelect) {
 	        // Solo aplica si existe como opción (rebuildCollectionFilters ya ha poblado el select).
 	        const has = Array.from(clipCollectionFilterSelect.options || []).some((opt) => safeText(opt?.value, '') === initialCollection);
 	        if (has) {

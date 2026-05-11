@@ -86,7 +86,7 @@
 
 	      /* Clips bajo el vídeo */
 	      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
-	      .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+      .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
 	      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
 	      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
@@ -101,6 +101,24 @@
       details.vs-acc > summary::-webkit-details-marker { display:none; }
       details.vs-acc[open] > summary { color: #e9fbff; }
       details.vs-acc .vs-acc-body { margin-top:0.55rem; display:grid; gap:0.55rem; }
+
+      /* Popover marcador jugador */
+      #vs-player-pop {
+        position:absolute;
+        z-index: 9;
+        min-width: 240px;
+        max-width: 320px;
+        border-radius: 16px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(9,16,29,0.98);
+        box-shadow: 0 22px 52px rgba(0,0,0,0.35);
+        padding: 0.65rem;
+        display:none;
+      }
+      #vs-player-pop .vs-pop-row { display:flex; gap:0.45rem; align-items:center; }
+      #vs-player-pop input[type="text"], #vs-player-pop input[type="number"] { border-radius: 12px; padding:0.55rem 0.65rem; }
+      #vs-player-recents { display:flex; flex-wrap:wrap; gap:0.35rem; }
+      #vs-player-recents button { padding: 0.35rem 0.55rem; font-size: 0.70rem; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -169,14 +187,26 @@
             </div>
           </div>
 
-	          <div class="stage" id="vs-stage">
-	            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
-	              <source src="{{ video.video.url }}" />
-	            </video>
-	            <canvas id="vs-fx"></canvas>
-	            <canvas id="vs-canvas"></canvas>
-	            <div id="vs-roi" aria-hidden="true"></div>
-	          </div>
+		          <div class="stage" id="vs-stage">
+		            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
+		              <source src="{{ video.video.url }}" />
+		            </video>
+		            <canvas id="vs-fx"></canvas>
+		            <canvas id="vs-canvas"></canvas>
+		            <div id="vs-roi" aria-hidden="true"></div>
+                <div id="vs-player-pop" role="dialog" aria-label="Marcador jugador">
+                  <div class="hint" style="margin:0 0 0.45rem;">Marcador jugador</div>
+                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
+                    <input type="number" id="vs-player-number" placeholder="Dorsal" min="0" max="999" style="width:92px;" />
+                    <input type="text" id="vs-player-name" placeholder="Nombre" maxlength="18" />
+                  </div>
+                  <div id="vs-player-recents" style="margin:0 0 0.55rem;"></div>
+                  <div class="vs-pop-row" style="justify-content:flex-end;">
+                    <button type="button" class="button ghost" id="vs-player-cancel">Cancelar</button>
+                    <button type="button" class="button primary" id="vs-player-ok">OK</button>
+                  </div>
+                </div>
+		          </div>
 		          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer;">
 		            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
 		            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
@@ -185,6 +215,7 @@
               <div class="vs-clips-zone">
                 <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
                 <div class="hint" style="margin-bottom:0.55rem;">Marca <span class="k">IN</span>/<span class="k">OUT</span>, pulsa <span class="k">Guardar</span> y después abre el clip para anotar.</div>
+                <div class="hint" id="vs-clips-count-simple" style="margin:-0.25rem 0 0.55rem;">—</div>
                 <div class="list vs-clips-grid" id="vs-clips"></div>
               </div>
 		        </section>
@@ -201,6 +232,9 @@
                   Título del clip
                   <input type="text" id="vs-clip-title" placeholder="Ej: Gol en contra · ajuste línea" />
                 </label>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:-0.15rem;">
+                  <button type="button" class="button ghost" id="vs-open-main-cut" title="Define el corte principal del partido (quita esperas/anuncios)">Corte principal</button>
+                </div>
                 <label>
                   Notas (opcional)
                   <textarea id="vs-clip-notes" style="min-height:90px;" placeholder="Qué pasó, qué corregir, qué mirar..."></textarea>
@@ -257,7 +291,7 @@
                 </div>
 	            </details>
 
-		            <details class="vs-acc">
+			            <details class="vs-acc" id="vs-acc-edit">
                   <summary>Edición</summary>
                   <div class="vs-acc-body">
 	                <div style="padding:0.6rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03);">
