@@ -101,6 +101,7 @@
 
           const inS = Math.max(0, Number(payload?.in_s) || 0);
           const outS = Math.max(0, Number(payload?.out_s) || 0);
+          let clipBoundActive = true;
           const overlay = payload?.overlay && typeof payload.overlay === 'object' ? payload.overlay : {};
           const fxLayers = Array.isArray(payload?.fx_layers) ? payload.fx_layers : [];
           let loopActive = true;
@@ -186,6 +187,7 @@
             }
           };
           const enforceClipBound = () => {
+            if (!clipBoundActive) return;
             if (!outS || outS <= inS) return;
             if (loopActive) return;
             const now = Number(video.currentTime) || 0;
@@ -196,6 +198,8 @@
             if (now >= outS - 0.02) {
               try { video.pause(); } catch (e) {}
               try { video.currentTime = outS; } catch (e) {}
+              // Tras terminar el clip, vuelve a “modo normal” (sin límites).
+              clipBoundActive = false;
             }
           };
 

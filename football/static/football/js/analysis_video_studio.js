@@ -889,6 +889,8 @@
           if (!loopActive) {
             try { video.pause(); } catch (e) { /* ignore */ }
             try { video.currentTime = end; } catch (e) { /* ignore */ }
+            // “Vuelve a la normalidad” tras reproducir un clip: desactiva el bound.
+            clipBoundActive = false;
           }
         }
       };
