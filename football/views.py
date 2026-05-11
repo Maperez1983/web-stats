@@ -49002,12 +49002,13 @@ def analysis_video_studio_export_server_api(request):
         is_active=True,
     )
     share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    stream_url = request.build_absolute_uri(reverse('share-video-export-stream', args=[link.token]))
     return JsonResponse(
         {
             'ok': True,
             'id': int(asset.id),
             'url': share_url,
-            'download_url': f'{share_url}?download=1',
+            'download_url': f'{stream_url}?download=1',
             'expires_at': link.expires_at,
             'mime_type': str(getattr(asset, 'mime_type', '') or '').strip().lower(),
             'format': 'mp4',
@@ -49780,12 +49781,13 @@ def analysis_video_studio_export_server_playlist_api(request):
         is_active=True,
     )
     share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    stream_url = request.build_absolute_uri(reverse('share-video-export-stream', args=[link.token]))
     return JsonResponse(
         {
             'ok': True,
             'id': int(asset.id),
             'url': share_url,
-            'download_url': f'{share_url}?download=1',
+            'download_url': f'{stream_url}?download=1',
             'expires_at': link.expires_at,
             'mime_type': 'video/mp4',
             'format': 'mp4',
@@ -50263,7 +50265,8 @@ def analysis_video_studio_export_job_status_api(request):
     link = getattr(job, 'share_link', None)
     if link and getattr(link, 'token', None):
         share_url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
-        download_url = f'{share_url}?download=1'
+        stream_url = request.build_absolute_uri(reverse('share-video-export-stream', args=[link.token]))
+        download_url = f'{stream_url}?download=1'
 
     return JsonResponse(
         {
@@ -50422,12 +50425,24 @@ def analysis_video_studio_export_upload_api(request):
         is_active=True,
     )
     url = request.build_absolute_uri(reverse('share-video-export', args=[link.token]))
+    stream_url = request.build_absolute_uri(reverse('share-video-export-stream', args=[link.token]))
     mt = str(getattr(asset, 'mime_type', '') or '').strip().lower()
     fmt = 'mp4' if ('mp4' in mt) else ('webm' if ('webm' in mt) else '')
     warning = ''
     if fmt and fmt != 'mp4':
         warning = 'Export guardado en WebM (no se pudo convertir a MP4 en servidor).'
-    return JsonResponse({'ok': True, 'id': int(asset.id), 'url': url, 'expires_at': link.expires_at, 'mime_type': mt, 'format': fmt, 'warning': warning})
+    return JsonResponse(
+        {
+            'ok': True,
+            'id': int(asset.id),
+            'url': url,
+            'download_url': f'{stream_url}?download=1',
+            'expires_at': link.expires_at,
+            'mime_type': mt,
+            'format': fmt,
+            'warning': warning,
+        }
+    )
 
 
 @csrf_exempt

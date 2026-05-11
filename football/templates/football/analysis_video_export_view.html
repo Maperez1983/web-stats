@@ -29,6 +29,7 @@
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
           <a class="button" href="{% url 'analysis' %}?tab=videos">Volver</a>
+          <a class="button" href="{{ stream_url }}?download=1" download>Descargar MP4</a>
         </div>
       </div>
       <section class="card">
@@ -41,4 +42,3 @@
     </main>
   </body>
 </html>
-
