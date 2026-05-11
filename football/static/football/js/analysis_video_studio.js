@@ -30,7 +30,35 @@
 	    const canvasEl = document.getElementById('vs-canvas');
 	    const fxEl = document.getElementById('vs-fx');
 		    const stage = document.getElementById('vs-stage');
-		    if (!video || !canvasEl || !fxEl || !stage || !window.fabric) return;
+		    if (!video) return;
+		    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
+		    const canTelestrate = Boolean(hasFabric && canvasEl && fxEl && stage);
+		    if (!canTelestrate) {
+		      // Sin Fabric (o sin canvas): mantenemos el editor de tiempo (IN/OUT, loop, clips) funcionando.
+		      // Desactivamos herramientas de telestración para evitar errores en iPad/Safari.
+		      try {
+		        [
+		          document.getElementById('vs-tool-select'),
+		          document.getElementById('vs-tool-pen'),
+		          document.getElementById('vs-tool-arrow'),
+		          document.getElementById('vs-tool-curve'),
+		          document.getElementById('vs-tool-text'),
+		          document.getElementById('vs-tool-callout'),
+		          document.getElementById('vs-tool-spot'),
+		          document.getElementById('vs-tool-blur'),
+		          document.getElementById('vs-undo'),
+		          document.getElementById('vs-clear'),
+		          document.getElementById('vs-snap'),
+		          document.getElementById('vs-freeze'),
+		          document.getElementById('vs-record'),
+		        ]
+		          .filter(Boolean)
+		          .forEach((btn) => {
+		            btn.disabled = true;
+		            btn.title = 'Telestración no disponible: no se pudo cargar Fabric.js.';
+		          });
+		      } catch (e) { /* ignore */ }
+		    }
 
 	    // Safari/iOS: si el vídeo viene de S3 sin CORS, `crossorigin="anonymous"` puede bloquear la carga
 	    // y el vídeo se queda negro. En ese caso activamos un fallback (sin CORS) para que al menos se vea.
@@ -558,11 +586,38 @@
       await downloadResponseBlob(resp, fallbackName);
     };
 
-    const fabricCanvas = new fabric.Canvas(canvasEl, { preserveObjectStacking: true, selection: true });
-    try { fabricCanvas.freeDrawingBrush.width = 6; } catch (e) { /* ignore */ }
-    try { fabricCanvas.freeDrawingBrush.color = '#22d3ee'; } catch (e) { /* ignore */ }
+    const fabricCanvas = (() => {
+      if (canTelestrate) {
+        const c = new fabric.Canvas(canvasEl, { preserveObjectStacking: true, selection: true });
+        try { c.freeDrawingBrush.width = 6; } catch (e) { /* ignore */ }
+        try { c.freeDrawingBrush.color = '#22d3ee'; } catch (e) { /* ignore */ }
+        return c;
+      }
+      // Stub para que el resto del editor (IN/OUT, clips, timeline) no rompa si Fabric no está.
+      return {
+        isDrawingMode: false,
+        selection: false,
+        freeDrawingBrush: { width: 0, color: '#22d3ee' },
+        toDatalessJSON: () => ({}),
+        getWidth: () => 0,
+        getHeight: () => 0,
+        setWidth: () => {},
+        setHeight: () => {},
+        renderAll: () => {},
+        clear: () => {},
+        add: () => {},
+        remove: () => {},
+        getActiveObject: () => null,
+        discardActiveObject: () => {},
+        getObjects: () => [],
+        on: () => {},
+        requestRenderAll: () => {},
+      };
+    })();
 
-    const fxCtx = fxEl.getContext('2d');
+    const fxCtx = (() => {
+      try { return fxEl?.getContext?.('2d') || null; } catch (e) { return null; }
+    })();
 
     const fmtTimeShort = (seconds) => {
       const s = Math.max(0, Number(seconds) || 0);
