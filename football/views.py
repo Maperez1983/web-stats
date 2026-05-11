@@ -11689,6 +11689,7 @@ def dashboard_page(request):
     can_access_admin = _is_admin_user(request.user)
     can_access_sessions = _can_access_sessions_workspace(request.user)
     can_access_platform = bool(_is_admin_user(request.user) and _can_access_platform(request.user))
+    can_manage_workspace = bool(active_workspace_obj and _can_manage_workspace(request.user, active_workspace_obj))
     workspace_links = _workspace_links_for_user(request.user)
     active_workspace = _build_active_workspace_badge(request)
     demo_mode = False
@@ -11750,6 +11751,7 @@ def dashboard_page(request):
         'can_access_admin': can_access_admin,
         'can_access_sessions': can_access_sessions,
         'can_access_platform': can_access_platform,
+        'can_manage_workspace': can_manage_workspace,
         'workspace_links': workspace_links,
         'active_workspace': active_workspace,
         'dashboard_focus_items': dashboard_focus_items,
@@ -17047,6 +17049,7 @@ def player_dashboard_page(request):
         force_refresh=force_refresh_stats,
         scope=scope,
         tournament_name=tournament_filter,
+        request=request,
     )
     match_qs = (
         _team_match_queryset(primary_team)
@@ -53497,7 +53500,7 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
-def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tournament_name=None):
+def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tournament_name=None, request=None):
     if not primary_team:
         return []
     scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower()
@@ -53535,7 +53538,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 cached_ids = [pid for pid in cached_ids if pid][:120]
                 if cached_ids:
                     photo_by_id = {
-                        int(player.id): str(resolve_player_photo_url(None, player) or '').strip()
+                        int(player.id): str(resolve_player_photo_url(request, player) or resolve_player_photo_url(None, player) or '').strip()
                         for player in (
                             Player.objects
                             .filter(team=primary_team, id__in=cached_ids)
@@ -53626,7 +53629,11 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     player_photo_url_by_id = {}
     for player in roster_players:
         photo_path = resolve_player_photo_static_path(player)
-        player_photo_url_by_id[player.id] = resolve_player_photo_url(None, player) or (static(photo_path) if photo_path else '')
+        player_photo_url_by_id[player.id] = (
+            resolve_player_photo_url(request, player)
+            or resolve_player_photo_url(None, player)
+            or (static(photo_path) if photo_path else '')
+        )
     preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
     convocation_base_qs = ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
     if scope_value != 'all':

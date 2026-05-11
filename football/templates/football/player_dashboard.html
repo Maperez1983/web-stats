@@ -164,6 +164,25 @@
         color: var(--muted);
         font-size: 0.8rem;
       }
+      .mini-kpis {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.65rem;
+      }
+      .mini-kpi {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.55);
+        font-size: 0.76rem;
+        color: rgba(248, 250, 252, 0.95);
+        white-space: nowrap;
+      }
+      .mini-kpi strong { font-weight: 800; }
       .quick {
         margin-top: 0.75rem;
         display: grid;
@@ -379,17 +398,21 @@
               </div>
               <div class="subline">{{ player.profile_label }}</div>
 
-		              <div class="broadcast-kpis is-3up" aria-label="KPIs rápidos">
-		                {% if selected_match %}
-		                  <div class="broadcast-kpi"><div class="k">Acc</div><div class="v">{{ player.match_actions|default:"0" }}</div></div>
-		                  <div class="broadcast-kpi is-cool"><div class="k">Éxitos</div><div class="v">{{ player.match_successes|default:"0" }}</div></div>
-		                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.match_success_rate|default:"0" }}%</div></div>
-		                {% else %}
-		                  <div class="broadcast-kpi"><div class="k">PJ</div><div class="v">{{ player.match_count|default:"0" }}</div></div>
-		                  <div class="broadcast-kpi is-cool"><div class="k">Acc</div><div class="v">{{ player.total_actions|default:"0" }}</div></div>
-		                  <div class="broadcast-kpi is-accent"><div class="k">% Éx.</div><div class="v">{{ player.success_rate|default:"0" }}%</div></div>
-		                {% endif %}
-		              </div>
+                  <div class="mini-kpis" aria-label="KPIs clave">
+                    {% if selected_match %}
+                      <span class="mini-kpi">⚽ <strong>{{ player.match_goals|default:0 }}</strong></span>
+                      <span class="mini-kpi">🅰️ <strong>{{ player.match_assists|default:0 }}</strong></span>
+                      <span class="mini-kpi">Acc <strong>{{ player.match_actions|default:0 }}</strong></span>
+                      <span class="mini-kpi">% Éx. <strong>{{ player.match_success_rate|default:0 }}%</strong></span>
+                    {% else %}
+                      <span class="mini-kpi">PJ <strong>{{ player.pj|default:0 }}</strong></span>
+                      <span class="mini-kpi">Min <strong>{{ player.minutes|default:0 }}</strong></span>
+                      <span class="mini-kpi">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
+                      <span class="mini-kpi">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
+                      <span class="mini-kpi">🟨 <strong>{{ player.yellow_cards|default:0 }}</strong></span>
+                      <span class="mini-kpi">🟥 <strong>{{ player.red_cards|default:0 }}</strong></span>
+                    {% endif %}
+                  </div>
 
 		              <div class="mini-radar-wrap" aria-hidden="true">
 		                <svg
@@ -403,11 +426,13 @@
 		                ></svg>
 		              </div>
 
-	              <div class="kpi-row">
-	                {% for kpi in player.smart_kpis|slice:":3" %}
-	                  <span class="kpi-pill">{{ kpi.label }}: <strong>{{ kpi.value }}</strong></span>
-	                {% endfor %}
-	              </div>
+                  {% if player.smart_kpis %}
+		              <div class="kpi-row">
+		                {% for kpi in player.smart_kpis|slice:":3" %}
+		                  <span class="kpi-pill">{{ kpi.label }}: <strong>{{ kpi.value }}</strong></span>
+		                {% endfor %}
+		              </div>
+                  {% endif %}
             </a>
 
 	            {% if can_preview_player_view %}
