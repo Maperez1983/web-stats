@@ -4310,10 +4310,29 @@
 	              while (list.children && list.children.length > 24) {
 	                try { list.removeChild(list.lastChild); } catch (e3) { break; }
 	              }
-	            } catch (e) {}
-	          };
-	          var inFlight = false;
-	          form.addEventListener('submit', function (ev) {
+		            } catch (e) {}
+		          };
+		          var updatePersistentHud = function () {
+		            try {
+		              var clock = document.getElementById('match-clock-display');
+		              var pclock = document.getElementById('persistent-clock');
+		              if (clock && pclock) pclock.textContent = String(clock.textContent || '').trim() || '00:00';
+		            } catch (e) {}
+		            try {
+		              var list = document.getElementById('history-list');
+		              var count = 0;
+		              if (list && list.querySelectorAll) count = list.querySelectorAll('[data-event-id]').length;
+		              var actionsEl = document.getElementById('persistent-actions');
+		              if (actionsEl) actionsEl.textContent = String(count);
+		              var pendingEl = document.getElementById('persistent-pending');
+		              if (pendingEl) pendingEl.textContent = String(count);
+		            } catch (e2) {}
+		          };
+		          // Mantén HUD coherente aunque el JS principal no se haya inicializado.
+		          try { updatePersistentHud(); } catch (e3) {}
+		          try { window.setInterval(updatePersistentHud, 1500); } catch (e4) {}
+		          var inFlight = false;
+		          form.addEventListener('submit', function (ev) {
 	            try {
 	              if (ev && ev.defaultPrevented) return;
 	            } catch (e0) {}
@@ -4374,13 +4393,14 @@
 	                show(msg, 'danger');
 	                return;
 	              }
-	              show('Acción registrada.', data.duplicate ? 'warning' : 'success');
-	              try { appendHistoryItem(data); } catch (e14) {}
-	              try {
-	                var popup = document.getElementById('field-popup');
-	                if (popup && popup.classList) popup.classList.remove('is-visible');
-	              } catch (e15) {}
-	            };
+		              show('Acción registrada.', data.duplicate ? 'warning' : 'success');
+		              try { appendHistoryItem(data); } catch (e14) {}
+		              try { updatePersistentHud(); } catch (e16) {}
+		              try {
+		                var popup = document.getElementById('field-popup');
+		                if (popup && popup.classList) popup.classList.remove('is-visible');
+		              } catch (e15) {}
+		            };
 	            var body = [];
 	            for (var k in fields) {
 	              if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
@@ -4443,12 +4463,16 @@
                 running = Boolean(parsed.running);
               } catch (e) {}
             };
-            const render = () => {
-              display.textContent = format(elapsed);
-              toggle.textContent = running ? '||' : '►';
-              halfBtn.textContent = half === 2 ? '2ª Parte' : '1ª Parte';
-              persist();
-            };
+	            const render = () => {
+	              display.textContent = format(elapsed);
+	              try {
+	                const persistent = document.getElementById('persistent-clock');
+	                if (persistent) persistent.textContent = format(elapsed);
+	              } catch (e) {}
+	              toggle.textContent = running ? '||' : '►';
+	              halfBtn.textContent = half === 2 ? '2ª Parte' : '1ª Parte';
+	              persist();
+	            };
             const stop = () => {
               running = false;
               if (timer) window.clearInterval(timer);
