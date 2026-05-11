@@ -322,6 +322,28 @@
         try { (playerNumberInput || playerNameInput)?.focus?.(); } catch (e) { /* ignore */ }
       };
 
+      // Fallback: en algunos navegadores/estados (Safari, overlays) Fabric puede no disparar mouse:down.
+      // Abrimos el popover también desde el canvas DOM si la herramienta activa es "player".
+      const domPlayerPointerHandler = (ev) => {
+        try {
+          if (!ev) return;
+          const activeTool = safeText(stage?.getAttribute?.('data-vs-tool'), '');
+          if (activeTool !== 'player') return;
+          if (!playerPop || !stage || !canvasEl) return;
+          const tgt = ev.target;
+          if (tgt && playerPop.contains(tgt)) return;
+          const rect = canvasEl.getBoundingClientRect();
+          const x = clamp((ev.clientX ?? 0) - rect.left, 0, rect.width);
+          const y = clamp((ev.clientY ?? 0) - rect.top, 0, rect.height);
+          openPlayerPopAt({ x, y }, { x: ev.clientX || 0, y: ev.clientY || 0 });
+          try { ev.preventDefault?.(); } catch (e2) { /* ignore */ }
+          try { ev.stopPropagation?.(); } catch (e3) { /* ignore */ }
+        } catch (e) { /* ignore */ }
+      };
+      try {
+        canvasEl.addEventListener('pointerdown', domPlayerPointerHandler, { passive: false });
+      } catch (e) { /* ignore */ }
+
 	    // Timeline editor (clips)
 	    const tlFromSelectionBtn = document.getElementById('vs-tl-from-selection');
 	    const tlClearBtn = document.getElementById('vs-tl-clear');
@@ -1360,6 +1382,7 @@
 
 	    const setTool = (next) => {
 	      tool = next;
+      try { stage?.setAttribute?.('data-vs-tool', String(tool || '')); } catch (e) { /* ignore */ }
       const isSelect = tool === 'select';
       const isPen = tool === 'pen';
       fabricCanvas.isDrawingMode = isPen;
