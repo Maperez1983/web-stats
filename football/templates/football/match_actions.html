@@ -4228,19 +4228,63 @@
 	            } catch (e) {}
 	            return '1';
 	          };
-	          var ensurePlayerFromSelection = function () {
-	            try {
-	              var playerInput = form.querySelector('input[name="player"]');
-	              if (playerInput && String(playerInput.value || '').trim()) return;
-	              var selected = document.querySelector('.convocation-card.selected[data-player-id]');
-	              if (selected && playerInput) playerInput.value = String(selected.getAttribute('data-player-id') || '').trim();
-	            } catch (e) {}
-	          };
-	          var appendHistoryItem = function (data) {
-	            try {
-	              var list = document.getElementById('history-list');
-	              if (!list) return;
-	              var id = data && data.id ? String(data.id) : '';
+		          var ensurePlayerFromSelection = function () {
+		            try {
+		              var playerInput = form.querySelector('input[name="player"]');
+		              if (playerInput && String(playerInput.value || '').trim()) return;
+		              var selected = document.querySelector('.convocation-card.selected[data-player-id]');
+		              if (selected && playerInput) playerInput.value = String(selected.getAttribute('data-player-id') || '').trim();
+		            } catch (e) {}
+		          };
+		          // Fallback de atajos (chips): en algunos iPad/Safari el handler principal puede no enganchar,
+		          // así que reflejamos siempre el chip en el input "Tipo de acción".
+		          (function () {
+		            try {
+		              var quickContainer = form.querySelector('.popup-quick-actions');
+		              if (!quickContainer || !quickContainer.addEventListener) return;
+		              var actionTypeInput = form.querySelector('input[name="action_type"]');
+		              var resultSelect = form.querySelector('select[name="result"]');
+		              var teamOnlyInput = form.querySelector('input[name="team_only"]');
+		              var lastAt = 0;
+		              var handle = function (ev) {
+		                try { if (ev && ev.defaultPrevented) return; } catch (e0) {}
+		                var target = ev && ev.target ? ev.target : null;
+		                var btn = null;
+		                try { btn = target && target.closest ? target.closest('.quick-action') : null; } catch (e1) { btn = null; }
+		                if (!btn) return;
+		                var now = Date.now();
+		                // Evita doble por touchend/pointerup + click.
+		                if (ev && ev.type === 'click' && now - lastAt < 360) return;
+		                lastAt = now;
+		                try { ev.preventDefault(); } catch (e2) {}
+		                var action = '';
+		                try {
+		                  action = String(btn.getAttribute('data-action') || btn.getAttribute('data-event-type') || btn.textContent || '').trim();
+		                } catch (e3) { action = ''; }
+		                if (actionTypeInput && action) {
+		                  try { actionTypeInput.readOnly = false; } catch (e4) {}
+		                  actionTypeInput.value = action;
+		                  try { actionTypeInput.readOnly = true; } catch (e5) {}
+		                }
+		                try {
+		                  var teamOnly = String(btn.getAttribute('data-team-only') || '').trim();
+		                  if (teamOnlyInput) teamOnlyInput.value = (teamOnly === '1') ? '1' : '0';
+		                } catch (e6) {}
+		                try {
+		                  var res = String(btn.getAttribute('data-result') || '').trim();
+		                  if (res && resultSelect) resultSelect.value = res;
+		                } catch (e7) {}
+		              };
+		              quickContainer.addEventListener('click', handle, false);
+		              quickContainer.addEventListener('pointerup', handle, false);
+		              quickContainer.addEventListener('touchend', handle, { passive: false });
+		            } catch (e) {}
+		          })();
+		          var appendHistoryItem = function (data) {
+		            try {
+		              var list = document.getElementById('history-list');
+		              if (!list) return;
+		              var id = data && data.id ? String(data.id) : '';
 	              if (id && list.querySelector('[data-event-id="' + id.replace(/"/g, '') + '"]')) return;
 	              var empty = list.querySelector('.history-item:not([data-event-id])');
 	              if (empty) try { list.removeChild(empty); } catch (e0) {}

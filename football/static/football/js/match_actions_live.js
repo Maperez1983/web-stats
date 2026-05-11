@@ -1190,13 +1190,23 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   const initialButtons = getQuickButtons();
   initialButtons.forEach((btn) => btn.addEventListener('click', () => applyQuickButton(btn)));
   if (quickButtonsContainer && quickButtonsContainer.addEventListener) {
-    quickButtonsContainer.addEventListener('click', (event) => {
-      const target = event.target;
+    let lastQuickTapAt = 0;
+    const handleQuickTap = (event) => {
+      const target = event?.target;
       const btn = target && target.closest ? target.closest('.quick-action') : null;
       if (!btn) return;
-      event.preventDefault();
+      // Evita doble ejecución cuando iOS dispara touchend/pointerup + click.
+      const now = Date.now();
+      if (now - lastQuickTapAt < 360 && (event?.type === 'click')) return;
+      lastQuickTapAt = now;
+      try { event.preventDefault(); } catch (e) {}
+      try { event.stopPropagation?.(); } catch (e) {}
       applyQuickButton(btn);
-    });
+    };
+    quickButtonsContainer.addEventListener('click', handleQuickTap);
+    // iOS/WKWebView: a veces el `click` no llega o llega tarde; `pointerup/touchend` es más fiable.
+    quickButtonsContainer.addEventListener('pointerup', handleQuickTap);
+    quickButtonsContainer.addEventListener('touchend', handleQuickTap, { passive: false });
   }
 
   // Auto-enviar desde popup: cuando ya están todos los campos, guarda y vuelve al campo.
