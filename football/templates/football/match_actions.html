@@ -4077,10 +4077,10 @@
         });
       })();
     </script>
-    <script>
-      // Fallback crítico: permitir "Guardar partido" aunque el JS principal no haya cargado.
-      // Hace POST JSON hacia `match-action-finalize` y vuelve a prepartido.
-      (function () {
+	    <script>
+	      // Fallback crítico: permitir "Guardar partido" aunque el JS principal no haya cargado.
+	      // Hace POST JSON hacia `match-action-finalize` y vuelve a prepartido.
+	      (function () {
         const ready = (fn) => {
           if (document.readyState !== 'loading') fn();
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
@@ -4161,12 +4161,205 @@
           btns.forEach((btn) => btn.addEventListener('click', handler));
           window.__matchActionsFinalizeFallbackBound = true;
         });
-      })();
-    </script>
-    <script>
-      // Fallback crítico para cronómetro: si el live controller no llega a inicializar,
-      // el staff necesita que el reloj funcione sí o sí (aunque sea solo local).
-      (function () {
+	      })();
+	    </script>
+	    <script>
+	      // Fallback crítico: si por caché/errores el submit del popup no está interceptado por JS,
+	      // evitar que el formulario haga POST HTML (recarga) y enviar por XHR + pintar historial mínimo.
+	      (function () {
+	        var ready = function (fn) {
+	          if (document.readyState !== 'loading') fn();
+	          else document.addEventListener('DOMContentLoaded', fn, { once: true });
+	        };
+	        ready(function () {
+	          if (window.__matchActionsSubmitSafetyBound) return;
+	          var form = document.getElementById('field-popup-form');
+	          if (!form || !form.addEventListener) return;
+	          var statusEl = document.getElementById('match-page-status');
+	          var show = function (msg, kind) {
+	            try {
+	              if (!statusEl) return;
+	              statusEl.textContent = String(msg || '').trim();
+	              statusEl.style.display = 'block';
+	              statusEl.setAttribute('data-tone', String(kind || 'info'));
+	              try { window.clearTimeout(window.__matchActionsStatusTimer2); } catch (e) {}
+	              window.__matchActionsStatusTimer2 = window.setTimeout(function () {
+	                try { statusEl.style.display = 'none'; } catch (e2) {}
+	              }, 2600);
+	            } catch (e) {}
+	          };
+	          var resolveMatchId = function () {
+	            try {
+	              var mi = form.querySelector('input[name="match_id"]');
+	              var fromForm = mi ? String(mi.value || '').trim() : '';
+	              if (fromForm) return fromForm;
+	            } catch (e) {}
+	            try {
+	              var params = new URLSearchParams(window.location.search || '');
+	              var q = String(params.get('match_id') || '').trim();
+	              return q || '';
+	            } catch (e2) {}
+	            return '';
+	          };
+	          var parseMinuteFromUi = function () {
+	            try {
+	              var minuteDisplay = form.querySelector('[data-minute-display]');
+	              var txt = minuteDisplay ? String(minuteDisplay.textContent || '') : '';
+	              txt = txt.replace(/[^\d]/g, '');
+	              var m = parseInt(txt, 10);
+	              if (isFinite(m) && m >= 0) return String(m);
+	            } catch (e) {}
+	            try {
+	              var clock = document.getElementById('match-clock-display');
+	              var raw = String(clock ? clock.textContent : '').trim();
+	              var parts = raw.split(':');
+	              if (parts.length >= 2) {
+	                var mm = parseInt(parts[0], 10);
+	                if (isFinite(mm) && mm >= 0) return String(mm);
+	              }
+	            } catch (e2) {}
+	            return '';
+	          };
+	          var parseHalfFromUi = function () {
+	            try {
+	              var halfBtn = document.getElementById('change-half-btn');
+	              var label = String(halfBtn ? halfBtn.textContent : '').toLowerCase();
+	              if (label.indexOf('2') >= 0) return '2';
+	            } catch (e) {}
+	            return '1';
+	          };
+	          var ensurePlayerFromSelection = function () {
+	            try {
+	              var playerInput = form.querySelector('input[name="player"]');
+	              if (playerInput && String(playerInput.value || '').trim()) return;
+	              var selected = document.querySelector('.convocation-card.selected[data-player-id]');
+	              if (selected && playerInput) playerInput.value = String(selected.getAttribute('data-player-id') || '').trim();
+	            } catch (e) {}
+	          };
+	          var appendHistoryItem = function (data) {
+	            try {
+	              var list = document.getElementById('history-list');
+	              if (!list) return;
+	              var id = data && data.id ? String(data.id) : '';
+	              if (id && list.querySelector('[data-event-id="' + id.replace(/"/g, '') + '"]')) return;
+	              var empty = list.querySelector('.history-item:not([data-event-id])');
+	              if (empty) try { list.removeChild(empty); } catch (e0) {}
+	              var minute = (data && data.minute !== null && data.minute !== undefined) ? String(data.minute) : '';
+	              var action = (data && data.action) ? String(data.action) : '';
+	              var zone = (data && data.zone) ? String(data.zone) : '';
+	              var result = (data && data.result) ? String(data.result) : '';
+	              var player = (data && data.player) ? data.player : null;
+	              var num = player && player.number !== undefined && player.number !== null ? String(player.number) : '--';
+	              var name = player && player.name ? String(player.name) : 'EQUIPO';
+	              name = name.toUpperCase();
+	              var item = document.createElement('article');
+	              item.className = 'history-item';
+	              if (id) item.setAttribute('data-event-id', id);
+	              if (player && player.id) item.setAttribute('data-player-id', String(player.id));
+	              item.setAttribute('data-system', 'touch-field');
+	              var minuteLabel = minute && String(minute).trim() ? (String(minute).trim() + "'") : "Ahora'";
+	              item.innerHTML = '<span class="hist-minute">' + minuteLabel + '</span>'
+	                + '<strong>#' + num + ' ' + name + '</strong>'
+	                + '<p class="hist-text">' + action + ' · ' + (zone || '-') + ' · ' + (result || '') + '</p>'
+	                + '<div class="history-actions"><button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button></div>';
+	              try { list.insertBefore(item, list.firstChild); } catch (e1) { try { list.appendChild(item); } catch (e2) {} }
+	              while (list.children && list.children.length > 24) {
+	                try { list.removeChild(list.lastChild); } catch (e3) { break; }
+	              }
+	            } catch (e) {}
+	          };
+	          var inFlight = false;
+	          form.addEventListener('submit', function (ev) {
+	            try {
+	              if (ev && ev.defaultPrevented) return;
+	            } catch (e0) {}
+	            try { if (ev) ev.preventDefault(); } catch (e1) {}
+	            if (inFlight) return;
+	            inFlight = true;
+	            try { form.setAttribute('aria-busy', 'true'); } catch (e2) {}
+	            show('Guardando acción…', 'info');
+	            try { ensurePlayerFromSelection(); } catch (e3) {}
+	            var submitUrl = '';
+	            try { submitUrl = String(form.getAttribute('data-submit-url') || form.action || '').trim(); } catch (e4) { submitUrl = ''; }
+	            if (!submitUrl) {
+	              show('No se pudo guardar: falta URL de envío.', 'danger');
+	              inFlight = false;
+	              try { form.removeAttribute('aria-busy'); } catch (e5) {}
+	              return;
+	            }
+	            var fields = {};
+	            var names = ['match_id', 'team', 'stage', 'player', 'action_type', 'result', 'zone', 'minute', 'period', 'tercio', 'observation', 'team_only', 'client_event_uid'];
+	            for (var i = 0; i < names.length; i++) {
+	              try {
+	                var el = form.querySelector('[name="' + names[i] + '"]');
+	                if (el && el.value !== undefined) fields[names[i]] = String(el.value || '');
+	              } catch (e6) {}
+	            }
+	            fields.match_id = String(fields.match_id || resolveMatchId() || '').trim();
+	            if (!fields.minute || String(fields.minute) === '0') {
+	              var inferredMinute = parseMinuteFromUi();
+	              if (inferredMinute) fields.minute = inferredMinute;
+	            }
+	            if (!fields.period || String(fields.period) === '1') {
+	              fields.period = parseHalfFromUi();
+	            }
+	            fields.stage = 'live';
+	            var csrf = '';
+	            try {
+	              var csrfEl = form.querySelector('input[name="csrfmiddlewaretoken"]');
+	              csrf = csrfEl ? String(csrfEl.value || '') : '';
+	            } catch (e7) {}
+	            var xhr = null;
+	            try { xhr = new XMLHttpRequest(); } catch (e8) { xhr = null; }
+	            if (!xhr) {
+	              show('No se pudo guardar: navegador no soportado.', 'danger');
+	              inFlight = false;
+	              try { form.removeAttribute('aria-busy'); } catch (e9) {}
+	              return;
+	            }
+	            xhr.open('POST', submitUrl, true);
+	            try { xhr.setRequestHeader('Accept', 'application/json'); } catch (e10) {}
+	            try { if (csrf) xhr.setRequestHeader('X-CSRFToken', csrf); } catch (e11) {}
+	            xhr.onreadystatechange = function () {
+	              if (xhr.readyState !== 4) return;
+	              try { form.removeAttribute('aria-busy'); } catch (e12) {}
+	              inFlight = false;
+	              var ok = (xhr.status >= 200 && xhr.status < 300);
+	              var data = null;
+	              try { data = JSON.parse(xhr.responseText || '{}'); } catch (e13) { data = null; }
+	              if (!ok || !data) {
+	                var raw = String(xhr.responseText || '').trim();
+	                var msg = (data && data.error) ? data.error : (raw ? raw.slice(0, 160) : ('Error al guardar (HTTP ' + xhr.status + ')'));
+	                show(msg, 'danger');
+	                return;
+	              }
+	              show('Acción registrada.', data.duplicate ? 'warning' : 'success');
+	              try { appendHistoryItem(data); } catch (e14) {}
+	              try {
+	                var popup = document.getElementById('field-popup');
+	                if (popup && popup.classList) popup.classList.remove('is-visible');
+	              } catch (e15) {}
+	            };
+	            var body = [];
+	            for (var k in fields) {
+	              if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+	              body.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(fields[k] || '')));
+	            }
+	            try { xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8'); } catch (e16) {}
+	            try { xhr.send(body.join('&')); } catch (e17) {
+	              try { form.removeAttribute('aria-busy'); } catch (e18) {}
+	              inFlight = false;
+	              show('Error al enviar la acción. Revisa conexión y prueba de nuevo.', 'danger');
+	            }
+	          }, false);
+	          window.__matchActionsSubmitSafetyBound = true;
+	        });
+	      })();
+	    </script>
+	    <script>
+	      // Fallback crítico para cronómetro: si el live controller no llega a inicializar,
+	      // el staff necesita que el reloj funcione sí o sí (aunque sea solo local).
+	      (function () {
         const ready = (fn) => {
           if (document.readyState !== 'loading') fn();
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
