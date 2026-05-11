@@ -3387,32 +3387,32 @@
               </div>
               <p class="meta" id="match-plan-status" style="margin:0.45rem 0 0;">—</p>
             </article>
-	            <article class="status-card tactics-board" id="tactics-board-card" style="margin-top:0.9rem;">
-	              <div class="tactics-board-head">
-	                <h5>Táctica · once en campo</h5>
-	                <div class="tactics-board-actions">
-	                  <button type="button" class="toolbar-pill" id="tactics-toggle-rival" title="Mostrar/ocultar once del rival">Rival: OFF</button>
-	                  <a href="{% url 'coach-rival' %}?match_id={{ match_info.match_id }}" class="toolbar-pill" id="tactics-prep-rival" title="Selecciona convocatoria y 11 del rival">Preparar rival</a>
-	                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar once en una estructura base">Reset posiciones</button>
-	                </div>
-	              </div>
-	              <div class="tactics-pitch" id="tactics-pitch" aria-label="Pizarra táctica (once)" role="application">
-	                <div class="tactics-line-mid" aria-hidden="true"></div>
-	                <div class="tactics-circle" aria-hidden="true"></div>
-	                <div class="tactics-tokens" id="tactics-tokens"></div>
-	                <div class="tactics-tokens rival" id="tactics-rival-tokens" hidden></div>
-	              </div>
-	              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el 11 inicial y mejoran la sugerencia automática).</p>
-	            </article>
+		            <article class="status-card tactics-board" id="tactics-board-card" style="margin-top:0.9rem;">
+		              <div class="tactics-board-head">
+		                <h5>Táctica · {{ starters_limit|default:11 }} en campo</h5>
+		                <div class="tactics-board-actions">
+		                  <button type="button" class="toolbar-pill" id="tactics-toggle-rival" title="Mostrar/ocultar titulares del rival">Rival: OFF</button>
+		                  <a href="{% url 'coach-rival' %}?match_id={{ match_info.match_id }}" class="toolbar-pill" id="tactics-prep-rival" title="Selecciona convocatoria y titulares del rival">Preparar rival</a>
+		                  <button type="button" class="toolbar-pill" id="tactics-reset-positions" title="Recolocar titulares en una estructura base">Reset posiciones</button>
+		                </div>
+		              </div>
+		              <div class="tactics-pitch" id="tactics-pitch" aria-label="Pizarra táctica (titulares)" role="application">
+		                <div class="tactics-line-mid" aria-hidden="true"></div>
+		                <div class="tactics-circle" aria-hidden="true"></div>
+		                <div class="tactics-tokens" id="tactics-tokens"></div>
+		                <div class="tactics-tokens rival" id="tactics-rival-tokens" hidden></div>
+		              </div>
+		              <p class="meta" style="margin:0.6rem 0 0;">Arrastra jugadores para fijar posiciones (se guardan con el {{ starters_limit|default:11 }} inicial y mejoran la sugerencia automática).</p>
+		            </article>
             <div class="pre-lineup-panel">
-              <article class="status-card">
-                <h5>Once inicial</h5>
-                <p><span class="status-value" id="pre-lineup-count">0/11</span></p>
-                <div class="pre-lineup-chips" id="pre-lineup-chips">
-                  <span class="pre-lineup-empty">Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → 11 inicial”.</span>
-                </div>
-                <p class="pre-lineup-note">Se sincroniza con el 11 inicial del partido.</p>
-              </article>
+	              <article class="status-card">
+	                <h5>{{ starters_limit|default:11 }} inicial</h5>
+	                <p><span class="status-value" id="pre-lineup-count">0/{{ starters_limit|default:11 }}</span></p>
+	                <div class="pre-lineup-chips" id="pre-lineup-chips">
+	                  <span class="pre-lineup-empty">Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → {{ starters_limit|default:11 }} inicial”.</span>
+	                </div>
+	                <p class="pre-lineup-note">Se sincroniza con el {{ starters_limit|default:11 }} inicial del partido.</p>
+	              </article>
             </div>
           {% endif %}
           </section>
@@ -3908,11 +3908,11 @@
                   <p id="close-summary-meta">{{ match_info.location|default:"-" }} · {% if match_info.date %}{{ match_info.date }} · {{ match_info.time }}{% else %}{{ match_info.time|default:"00:00" }}{% endif %}</p>
                   <p id="close-summary-score">Marcador final: —</p>
                 </article>
-                <article class="closure-card">
-                  <h4>Once inicial</h4>
-                  <strong id="close-summary-lineup">0/{{ starters_limit|default:11 }}</strong>
-                  <p id="close-summary-lineup-note">Define {{ starters_limit|default:11 }} titulares antes de cerrar el partido.</p>
-                </article>
+	                <article class="closure-card">
+	                  <h4>{{ starters_limit|default:11 }} inicial</h4>
+	                  <strong id="close-summary-lineup">0/{{ starters_limit|default:11 }}</strong>
+	                  <p id="close-summary-lineup-note">Define {{ starters_limit|default:11 }} titulares antes de cerrar el partido.</p>
+	                </article>
                 <article class="closure-card">
                   <h4>Acciones registradas</h4>
                   <strong id="close-summary-actions">0</strong>
@@ -3978,19 +3978,19 @@
             {% endif %}
           </a>
           <h1>Convocados</h1>
-          <p>Arrastra las fichas para organizar el once y los suplentes.</p>
+	          <p>Arrastra las fichas para organizar titulares y suplentes.</p>
         </div>
         <div class="sidebar-lineup-builder">
           <div class="lineup-toolbar">
-            <button type="button" class="primary" id="lineup-auto-pick-btn">Auto 11</button>
+	            <button type="button" class="primary" id="lineup-auto-pick-btn">Auto {{ starters_limit|default:11 }}</button>
             <button type="button" id="lineup-fill-bench-btn">Completar banquillo</button>
             <button type="button" class="danger" id="lineup-clear-btn">Limpiar</button>
           </div>
-          <div class="lineup-status" id="lineup-status-msg">Define 11 titulares para cerrar el once inicial.</div>
+	          <div class="lineup-status" id="lineup-status-msg">Define {{ starters_limit|default:11 }} titulares para cerrar el {{ starters_limit|default:11 }} inicial.</div>
           <div class="lineup-slot">
             <div class="lineup-slot-header">
-              <span>Once inicial</span>
-              <span class="lineup-count" id="lineup-starters-count">0/11</span>
+	              <span>{{ starters_limit|default:11 }} inicial</span>
+	              <span class="lineup-count" id="lineup-starters-count">0/{{ starters_limit|default:11 }}</span>
             </div>
             <div class="lineup-drop-area" id="sidebar-initial-lineup" data-section="starters"></div>
           </div>

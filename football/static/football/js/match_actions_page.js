@@ -1151,7 +1151,7 @@ const urlWithMatchId = (baseUrl) => {
         if (round) lines.push(`Jornada: ${round}`);
         if (datetime) lines.push(`Fecha: ${datetime}`);
         if (location) lines.push(`Campo: ${location}`);
-        if (starters.length) lines.push(`11: ${fmtList(starters.slice(0, 11))}`);
+        if (starters.length) lines.push(`Titulares (${startersLimit}): ${fmtList(starters.slice(0, startersLimit))}`);
         if (bench.length) lines.push(`Suplentes: ${fmtList(bench)}`);
         if (plan.a) lines.push(`\nPLAN A:\n${plan.a}`);
         if (plan.b) lines.push(`\nPLAN B:\n${plan.b}`);
@@ -1803,7 +1803,7 @@ const urlWithMatchId = (baseUrl) => {
 		            }
 		          }
 		        } catch (err) {
-		          console.warn('No se pudo leer el 11 inicial del servidor', err);
+		          console.warn('No se pudo leer el once inicial del servidor', err);
 		        }
 		        if (lineupStorageKey) {
 		          try {
@@ -1828,7 +1828,7 @@ const urlWithMatchId = (baseUrl) => {
 		              }
 		            }
 		          } catch (err) {
-		            console.warn('No se pudo recuperar el 11 inicial persistido', err);
+			            console.warn('No se pudo recuperar el once inicial persistido', err);
 		          }
 		        }
 	        if (!lineupInput?.value) {
@@ -1912,7 +1912,7 @@ const urlWithMatchId = (baseUrl) => {
 	          if (lineupInput) lineupInput.value = lastSavedLineupSnapshot;
 	          try { renderLineup(); } catch (e) {}
 	          if (!quiet && typeof showPageStatus === 'function') {
-	            showPageStatus('11 inicial sincronizado.', 'info', 1800);
+	            showPageStatus(`${startersLimit} inicial sincronizado.`, 'info', 1800);
 	          }
 	          return true;
 	        } catch (err) {
@@ -1942,7 +1942,7 @@ const urlWithMatchId = (baseUrl) => {
           try {
             localStorage.setItem(lineupStorageKey, lineupSnapshot);
           } catch (err) {
-            console.warn('No se pudo persistir el 11 inicial', err);
+	            console.warn('No se pudo persistir el once inicial', err);
           }
         }
         if (lineupPersistDisabled || lineupSnapshot === lastSavedLineupSnapshot) {
@@ -1969,7 +1969,7 @@ const urlWithMatchId = (baseUrl) => {
                 lineupPersistDisabled = true;
               }
               showPageStatus(
-                data.error || 'No se pudo guardar el 11 inicial.',
+	                data.error || `No se pudo guardar el ${startersLimit} inicial.`,
                 response.status === 403 ? 'warning' : 'danger',
                 5200,
               );
@@ -1999,8 +1999,8 @@ const urlWithMatchId = (baseUrl) => {
 	              lastSavedLineupSnapshot = lineupSnapshot;
 	            }
 	          } catch (err) {
-	            console.warn('No se pudo guardar el 11 inicial en servidor', err);
-	            showPageStatus('No se pudo guardar el 11 inicial en servidor.', 'warning', 5200);
+		            console.warn('No se pudo guardar el once inicial en servidor', err);
+		            showPageStatus(`No se pudo guardar el ${startersLimit} inicial en servidor.`, 'warning', 5200);
 	          }
         }, 450);
       };
@@ -2116,7 +2116,7 @@ const urlWithMatchId = (baseUrl) => {
 		            wrap.appendChild(btn);
 		          });
 		        };
-		        build(proOnfieldChips, starters, 'Define el 11 inicial para tener chips aquí.');
+		        build(proOnfieldChips, starters, `Define el ${startersLimit} inicial para tener chips aquí.`);
 		        build(proBenchChips, bench, 'Sin suplentes.');
 		        if (proQuickMeta) {
 		          const selected = String(selectedPlayerId || '').trim();
@@ -2373,7 +2373,7 @@ const urlWithMatchId = (baseUrl) => {
           const count = lineupState[sectionKey]?.length || 0;
           if (section.countEl) {
             section.countEl.textContent =
-              sectionKey === 'starters' ? `${count}/11` : `${count}`;
+              sectionKey === 'starters' ? `${count}/${startersLimit}` : `${count}`;
           }
         });
       };
@@ -2400,16 +2400,16 @@ const urlWithMatchId = (baseUrl) => {
       const renderPreLineupSummary = () => {
         if (!preLineupCountEl || !preLineupChipsEl) return;
         const starters = lineupState.starters || [];
-        preLineupCountEl.textContent = `${starters.length}/11`;
+        preLineupCountEl.textContent = `${starters.length}/${startersLimit}`;
         preLineupChipsEl.innerHTML = '';
         if (!starters.length) {
           const empty = document.createElement('span');
           empty.className = 'pre-lineup-empty';
-          empty.textContent = 'Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → 11 inicial”.';
+          empty.textContent = `Arrastra titulares desde la convocatoria o usa “Cuerpo técnico → Partidos → ${startersLimit} inicial”.`;
           preLineupChipsEl.appendChild(empty);
           return;
         }
-        starters.slice(0, 11).forEach((player) => {
+        starters.slice(0, startersLimit).forEach((player) => {
           const chip = document.createElement('span');
           chip.className = 'pre-lineup-chip';
           const number = document.createElement('strong');
@@ -2517,7 +2517,7 @@ const urlWithMatchId = (baseUrl) => {
         return { inRole, other };
       };
       const applyBasePositionsToStarters = () => {
-        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, 11) : [];
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, startersLimit) : [];
         if (!starters.length) return;
         const pool = starters.map((p) => ({ ...p }));
         const picks = [];
@@ -2724,7 +2724,7 @@ const urlWithMatchId = (baseUrl) => {
       };
       const renderTacticsBoardImpl = () => {
         if (!tacticsPitch || !tacticsTokensEl) return;
-        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, 11) : [];
+        const starters = Array.isArray(lineupState?.starters) ? lineupState.starters.slice(0, startersLimit) : [];
         tacticsTokensEl.innerHTML = '';
         if (!starters.length) return;
         starters.forEach((player, idx) => {
@@ -2741,7 +2741,7 @@ const urlWithMatchId = (baseUrl) => {
       };
       const renderRivalTacticsBoardImpl = () => {
         if (!tacticsPitch || !tacticsRivalTokensEl) return;
-        const starters = Array.isArray(rivalLineupState?.starters) ? rivalLineupState.starters.slice(0, 11) : [];
+        const starters = Array.isArray(rivalLineupState?.starters) ? rivalLineupState.starters.slice(0, startersLimit) : [];
         tacticsRivalTokensEl.innerHTML = '';
         if (!starters.length) {
           setRivalVisible(false, { persist: false, silent: true });
@@ -2780,13 +2780,13 @@ const urlWithMatchId = (baseUrl) => {
             startersWrapper.classList.add('is-invalid');
           }
         }
-        if (lineupStatusMsg) {
-          if (startersCount === startersLimit) {
-            lineupStatusMsg.textContent = `Once inicial completo y listo (${startersLimit}/${startersLimit}).`;
-          } else {
-            lineupStatusMsg.textContent = `Faltan ${Math.max(0, startersLimit - startersCount)} titulares para completar el once.`;
-          }
-        }
+	        if (lineupStatusMsg) {
+	          if (startersCount === startersLimit) {
+	            lineupStatusMsg.textContent = `Titulares listos (${startersLimit}/${startersLimit}).`;
+	          } else {
+	            lineupStatusMsg.textContent = `Faltan ${Math.max(0, startersLimit - startersCount)} titulares para completar.`;
+	          }
+	        }
 	        updateLineupInput();
 	        refreshCardAssignments();
 	        renderPreLineupSummary();
@@ -3290,11 +3290,11 @@ const urlWithMatchId = (baseUrl) => {
           starters.push(keeper);
         }
         for (const player of sorted) {
-          if (starters.length >= 11) break;
+          if (starters.length >= startersLimit) break;
           if (starters.some((entry) => String(entry.id) === String(player.id))) continue;
           starters.push(player);
         }
-        lineupState.starters = starters.slice(0, 11);
+        lineupState.starters = starters.slice(0, startersLimit);
         lineupState.bench = pool.filter(
           (player) => !lineupState.starters.some((starter) => String(starter.id) === String(player.id)),
         );
@@ -3316,7 +3316,7 @@ const urlWithMatchId = (baseUrl) => {
 		      hydrateLineupState();
 		      renderLineup();
 		      try { restoreProState(); } catch (e) {}
-	      // Mantiene registro de acciones sincronizado con el 11 inicial (si se edita desde otra pantalla).
+		      // Mantiene registro de acciones sincronizado con el once inicial (si se edita desde otra pantalla).
 	      try {
 	        window.addEventListener('focus', () => { void refreshLineupFromServer({ quiet: true }); });
 	        document.addEventListener('visibilitychange', () => {
@@ -3538,11 +3538,11 @@ const urlWithMatchId = (baseUrl) => {
         if (closeSummaryLineup) {
           closeSummaryLineup.textContent = `${startersCount}/${requiredStarters}`;
         }
-        if (closeSummaryLineupNote) {
-          closeSummaryLineupNote.textContent = startersCount === requiredStarters
-            ? `Once listo · ${benchCount} suplentes disponibles.`
-            : `Faltan ${Math.max(0, requiredStarters - startersCount)} titulares para completar el once.`;
-        }
+	        if (closeSummaryLineupNote) {
+	          closeSummaryLineupNote.textContent = startersCount === requiredStarters
+	            ? `Titulares listos · ${benchCount} suplentes disponibles.`
+	            : `Faltan ${Math.max(0, requiredStarters - startersCount)} titulares para completar.`;
+	        }
         if (closeSummaryActions) {
           closeSummaryActions.textContent = String(liveSummaryState.actions || 0);
         }
@@ -3643,7 +3643,7 @@ const urlWithMatchId = (baseUrl) => {
               activateStage(button.dataset.stageJump);
             });
 		      });
-	      // Inicializa el estado del cierre (deshabilita Guardar si falta rival/marcador/11).
+	      // Inicializa el estado del cierre (deshabilita Guardar si falta rival/marcador/titulares).
 	      requestAnimationFrame(() => updateCloseSummary({ matchInfo: { ...matchInfoState } }));
       if (copyBriefingBtn && copyBriefingBtn.dataset.bound !== '1') {
         copyBriefingBtn.addEventListener('click', async () => {
