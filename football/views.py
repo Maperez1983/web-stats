@@ -44494,7 +44494,7 @@ def analysis_video_studio_page(request, video_id):
     )
     yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
     initial_clip_id = _parse_int(request.GET.get('clip'))
-    return render(
+    resp = render(
         request,
         'football/analysis_video_studio_youtube.html' if yt_id else 'football/analysis_video_studio.html',
         {
@@ -44505,6 +44505,16 @@ def analysis_video_studio_page(request, video_id):
             'vs_assignable_teams': _video_studio_assignable_team_choices(request) if not resolved_team else [],
         },
     )
+    # iPad/Safari puede cachear HTML de páginas con mucho JS (especialmente al volver atrás/adelante),
+    # haciendo que el usuario vea una toolbar antigua aunque el deploy ya esté en producción.
+    # Deshabilitamos cache para forzar que siempre se obtenga el HTML nuevo.
+    try:
+        resp['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        resp['Pragma'] = 'no-cache'
+        resp['Expires'] = '0'
+    except Exception:
+        pass
+    return resp
 
 
 @login_required
