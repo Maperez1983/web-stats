@@ -58,6 +58,13 @@
       .split { margin-top: 1rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
       .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
       .hint { color: rgba(226,232,240,0.72); font-weight:800; font-size:0.85rem; }
+      .vs-flash { animation: vsFlash 1.6s ease-in-out 1; }
+      @keyframes vsFlash {
+        0% { box-shadow: 0 0 0 0 rgba(34,211,238,0.0); background: rgba(255,255,255,0.03); }
+        20% { box-shadow: 0 0 0 3px rgba(34,211,238,0.35); background: rgba(34,211,238,0.10); }
+        70% { box-shadow: 0 0 0 1px rgba(34,211,238,0.18); background: rgba(34,211,238,0.06); }
+        100% { box-shadow: 0 0 0 0 rgba(34,211,238,0.0); background: rgba(255,255,255,0.03); }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -184,11 +191,12 @@
                     <input type="number" id="vs-trim-in" min="0" step="0.1" value="0" />
                     <input type="number" id="vs-trim-out" min="0" step="0.1" value="0" />
                   </div>
-                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
-                    <button type="button" class="button" id="vs-trim-set-in">IN ← playhead</button>
-                    <button type="button" class="button" id="vs-trim-set-out">OUT ← playhead</button>
-                    <button type="button" class="button primary" id="vs-trim-save">Guardar</button>
-                  </div>
+                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
+                  <button type="button" class="button" id="vs-trim-set-in">IN ← playhead</button>
+                  <button type="button" class="button" id="vs-trim-set-out">OUT ← playhead</button>
+                  <button type="button" class="button primary" id="vs-trim-save">Guardar</button>
+                </div>
+                <div class="hint" id="vs-trim-saved-msg" style="margin-top:0.35rem;">—</div>
                 </div>
 	              <label>
 	                Segmento (segundos)
@@ -488,6 +496,7 @@
 	                <button type="button" class="button" id="vs-clip-split">Split</button>
 	                <button type="button" class="button" id="vs-clip-refresh">Actualizar</button>
 	              </div>
+                <div class="hint" id="vs-clip-saved-msg" style="margin-top:0.35rem;">—</div>
 	              <div class="meta" style="margin-top:0.2rem;">
 	                Atajos: <span class="k">Espacio</span> play/pausa · <span class="k">I</span>/<span class="k">S</span> IN · <span class="k">O</span>/<span class="k">R</span> OUT · <span class="k">C</span> guardar clip · <span class="k">T</span> tag.
 	              </div>

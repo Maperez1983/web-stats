@@ -160,6 +160,7 @@
 
     const inInput = document.getElementById('vs-in');
     const outInput = document.getElementById('vs-out');
+    const trimSavedMsg = document.getElementById('vs-trim-saved-msg');
     const trimEnabledToggle = document.getElementById('vs-trim-enabled');
     const trimInInput = document.getElementById('vs-trim-in');
     const trimOutInput = document.getElementById('vs-trim-out');
@@ -281,6 +282,7 @@
 	    const filterUnreviewedClipsToggle = document.getElementById('vs-filter-unreviewed-clips');
 	    const filterUnreviewedEventsToggle = document.getElementById('vs-filter-unreviewed-events');
 	    const reportShareBtn = document.getElementById('vs-report-share');
+      const clipSavedMsg = document.getElementById('vs-clip-saved-msg');
 
     const eventKindSelect = document.getElementById('vs-event-kind');
     const eventLabelInput = document.getElementById('vs-event-label');
@@ -425,10 +427,20 @@
         trimInS = Math.max(0, (Number(data?.trim_in_ms) || 0) / 1000);
         trimOutS = Math.max(0, (Number(data?.trim_out_ms) || 0) / 1000);
         writeTrimInputs();
+        try {
+          const d = new Date();
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          const ss = String(d.getSeconds()).padStart(2, '0');
+          const inLbl = fmtTimeShort(trimInS);
+          const outLbl = trimOutS ? fmtTimeShort(trimOutS) : '—';
+          if (trimSavedMsg) trimSavedMsg.textContent = `${trimEnabled ? 'Guardado ✓' : 'Guardado (desactivado)'} · ${hh}:${mm}:${ss} · IN ${inLbl} · OUT ${outLbl}`;
+        } catch (e) { /* ignore */ }
         if (!silent) setStatus('Corte base guardado.');
         // Si está activo, asegúrate de estar dentro del rango.
         if (trimEnabled) enforceTrimPlayback();
       } catch (e) {
+        try { if (trimSavedMsg) trimSavedMsg.textContent = 'No se pudo guardar.'; } catch (e2) { /* ignore */ }
         if (!silent) setStatus('No se pudo guardar el corte base.', true);
       }
     };
@@ -444,6 +456,11 @@
     };
     // Inicializa UI desde backend
     writeTrimInputs();
+    try {
+      const inLbl = fmtTimeShort(trimInS);
+      const outLbl = trimOutS ? fmtTimeShort(trimOutS) : '—';
+      if (trimSavedMsg) trimSavedMsg.textContent = `${trimEnabled ? 'Corte base activo' : 'Corte base desactivado'} · IN ${inLbl} · OUT ${outLbl}`;
+    } catch (e) { /* ignore */ }
     try {
       const in0 = Number(inInput?.value || 0) || 0;
       const out0 = Number(outInput?.value || 0) || 0;
@@ -4338,8 +4355,49 @@
         if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
         activeClipId = Number(data?.id) || activeClipId;
         await refreshClips();
-        setStatus('Clip guardado.');
+        try {
+          const d = new Date();
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          const ss = String(d.getSeconds()).padStart(2, '0');
+          const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS)}`;
+          if (clipSavedMsg) clipSavedMsg.textContent = `Guardado ✓ · ${hh}:${mm}:${ss} · id ${activeClipId || ''} · ${label}`;
+        } catch (e) { /* ignore */ }
+        try {
+          if (clipSaveBtn) {
+            const old = clipSaveBtn.textContent;
+            clipSaveBtn.textContent = 'Guardado ✓';
+            window.setTimeout(() => { try { clipSaveBtn.textContent = old; } catch (e2) { /* ignore */ } }, 900);
+          }
+        } catch (e) { /* ignore */ }
+        try {
+          const flash = (el) => {
+            if (!el || !el.classList) return;
+            el.classList.remove('vs-flash');
+            // Fuerza reflow
+            void el.offsetWidth;
+            el.classList.add('vs-flash');
+            window.setTimeout(() => { try { el.classList.remove('vs-flash'); } catch (e2) { /* ignore */ } }, 1800);
+          };
+          const revealClipRow = () => {
+            if (!activeClipId || !clipsList) return false;
+            const btn = clipsList.querySelector?.(`[data-vs-clip-load="${activeClipId}"]`);
+            const row = btn?.closest?.('.row') || btn?.parentElement;
+            if (!row) return false;
+            try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { /* ignore */ }
+            flash(row);
+            return true;
+          };
+          const hasFilters = Boolean(safeText(clipSearchInput?.value, '') || safeText(clipCollectionFilterSelect?.value, '') || Boolean(filterUnreviewedClipsToggle?.checked));
+          let ok = revealClipRow();
+          if (!ok && hasFilters && clipClearFiltersBtn) {
+            clipClearFiltersBtn.click();
+            window.setTimeout(() => { revealClipRow(); }, 50);
+          }
+        } catch (e) { /* ignore */ }
+        setStatus(`Clip guardado (#${activeClipId || ''}).`);
       } catch (e) {
+        try { if (clipSavedMsg) clipSavedMsg.textContent = 'No se pudo guardar.'; } catch (e2) { /* ignore */ }
         setStatus('No se pudo guardar clip.', true);
       }
 	    };
