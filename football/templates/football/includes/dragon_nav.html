@@ -238,7 +238,7 @@
       {% endif %}
       {% if can_manage_workspace and active_workspace and active_workspace.kind == 'club' %}
       <div class="nav-more-subtitle">Gestión</div>
-      <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Ajustes</a>
+      <a href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configuración</a>
       <a href="{% url 'billing' %}">Suscripción</a>
       {% endif %}
       {% if can_manage_workspace or is_admin_user %}
@@ -330,7 +330,7 @@
   {"label":"Jugadores · estadísticas","url":"{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"jugadores stats kpi"},
   {"label":"Alta jugador","url":"{% url 'coach-roster' %}?tab=manage{% if active_team %}&team={{ active_team.id }}{% endif %}","keywords":"alta jugador crear"},
   {"label":"Staff","url":"{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"staff cuerpo tecnico"},
-  {"label":"Ajustes club","url":"{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"ajustes onboarding club configuracion"},
+  {"label":"Configuración","url":"{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"configuracion ajustes onboarding club branding portada escudo"},
   {"label":"Cuenta","url":"{% url 'account-page' %}","keywords":"cuenta perfil eliminar"},
   {"label":"Soporte","url":"{% url 'support-page' %}","keywords":"soporte ayuda contact"},
   {"label":"Privacidad","url":"{% url 'privacy-policy' %}","keywords":"privacidad legal policy"},

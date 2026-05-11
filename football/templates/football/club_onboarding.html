@@ -401,6 +401,125 @@
         </form>
 
         <div class="notice" style="margin-top:1rem;">
+          <strong>Escudo y portada:</strong> personaliza la identidad visual del club (se verá en la Home y exportaciones).
+        </div>
+        <form method="post" enctype="multipart/form-data" style="margin-top:0.8rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="brand_assets" />
+          <div class="grid">
+            <div>
+              <label for="id_crest_image">Escudo (recomendado PNG con fondo transparente)</label>
+              <input id="id_crest_image" type="file" name="crest_image" accept="image/*" />
+              <div style="margin-top:0.55rem; display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                {% if crest_preview_url %}
+                  <img
+                    src="{{ crest_preview_url }}"
+                    alt="Escudo actual"
+                    style="width:72px;height:72px;border-radius:18px;border:1px solid rgba(255,255,255,0.16);background:rgba(0,0,0,0.22);object-fit:contain;"
+                  />
+                {% endif %}
+                <label style="display:flex;align-items:center;gap:0.45rem;text-transform:none;letter-spacing:0;font-size:0.88rem;color:rgba(226,232,240,0.86);">
+                  <input type="checkbox" name="clear_crest" /> Quitar escudo
+                </label>
+              </div>
+            </div>
+            <div>
+              <label for="id_cover_image">Portada (foto equipo)</label>
+              <input id="id_cover_image" type="file" name="cover_image" accept="image/*" />
+              <div style="margin-top:0.55rem;">
+                {% if cover_preview_url %}
+                  <img
+                    src="{{ cover_preview_url }}"
+                    alt="Portada actual"
+                    style="width:100%;height:160px;border-radius:18px;border:1px solid rgba(255,255,255,0.16);object-fit:cover;background:rgba(0,0,0,0.22);"
+                  />
+                {% else %}
+                  <div style="width:100%;height:160px;border-radius:18px;border:1px dashed rgba(255,255,255,0.16);background:rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;color:rgba(226,232,240,0.7);">
+                    Sin portada subida
+                  </div>
+                {% endif %}
+                <label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.55rem;text-transform:none;letter-spacing:0;font-size:0.88rem;color:rgba(226,232,240,0.86);">
+                  <input type="checkbox" name="clear_cover" /> Quitar portada
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Guardar branding</button>
+            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
+          </div>
+        </form>
+
+        <div class="notice" style="margin-top:1rem;">
+          <strong>Equipaciones:</strong> colores para fichas, pizarra y PDFs (1ª, 2ª y portero).
+        </div>
+        <form method="post" style="margin-top:0.8rem;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="kit_theme" />
+          <div class="grid">
+            <div>
+              <label style="margin-bottom:0.15rem;">1ª equipación</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+                <div>
+                  <label for="id_kit_home_main">Principal</label>
+                  <input id="id_kit_home_main" type="color" name="kit_home_main" value="{{ kit_form.home_main|default:'#06814d' }}" />
+                </div>
+                <div>
+                  <label for="id_kit_home_trim">Detalle</label>
+                  <input id="id_kit_home_trim" type="color" name="kit_home_trim" value="{{ kit_form.home_trim|default:'#ffffff' }}" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label style="margin-bottom:0.15rem;">2ª equipación</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+                <div>
+                  <label for="id_kit_away_main">Principal</label>
+                  <input id="id_kit_away_main" type="color" name="kit_away_main" value="{{ kit_form.away_main|default:'#0b1220' }}" />
+                </div>
+                <div>
+                  <label for="id_kit_away_trim">Detalle</label>
+                  <input id="id_kit_away_trim" type="color" name="kit_away_trim" value="{{ kit_form.away_trim|default:'#f4b400' }}" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label style="margin-bottom:0.15rem;">Portero</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+                <div>
+                  <label for="id_kit_gk_main">Principal</label>
+                  <input id="id_kit_gk_main" type="color" name="kit_gk_main" value="{{ kit_form.gk_main|default:'#7c2d12' }}" />
+                </div>
+                <div>
+                  <label for="id_kit_gk_trim">Detalle</label>
+                  <input id="id_kit_gk_trim" type="color" name="kit_gk_trim" value="{{ kit_form.gk_trim|default:'#ffffff' }}" />
+                </div>
+              </div>
+            </div>
+            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+              <label><input type="checkbox" name="kit_use_as_default" /> Usar también como default del club (para otros equipos)</label>
+            </div>
+          </div>
+
+          <div class="brand-preview" style="margin-top:0.8rem;">
+            <div class="brand-preview-head" style="background: linear-gradient(135deg, {{ kit_form.home_main|default:'#06814d' }}, {{ kit_form.away_trim|default:'#f4b400' }});">
+              Previsualización
+            </div>
+            <div class="brand-preview-body" style="gap:0.6rem;">
+              <span class="chip">Home <span style="display:inline-flex;gap:0.25rem;align-items:center;margin-left:0.25rem;"><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.home_main|default:'#06814d' }};border:1px solid rgba(255,255,255,0.25);"></span><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.home_trim|default:'#ffffff' }};border:1px solid rgba(255,255,255,0.25);"></span></span></span>
+              <span class="chip">Away <span style="display:inline-flex;gap:0.25rem;align-items:center;margin-left:0.25rem;"><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.away_main|default:'#0b1220' }};border:1px solid rgba(255,255,255,0.25);"></span><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.away_trim|default:'#f4b400' }};border:1px solid rgba(255,255,255,0.25);"></span></span></span>
+              <span class="chip">GK <span style="display:inline-flex;gap:0.25rem;align-items:center;margin-left:0.25rem;"><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.gk_main|default:'#7c2d12' }};border:1px solid rgba(255,255,255,0.25);"></span><span style="width:12px;height:12px;border-radius:99px;background:{{ kit_form.gk_trim|default:'#ffffff' }};border:1px solid rgba(255,255,255,0.25);"></span></span></span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Guardar equipaciones</button>
+            <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
+          </div>
+        </form>
+
+        <div class="notice" style="margin-top:1rem;">
           <strong>Identidad corporativa:</strong> define colores del sistema para el equipo activo (Home, Partido, Entreno, etc.).
         </div>
         <form method="post" style="margin-top:0.8rem;">

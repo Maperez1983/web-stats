@@ -55390,12 +55390,21 @@ def search_api(request):
     except Exception:
         task_items = []
 
+    can_platform = bool(_is_admin_user(request.user) and _can_access_platform(request.user))
+    active_ws = _get_active_workspace(request)
+    can_manage = bool(_can_manage_workspace(request.user, active_ws)) if active_ws else False
+    if can_platform:
+        settings_item = {'type': 'page', 'id': 'settings', 'label': 'Ajustes', 'meta': 'Platform', 'url': reverse('platform-overview')}
+    elif can_manage:
+        settings_item = {'type': 'page', 'id': 'settings', 'label': 'Configuración', 'meta': 'Branding · competición · módulos', 'url': f"{reverse('club-onboarding')}{team_qs}"}
+    else:
+        settings_item = {'type': 'page', 'id': 'settings', 'label': 'Cuenta', 'meta': 'Perfil', 'url': f"{reverse('account-page')}{team_qs}"}
     page_items = [
         {'type': 'page', 'id': 'match-hub', 'label': 'Partido', 'meta': 'Convocatoria · 11 · acciones · PDFs', 'url': f"{reverse('match-hub')}{team_qs}"},
         {'type': 'page', 'id': 'players', 'label': 'Jugadores', 'meta': 'Fichas y KPIs', 'url': f"{(reverse('coach-roster') if (_can_manage_workspace(request.user, _get_active_workspace(request)) or _is_admin_user(request.user)) else reverse('player-dashboard'))}{team_qs}"},
         {'type': 'page', 'id': 'sessions', 'label': 'Entrenos', 'meta': 'Sesiones y tareas', 'url': f"{reverse('sessions')}{team_qs}"},
         {'type': 'page', 'id': 'actions', 'label': 'Registro de acciones', 'meta': 'Banquillo · en vivo', 'url': f"{reverse('match-action-page')}{team_qs}"},
-        {'type': 'page', 'id': 'settings', 'label': 'Ajustes', 'meta': 'Competición y módulos', 'url': f"{reverse('club-onboarding')}{team_qs}"},
+        settings_item,
     ]
 
     groups = []

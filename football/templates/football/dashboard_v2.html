@@ -1320,8 +1320,10 @@
         <a class="tab" href="{% url 'kpi-dashboard' %}">KPIs</a>
         {% if can_access_platform %}
           <a class="tab" href="{% url 'platform-overview' %}">Ajustes</a>
+        {% elif can_manage_workspace %}
+          <a class="tab" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configuración</a>
         {% else %}
-          <a class="tab" href="{% url 'account-page' %}">Ajustes</a>
+          <a class="tab" href="{% url 'account-page' %}">Cuenta</a>
         {% endif %}
       </nav>
 
