@@ -828,6 +828,9 @@
 
 	    // Playback helpers
 	    let loopActive = false;
+      let clipBoundActive = false;
+      let clipBoundStart = 0;
+      let clipBoundEnd = 0;
 	    const updateLoopUi = () => {
 	      if (!btnLoop) return;
 	      btnLoop.classList.toggle('primary', loopActive);
@@ -835,6 +838,7 @@
 	    };
 	    if (initialClipId && String(window.location.pathname || '').includes('/analysis/video/clip/')) {
 	      loopActive = true;
+        clipBoundActive = true;
 	    }
 	    updateLoopUi();
 	    btnLoop?.addEventListener('click', () => {
@@ -864,6 +868,27 @@
 	        try { video.currentTime = start; } catch (e) { /* ignore */ }
 	      }
 	    };
+      const enforceClipBound = () => {
+        if (!clipBoundActive) return;
+        if (playlistActive) return;
+        const a = Number(inInput?.value || 0) || 0;
+        const b = Number(outInput?.value || 0) || 0;
+        const start = Math.max(0, Math.min(a, b));
+        const end = Math.max(a, b);
+        if (!end || end <= start) return;
+        clipBoundStart = start;
+        clipBoundEnd = end;
+        const now = Number(video.currentTime) || 0;
+        if (now < start - 0.04) {
+          try { video.currentTime = start; } catch (e) { /* ignore */ }
+          return;
+        }
+        if (now >= end - 0.02) {
+          try { video.pause(); } catch (e) { /* ignore */ }
+          try { video.currentTime = end; } catch (e) { /* ignore */ }
+          // Si el usuario activó Loop, dejamos que enforceLoop lo lleve al inicio.
+        }
+      };
 	    const updateMiniCursor = () => {
 	      if (!miniCursor) return;
 	      const dur = Number(video.duration) || 0;
@@ -874,9 +899,23 @@
 	    };
 	    video.addEventListener('timeupdate', () => {
 	      enforceTrimPlayback();
+        enforceClipBound();
 	      enforceLoop();
 	      updateMiniCursor();
 	    });
+      video.addEventListener('seeking', () => {
+        if (!clipBoundActive) return;
+        if (playlistActive) return;
+        const start = Number(clipBoundStart) || 0;
+        const end = Number(clipBoundEnd) || 0;
+        if (!end || end <= start) return;
+        const now = Number(video.currentTime) || 0;
+        if (now < start - 0.04) {
+          try { video.currentTime = start; } catch (e) { /* ignore */ }
+        } else if (now > end + 0.04) {
+          try { video.currentTime = end; } catch (e) { /* ignore */ }
+        }
+      });
 
 	    const renderMiniTimeline = () => {
 	      if (!miniTimeline || !miniTrack) return;
@@ -954,15 +993,26 @@
       if (obj.data.base_sy == null) obj.data.base_sy = Number(obj.scaleY) || 1;
     };
 
-    const seedLayerDataNow = (extra = {}) => ({
-      uid: newUid(),
-      t_in_s: Number(video.currentTime) || 0,
-      t_out_s: 0,
-      fade_in_ms: 0,
-      fade_out_ms: 0,
-      anim: 'none',
-      ...extra,
-    });
+    const seedLayerDataNow = (extra = {}) => {
+      const tIn = Number(video.currentTime) || 0;
+      // Por defecto, limita la capa al tramo actual (OUT) si existe.
+      // Esto evita que FX (spotlight/blur) y anotaciones se queden "para todo el vídeo" por sorpresa.
+      let tOut = 0;
+      try {
+        const rawOut = Number(outInput?.value);
+        if (Number.isFinite(rawOut) && rawOut > (tIn + 0.05)) tOut = rawOut;
+      } catch (e) { /* ignore */ }
+      if (!tOut) tOut = tIn + 2.0;
+      return {
+        uid: newUid(),
+        t_in_s: tIn,
+        t_out_s: tOut,
+        fade_in_ms: 0,
+        fade_out_ms: 0,
+        anim: 'none',
+        ...extra,
+      };
+    };
 
     const computeTimedAlpha = (timing, nowS) => {
       const tIn = Math.max(0, Number(timing?.t_in_s) || 0);
@@ -2173,7 +2223,7 @@
       if (tool === 'spot' && fxPreview && fxPreview.kind === 'spotlight' && Number(fxPreview.r) >= 12) {
         const layer = {
           id: fxSeq++,
-          ...seedLayerDataNow({ t_in_s: now, t_out_s: 0, fade_in_ms: 150, fade_out_ms: 150 }),
+          ...seedLayerDataNow({ t_in_s: now, fade_in_ms: 150, fade_out_ms: 150 }),
           ...fxPreview,
         };
         fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
@@ -2185,7 +2235,7 @@
       if (tool === 'blur' && fxPreview && fxPreview.kind === 'blur' && Number(fxPreview.w) >= 12 && Number(fxPreview.h) >= 12) {
         const layer = {
           id: fxSeq++,
-          ...seedLayerDataNow({ t_in_s: now, t_out_s: 0, fade_in_ms: 150, fade_out_ms: 150 }),
+          ...seedLayerDataNow({ t_in_s: now, fade_in_ms: 150, fade_out_ms: 150 }),
           ...fxPreview,
         };
         fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
