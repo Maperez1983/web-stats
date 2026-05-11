@@ -4357,7 +4357,7 @@
 	      const rows = filteredItems.slice(0, 120).map((c) => {
 	        const id = Number(c?.id) || 0;
 	        if (!id) return '';
-	        const title = safeText(c?.title, `Clip ${id}`);
+	        const title = safeText(c?.title, `Clip #${id}`);
 	        const coll = safeText(c?.collection, '');
 	        const thumbUrl = safeText(c?.thumbnail_url, '');
 	        const inS = Number(c?.in_s) || 0;
@@ -4376,9 +4376,12 @@
                 <div style="width:76px;height:46px;border-radius:12px;overflow:hidden;background:rgba(2,6,23,0.35);border:1px solid rgba(148,163,184,0.14);flex:0 0 auto;">
                   <img data-vs-clip-thumb="${id}" data-vs-clip-thumb-url="${escHtml(thumbUrl)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" />
                 </div>
-	              <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0; flex:1;">
-	                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</strong>
-	                <small>${coll ? `${coll} · ` : ''}${label} · ${durLabel}${tagsLabel}</small>
+	              <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0; flex:1;">
+	                <div style="display:flex; gap:0.45rem; align-items:baseline; min-width:0;">
+	                  <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0;">${title}</strong>
+	                  <small style="white-space:nowrap; opacity:0.9; flex:0 0 auto;">⏱ ${durLabel}</small>
+	                </div>
+	                <small style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
 	              </div>
 		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
 		              <button type="button" class="button ${reviewed ? 'primary' : 'ghost'}" data-vs-clip-review="${id}" title="Marcar revisado">${reviewed ? '✓' : '○'}</button>
