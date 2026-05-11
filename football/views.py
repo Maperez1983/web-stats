@@ -16512,9 +16512,37 @@ def _file_field_stream_with_range(request, file_field, *, content_type: str = ''
         raise Http404('Archivo no disponible')
     try:
         if getattr(settings, 'USE_S3_MEDIA', False):
-            url = str(getattr(file_field, 'url', '') or '').strip()
-            if url:
-                return redirect(url)
+            # En S3: para streaming dejamos que S3 maneje Range y caching.
+            # Para descargas ("attachment") generamos una URL firmada con headers de respuesta
+            # para forzar descarga como archivo normal (Safari/iOS es especialmente sensible).
+            try:
+                storage = getattr(file_field, 'storage', None)
+                name = str(getattr(file_field, 'name', '') or '').strip()
+                if storage and name and hasattr(storage, 'url'):
+                    if as_attachment:
+                        try:
+                            from django.utils.http import content_disposition_header  # noqa: WPS433
+                        except Exception:
+                            content_disposition_header = None
+                        cd = ''
+                        try:
+                            cd = content_disposition_header('attachment', filename or f'download{Path(name).suffix}') if content_disposition_header else ''
+                        except Exception:
+                            cd = ''
+                        params = {}
+                        if cd:
+                            params['ResponseContentDisposition'] = cd
+                        # Fuerza a tratarlo como archivo, no como vídeo inline.
+                        params['ResponseContentType'] = 'application/octet-stream'
+                        signed = storage.url(name, parameters=params) if params else storage.url(name)
+                        if signed:
+                            return redirect(str(signed))
+                    url = str(storage.url(name) or '').strip()
+                    if url:
+                        return redirect(url)
+            except Exception:
+                # fallback: seguimos a streaming local (abajo) si no se puede firmar la URL
+                pass
     except Exception:
         pass
 
