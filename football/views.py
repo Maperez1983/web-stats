@@ -17583,7 +17583,7 @@ def _regulation_minutes_for_team(team):
             'prebenjamin': 25,
             'pre benjamin': 25,
             'benjamin': 30,
-            'alevin': 30,
+            'alevin': 35,
         }
         half = half_by_cat.get(category)
         if half:
