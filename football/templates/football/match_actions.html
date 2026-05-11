@@ -3137,34 +3137,34 @@
 		                    })(drops[d]);
 		                  }
 
-	                  // Popup submit: register as action too (ES5)
-	                  form.addEventListener('submit', function (ev) {
-	                    try { ev.preventDefault(); } catch (e) {}
-	                    var mid = getCurrentMatchId();
-	                    var pid = selectedPlayerInput ? String(selectedPlayerInput.value || '').trim() : '';
-	                    var act = actionInput ? String(actionInput.value || '').trim() : '';
-	                    var res = resultSelect ? String(resultSelect.value || '').trim() : '';
-	                    var zone = zoneInput ? String(zoneInput.value || '').trim() : '';
-	                    var teamOnly = teamOnlyInput ? String(teamOnlyInput.value || '0') : '0';
-	                    if (!mid) { showStatus('No hay match_id activo.', 'danger'); return; }
-	                    if (!act) { showStatus('Elige una acción.', 'warning'); return; }
-	                    if (!res) { showStatus('Selecciona un resultado.', 'warning'); return; }
-	                    if (teamOnly !== '1' && !pid) { showStatus('Selecciona un jugador antes.', 'warning'); return; }
-	                    postAction({
-	                      match_id: mid,
-	                      player: pid,
-	                      action_type: act,
-	                      result: res,
-	                      zone: zone,
-	                      minute: '0',
-	                      period: '1',
-	                      stage: 'live',
-	                      team_only: teamOnly
-	                    }, function (payload) {
-	                      var playerLabel = teamOnly === '1' ? 'Equipo' : '';
-	                      if (!playerLabel) {
-	                        try {
-	                          var sel = document.querySelector('.convocation-card.selected');
+		                  // Popup submit: register as action too (ES5)
+		                  form.addEventListener('submit', function (ev) {
+		                    try { ev.preventDefault(); } catch (e) {}
+		                    var mid = getCurrentMatchId();
+		                    var pid = selectedPlayerInput ? String(selectedPlayerInput.value || '').trim() : '';
+		                    var act = actionInput ? String(actionInput.value || '').trim() : '';
+		                    var res = resultSelect ? String(resultSelect.value || '').trim() : '';
+		                    var zone = zoneInput ? String(zoneInput.value || '').trim() : '';
+		                    var teamOnly = teamOnlyInput ? String(teamOnlyInput.value || '0') : '0';
+		                    if (!mid) { showStatus('No hay match_id activo.', 'danger'); return; }
+		                    if (!act) { showStatus('Elige una acción.', 'warning'); return; }
+		                    if (!res) { showStatus('Selecciona un resultado.', 'warning'); return; }
+		                    if (teamOnly !== '1' && !pid) { showStatus('Selecciona un jugador antes.', 'warning'); return; }
+		                    postAction({
+		                      match_id: mid,
+		                      player: pid,
+		                      action_type: act,
+		                      result: res,
+		                      zone: zone,
+		                      minute: parseMinuteFromClock(),
+		                      period: parseHalfFromBtn(),
+		                      stage: 'live',
+		                      team_only: teamOnly
+		                    }, function (payload) {
+		                      var playerLabel = teamOnly === '1' ? 'Equipo' : '';
+		                      if (!playerLabel) {
+		                        try {
+		                          var sel = document.querySelector('.convocation-card.selected');
 	                          var name = sel ? sel.getAttribute('data-player-name') : '';
 	                          var num = sel ? sel.getAttribute('data-player-number') : '';
 	                          playerLabel = (num ? ('#' + num + ' ') : '') + (name || 'Jugador');
@@ -4191,12 +4191,14 @@
           if (document.readyState !== 'loading') fn();
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
         };
-	        ready(() => {
-	          if (window.__matchActionsTapFallbackBound) return;
-	          const surface = document.getElementById('field-surface') || document.getElementById('touch-field');
-	          const popup = document.getElementById('field-popup');
-	          const form = document.getElementById('field-popup-form');
-	          if (!surface || !popup || !form) return;
+		        ready(() => {
+		          // Si el JS principal ya está OK, no activar fallback para evitar dobles handlers.
+		          try { if (window.__matchActionsMainOk) return; } catch (e) {}
+		          if (window.__matchActionsTapFallbackBound) return;
+		          const surface = document.getElementById('field-surface') || document.getElementById('touch-field');
+		          const popup = document.getElementById('field-popup');
+		          const form = document.getElementById('field-popup-form');
+		          if (!surface || !popup || !form) return;
 	          const hidePopup = () => {
 	            try { popup.classList.remove('is-visible'); } catch (e) {}
 	          };
@@ -4278,12 +4280,14 @@
           if (document.readyState !== 'loading') fn();
           else document.addEventListener('DOMContentLoaded', fn, { once: true });
         };
-        ready(() => {
-          if (window.__matchActionsFinalizeFallbackBound) return;
-          const btns = [
-            document.getElementById('match-finalize-btn'),
-            document.getElementById('match-finalize-btn-top'),
-          ].filter(Boolean);
+	        ready(() => {
+	          // Solo usar fallback si el JS principal no ha inicializado.
+	          try { if (window.__matchActionsMainOk) return; } catch (e) {}
+	          if (window.__matchActionsFinalizeFallbackBound) return;
+	          const btns = [
+	            document.getElementById('match-finalize-btn'),
+	            document.getElementById('match-finalize-btn-top'),
+	          ].filter(Boolean);
           if (!btns.length) return;
           const popupForm = document.getElementById('field-popup-form');
           const csrf = popupForm?.querySelector?.('input[name="csrfmiddlewaretoken"]')?.value || '';
@@ -4364,11 +4368,13 @@
 	          if (document.readyState !== 'loading') fn();
 	          else document.addEventListener('DOMContentLoaded', fn, { once: true });
 	        };
-	        ready(function () {
-	          if (window.__matchActionsSubmitSafetyBound) return;
-	          var form = document.getElementById('field-popup-form');
-	          if (!form || !form.addEventListener) return;
-	          var statusEl = document.getElementById('match-page-status');
+		        ready(function () {
+		          // Solo usar fallback si el JS principal no ha inicializado.
+		          try { if (window.__matchActionsMainOk) return; } catch (e) {}
+		          if (window.__matchActionsSubmitSafetyBound) return;
+		          var form = document.getElementById('field-popup-form');
+		          if (!form || !form.addEventListener) return;
+		          var statusEl = document.getElementById('match-page-status');
 	          var show = function (msg, kind) {
 	            try {
 	              if (!statusEl) return;
