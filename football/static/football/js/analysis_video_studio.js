@@ -253,6 +253,10 @@
     const ctxTeamSelect = document.getElementById('vs-ctx-team');
     const ctxPhaseSelect = document.getElementById('vs-ctx-phase');
     const eventPresetsWrap = document.getElementById('vs-event-presets');
+    const presetsPackSelect = document.getElementById('vs-presets-pack');
+    const presetsAutoClipSelect = document.getElementById('vs-presets-autoclip');
+    const presetsPreInput = document.getElementById('vs-presets-pre');
+    const presetsPostInput = document.getElementById('vs-presets-post');
     const presetsJson = document.getElementById('vs-presets-json');
     const presetsSaveBtn = document.getElementById('vs-presets-save');
     const presetsResetBtn = document.getElementById('vs-presets-reset');
