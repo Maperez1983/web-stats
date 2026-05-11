@@ -129,6 +129,25 @@
       #vs-player-pop .seg button { border:none; background: transparent; color: rgba(226,232,240,0.85); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
       #vs-player-pop .seg button.active { background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(103,232,249,0.95)); color:#03253c; }
       #vs-player-pop .seg.seg-warn button.active { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(251,191,36,0.95)); color:#241004; }
+
+      /* Popover texto (multilínea) */
+      #vs-text-pop {
+        position:absolute;
+        z-index: 9;
+        min-width: 260px;
+        max-width: min(520px, 92vw);
+        padding: 0.65rem;
+        border-radius: 16px;
+        border:1px solid rgba(148,163,184,0.18);
+        background: rgba(9,16,29,0.98);
+        box-shadow: 0 22px 52px rgba(0,0,0,0.35);
+        display:none;
+      }
+      #vs-text-pop textarea { border-radius: 12px; padding:0.55rem 0.65rem; min-height: 84px; resize: vertical; }
+      #vs-text-pop .vs-pop-row { display:flex; gap:0.45rem; align-items:center; }
+      #vs-text-pop .seg { display:flex; border:1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); border-radius: 999px; overflow:hidden; }
+      #vs-text-pop .seg button { border:none; background: transparent; color: rgba(226,232,240,0.85); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
+      #vs-text-pop .seg button.active { background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(103,232,249,0.95)); color:#03253c; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -218,8 +237,25 @@
                     <div class="seg seg-warn" id="vs-player-style-seg" aria-label="Estilo">
                       <button type="button" data-vs-style="tag" class="active">Tag</button>
                       <button type="button" data-vs-style="circle">Círculo</button>
+                </div>
+                <div id="vs-text-pop" role="dialog" aria-label="Texto">
+                  <div class="hint" style="margin:0 0 0.45rem;">Texto (multilínea)</div>
+                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
+                    <div class="seg" id="vs-text-style-seg" aria-label="Estilo">
+                      <button type="button" data-vs-text-style="caption" class="active">Caption</button>
+                      <button type="button" data-vs-text-style="lower3">Lower</button>
+                      <button type="button" data-vs-text-style="plain">Plano</button>
                     </div>
                   </div>
+                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
+                    <textarea id="vs-text-value" placeholder="Escribe aquí la explicación…"></textarea>
+                  </div>
+                  <div class="vs-pop-row" style="justify-content:flex-end;">
+                    <button type="button" class="button ghost" id="vs-text-cancel">Cancelar</button>
+                    <button type="button" class="button primary" id="vs-text-ok">OK</button>
+                  </div>
+                </div>
+			          </div>
                   <div class="vs-pop-row" style="margin-bottom:0.45rem;">
                     <input type="number" id="vs-player-number" placeholder="Dorsal" min="0" max="999" style="width:92px;" />
                     <input type="text" id="vs-player-name" placeholder="Nombre" maxlength="18" />

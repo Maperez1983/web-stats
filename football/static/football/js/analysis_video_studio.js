@@ -1384,7 +1384,7 @@
         return '#22d3ee'; // cyan
       };
 
-      const createPlayerMarkerAt = (point, rawNumber, rawName, prefs) => {
+    const createPlayerMarkerAt = (point, rawNumber, rawName, prefs) => {
         if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
         const number = safeText(rawNumber, '').trim().slice(0, 3);
         const name = safeText(rawName, '').trim().toUpperCase().slice(0, 18);
@@ -1476,6 +1476,159 @@
         renderDrawLayers();
         return { number, name };
       };
+
+      // Popover texto (multilínea)
+      const textPop = document.getElementById('vs-text-pop');
+      const textStyleSeg = document.getElementById('vs-text-style-seg');
+      const textValueInput = document.getElementById('vs-text-value');
+      const textCancelBtn = document.getElementById('vs-text-cancel');
+      const textOkBtn = document.getElementById('vs-text-ok');
+      let textPopCanvasPos = null;
+      let textStyle = 'caption';
+
+      const setTextSegActive = (root, value) => {
+        if (!root) return;
+        Array.from(root.querySelectorAll('button[data-vs-text-style]')).forEach((b) => {
+          b.classList.toggle('active', safeText(b.getAttribute('data-vs-text-style')) === value);
+        });
+      };
+      try {
+        Array.from(textStyleSeg?.querySelectorAll?.('button[data-vs-text-style]') || []).forEach((b) => {
+          b.addEventListener('click', () => {
+            textStyle = safeText(b.getAttribute('data-vs-text-style'), 'caption');
+            setTextSegActive(textStyleSeg, textStyle);
+          });
+        });
+      } catch (e) { /* ignore */ }
+
+      const closeTextPop = () => {
+        textPopCanvasPos = null;
+        if (!textPop) return;
+        textPop.style.display = 'none';
+      };
+      const openTextPopAt = (canvasPoint, clientPoint) => {
+        if (!textPop || !stage) return;
+        textPopCanvasPos = canvasPoint || null;
+        setTextSegActive(textStyleSeg, textStyle);
+        const rect = stage.getBoundingClientRect();
+        const x = clamp((clientPoint?.x ?? (rect.left + rect.width * 0.5)) - rect.left, 8, Math.max(8, rect.width - 560));
+        const y = clamp((clientPoint?.y ?? (rect.top + rect.height * 0.5)) - rect.top, 8, Math.max(8, rect.height - 220));
+        textPop.style.left = `${Math.round(x)}px`;
+        textPop.style.top = `${Math.round(y)}px`;
+        textPop.style.display = 'block';
+        try { textValueInput?.focus?.(); } catch (e) { /* ignore */ }
+      };
+
+      const createTextOverlayAt = (point, rawText, styleName) => {
+        if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
+        const text = safeText(rawText, '').trim();
+        if (!text) return null;
+        const style = safeText(styleName, 'caption');
+        const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+        const maxW = canvasW ? clamp(Math.round(canvasW * 0.78), 260, 880) : 560;
+        const fontFamily = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+        const makeLowerThird = () => {
+          const t = new fabric.Textbox(text, {
+            left: point.x,
+            top: point.y,
+            width: maxW,
+            fill: '#ffffff',
+            fontSize: 26,
+            fontWeight: '950',
+            fontFamily,
+            textAlign: 'left',
+            shadow: 'rgba(0,0,0,0.55) 0 2px 8px',
+            selectable: false,
+            evented: false,
+          });
+          const padX = 16;
+          const padY = 12;
+          const bw = clamp(Math.round((t.width || maxW) + padX * 2), 240, maxW + padX * 2);
+          const bh = clamp(Math.round((t.height || 40) + padY * 2), 44, 420);
+          const bg = new fabric.Rect({
+            left: point.x,
+            top: point.y,
+            width: bw,
+            height: bh,
+            rx: 18,
+            ry: 18,
+            fill: 'rgba(2,6,23,0.68)',
+            stroke: 'rgba(255,255,255,0.14)',
+            strokeWidth: 1,
+            originX: 'left',
+            originY: 'top',
+            selectable: false,
+            evented: false,
+          });
+          t.set({ left: point.x + padX, top: point.y + padY });
+          const group = new fabric.Group([bg, t], { selectable: true });
+          group.data = seedLayerDataNow({ kind: 'text_lower3', style });
+          return group;
+        };
+
+        const makeCaption = () => {
+          const t = new fabric.Textbox(text, {
+            left: point.x,
+            top: point.y,
+            width: maxW,
+            fill: '#ffffff',
+            fontSize: 24,
+            fontWeight: '900',
+            fontFamily,
+            textAlign: 'left',
+            shadow: 'rgba(0,0,0,0.55) 0 2px 8px',
+            selectable: false,
+            evented: false,
+          });
+          // Stroke suave para legibilidad sobre césped
+          t.set({ stroke: 'rgba(2,6,23,0.85)', strokeWidth: 2, paintFirst: 'stroke' });
+          const group = new fabric.Group([t], { selectable: true });
+          group.data = seedLayerDataNow({ kind: 'text_caption', style });
+          return group;
+        };
+
+        const makePlain = () => {
+          const t = new fabric.Textbox(text, {
+            left: point.x,
+            top: point.y,
+            width: maxW,
+            fill: strokeColor(),
+            fontSize: 22,
+            fontWeight: '850',
+            fontFamily,
+            textAlign: 'left',
+            shadow: 'rgba(0,0,0,0.35) 0 1px 4px',
+            selectable: false,
+            evented: false,
+          });
+          const group = new fabric.Group([t], { selectable: true });
+          group.data = seedLayerDataNow({ kind: 'text_plain', style });
+          return group;
+        };
+
+        if (style === 'lower3') return makeLowerThird();
+        if (style === 'plain') return makePlain();
+        return makeCaption();
+      };
+
+      textCancelBtn?.addEventListener('click', () => closeTextPop());
+      textOkBtn?.addEventListener('click', () => {
+        if (!textPopCanvasPos) { closeTextPop(); return; }
+        const value = safeText(textValueInput?.value, '').trim();
+        if (!value) { closeTextPop(); return; }
+        const group = createTextOverlayAt(textPopCanvasPos, value, textStyle);
+        closeTextPop();
+        try { if (textValueInput) textValueInput.value = ''; } catch (e) { /* ignore */ }
+        if (!group) return;
+        fabricCanvas.add(group);
+        pushHistory();
+        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+        selectedFxId = 0;
+        updateLayerPanel();
+        renderFxList();
+        renderDrawLayers();
+      });
     colorInput?.addEventListener('change', () => {
       try { fabricCanvas.freeDrawingBrush.color = strokeColor(); } catch (e) { /* ignore */ }
     });
@@ -1724,26 +1877,23 @@
 	      }
 	      if (tool === 'text') {
 	        const p = fabricCanvas.getPointer(opt.e);
-	        // iOS/Safari a veces no permite editar IText dentro del canvas de forma fiable.
-	        // Para evitar "no hace nada", usamos un prompt y creamos un Text normal.
-	        let textValue = 'Texto';
+	        // En Studio (con popover) usamos textarea multilínea. En otras vistas, fallback a prompt.
+	        if (textPop) {
+	          openTextPopAt({ x: p.x, y: p.y }, { x: opt?.e?.clientX || 0, y: opt?.e?.clientY || 0 });
+	          return;
+	        }
+	        let entered = '';
 	        try {
-	          const entered = window.prompt('Texto a mostrar:', '');
-	          if (entered === null) return;
-	          if (safeText(entered, '').trim()) textValue = safeText(entered, '').trim().slice(0, 80);
+	          const v = window.prompt('Texto:', '');
+	          if (v === null) return;
+	          entered = safeText(v, '').trim();
 	        } catch (e) { /* ignore */ }
-	        const t = new fabric.Text(textValue, {
-	          left: p.x,
-	          top: p.y,
-	          fill: strokeColor(),
-	          fontSize: 22,
-	          fontWeight: '800',
-	          shadow: 'rgba(15,23,42,0.65) 0 1px 3px',
-	        });
-	        t.data = seedLayerDataNow();
-	        fabricCanvas.add(t);
+	        if (!entered) return;
+	        const group = createTextOverlayAt({ x: p.x, y: p.y }, entered, 'caption');
+	        if (!group) return;
+	        fabricCanvas.add(group);
 	        pushHistory();
-	        try { fabricCanvas.setActiveObject(t); } catch (e) { /* ignore */ }
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
 	        selectedFxId = 0;
 	        updateLayerPanel();
 	        renderFxList();
