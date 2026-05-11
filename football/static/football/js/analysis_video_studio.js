@@ -4657,11 +4657,12 @@
 		        });
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
-	        // Si estamos editando un clip cargado, conserva `activeClipId`. Si estamos creando uno nuevo, no lo dejes activo
-	        // para que el siguiente Guardar cree otro (flujo multi-clips).
-	        if (!forceNew && clipId) activeClipId = Number(data?.id) || activeClipId;
+	        const savedId = Number(data?.id) || 0;
+	        // Mantener el clip recién creado como "activo" evita duplicados al editar título/notas desde la barra lateral.
+	        // El botón "Guardar" rápido (toolbar) siempre usa `forceNew:true`, así que seguirá creando múltiples clips aunque
+	        // exista `activeClipId`.
+	        if (savedId) activeClipId = savedId;
 	        await refreshClips();
-	        if (!clipId || forceNew) activeClipId = 0;
 	        updateClipUiState();
 	        try {
 	          const d = new Date();
@@ -4669,7 +4670,6 @@
           const mm = String(d.getMinutes()).padStart(2, '0');
           const ss = String(d.getSeconds()).padStart(2, '0');
           const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS)}`;
-	          const savedId = Number(data?.id) || activeClipId || 0;
 	          if (clipSavedMsg) clipSavedMsg.textContent = `Guardado ✓ · ${hh}:${mm}:${ss} · id ${savedId || ''} · ${label}`;
 	        } catch (e) { /* ignore */ }
         try {
