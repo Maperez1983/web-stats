@@ -2202,7 +2202,20 @@
           const isHttpError = msg.startsWith('dash_http_');
           // Si fetch falla por red, suele ser TypeError/NetworkError/Failed to fetch.
           const looksLikeNetwork = msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed');
-          const offline = (reportedOffline || looksLikeNetwork) && !isHttpError;
+          let offline = false;
+          if (!isHttpError) {
+            if (looksLikeNetwork) {
+              offline = true;
+            } else if (reportedOffline) {
+              // iOS puede reportar offline falsamente: comprobamos contra servidor antes de mostrar el badge.
+              try {
+                const ok = await verifyConnectivity();
+                offline = !ok;
+              } catch (e) {
+                offline = true;
+              }
+            }
+          }
           setNetBadge({ offline, cached: dashLastSource === 'cache' });
           if (loading) {
             loading.hidden = false;
