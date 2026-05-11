@@ -1504,6 +1504,14 @@
 
       if (tool !== 'spot' && tool !== 'blur') fxPreview = null;
       fxEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'auto' : 'none';
+      // Cuando usamos FX (spot/blur) los eventos deben ir al canvas `vs-fx`.
+      // Fabric coloca `upperCanvasEl` por encima y puede "comerse" el pointerdown,
+      // haciendo que Spotlight parezca no funcionar.
+      try {
+        if (fabricCanvas?.upperCanvasEl) {
+          fabricCanvas.upperCanvasEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'none' : 'auto';
+        }
+      } catch (e) { /* ignore */ }
 
 	      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
 	      if (tool === 'select') btnSelect?.classList.add('primary');
