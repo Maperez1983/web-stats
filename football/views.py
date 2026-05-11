@@ -17555,10 +17555,51 @@ def _regulation_minutes_for_team(team):
     - F11: 90'
     - F7 (prebenjamín): 50' (25' por parte)
     """
+    def _norm_cat(value: str) -> str:
+        raw = str(value or '').strip().lower()
+        if not raw:
+            return ''
+        try:
+            import unicodedata
+
+            raw = unicodedata.normalize('NFD', raw)
+            raw = ''.join(ch for ch in raw if unicodedata.category(ch) != 'Mn')
+        except Exception:
+            pass
+        raw = raw.replace('-', ' ').replace('_', ' ')
+        raw = ' '.join(raw.split())
+        return raw
+
     try:
         fmt = str(getattr(team, 'game_format', '') or '').strip().lower()
     except Exception:
         fmt = ''
+    category = _norm_cat(getattr(team, 'category', '') or '')
+
+    # Por categoría (club): reglas más realistas que un único env global para todo F7/F11.
+    # Si tu club usa otros minutos por categoría, se puede ajustar aquí.
+    if fmt == Team.GAME_FORMAT_F7:
+        half_by_cat = {
+            'prebenjamin': 25,
+            'pre benjamin': 25,
+            'benjamin': 30,
+            'alevin': 30,
+        }
+        half = half_by_cat.get(category)
+        if half:
+            return max(1, int(half) * 2)
+    if fmt == Team.GAME_FORMAT_F11:
+        half_by_cat = {
+            'infantil': 40,
+            'cadete': 40,
+            'juvenil': 45,
+            'senior': 45,
+            'aficionado': 45,
+        }
+        half = half_by_cat.get(category)
+        if half:
+            return max(1, int(half) * 2)
+
     if fmt == Team.GAME_FORMAT_F7:
         try:
             return max(1, int(str(os.getenv('MATCH_MINUTES_F7', '50')).strip() or 50))
