@@ -4470,7 +4470,7 @@
 		              <button type="button" class="button" data-vs-clip-play="${id}">Play</button>
 		              <button type="button" class="button" data-vs-clip-load="${id}">Abrir</button>
 		              <button type="button" class="button" data-vs-clip-link="${id}" data-vs-clip-view="${safeText(c?.view_url, '')}">Link</button>
-		              <button type="button" class="button" data-vs-clip-export-server="${id}" title="Genera MP4 en servidor">MP4</button>
+		              <button type="button" class="button" data-vs-clip-export-server="${id}" title="Descargar MP4 (servidor)">Descargar</button>
 		              <button type="button" class="button" data-vs-clip-share="${id}">Share</button>
 		              <button type="button" class="button danger" data-vs-clip-del="${id}">Borrar</button>
 		            </div>
@@ -4676,17 +4676,9 @@
 	            const downloadUrl = String(data.download_url || url);
 	            lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
 	            lastExportShareUrl = url;
-	            try {
-	              if (navigator.clipboard?.writeText) {
-	                await navigator.clipboard.writeText(downloadUrl);
-	                setStatus('MP4 listo. Link copiado.');
-	              } else {
-	                setStatus('MP4 listo. Copia el link.');
-	                window.prompt('Copia este enlace:', downloadUrl);
-	              }
-	            } catch (e) {
-	              window.prompt('Copia este enlace:', downloadUrl);
-	            }
+              triggerDownload(downloadUrl);
+              try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
+              setStatus('MP4 listo. Descargando…');
 	            refreshShareLinks();
 	          } catch (e) {
 	            setStatus('Error exportando MP4 en servidor.', true);
