@@ -43,6 +43,7 @@
 		          document.getElementById('vs-tool-arrow'),
 		          document.getElementById('vs-tool-curve'),
 		          document.getElementById('vs-tool-text'),
+		          document.getElementById('vs-tool-player'),
 		          document.getElementById('vs-tool-callout'),
 		          document.getElementById('vs-tool-spot'),
 		          document.getElementById('vs-tool-blur'),
@@ -150,6 +151,7 @@
     const btnArrow = document.getElementById('vs-tool-arrow');
     const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
+    const btnPlayer = document.getElementById('vs-tool-player');
     const btnCallout = document.getElementById('vs-tool-callout');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
@@ -1165,17 +1167,18 @@
       if (tool !== 'spot' && tool !== 'blur') fxPreview = null;
       fxEl.style.pointerEvents = (tool === 'spot' || tool === 'blur') ? 'auto' : 'none';
 
-      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
-      if (tool === 'select') btnSelect?.classList.add('primary');
-      if (tool === 'pen') btnPen?.classList.add('primary');
-      if (tool === 'arrow') btnArrow?.classList.add('primary');
-      if (tool === 'curve') btnCurve?.classList.add('primary');
-      if (tool === 'text') btnText?.classList.add('primary');
-      if (tool === 'callout') btnCallout?.classList.add('primary');
-      if (tool === 'spot') btnSpot?.classList.add('primary');
-      if (tool === 'blur') btnBlur?.classList.add('primary');
-      setStatus(`Herramienta: ${tool}`);
-    };
+	      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+	      if (tool === 'select') btnSelect?.classList.add('primary');
+	      if (tool === 'pen') btnPen?.classList.add('primary');
+	      if (tool === 'arrow') btnArrow?.classList.add('primary');
+	      if (tool === 'curve') btnCurve?.classList.add('primary');
+	      if (tool === 'text') btnText?.classList.add('primary');
+	      if (tool === 'player') btnPlayer?.classList.add('primary');
+	      if (tool === 'callout') btnCallout?.classList.add('primary');
+	      if (tool === 'spot') btnSpot?.classList.add('primary');
+	      if (tool === 'blur') btnBlur?.classList.add('primary');
+	      setStatus(`Herramienta: ${tool}`);
+	    };
     setTool('select');
 
     const activeObject = () => {
@@ -1331,34 +1334,70 @@
       renderDrawLayers();
     });
 
-    fabricCanvas.on('mouse:down', (opt) => {
-      if (tool === 'arrow' || tool === 'curve') {
-        arrowStart = fabricCanvas.getPointer(opt.e);
-      }
-      if (tool === 'text') {
-        const p = fabricCanvas.getPointer(opt.e);
-        const txt = window.prompt('Texto');
-        if (!txt) return;
-        const t = new fabric.Text(txt.slice(0, 60), {
-          left: p.x,
-          top: p.y,
-          fill: strokeColor(),
-          fontSize: 22,
-          fontWeight: '800',
-          shadow: 'rgba(15,23,42,0.65) 0 1px 3px',
-        });
-        t.data = seedLayerDataNow();
-        fabricCanvas.add(t);
-        pushHistory();
-        fabricCanvas.setActiveObject(t);
-        selectedFxId = 0;
-        updateLayerPanel();
-        renderFxList();
-        renderDrawLayers();
-      }
-      if (tool === 'callout') {
-        const p = fabricCanvas.getPointer(opt.e);
-        const n = calloutSeq++;
+	    fabricCanvas.on('mouse:down', (opt) => {
+	      if (tool === 'arrow' || tool === 'curve') {
+	        arrowStart = fabricCanvas.getPointer(opt.e);
+	      }
+	      if (tool === 'text') {
+	        const p = fabricCanvas.getPointer(opt.e);
+	        const t = new fabric.IText('Texto', {
+	          left: p.x,
+	          top: p.y,
+	          fill: strokeColor(),
+	          fontSize: 22,
+	          fontWeight: '800',
+	          shadow: 'rgba(15,23,42,0.65) 0 1px 3px',
+	          editable: true,
+	        });
+	        t.data = seedLayerDataNow();
+	        fabricCanvas.add(t);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(t); } catch (e) { /* ignore */ }
+	        try { t.enterEditing(); t.selectAll(); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	      }
+	      if (tool === 'player') {
+	        const p = fabricCanvas.getPointer(opt.e);
+	        const raw = window.prompt('Dorsal / texto (ej: 9 o "9 ALEX")', '');
+	        const label = safeText(raw, '').slice(0, 12) || String(calloutSeq++);
+	        const radius = 22 + Math.round(strokeWidth() / 2);
+	        const ring = new fabric.Circle({
+	          left: p.x,
+	          top: p.y,
+	          radius,
+	          fill: 'rgba(2,6,23,0.25)',
+	          stroke: strokeColor(),
+	          strokeWidth: 4,
+	          originX: 'center',
+	          originY: 'center',
+	          shadow: 'rgba(0,0,0,0.35) 0 2px 6px',
+	        });
+	        const text = new fabric.Text(label, {
+	          left: p.x,
+	          top: p.y,
+	          fill: '#ffffff',
+	          fontSize: 16,
+	          fontWeight: '950',
+	          originX: 'center',
+	          originY: 'center',
+	          shadow: 'rgba(0,0,0,0.55) 0 1px 2px',
+	        });
+	        const group = new fabric.Group([ring, text], { selectable: true });
+	        group.data = seedLayerDataNow({ kind: 'player_marker', label });
+	        fabricCanvas.add(group);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	      }
+	      if (tool === 'callout') {
+	        const p = fabricCanvas.getPointer(opt.e);
+	        const n = calloutSeq++;
         const circle = new fabric.Circle({
           left: p.x,
           top: p.y,
@@ -1395,20 +1434,22 @@
       const end = fabricCanvas.getPointer(opt.e);
       const sw = strokeWidth();
       const color = strokeColor();
-      if (tool === 'curve') {
-        const dx = end.x - arrowStart.x;
-        const dy = end.y - arrowStart.y;
-        const dist = Math.max(1, Math.hypot(dx, dy));
-        const mx = (arrowStart.x + end.x) / 2;
-        const my = (arrowStart.y + end.y) / 2;
-        const perpX = -dy / dist;
-        const perpY = dx / dist;
-        const offset = clamp(dist * 0.22, 18, 120);
-        const cx = mx + perpX * offset;
-        const cy = my + perpY * offset;
-        const pathStr = `M ${arrowStart.x} ${arrowStart.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
-        const path = new fabric.Path(pathStr, {
-          fill: '',
+	      if (tool === 'curve') {
+	        const dx = end.x - arrowStart.x;
+	        const dy = end.y - arrowStart.y;
+	        const dist = Math.max(1, Math.hypot(dx, dy));
+	        const mx = (arrowStart.x + end.x) / 2;
+	        const my = (arrowStart.y + end.y) / 2;
+	        const perpX = -dy / dist;
+	        const perpY = dx / dist;
+	        const offset = clamp(dist * 0.22, 18, 120);
+	        const invert = Boolean(opt?.e?.shiftKey);
+	        const sign = invert ? -1 : 1;
+	        const cx = mx + perpX * offset * sign;
+	        const cy = my + perpY * offset * sign;
+	        const pathStr = `M ${arrowStart.x} ${arrowStart.y} Q ${cx} ${cy} ${end.x} ${end.y}`;
+	        const path = new fabric.Path(pathStr, {
+	          fill: '',
           stroke: color,
           strokeWidth: sw,
           strokeLineCap: 'round',
@@ -1470,14 +1511,15 @@
     fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
 
-    btnSelect?.addEventListener('click', () => setTool('select'));
-    btnPen?.addEventListener('click', () => setTool('pen'));
-    btnArrow?.addEventListener('click', () => setTool('arrow'));
-    btnCurve?.addEventListener('click', () => setTool('curve'));
-    btnText?.addEventListener('click', () => setTool('text'));
-    btnCallout?.addEventListener('click', () => setTool('callout'));
-    btnSpot?.addEventListener('click', () => setTool('spot'));
-    btnBlur?.addEventListener('click', () => setTool('blur'));
+	    btnSelect?.addEventListener('click', () => setTool('select'));
+	    btnPen?.addEventListener('click', () => setTool('pen'));
+	    btnArrow?.addEventListener('click', () => setTool('arrow'));
+	    btnCurve?.addEventListener('click', () => setTool('curve'));
+	    btnText?.addEventListener('click', () => setTool('text'));
+	    btnPlayer?.addEventListener('click', () => setTool('player'));
+	    btnCallout?.addEventListener('click', () => setTool('callout'));
+	    btnSpot?.addEventListener('click', () => setTool('spot'));
+	    btnBlur?.addEventListener('click', () => setTool('blur'));
 
     const clearTemplates = () => {
       const toRemove = [];

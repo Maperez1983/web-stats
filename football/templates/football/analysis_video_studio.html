@@ -82,14 +82,18 @@
         cursor: pointer;
       }
       .vs-tab[aria-selected="true"] { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
-      .vs-panel { display:grid; gap:0.65rem; }
+	      .vs-panel { display:grid; gap:0.65rem; }
 
-      /* Clips bajo el vídeo */
-      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
-      .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+	      /* Clips bajo el vídeo */
+	      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
+	      .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
-      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
-      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
+	      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
+	      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
+
+      /* Panel lateral usable: scroll interno, tabs siempre visibles */
+      .vs-side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow:auto; padding-right: 0.1rem; }
+      @media (max-width: 980px) { .vs-side { position: static; max-height: none; overflow: visible; } }
     </style>
   </head>
   <body class="prod-commercial">
@@ -147,6 +151,7 @@
               <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
               <button type="button" class="button" id="vs-tool-curve">Curve</button>
               <button type="button" class="button" id="vs-tool-text">Texto</button>
+              <button type="button" class="button" id="vs-tool-player" title="Marcador jugador (círculo + dorsal)">Jugador</button>
               <button type="button" class="button" id="vs-tool-callout">Callout</button>
               <button type="button" class="button" id="vs-tool-spot">Spotlight</button>
               <button type="button" class="button" id="vs-tool-blur">Blur</button>
@@ -178,7 +183,7 @@
 		        </section>
 
 	        <aside class="card">
-	          <div class="field">
+	          <div class="field vs-side">
               <div class="vs-tabs" role="tablist" aria-label="Video Studio">
                 <button type="button" class="vs-tab" id="vs-tab-clip" role="tab" aria-selected="true" aria-controls="vs-panel-clip">Clip</button>
                 <button type="button" class="vs-tab" id="vs-tab-advanced" role="tab" aria-selected="false" aria-controls="vs-panel-advanced" tabindex="-1">Avanzado</button>
