@@ -84,12 +84,14 @@
       .vs-tab[aria-selected="true"] { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
 	      .vs-panel { display:grid; gap:0.65rem; }
 
-	      /* Clips bajo el vídeo */
-	      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
+      /* Clips bajo el vídeo */
+      .vs-clips-zone { margin-top: 0.95rem; padding-top: 0.95rem; border-top: 1px solid rgba(148,163,184,0.16); }
+      .vs-clips-zone .vs-clips-scroll { max-height: min(28vh, 300px); overflow:auto; padding-right: 0.15rem; }
       .vs-clips-grid { display:grid; gap:0.55rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
-	      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
-	      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
+      /* En modo simple, oculta acciones "pro" para no saturar la barra superior */
+      body:not(.vs-advanced) [data-vs-advanced="1"] { display:none !important; }
+      body:not(.vs-advanced) .vs-advanced-only { display:none !important; }
 
       /* Panel lateral usable: scroll interno, tabs siempre visibles */
       .vs-side { position: sticky; top: 1rem; max-height: calc(100vh - 2rem); overflow:auto; padding-right: 0.1rem; }
@@ -119,6 +121,10 @@
       #vs-player-pop input[type="text"], #vs-player-pop input[type="number"] { border-radius: 12px; padding:0.55rem 0.65rem; }
       #vs-player-recents { display:flex; flex-wrap:wrap; gap:0.35rem; }
       #vs-player-recents button { padding: 0.35rem 0.55rem; font-size: 0.70rem; }
+      #vs-player-pop .seg { display:flex; border:1px solid rgba(148,163,184,0.18); background: rgba(255,255,255,0.04); border-radius: 999px; overflow:hidden; }
+      #vs-player-pop .seg button { border:none; background: transparent; color: rgba(226,232,240,0.85); padding:0.45rem 0.6rem; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.68rem; cursor:pointer; }
+      #vs-player-pop .seg button.active { background: linear-gradient(135deg, rgba(34,211,238,0.95), rgba(103,232,249,0.95)); color:#03253c; }
+      #vs-player-pop .seg.seg-warn button.active { background: linear-gradient(135deg, rgba(245,158,11,0.95), rgba(251,191,36,0.95)); color:#241004; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -196,6 +202,16 @@
 		            <div id="vs-roi" aria-hidden="true"></div>
                 <div id="vs-player-pop" role="dialog" aria-label="Marcador jugador">
                   <div class="hint" style="margin:0 0 0.45rem;">Marcador jugador</div>
+                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
+                    <div class="seg" id="vs-player-team-seg" aria-label="Equipo">
+                      <button type="button" data-vs-team="home" class="active">Local</button>
+                      <button type="button" data-vs-team="away">Rival</button>
+                    </div>
+                    <div class="seg seg-warn" id="vs-player-style-seg" aria-label="Estilo">
+                      <button type="button" data-vs-style="tag" class="active">Tag</button>
+                      <button type="button" data-vs-style="circle">Círculo</button>
+                    </div>
+                  </div>
                   <div class="vs-pop-row" style="margin-bottom:0.45rem;">
                     <input type="number" id="vs-player-number" placeholder="Dorsal" min="0" max="999" style="width:92px;" />
                     <input type="text" id="vs-player-name" placeholder="Nombre" maxlength="18" />
@@ -216,7 +232,9 @@
                 <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
                 <div class="hint" style="margin-bottom:0.55rem;">Marca <span class="k">IN</span>/<span class="k">OUT</span>, pulsa <span class="k">Guardar</span> y después abre el clip para anotar.</div>
                 <div class="hint" id="vs-clips-count-simple" style="margin:-0.25rem 0 0.55rem;">—</div>
-                <div class="list vs-clips-grid" id="vs-clips"></div>
+                <div class="vs-clips-scroll">
+                  <div class="list vs-clips-grid" id="vs-clips"></div>
+                </div>
               </div>
 		        </section>
 
@@ -609,7 +627,7 @@
                   </div>
 				            </details>
 
-	            <details class="vs-acc">
+	            <details class="vs-acc vs-advanced-only">
                 <summary>Timeline</summary>
                 <div class="vs-acc-body">
 	              <label>
@@ -770,7 +788,7 @@
                 </div>
 	            </details>
 
-	            <details class="vs-acc">
+	            <details class="vs-acc vs-advanced-only">
                 <summary>Asistente IA</summary>
                 <div class="vs-acc-body">
 	              <div class="hint">Genera un resumen y sugerencias usando <span class="k">timeline</span> + <span class="k">clips</span>.</div>
@@ -793,7 +811,7 @@
                 </div>
 	            </details>
 
-	            <details class="vs-acc">
+	            <details class="vs-acc vs-advanced-only">
                 <summary>Compartir</summary>
                 <div class="vs-acc-body">
 	              <div class="hint">Enlaces (clips y exports) para enviar al staff.</div>

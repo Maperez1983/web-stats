@@ -228,11 +228,41 @@
       const playerPop = document.getElementById('vs-player-pop');
       const playerNumberInput = document.getElementById('vs-player-number');
       const playerNameInput = document.getElementById('vs-player-name');
+      const playerTeamSeg = document.getElementById('vs-player-team-seg');
+      const playerStyleSeg = document.getElementById('vs-player-style-seg');
       const playerOkBtn = document.getElementById('vs-player-ok');
       const playerCancelBtn = document.getElementById('vs-player-cancel');
       const playerRecentsWrap = document.getElementById('vs-player-recents');
       let playerPopCanvasPos = null;
       const playerRecentsKey = 'vs_player_recents_v1';
+      const playerPrefsKey = 'vs_player_marker_prefs_v1';
+
+      const defaultPlayerPrefs = () => ({ team: 'home', style: 'tag' });
+      const loadPlayerPrefs = () => {
+        try {
+          const raw = window.localStorage?.getItem?.(playerPrefsKey) || '';
+          const obj = raw ? JSON.parse(raw) : null;
+          const team = safeText(obj?.team, '').toLowerCase();
+          const style = safeText(obj?.style, '').toLowerCase();
+          return {
+            team: (team === 'away' || team === 'home') ? team : 'home',
+            style: (style === 'circle' || style === 'tag') ? style : 'tag',
+          };
+        } catch (e) {
+          return defaultPlayerPrefs();
+        }
+      };
+      const savePlayerPrefs = (prefs) => {
+        try { window.localStorage?.setItem?.(playerPrefsKey, JSON.stringify(prefs || defaultPlayerPrefs())); } catch (e) { /* ignore */ }
+      };
+      let playerPrefs = loadPlayerPrefs();
+      const setSegActive = (wrap, key, value) => {
+        if (!wrap) return;
+        Array.from(wrap.querySelectorAll('button[data-vs-team],button[data-vs-style]')).forEach((btn) => btn.classList.remove('active'));
+        const selector = key === 'team' ? `button[data-vs-team="${value}"]` : `button[data-vs-style="${value}"]`;
+        const btn = wrap.querySelector(selector);
+        if (btn) btn.classList.add('active');
+      };
 
       const loadPlayerRecents = () => {
         try {
@@ -280,6 +310,8 @@
       const openPlayerPopAt = (canvasPoint, clientPoint) => {
         if (!playerPop || !stage) return;
         playerPopCanvasPos = canvasPoint || null;
+        setSegActive(playerTeamSeg, 'team', playerPrefs.team);
+        setSegActive(playerStyleSeg, 'style', playerPrefs.style);
         renderPlayerRecents();
         const rect = stage.getBoundingClientRect();
         const x = clamp((clientPoint?.x ?? (rect.left + rect.width * 0.5)) - rect.left, 8, Math.max(8, rect.width - 328));
@@ -1225,7 +1257,13 @@
         return { number, name };
       };
 
-      const createPlayerMarkerAt = (point, rawNumber, rawName) => {
+      const teamColor = (team) => {
+        const t = safeText(team, 'home').toLowerCase();
+        if (t === 'away') return '#f59e0b'; // amber
+        return '#22d3ee'; // cyan
+      };
+
+      const createPlayerMarkerAt = (point, rawNumber, rawName, prefs) => {
         if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
         const number = safeText(rawNumber, '').trim().slice(0, 3);
         const name = safeText(rawName, '').trim().toUpperCase().slice(0, 18);
@@ -1233,7 +1271,9 @@
 
         const p = { x: point.x, y: point.y };
         const radius = 22 + Math.round(strokeWidth() / 2);
-        const color = strokeColor();
+        const prefsTeam = safeText(prefs?.team, 'home');
+        const prefsStyle = safeText(prefs?.style, 'tag');
+        const color = teamColor(prefsTeam) || strokeColor();
 
         const ringOuter = new fabric.Circle({
           left: p.x,
@@ -1291,8 +1331,12 @@
         tagRect.set({ left: p.x + tagOffsetX, top: p.y });
         nameText.set({ left: p.x + tagOffsetX, top: p.y + 0.5 });
 
-        const group = new fabric.Group([ringOuter, numText, tagRect, nameText], { selectable: true });
-        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name });
+        const objects = (prefsStyle === 'circle')
+          ? [ringOuter, numText]
+          : [ringOuter, numText, tagRect, nameText];
+
+        const group = new fabric.Group(objects, { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'player_marker', number: String(number), name, team: prefsTeam, style: prefsStyle });
         fabricCanvas.add(group);
         pushHistory();
         try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
@@ -1656,12 +1700,27 @@
       };
 
       playerCancelBtn?.addEventListener('click', closePlayerPop);
+      const segWire = (wrap, key) => {
+        if (!wrap) return;
+        Array.from(wrap.querySelectorAll('button')).forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const value = key === 'team' ? safeText(btn.getAttribute('data-vs-team'), '') : safeText(btn.getAttribute('data-vs-style'), '');
+            if (!value) return;
+            playerPrefs = { ...playerPrefs, [key]: value };
+            savePlayerPrefs(playerPrefs);
+            setSegActive(wrap, key, value);
+          });
+        });
+      };
+      segWire(playerTeamSeg, 'team');
+      segWire(playerStyleSeg, 'style');
+
       playerOkBtn?.addEventListener('click', () => {
         if (!playerPopCanvasPos) return;
         const number = safeText(playerNumberInput?.value, '').trim();
         const name = safeText(playerNameInput?.value, '').trim();
         if (!number || !name) { setStatus('Completa dorsal y nombre.', true); return; }
-        const created = createPlayerMarkerAt(playerPopCanvasPos, number, name);
+        const created = createPlayerMarkerAt(playerPopCanvasPos, number, name, playerPrefs);
         if (!created) { setStatus('No se pudo crear marcador.', true); return; }
         pushPlayerRecent(created.number, created.name);
         closePlayerPop();
