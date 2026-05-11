@@ -1704,20 +1704,26 @@
 	      }
 	      if (tool === 'text') {
 	        const p = fabricCanvas.getPointer(opt.e);
-	        const t = new fabric.IText('Texto', {
+	        // iOS/Safari a veces no permite editar IText dentro del canvas de forma fiable.
+	        // Para evitar "no hace nada", usamos un prompt y creamos un Text normal.
+	        let textValue = 'Texto';
+	        try {
+	          const entered = window.prompt('Texto a mostrar:', '');
+	          if (entered === null) return;
+	          if (safeText(entered, '').trim()) textValue = safeText(entered, '').trim().slice(0, 80);
+	        } catch (e) { /* ignore */ }
+	        const t = new fabric.Text(textValue, {
 	          left: p.x,
 	          top: p.y,
 	          fill: strokeColor(),
 	          fontSize: 22,
 	          fontWeight: '800',
 	          shadow: 'rgba(15,23,42,0.65) 0 1px 3px',
-	          editable: true,
 	        });
 	        t.data = seedLayerDataNow();
 	        fabricCanvas.add(t);
 	        pushHistory();
 	        try { fabricCanvas.setActiveObject(t); } catch (e) { /* ignore */ }
-	        try { t.enterEditing(); t.selectAll(); } catch (e) { /* ignore */ }
 	        selectedFxId = 0;
 	        updateLayerPanel();
 	        renderFxList();
@@ -4872,10 +4878,13 @@
 	        playlistActive = false;
 	        playlistIds = [];
 	        playlistIndex = 0;
+	        clipBoundActive = true;
 	        const start = Number(clip?.in_s) || 0;
 	        const end = Number(clip?.out_s) || 0;
 	        if (inInput) inInput.value = String(start.toFixed(1));
 	        if (outInput) outInput.value = String(end.toFixed(1));
+	        clipBoundStart = Math.max(0, Math.min(start, end));
+	        clipBoundEnd = Math.max(start, end);
 	        try { video.currentTime = Math.max(0, start); } catch (e) { /* ignore */ }
 	        try { await video.play(); } catch (e) { /* ignore */ }
 	        setStatus(`Play clip: ${fmtTimeShort(start)} → ${fmtTimeShort(end || start)}`);
