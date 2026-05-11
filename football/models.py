@@ -1646,6 +1646,14 @@ class AnalystVideoFolder(models.Model):
         related_name='analysis_video_folders_as_rival',
     )
     name = models.CharField(max_length=140)
+    base_video = models.ForeignKey(
+        'RivalVideo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='base_for_folders',
+        help_text='Vídeo base de la carpeta (partido completo) para recortar clips.',
+    )
     created_by = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1094,16 +1094,27 @@
 	            </details>
 	            <div class="grid">
 	              {% for video in rival_videos %}
-              <article class="item video-item">
-                <h4>{{ video.title }}</h4>
-                <p class="meta">
-                  {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
-                  {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
-                  {% if video.source_url %} · <a href="{{ video.source_url }}" target="_blank" rel="noopener">Origen</a>{% endif %}
-                </p>
-                <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
-                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
-                </div>
+	              <article class="item video-item">
+	                <h4>{{ video.title }}</h4>
+	                <p class="meta">
+	                  {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
+	                  {% if video.folder %} · Carpeta {{ video.folder.name }}{% endif %}
+	                  {% if video.folder and video.folder.base_video_id == video.id %} · <span style="color:#fde68a; font-weight:900;">BASE</span>{% endif %}
+	                  {% if video.source_url %} · <a href="{{ video.source_url }}" target="_blank" rel="noopener">Origen</a>{% endif %}
+	                </p>
+	                <div class="actions" style="justify-content:flex-start; margin:-0.25rem 0 0.6rem;">
+	                  <a class="button ghost" href="{% url 'analysis-video-studio' video.id %}">Video Studio</a>
+	                  {% if video.folder %}
+	                  <form method="post" style="margin:0;">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="form_action" value="set_folder_base_video" />
+	                    <input type="hidden" name="folder_id" value="{{ video.folder.id }}" />
+	                    <input type="hidden" name="video_id" value="{{ video.id }}" />
+	                    <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+	                    <button class="button ghost" type="submit" title="Marcar este vídeo como base de la carpeta (partido completo)">Marcar base</button>
+	                  </form>
+	                  {% endif %}
+	                </div>
                 {% if video.youtube_embed_url %}
                 <div style="position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden; border:1px solid rgba(148,163,184,0.35); background:#020617;">
                   <iframe

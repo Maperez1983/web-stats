@@ -16773,11 +16773,104 @@ def share_video_clip_stream(request, token):
     clip = VideoClip.objects.select_related('video').filter(id=int(clip_id)).first()
     if not clip or not getattr(clip, 'video', None) or not getattr(clip.video, 'video', None):
         raise Http404('Vídeo no disponible')
+    want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
+    if not want_download:
+        return _file_field_stream_with_range(
+            request,
+            clip.video.video,
+            content_type='video/mp4',
+            filename=f'clip-{clip.id}.mp4',
+        )
+
+    # Descarga “archivo normal”: generamos (y cacheamos) un MP4 real del segmento IN→OUT.
+    start_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
+    end_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+    if end_s <= start_s:
+        raise Http404('Clip no válido')
+    duration = float(end_s) - float(start_s)
+    max_seconds = float(getattr(settings, 'ANALYSIS_VIDEO_SERVER_EXPORT_MAX_SECONDS', 0) or 0) or (20 * 60.0)
+    if duration > max_seconds:
+        return HttpResponse(f'El clip supera el máximo permitido ({int(max_seconds)}s).', status=400)
+
+    # Reutilizar export existente si coincide exactamente con el rango actual.
+    export_key = f"clip-{int(clip.id)}-{int(getattr(clip, 'in_ms', 0) or 0)}-{int(getattr(clip, 'out_ms', 0) or 0)}"
+    clip_updated = getattr(clip, 'updated_at', None)
+    asset = (
+        VideoExportAsset.objects
+        .filter(clip=clip)
+        .filter(file__endswith=f'{export_key}.mp4')
+        .order_by('-created_at', '-id')
+        .first()
+    )
+    if not asset and clip_updated:
+        # Reutilizar un export reciente (p.ej. generado desde el editor) si el clip no ha cambiado desde entonces.
+        asset = (
+            VideoExportAsset.objects
+            .filter(clip=clip)
+            .filter(created_at__gte=clip_updated)
+            .order_by('-created_at', '-id')
+            .first()
+        )
+    if asset and getattr(asset, 'file', None):
+        try:
+            return _file_field_stream_with_range(
+                request,
+                asset.file,
+                content_type=str(getattr(asset, 'mime_type', '') or '').strip() or 'video/mp4',
+                filename=f'clip-{clip.id}.mp4',
+                as_attachment=True,
+            )
+        except Exception:
+            asset = None
+
+    source_path = _video_studio_resolve_rival_video_input_ref(clip.video)
+    if not source_path:
+        raise Http404('Vídeo no disponible')
+    try:
+        file_obj, mime_type, out_name, cleanup_paths = _video_studio_cut_source_to_mp4(
+            source_path=str(source_path),
+            start_s=float(start_s),
+            end_s=float(end_s),
+            base_name=export_key,
+        )
+    except Exception:
+        return HttpResponse('No se pudo generar el MP4 del clip.', status=503)
+
+    if not mime_type:
+        mime_type = mimetypes.guess_type(str(out_name or getattr(file_obj, 'name', '') or ''))[0] or 'video/mp4'
+
+    title = _sanitize_task_text(str(getattr(clip, 'title', '') or '').strip(), multiline=False, max_len=180) or f'Clip {clip.id}'
+    team = getattr(clip, 'team', None) or getattr(getattr(clip, 'video', None), 'team', None)
+    if not team:
+        return HttpResponse('Clip no disponible.', status=404)
+    try:
+        asset = VideoExportAsset.objects.create(
+            team=team,
+            video=getattr(clip, 'video', None),
+            clip=clip,
+            title=title,
+            file=file_obj,
+            mime_type=str(mime_type or '').strip().lower()[:80],
+            created_by=str(getattr(link, 'created_by', '') or '').strip()[:80] or 'share',
+        )
+    finally:
+        try:
+            if hasattr(file_obj, 'close'):
+                file_obj.close()
+        except Exception:
+            pass
+        for p in (cleanup_paths or []):
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+
     return _file_field_stream_with_range(
         request,
-        clip.video.video,
-        content_type='video/mp4',
+        asset.file,
+        content_type=str(getattr(asset, 'mime_type', '') or '').strip() or 'video/mp4',
         filename=f'clip-{clip.id}.mp4',
+        as_attachment=True,
     )
 
 
@@ -42889,6 +42982,30 @@ def analysis_page(request):
                     defaults={'created_by': request.user.get_username() if request.user.is_authenticated else ''},
                 )
                 folder_message = 'Carpeta creada correctamente.' if created else 'La carpeta ya existía y queda disponible.'
+        elif form_action == 'set_folder_base_video':
+            folder_id = _parse_int(request.POST.get('folder_id'))
+            video_id_value = _parse_int(request.POST.get('video_id'))
+            if not primary_team:
+                video_error = 'No hay equipo principal configurado.'
+            elif not folder_id:
+                video_error = 'Carpeta no válida.'
+            else:
+                folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+                if not folder:
+                    video_error = 'Carpeta no encontrada.'
+                else:
+                    if not video_id_value:
+                        folder.base_video = None
+                        folder.save(update_fields=['base_video'])
+                        video_message = 'Vídeo base quitado.'
+                    else:
+                        video_obj = RivalVideo.objects.filter(id=int(video_id_value), folder=folder).first()
+                        if not video_obj:
+                            video_error = 'El vídeo no pertenece a esa carpeta.'
+                        else:
+                            folder.base_video = video_obj
+                            folder.save(update_fields=['base_video'])
+                            video_message = f'Vídeo base asignado: {video_obj.title}'
         elif form_action == 'upload_video':
             video_title = (request.POST.get('video_title') or '').strip() or 'Vídeo rival'
             video_source = (request.POST.get('video_source') or RivalVideo.SOURCE_MANUAL).strip()
@@ -43883,7 +44000,7 @@ def analysis_page(request):
         )
     video_folders = []
     if primary_team:
-        folders_qs = AnalystVideoFolder.objects.filter(team=primary_team).select_related('rival_team')
+        folders_qs = AnalystVideoFolder.objects.filter(team=primary_team).select_related('rival_team', 'base_video')
         if selected_team:
             folders_qs = folders_qs.filter(Q(rival_team=selected_team) | Q(rival_team__isnull=True))
         video_folders = list(folders_qs.order_by('name', '-created_at'))
@@ -43904,7 +44021,7 @@ def analysis_page(request):
             except Exception:
                 video_inbox_unread_count = 0
 
-    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder').prefetch_related('assigned_players').order_by('-created_at')
+    rival_videos_qs = RivalVideo.objects.select_related('rival_team', 'folder', 'folder__base_video').prefetch_related('assigned_players').order_by('-created_at')
     if primary_team:
         # Multi-equipo: no mezclar vídeos entre clubs/categorías.
         rival_videos_qs = rival_videos_qs.filter(
@@ -43921,6 +44038,16 @@ def analysis_page(request):
     if selected_folder_id:
         rival_videos_qs = rival_videos_qs.filter(folder_id=selected_folder_id)
     rival_videos = list(rival_videos_qs[:40])
+    # Ordena poniendo el vídeo base de la carpeta (si existe) el primero.
+    try:
+        folder_base_id = 0
+        if selected_folder_id and primary_team:
+            folder_obj = AnalystVideoFolder.objects.filter(id=int(selected_folder_id), team=primary_team).only('id', 'base_video_id').first()
+            folder_base_id = int(getattr(folder_obj, 'base_video_id', 0) or 0) if folder_obj else 0
+        if folder_base_id:
+            rival_videos.sort(key=lambda v: (0 if int(getattr(v, 'id', 0) or 0) == folder_base_id else 1, -int(getattr(v, 'id', 0) or 0)))
+    except Exception:
+        pass
     for v in rival_videos:
         try:
             is_youtube = bool(
