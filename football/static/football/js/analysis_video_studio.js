@@ -4322,6 +4322,8 @@
 	        const tags = Array.isArray(c?.tags) ? c.tags : [];
 	        const tagsLabel = tags.length ? ` · ${tags.slice(0, 6).map((t) => `#${safeText(t)}`).join(' ')}` : '';
 	        const label = `${fmtTimeShort(inS)} → ${fmtTimeShort(outS || inS)}`;
+	        const durS = Math.max(0, (outS || 0) - (inS || 0));
+	        const durLabel = durS ? fmtTimeShort(durS) : '00:00';
 	        const checked = selectedClipIds.has(id) ? 'checked' : '';
 	        const reviewed = reviewedClipIds.has(id);
 	        return `
@@ -4333,7 +4335,7 @@
                 </div>
 	              <div style="display:flex; flex-direction:column; gap:0.05rem; min-width:0; flex:1;">
 	                <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</strong>
-	                <small>${coll ? `${coll} · ` : ''}${label}${tagsLabel}</small>
+	                <small>${coll ? `${coll} · ` : ''}${label} · ${durLabel}${tagsLabel}</small>
 	              </div>
 		            <div style="display:flex; gap:0.35rem; flex-wrap:wrap; justify-content:flex-end;">
 		              <button type="button" class="button ${reviewed ? 'primary' : 'ghost'}" data-vs-clip-review="${id}" title="Marcar revisado">${reviewed ? '✓' : '○'}</button>
