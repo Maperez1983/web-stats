@@ -30,7 +30,38 @@
 	    const canvasEl = document.getElementById('vs-canvas');
 	    const fxEl = document.getElementById('vs-fx');
 		    const stage = document.getElementById('vs-stage');
+	    const resetCacheBtn = document.getElementById('vs-reset-cache');
 		    if (!video) return;
+
+	    // Botón de emergencia: reinicia cachés offline/SW (Safari/PWA) para forzar a cargar JS/CSS nuevos tras deploys.
+	    try {
+	      if (resetCacheBtn) {
+	        const canReset = Boolean((window.caches && typeof window.caches.keys === 'function') || (navigator.serviceWorker && navigator.serviceWorker.getRegistrations));
+	        if (!canReset) {
+	          resetCacheBtn.style.display = 'none';
+	        } else {
+	          resetCacheBtn.addEventListener('click', async () => {
+	            const ok = window.confirm('¿Reiniciar caché offline y recargar? (Soluciona cambios que no aparecen en Safari)');
+	            if (!ok) return;
+	            try {
+	              if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+	                const regs = await navigator.serviceWorker.getRegistrations();
+	                await Promise.all((regs || []).map((r) => r.unregister().catch(() => false)));
+	              }
+	            } catch (e) { /* ignore */ }
+	            try {
+	              if (window.caches && typeof window.caches.keys === 'function') {
+	                const keys = await window.caches.keys();
+	                await Promise.all((keys || []).map((k) => window.caches.delete(k).catch(() => false)));
+	              }
+	            } catch (e) { /* ignore */ }
+	            try { window.localStorage?.removeItem?.('vs_player_recents_v1'); } catch (e) { /* ignore */ }
+	            try { window.localStorage?.removeItem?.('vs_player_marker_prefs_v1'); } catch (e) { /* ignore */ }
+	            try { window.location.reload(); } catch (e) { /* ignore */ }
+	          });
+	        }
+	      }
+	    } catch (e) { /* ignore */ }
 	    const hasFabric = Boolean(window.fabric && window.fabric.Canvas);
 		    const canTelestrate = Boolean(hasFabric && canvasEl && fxEl && stage);
 		    if (!canTelestrate) {
