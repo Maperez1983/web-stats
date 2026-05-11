@@ -112,6 +112,7 @@ urlpatterns = [
     path('api/analysis/video-studio/music/upload/', views.analysis_video_studio_music_upload_api, name='analysis-video-studio-music-upload-api'),
     path('api/analysis/video-studio/music/delete/', views.analysis_video_studio_music_delete_api, name='analysis-video-studio-music-delete-api'),
     path('api/analysis/video-studio/assign/', views.analysis_video_studio_assign_api, name='analysis-video-studio-assign-api'),
+    path('api/analysis/video-studio/video/trim/', views.analysis_video_studio_video_trim_api, name='analysis-video-studio-video-trim-api'),
     path('api/analysis/video-studio/timeline/', views.analysis_video_studio_timeline_api, name='analysis-video-studio-timeline-api'),
     path('api/analysis/video-studio/timeline/save/', views.analysis_video_studio_timeline_save_api, name='analysis-video-studio-timeline-save-api'),
     path('api/analysis/video-studio/timeline/delete/', views.analysis_video_studio_timeline_delete_api, name='analysis-video-studio-timeline-delete-api'),

@@ -169,6 +169,27 @@
             </div>
 
 	            <div style="margin-top:0.9rem; display:grid; gap:0.45rem;">
+                <div style="padding:0.6rem 0.7rem; border-radius:16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03);">
+                  <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.3rem;">Corte base</div>
+                  <div class="hint" style="margin-bottom:0.45rem;">Define el tramo útil del vídeo (quita anuncios/esperas) para trabajar siempre ahí.</div>
+                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+                    <label style="display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0; margin:0;">
+                      <input type="checkbox" id="vs-trim-enabled" style="width:18px;height:18px;accent-color:#22d3ee;" />
+                      Activar
+                    </label>
+                    <button type="button" class="button" id="vs-trim-from-segment">Usar IN/OUT</button>
+                    <button type="button" class="button danger" id="vs-trim-clear">Limpiar</button>
+                  </div>
+                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem; margin-top:0.45rem;">
+                    <input type="number" id="vs-trim-in" min="0" step="0.1" value="0" />
+                    <input type="number" id="vs-trim-out" min="0" step="0.1" value="0" />
+                  </div>
+                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.45rem;">
+                    <button type="button" class="button" id="vs-trim-set-in">IN ← playhead</button>
+                    <button type="button" class="button" id="vs-trim-set-out">OUT ← playhead</button>
+                    <button type="button" class="button primary" id="vs-trim-save">Guardar</button>
+                  </div>
+                </div>
 	              <label>
 	                Segmento (segundos)
 	                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem;">
@@ -707,6 +728,10 @@
 	    <input type="hidden" id="vs-timeline-clear-url" value="{% url 'analysis-video-studio-timeline-clear-api' %}" />
 	    <input type="hidden" id="vs-review-url" value="{% url 'analysis-video-studio-review-api' %}" />
 	    <input type="hidden" id="vs-assign-url" value="{% url 'analysis-video-studio-assign-api' %}" />
+	    <input type="hidden" id="vs-video-trim-url" value="{% url 'analysis-video-studio-video-trim-api' %}" />
+	    <input type="hidden" id="vs-video-trim-enabled" value="{% if video.trim_enabled %}1{% else %}0{% endif %}" />
+	    <input type="hidden" id="vs-video-trim-in-ms" value="{{ video.trim_in_ms|default_if_none:0 }}" />
+	    <input type="hidden" id="vs-video-trim-out-ms" value="{{ video.trim_out_ms|default_if_none:0 }}" />
 	    <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
 	    <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
 	    <input type="hidden" id="vs-export-upload-url" value="{% url 'analysis-video-studio-export-upload-api' %}" />

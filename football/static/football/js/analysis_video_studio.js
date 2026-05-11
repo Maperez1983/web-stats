@@ -134,6 +134,14 @@
 
     const inInput = document.getElementById('vs-in');
     const outInput = document.getElementById('vs-out');
+    const trimEnabledToggle = document.getElementById('vs-trim-enabled');
+    const trimInInput = document.getElementById('vs-trim-in');
+    const trimOutInput = document.getElementById('vs-trim-out');
+    const trimFromSegmentBtn = document.getElementById('vs-trim-from-segment');
+    const trimClearBtn = document.getElementById('vs-trim-clear');
+    const trimSetInBtn = document.getElementById('vs-trim-set-in');
+    const trimSetOutBtn = document.getElementById('vs-trim-set-out');
+    const trimSaveBtn = document.getElementById('vs-trim-save');
     const qualitySelect = document.getElementById('vs-video-quality');
     const fpsSelect = document.getElementById('vs-video-fps');
     const audioToggle = document.getElementById('vs-video-audio');
@@ -312,6 +320,112 @@
     const wsPrefGetUrl = safeText(document.getElementById('vs-ws-pref-get-url')?.value);
     const wsPrefSetUrl = safeText(document.getElementById('vs-ws-pref-set-url')?.value);
     const teamId = Number(document.getElementById('vs-team-id')?.value || 0);
+    const trimSaveUrl = safeText(document.getElementById('vs-video-trim-url')?.value);
+    const trimEnabledInitial = safeText(document.getElementById('vs-video-trim-enabled')?.value) === '1';
+    const trimInMsInitial = Number(document.getElementById('vs-video-trim-in-ms')?.value || 0) || 0;
+    const trimOutMsInitial = Number(document.getElementById('vs-video-trim-out-ms')?.value || 0) || 0;
+
+    // --- Corte base (trim): rango útil de trabajo persistente por vídeo.
+    let trimEnabled = Boolean(trimEnabledInitial);
+    let trimInS = Math.max(0, trimInMsInitial / 1000);
+    let trimOutS = Math.max(0, trimOutMsInitial / 1000);
+    let trimAutosaveT = 0;
+
+    const readTrimInputs = () => {
+      const a = Math.max(0, Number(trimInInput?.value || 0) || 0);
+      const b = Math.max(0, Number(trimOutInput?.value || 0) || 0);
+      trimEnabled = Boolean(trimEnabledToggle?.checked);
+      trimInS = a;
+      trimOutS = b;
+    };
+    const writeTrimInputs = () => {
+      if (trimEnabledToggle) trimEnabledToggle.checked = Boolean(trimEnabled);
+      if (trimInInput) trimInInput.value = String((Number(trimInS) || 0).toFixed(1));
+      if (trimOutInput) trimOutInput.value = String((Number(trimOutS) || 0).toFixed(1));
+    };
+    const trimIsValid = () => {
+      if (!trimEnabled) return true;
+      if (!trimOutS) return true;
+      return trimOutS > trimInS;
+    };
+    const clampToTrim = (t) => {
+      const now = Math.max(0, Number(t) || 0);
+      if (!trimEnabled) return now;
+      const start = Math.max(0, Number(trimInS) || 0);
+      const end = Math.max(0, Number(trimOutS) || 0);
+      let next = now;
+      if (next < start) next = start;
+      if (end && end > start && next > end) next = end;
+      return next;
+    };
+    const enforceTrimPlayback = () => {
+      if (!trimEnabled) return;
+      if (!trimIsValid()) return;
+      const start = Math.max(0, Number(trimInS) || 0);
+      const end = Math.max(0, Number(trimOutS) || 0);
+      const now = Number(video.currentTime) || 0;
+      if (now < start - 0.04) {
+        try { video.currentTime = start; } catch (e) { /* ignore */ }
+        return;
+      }
+      if (end && end > start && now > end + 0.04) {
+        try { video.pause(); } catch (e) { /* ignore */ }
+        try { video.currentTime = end; } catch (e) { /* ignore */ }
+      }
+    };
+    const seekToTrim = (t, label = '') => {
+      const next = clampToTrim(t);
+      try { video.currentTime = next; } catch (e) { /* ignore */ }
+      if (label) setStatus(`${label} ${fmtTimeShort(next)}`);
+    };
+    const saveTrim = async ({ silent = false } = {}) => {
+      if (!trimSaveUrl || !videoId) return;
+      readTrimInputs();
+      if (!trimIsValid()) {
+        if (!silent) setStatus('Corte base: OUT debe ser mayor que IN.', true);
+        return;
+      }
+      try {
+        const payload = { video_id: videoId, enabled: Boolean(trimEnabled), trim_in_s: Number(trimInS) || 0, trim_out_s: Number(trimOutS) || 0 };
+        const resp = await fetch(trimSaveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data?.ok) throw new Error(data?.error || 'error');
+        trimEnabled = Boolean(data?.enabled);
+        trimInS = Math.max(0, (Number(data?.trim_in_ms) || 0) / 1000);
+        trimOutS = Math.max(0, (Number(data?.trim_out_ms) || 0) / 1000);
+        writeTrimInputs();
+        if (!silent) setStatus('Corte base guardado.');
+        // Si está activo, asegúrate de estar dentro del rango.
+        if (trimEnabled) enforceTrimPlayback();
+      } catch (e) {
+        if (!silent) setStatus('No se pudo guardar el corte base.', true);
+      }
+    };
+    const scheduleTrimAutosave = () => {
+      if (!trimSaveUrl) return;
+      window.clearTimeout(trimAutosaveT);
+      trimAutosaveT = window.setTimeout(() => {
+        // Solo autosave si está activo o si ya había un trim guardado.
+        const should = Boolean(trimEnabledToggle?.checked) || Boolean(trimEnabledInitial);
+        if (!should) return;
+        saveTrim({ silent: true });
+      }, 700);
+    };
+    // Inicializa UI desde backend
+    writeTrimInputs();
+    try {
+      const in0 = Number(inInput?.value || 0) || 0;
+      const out0 = Number(outInput?.value || 0) || 0;
+      if (trimEnabled && trimIsValid() && !in0 && !out0) {
+        if (inInput) inInput.value = String((Number(trimInS) || 0).toFixed(1));
+        if (trimOutS && outInput) outInput.value = String((Number(trimOutS) || 0).toFixed(1));
+      }
+    } catch (e) { /* ignore */ }
 
     // Export settings persistence (client-side, sin coste servidor).
     const exportSettingsKey = () => `vs_export_settings:v1:${teamId || 'personal'}`;
@@ -510,6 +624,7 @@
 	      miniCursor.style.left = `${pct}%`;
 	    };
 	    video.addEventListener('timeupdate', () => {
+	      enforceTrimPlayback();
 	      enforceLoop();
 	      updateMiniCursor();
 	    });
@@ -548,17 +663,18 @@
 	      if (!dur || !Number.isFinite(dur)) return;
 	      const targetSeek = Number(ev.target?.getAttribute?.('data-seek') || 0);
 	      if (targetSeek) {
-	        try { video.currentTime = Math.max(0, targetSeek); } catch (e) { /* ignore */ }
-	        setStatus(`→ ${fmtTimeShort(targetSeek)}`);
+	        seekToTrim(targetSeek, '→');
 	        return;
 	      }
 	      const rect = miniTimeline.getBoundingClientRect();
 	      const pct = clamp((ev.clientX - rect.left) / Math.max(1, rect.width), 0, 1);
 	      const t = pct * dur;
-	      try { video.currentTime = t; } catch (e) { /* ignore */ }
-	      setStatus(`→ ${fmtTimeShort(t)}`);
+	      seekToTrim(t, '→');
 	    });
-	    video.addEventListener('loadedmetadata', renderMiniTimeline);
+	    video.addEventListener('loadedmetadata', () => {
+	      renderMiniTimeline();
+	      enforceTrimPlayback();
+	    });
 
 	    const history = [];
 	    const pushHistory = () => {
@@ -1480,6 +1596,7 @@
       if (btnPause) btnPause.hidden = !playing;
     };
     btnPlay?.addEventListener('click', async () => {
+      enforceTrimPlayback();
       try { await video.play(); } catch (e) { /* ignore */ }
       syncPlayButtons();
     });
@@ -1501,6 +1618,49 @@
     btnIn?.addEventListener('click', markIn);
     btnOut?.addEventListener('click', markOut);
 
+    // Corte base (trim) UI
+    const setTrimInNow = () => {
+      const t = clampToTrim(Number(video.currentTime) || 0);
+      if (trimInInput) trimInInput.value = String(t.toFixed(1));
+      setStatus(`Corte base IN: ${fmtTime(t)}`);
+      scheduleTrimAutosave();
+    };
+    const setTrimOutNow = () => {
+      const t = clampToTrim(Number(video.currentTime) || 0);
+      if (trimOutInput) trimOutInput.value = String(t.toFixed(1));
+      setStatus(`Corte base OUT: ${fmtTime(t)}`);
+      scheduleTrimAutosave();
+    };
+    trimSetInBtn?.addEventListener('click', setTrimInNow);
+    trimSetOutBtn?.addEventListener('click', setTrimOutNow);
+    trimFromSegmentBtn?.addEventListener('click', () => {
+      const a = Math.max(0, Number(inInput?.value || 0) || 0);
+      const b = Math.max(0, Number(outInput?.value || 0) || 0);
+      const start = Math.min(a, b);
+      const end = Math.max(a, b);
+      if (!end || end <= start) { setStatus('Primero define IN/OUT del segmento.', true); return; }
+      if (trimInInput) trimInInput.value = String(start.toFixed(1));
+      if (trimOutInput) trimOutInput.value = String(end.toFixed(1));
+      if (trimEnabledToggle) trimEnabledToggle.checked = true;
+      setStatus('Corte base: valores copiados desde IN/OUT.');
+      saveTrim({ silent: true });
+      enforceTrimPlayback();
+    });
+    trimClearBtn?.addEventListener('click', () => {
+      if (trimEnabledToggle) trimEnabledToggle.checked = false;
+      if (trimInInput) trimInInput.value = '0';
+      if (trimOutInput) trimOutInput.value = '0';
+      trimEnabled = false;
+      trimInS = 0;
+      trimOutS = 0;
+      saveTrim({ silent: true });
+      setStatus('Corte base limpiado.');
+    });
+    trimSaveBtn?.addEventListener('click', () => saveTrim());
+    trimEnabledToggle?.addEventListener('change', () => saveTrim({ silent: true }));
+    trimInInput?.addEventListener('change', scheduleTrimAutosave);
+    trimOutInput?.addEventListener('change', scheduleTrimAutosave);
+
     // Shortcuts (tipo Sportscode básico): J/K/L, I/O, Space
     const isTypingTarget = (el) => {
       const tag = String(el?.tagName || '').toLowerCase();
@@ -1512,7 +1672,8 @@
       const cur = Number(video.currentTime) || 0;
       const dur = Number(video.duration);
       const maxT = Number.isFinite(dur) && dur > 0 ? dur : 1e12;
-      const next = clamp(cur + (Number(deltaSeconds) || 0), 0, maxT);
+      const nextRaw = clamp(cur + (Number(deltaSeconds) || 0), 0, maxT);
+      const next = clampToTrim(nextRaw);
       try { video.currentTime = next; } catch (e) { /* ignore */ }
       setStatus(`Seek: ${fmtTime(next)}`);
     };

@@ -152,6 +152,13 @@ class Workspace(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    active_season = models.ForeignKey(
+        'WorkspaceSeason',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='active_in_workspaces',
+    )
 
     class Meta:
         ordering = ['kind', 'name', 'id']
@@ -160,6 +167,60 @@ class Workspace(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class WorkspaceSeason(models.Model):
+    """
+    Temporada interna del club (por workspace), independiente de la temporada de competición.
+
+    Objetivo:
+    - Mantener histórico por temporada.
+    - Al iniciar nueva temporada, heredar plantilla como "pendiente de confirmar".
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='club_seasons')
+    label = models.CharField(max_length=32, help_text='Ej. 2025/2026')
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_active', '-start_date', '-id']
+        unique_together = ('workspace', 'label')
+        verbose_name = 'Temporada (club)'
+        verbose_name_plural = 'Temporadas (club)'
+
+    def __str__(self):
+        suffix = ' (activa)' if self.is_active else ''
+        return f'{self.workspace.name} · {self.label}{suffix}'
+
+
+class WorkspaceSeasonPlayer(models.Model):
+    season = models.ForeignKey(WorkspaceSeason, on_delete=models.CASCADE, related_name='season_players')
+    player = models.ForeignKey('Player', on_delete=models.CASCADE, related_name='season_memberships')
+    is_confirmed = models.BooleanField(default=False, db_index=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='season_player_confirmations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-is_confirmed', 'player__name', 'id']
+        unique_together = ('season', 'player')
+        verbose_name = 'Jugador de temporada (club)'
+        verbose_name_plural = 'Jugadores de temporada (club)'
+
+    def __str__(self):
+        return f'{self.season.label} · {self.player.name}'
 
 
 class WorkspaceTeam(models.Model):
@@ -1633,6 +1694,18 @@ class RivalVideo(models.Model):
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL)
     source_url = models.URLField(max_length=600, blank=True, help_text='URL de origen (p.ej. YouTube) si aplica.')
     notes = models.TextField(blank=True)
+    trim_enabled = models.BooleanField(
+        default=False,
+        help_text='Si está activo, Video Studio limita la reproducción al rango IN/OUT definido.',
+    )
+    trim_in_ms = models.PositiveIntegerField(
+        default=0,
+        help_text='IN del corte base (ms) para trabajar sin relleno (anuncios, esperas, etc.).',
+    )
+    trim_out_ms = models.PositiveIntegerField(
+        default=0,
+        help_text='OUT del corte base (ms). 0 significa sin OUT.',
+    )
     assigned_players = models.ManyToManyField(Player, blank=True, related_name='assigned_analysis_videos')
     created_at = models.DateTimeField(auto_now_add=True)
 

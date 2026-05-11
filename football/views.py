@@ -17683,31 +17683,158 @@ def _regulation_minutes_for_team(team):
         fmt = ''
     category = _norm_cat(getattr(team, 'category', '') or '')
 
-    # Por categoría (club): basado en normativa típica de la RFAF (Andalucía).
-    # Fuente (duración total): bebé 40', prebenjamín 50', benjamín 60', alevín 70',
-    # infantil 80', cadete/juvenil/senior 90'. (Descanso no afecta al cronómetro.)
+    # --- Duración por categoría (España) ---
+    # Las federaciones territoriales pueden variar por temporada/competición. Para comercializar la app
+    # sin hardcodear 19 tablas diferentes (y mantenerlas a mano), usamos:
+    # 1) Base por categoría (válida como default en España).
+    # 2) Overrides opcionales por federación/temporada vía `SystemSetting` (JSON) sin tocar código.
     #
-    # Nota: esto se aplica independientemente de si juegan en F7/F11, porque el "formato"
-    # suele venir implícito por la propia categoría en fútbol base.
-    if category:
-        # Match total minutes by category keyword.
-        # We detect by substring to tolerate "Benjamín A", "Prebenjamín 2ª", etc.
-        # RFAF: "Cadete femenino" suele ser 80' (40' por parte).
+    # Base (duración total): bebé 40', prebenjamín 50', benjamín 60', alevín 70', infantil 80', cadete/juvenil/senior 90'.
+    # (El descanso no afecta al cronómetro).
+    def _guess_territorial_key() -> str:
+        competition = None
+        try:
+            group = getattr(team, 'group', None)
+            season = getattr(group, 'season', None) if group else None
+            competition = getattr(season, 'competition', None) if season else None
+        except Exception:
+            competition = None
+        region_raw = ''
+        try:
+            region_raw = str(getattr(competition, 'region', '') or '').strip()
+        except Exception:
+            region_raw = ''
+        region = _norm_cat(region_raw)
+        if not region:
+            return 'default'
+        region_aliases = {
+            'andalucia': 'andalucia',
+            'cataluna': 'catalunya',
+            'catalunya': 'catalunya',
+            'madrid': 'madrid',
+            'murcia': 'murcia',
+            'galicia': 'galicia',
+            'aragon': 'aragon',
+            'asturias': 'asturias',
+            'canarias': 'canarias',
+            'cantabria': 'cantabria',
+            'extremadura': 'extremadura',
+            'navarra': 'navarra',
+            'la rioja': 'la_rioja',
+            'rioja': 'la_rioja',
+            'ceuta': 'ceuta',
+            'melilla': 'melilla',
+            'baleares': 'baleares',
+            'illes balears': 'baleares',
+            'islas baleares': 'baleares',
+            'castilla la mancha': 'castilla_la_mancha',
+            'castilla y leon': 'castilla_y_leon',
+            'pais vasco': 'pais_vasco',
+            'euskadi': 'pais_vasco',
+            'comunidad valenciana': 'valenciana',
+            'valenciana': 'valenciana',
+            'valencia': 'valenciana',
+        }
+        if region in region_aliases:
+            return region_aliases[region]
+        # Heurística por substring para valores tipo "Comunidad Valenciana (RFEF)".
+        for key, value in region_aliases.items():
+            if key and key in region:
+                return value
+        return 'default'
+
+    def _load_duration_overrides():
+        # Cache en proceso (simple): se invalida al reiniciar workers.
+        cache_key = '_match_duration_rules_cache_v1'
+        try:
+            cached = getattr(_load_duration_overrides, cache_key, None)
+            if isinstance(cached, dict):
+                return cached
+        except Exception:
+            cached = None
+        raw = ''
+        try:
+            raw = (SystemSetting.objects.filter(key='match_duration_rules:v1').values_list('value', flat=True).first() or '').strip()
+        except Exception:
+            raw = ''
+        data = {}
+        if raw:
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else {}
+            except Exception:
+                data = {}
+        data = data if isinstance(data, dict) else {}
+        try:
+            setattr(_load_duration_overrides, cache_key, data)
+        except Exception:
+            pass
+        return data
+
+    def _match_minutes_by_category_with_overrides() -> int:
+        if not category:
+            return 0
+        territorial = _guess_territorial_key()
+        season_name = ''
+        try:
+            season_name = str(getattr(getattr(getattr(team, 'group', None), 'season', None), 'name', '') or '').strip()
+        except Exception:
+            season_name = ''
+        overrides = _load_duration_overrides()
+        # shape:
+        # {
+        #   "default": {"bebe": 40, "prebenjamin": 50, ...},
+        #   "territorial": {"andalucia": {"alevin": 70, ...}},
+        #   "season": {"2025/2026": {"territorial": {"madrid": {...}}}}
+        # }
+        def _lookup_override(scope: dict) -> dict:
+            if not isinstance(scope, dict):
+                return {}
+            base = scope.get('default') if isinstance(scope.get('default'), dict) else {}
+            terr = {}
+            terr_block = scope.get('territorial') if isinstance(scope.get('territorial'), dict) else {}
+            if territorial and isinstance(terr_block.get(territorial), dict):
+                terr = terr_block.get(territorial)
+            merged = {**base, **terr}
+            return merged if isinstance(merged, dict) else {}
+
+        merged = _lookup_override(overrides)
+        if season_name and isinstance(overrides.get('season'), dict) and isinstance(overrides['season'].get(season_name), dict):
+            seasonal = _lookup_override(overrides['season'][season_name])
+            merged = {**merged, **seasonal}
+        # Especial: cadete femenino
         if 'cadete' in category and ('femen' in category or ' fem' in f' {category}'):
+            try:
+                v = int(merged.get('cadete_femenino') or 0)
+                if v > 0:
+                    return v
+            except Exception:
+                pass
             return 80
+        # Base mapping por keywords
         rules = [
-            (('bebe', 'bebé'), 40),
-            (('prebenjamin', 'pre benjamin', 'pre-benjamin'), 50),
-            (('benjamin', 'benjamín'), 60),
-            (('alevin', 'alevín'), 70),
-            (('infantil',), 80),
-            (('cadete',), 90),
-            (('juvenil',), 90),
-            (('senior', 'sénior', 'aficionado'), 90),
+            (('bebe', 'bebe'), 'bebe', 40),
+            (('prebenjamin', 'pre benjamin', 'pre-benjamin'), 'prebenjamin', 50),
+            (('benjamin',), 'benjamin', 60),
+            (('alevin',), 'alevin', 70),
+            (('infantil',), 'infantil', 80),
+            (('cadete',), 'cadete', 90),
+            (('juvenil',), 'juvenil', 90),
+            (('senior', 'aficionado'), 'senior', 90),
         ]
-        for keys, total in rules:
+        for keys, override_key, fallback in rules:
             if any(k in category for k in keys):
-                return max(1, int(total))
+                try:
+                    v = int(merged.get(override_key) or 0)
+                    if v > 0:
+                        return v
+                except Exception:
+                    pass
+                return fallback
+        return 0
+
+    minutes_from_category = _match_minutes_by_category_with_overrides()
+    if minutes_from_category > 0:
+        return minutes_from_category
 
     if fmt == Team.GAME_FORMAT_F7:
         try:
@@ -46208,6 +46335,63 @@ def analysis_video_studio_assign_api(request):
         return JsonResponse({'ok': False, 'error': 'No se pudo asignar.'}, status=500)
 
     return JsonResponse({'ok': True, 'video_id': int(video.id), 'team_id': int(target_team.id), 'folder_id': int(folder.id) if folder else 0})
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_video_trim_api(request):
+    """
+    Guarda el "corte base" (trim) del vídeo para poder trabajar dentro de un rango (p.ej. quitar anuncios).
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    try:
+        if request.content_type and 'application/json' in (request.content_type or '').lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+        else:
+            data = request.POST.dict() if hasattr(request, 'POST') else {}
+    except Exception:
+        data = {}
+
+    video_id = _parse_int(data.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    video, _scope_team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+
+    enabled = bool(data.get('enabled'))
+    trim_in_s = float(data.get('trim_in_s') or 0.0)
+    trim_out_s = float(data.get('trim_out_s') or 0.0)
+
+    trim_in_ms = int(max(0, round(trim_in_s * 1000.0)))
+    trim_out_ms = int(max(0, round(trim_out_s * 1000.0)))
+    if enabled:
+        if trim_out_ms and trim_out_ms <= trim_in_ms:
+            return JsonResponse({'ok': False, 'error': 'OUT debe ser mayor que IN.'}, status=400)
+
+    try:
+        video.trim_enabled = bool(enabled)
+        video.trim_in_ms = int(trim_in_ms)
+        video.trim_out_ms = int(trim_out_ms)
+        video.save(update_fields=['trim_enabled', 'trim_in_ms', 'trim_out_ms'])
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
+
+    return JsonResponse(
+        {
+            'ok': True,
+            'video_id': int(video.id),
+            'enabled': bool(video.trim_enabled),
+            'trim_in_ms': int(video.trim_in_ms or 0),
+            'trim_out_ms': int(video.trim_out_ms or 0),
+        }
+    )
 
 
 @login_required
