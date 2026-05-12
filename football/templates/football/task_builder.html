@@ -3748,11 +3748,14 @@
         <span id="task-builder-draft-text"></span>
         <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
-					      <form
+				      <form
 					        method="post"
 					        id="task-builder-form"
 				        data-tactics-mode="{% if tactics_mode %}1{% else %}0{% endif %}"
 				        data-scope-key="{{ scope_key }}"
+                {% if analysis_item_mode %}
+				        data-analysis-board-video-upload-url="{{ analysis_item_video_upload_url|default:'' }}"
+                {% endif %}
 				        data-fabric-src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-tpad-src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
 				        data-three-src="{% static 'vendor/three.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"

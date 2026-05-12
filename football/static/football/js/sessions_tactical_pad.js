@@ -8785,6 +8785,7 @@
 					      simWriteRecordPrefs(prefs);
 					    };
 					    simApplyRecordPrefsToUi();
+					    const analysisBoardVideoUploadUrl = safeText(form?.dataset?.analysisBoardVideoUploadUrl);
 					    const simDownloadBlob = (blob, filename) => {
 					      if (!blob) return;
 					      const url = URL.createObjectURL(blob);
@@ -8932,20 +8933,52 @@
 				      simRecordMedia.ondataavailable = (ev) => {
 				        if (ev?.data && ev.data.size > 0) simRecordChunks.push(ev.data);
 				      };
-					      simRecordMedia.onstop = () => {
-					        const blob = new Blob(simRecordChunks, { type: simRecordMedia?.mimeType || 'video/webm' });
-					        const title = simFileSafeSlug(document.querySelector('[name=\"draw_task_title\"]')?.value || 'tactica');
-					        const ext = String(simRecordMedia?.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
-					        simDownloadBlob(blob, `${title}-2d.${ext}`);
-					        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
-					        simRecordStream = null;
-					        simRecordMedia = null;
-				        simRecordChunks = [];
-				        simRecordCanvas = null;
-				        simRecordCtx = null;
-				        simRecordBgImg = null;
-				        setSimRecordUi(false);
-				      };
+						      simRecordMedia.onstop = async () => {
+						        const blob = new Blob(simRecordChunks, { type: simRecordMedia?.mimeType || 'video/webm' });
+						        const title = simFileSafeSlug(document.querySelector('[name=\"draw_task_title\"]')?.value || 'tactica');
+						        const ext = String(simRecordMedia?.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+
+						        const cleanup = () => {
+						          try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
+						          simRecordStream = null;
+						          simRecordMedia = null;
+						          simRecordChunks = [];
+						          simRecordCanvas = null;
+						          simRecordCtx = null;
+						          simRecordBgImg = null;
+						          setSimRecordUi(false);
+						        };
+
+						        if (analysisBoardVideoUploadUrl) {
+						          if (ext !== 'mp4') {
+						            window.alert('Tu navegador no puede grabar en MP4 (H.264). Para incrustar en PPTX usa Safari/Chrome que exporte MP4.');
+						            simDownloadBlob(blob, `${title}-2d.${ext}`);
+						            cleanup();
+						            return;
+						          }
+						          try {
+						            const csrf = document.querySelector('#task-builder-form input[name=\"csrfmiddlewaretoken\"]')?.value || '';
+						            const fd = new FormData();
+						            fd.append('video', blob, `${title}-2d.mp4`);
+						            const res = await fetch(analysisBoardVideoUploadUrl, { method: 'POST', body: fd, headers: csrf ? { 'X-CSRFToken': csrf } : undefined, credentials: 'same-origin' });
+						            const data = res.ok ? await res.json().catch(() => null) : null;
+						            if (!res.ok || !data?.ok) {
+						              window.alert(String(data?.error || 'No se pudo subir el vídeo de la pizarra.'));
+						              simDownloadBlob(blob, `${title}-2d.${ext}`);
+						            } else {
+						              window.alert('Vídeo de la pizarra guardado en el informe.');
+						            }
+						          } catch (e) {
+						            window.alert('No se pudo subir el vídeo de la pizarra.');
+						            simDownloadBlob(blob, `${title}-2d.${ext}`);
+						          }
+						          cleanup();
+						          return;
+						        }
+
+							        simDownloadBlob(blob, `${title}-2d.${ext}`);
+							        cleanup();
+							      };
 
 					      const drawFrame = () => {
 					        if (!simRecordActive || !simRecordCtx || !simRecordCanvas) return;

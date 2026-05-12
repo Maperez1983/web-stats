@@ -46015,11 +46015,17 @@ def _pptx_bytes_for_analysis_video_report(request, report: AnalysisVideoReport, 
 
         # Capturas/imágenes (hasta 2) + pizarra (si existe).
         board_path = ''
+        board_video_path = ''
         try:
             board_field = getattr(item, 'tactical_preview_image', None)
             board_path = board_field.path if board_field and hasattr(board_field, 'path') else ''
         except Exception:
             board_path = ''
+        try:
+            board_video_field = getattr(item, 'tactical_video', None)
+            board_video_path = board_video_field.path if board_video_field and hasattr(board_video_field, 'path') else ''
+        except Exception:
+            board_video_path = ''
         try:
             images = list(getattr(item, 'images', []).all()) if hasattr(getattr(item, 'images', None), 'all') else []
         except Exception:
@@ -46039,9 +46045,34 @@ def _pptx_bytes_for_analysis_video_report(request, report: AnalysisVideoReport, 
                 if not path or not os.path.exists(path) or path in img_paths:
                     continue
                 img_paths.append(path)
-            for path in img_paths[:2]:
-                slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
+            # Slot 1: si hay vídeo de pizarra (MP4), lo embebemos con poster. Si no, imagen.
+            if board_video_path and os.path.exists(board_video_path) and str(board_video_path).lower().endswith('.mp4'):
+                try:
+                    poster = board_path if board_path and os.path.exists(board_path) else None
+                    slide.shapes.add_movie(
+                        board_video_path,
+                        Inches(10.25),
+                        Inches(img_y),
+                        Inches(2.35),
+                        Inches(1.20),
+                        poster_frame_image=poster,
+                        mime_type='video/mp4',
+                    )
+                except Exception:
+                    # Fallback a imagen si falla incrustar el vídeo.
+                    if board_path and os.path.exists(board_path):
+                        slide.shapes.add_picture(board_path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
                 img_y += 1.33
+                # Slot 2: primera captura adicional (sin repetir la pizarra).
+                for path in img_paths:
+                    if path == board_path:
+                        continue
+                    slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
+                    break
+            else:
+                for path in img_paths[:2]:
+                    slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
+                    img_y += 1.33
         except Exception:
             pass
 
@@ -46561,8 +46592,65 @@ def analysis_video_report_item_tactical_page(request, item_id):
             'tactics_mode': True,
             'analysis_item_mode': True,
             'analysis_item_title': analysis_item_title,
+            'analysis_item_video_upload_url': reverse('analysis-video-report-item-tactical-video-upload-api', args=[int(item.id)]),
         },
     )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_report_item_tactical_video_upload_api(request, item_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    item = (
+        AnalysisVideoReportItem.objects
+        .select_related('report')
+        .filter(id=int(item_id), report__team=primary_team)
+        .first()
+    )
+    if not item:
+        return JsonResponse({'ok': False, 'error': 'Elemento no encontrado.'}, status=404)
+
+    upload = request.FILES.get('video')
+    if not upload:
+        return JsonResponse({'ok': False, 'error': 'Falta el archivo.'}, status=400)
+
+    max_mb = 220
+    try:
+        if int(getattr(upload, 'size', 0) or 0) > max_mb * 1024 * 1024:
+            return JsonResponse({'ok': False, 'error': f'El vídeo supera {max_mb}MB.'}, status=400)
+    except Exception:
+        pass
+
+    ct = str(getattr(upload, 'content_type', '') or '').lower().strip()
+    name = str(getattr(upload, 'name', '') or '').strip()
+    is_mp4 = (ct.startswith('video/mp4') or name.lower().endswith('.mp4'))
+    if not is_mp4:
+        return JsonResponse(
+            {'ok': False, 'error': 'Este navegador no está exportando MP4. Para PPTX, exporta en MP4 (H.264/AAC).'},
+            status=400,
+        )
+
+    try:
+        if getattr(item, 'tactical_video', None):
+            item.tactical_video.delete(save=False)
+    except Exception:
+        pass
+
+    safe = slugify(str(getattr(item, 'title', '') or '').strip()) or f'item-{int(item.id)}'
+    filename = f'{safe}-tactica-{uuid.uuid4().hex[:10]}.mp4'
+    item.tactical_video.save(filename, upload, save=False)
+    item.save(update_fields=['tactical_video', 'updated_at'])
+    return JsonResponse({'ok': True})
 
 
 @csrf_exempt

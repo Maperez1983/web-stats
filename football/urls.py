@@ -255,6 +255,11 @@ urlpatterns = [
     path('coach/analisis/video/informe/<int:report_id>/export/pptx/', views.analysis_video_report_export_pptx, name='analysis-video-report-export-pptx'),
     path('coach/analisis/video/informe/<int:report_id>/pptx/', views.analysis_video_report_pptx_file, name='analysis-video-report-pptx-file'),
     path('coach/analisis/video/informe/item/<int:item_id>/pizarra/', views.analysis_video_report_item_tactical_page, name='analysis-video-report-item-tactical'),
+    path(
+        'coach/analisis/video/informe/item/<int:item_id>/pizarra/video/upload/',
+        views.analysis_video_report_item_tactical_video_upload_api,
+        name='analysis-video-report-item-tactical-video-upload-api',
+    ),
     path('coach/analisis/inbox/', views.analysis_video_inbox_page, name='analysis-video-inbox'),
     path('coach/analisis/inbox/open/<int:item_id>/', views.analysis_video_inbox_open, name='analysis-video-inbox-open'),
     path('coach/estadisticas-manuales/', views.manual_player_stats_page, name='manual-player-stats'),

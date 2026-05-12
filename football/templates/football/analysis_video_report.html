@@ -181,7 +181,10 @@
 	                  {% if item.tactical_preview_image %}
 	                    <div class="thumb" style="width:220px;">
 	                      <img src="{{ item.tactical_preview_image.url }}" alt="" loading="lazy" />
-	                      <div class="cap">Vista previa</div>
+	                      <div class="cap">
+	                        Vista previa
+	                        {% if item.tactical_video %} · Vídeo MP4{% endif %}
+	                      </div>
 	                    </div>
 	                  {% else %}
 	                    <div class="meta">Aún no hay pizarra guardada para este clip.</div>
