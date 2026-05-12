@@ -8,6 +8,7 @@ set -euo pipefail
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${GUNICORN_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
+: "${DJANGO_RUN_ASGI:=false}"
 
 # Ensure Playwright Chromium exists at runtime (idempotent).
 # Render instances are ephemeral; even if Chromium was installed manually in a previous shell,
@@ -53,7 +54,22 @@ if [ "${RUN_COLLECTSTATIC}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-exec gunicorn webstats.asgi:application \
-  -k uvicorn.workers.UvicornWorker \
+_run_asgi_flag="$(echo "${DJANGO_RUN_ASGI:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_run_asgi="false"
+if [ "${_run_asgi_flag}" = "true" ] || [ "${_run_asgi_flag}" = "1" ] || [ "${_run_asgi_flag}" = "yes" ] || [ "${_run_asgi_flag}" = "on" ]; then
+  _run_asgi="true"
+fi
+
+# Default: WSGI.
+# Motivo: gran parte del stack es sync y, bajo ASGI, cualquier fuga de sync en un hilo con event-loop
+# puede provocar `SynchronousOnlyOperation` (p.ej. al guardar sesiones).
+if [ "${_run_asgi}" = "true" ]; then
+  exec gunicorn webstats.asgi:application \
+    -k uvicorn.workers.UvicornWorker \
+    --bind "0.0.0.0:${PORT}" \
+    --timeout "${GUNICORN_TIMEOUT}"
+fi
+
+exec gunicorn webstats.wsgi:application \
   --bind "0.0.0.0:${PORT}" \
   --timeout "${GUNICORN_TIMEOUT}"
