@@ -361,12 +361,30 @@ def public_build_info(request):
         or os.getenv('GIT_SHA')
         or ''
     ).strip()
+    # Diagnóstico runtime (WSGI vs ASGI) para depurar problemas como `SynchronousOnlyOperation`.
+    try:
+        request_class = request.__class__.__name__
+    except Exception:
+        request_class = ''
+    is_asgi = bool(getattr(request, 'scope', None))
+    scope_type = None
+    if is_asgi:
+        try:
+            scope_type = (request.scope or {}).get('type')  # type: ignore[attr-defined]
+        except Exception:
+            scope_type = None
     return JsonResponse(
             {
             'ok': True,
             'build': {
                 'id': build_id,
                 'has_build_id': bool(build_id),
+            },
+            'runtime': {
+                'request_class': request_class,
+                'is_asgi': bool(is_asgi),
+                'scope_type': scope_type,
+                'django_run_asgi_env': (os.getenv('DJANGO_RUN_ASGI') or '').strip(),
             },
             'flags': {
                 'enable_public_signup': str(os.getenv('ENABLE_PUBLIC_SIGNUP', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
