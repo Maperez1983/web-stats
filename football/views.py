@@ -45705,37 +45705,98 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
     except Exception as exc:
         raise ValueError('python-pptx no está disponible en el servidor.') from exc
 
+    def _rgb(hex_color: str, fallback=(15, 122, 53)):
+        value = str(hex_color or '').strip()
+        if not value:
+            return RGBColor(*fallback)
+        if not value.startswith('#'):
+            value = f'#{value}'
+        if len(value) != 7:
+            return RGBColor(*fallback)
+        try:
+            return RGBColor(int(value[1:3], 16), int(value[3:5], 16), int(value[5:7], 16))
+        except Exception:
+            return RGBColor(*fallback)
+
+    team_obj = None
+    try:
+        team_obj = Team.objects.filter(id=int(getattr(report, 'team_id', 0) or 0)).first()
+    except Exception:
+        team_obj = None
+    palette = _team_pdf_palette(team_obj, 'club')
+
+    C_PRIMARY = _rgb(palette.get('primary'), fallback=(15, 122, 53))
+    C_SECONDARY = _rgb(palette.get('secondary'), fallback=(250, 204, 21))
+    C_ACCENT = _rgb(palette.get('accent'), fallback=(16, 39, 52))
+    C_PANEL = _rgb(palette.get('panel'), fallback=(245, 251, 246))
+    C_SHEET = _rgb(palette.get('sheet'), fallback=(255, 255, 255))
+    C_INK = _rgb(palette.get('ink'), fallback=(16, 39, 52))
+    C_MUTED = _rgb(palette.get('muted'), fallback=(81, 96, 111))
+
     prs = Presentation()
     try:
-        # 16:9
         prs.slide_width = Inches(13.333)
         prs.slide_height = Inches(7.5)
     except Exception:
         pass
 
-    def _set_bg(slide, rgb=(2, 4, 23)):
+    def _set_bg(slide):
         try:
             fill = slide.background.fill
             fill.solid()
-            fill.fore_color.rgb = RGBColor(*rgb)
+            fill.fore_color.rgb = C_SHEET
         except Exception:
             pass
 
-    def _add_title(slide, text: str):
+    def _add_header(slide, title: str, subtitle: str = ''):
         try:
-            box = slide.shapes.add_textbox(Inches(0.6), Inches(0.25), Inches(12.1), Inches(0.5))
+            bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), prs.slide_width, Inches(1.05))
+            bar.fill.solid()
+            bar.fill.fore_color.rgb = C_PRIMARY
+            bar.line.fill.background()
+        except Exception:
+            pass
+        try:
+            box = slide.shapes.add_textbox(Inches(0.65), Inches(0.18), Inches(12.0), Inches(0.55))
             tf = box.text_frame
             tf.clear()
             p = tf.paragraphs[0]
             run = p.add_run()
-            run.text = text
-            run.font.size = Pt(22)
+            run.text = title
+            run.font.size = Pt(24)
             run.font.bold = True
-            run.font.color.rgb = RGBColor(248, 250, 252)
+            run.font.color.rgb = RGBColor(255, 255, 255)
+        except Exception:
+            pass
+        if subtitle:
+            try:
+                sub = slide.shapes.add_textbox(Inches(0.65), Inches(0.70), Inches(12.0), Inches(0.35))
+                tf2 = sub.text_frame
+                tf2.clear()
+                p2 = tf2.paragraphs[0]
+                run2 = p2.add_run()
+                run2.text = subtitle
+                run2.font.size = Pt(12)
+                run2.font.bold = True
+                run2.font.color.rgb = C_SECONDARY
+            except Exception:
+                pass
+
+    def _add_section_label(slide, text: str, left, top, width):
+        try:
+            lbl = slide.shapes.add_textbox(left, top, width, Inches(0.3))
+            tf = lbl.text_frame
+            tf.clear()
+            p = tf.paragraphs[0]
+            run = p.add_run()
+            run.text = text.upper()
+            run.font.size = Pt(10)
+            run.font.bold = True
+            run.font.color.rgb = C_ACCENT
         except Exception:
             pass
 
-    # Portada
+    # Portada (Club)
     try:
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         _set_bg(slide)
@@ -45743,71 +45804,99 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
         folder_label = str(getattr(folder, 'name', '') or '').strip()
         if getattr(folder, 'rival_team', None):
             folder_label = f'{folder_label} · {getattr(folder.rival_team, "display_name", "") or getattr(folder.rival_team, "name", "")}'
-        _add_title(slide, str(report.title or 'Informe'))
-        sub = slide.shapes.add_textbox(Inches(0.6), Inches(1.05), Inches(12.1), Inches(0.7))
-        tf = sub.text_frame
-        tf.clear()
-        p = tf.paragraphs[0]
-        run = p.add_run()
-        run.text = f'Carpeta · {folder_label}' if folder_label else 'Carpeta'
-        run.font.size = Pt(14)
-        run.font.bold = True
-        run.font.color.rgb = RGBColor(148, 163, 184)
-        meta = slide.shapes.add_textbox(Inches(0.6), Inches(1.55), Inches(12.1), Inches(0.7))
+        _add_header(slide, str(report.title or 'Informe'), subtitle=(f'Carpeta · {folder_label}' if folder_label else 'Carpeta'))
+
+        created_at = getattr(report, 'updated_at', None) or getattr(report, 'created_at', None)
+        created_label = created_at.strftime('%d/%m/%Y %H:%M') if created_at else ''
+        meta = slide.shapes.add_textbox(Inches(0.65), Inches(1.30), Inches(12.0), Inches(0.3))
         tf2 = meta.text_frame
         tf2.clear()
         p2 = tf2.paragraphs[0]
         run2 = p2.add_run()
-        created_at = getattr(report, 'updated_at', None) or getattr(report, 'created_at', None)
-        created_label = created_at.strftime('%d/%m/%Y %H:%M') if created_at else ''
         run2.text = f'Generado · {created_label}' if created_label else 'Generado'
-        run2.font.size = Pt(12)
-        run2.font.color.rgb = RGBColor(148, 163, 184)
+        run2.font.size = Pt(11)
+        run2.font.bold = True
+        run2.font.color.rgb = C_MUTED
+
+        notes = str(getattr(report, 'notes', '') or '').strip()
+        if notes:
+            _add_section_label(slide, 'Notas', Inches(0.65), Inches(1.75), Inches(12.0))
+            box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.65), Inches(2.05), Inches(12.0), Inches(4.9))
+            box.fill.solid()
+            box.fill.fore_color.rgb = C_PANEL
+            box.line.color.rgb = C_PRIMARY
+            box.line.width = Pt(1)
+            tb = slide.shapes.add_textbox(Inches(0.9), Inches(2.25), Inches(11.4), Inches(4.5))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            tf.clear()
+            p = tf.paragraphs[0]
+            r = p.add_run()
+            r.text = notes
+            r.font.size = Pt(14)
+            r.font.color.rgb = C_INK
     except Exception:
         pass
 
     # Layout C: vídeo grande + banda lateral derecha.
     video_left = Inches(0.6)
-    video_top = Inches(1.2)
+    video_top = Inches(1.35)
     video_w = Inches(9.2)
-    video_h = Inches(5.9)
+    video_h = Inches(5.75)
     side_left = Inches(10.05)
-    side_top = Inches(1.2)
+    side_top = Inches(1.35)
     side_w = Inches(2.73)
-    side_h = Inches(5.9)
+    side_h = Inches(5.75)
 
     for idx, item in enumerate(items or [], start=1):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         _set_bg(slide)
         clip = getattr(item, 'clip', None)
         clip_title = str(getattr(item, 'title', '') or '').strip() or str(getattr(clip, 'title', '') or '').strip() or f'Clip {idx}'
-        _add_title(slide, clip_title)
+        subtitle = ''
+        try:
+            if clip and getattr(clip, 'video', None):
+                in_s = float(getattr(clip, 'in_seconds', 0.0) or 0.0)
+                out_s = float(getattr(clip, 'out_seconds', 0.0) or 0.0)
+                subtitle = f'{getattr(clip.video, "title", "Vídeo") or "Vídeo"} · IN {in_s:.1f}s' + (f' → OUT {out_s:.1f}s' if out_s else '')
+        except Exception:
+            subtitle = ''
+        _add_header(slide, clip_title, subtitle=subtitle)
 
-        # Lateral
+        # Marco del vídeo (estilo ficha)
+        try:
+            frame = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, video_left, video_top, video_w, video_h)
+            frame.fill.solid()
+            frame.fill.fore_color.rgb = C_PANEL
+            frame.line.color.rgb = C_PRIMARY
+            frame.line.width = Pt(1)
+        except Exception:
+            pass
+
+        # Banda lateral
         try:
             panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, side_left, side_top, side_w, side_h)
             panel.fill.solid()
-            panel.fill.fore_color.rgb = RGBColor(12, 20, 34)
-            panel.line.color.rgb = RGBColor(148, 163, 184)
+            panel.fill.fore_color.rgb = C_PANEL
+            panel.line.color.rgb = C_PRIMARY
             panel.line.width = Pt(1)
         except Exception:
-            panel = None
+            pass
 
+        _add_section_label(slide, 'Explicación', Inches(10.25), Inches(1.15), Inches(2.35))
         body_text = str(getattr(item, 'body', '') or '').strip()
         if clip and not body_text:
             body_text = str(getattr(clip, 'notes', '') or '').strip()
-        if not body_text:
-            body_text = ''
         try:
-            tb = slide.shapes.add_textbox(Inches(10.25), Inches(1.45), Inches(2.35), Inches(3.2))
+            tb = slide.shapes.add_textbox(Inches(10.25), Inches(1.55), Inches(2.35), Inches(3.05))
             tf = tb.text_frame
             tf.word_wrap = True
             tf.clear()
             p = tf.paragraphs[0]
             run = p.add_run()
-            run.text = body_text
+            run.text = body_text or ''
             run.font.size = Pt(12)
-            run.font.color.rgb = RGBColor(226, 232, 240)
+            run.font.color.rgb = C_INK
         except Exception:
             pass
 
@@ -45816,7 +45905,8 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
             images = list(getattr(item, 'images', []).all()) if hasattr(getattr(item, 'images', None), 'all') else []
         except Exception:
             images = []
-        img_y = 4.75
+        _add_section_label(slide, 'Capturas', Inches(10.25), Inches(4.70), Inches(2.35))
+        img_y = 4.95
         try:
             for img in images[:2]:
                 try:
@@ -45826,7 +45916,7 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
                     path = ''
                 if not path or not os.path.exists(path):
                     continue
-                slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.25))
+                slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
                 img_y += 1.33
         except Exception:
             pass
@@ -45869,16 +45959,15 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
                     mime_type='video/mp4',
                 )
             except Exception:
-                # Fallback: si el embedding falla, mostramos un aviso.
-                warn = slide.shapes.add_textbox(video_left, Inches(1.45), video_w, Inches(0.6))
+                warn = slide.shapes.add_textbox(video_left, Inches(1.55), video_w, Inches(0.5))
                 tf = warn.text_frame
                 tf.text = 'No se pudo incrustar el vídeo en PPTX. Revisa formato MP4 (H.264/AAC).'
         else:
             try:
                 warn = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, video_left, video_top, video_w, video_h)
                 warn.fill.solid()
-                warn.fill.fore_color.rgb = RGBColor(15, 23, 42)
-                warn.line.color.rgb = RGBColor(148, 163, 184)
+                warn.fill.fore_color.rgb = C_PANEL
+                warn.line.color.rgb = C_PRIMARY
                 tx = slide.shapes.add_textbox(video_left, Inches(3.6), video_w, Inches(0.8))
                 tf = tx.text_frame
                 tf.text = 'Sin export MP4 para este clip.\nExporta el clip desde Video Studio y vuelve a exportar el informe.'
