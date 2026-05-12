@@ -45696,7 +45696,7 @@ def _can_download_analysis_video_report_pptx(request, report: AnalysisVideoRepor
         return False
 
 
-def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: list[AnalysisVideoReportItem]) -> bytes:
+def _pptx_bytes_for_analysis_video_report(request, report: AnalysisVideoReport, items: list[AnalysisVideoReportItem]) -> bytes:
     try:
         from pptx import Presentation
         from pptx.util import Inches, Pt
@@ -45704,6 +45704,10 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
         from pptx.enum.shapes import MSO_SHAPE
     except Exception as exc:
         raise ValueError('python-pptx no está disponible en el servidor.') from exc
+    try:
+        from django.contrib.staticfiles import finders as _static_finders
+    except Exception:
+        _static_finders = None
 
     def _rgb(hex_color: str, fallback=(15, 122, 53)):
         value = str(hex_color or '').strip()
@@ -45748,16 +45752,94 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
         except Exception:
             pass
 
-    def _add_header(slide, title: str, subtitle: str = ''):
+    def _static_path(static_relpath: str) -> str:
+        relpath = str(static_relpath or '').strip()
+        if not relpath:
+            return ''
         try:
-            bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), prs.slide_width, Inches(1.05))
+            if _static_finders:
+                found = _static_finders.find(relpath)
+                if found and os.path.exists(found):
+                    return found
+        except Exception:
+            pass
+        # Fallback: rutas típicas del repo (dev/local).
+        for base in [
+            getattr(settings, 'STATIC_ROOT', '') or '',
+            os.path.join(getattr(settings, 'BASE_DIR', ''), 'static'),
+            os.path.join(getattr(settings, 'BASE_DIR', ''), 'football', 'static'),
+        ]:
+            try:
+                if not base:
+                    continue
+                candidate = os.path.join(base, relpath)
+                if os.path.exists(candidate):
+                    return candidate
+            except Exception:
+                continue
+        return ''
+
+    def _team_crest_image_path(team_for_logo) -> str:
+        if not team_for_logo:
+            return ''
+        try:
+            crest_field = getattr(team_for_logo, 'crest_image', None)
+            crest_path = crest_field.path if crest_field and hasattr(crest_field, 'path') else ''
+            if crest_path and os.path.exists(crest_path):
+                return crest_path
+        except Exception:
+            pass
+        try:
+            if _is_benagalbon_team(team_for_logo):
+                local_primary = _static_path('football/images/cdb-benagalbon-crest-contrast.png')
+                if local_primary:
+                    return local_primary
+        except Exception:
+            pass
+        return _static_path('football/images/cdb-logo.png')
+
+    def _add_header(slide, title: str, subtitle: str = ''):
+        # Logos (marca app + escudo del club/rival) embebidos para funcionar offline.
+        app_logo_path = _static_path('football/images/2j-icon.png')
+        try:
+            folder_obj = getattr(report, 'folder', None)
+            crest_team = getattr(folder_obj, 'rival_team', None) or team_obj
+        except Exception:
+            crest_team = team_obj
+        crest_path = _team_crest_image_path(crest_team)
+        header_h = Inches(1.05)
+        app_size = Inches(0.62)
+        crest_size = Inches(0.78)
+        left_pad = Inches(0.25)
+        right_pad = Inches(0.25)
+
+        try:
+            bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), prs.slide_width, header_h)
             bar.fill.solid()
             bar.fill.fore_color.rgb = C_PRIMARY
             bar.line.fill.background()
         except Exception:
             pass
+
+        if app_logo_path:
+            try:
+                slide.shapes.add_picture(app_logo_path, left_pad, Inches(0.215), width=app_size, height=app_size)
+            except Exception:
+                pass
+
+        crest_left = None
+        if crest_path:
+            try:
+                crest_left = prs.slide_width - crest_size - right_pad
+                slide.shapes.add_picture(crest_path, crest_left, Inches(0.14), width=crest_size, height=crest_size)
+            except Exception:
+                crest_left = None
+
         try:
-            box = slide.shapes.add_textbox(Inches(0.65), Inches(0.18), Inches(12.0), Inches(0.55))
+            title_left = Inches(1.05) if app_logo_path else Inches(0.65)
+            reserve_right = (crest_size + Inches(0.20)) if crest_left is not None else Inches(0.0)
+            title_w = prs.slide_width - title_left - right_pad - reserve_right
+            box = slide.shapes.add_textbox(title_left, Inches(0.18), title_w, Inches(0.55))
             tf = box.text_frame
             tf.clear()
             p = tf.paragraphs[0]
@@ -45770,7 +45852,10 @@ def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: li
             pass
         if subtitle:
             try:
-                sub = slide.shapes.add_textbox(Inches(0.65), Inches(0.70), Inches(12.0), Inches(0.35))
+                title_left = Inches(1.05) if app_logo_path else Inches(0.65)
+                reserve_right = (crest_size + Inches(0.20)) if crest_left is not None else Inches(0.0)
+                sub_w = prs.slide_width - title_left - right_pad - reserve_right
+                sub = slide.shapes.add_textbox(title_left, Inches(0.70), sub_w, Inches(0.35))
                 tf2 = sub.text_frame
                 tf2.clear()
                 p2 = tf2.paragraphs[0]
@@ -46215,7 +46300,7 @@ def analysis_video_report_export_pptx(request, report_id):
         .order_by('position', 'id')[:700]
     )
     try:
-        data = _pptx_bytes_for_analysis_video_report(report, items)
+        data = _pptx_bytes_for_analysis_video_report(request, report, items)
     except Exception as exc:
         messages.error(request, str(exc) or 'No se pudo exportar el PPTX.')
         return redirect(reverse('analysis-video-report', args=[int(report.id)]))
