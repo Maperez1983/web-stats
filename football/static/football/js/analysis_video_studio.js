@@ -238,28 +238,39 @@
 	    const shareClipCreateUrl = safeText(document.getElementById('vs-share-clip-create-url')?.value);
 	    const shareReportCreateUrl = safeText(document.getElementById('vs-share-report-create-url')?.value);
 	    const sharePlaylistCreateUrl = safeText(document.getElementById('vs-share-playlist-create-url')?.value);
-	    const shareLinksUrl = safeText(document.getElementById('vs-share-links-url')?.value);
-	    const inboxRecipientsUrl = safeText(document.getElementById('vs-inbox-recipients-url')?.value);
-	    const inboxSendUrl = safeText(document.getElementById('vs-inbox-send-url')?.value);
-	    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
-    const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
-    const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
-	    const timelineExportUrl = safeText(document.getElementById('vs-timeline-export-url')?.value);
-	    const timelineImportUrl = safeText(document.getElementById('vs-timeline-import-url')?.value);
-	    const timelineClearUrl = safeText(document.getElementById('vs-timeline-clear-url')?.value);
-	    const reviewUrl = safeText(document.getElementById('vs-review-url')?.value);
-	    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
-	    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
-		    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
-		    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
-		    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
-		    const exportJobCreateUrl = safeText(document.getElementById('vs-export-job-create-url')?.value);
-		    const exportJobStatusUrl = safeText(document.getElementById('vs-export-job-status-url')?.value);
-		    const exportJobCancelUrl = safeText(document.getElementById('vs-export-job-cancel-url')?.value);
-		    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
-	    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
-	    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
-	    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
+		    const shareLinksUrl = safeText(document.getElementById('vs-share-links-url')?.value);
+		    const inboxRecipientsUrl = safeText(document.getElementById('vs-inbox-recipients-url')?.value);
+		    const inboxSendUrl = safeText(document.getElementById('vs-inbox-send-url')?.value);
+		    const timelineUrl = safeText(document.getElementById('vs-timeline-url')?.value);
+	    const timelineSaveUrl = safeText(document.getElementById('vs-timeline-save-url')?.value);
+	    const timelineDeleteUrl = safeText(document.getElementById('vs-timeline-delete-url')?.value);
+		    const timelineExportUrl = safeText(document.getElementById('vs-timeline-export-url')?.value);
+		    const timelineImportUrl = safeText(document.getElementById('vs-timeline-import-url')?.value);
+		    const timelineClearUrl = safeText(document.getElementById('vs-timeline-clear-url')?.value);
+		    const reviewUrl = safeText(document.getElementById('vs-review-url')?.value);
+		    const exportPdfUrl = safeText(document.getElementById('vs-export-pdf-url')?.value);
+		    const exportPackageUrl = safeText(document.getElementById('vs-export-package-url')?.value);
+			    const exportUploadUrl = safeText(document.getElementById('vs-export-upload-url')?.value);
+			    const exportServerUrl = safeText(document.getElementById('vs-export-server-url')?.value);
+			    const exportServerPlaylistUrl = safeText(document.getElementById('vs-export-server-playlist-url')?.value);
+			    const exportJobCreateUrl = safeText(document.getElementById('vs-export-job-create-url')?.value);
+			    const exportJobStatusUrl = safeText(document.getElementById('vs-export-job-status-url')?.value);
+			    const exportJobCancelUrl = safeText(document.getElementById('vs-export-job-cancel-url')?.value);
+			    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
+		    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
+		    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
+		    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
+		    const frameCaptureUrl = safeText(document.getElementById('vs-frame-capture-url')?.value);
+
+		    const isIOS = (() => {
+		      try {
+		        const ua = String(navigator.userAgent || '');
+		        if (/iPad|iPhone|iPod/.test(ua)) return true;
+		        // iPadOS 13+ informa como Mac, pero con touchpoints.
+		        if (navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1) return true;
+		      } catch (e) { /* ignore */ }
+		      return false;
+		    })();
 
       // Popover marcador jugador (sin prompts)
       const playerPop = document.getElementById('vs-player-pop');
@@ -915,10 +926,11 @@
         const end = Number(clipBoundEnd) || 0;
         if (!end || end <= start) return;
         const now = Number(video.currentTime) || 0;
-        if (now < start - 0.04) {
-          try { video.currentTime = start; } catch (e) { /* ignore */ }
-        } else if (now > end + 0.04) {
-          try { video.currentTime = end; } catch (e) { /* ignore */ }
+        // UX: si el usuario intenta salir del rango IN/OUT mientras el "clip bound" está activo,
+        // interpretamos que quiere volver al vídeo completo y desactivamos el bound.
+        if (now < start - 0.04 || now > end + 0.04) {
+          clipBoundActive = false;
+          return;
         }
       });
 
@@ -1619,12 +1631,13 @@
 	        fabricCanvas.add(group);
 	        pushHistory();
 	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
-        selectedFxId = 0;
-        updateLayerPanel();
-        renderFxList();
-        renderDrawLayers();
-        return { number, name };
-      };
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        setStatus('Jugador creado. Tip: en Play puedes arrastrarlo para que lo siga (se guardan keyframes).');
+	        return { number, name };
+	      };
 
       // Popover texto (multilínea)
       const textPop = document.getElementById('vs-text-pop');
@@ -1650,11 +1663,11 @@
         });
       } catch (e) { /* ignore */ }
 
-      const closeTextPop = () => {
-        textPopCanvasPos = null;
-        if (!textPop) return;
-        textPop.style.display = 'none';
-      };
+	      const closeTextPop = () => {
+	        textPopCanvasPos = null;
+	        if (!textPop) return;
+	        textPop.style.display = 'none';
+	      };
       const openTextPopAt = (canvasPoint, clientPoint) => {
         if (!textPop || !stage) return;
         textPopCanvasPos = canvasPoint || null;
@@ -1664,14 +1677,39 @@
         const y = clamp((clientPoint?.y ?? (rect.top + rect.height * 0.5)) - rect.top, 8, Math.max(8, rect.height - 220));
         textPop.style.left = `${Math.round(x)}px`;
         textPop.style.top = `${Math.round(y)}px`;
-        textPop.style.display = 'block';
-        try { textValueInput?.focus?.(); } catch (e) { /* ignore */ }
-      };
+	        textPop.style.display = 'block';
+	        try { textValueInput?.focus?.(); } catch (e) { /* ignore */ }
+	      };
 
-      const createTextOverlayAt = (point, rawText, styleName) => {
-        if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
-        const text = safeText(rawText, '').trim();
-        if (!text) return null;
+	      // Fallback (iPad/Safari): a veces Fabric no dispara `mouse:down` (o llega tarde).
+	      // Abrimos el popover también desde el DOM cuando la herramienta activa es "text".
+	      const domTextPointerHandler = (ev) => {
+	        try {
+	          if (!ev) return;
+	          const activeTool = safeText(stage?.getAttribute?.('data-vs-tool'), '');
+	          if (activeTool !== 'text') return;
+	          if (!textPop || !stage || !canvasEl) return;
+	          const tgt = ev.target;
+	          if (tgt && textPop.contains(tgt)) return;
+	          // Si el pop-up ya está abierto, no lo re-dispares.
+	          try {
+	            if (textPop.style && String(textPop.style.display || '') !== 'none') return;
+	          } catch (e0) { /* ignore */ }
+	          const rect = canvasEl.getBoundingClientRect();
+	          const x = clamp((ev.clientX ?? 0) - rect.left, 0, rect.width);
+	          const y = clamp((ev.clientY ?? 0) - rect.top, 0, rect.height);
+	          openTextPopAt({ x, y }, { x: ev.clientX || 0, y: ev.clientY || 0 });
+	          try { ev.preventDefault?.(); } catch (e2) { /* ignore */ }
+	          try { ev.stopPropagation?.(); } catch (e3) { /* ignore */ }
+	        } catch (e) { /* ignore */ }
+	      };
+	      try { canvasEl.addEventListener('pointerdown', domTextPointerHandler, { passive: false }); } catch (e) { /* ignore */ }
+	      try { stage.addEventListener('pointerdown', domTextPointerHandler, { passive: false, capture: true }); } catch (e) { /* ignore */ }
+
+	      const createTextOverlayAt = (point, rawText, styleName) => {
+	        if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return null;
+	        const text = safeText(rawText, '').trim();
+	        if (!text) return null;
         const style = safeText(styleName, 'caption');
         const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
         const maxW = canvasW ? clamp(Math.round(canvasW * 0.78), 260, 880) : 560;
@@ -1785,22 +1823,26 @@
       try { fabricCanvas.freeDrawingBrush.width = strokeWidth(); } catch (e) { /* ignore */ }
     });
 
-    let tool = 'select';
-    let arrowStart = null;
-    let moveStart = null;
-    let lastArrowSig = '';
-    let lastArrowAt = 0;
-    let calloutSeq = 1;
+	    let tool = 'select';
+	    let arrowStart = null;
+	    let moveStart = null;
+	    let lastArrowSig = '';
+	    let lastArrowAt = 0;
+	    let calloutSeq = 1;
+	    // Tracking manual (player marker): auto-guardar keyframes mientras se mueve durante reproducción.
+	    let trackingAutoKeyframes = true;
+	    let trackingLastKfAtS = 0;
+	    let trackingLastKfPos = null;
     // Surface Area (polígono)
     let areaDraftPoints = [];
     let areaDraftPolyline = null;
     let areaLastClickAt = 0;
 
-	    const setTool = (next) => {
-	      tool = next;
-      try { stage?.setAttribute?.('data-vs-tool', String(tool || '')); } catch (e) { /* ignore */ }
-      const isSelect = tool === 'select';
-      const isPen = tool === 'pen';
+		    const setTool = (next) => {
+		      tool = next;
+	      try { stage?.setAttribute?.('data-vs-tool', String(tool || '')); } catch (e) { /* ignore */ }
+	      const isSelect = tool === 'select';
+	      const isPen = tool === 'pen';
       fabricCanvas.isDrawingMode = isPen;
       try { fabricCanvas.selection = isSelect; } catch (e) { /* ignore */ }
 
@@ -1826,13 +1868,14 @@
 	      if (tool === 'base') btnBase?.classList.add('primary');
 	      if (tool === 'area') btnArea?.classList.add('primary');
 	      if (tool === 'move') btnMove?.classList.add('primary');
-	      if (tool === 'spot') btnSpot?.classList.add('primary');
-	      if (tool === 'blur') btnBlur?.classList.add('primary');
-        if (tool !== 'player') closePlayerPop();
-        if (tool !== 'area') {
-          // Cancela borrador de área si cambiamos de herramienta.
-          try { if (areaDraftPolyline) fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
-          areaDraftPolyline = null;
+		      if (tool === 'spot') btnSpot?.classList.add('primary');
+		      if (tool === 'blur') btnBlur?.classList.add('primary');
+	        if (tool !== 'player') closePlayerPop();
+	        if (tool !== 'text') closeTextPop();
+	        if (tool !== 'area') {
+	          // Cancela borrador de área si cambiamos de herramienta.
+	          try { if (areaDraftPolyline) fabricCanvas.remove(areaDraftPolyline); } catch (e) { /* ignore */ }
+	          areaDraftPolyline = null;
           areaDraftPoints = [];
         }
 	      const toolLabel = (() => {
@@ -2362,30 +2405,59 @@
       renderDrawLayers();
       arrowStart = null;
     });
-	    fabricCanvas.on('path:created', (opt) => {
-	      const p = opt?.path;
-	      if (p) p.data = seedLayerDataNow();
-	      pushHistory();
-	      updateLayerPanel();
-	      renderDrawLayers();
-	    });
-	    // Guardar keyframes al mover un marcador de jugador (tracking manual).
-	    fabricCanvas.on('object:modified', (opt) => {
-	      const obj = opt?.target;
-	      if (!obj || !obj.data) return;
-	      if (safeText(obj.data.kind) !== 'player_marker') return;
+		    fabricCanvas.on('path:created', (opt) => {
+		      const p = opt?.path;
+		      if (p) p.data = seedLayerDataNow();
+		      pushHistory();
+		      updateLayerPanel();
+		      renderDrawLayers();
+		    });
+		    // Auto-keyframes mientras arrastras el marcador durante reproducción (sin tener que pausar cada vez).
+		    fabricCanvas.on('object:moving', (opt) => {
+		      const obj = opt?.target;
+		      if (!obj || !obj.data) return;
+		      if (safeText(obj.data.kind) !== 'player_marker') return;
+		      if (!obj.data.track) return;
+		      if (video.paused) return;
+		      if (!trackingAutoKeyframes) return;
+		      try {
+		        const t = Number(video.currentTime) || 0;
+		        if (t <= 0) return;
+		        // Throttle: evita miles de keyframes.
+		        if ((t - trackingLastKfAtS) < 0.18) return;
+		        const c = obj.getCenterPoint ? obj.getCenterPoint() : null;
+		        const x = Number(c?.x ?? obj.left) || 0;
+		        const y = Number(c?.y ?? obj.top) || 0;
+		        if (trackingLastKfPos) {
+		          const dx = x - (Number(trackingLastKfPos.x) || 0);
+		          const dy = y - (Number(trackingLastKfPos.y) || 0);
+		          if (Math.hypot(dx, dy) < 1.6) return;
+		        }
+		        upsertKeyframe(obj, { t, x, y });
+		        trackingLastKfAtS = t;
+		        trackingLastKfPos = { x, y };
+		        // No hacemos pushHistory en cada move (sería pesado); se guarda al soltar (object:modified).
+		      } catch (e) { /* ignore */ }
+		    });
+		    // Guardar keyframes al mover un marcador de jugador (tracking manual).
+		    fabricCanvas.on('object:modified', (opt) => {
+		      const obj = opt?.target;
+		      if (!obj || !obj.data) return;
+		      if (safeText(obj.data.kind) !== 'player_marker') return;
 	      if (!obj.data.track) return;
-	      try {
-	        const t = Number(video.currentTime) || 0;
-	        const c = obj.getCenterPoint ? obj.getCenterPoint() : null;
-	        const x = Number(c?.x ?? obj.left) || 0;
-	        const y = Number(c?.y ?? obj.top) || 0;
-	        upsertKeyframe(obj, { t, x, y });
-	        pushHistory();
-	        renderDrawLayers();
-	        setStatus(`Jugador: posición guardada @ ${fmtTime(t)}`);
-	      } catch (e) { /* ignore */ }
-	    });
+		      try {
+		        const t = Number(video.currentTime) || 0;
+		        const c = obj.getCenterPoint ? obj.getCenterPoint() : null;
+		        const x = Number(c?.x ?? obj.left) || 0;
+		        const y = Number(c?.y ?? obj.top) || 0;
+		        upsertKeyframe(obj, { t, x, y });
+		        trackingLastKfAtS = t;
+		        trackingLastKfPos = { x, y };
+		        pushHistory();
+		        renderDrawLayers();
+		        setStatus(`Jugador: posición guardada @ ${fmtTime(t)}`);
+		      } catch (e) { /* ignore */ }
+		    });
     fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
@@ -2653,11 +2725,18 @@
           const start = Math.max(0, Math.min(a, b));
           const end = Math.max(a, b);
           if (end && end > start) {
-            clipBoundActive = true;
-            clipBoundStart = start;
-            clipBoundEnd = end;
-            if ((Number(video.currentTime) || 0) < start - 0.04) {
-              try { video.currentTime = start; } catch (e) { /* ignore */ }
+            const now = Number(video.currentTime) || 0;
+            // UX: si estás ya en OUT (o muy cerca), el usuario normalmente quiere seguir viendo el vídeo completo.
+            // No activamos el bound porque provocaría una pausa inmediata y "parece que Play no avanza".
+            if (now >= end - 0.02) {
+              clipBoundActive = false;
+            } else {
+              clipBoundActive = true;
+              clipBoundStart = start;
+              clipBoundEnd = end;
+              if (now < start - 0.04) {
+                try { video.currentTime = start; } catch (e) { /* ignore */ }
+              }
             }
           }
         } catch (e) { /* ignore */ }
@@ -2665,16 +2744,27 @@
 	      syncPlayButtons();
 	    });
 	    btnPause?.addEventListener('click', () => { try { video.pause(); } catch (e) { /* ignore */ } syncPlayButtons(); });
-	    video.addEventListener('play', syncPlayButtons);
-	    video.addEventListener('play', () => {
-	      // En reproducción, oculta la selección para evitar marcos flotantes al entrar/salir capas.
-	      try { fabricCanvas.discardActiveObject?.(); } catch (e) { /* ignore */ }
-	      selectedFxId = 0;
-	      try { updateLayerPanel(); } catch (e) { /* ignore */ }
-	      try { renderFxList(); } catch (e) { /* ignore */ }
-	      try { renderDrawLayers(); } catch (e) { /* ignore */ }
-	    });
+		    video.addEventListener('play', syncPlayButtons);
+		    video.addEventListener('play', () => {
+		      // En reproducción, oculta la selección para evitar marcos flotantes al entrar/salir capas.
+		      // Excepción: si hay un marcador de jugador seleccionado, permitimos moverlo mientras reproduce
+		      // (para grabar keyframes y que el marcador "siga" al jugador).
+		      try {
+		        const active = fabricCanvas.getActiveObject?.() || null;
+		        const keep = Boolean(active && active.data && safeText(active.data.kind) === 'player_marker' && active.data.track);
+		        if (!keep) fabricCanvas.discardActiveObject?.();
+		      } catch (e) { /* ignore */ }
+		      selectedFxId = 0;
+		      try { updateLayerPanel(); } catch (e) { /* ignore */ }
+		      try { renderFxList(); } catch (e) { /* ignore */ }
+		      try { renderDrawLayers(); } catch (e) { /* ignore */ }
+		    });
 	    video.addEventListener('pause', syncPlayButtons);
+      video.addEventListener('pause', () => {
+        // Si el usuario pausa durante un bound (play segmento), liberamos el rango para no "atrapar" el scrub.
+        // El loop explícito se gestiona por separado.
+        if (!loopActive) clipBoundActive = false;
+      });
 	    syncPlayButtons();
 
 	    const markIn = () => {
@@ -2770,19 +2860,48 @@
       if (k === 'l' || k === 'L') { ev.preventDefault(); seekBy(ev.shiftKey ? 5 : 2); return; }
     }, { passive: false });
 
-    const snapshotPng = () => {
-      const w = fabricCanvas.getWidth();
-      const h = fabricCanvas.getHeight();
-      const off = document.createElement('canvas');
-      off.width = w;
+	    const loadImageFromDataUrl = (dataUrl) => new Promise((resolve, reject) => {
+	      try {
+	        const img = new Image();
+	        img.onload = () => resolve(img);
+	        img.onerror = (e) => reject(e);
+	        img.src = String(dataUrl || '');
+	      } catch (e) {
+	        reject(e);
+	      }
+	    });
+
+	    const snapshotPng = async () => {
+	      const w = fabricCanvas.getWidth();
+	      const h = fabricCanvas.getHeight();
+	      const off = document.createElement('canvas');
+	      off.width = w;
       off.height = h;
-      const ctx = off.getContext('2d');
-      if (!ctx) return;
-      try { ctx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
-      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
-      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
-      off.toBlob((blob) => {
-        if (!blob) return;
+	      const ctx = off.getContext('2d');
+	      if (!ctx) return;
+	      let baseDrawn = false;
+	      if (!compatNoCorsApplied && !isIOS) {
+	        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+	      }
+	      if (!baseDrawn) {
+	        try {
+	          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
+	          if (dataUrl) {
+	            const img = await loadImageFromDataUrl(dataUrl);
+	            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+	          }
+	        } catch (e) { /* ignore */ }
+	      }
+	      if (!baseDrawn) {
+	        try {
+	          ctx.fillStyle = '#000';
+	          ctx.fillRect(0, 0, w, h);
+	        } catch (e) { /* ignore */ }
+	      }
+	      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
+	      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
+	      off.toBlob((blob) => {
+	        if (!blob) return;
         downloadBlob(blob, `telestracion-${videoId || 'video'}.png`);
       }, 'image/png');
     };
@@ -3024,24 +3143,59 @@
       }
     }, { passive: false });
 
-    const captureVideoFrameDataUrl = () => {
-      try {
-        const w = fabricCanvas.getWidth();
-        const h = fabricCanvas.getHeight();
-        if (!w || !h) return null;
-        const off = document.createElement('canvas');
-        off.width = w;
-        off.height = h;
-        const ctx = off.getContext('2d');
-        if (!ctx) return null;
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(video, 0, 0, w, h);
-        return off.toDataURL('image/png');
-      } catch (e) {
-        return null;
-      }
-    };
+	    const captureVideoFrameDataUrl = async ({ maxW } = {}) => {
+	      const tryLocal = () => {
+	        try {
+	          const w = fabricCanvas.getWidth();
+	          const h = fabricCanvas.getHeight();
+	          if (!w || !h) return null;
+	          const off = document.createElement('canvas');
+	          off.width = w;
+	          off.height = h;
+	          const ctx = off.getContext('2d');
+	          if (!ctx) return null;
+	          ctx.fillStyle = '#000';
+	          ctx.fillRect(0, 0, w, h);
+	          ctx.drawImage(video, 0, 0, w, h);
+	          return off.toDataURL('image/png');
+	        } catch (e) {
+	          return null;
+	        }
+	      };
+
+	      const tryServer = async () => {
+	        try {
+	          if (!frameCaptureUrl || !videoId) return null;
+	          const timeS = Math.max(0, Number(video.currentTime) || 0);
+	          const w = Number(fabricCanvas.getWidth?.()) || 0;
+	          const hint = Number(maxW) || 0;
+	          const desired = hint || (w ? Math.round(w) : 1280);
+	          const payload = { video_id: videoId, time_s: timeS, max_w: Math.max(480, Math.min(1920, desired)) };
+	          const resp = await fetch(frameCaptureUrl, {
+	            method: 'POST',
+	            credentials: 'same-origin',
+	            cache: 'no-store',
+	            headers: { 'content-type': 'application/json' },
+	            body: JSON.stringify(payload),
+	          });
+	          if (!resp.ok) return null;
+	          const data = await resp.json();
+	          const img = safeText(data?.image_data, '');
+	          return img || null;
+	        } catch (e) {
+	          return null;
+	        }
+	      };
+
+	      // iOS/Safari: prioriza captura en servidor (evita frames negros).
+	      if (isIOS) {
+	        const server = await tryServer();
+	        if (server) return server;
+	      }
+	      const local = tryLocal();
+	      if (local) return local;
+	      return await tryServer();
+	    };
 
     // Freeze "modo trabajo": bloquea la reproducción/click-to-play para poder dibujar encima sin que el vídeo arranque
     // (especialmente en Safari, donde al tocar el <video> se reanuda).
@@ -3080,17 +3234,17 @@
       }, { passive: false });
     } catch (e) { /* ignore */ }
 
-    btnFreeze?.addEventListener('click', () => {
-      if (freezeHoldOn) {
-        setFreezeHold(false);
-        setStatus('Freeze desactivado.');
-        return;
-      }
-      const img = captureVideoFrameDataUrl();
-      if (!img) {
-        setStatus('No se pudo capturar freeze.', true);
-        return;
-      }
+	    btnFreeze?.addEventListener('click', async () => {
+	      if (freezeHoldOn) {
+	        setFreezeHold(false);
+	        setStatus('Freeze desactivado.');
+	        return;
+	      }
+	      const img = await captureVideoFrameDataUrl({ maxW: 1280 });
+	      if (!img) {
+	        setStatus('No se pudo capturar freeze.', true);
+	        return;
+	      }
       const now = Number(video.currentTime) || 0;
       const layer = {
         id: fxSeq++,
@@ -6750,19 +6904,37 @@
     // Slides + Export Pro
     let slides = [];
 
-    const captureFrameDataUrl = () => {
-      const w = fabricCanvas.getWidth();
-      const h = fabricCanvas.getHeight();
-      const off = document.createElement('canvas');
-      off.width = w;
-      off.height = h;
-      const ctx = off.getContext('2d');
-      if (!ctx) return '';
-      try { ctx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
-      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
-      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
-      try { return off.toDataURL('image/jpeg', 0.92); } catch (e) { return ''; }
-    };
+	    const captureFrameDataUrl = async () => {
+	      const w = fabricCanvas.getWidth();
+	      const h = fabricCanvas.getHeight();
+	      const off = document.createElement('canvas');
+	      off.width = w;
+	      off.height = h;
+	      const ctx = off.getContext('2d');
+	      if (!ctx) return '';
+	      let baseDrawn = false;
+	      if (!compatNoCorsApplied && !isIOS) {
+	        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+	      }
+	      if (!baseDrawn) {
+	        try {
+	          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
+	          if (dataUrl) {
+	            const img = await loadImageFromDataUrl(dataUrl);
+	            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+	          }
+	        } catch (e) { /* ignore */ }
+	      }
+	      if (!baseDrawn) {
+	        try {
+	          ctx.fillStyle = '#000';
+	          ctx.fillRect(0, 0, w, h);
+	        } catch (e) { /* ignore */ }
+	      }
+	      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
+	      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
+	      try { return off.toDataURL('image/jpeg', 0.92); } catch (e) { return ''; }
+	    };
 
     const renderSlides = () => {
       if (!slidesList) return;
@@ -6810,12 +6982,12 @@
       });
     };
 
-    const addSlideNow = () => {
-      const img = captureFrameDataUrl();
-      if (!img) {
-        setStatus('No se pudo capturar slide.', true);
-        return;
-      }
+	    const addSlideNow = async () => {
+	      const img = await captureFrameDataUrl();
+	      if (!img) {
+	        setStatus('No se pudo capturar slide.', true);
+	        return;
+	      }
       const timeS = Number(video.currentTime) || 0;
       const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       slides = [...slides, { id, label: `Slide ${slides.length + 1}`, time_s: timeS, image_data: img }].slice(0, 24);
@@ -6858,11 +7030,11 @@
         await seekTo(t);
         // eslint-disable-next-line no-await-in-loop
         await sleep(120);
-        const img = captureFrameDataUrl();
-        if (!img) continue;
-        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        slides = [...slides, { id, label: safeText(ev?.label, safeText(ev?.kind, 'Evento')).slice(0, 140), time_s: t, image_data: img }].slice(0, 24);
-        renderSlides();
+	        const img = await captureFrameDataUrl();
+	        if (!img) continue;
+	        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	        slides = [...slides, { id, label: safeText(ev?.label, safeText(ev?.kind, 'Evento')).slice(0, 140), time_s: t, image_data: img }].slice(0, 24);
+	        renderSlides();
         // eslint-disable-next-line no-await-in-loop
         await sleep(60);
       }

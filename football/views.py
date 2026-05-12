@@ -17396,6 +17396,16 @@ def player_dashboard_page(request):
     can_preview_player_view = current_role != AppUserRole.ROLE_PLAYER or _is_admin_user(request.user)
     active_workspace = _get_active_workspace(request)
     home_url = _workspace_entry_url(active_workspace, user=request.user) if active_workspace else reverse('dashboard-home')
+    video_inbox_unread_count = 0
+    if active_workspace and primary_team and request.user and request.user.is_authenticated:
+        try:
+            video_inbox_unread_count = int(
+                VideoInboxItem.objects
+                .filter(workspace=active_workspace, team=primary_team, target_user=request.user, is_read=False)
+                .count()
+            )
+        except Exception:
+            video_inbox_unread_count = 0
     return render(
         request,
         'football/player_dashboard.html',
@@ -17414,6 +17424,10 @@ def player_dashboard_page(request):
             'can_preview_player_view': can_preview_player_view,
             'workspace_entry_url': home_url,
             'home_url': home_url,
+            'video_inbox_url': reverse('player-video-inbox'),
+            'video_inbox_unread_count': int(video_inbox_unread_count or 0),
+            'active_workspace': active_workspace,
+            'active_team': primary_team,
         },
     )
 
@@ -43038,6 +43052,21 @@ def analysis_page(request):
                     defaults={'created_by': request.user.get_username() if request.user.is_authenticated else ''},
                 )
                 folder_message = 'Carpeta creada correctamente.' if created else 'La carpeta ya existía y queda disponible.'
+        elif form_action == 'set_folder_player_visibility':
+            folder_id = _parse_int(request.POST.get('folder_id'))
+            visible = bool(request.POST.get('folder_visible_to_players'))
+            if not primary_team:
+                folder_error = 'No hay equipo principal configurado.'
+            elif not folder_id:
+                folder_error = 'Carpeta no válida.'
+            else:
+                folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+                if not folder:
+                    folder_error = 'Carpeta no encontrada.'
+                else:
+                    folder.is_visible_to_players = visible
+                    folder.save(update_fields=['is_visible_to_players'])
+                    folder_message = 'Carpeta visible para jugadores.' if visible else 'Carpeta oculta para jugadores.'
         elif form_action == 'set_folder_base_video':
             folder_id = _parse_int(request.POST.get('folder_id'))
             video_id_value = _parse_int(request.POST.get('video_id'))
@@ -44108,6 +44137,12 @@ def analysis_page(request):
         if selected_team:
             folders_qs = folders_qs.filter(Q(rival_team=selected_team) | Q(rival_team__isnull=True))
         video_folders = list(folders_qs.order_by('name', '-created_at'))
+    selected_video_folder = None
+    if primary_team and selected_folder_id:
+        try:
+            selected_video_folder = AnalystVideoFolder.objects.filter(id=int(selected_folder_id), team=primary_team).first()
+        except Exception:
+            selected_video_folder = None
 
     video_inbox_unread_count = 0
     if active_tab == 'videos' and primary_team:
@@ -44232,6 +44267,7 @@ def analysis_page(request):
                 'analysis_video_max_upload_mb': int(getattr(settings, 'ANALYSIS_VIDEO_MAX_UPLOAD_MB', 0) or 0),
                 'video_folders': video_folders,
                 'selected_folder_id': selected_folder_id,
+                'selected_video_folder': selected_video_folder,
                 'folder_message': folder_message,
             'folder_error': folder_error,
             'video_inbox_unread_count': int(video_inbox_unread_count or 0),
@@ -44822,6 +44858,22 @@ def analysis_video_inbox_open(request, item_id):
             VideoInboxItem.objects.filter(id=item.id).update(is_read=True, read_at=timezone.now())
         except Exception:
             pass
+
+    # Jugadores: abrir siempre en vistas "solo lectura" por item_id (no por ids sueltos).
+    try:
+        current_role = _get_user_role(request.user) or AppUserRole.ROLE_PLAYER
+    except Exception:
+        current_role = AppUserRole.ROLE_PLAYER
+    if current_role == AppUserRole.ROLE_PLAYER and not _is_admin_user(request.user):
+        if item.kind == VideoInboxItem.KIND_CLIP:
+            return redirect(reverse('player-video-inbox-clip-view', args=[int(item.id)]))
+        if item.kind == VideoInboxItem.KIND_EXPORT:
+            return redirect(reverse('player-video-inbox-export-view', args=[int(item.id)]))
+        if item.kind == VideoInboxItem.KIND_PLAYLIST:
+            return redirect(reverse('player-video-inbox-playlist-view', args=[int(item.id)]))
+        if item.kind == VideoInboxItem.KIND_REPORT:
+            return redirect(reverse('player-video-inbox-report', args=[int(item.id)]))
+
     payload = item.payload if isinstance(item.payload, dict) else {}
     if item.kind == VideoInboxItem.KIND_CLIP:
         clip_id = _parse_int(payload.get('clip_id'))
@@ -44838,6 +44890,548 @@ def analysis_video_inbox_open(request, item_id):
     if item.kind == VideoInboxItem.KIND_REPORT:
         return redirect(reverse('analysis-video-inbox-report', args=[int(item.id)]))
     return redirect(reverse('analysis'))
+
+
+@login_required
+def player_video_inbox_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    items = list(
+        VideoInboxItem.objects
+        .select_related('created_by_user')
+        .filter(workspace=active_ws, team=primary_team, target_user=request.user)
+        .order_by('-created_at', '-id')[:140]
+    )
+    unread = 0
+    try:
+        unread = int(
+            VideoInboxItem.objects
+            .filter(workspace=active_ws, team=primary_team, target_user=request.user, is_read=False)
+            .count()
+        )
+    except Exception:
+        unread = 0
+    return render(
+        request,
+        'football/player_video_inbox.html',
+        {
+            'team': primary_team,
+            'workspace': active_ws,
+            'items': items,
+            'unread_count': unread,
+            'player_home_url': reverse('player-dashboard'),
+        },
+    )
+
+
+@login_required
+def player_video_library_page(request):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    player_obj = Player.objects.filter(team=primary_team, user=request.user).first()
+
+    folders = list(
+        AnalystVideoFolder.objects
+        .filter(team=primary_team, is_visible_to_players=True)
+        .select_related('rival_team', 'base_video')
+        .order_by('name', '-created_at', '-id')[:120]
+    )
+
+    cond = Q(folder__is_visible_to_players=True)
+    if player_obj:
+        cond |= Q(assigned_players=player_obj)
+
+    videos = list(
+        RivalVideo.objects
+        .select_related('folder', 'rival_team', 'folder__rival_team', 'folder__base_video')
+        .prefetch_related('assigned_players')
+        .filter(team=primary_team)
+        .filter(cond)
+        .distinct()
+        .order_by('-is_base', '-created_at', '-id')[:260]
+    )
+
+    clips = list(
+        VideoClip.objects
+        .select_related('video', 'video__folder')
+        .filter(team=primary_team, video__team=primary_team)
+        .filter(video__in=videos)
+        .order_by('-updated_at', '-id')[:520]
+    )
+
+    videos_by_folder = defaultdict(list)
+    clips_by_folder = defaultdict(list)
+    assigned_only = []
+    assigned_only_clips = []
+    for v in videos:
+        folder = getattr(v, 'folder', None)
+        if folder and getattr(folder, 'is_visible_to_players', False):
+            videos_by_folder[int(folder.id)].append(v)
+        else:
+            assigned_only.append(v)
+
+    try:
+        for c in clips:
+            v = getattr(c, 'video', None)
+            folder = getattr(getattr(v, 'folder', None), 'id', None) if v else None
+            is_public_folder = bool(getattr(getattr(v, 'folder', None), 'is_visible_to_players', False)) if v else False
+            if folder and is_public_folder:
+                clips_by_folder[int(folder)].append(c)
+            else:
+                assigned_only_clips.append(c)
+    except Exception:
+        clips_by_folder = defaultdict(list)
+        assigned_only_clips = []
+
+    # Orden consistente (BASE arriba dentro de cada carpeta)
+    try:
+        for folder_id, items in list(videos_by_folder.items()):
+            base_id = 0
+            for f in folders:
+                if int(getattr(f, 'id', 0) or 0) == int(folder_id):
+                    base_id = int(getattr(f, 'base_video_id', 0) or 0)
+                    break
+            if base_id:
+                items.sort(key=lambda x: (0 if int(getattr(x, 'id', 0) or 0) == base_id else 1, -int(getattr(x, 'id', 0) or 0)))
+            else:
+                items.sort(key=lambda x: (0 if getattr(x, 'is_base', False) else 1, -int(getattr(x, 'id', 0) or 0)))
+    except Exception:
+        pass
+
+    unread = 0
+    try:
+        unread = int(
+            VideoInboxItem.objects
+            .filter(workspace=active_ws, team=primary_team, target_user=request.user, is_read=False)
+            .count()
+        )
+    except Exception:
+        unread = 0
+
+    folder_groups = []
+    try:
+        for f in folders:
+            fid = int(getattr(f, 'id', 0) or 0)
+            folder_groups.append({'folder': f, 'videos': videos_by_folder.get(fid, []), 'clips': clips_by_folder.get(fid, [])})
+    except Exception:
+        folder_groups = [{'folder': f, 'videos': videos_by_folder.get(int(getattr(f, 'id', 0) or 0), []), 'clips': clips_by_folder.get(int(getattr(f, 'id', 0) or 0), [])} for f in folders]
+
+    return render(
+        request,
+        'football/player_video_library.html',
+        {
+            'team': primary_team,
+            'workspace': active_ws,
+            'folders': folders,
+            'folder_groups': folder_groups,
+            'assigned_only': assigned_only,
+            'assigned_only_clips': assigned_only_clips,
+            'inbox_unread_count': unread,
+            'player_home_url': reverse('player-dashboard'),
+            'player_inbox_url': reverse('player-video-inbox'),
+        },
+    )
+
+
+@login_required
+def player_video_view_page(request, video_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    player_obj = Player.objects.filter(team=primary_team, user=request.user).first()
+
+    cond = Q(folder__is_visible_to_players=True)
+    if player_obj:
+        cond |= Q(assigned_players=player_obj)
+    video = (
+        RivalVideo.objects
+        .select_related('folder', 'rival_team', 'folder__rival_team')
+        .filter(id=int(video_id), team=primary_team)
+        .filter(cond)
+        .distinct()
+        .first()
+    )
+    if not video:
+        raise Http404('Vídeo no disponible')
+
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and str(getattr(video, 'source_url', '') or '').strip()
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
+    embed_url = ''
+    if yt_id:
+        embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+
+    return render(
+        request,
+        'football/player_video_view.html',
+        {
+            'team': primary_team,
+            'workspace': active_ws,
+            'video': video,
+            'youtube_id': yt_id,
+            'youtube_embed_url': embed_url,
+            'back_url': reverse('player-video-library'),
+        },
+    )
+
+
+@login_required
+def player_video_clip_view_page(request, clip_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    player_obj = Player.objects.filter(team=primary_team, user=request.user).first()
+
+    clip = (
+        VideoClip.objects
+        .select_related('video')
+        .filter(id=int(clip_id), team=primary_team, video__team=primary_team)
+        .first()
+    )
+    if not clip:
+        raise Http404('Clip no disponible')
+
+    video = clip.video
+    if not video:
+        raise Http404('Vídeo no disponible')
+
+    allowed = False
+    try:
+        if video.folder_id:
+            folder = AnalystVideoFolder.objects.filter(id=int(video.folder_id), team=primary_team).only('id', 'is_visible_to_players').first()
+            if folder and folder.is_visible_to_players:
+                allowed = True
+    except Exception:
+        allowed = False
+    if not allowed and player_obj:
+        try:
+            if video.assigned_players.filter(id=int(player_obj.id)).exists():
+                allowed = True
+        except Exception:
+            allowed = False
+    if not allowed:
+        raise Http404('Clip no disponible')
+
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and str(getattr(video, 'source_url', '') or '').strip()
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
+    embed_url = ''
+    if yt_id:
+        start_s = int(max(0, float(getattr(clip, 'in_seconds', 0.0) or 0.0)))
+        end_s = int(max(0, float(getattr(clip, 'out_seconds', 0.0) or 0.0)))
+        embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+        if start_s:
+            embed_url += f'&start={start_s}'
+        if end_s and end_s > start_s:
+            embed_url += f'&end={end_s}'
+        embed_url += '&autoplay=1'
+
+    return render(
+        request,
+        'football/player_video_clip_view.html',
+        {
+            'team': primary_team,
+            'video': video,
+            'clip': clip,
+            'inbox_item': None,
+            'youtube_id': yt_id,
+            'youtube_embed_url': embed_url,
+            'back_url': reverse('player-video-library'),
+        },
+    )
+
+
+@login_required
+def player_video_inbox_open(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item:
+        raise Http404('Elemento no disponible')
+    if not item.is_read:
+        try:
+            VideoInboxItem.objects.filter(id=item.id).update(is_read=True, read_at=timezone.now())
+        except Exception:
+            pass
+    if item.kind == VideoInboxItem.KIND_CLIP:
+        return redirect(reverse('player-video-inbox-clip-view', args=[int(item.id)]))
+    if item.kind == VideoInboxItem.KIND_EXPORT:
+        return redirect(reverse('player-video-inbox-export-view', args=[int(item.id)]))
+    if item.kind == VideoInboxItem.KIND_PLAYLIST:
+        return redirect(reverse('player-video-inbox-playlist-view', args=[int(item.id)]))
+    if item.kind == VideoInboxItem.KIND_REPORT:
+        return redirect(reverse('player-video-inbox-report', args=[int(item.id)]))
+    return redirect(reverse('player-video-inbox'))
+
+
+@login_required
+def player_video_inbox_clip_view_page(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_CLIP:
+        raise Http404('Clip no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    clip_id = _parse_int(payload.get('clip_id'))
+    video_id = _parse_int(payload.get('video_id'))
+    if not clip_id or not video_id:
+        raise Http404('Clip no disponible')
+    clip = (
+        VideoClip.objects
+        .select_related('video')
+        .filter(id=int(clip_id), team=primary_team, video_id=int(video_id))
+        .first()
+    )
+    if not clip:
+        raise Http404('Clip no disponible')
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        raise Http404('Vídeo no disponible')
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and str(getattr(video, 'source_url', '') or '').strip()
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(str(getattr(video, 'source_url', '') or '').strip()) if is_youtube else ''
+    embed_url = ''
+    if yt_id:
+        start_s = int(max(0, float(getattr(clip, 'in_seconds', 0.0) or 0.0)))
+        end_s = int(max(0, float(getattr(clip, 'out_seconds', 0.0) or 0.0)))
+        embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+        if start_s:
+            embed_url += f'&start={start_s}'
+        if end_s and end_s > start_s:
+            embed_url += f'&end={end_s}'
+        embed_url += '&autoplay=1'
+    return render(
+        request,
+        'football/player_video_clip_view.html',
+        {
+            'team': primary_team,
+            'video': video,
+            'clip': clip,
+            'inbox_item': item,
+            'youtube_id': yt_id,
+            'youtube_embed_url': embed_url,
+            'back_url': reverse('player-video-inbox'),
+        },
+    )
+
+
+@login_required
+def player_video_inbox_export_view_page(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_EXPORT:
+        raise Http404('Export no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    export_id = _parse_int(payload.get('export_id'))
+    if not export_id:
+        raise Http404('Export no disponible')
+    export = VideoExportAsset.objects.select_related('team', 'video', 'clip').filter(id=int(export_id), team=primary_team).first()
+    if not export:
+        raise Http404('Export no disponible')
+    return render(
+        request,
+        'football/player_video_export_view.html',
+        {
+            'team': primary_team,
+            'export': export,
+            'stream_url': reverse('player-video-inbox-export-stream', args=[int(item.id)]),
+            'back_url': reverse('player-video-inbox'),
+        },
+    )
+
+
+@login_required
+def player_video_inbox_export_stream(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        raise Http404('Export no disponible')
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        raise Http404('Export no disponible')
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_EXPORT:
+        raise Http404('Export no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    export_id = _parse_int(payload.get('export_id'))
+    if not export_id:
+        raise Http404('Export no disponible')
+    export = VideoExportAsset.objects.filter(id=int(export_id), team=primary_team).first()
+    if not export or not getattr(export, 'file', None):
+        raise Http404('Export no disponible')
+    mime = str(getattr(export, 'mime_type', '') or '').strip().lower()
+    name = str(getattr(getattr(export, 'file', None), 'name', '') or '').strip()
+    ext = _guess_video_file_ext(mime=mime, name=name)
+    want_download = str(request.GET.get('download') or '').strip().lower() in {'1', 'true', 'yes'}
+    filename = _safe_download_filename(title=str(getattr(export, 'title', '') or '').strip(), fallback=f'export-{export.id}', ext=ext)
+    return _file_field_stream_with_range(
+        request,
+        export.file,
+        content_type=mime or 'video/mp4',
+        filename=filename,
+        as_attachment=want_download,
+    )
+
+
+@login_required
+def player_video_inbox_playlist_view_page(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_PLAYLIST:
+        raise Http404('Playlist no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    clip_ids = [int(x) for x in clip_ids if str(x).isdigit()][:120]
+    if not video_id or not clip_ids:
+        raise Http404('Playlist no disponible')
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        raise Http404('Vídeo no disponible')
+    is_youtube = bool(
+        getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
+        and getattr(video, 'source_url', '')
+        and not getattr(video, 'video', None)
+    )
+    yt_id = _extract_youtube_video_id(getattr(video, 'source_url', '') or '') if is_youtube else ''
+    clips = list(
+        VideoClip.objects
+        .filter(team=primary_team, video_id=int(video_id), id__in=clip_ids)
+        .order_by('in_ms', 'id')[:220]
+    )
+    items = []
+    for c in clips:
+        embed_url = ''
+        if yt_id:
+            start_s = int(max(0, float(c.in_seconds)))
+            end_s = int(max(0, float(c.out_seconds)))
+            embed_url = f'https://www.youtube-nocookie.com/embed/{yt_id}?rel=0&modestbranding=1&playsinline=1'
+            if start_s:
+                embed_url += f'&start={start_s}'
+            if end_s and end_s > start_s:
+                embed_url += f'&end={end_s}'
+            embed_url += '&autoplay=1'
+        items.append(
+            {
+                'id': int(c.id),
+                'title': str(c.title or '').strip() or f'Clip {c.id}',
+                'collection': str(c.collection or '').strip(),
+                'in_s': float(c.in_seconds),
+                'out_s': float(c.out_seconds),
+                'tags': c.tags if isinstance(c.tags, list) else [],
+                'notes': str(c.notes or '').strip(),
+                'embed_url': embed_url,
+            }
+        )
+    return render(
+        request,
+        'football/player_video_playlist_view_youtube.html' if yt_id else 'football/player_video_playlist_view.html',
+        {
+            'team': primary_team,
+            'video': video,
+            'clips': items,
+            'inbox_item': item,
+            'youtube_id': yt_id,
+            'back_url': reverse('player-video-inbox'),
+        },
+    )
+
+
+@login_required
+def player_video_inbox_report_view_page(request, item_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='vídeos')
+    if forbidden:
+        return forbidden
+    active_ws = _get_active_workspace(request)
+    if not active_ws:
+        return HttpResponse('Workspace no configurado.', status=400)
+    primary_team = _get_player_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+    item = VideoInboxItem.objects.filter(id=int(item_id), workspace=active_ws, team=primary_team, target_user=request.user).first()
+    if not item or item.kind != VideoInboxItem.KIND_REPORT:
+        raise Http404('Elemento no disponible')
+    payload = item.payload if isinstance(item.payload, dict) else {}
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        raise Http404('Informe no disponible')
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        raise Http404('Vídeo no disponible')
+    title = _sanitize_task_text(str(payload.get('title') or item.title or '').strip(), multiline=False, max_len=180) or str(getattr(video, 'title', '') or '').strip() or 'Informe de vídeo'
+    clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
+    include_ai = str(payload.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return _video_report_pdf_response(request, primary_team=primary_team, video=video, title=title, clip_ids=clip_ids, include_ai=include_ai)
 
 
 def _video_report_pdf_response(
@@ -46099,6 +46693,339 @@ def analysis_video_studio_ocr_dorsal_api(request):
             'debug': ocr.get('debug') if isinstance(ocr.get('debug'), dict) else {},
         }
     )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_frame_capture_api(request):
+    """
+    Captura un frame del vídeo en servidor (FFmpeg) y lo devuelve como data URL.
+
+    Motivo: en iOS/Safari, `drawImage(video, ...)` suele devolver frames negros o no está soportado.
+    """
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        payload = {}
+
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+    try:
+        time_s = float(payload.get('time_s') or 0.0)
+    except Exception:
+        time_s = 0.0
+    time_s = max(0.0, float(time_s or 0.0))
+
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    src = _video_studio_resolve_rival_video_input_ref(video)
+    if not src:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para captura.'}, status=400)
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        return JsonResponse({'ok': False, 'error': 'FFmpeg no disponible.'}, status=400)
+
+    # Limitamos tamaño para que el data URL sea razonable (PDF/export y mobile).
+    try:
+        max_w = int(payload.get('max_w') or 1280)
+    except Exception:
+        max_w = 1280
+    max_w = max(480, min(int(max_w or 1280), 1920))
+    vf = f'scale={max_w}:-2'
+
+    try:
+        with tempfile.TemporaryDirectory(prefix='2j-vs-frame-') as tmpdir:
+            tmp_path = Path(tmpdir)
+            out_path = tmp_path / 'frame.jpg'
+            try:
+                subprocess.run(
+                    [
+                        ffmpeg_path,
+                        '-hide_banner',
+                        '-loglevel',
+                        'error',
+                        '-ss',
+                        f'{time_s:.3f}',
+                        '-i',
+                        str(src),
+                        '-frames:v',
+                        '1',
+                        '-vf',
+                        vf,
+                        '-q:v',
+                        '2',
+                        str(out_path),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    timeout=25,
+                )
+            except Exception:
+                return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
+            if not out_path.exists():
+                return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
+            data_url = _image_file_as_small_data_uri(out_path, max_width=max_w, max_height=int(max_w * 0.7), quality=78)
+            if not data_url:
+                return JsonResponse({'ok': False, 'error': 'No se pudo codificar frame.'}, status=400)
+            return JsonResponse({'ok': True, 'image_data': data_url})
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_studio_track_players_api(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        payload = {}
+
+    video_id = _parse_int(payload.get('video_id'))
+    if not video_id:
+        return JsonResponse({'ok': False, 'error': 'video_id requerido.'}, status=400)
+
+    try:
+        start_s = float(payload.get('start_s') or 0.0)
+        end_s = float(payload.get('end_s') or 0.0)
+    except Exception:
+        start_s = 0.0
+        end_s = 0.0
+    start_s = max(0.0, float(start_s or 0.0))
+    end_s = max(0.0, float(end_s or 0.0))
+    if end_s <= start_s + 0.05:
+        return JsonResponse({'ok': False, 'error': 'Rango start/end inválido.'}, status=400)
+    duration_s = min(180.0, max(0.1, end_s - start_s))
+
+    try:
+        fps = int(payload.get('fps') or 10)
+    except Exception:
+        fps = 10
+    fps = max(2, min(int(fps or 10), 15))
+
+    try:
+        max_w = int(payload.get('max_w') or 1280)
+    except Exception:
+        max_w = 1280
+    max_w = max(640, min(int(max_w or 1280), 1600))
+
+    raw_markers = payload.get('markers') if isinstance(payload, dict) else None
+    markers = raw_markers if isinstance(raw_markers, list) else []
+    markers = [m for m in markers if isinstance(m, dict)]
+    if not markers:
+        return JsonResponse({'ok': False, 'error': 'markers requerido.'}, status=400)
+
+    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    if not video:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+    src = _video_studio_resolve_rival_video_input_ref(video)
+    if not src:
+        return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para tracking.'}, status=400)
+
+    ffmpeg_path = shutil.which('ffmpeg')
+    if not ffmpeg_path:
+        return JsonResponse({'ok': False, 'error': 'FFmpeg no disponible.'}, status=400)
+
+    # Lazy imports: sólo para tracking.
+    try:
+        import numpy as np  # noqa: WPS433
+        import cv2  # noqa: WPS433
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'OpenCV no disponible.'}, status=400)
+
+    def _probe_scaled_dims() -> tuple[int, int]:
+        vf = f'scale={max_w}:-2,showinfo'
+        cmd = [
+            ffmpeg_path,
+            '-hide_banner',
+            '-loglevel',
+            'info',
+            '-ss',
+            f'{start_s:.3f}',
+            '-i',
+            str(src),
+            '-frames:v',
+            '1',
+            '-vf',
+            vf,
+            '-f',
+            'null',
+            '-',
+        ]
+        proc = subprocess.run(cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=25)  # noqa: S603
+        txt = ((proc.stderr or b'') + b'\n' + (proc.stdout or b'')).decode('utf-8', errors='ignore')
+        m = re.search(r's:(\d+)x(\d+)', txt)
+        if not m:
+            raise ValueError('No se pudo detectar tamaño del frame.')
+        w = int(m.group(1))
+        h = int(m.group(2))
+        if w <= 0 or h <= 0:
+            raise ValueError('Tamaño inválido.')
+        return w, h
+
+    def _create_tracker():
+        # OpenCV puede exponer trackers en distintas rutas según build.
+        for factory in (
+            lambda: cv2.TrackerCSRT_create(),
+            lambda: cv2.legacy.TrackerCSRT_create(),
+            lambda: cv2.TrackerKCF_create(),
+            lambda: cv2.legacy.TrackerKCF_create(),
+        ):
+            try:
+                return factory()
+            except Exception:
+                continue
+        return None
+
+    try:
+        out_w, out_h = _probe_scaled_dims()
+    except Exception as exc:
+        return JsonResponse({'ok': False, 'error': f'No se pudo preparar tracking. {exc}'}, status=400)
+
+    frame_bytes = int(out_w * out_h * 3)
+    if frame_bytes <= 0:
+        return JsonResponse({'ok': False, 'error': 'Tamaño de frame inválido.'}, status=400)
+
+    vf_track = f'scale={out_w}:{out_h},fps={fps}'
+    cmd_track = [
+        ffmpeg_path,
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-ss',
+        f'{start_s:.3f}',
+        '-t',
+        f'{duration_s:.3f}',
+        '-i',
+        str(src),
+        '-vf',
+        vf_track,
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'bgr24',
+        '-',
+    ]
+
+    tracks: dict[str, list[dict]] = {}
+    trackers: dict[str, object] = {}
+    inited = False
+    frame_idx = 0
+
+    try:
+        proc = subprocess.Popen(cmd_track, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo iniciar FFmpeg.'}, status=400)
+
+    try:
+        while True:
+            chunk = proc.stdout.read(frame_bytes) if proc.stdout else b''
+            if not chunk or len(chunk) < frame_bytes:
+                break
+            frame = np.frombuffer(chunk, dtype=np.uint8).reshape((out_h, out_w, 3))
+
+            if not inited:
+                # init trackers
+                for m in markers:
+                    uid = str(m.get('uid') or '').strip()
+                    if not uid:
+                        continue
+                    tr = _create_tracker()
+                    if not tr:
+                        continue
+                    try:
+                        x_rel = float(m.get('x_rel') or 0.0)
+                        y_rel = float(m.get('y_rel') or 0.0)
+                        bw_rel = float(m.get('bw_rel') or 0.08)
+                        bh_rel = float(m.get('bh_rel') or 0.08)
+                    except Exception:
+                        x_rel, y_rel, bw_rel, bh_rel = 0.0, 0.0, 0.08, 0.08
+                    x_rel = max(0.0, min(1.0, x_rel))
+                    y_rel = max(0.0, min(1.0, y_rel))
+                    bw_rel = max(0.02, min(0.35, bw_rel))
+                    bh_rel = max(0.02, min(0.35, bh_rel))
+                    cx = x_rel * out_w
+                    cy = y_rel * out_h
+                    bw = max(12.0, bw_rel * out_w)
+                    bh = max(12.0, bh_rel * out_h)
+                    x0 = max(0.0, min(out_w - 1.0, cx - bw / 2.0))
+                    y0 = max(0.0, min(out_h - 1.0, cy - bh / 2.0))
+                    bw2 = max(8.0, min(out_w - x0, bw))
+                    bh2 = max(8.0, min(out_h - y0, bh))
+                    bbox = (float(x0), float(y0), float(bw2), float(bh2))
+                    try:
+                        tr.init(frame, bbox)
+                        trackers[uid] = tr
+                        tracks.setdefault(uid, [])
+                    except Exception:
+                        continue
+                inited = True
+
+            # update trackers
+            t = start_s + (frame_idx / float(fps))
+            for uid, tr in list(trackers.items()):
+                try:
+                    ok, bbox = tr.update(frame)
+                except Exception:
+                    ok, bbox = False, None
+                if not ok or not bbox:
+                    continue
+                try:
+                    x, y, w, h = bbox
+                except Exception:
+                    continue
+                cx = float(x) + float(w) * 0.5
+                cy = float(y) + float(h) * 0.5
+                x_rel = max(0.0, min(1.0, cx / float(out_w)))
+                y_rel = max(0.0, min(1.0, cy / float(out_h)))
+                tracks.setdefault(uid, []).append({'t': float(t), 'x_rel': x_rel, 'y_rel': y_rel})
+            frame_idx += 1
+            if frame_idx >= int(duration_s * fps) + 2:
+                break
+    finally:
+        try:
+            if proc and proc.stdout:
+                proc.stdout.close()
+        except Exception:
+            pass
+        try:
+            if proc and proc.stderr:
+                proc.stderr.close()
+        except Exception:
+            pass
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+    if not any(tracks.get(k) for k in tracks.keys()):
+        return JsonResponse({'ok': False, 'error': 'No se pudo seguir a los jugadores (prueba a ampliar el recuadro o usar más contraste).'}, status=400)
+
+    return JsonResponse({'ok': True, 'fps': fps, 'width': out_w, 'height': out_h, 'tracks': tracks})
 
 
 @login_required

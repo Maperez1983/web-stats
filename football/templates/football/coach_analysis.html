@@ -522,7 +522,7 @@
 		        <nav class="tab-nav" aria-label="Secciones análisis">
 		          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
 		          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
-		          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Video Studio</a>
+			          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
 		          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
 		          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
 		        </nav>
@@ -962,18 +962,47 @@
 	                  {% if folder_message %}<p class="ok">{{ folder_message }}</p>{% endif %}
 	                  {% if folder_error %}<p class="error">{{ folder_error }}</p>{% endif %}
 	                </form>
-	                {% if video_folders %}
-	                <div class="folder-list">
-	                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
-	                  {% for folder in video_folders %}
-	                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
-	                    {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
-	                  </a>
-	                  {% endfor %}
-	                </div>
-	                {% endif %}
-	              </div>
-	            </details>
+		                {% if video_folders %}
+		                <div class="folder-list">
+		                  <a class="folder-chip {% if not selected_folder_id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}">Todas</a>
+		                  {% for folder in video_folders %}
+		                  <a class="folder-chip {% if selected_folder_id == folder.id %}is-active{% endif %}" href="?tab=videos{% if team_id %}&team_id={{ team_id }}{% endif %}&folder={{ folder.id }}">
+		                    {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
+		                    {% if folder.is_visible_to_players %}
+		                      <span style="display:inline-flex; align-items:center; justify-content:center; padding:0.1rem 0.4rem; border-radius:999px; border:1px solid rgba(34,211,238,0.35); background: rgba(34,211,238,0.12); color: rgba(207,250,254,0.95); font-weight:900; font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase;">Jugadores</span>
+		                    {% endif %}
+		                  </a>
+		                  {% endfor %}
+		                </div>
+		                <form class="form" method="post" style="margin-top:0.85rem;">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="form_action" value="set_folder_player_visibility" />
+		                  <div class="manual-grid">
+		                    <div>
+		                      <label for="folder_visibility_id">Visibilidad de carpeta</label>
+		                      <select id="folder_visibility_id" name="folder_id">
+		                        {% for folder in video_folders %}
+		                        <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
+		                        {% endfor %}
+		                      </select>
+		                    </div>
+		                    <div style="display:flex; align-items:flex-end;">
+		                      <label style="display:flex; align-items:center; gap:0.5rem; font-weight:900; margin:0;">
+		                        <input type="checkbox" name="folder_visible_to_players" value="1" {% if selected_video_folder and selected_video_folder.is_visible_to_players %}checked{% endif %} />
+		                        Visible para todos los jugadores
+		                      </label>
+		                    </div>
+		                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;">
+		                      <button class="button ghost" type="submit">Guardar</button>
+		                    </div>
+		                  </div>
+		                  <div class="meta" style="margin-top:0.35rem;">
+		                    Tip: activa el filtro de carpeta (clic en la carpeta) para que el checkbox refleje su estado.
+		                  </div>
+		                </form>
+		                {% endif %}
+		              </div>
+		            </details>
 	
 	            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
 	              <summary>Añadir vídeo (archivo / YouTube)</summary>
@@ -1200,77 +1229,12 @@
 	          <div class="item item-wide">
 	            <h3>Video Studio (editor)</h3>
 	            <p class="meta" style="margin:0.35rem 0 0;">
-	              Flujo recomendado: 1) añade un vídeo (archivo o YouTube) 2) abre “Video Studio” para recortar clips, añadir notas y dibujar (flechas, círculos, marcas) sobre el vídeo.
-	            </p>
+		              Aquí solo se abre el editor. Para subir/crear vídeos (archivo o YouTube) ve a la pestaña “Vídeos”.
+		            </p>
 	            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
 	              <a class="button ghost" href="{{ tab_link_videos }}">Ir a Vídeos</a>
 	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Bandeja</a>
 	            </div>
-	          </div>
-	          <div class="item item-wide">
-	            <h3>Cargar vídeo</h3>
-	            <p class="meta" style="margin:0.35rem 0 0;">
-	              Sube un archivo o pega un enlace de YouTube. Después pulsa “Abrir Video Studio”.
-	            </p>
-	            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
-	              <summary>Añadir vídeo (archivo / YouTube)</summary>
-	              <div class="collapsible-body">
-	                <form
-	                  class="form"
-	                  method="post"
-	                  enctype="multipart/form-data"
-	                  id="video-upload-form-studio"
-	                  data-max-mb="{{ analysis_video_max_upload_mb|default:'' }}"
-	                >
-	                  {% csrf_token %}
-	                  <input type="hidden" name="form_action" value="upload_video" />
-	                  <input type="hidden" name="video_team_id" value="{{ team_id }}" />
-	                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
-	                  <div class="manual-grid">
-	                    <div>
-	                      <label for="video_title_studio">Título</label>
-	                      <input id="video_title_studio" name="video_title" type="text" placeholder="Ej. J24 vs Rival · 1ª parte" />
-	                    </div>
-	                    <div>
-	                      <label for="video_source_studio">Fuente</label>
-	                      <select id="video_source_studio" name="video_source">
-	                        {% for value,label in video_sources %}
-	                        <option value="{{ value }}">{{ label }}</option>
-	                        {% endfor %}
-	                      </select>
-	                    </div>
-	                  </div>
-	                  <div class="manual-grid" style="margin-top:0.75rem;">
-	                    <div>
-	                      <label for="video_folder_id_studio">Carpeta</label>
-	                      <select id="video_folder_id_studio" name="video_folder_id">
-	                        <option value="">Sin carpeta</option>
-	                        {% for folder in video_folders %}
-	                        <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>{{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}</option>
-	                        {% endfor %}
-	                      </select>
-	                    </div>
-	                    <div>
-	                      <label for="video_file_studio">Archivo</label>
-	                      <input id="video_file_studio" name="video_file" type="file" accept="video/*" />
-	                    </div>
-	                  </div>
-	                  <div style="margin-top:0.75rem;">
-	                    <label for="video_source_url_studio">Enlace YouTube (opcional)</label>
-	                    <input id="video_source_url_studio" name="video_source_url" type="url" placeholder="https://youtube.com/..." />
-	                  </div>
-	                  <div class="actions" style="justify-content:flex-start; margin-top:0.75rem;">
-	                    <button class="button ghost" type="submit">Guardar vídeo</button>
-	                  </div>
-	                </form>
-	                {% if video_message %}
-	                <p class="meta" style="color:#86efac;margin-top:0.5rem;">{{ video_message }}</p>
-	                {% endif %}
-	                {% if video_error %}
-	                <p class="error">{{ video_error }}</p>
-	                {% endif %}
-	              </div>
-	            </details>
 	          </div>
 	          {% for video in rival_videos %}
 	          <article class="item video-item">

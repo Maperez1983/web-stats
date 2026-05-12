@@ -370,7 +370,13 @@
             <p class="mode-note">Modo global: resumen por jugador con detalle de jornadas plegado.</p>
           {% endif %}
         </div>
-        <div><a class="back-link" href="{% url 'dashboard-home' %}">← Volver al panel</a></div>
+        <div style="display:flex; flex-direction:column; gap:0.4rem; align-items:flex-end;">
+          <a class="back-link" href="{% if video_inbox_url %}{{ video_inbox_url }}{% else %}{% url 'player-video-inbox' %}{% endif %}">
+            Bandeja vídeos{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }}){% endif %}
+          </a>
+          <a class="back-link" href="{% url 'player-video-library' %}">Vídeos del equipo</a>
+          <a class="back-link" href="{% url 'dashboard-home' %}">← Volver al panel</a>
+        </div>
       </div>
 
       <div class="grid" id="playersGrid">

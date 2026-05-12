@@ -1,0 +1,160 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Vídeos del equipo</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body { margin:0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color:#f8fafc; font-family: Inter, system-ui, sans-serif; }
+      .page { max-width: 1100px; margin:0 auto; padding: 1.2rem; }
+      .head { display:flex; align-items:flex-start; justify-content:space-between; gap:0.9rem; flex-wrap:wrap; margin-bottom:1rem; }
+      h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }
+      .meta { color: rgba(226,232,240,0.72); font-weight:800; }
+      .card { background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.95rem; }
+      .row { display:flex; align-items:flex-start; justify-content:space-between; gap:0.6rem; padding:0.75rem; border-radius: 16px; border:1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.03); }
+      .row strong { font-weight:900; }
+      .row small { color: rgba(226,232,240,0.7); font-weight:800; }
+      .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+      .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+      .k { display:inline-flex; align-items:center; justify-content:center; min-width: 26px; padding: 0.1rem 0.4rem; border-radius: 10px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2, 6, 23, 0.35); font-weight: 900; font-size: 0.72rem; }
+      .list { display:grid; gap:0.6rem; }
+      details { border-radius: 18px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2, 6, 23, 0.22); padding: 0.7rem 0.85rem; }
+      details summary { cursor:pointer; font-weight:950; letter-spacing:0.06em; text-transform:uppercase; font-size:0.82rem; }
+      details .body { margin-top:0.75rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="head">
+        <div>
+          <h1>Vídeos del equipo</h1>
+          <div class="meta">
+            {% if team %}{{ team.display_name|default:team.name }}{% endif %}
+            · Bandeja: <span class="k">{{ inbox_unread_count|default:0 }}</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="button" href="{% if player_inbox_url %}{{ player_inbox_url }}{% else %}{% url 'player-video-inbox' %}{% endif %}">Bandeja</a>
+          <a class="button" href="{% if player_home_url %}{{ player_home_url }}{% else %}{% url 'player-dashboard' %}{% endif %}">Volver</a>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="list">
+          {% for group in folder_groups %}
+            {% if group.videos or group.clips %}
+              <details {% if forloop.first %}open{% endif %}>
+                <summary>
+                  {{ group.folder.name }}{% if group.folder.rival_team %} · {{ group.folder.rival_team.display_name }}{% endif %}
+                  · <span class="k">{{ group.videos|length }}</span> vídeos
+                  · <span class="k">{{ group.clips|length }}</span> clips
+                </summary>
+                <div class="body">
+                  <div class="list">
+                    {% for video in group.videos %}
+                      <div class="row">
+                        <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+                          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            {{ video.title }}
+                            {% if group.folder.base_video_id == video.id %}<span class="k" style="margin-left:0.35rem;">BASE</span>{% endif %}
+                            {% if not group.folder and video.is_base %}<span class="k" style="margin-left:0.35rem;">BASE</span>{% endif %}
+                          </strong>
+                          <small>{{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                          <a class="button primary" href="{% url 'player-video-view' video.id %}">Ver</a>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  {% if group.clips %}
+                    <div class="meta" style="margin-top:0.9rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Clips</div>
+                    <div class="list" style="margin-top:0.55rem;">
+                      {% for clip in group.clips %}
+                        <div class="row">
+                          <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+                            <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                              {{ clip.title|default:"(sin título)" }}
+                            </strong>
+                            <small>
+                              {{ clip.video.title|default:"Vídeo" }} · IN {{ clip.in_seconds|floatformat:1 }}s{% if clip.out_seconds %} → OUT {{ clip.out_seconds|floatformat:1 }}s{% endif %}
+                              · {{ clip.updated_at|date:"d/m/Y H:i" }}
+                            </small>
+                          </div>
+                          <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                            <a class="button primary" href="{% url 'player-video-clip-view' clip.id %}">Ver clip</a>
+                          </div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </details>
+            {% endif %}
+          {% empty %}
+            <div class="meta">Todavía no hay carpetas marcadas como visibles para jugadores.</div>
+          {% endfor %}
+
+          {% if assigned_only or assigned_only_clips %}
+            <details>
+              <summary>
+                Asignados a mí ·
+                <span class="k">{{ assigned_only|length }}</span> vídeos ·
+                <span class="k">{{ assigned_only_clips|length }}</span> clips
+              </summary>
+              <div class="body">
+                <div class="list">
+                  {% for video in assigned_only %}
+                    <div class="row">
+                      <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+                        <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                          {{ video.title }}
+                          {% if video.is_base %}<span class="k" style="margin-left:0.35rem;">BASE</span>{% endif %}
+                        </strong>
+                        <small>
+                          {% if video.folder %}{{ video.folder.name }} · {% endif %}
+                          {{ video.get_source_display }} · {{ video.created_at|date:"d/m/Y H:i" }}
+                        </small>
+                      </div>
+                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                        <a class="button primary" href="{% url 'player-video-view' video.id %}">Ver</a>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+
+                {% if assigned_only_clips %}
+                  <div class="meta" style="margin-top:0.9rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Clips</div>
+                  <div class="list" style="margin-top:0.55rem;">
+                    {% for clip in assigned_only_clips %}
+                      <div class="row">
+                        <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+                          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            {{ clip.title|default:"(sin título)" }}
+                          </strong>
+                          <small>
+                            {% if clip.video.folder %}{{ clip.video.folder.name }} · {% endif %}
+                            {{ clip.video.title|default:"Vídeo" }} · IN {{ clip.in_seconds|floatformat:1 }}s{% if clip.out_seconds %} → OUT {{ clip.out_seconds|floatformat:1 }}s{% endif %}
+                            · {{ clip.updated_at|date:"d/m/Y H:i" }}
+                          </small>
+                        </div>
+                        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                          <a class="button primary" href="{% url 'player-video-clip-view' clip.id %}">Ver clip</a>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </details>
+          {% endif %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

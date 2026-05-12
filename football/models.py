@@ -1655,6 +1655,10 @@ class AnalystVideoFolder(models.Model):
         help_text='Vídeo base de la carpeta (partido completo) para recortar clips.',
     )
     created_by = models.CharField(max_length=80, blank=True)
+    is_visible_to_players = models.BooleanField(
+        default=False,
+        help_text='Si está activo, la carpeta (y sus vídeos) se muestra en el espacio de Jugadores del equipo.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

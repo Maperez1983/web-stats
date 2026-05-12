@@ -202,6 +202,7 @@
 	              <button type="button" class="button" id="vs-snap">PNG</button>
 		              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
 		              <button type="button" class="button" id="vs-freeze" title="Congela para anotar encima (modo trabajo). También crea un freeze-frame para export.">Freeze</button>
+		              <button type="button" class="button" id="vs-track-auto" title="Tracking automático (beta): coloca marcadores Jugador, define IN/OUT y genera el seguimiento.">AutoTrack</button>
             </div>
             <div class="right">
               <button type="button" class="button" id="vs-tool-select">Select</button>
@@ -227,53 +228,53 @@
 		            <video id="vs-video" controls preload="metadata" playsinline crossorigin="anonymous">
 		              <source src="{{ video.video.url }}" />
 		            </video>
-		            <canvas id="vs-fx"></canvas>
-		            <canvas id="vs-canvas"></canvas>
-		            <div id="vs-roi" aria-hidden="true"></div>
-                <div id="vs-player-pop" role="dialog" aria-label="Marcador jugador">
-                  <div class="hint" style="margin:0 0 0.45rem;">Marcador jugador</div>
-                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
-                    <div class="seg" id="vs-player-team-seg" aria-label="Equipo">
-                      <button type="button" data-vs-team="home" class="active">Local</button>
-                      <button type="button" data-vs-team="away">Rival</button>
-                    </div>
-                    <div class="seg seg-warn" id="vs-player-style-seg" aria-label="Estilo">
-                      <button type="button" data-vs-style="tag" class="active">Tag</button>
-                      <button type="button" data-vs-style="circle">Círculo</button>
-                </div>
-                <div id="vs-text-pop" role="dialog" aria-label="Texto">
-                  <div class="hint" style="margin:0 0 0.45rem;">Texto (multilínea)</div>
-                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
-                    <div class="seg" id="vs-text-style-seg" aria-label="Estilo">
-                      <button type="button" data-vs-text-style="caption" class="active">Caption</button>
-                      <button type="button" data-vs-text-style="lower3">Lower</button>
-                      <button type="button" data-vs-text-style="plain">Plano</button>
-                    </div>
-                  </div>
-                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
-                    <textarea id="vs-text-value" placeholder="Escribe aquí la explicación…"></textarea>
-                  </div>
-                  <div class="vs-pop-row" style="justify-content:flex-end;">
-                    <button type="button" class="button ghost" id="vs-text-cancel">Cancelar</button>
-                    <button type="button" class="button primary" id="vs-text-ok">OK</button>
-                  </div>
-                </div>
+			            <canvas id="vs-fx"></canvas>
+			            <canvas id="vs-canvas"></canvas>
+			            <div id="vs-roi" aria-hidden="true"></div>
+	                <div id="vs-player-pop" role="dialog" aria-label="Marcador jugador">
+	                  <div class="hint" style="margin:0 0 0.45rem;">Marcador jugador</div>
+	                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
+	                    <div class="seg" id="vs-player-team-seg" aria-label="Equipo">
+	                      <button type="button" data-vs-team="home" class="active">Local</button>
+	                      <button type="button" data-vs-team="away">Rival</button>
+	                    </div>
+		                    <div class="seg seg-warn" id="vs-player-style-seg" aria-label="Estilo">
+		                      <button type="button" data-vs-style="tag" class="active">Tag</button>
+		                      <button type="button" data-vs-style="circle">Círculo</button>
+		                    </div>
+		                  </div>
+		                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
+		                    <input type="number" id="vs-player-number" placeholder="Dorsal" min="0" max="999" style="width:92px;" />
+		                    <input type="text" id="vs-player-name" placeholder="Nombre" maxlength="18" />
+		                  </div>
+	                  <div id="vs-player-recents" style="margin:0 0 0.55rem;"></div>
+	                  <div class="vs-pop-row" style="justify-content:flex-end;">
+	                    <button type="button" class="button ghost" id="vs-player-cancel">Cancelar</button>
+	                    <button type="button" class="button primary" id="vs-player-ok">OK</button>
+	                  </div>
+	                </div>
+	                <div id="vs-text-pop" role="dialog" aria-label="Texto">
+	                  <div class="hint" style="margin:0 0 0.45rem;">Texto (multilínea)</div>
+	                  <div class="vs-pop-row" style="justify-content:space-between; margin:0 0 0.45rem;">
+	                    <div class="seg" id="vs-text-style-seg" aria-label="Estilo">
+	                      <button type="button" data-vs-text-style="caption" class="active">Caption</button>
+	                      <button type="button" data-vs-text-style="lower3">Lower</button>
+	                      <button type="button" data-vs-text-style="plain">Plano</button>
+	                    </div>
+	                  </div>
+	                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
+	                    <textarea id="vs-text-value" placeholder="Escribe aquí la explicación…"></textarea>
+	                  </div>
+	                  <div class="vs-pop-row" style="justify-content:flex-end;">
+	                    <button type="button" class="button ghost" id="vs-text-cancel">Cancelar</button>
+	                    <button type="button" class="button primary" id="vs-text-ok">OK</button>
+	                  </div>
+	                </div>
 			          </div>
-                  <div class="vs-pop-row" style="margin-bottom:0.45rem;">
-                    <input type="number" id="vs-player-number" placeholder="Dorsal" min="0" max="999" style="width:92px;" />
-                    <input type="text" id="vs-player-name" placeholder="Nombre" maxlength="18" />
-                  </div>
-                  <div id="vs-player-recents" style="margin:0 0 0.55rem;"></div>
-                  <div class="vs-pop-row" style="justify-content:flex-end;">
-                    <button type="button" class="button ghost" id="vs-player-cancel">Cancelar</button>
-                    <button type="button" class="button primary" id="vs-player-ok">OK</button>
-                  </div>
-                </div>
-		          </div>
-		          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color: transparent;">
-		            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
-		            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
-		          </div>
+			          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color: transparent;">
+			            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
+			            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
+			          </div>
 		          <div class="status" id="vs-status">Listo.</div>
               <div class="vs-clips-zone">
                 <div class="meta" style="font-weight:900; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:0.35rem;">Clips</div>
@@ -904,11 +905,13 @@
 	    <input type="hidden" id="vs-clip-delete-url" value="{% url 'analysis-video-studio-clip-delete-api' %}" />
 	    <input type="hidden" id="vs-share-clip-create-url" value="{% url 'share-video-clip-create' %}" />
 	    <input type="hidden" id="vs-share-report-create-url" value="{% url 'share-video-report-create' %}" />
-	    <input type="hidden" id="vs-share-playlist-create-url" value="{% url 'share-video-playlist-create' %}" />
-	    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
-	    <input type="hidden" id="vs-inbox-recipients-url" value="{% url 'analysis-video-inbox-recipients-api' %}" />
-	    <input type="hidden" id="vs-inbox-send-url" value="{% url 'analysis-video-inbox-send-api' %}" />
-	    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
+		    <input type="hidden" id="vs-share-playlist-create-url" value="{% url 'share-video-playlist-create' %}" />
+		    <input type="hidden" id="vs-share-links-url" value="{% url 'analysis-video-studio-share-links-api' %}" />
+		    <input type="hidden" id="vs-frame-capture-url" value="{% url 'analysis-video-studio-frame-capture-api' %}" />
+		    <input type="hidden" id="vs-track-url" value="{% url 'analysis-video-studio-track-players-api' %}" />
+		    <input type="hidden" id="vs-inbox-recipients-url" value="{% url 'analysis-video-inbox-recipients-api' %}" />
+		    <input type="hidden" id="vs-inbox-send-url" value="{% url 'analysis-video-inbox-send-api' %}" />
+		    <input type="hidden" id="vs-timeline-url" value="{% url 'analysis-video-studio-timeline-api' %}" />
 	    <input type="hidden" id="vs-timeline-save-url" value="{% url 'analysis-video-studio-timeline-save-api' %}" />
 	    <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
 	    <input type="hidden" id="vs-timeline-export-url" value="{% url 'analysis-video-studio-timeline-export-api' %}" />
