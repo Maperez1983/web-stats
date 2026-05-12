@@ -67,7 +67,22 @@
       event.preventDefault();
       event.stopPropagation();
 
-      const pdfUrl = `${url.pathname}${url.search || ''}${url.hash || ''}`;
+      // En visor embebido (iframe) necesitamos Content-Disposition inline; pasamos `inline=1`
+      // a los endpoints PDF (si el endpoint ya decide ignorarlo, no pasa nada).
+      try {
+        if (!url.searchParams.has('inline')) url.searchParams.set('inline', '1');
+      } catch (e) {
+        // ignore
+      }
+      const qs = (() => {
+        try {
+          const raw = url.searchParams.toString();
+          return raw ? `?${raw}` : '';
+        } catch (e) {
+          return url.search || '';
+        }
+      })();
+      const pdfUrl = `${url.pathname}${qs}${url.hash || ''}`;
       const title = safeText(a.getAttribute('data-pdf-title')) || safeText(a.getAttribute('title')) || safeText(a.textContent) || 'PDF';
       const backUrl = getBackUrl();
       const viewerUrl = buildViewerUrl({ pdfUrl, title, backUrl });
@@ -85,4 +100,3 @@
     true,
   );
 })();
-

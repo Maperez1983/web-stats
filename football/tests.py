@@ -18,7 +18,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspaceTeam
+from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -6271,6 +6271,56 @@ class VideoStudioProApiTests(TestCase):
         self.assertEqual(ev_list.status_code, 200)
         items = ev_list.json().get('items') or []
         self.assertTrue(any((row.get('kind') == 'press') for row in items))
+
+    def test_video_studio_autoclip_prefs_learn_from_timeline_clip(self):
+        # Creamos un evento en timeline.
+        ev_save = self.client.post(
+            reverse('analysis-video-studio-timeline-save-api'),
+            data=json.dumps(
+                {
+                    'video_id': self.video.id,
+                    'time_s': 15.4,
+                    'kind': 'press',
+                    'label': 'Presión alta',
+                    'color': '#22d3ee',
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(ev_save.status_code, 200)
+        self.assertTrue(ev_save.json().get('ok'))
+
+        # Clip creado alrededor del evento, replicando Timeline→Clip (tags 'timeline' + kind).
+        clip_save = self.client.post(
+            reverse('analysis-video-studio-clip-save-api'),
+            data=json.dumps(
+                {
+                    'video_id': self.video.id,
+                    'title': 'Presión alta',
+                    'collection': 'Rival',
+                    'in_s': 12.0,
+                    'out_s': 18.0,
+                    'tags': ['press', 'timeline'],
+                    'overlay': {'objects': []},
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(clip_save.status_code, 200)
+        self.assertTrue(clip_save.json().get('ok'))
+
+        # Abrir Video Studio siembra preferencias (aprende de cortes existentes).
+        studio = self.client.get(reverse('analysis-video-studio', args=[self.video.id]))
+        self.assertEqual(studio.status_code, 200)
+
+        # La preferencia AutoClip se guarda en el workspace.
+        key = f'vs_event_autoclip:v1:{self.team.id}:rival'
+        pref = WorkspacePreference.objects.filter(workspace=self.workspace, key=key).first()
+        self.assertIsNotNone(pref)
+        self.assertIsInstance(pref.value, dict)
+        # Evento en 15.4s y clip 12-18 => pre 3.4s, post 2.6s. Se redondea a enteros.
+        self.assertEqual(int(pref.value.get('pre') or 0), 3)
+        self.assertEqual(int(pref.value.get('post') or 0), 3)
 
     def test_video_studio_export_pdf_and_package(self):
         png_1x1 = base64.b64decode(

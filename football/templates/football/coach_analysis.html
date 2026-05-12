@@ -499,16 +499,16 @@
         text-align: left;
         vertical-align: top;
       }
-      .standings-table th {
-        font-size: 0.72rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.72);
-      }
-    </style>
-  </head>
-  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
-    <div class="page product-shell">
+		      .standings-table th {
+		        font-size: 0.72rem;
+		        letter-spacing: 0.08em;
+		        text-transform: uppercase;
+		        color: rgba(226, 232, 240, 0.72);
+		      }
+		    </style>
+		  </head>
+	  <body class="prod-commercial" data-active-tab="{{ active_tab|default:'reports' }}">
+	    <div class="page product-shell">
       {% include 'football/includes/dragon_nav.html' %}
       <header>
         <div>
@@ -517,22 +517,29 @@
         </div>
         <a class="button ghost" href="{% url 'coach-detail' %}">Volver</a>
       </header>
-      <article class="panel">
-	        <p>{{ description }}</p>
-		        <nav class="tab-nav" aria-label="Secciones análisis">
-		          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
-		          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
-			          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
-		          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
-		          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
-		        </nav>
+	      <article class="panel">
+		        {% if active_tab == 'videos' %}
+		          <p class="meta" style="margin:0;">
+		            Biblioteca de vídeos: organiza por carpetas, sube archivo o enlaza YouTube y abre clips en el editor.
+		          </p>
+		        {% else %}
+		          <p>{{ description }}</p>
+		        {% endif %}
+			        <nav class="tab-nav" aria-label="Secciones análisis">
+			          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
+			          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
+				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
+			          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
+			          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
+			        </nav>
 
-	        <section class="analysis-summary" aria-label="Resumen rival">
-	          <div class="analysis-summary-main">
-	            <div class="analysis-summary-crest">
-	              {% if extracted.rival_crest_url %}
-	                <img alt="" src="{{ extracted.rival_crest_url }}" loading="lazy" />
-	              {% endif %}
+		        {% if active_tab != 'videos' %}
+		        <section class="analysis-summary" aria-label="Resumen rival">
+		          <div class="analysis-summary-main">
+		            <div class="analysis-summary-crest">
+		              {% if extracted.rival_crest_url %}
+		                <img alt="" src="{{ extracted.rival_crest_url }}" loading="lazy" />
+		              {% endif %}
 	            </div>
 	            <div style="min-width:0;">
 	              <h2 class="analysis-summary-title">{% if extracted.rival_name %}{{ extracted.rival_name }}{% else %}Rival{% endif %}</h2>
@@ -585,9 +592,10 @@
 	              <div class="value">
 	                {% if extracted.rival_gf != "" %}{{ extracted.rival_gf }}{% else %}—{% endif %}/{% if extracted.rival_ga != "" %}{{ extracted.rival_ga }}{% else %}—{% endif %}
 	              </div>
-	            </div>
-	          </div>
-	        </section>
+		            </div>
+		          </div>
+		        </section>
+		        {% endif %}
 	
 	        <div data-tab="reports">
 	        <form class="form" method="post">
@@ -925,24 +933,18 @@
 
         <div data-tab="videos">
         <div class="grid" style="margin-top:1rem;">
-          <div class="item item-wide">
-            <h3>Bandeja y flujo</h3>
-            <p class="meta" style="margin:0.35rem 0 0;">
-              Recibe playlists/clips del staff y prepara la charla: selecciona clips en Video Studio → crea playlist → envíala a la Bandeja.
-            </p>
-            <div class="actions" style="justify-content:flex-start; margin-top:0.85rem;">
-              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">
-                Abrir bandeja{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }} sin leer){% endif %}
-              </a>
-              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=playlist">Playlists</a>
-              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=clip">Clips</a>
-            </div>
-          </div>
 	          <div class="item item-wide">
-	            <h3>Repositorio vídeos rival</h3>
+	            <h3>Biblioteca de vídeos</h3>
+	            <div class="actions" style="justify-content:flex-start; margin:0.65rem 0 0.2rem;">
+	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}">
+	                Bandeja{% if video_inbox_unread_count %} ({{ video_inbox_unread_count }} sin leer){% endif %}
+	              </a>
+	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=playlist">Playlists</a>
+	              <a class="button ghost" href="{% url 'analysis-video-inbox' %}?filter=clip">Clips</a>
+	            </div>
 	            <details class="collapsible" {% if folder_message or folder_error or selected_folder_id %}open{% endif %}>
 	              <summary>
-	                Carpetas y filtro
+	                Carpetas y organización
 	                {% if selected_folder_id %}<span class="meta" style="font-weight:600;">· filtro activo</span>{% endif %}
 	              </summary>
 	              <div class="collapsible-body">
@@ -1001,12 +1003,66 @@
 		                  </div>
 		                </form>
 		                {% endif %}
+			              </div>
+			            </details>
+
+		            <details class="collapsible" style="margin-top:0.75rem;" {% if report_message or report_error %}open{% endif %}>
+		              <summary>Informes (presentación · PPTX)</summary>
+		              <div class="collapsible-body">
+		                <p class="meta" style="margin-top:0;">
+		                  Crea un informe por rival/carpeta y exporta un PPTX con 1 clip por diapositiva (vídeo embebido + texto + capturas).
+		                </p>
+		                <form class="form" method="post" style="margin-top:0.75rem;">
+		                  {% csrf_token %}
+		                  <input type="hidden" name="form_action" value="create_analysis_report" />
+		                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+		                  <div class="manual-grid">
+		                    <div style="grid-column:1/-1;">
+		                      <label for="report_title">Título</label>
+		                      <input id="report_title" name="report_title" type="text" placeholder="Ej. Scouting · presión alta / ABP / salida de balón…" />
+		                    </div>
+		                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;">
+		                      <button class="button ghost" type="submit" {% if not selected_folder_id %}disabled{% endif %}>Crear informe</button>
+		                    </div>
+		                  </div>
+		                  {% if report_message %}<p class="ok">{{ report_message }}</p>{% endif %}
+		                  {% if report_error %}<p class="error">{{ report_error }}</p>{% endif %}
+		                </form>
+
+		                {% if folder_reports %}
+		                  <div class="grid" style="margin-top:0.85rem;">
+		                    {% for rep in folder_reports %}
+		                      <article class="item">
+		                        <h4 style="margin:0;">{{ rep.title }}</h4>
+		                        <p class="meta" style="margin:0.25rem 0 0;">
+		                          Actualizado · {{ rep.updated_at|date:"d/m/Y H:i" }}
+		                          {% if rep.pptx_updated_at %} · PPTX · {{ rep.pptx_updated_at|date:"d/m/Y H:i" }}{% endif %}
+		                        </p>
+		                        <div class="actions" style="justify-content:flex-start; margin-top:0.65rem;">
+		                          <a class="button ghost" href="{% url 'analysis-video-report' rep.id %}">Editar</a>
+		                          {% if rep.pptx_file %}
+		                            <a class="button ghost" href="{% url 'analysis-video-report-pptx-file' rep.id %}">Descargar PPTX</a>
+		                          {% endif %}
+		                          <form method="post" style="margin:0;">
+		                            {% csrf_token %}
+		                            <input type="hidden" name="form_action" value="delete_analysis_report" />
+		                            <input type="hidden" name="report_id" value="{{ rep.id }}" />
+		                            <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+		                            <button class="button ghost" type="submit">Eliminar</button>
+		                          </form>
+		                        </div>
+		                      </article>
+		                    {% endfor %}
+		                  </div>
+		                {% else %}
+		                  <p class="meta" style="margin-top:0.85rem;">Todavía no hay informes en esta carpeta.</p>
+		                {% endif %}
 		              </div>
 		            </details>
-	
-	            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
-	              <summary>Añadir vídeo (archivo / YouTube)</summary>
-	              <div class="collapsible-body">
+		
+		            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
+		              <summary>Añadir vídeo (archivo / YouTube)</summary>
+		              <div class="collapsible-body">
 		            <form
 		              class="form"
 		              method="post"

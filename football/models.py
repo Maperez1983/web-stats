@@ -1978,6 +1978,83 @@ class VideoExportAsset(models.Model):
         return self.title or f'Export {self.id}'
 
 
+class AnalysisVideoReport(models.Model):
+    """
+    Informe de análisis por carpeta (rival).
+
+    Se usa para montar una presentación (PPTX) con clips, texto, capturas y recursos visuales.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='analysis_video_reports')
+    folder = models.ForeignKey(
+        AnalystVideoFolder,
+        on_delete=models.CASCADE,
+        related_name='analysis_reports',
+    )
+    title = models.CharField(max_length=180)
+    notes = models.TextField(blank=True)
+    pptx_file = models.FileField(upload_to='analysis-reports/pptx/', null=True, blank=True)
+    pptx_updated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['team', 'folder', '-updated_at']),
+            models.Index(fields=['folder', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Informe {self.id}'
+
+
+class AnalysisVideoReportItem(models.Model):
+    report = models.ForeignKey(AnalysisVideoReport, on_delete=models.CASCADE, related_name='items')
+    position = models.PositiveIntegerField(default=0)
+    clip = models.ForeignKey(VideoClip, on_delete=models.SET_NULL, null=True, blank=True, related_name='analysis_report_items')
+    export_asset = models.ForeignKey(
+        VideoExportAsset,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='analysis_report_items',
+        help_text='Export MP4 a incrustar en el PPTX. Si está vacío, se usa el último export del clip.',
+    )
+    title = models.CharField(max_length=180, blank=True)
+    body = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['position', 'id']
+        indexes = [
+            models.Index(fields=['report', 'position']),
+            models.Index(fields=['clip', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return self.title or (self.clip.title if self.clip_id else f'Item {self.id}')
+
+
+class AnalysisVideoReportItemImage(models.Model):
+    item = models.ForeignKey(AnalysisVideoReportItem, on_delete=models.CASCADE, related_name='images')
+    position = models.PositiveIntegerField(default=0)
+    image = models.ImageField(upload_to='analysis-reports/images/')
+    caption = models.CharField(max_length=180, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', 'id']
+        indexes = [
+            models.Index(fields=['item', 'position']),
+        ]
+
+    def __str__(self):
+        return self.caption or f'Imagen {self.id}'
+
+
 class VideoVoiceoverAsset(models.Model):
     """
     Voz en off subida/grabada para mezclarla en exports del Video Studio.

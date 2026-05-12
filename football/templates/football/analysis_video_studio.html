@@ -20,6 +20,7 @@
       .toolbar .left, .toolbar .right { display:flex; flex-wrap:wrap; gap:0.45rem; align-items:center; }
       .toolbar input[type="color"] { width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.14); background: transparent; padding: 0; }
       .toolbar input[type="range"] { width: 120px; }
+      .toolbar select { height: 38px; border-radius: 12px; padding: 0 0.65rem; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; }
       .button { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.72rem 0.98rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; }
       .button.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
       .button.danger { background: rgba(127,29,29,0.22); border-color: rgba(248,113,113,0.4); color:#fecaca; }
@@ -221,6 +222,12 @@
               <button type="button" class="button danger" id="vs-clear">Limpiar</button>
               <input type="color" id="vs-color" value="#22d3ee" title="Color" />
               <input type="range" id="vs-width" min="2" max="22" step="1" value="6" title="Grosor" />
+              <select id="vs-line-style" title="Estilo de línea">
+                <option value="solid" selected>Solid</option>
+                <option value="dash">Dash</option>
+                <option value="dot">Dot</option>
+              </select>
+              <button type="button" class="button" id="vs-arrow-double" title="Doble punta (flechas/trayectorias)">↔︎</button>
             </div>
           </div>
 
@@ -485,6 +492,31 @@
                     <option value="pulse">Pulse</option>
                   </select>
                 </label>
+                <div id="vs-layer-style-form" style="display:none; gap:0.45rem;">
+                  <div class="hint">Estilo de capa</div>
+                  <label>
+                    Línea
+                    <select id="vs-layer-line-style">
+                      <option value="">(Auto)</option>
+                      <option value="solid">Solid</option>
+                      <option value="dash">Dash</option>
+                      <option value="dot">Dot</option>
+                    </select>
+                  </label>
+                  <label style="margin:0; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                    <input type="checkbox" id="vs-layer-double-head" style="width:18px;height:18px;accent-color:#22d3ee;" />
+                    Doble punta
+                  </label>
+                  <label style="margin:0; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+                    <input type="checkbox" id="vs-layer-locked" style="width:18px;height:18px;accent-color:#22d3ee;" />
+                    Bloquear (no mover)
+                  </label>
+                  <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+                    <button type="button" class="button" id="vs-layer-duplicate">Duplicar capa</button>
+                    <button type="button" class="button" id="vs-layer-front">Al frente</button>
+                    <button type="button" class="button" id="vs-layer-back">Al fondo</button>
+                  </div>
+                </div>
                 <div id="vs-fx-form" style="display:none; gap:0.45rem;">
                   <div class="hint">Ajustes FX</div>
                   <label id="vs-fx-spot-controls" style="display:none;">

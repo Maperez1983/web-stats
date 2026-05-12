@@ -53,12 +53,32 @@
                   · <span class="k">{{ group.videos|length }}</span> vídeos
                   · <span class="k">{{ group.clips|length }}</span> clips
                 </summary>
-                <div class="body">
-                  <div class="list">
-                    {% for video in group.videos %}
-                      <div class="row">
-                        <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
-                          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+	                <div class="body">
+	                  <div class="list">
+	                    {% if group.reports %}
+	                      <div class="meta" style="margin-top:0.15rem; font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Informes</div>
+	                      <div class="list" style="margin-top:0.55rem;">
+	                        {% for rep in group.reports %}
+	                          <div class="row">
+	                            <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+	                              <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ rep.title }}</strong>
+	                              <small>Actualizado · {{ rep.updated_at|date:"d/m/Y H:i" }}</small>
+	                            </div>
+	                            <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+	                              {% if rep.pptx_file %}
+	                                <a class="button primary" href="{% url 'analysis-video-report-pptx-file' rep.id %}">PPTX</a>
+	                              {% else %}
+	                                <span class="meta">Sin export</span>
+	                              {% endif %}
+	                            </div>
+	                          </div>
+	                        {% endfor %}
+	                      </div>
+	                    {% endif %}
+	                    {% for video in group.videos %}
+	                      <div class="row">
+	                        <div style="display:flex; flex-direction:column; gap:0.1rem; min-width:0;">
+	                          <strong style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                             {{ video.title }}
                             {% if group.folder.base_video_id == video.id %}<span class="k" style="margin-left:0.35rem;">BASE</span>{% endif %}
                             {% if not group.folder and video.is_base %}<span class="k" style="margin-left:0.35rem;">BASE</span>{% endif %}

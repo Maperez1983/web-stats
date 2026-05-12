@@ -154,6 +154,9 @@ from football.models import (
     VideoClip,
     VideoAiInsight,
     VideoExportAsset,
+    AnalysisVideoReport,
+    AnalysisVideoReportItem,
+    AnalysisVideoReportItemImage,
     VideoVoiceoverAsset,
     VideoMusicAsset,
     VideoInboxItem,
@@ -8448,11 +8451,27 @@ def _is_benagalbon_team(team):
 
 
 def resolve_team_crest_url(request, team, *, fallback_static='football/images/cdb-logo.png', sync=False):
+    def _abs_or_relative(path: str) -> str:
+        path = str(path or '').strip()
+        if not path:
+            return ''
+        if not request:
+            return path
+        try:
+            return request.build_absolute_uri(path)
+        except Exception:
+            return path
+
     if not team:
-        return request.build_absolute_uri(static(fallback_static)) if fallback_static and request else ''
+        if not fallback_static:
+            return ''
+        try:
+            return _abs_or_relative(static(fallback_static))
+        except Exception:
+            return ''
     if getattr(team, 'crest_image', None):
         try:
-            return request.build_absolute_uri(team.crest_image.url) if request else team.crest_image.url
+            return _abs_or_relative(team.crest_image.url)
         except Exception:
             pass
     crest_url = str(getattr(team, 'crest_url', '') or '').strip()
@@ -8465,16 +8484,19 @@ def resolve_team_crest_url(request, team, *, fallback_static='football/images/cd
     if _is_benagalbon_team(team):
         try:
             local_primary = 'football/images/cdb-benagalbon-crest-contrast.png'
-            return request.build_absolute_uri(static(local_primary)) if request else static(local_primary)
+            return _abs_or_relative(static(local_primary))
         except Exception:
             pass
     # Fallback estable: escudo generado (evita imágenes externas rotas).
     try:
         generated = reverse('team-crest-svg', args=[team.id])
-        return request.build_absolute_uri(generated) if request else generated
+        return _abs_or_relative(generated)
     except Exception:
         if fallback_static:
-            return request.build_absolute_uri(static(fallback_static)) if request else static(fallback_static)
+            try:
+                return _abs_or_relative(static(fallback_static))
+            except Exception:
+                return static(fallback_static)
         return ''
 
 
@@ -25140,6 +25162,44 @@ def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_p
 
 
 def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
+    def _safe_pdf_image_data_url(data_url: str, *, max_bytes: int = 6_000_000, max_side: int = 1800) -> str:
+        """
+        Normaliza imágenes embebidas para WeasyPrint.
+
+        Motivo: ciertos binarios corruptos o extremadamente grandes pueden hacer que el motor
+        nativo de imágenes (gdk-pixbuf/cairo) falle de forma no recuperable (500).
+        Preferimos degradar a "sin representación gráfica" antes que tumbar el endpoint.
+        """
+        raw = str(data_url or '').strip()
+        if not raw.startswith('data:image/') or ';base64,' not in raw:
+            return raw
+        raw_bytes, _ext = _decode_canvas_data_url(raw)
+        if not raw_bytes:
+            return ''
+        if len(raw_bytes) > int(max_bytes or 0):
+            return ''
+        if Image is None:
+            return raw
+        try:
+            import io as _io  # noqa: WPS433
+
+            with Image.open(_io.BytesIO(raw_bytes)) as img:
+                # Aplanamos sobre blanco para evitar problemas con alpha/transparencia.
+                rgba = img.convert('RGBA')
+                flat = Image.new('RGBA', rgba.size, (255, 255, 255, 255))
+                try:
+                    flat.alpha_composite(rgba)
+                except Exception:
+                    flat.paste(rgba, (0, 0), rgba)
+                rgb = flat.convert('RGB')
+                rgb.thumbnail((max(320, int(max_side)), max(320, int(max_side))))
+                out = _io.BytesIO()
+                rgb.save(out, format='JPEG', quality=84, optimize=True, progressive=True)
+                payload = base64.b64encode(out.getvalue()).decode('ascii')
+                return 'data:image/jpeg;base64,' + payload
+        except Exception:
+            return ''
+
     tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('order', 'id'))
     total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
     session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', ''))
@@ -25417,7 +25477,7 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
     task_cards = []
     for idx, task in enumerate(tasks):
         sheet = task_sheets[idx] if idx < len(task_sheets) else _build_session_task_sheet(task)
-        preview_url = _task_preview_data_url_for_pdf(task)
+        preview_url = _safe_pdf_image_data_url(_task_preview_data_url_for_pdf(task))
         meta = {}
         try:
             if isinstance(getattr(task, 'tactical_layout', None), dict):
@@ -25849,10 +25909,12 @@ def session_plan_pdf(request, session_id):
     pdf_style = (request.GET.get('style') or 'uefa').strip().lower()
     if pdf_style not in {'uefa', 'club', 'hybrid'}:
         pdf_style = 'uefa'
+    force_pdf = str(request.GET.get('force_pdf') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    inline = str(request.GET.get('inline') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     context = _build_session_pdf_context(request, session.microcycle.team, session, pdf_style=pdf_style)
     html = render_to_string('football/session_plan_pdf.html', context)
     filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
-    return _build_pdf_response_or_html_fallback(request, html, filename)
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=inline, force_pdf=force_pdf)
 
 
 @never_cache
@@ -43014,6 +43076,8 @@ def analysis_page(request):
     rivals_error = ''
     rivals_message = ''
     rivals_library = []
+    report_error = ''
+    report_message = ''
     extracted = {}
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team) or {}
     preferred_opponent = preferred_next.get('opponent') if isinstance(preferred_next, dict) else {}
@@ -43052,6 +43116,45 @@ def analysis_page(request):
                     defaults={'created_by': request.user.get_username() if request.user.is_authenticated else ''},
                 )
                 folder_message = 'Carpeta creada correctamente.' if created else 'La carpeta ya existía y queda disponible.'
+        elif form_action == 'create_analysis_report':
+            folder_id = _parse_int(request.POST.get('selected_folder_id'))
+            title = _sanitize_task_text(str(request.POST.get('report_title') or '').strip(), multiline=False, max_len=180)
+            if not primary_team:
+                report_error = 'No hay equipo principal configurado.'
+            elif not folder_id:
+                report_error = 'Selecciona una carpeta para crear el informe.'
+            elif not title:
+                report_error = 'Indica un título para el informe.'
+            else:
+                folder = AnalystVideoFolder.objects.filter(id=int(folder_id), team=primary_team).first()
+                if not folder:
+                    report_error = 'Carpeta no encontrada.'
+                else:
+                    AnalysisVideoReport.objects.create(
+                        team=primary_team,
+                        folder=folder,
+                        title=title,
+                        created_by=(request.user.get_username() if request.user.is_authenticated else ''),
+                    )
+                    report_message = 'Informe creado.'
+        elif form_action == 'delete_analysis_report':
+            report_id = _parse_int(request.POST.get('report_id'))
+            if not primary_team:
+                report_error = 'No hay equipo principal configurado.'
+            elif not report_id:
+                report_error = 'Informe no válido.'
+            else:
+                rep = (
+                    AnalysisVideoReport.objects
+                    .select_related('folder')
+                    .filter(id=int(report_id), team=primary_team)
+                    .first()
+                )
+                if not rep:
+                    report_error = 'Informe no encontrado.'
+                else:
+                    rep.delete()
+                    report_message = 'Informe eliminado.'
         elif form_action == 'set_folder_player_visibility':
             folder_id = _parse_int(request.POST.get('folder_id'))
             visible = bool(request.POST.get('folder_visible_to_players'))
@@ -43179,6 +43282,7 @@ def analysis_page(request):
                             video_id=int(entry.id),
                             team_id=int(getattr(entry, 'team_id', 0) or 0) or None,
                             owner_user_id=int(getattr(entry, 'owner_user_id', 0) or 0) or None,
+                            workspace_id=int(getattr(_get_active_workspace(request), 'id', 0) or 0) or None,
                             created_by=request.user.get_username() if request.user.is_authenticated else '',
                         )
                     except Exception:
@@ -44236,6 +44340,17 @@ def analysis_page(request):
         except Exception:
             match_reports = []
 
+    folder_reports = []
+    if primary_team and selected_folder_id:
+        try:
+            folder_reports = list(
+                AnalysisVideoReport.objects
+                .filter(team=primary_team, folder_id=int(selected_folder_id))
+                .order_by('-updated_at', '-id')[:60]
+            )
+        except Exception:
+            folder_reports = []
+
     return render(
         request,
         'football/coach_analysis.html',
@@ -44270,6 +44385,9 @@ def analysis_page(request):
                 'selected_video_folder': selected_video_folder,
                 'folder_message': folder_message,
             'folder_error': folder_error,
+            'folder_reports': folder_reports,
+            'report_message': report_message,
+            'report_error': report_error,
             'video_inbox_unread_count': int(video_inbox_unread_count or 0),
             'analyst_players': analyst_players,
             'home_rival_name': home_rival_name,
@@ -44579,6 +44697,14 @@ def analysis_video_studio_page(request, video_id):
     video, resolved_team = _video_studio_resolve_video_for_request(request, video_id=video_id)
     if not video:
         raise Http404('Vídeo no disponible')
+
+    # "Aprendizaje" AutoClip: si ya hay cortes creados desde Timeline, inferimos pre/post típicos
+    # y sembramos preferencias del workspace para que el flujo Timeline→Clips/AutoCut use valores reales.
+    try:
+        _video_studio_seed_autoclip_workspace_prefs(request, scope_team=resolved_team)
+    except Exception:
+        pass
+
     is_youtube = bool(
         getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
         and str(getattr(video, 'source_url', '') or '').strip()
@@ -45030,6 +45156,29 @@ def player_video_library_page(request):
             folder_groups.append({'folder': f, 'videos': videos_by_folder.get(fid, []), 'clips': clips_by_folder.get(fid, [])})
     except Exception:
         folder_groups = [{'folder': f, 'videos': videos_by_folder.get(int(getattr(f, 'id', 0) or 0), []), 'clips': clips_by_folder.get(int(getattr(f, 'id', 0) or 0), [])} for f in folders]
+
+    reports_by_folder = defaultdict(list)
+    try:
+        folder_ids = [int(getattr(f, 'id', 0) or 0) for f in folders if getattr(f, 'id', None)]
+        if folder_ids:
+            reports = list(
+                AnalysisVideoReport.objects
+                .filter(team=primary_team, folder_id__in=folder_ids)
+                .order_by('-updated_at', '-id')[:220]
+            )
+            for rep in reports:
+                fid = int(getattr(rep, 'folder_id', 0) or 0)
+                if fid:
+                    reports_by_folder[fid].append(rep)
+    except Exception:
+        reports_by_folder = defaultdict(list)
+
+    try:
+        for group in folder_groups:
+            fid = int(getattr(group.get('folder'), 'id', 0) or 0)
+            group['reports'] = reports_by_folder.get(fid, [])
+    except Exception:
+        pass
 
     return render(
         request,
@@ -45510,6 +45659,512 @@ def analysis_video_inbox_report(request, item_id):
     clip_ids = payload.get('clip_ids') if isinstance(payload.get('clip_ids'), list) else []
     include_ai = str(payload.get('include_ai') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     return _video_report_pdf_response(request, primary_team=primary_team, video=video, title=title, clip_ids=clip_ids, include_ai=include_ai)
+
+
+def _can_download_analysis_video_report_pptx(request, report: AnalysisVideoReport) -> bool:
+    if not request.user or not request.user.is_authenticated or not report:
+        return False
+    try:
+        folder = getattr(report, 'folder', None)
+        folder_team_id = int(getattr(folder, 'team_id', 0) or 0)
+        if not folder_team_id:
+            return False
+    except Exception:
+        return False
+
+    # Staff (coach workspace): se usa el equipo activo.
+    try:
+        if _can_access_coach_workspace(request.user):
+            primary_team = _get_primary_team_for_request(request)
+            return bool(primary_team and int(primary_team.id) == int(folder_team_id))
+    except Exception:
+        pass
+
+    # Jugadores: sólo si la carpeta está marcada visible y el usuario pertenece al equipo.
+    try:
+        if not bool(getattr(folder, 'is_visible_to_players', False)):
+            return False
+        primary_team = _get_player_team_for_request(request)
+        if not primary_team or int(primary_team.id) != int(folder_team_id):
+            return False
+        player_obj = Player.objects.filter(team=primary_team, user=request.user).first()
+        if not player_obj:
+            return False
+        forbidden = _forbid_if_no_player_access(request.user, player_obj, primary_team=primary_team)
+        return forbidden is None
+    except Exception:
+        return False
+
+
+def _pptx_bytes_for_analysis_video_report(report: AnalysisVideoReport, items: list[AnalysisVideoReportItem]) -> bytes:
+    try:
+        from pptx import Presentation
+        from pptx.util import Inches, Pt
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+    except Exception as exc:
+        raise ValueError('python-pptx no está disponible en el servidor.') from exc
+
+    prs = Presentation()
+    try:
+        # 16:9
+        prs.slide_width = Inches(13.333)
+        prs.slide_height = Inches(7.5)
+    except Exception:
+        pass
+
+    def _set_bg(slide, rgb=(2, 4, 23)):
+        try:
+            fill = slide.background.fill
+            fill.solid()
+            fill.fore_color.rgb = RGBColor(*rgb)
+        except Exception:
+            pass
+
+    def _add_title(slide, text: str):
+        try:
+            box = slide.shapes.add_textbox(Inches(0.6), Inches(0.25), Inches(12.1), Inches(0.5))
+            tf = box.text_frame
+            tf.clear()
+            p = tf.paragraphs[0]
+            run = p.add_run()
+            run.text = text
+            run.font.size = Pt(22)
+            run.font.bold = True
+            run.font.color.rgb = RGBColor(248, 250, 252)
+        except Exception:
+            pass
+
+    # Portada
+    try:
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        _set_bg(slide)
+        folder = getattr(report, 'folder', None)
+        folder_label = str(getattr(folder, 'name', '') or '').strip()
+        if getattr(folder, 'rival_team', None):
+            folder_label = f'{folder_label} · {getattr(folder.rival_team, "display_name", "") or getattr(folder.rival_team, "name", "")}'
+        _add_title(slide, str(report.title or 'Informe'))
+        sub = slide.shapes.add_textbox(Inches(0.6), Inches(1.05), Inches(12.1), Inches(0.7))
+        tf = sub.text_frame
+        tf.clear()
+        p = tf.paragraphs[0]
+        run = p.add_run()
+        run.text = f'Carpeta · {folder_label}' if folder_label else 'Carpeta'
+        run.font.size = Pt(14)
+        run.font.bold = True
+        run.font.color.rgb = RGBColor(148, 163, 184)
+        meta = slide.shapes.add_textbox(Inches(0.6), Inches(1.55), Inches(12.1), Inches(0.7))
+        tf2 = meta.text_frame
+        tf2.clear()
+        p2 = tf2.paragraphs[0]
+        run2 = p2.add_run()
+        created_at = getattr(report, 'updated_at', None) or getattr(report, 'created_at', None)
+        created_label = created_at.strftime('%d/%m/%Y %H:%M') if created_at else ''
+        run2.text = f'Generado · {created_label}' if created_label else 'Generado'
+        run2.font.size = Pt(12)
+        run2.font.color.rgb = RGBColor(148, 163, 184)
+    except Exception:
+        pass
+
+    # Layout C: vídeo grande + banda lateral derecha.
+    video_left = Inches(0.6)
+    video_top = Inches(1.2)
+    video_w = Inches(9.2)
+    video_h = Inches(5.9)
+    side_left = Inches(10.05)
+    side_top = Inches(1.2)
+    side_w = Inches(2.73)
+    side_h = Inches(5.9)
+
+    for idx, item in enumerate(items or [], start=1):
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        _set_bg(slide)
+        clip = getattr(item, 'clip', None)
+        clip_title = str(getattr(item, 'title', '') or '').strip() or str(getattr(clip, 'title', '') or '').strip() or f'Clip {idx}'
+        _add_title(slide, clip_title)
+
+        # Lateral
+        try:
+            panel = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, side_left, side_top, side_w, side_h)
+            panel.fill.solid()
+            panel.fill.fore_color.rgb = RGBColor(12, 20, 34)
+            panel.line.color.rgb = RGBColor(148, 163, 184)
+            panel.line.width = Pt(1)
+        except Exception:
+            panel = None
+
+        body_text = str(getattr(item, 'body', '') or '').strip()
+        if clip and not body_text:
+            body_text = str(getattr(clip, 'notes', '') or '').strip()
+        if not body_text:
+            body_text = ''
+        try:
+            tb = slide.shapes.add_textbox(Inches(10.25), Inches(1.45), Inches(2.35), Inches(3.2))
+            tf = tb.text_frame
+            tf.word_wrap = True
+            tf.clear()
+            p = tf.paragraphs[0]
+            run = p.add_run()
+            run.text = body_text
+            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(226, 232, 240)
+        except Exception:
+            pass
+
+        # Capturas/imágenes (hasta 2)
+        try:
+            images = list(getattr(item, 'images', []).all()) if hasattr(getattr(item, 'images', None), 'all') else []
+        except Exception:
+            images = []
+        img_y = 4.75
+        try:
+            for img in images[:2]:
+                try:
+                    file_field = getattr(img, 'image', None)
+                    path = file_field.path if file_field and hasattr(file_field, 'path') else ''
+                except Exception:
+                    path = ''
+                if not path or not os.path.exists(path):
+                    continue
+                slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.25))
+                img_y += 1.33
+        except Exception:
+            pass
+
+        # Vídeo (MP4 embebido)
+        asset = getattr(item, 'export_asset', None)
+        if not asset and clip:
+            try:
+                asset = (
+                    VideoExportAsset.objects
+                    .filter(team_id=int(report.team_id), clip_id=int(clip.id))
+                    .order_by('-created_at', '-id')
+                    .first()
+                )
+            except Exception:
+                asset = None
+
+        movie_path = ''
+        poster_path = ''
+        try:
+            if asset and getattr(asset, 'file', None):
+                movie_path = asset.file.path if hasattr(asset.file, 'path') else ''
+        except Exception:
+            movie_path = ''
+        try:
+            if clip and getattr(clip, 'thumbnail', None):
+                poster_path = clip.thumbnail.path if hasattr(clip.thumbnail, 'path') else ''
+        except Exception:
+            poster_path = ''
+
+        if movie_path and os.path.exists(movie_path):
+            try:
+                slide.shapes.add_movie(
+                    movie_path,
+                    video_left,
+                    video_top,
+                    video_w,
+                    video_h,
+                    poster_frame_image=(poster_path if poster_path and os.path.exists(poster_path) else None),
+                    mime_type='video/mp4',
+                )
+            except Exception:
+                # Fallback: si el embedding falla, mostramos un aviso.
+                warn = slide.shapes.add_textbox(video_left, Inches(1.45), video_w, Inches(0.6))
+                tf = warn.text_frame
+                tf.text = 'No se pudo incrustar el vídeo en PPTX. Revisa formato MP4 (H.264/AAC).'
+        else:
+            try:
+                warn = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, video_left, video_top, video_w, video_h)
+                warn.fill.solid()
+                warn.fill.fore_color.rgb = RGBColor(15, 23, 42)
+                warn.line.color.rgb = RGBColor(148, 163, 184)
+                tx = slide.shapes.add_textbox(video_left, Inches(3.6), video_w, Inches(0.8))
+                tf = tx.text_frame
+                tf.text = 'Sin export MP4 para este clip.\nExporta el clip desde Video Studio y vuelve a exportar el informe.'
+            except Exception:
+                pass
+
+    out = io.BytesIO()
+    prs.save(out)
+    return out.getvalue()
+
+
+@login_required
+def analysis_video_report_page(request, report_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    report = (
+        AnalysisVideoReport.objects
+        .select_related('folder', 'folder__rival_team')
+        .filter(id=int(report_id), team=primary_team)
+        .first()
+    )
+    if not report:
+        raise Http404('Informe no encontrado')
+
+    message = ''
+    error = ''
+
+    if request.method == 'POST':
+        form_action = str(request.POST.get('form_action') or '').strip().lower()
+        if form_action == 'update_report':
+            title = _sanitize_task_text(str(request.POST.get('title') or '').strip(), multiline=False, max_len=180)
+            notes = _sanitize_task_text(str(request.POST.get('notes') or '').strip(), multiline=True, max_len=8000)
+            if not title:
+                error = 'Título requerido.'
+            else:
+                report.title = title
+                report.notes = notes
+                report.save(update_fields=['title', 'notes', 'updated_at'])
+                message = 'Informe actualizado.'
+        elif form_action == 'add_item':
+            clip_id = _parse_int(request.POST.get('clip_id'))
+            if not clip_id:
+                error = 'Selecciona un clip.'
+            else:
+                clip = (
+                    VideoClip.objects
+                    .select_related('video', 'video__folder')
+                    .filter(id=int(clip_id), team=primary_team)
+                    .first()
+                )
+                if not clip or int(getattr(getattr(clip.video, 'folder_id', 0) or 0)) != int(report.folder_id):
+                    error = 'Clip no disponible en esta carpeta.'
+                else:
+                    max_pos = (
+                        AnalysisVideoReportItem.objects
+                        .filter(report=report)
+                        .aggregate(Max('position'))
+                        .get('position__max')
+                    )
+                    next_pos = int(max_pos or 0) + 10
+                    AnalysisVideoReportItem.objects.create(report=report, clip=clip, position=next_pos)
+                    message = 'Clip añadido.'
+        elif form_action == 'delete_item':
+            item_id = _parse_int(request.POST.get('item_id'))
+            item = AnalysisVideoReportItem.objects.filter(id=int(item_id), report=report).first() if item_id else None
+            if not item:
+                error = 'Elemento no encontrado.'
+            else:
+                item.delete()
+                message = 'Elemento eliminado.'
+        elif form_action in {'move_item_up', 'move_item_down'}:
+            item_id = _parse_int(request.POST.get('item_id'))
+            item = AnalysisVideoReportItem.objects.filter(id=int(item_id), report=report).first() if item_id else None
+            if not item:
+                error = 'Elemento no encontrado.'
+            else:
+                items = list(AnalysisVideoReportItem.objects.filter(report=report).order_by('position', 'id'))
+                idx = next((i for i, it in enumerate(items) if int(it.id) == int(item.id)), -1)
+                if idx < 0:
+                    error = 'Elemento no encontrado.'
+                else:
+                    swap_idx = idx - 1 if form_action.endswith('up') else idx + 1
+                    if swap_idx < 0 or swap_idx >= len(items):
+                        error = 'No se puede mover.'
+                    else:
+                        other = items[swap_idx]
+                        a, b = int(item.position or 0), int(other.position or 0)
+                        item.position, other.position = b, a
+                        item.save(update_fields=['position'])
+                        other.save(update_fields=['position'])
+                        message = 'Orden actualizado.'
+        elif form_action == 'update_item':
+            item_id = _parse_int(request.POST.get('item_id'))
+            item = AnalysisVideoReportItem.objects.select_related('clip').filter(id=int(item_id), report=report).first() if item_id else None
+            if not item:
+                error = 'Elemento no encontrado.'
+            else:
+                title = _sanitize_task_text(str(request.POST.get('title') or '').strip(), multiline=False, max_len=180)
+                body = _sanitize_task_text(str(request.POST.get('body') or '').strip(), multiline=True, max_len=9000)
+                export_id = _parse_int(request.POST.get('export_asset_id'))
+                export_asset = None
+                if export_id:
+                    export_asset = VideoExportAsset.objects.filter(id=int(export_id), team=primary_team).first()
+                item.title = title
+                item.body = body
+                item.export_asset = export_asset
+                item.save(update_fields=['title', 'body', 'export_asset', 'updated_at'])
+                message = 'Elemento actualizado.'
+        elif form_action == 'upload_image':
+            item_id = _parse_int(request.POST.get('item_id'))
+            item = AnalysisVideoReportItem.objects.filter(id=int(item_id), report=report).first() if item_id else None
+            file_obj = request.FILES.get('image')
+            caption = _sanitize_task_text(str(request.POST.get('caption') or '').strip(), multiline=False, max_len=180)
+            if not item:
+                error = 'Elemento no encontrado.'
+            elif not file_obj:
+                error = 'Selecciona una imagen.'
+            else:
+                max_pos = (
+                    AnalysisVideoReportItemImage.objects
+                    .filter(item=item)
+                    .aggregate(Max('position'))
+                    .get('position__max')
+                )
+                next_pos = int(max_pos or 0) + 10
+                AnalysisVideoReportItemImage.objects.create(item=item, image=file_obj, caption=caption, position=next_pos)
+                message = 'Imagen añadida.'
+        elif form_action == 'delete_image':
+            img_id = _parse_int(request.POST.get('image_id'))
+            img = (
+                AnalysisVideoReportItemImage.objects
+                .select_related('item', 'item__report')
+                .filter(id=int(img_id), item__report=report)
+                .first()
+            ) if img_id else None
+            if not img:
+                error = 'Imagen no encontrada.'
+            else:
+                try:
+                    if img.image:
+                        img.image.delete(save=False)
+                except Exception:
+                    pass
+                img.delete()
+                message = 'Imagen eliminada.'
+
+    clips_available = []
+    try:
+        clips_available = list(
+            VideoClip.objects
+            .select_related('video')
+            .filter(team=primary_team, video__folder_id=int(report.folder_id))
+            .order_by('-updated_at', '-id')[:260]
+        )
+    except Exception:
+        clips_available = []
+
+    items = list(
+        AnalysisVideoReportItem.objects
+        .select_related('clip', 'clip__video', 'export_asset')
+        .prefetch_related('images')
+        .filter(report=report)
+        .order_by('position', 'id')[:600]
+    )
+
+    export_assets = []
+    try:
+        clip_ids = [int(it.clip_id) for it in items if it.clip_id]
+        if clip_ids:
+            export_assets = list(
+                VideoExportAsset.objects
+                .filter(team=primary_team, clip_id__in=clip_ids)
+                .order_by('-created_at', '-id')[:600]
+            )
+    except Exception:
+        export_assets = []
+    exports_by_clip = defaultdict(list)
+    for a in export_assets:
+        cid = int(getattr(a, 'clip_id', 0) or 0)
+        if cid:
+            exports_by_clip[cid].append(a)
+    try:
+        for it in items:
+            cid = int(getattr(it, 'clip_id', 0) or 0)
+            setattr(it, 'available_exports', exports_by_clip.get(cid, []))
+    except Exception:
+        pass
+
+    back_url = reverse('analysis')
+    try:
+        params = {'tab': 'videos', 'folder': int(report.folder_id)}
+        rival_id = int(getattr(getattr(report.folder, 'rival_team', None), 'id', 0) or 0)
+        if rival_id:
+            params['team_id'] = rival_id
+        back_url = f'{back_url}?{urlencode(params)}'
+    except Exception:
+        pass
+
+    return render(
+        request,
+        'football/analysis_video_report.html',
+        {
+            'team': primary_team,
+            'report': report,
+            'items': items,
+            'clips_available': clips_available,
+            'exports_by_clip': exports_by_clip,
+            'back_url': back_url,
+            'message': message,
+            'error': error,
+        },
+    )
+
+
+@csrf_exempt
+@login_required
+@require_POST
+def analysis_video_report_export_pptx(request, report_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+    report = AnalysisVideoReport.objects.select_related('folder').filter(id=int(report_id), team=primary_team).first()
+    if not report:
+        raise Http404('Informe no encontrado')
+
+    items = list(
+        AnalysisVideoReportItem.objects
+        .select_related('clip')
+        .prefetch_related('images')
+        .filter(report=report)
+        .order_by('position', 'id')[:700]
+    )
+    try:
+        data = _pptx_bytes_for_analysis_video_report(report, items)
+    except Exception as exc:
+        messages.error(request, str(exc) or 'No se pudo exportar el PPTX.')
+        return redirect(reverse('analysis-video-report', args=[int(report.id)]))
+
+    filename = slugify(str(report.title or '').strip()) or f'informe-{int(report.id)}'
+    filename = f'{filename}.pptx'
+    report.pptx_file.save(filename, ContentFile(data), save=False)
+    report.pptx_updated_at = timezone.now()
+    report.save(update_fields=['pptx_file', 'pptx_updated_at', 'updated_at'])
+    messages.success(request, 'PPTX exportado.')
+    return redirect(reverse('analysis-video-report', args=[int(report.id)]))
+
+
+@login_required
+def analysis_video_report_pptx_file(request, report_id):
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    report = (
+        AnalysisVideoReport.objects
+        .select_related('folder', 'folder__rival_team')
+        .filter(id=int(report_id))
+        .first()
+    )
+    if not report or not getattr(report, 'pptx_file', None):
+        raise Http404('PPTX no disponible')
+    if not _can_download_analysis_video_report_pptx(request, report):
+        return HttpResponse('No autorizado.', status=403)
+    file_field = report.pptx_file
+    try:
+        file_field.open('rb')
+    except Exception:
+        raise Http404('Archivo no disponible')
+    safe_name = (Path(file_field.name).name or f'informe-{int(report.id)}.pptx').replace('"', '')
+    response = FileResponse(file_field, content_type='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+    response['Content-Disposition'] = f'attachment; filename=\"{safe_name}\"'
+    response['Cache-Control'] = 'private, max-age=0, must-revalidate'
+    return response
 
 
 @login_required
@@ -46251,6 +46906,336 @@ def _video_studio_assignable_team_choices(request):
         seen.add(tid)
         payload.append((tid, str(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '').strip() or f'Equipo {tid}'))
     return payload
+
+
+def _video_studio_autoclip_pref_key(*, team_id, pack: str) -> str:
+    """
+    La key debe replicar la lógica del cliente:
+    `vs_event_autoclip:v1:${teamId || 'personal'}:${p}` donde p es own|rival.
+    """
+    p = 'own' if str(pack or '').strip().lower() == 'own' else 'rival'
+    scope = str(int(team_id)) if int(team_id or 0) else 'personal'
+    return f'vs_event_autoclip:v1:{scope}:{p}'[:80]
+
+
+def _video_studio_autoclip_pack_from_clip(*, clip):
+    """
+    Intenta inferir pack (own|rival) a partir de:
+    - collection: "Propio"/"Rival"
+    - tags: "team:XXX" => own
+    """
+    coll = str(getattr(clip, 'collection', '') or '').strip().lower()
+    if coll == 'propio':
+        return 'own'
+    if coll == 'rival':
+        return 'rival'
+    tags = getattr(clip, 'tags', None)
+    if isinstance(tags, list):
+        for t in tags[:40]:
+            if str(t or '').strip().lower().startswith('team:'):
+                return 'own'
+    return None
+
+
+def _video_studio_autoclip_kind_from_clip(*, clip):
+    allowed = {
+        VideoTimelineEvent.KIND_TAG,
+        VideoTimelineEvent.KIND_NOTE,
+        VideoTimelineEvent.KIND_GOAL,
+        VideoTimelineEvent.KIND_SHOT,
+        VideoTimelineEvent.KIND_PRESS,
+        VideoTimelineEvent.KIND_TURNOVER,
+        VideoTimelineEvent.KIND_SET_PIECE,
+    }
+    tags = getattr(clip, 'tags', None)
+    if not isinstance(tags, list):
+        return None
+    for raw in tags[:40]:
+        k = str(raw or '').strip().lower()
+        if k in allowed:
+            return k
+    return None
+
+
+def _median(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    xs = sorted(float(v) for v in values)
+    n = len(xs)
+    mid = n // 2
+    if n % 2 == 1:
+        return float(xs[mid])
+    return float((xs[mid - 1] + xs[mid]) / 2.0)
+
+
+def _video_studio_autoclip_samples_from_clips(*, clips, events_by_video_kind) -> tuple[list[float], list[float]]:
+    """
+    Devuelve (pre_s_samples, post_s_samples) a partir de clips + timeline.
+    """
+    pre_samples: list[float] = []
+    post_samples: list[float] = []
+    tol_ms = 2500
+    for clip in (clips or [])[:400]:
+        tags = getattr(clip, 'tags', None)
+        if not isinstance(tags, list):
+            continue
+        tags_norm = {str(t or '').strip().lower() for t in tags[:60] if str(t or '').strip()}
+        if 'autocut' in tags_norm:
+            continue
+        # Aprendemos solo desde clips creados desde Timeline.
+        if 'timeline' not in tags_norm:
+            continue
+        kind = _video_studio_autoclip_kind_from_clip(clip=clip)
+        if not kind:
+            continue
+        in_ms = int(getattr(clip, 'in_ms', 0) or 0)
+        out_ms = int(getattr(clip, 'out_ms', 0) or 0)
+        if out_ms <= in_ms:
+            continue
+        mid_ms = int((in_ms + out_ms) / 2)
+        by_kind = (events_by_video_kind or {}).get(int(getattr(clip, 'video_id', 0) or 0), {})
+        evs = list(by_kind.get(kind, []) or [])
+        if not evs:
+            continue
+        # Candidatos: eventos dentro (o muy cerca) del clip.
+        cand = [ev for ev in evs if (in_ms - tol_ms) <= int(getattr(ev, 'time_ms', 0) or 0) <= (out_ms + tol_ms)]
+        if not cand:
+            continue
+        ev = min(cand, key=lambda x: abs(int(getattr(x, 'time_ms', 0) or 0) - mid_ms))
+        t_ms = int(getattr(ev, 'time_ms', 0) or 0)
+        pre_s = float(t_ms - in_ms) / 1000.0
+        post_s = float(out_ms - t_ms) / 1000.0
+        if pre_s < 0.0 or post_s < 0.0:
+            continue
+        # Guardrails: evita clips absurdos.
+        if pre_s > 90.0 or post_s > 90.0:
+            continue
+        if (pre_s + post_s) < 1.0:
+            continue
+        pre_samples.append(float(pre_s))
+        post_samples.append(float(post_s))
+    return pre_samples, post_samples
+
+
+def _video_studio_learn_autoclip_defaults(
+    *,
+    scope_team,
+    owner_user,
+    pack: str,
+    max_clips: int = 260,
+) -> dict:
+    """
+    Aprende pre/post (segundos) desde clips existentes creados con Timeline→Clip.
+    """
+    # Nota: en SQLite/JSONField algunos lookups `__contains` pueden ser inconsistentes con arrays.
+    # Filtramos por tags en Python con un corte por tamaño (últimos N clips).
+    qs = VideoClip.objects.all()
+    if scope_team:
+        qs = qs.filter(team=scope_team)
+    else:
+        qs = qs.filter(team__isnull=True, owner_user=owner_user)
+    clips = list(
+        qs.only('id', 'video_id', 'in_ms', 'out_ms', 'tags', 'collection', 'updated_at')
+        .order_by('-updated_at', '-id')[: max(40, int(max_clips or 0))]
+    )
+    if not clips:
+        return {'ok': False, 'pre': 0, 'post': 0, 'samples': 0}
+
+    clips = [c for c in clips if isinstance(getattr(c, 'tags', None), list)]
+    clips = [
+        c
+        for c in clips
+        if 'timeline' in {str(t or '').strip().lower() for t in (getattr(c, 'tags', None) or [])[:60] if str(t or '').strip()}
+    ]
+    if not clips:
+        return {'ok': False, 'pre': 0, 'post': 0, 'samples': 0}
+
+    # Bucket por pack si es posible. Si no hay suficientes muestras, fallback a todo.
+    want_pack = str(pack or '').strip().lower() == 'own'
+    bucket = []
+    for c in clips:
+        inferred = _video_studio_autoclip_pack_from_clip(clip=c)
+        if inferred is None:
+            continue
+        if (inferred == 'own') == want_pack:
+            bucket.append(c)
+    candidate = bucket if len(bucket) >= 8 else clips
+
+    video_ids = sorted({int(getattr(c, 'video_id', 0) or 0) for c in candidate if int(getattr(c, 'video_id', 0) or 0) > 0})[:80]
+    if not video_ids:
+        return {'ok': False, 'pre': 0, 'post': 0, 'samples': 0}
+
+    ev_qs = VideoTimelineEvent.objects.filter(video_id__in=video_ids)
+    if scope_team:
+        ev_qs = ev_qs.filter(team=scope_team)
+    else:
+        ev_qs = ev_qs.filter(team__isnull=True, owner_user=owner_user)
+    evs = list(ev_qs.only('id', 'video_id', 'kind', 'time_ms').order_by('video_id', 'kind', 'time_ms', 'id')[:5000])
+    events_by_video_kind: dict[int, dict[str, list]] = {}
+    for ev in evs:
+        try:
+            payload = getattr(ev, 'payload', None)
+        except Exception:
+            payload = None
+        if isinstance(payload, dict) and payload.get('autocut') is True:
+            continue
+        vid = int(getattr(ev, 'video_id', 0) or 0)
+        k = str(getattr(ev, 'kind', '') or '').strip().lower() or VideoTimelineEvent.KIND_TAG
+        events_by_video_kind.setdefault(vid, {}).setdefault(k, []).append(ev)
+
+    pre_samples, post_samples = _video_studio_autoclip_samples_from_clips(clips=candidate, events_by_video_kind=events_by_video_kind)
+    samples = int(min(len(pre_samples), len(post_samples)))
+    if samples < 1:
+        return {'ok': False, 'pre': 0, 'post': 0, 'samples': 0}
+
+    pre = _median(pre_samples)
+    post = _median(post_samples)
+    # Redondeo suave para UI.
+    return {'ok': True, 'pre': float(round(pre)), 'post': float(round(post)), 'samples': samples}
+
+
+def _video_studio_seed_autoclip_workspace_prefs(request, *, scope_team) -> None:
+    """
+    Si no existe preferencia AutoClip en el workspace, la inicializa a partir de cortes ya hechos.
+    """
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        return
+    ws = _get_active_workspace(request)
+    if not ws:
+        return
+    team_id = int(getattr(scope_team, 'id', 0) or 0) if scope_team else 0
+    owner_user = request.user
+
+    for pack in ('own', 'rival'):
+        key = _video_studio_autoclip_pref_key(team_id=team_id, pack=pack)
+        exists = WorkspacePreference.objects.filter(workspace=ws, key=key).exists()
+        if exists:
+            continue
+        learned = _video_studio_learn_autoclip_defaults(scope_team=scope_team, owner_user=owner_user, pack=pack)
+        if not learned.get('ok'):
+            continue
+        try:
+            WorkspacePreference.objects.update_or_create(
+                workspace=ws,
+                key=key,
+                defaults={
+                    'value': {
+                        'enabled': False,
+                        'pre': int(float(learned.get('pre') or 0)),
+                        'post': int(float(learned.get('post') or 0)),
+                        'learned': True,
+                        'learned_samples': int(learned.get('samples') or 0),
+                        'learned_at': timezone.now().isoformat(),
+                    }
+                },
+            )
+        except Exception:
+            continue
+
+
+def _video_studio_update_autoclip_pref_from_clip(request, *, clip, scope_team) -> None:
+    """
+    Ajusta (EMA) los pre/post del AutoClip según un clip guardado desde Timeline→Clip.
+    """
+    if not request or not getattr(request, 'user', None) or not request.user.is_authenticated or not clip:
+        return
+    ws = _get_active_workspace(request)
+    if not ws:
+        return
+    tags = getattr(clip, 'tags', None)
+    if not isinstance(tags, list):
+        return
+    tags_norm = {str(t or '').strip().lower() for t in tags[:60] if str(t or '').strip()}
+    if 'autocut' in tags_norm:
+        return
+    if 'timeline' not in tags_norm:
+        return
+    kind = _video_studio_autoclip_kind_from_clip(clip=clip)
+    if not kind:
+        return
+
+    pack = _video_studio_autoclip_pack_from_clip(clip=clip) or 'rival'
+    team_id = int(getattr(scope_team, 'id', 0) or 0) if scope_team else 0
+    key = _video_studio_autoclip_pref_key(team_id=team_id, pack=pack)
+
+    in_ms = int(getattr(clip, 'in_ms', 0) or 0)
+    out_ms = int(getattr(clip, 'out_ms', 0) or 0)
+    if out_ms <= in_ms:
+        return
+    mid_ms = int((in_ms + out_ms) / 2)
+
+    ev_qs = VideoTimelineEvent.objects.filter(video_id=int(getattr(clip, 'video_id', 0) or 0), kind=str(kind))
+    if scope_team:
+        ev_qs = ev_qs.filter(team=scope_team)
+    else:
+        ev_qs = ev_qs.filter(team__isnull=True, owner_user=request.user)
+    evs_all = list(ev_qs.only('id', 'time_ms', 'payload').order_by('time_ms', 'id')[:2400])
+    evs = []
+    for ev in evs_all:
+        try:
+            payload = getattr(ev, 'payload', None)
+        except Exception:
+            payload = None
+        if isinstance(payload, dict) and payload.get('autocut') is True:
+            continue
+        evs.append(ev)
+    if not evs:
+        return
+    tol_ms = 2500
+    cand = [ev for ev in evs if (in_ms - tol_ms) <= int(getattr(ev, 'time_ms', 0) or 0) <= (out_ms + tol_ms)]
+    if not cand:
+        return
+    ev = min(cand, key=lambda x: abs(int(getattr(x, 'time_ms', 0) or 0) - mid_ms))
+    t_ms = int(getattr(ev, 'time_ms', 0) or 0)
+    obs_pre = float(t_ms - in_ms) / 1000.0
+    obs_post = float(out_ms - t_ms) / 1000.0
+    if obs_pre < 0.0 or obs_post < 0.0:
+        return
+    if obs_pre > 90.0 or obs_post > 90.0:
+        return
+
+    pref = WorkspacePreference.objects.filter(workspace=ws, key=key).first()
+    old = pref.value if pref and isinstance(pref.value, dict) else {}
+    if not pref:
+        WorkspacePreference.objects.update_or_create(
+            workspace=ws,
+            key=key,
+            defaults={
+                'value': {
+                    'enabled': False,
+                    'pre': int(round(obs_pre)),
+                    'post': int(round(obs_post)),
+                    'learned': True,
+                    'learned_samples': 1,
+                    'learned_at': timezone.now().isoformat(),
+                }
+            },
+        )
+        return
+    try:
+        old_pre = float(old.get('pre', 8) or 8)
+    except Exception:
+        old_pre = 8.0
+    try:
+        old_post = float(old.get('post', 8) or 8)
+    except Exception:
+        old_post = 8.0
+    enabled = bool(old.get('enabled', False))
+    # Suaviza para no "saltar" por un solo clip.
+    alpha = 0.35
+    new_pre = max(0.0, min(90.0, (1.0 - alpha) * float(old_pre) + alpha * float(obs_pre)))
+    new_post = max(0.0, min(90.0, (1.0 - alpha) * float(old_post) + alpha * float(obs_post)))
+    payload = dict(old) if isinstance(old, dict) else {}
+    payload.update(
+        {
+            'enabled': enabled,
+            'pre': int(round(new_pre)),
+            'post': int(round(new_post)),
+            'learned': True,
+            'learned_at': timezone.now().isoformat(),
+        }
+    )
+    WorkspacePreference.objects.update_or_create(workspace=ws, key=key, defaults={'value': payload})
 
 def _extract_youtube_video_id(url: str) -> str:
     """
@@ -47501,6 +48486,13 @@ def analysis_video_studio_clip_save_api(request):
                 obj.thumbnail.save(filename, ContentFile(raw_bytes), save=True)
             except Exception:
                 pass
+
+        # AutoClip learning: si el clip viene de Timeline/Preset, ajusta (suavemente) los pre/post
+        # del workspace para próximos cortes automáticos.
+        try:
+            _video_studio_update_autoclip_pref_from_clip(request, clip=obj, scope_team=scope_team)
+        except Exception:
+            pass
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo guardar.'}, status=500)
     return JsonResponse({'ok': True, 'id': int(obj.id)})
@@ -50415,7 +51407,7 @@ def _video_studio_apply_autocut_suggestions(
     return {'ok': True, 'created_events': int(created_events), 'created_clips': int(created_clips), 'moments': moments[: max_moments]}
 
 
-def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, created_by: str = '') -> None:
+def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = '') -> None:
     """
     Ejecuta AutoCut en background al subir un MP4 (sin bloquear el request).
     """
@@ -50429,6 +51421,7 @@ def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, 
                 return
             scope_team = Team.objects.filter(id=int(team_id)).first() if team_id else None
             owner_user = User.objects.filter(id=int(owner_user_id)).first() if owner_user_id else None
+            ws = Workspace.objects.filter(id=int(workspace_id)).first() if workspace_id else None
             job_event = None
             try:
                 job_event = VideoTimelineEvent.objects.create(
@@ -50445,6 +51438,66 @@ def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, 
             except Exception:
                 job_event = None
 
+            # Si hay preferencias aprendidas (workspace), aplicarlas para el AutoCut inicial.
+            pack = 'rival' if int(getattr(entry, 'rival_team_id', 0) or 0) else 'own'
+            learned_pre = None
+            learned_post = None
+            learned_min_gap = None
+            try:
+                if ws:
+                    key = _video_studio_autoclip_pref_key(team_id=int(getattr(scope_team, 'id', 0) or 0) if scope_team else 0, pack=pack)
+                    pref = WorkspacePreference.objects.filter(workspace=ws, key=key).first()
+                    val = pref.value if pref and isinstance(pref.value, dict) else {}
+                    if isinstance(val, dict):
+                        if str(val.get('pre') or '').strip():
+                            learned_pre = float(val.get('pre') or 0)
+                        if str(val.get('post') or '').strip():
+                            learned_post = float(val.get('post') or 0)
+            except Exception:
+                learned_pre = None
+                learned_post = None
+
+            # Aprende gap típico si hay suficientes clips manuales (timeline) recientes.
+            try:
+                clip_qs = VideoClip.objects.all()
+                if scope_team:
+                    clip_qs = clip_qs.filter(team=scope_team)
+                else:
+                    clip_qs = clip_qs.filter(team__isnull=True, owner_user=owner_user) if owner_user else clip_qs.none()
+                clip_rows = list(
+                    clip_qs.only('in_ms', 'out_ms', 'tags', 'collection', 'updated_at')
+                    .order_by('-updated_at', '-id')[:260]
+                )
+                mids = []
+                for c in clip_rows:
+                    tags = getattr(c, 'tags', None)
+                    if not isinstance(tags, list):
+                        continue
+                    tags_norm = {str(t or '').strip().lower() for t in tags[:60] if str(t or '').strip()}
+                    if 'autocut' in tags_norm:
+                        continue
+                    if 'timeline' not in tags_norm:
+                        continue
+                    inferred_pack = _video_studio_autoclip_pack_from_clip(clip=c)
+                    if inferred_pack and inferred_pack != pack:
+                        continue
+                    a = int(getattr(c, 'in_ms', 0) or 0)
+                    b = int(getattr(c, 'out_ms', 0) or 0)
+                    if b <= a:
+                        continue
+                    mids.append(int((a + b) / 2))
+                mids = sorted(mids)[:2400]
+                gaps = []
+                for i in range(1, len(mids)):
+                    gap_s = float(mids[i] - mids[i - 1]) / 1000.0
+                    if gap_s <= 0:
+                        continue
+                    gaps.append(gap_s)
+                if gaps and len(gaps) >= 6:
+                    learned_min_gap = float(round(_median(gaps)))
+            except Exception:
+                learned_min_gap = None
+
             res = _video_studio_apply_autocut_suggestions(
                 video=entry,
                 scope_team=scope_team,
@@ -50452,9 +51505,9 @@ def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, 
                 created_by=str(created_by or '')[:80],
                 profile=str(os.environ.get('ANALYSIS_AUTOCUT_PROFILE') or 'balanced'),
                 max_moments=18,
-                min_gap_s=25.0,
-                pre_s=8.0,
-                post_s=8.0,
+                min_gap_s=float(learned_min_gap) if learned_min_gap is not None else 25.0,
+                pre_s=float(learned_pre) if learned_pre is not None else 8.0,
+                post_s=float(learned_post) if learned_post is not None else 8.0,
                 max_scan_s=None,
                 replace=True,
             )

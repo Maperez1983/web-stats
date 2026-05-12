@@ -176,9 +176,12 @@
 	    const btnExportServerPlaylist = document.getElementById('vs-export-server-playlist');
 	    const btnExportRetry = document.getElementById('vs-export-retry');
 	    const btnRecord = document.getElementById('vs-record');
-	    const btnSnap = document.getElementById('vs-snap');
-	    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
-	    const btnFreeze = document.getElementById('vs-freeze');
+		    const btnSnap = document.getElementById('vs-snap');
+		    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
+		    const btnFreeze = document.getElementById('vs-freeze');
+		    const btnTrackAuto = document.getElementById('vs-track-auto');
+		    const lineStyleSelect = document.getElementById('vs-line-style');
+		    const arrowDoubleBtn = document.getElementById('vs-arrow-double');
 
     const btnSelect = document.getElementById('vs-tool-select');
     const btnPen = document.getElementById('vs-tool-pen');
@@ -258,9 +261,10 @@
 			    const exportJobCancelUrl = safeText(document.getElementById('vs-export-job-cancel-url')?.value);
 			    const reportPdfUrl = safeText(document.getElementById('vs-report-pdf-url')?.value);
 		    const aiUrl = safeText(document.getElementById('vs-ai-url')?.value);
-		    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
-		    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
-		    const frameCaptureUrl = safeText(document.getElementById('vs-frame-capture-url')?.value);
+			    const autocutUrl = safeText(document.getElementById('vs-autocut-url')?.value);
+			    const dorsalOcrUrl = safeText(document.getElementById('vs-dorsal-ocr-url')?.value);
+			    const frameCaptureUrl = safeText(document.getElementById('vs-frame-capture-url')?.value);
+			    const trackUrl = safeText(document.getElementById('vs-track-url')?.value);
 
 		    const isIOS = (() => {
 		      try {
@@ -526,6 +530,13 @@
     const fxFeatherInput = document.getElementById('vs-fx-feather');
     const fxBlurInput = document.getElementById('vs-fx-blur');
     const fxOpacityInput = document.getElementById('vs-fx-opacity');
+    const layerStyleForm = document.getElementById('vs-layer-style-form');
+    const layerLineStyleSelect = document.getElementById('vs-layer-line-style');
+    const layerDoubleHeadToggle = document.getElementById('vs-layer-double-head');
+    const layerLockedToggle = document.getElementById('vs-layer-locked');
+    const layerDuplicateBtn = document.getElementById('vs-layer-duplicate');
+    const layerFrontBtn = document.getElementById('vs-layer-front');
+    const layerBackBtn = document.getElementById('vs-layer-back');
 
     const csrf = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
     const wsPrefGetUrl = safeText(document.getElementById('vs-ws-pref-get-url')?.value);
@@ -1093,6 +1104,37 @@
 	      if (obj.data.anim == null) obj.data.anim = 'none';
 	      if (obj.data.base_sx == null) obj.data.base_sx = Number(obj.scaleX) || 1;
 	      if (obj.data.base_sy == null) obj.data.base_sy = Number(obj.scaleY) || 1;
+        // Bloqueo persistente
+        try {
+          const locked = Boolean(obj.data.locked);
+          if (locked) {
+            obj.set({
+              lockMovementX: true,
+              lockMovementY: true,
+              lockScalingX: true,
+              lockScalingY: true,
+              lockRotation: true,
+              hasControls: false,
+              selectable: true,
+              evented: true,
+            });
+          }
+        } catch (e) { /* ignore */ }
+        // Estilo persistente (líneas)
+        try {
+          const ls = safeText(obj.data.line_style, '');
+          if ((ls === 'dash' || ls === 'dot' || ls === 'solid') && safeText(obj.data.__ls_applied, '') !== ls) {
+            const sw = Number(obj?._objects?.[0]?.strokeWidth) || Number(obj?.strokeWidth) || 6;
+            if (obj.type === 'group' && Array.isArray(obj._objects)) {
+              obj._objects.forEach((child) => {
+                if (child?.type === 'line' || child?.type === 'path' || child?.type === 'polyline') applyStrokeStyle(child, ls, sw);
+              });
+            } else if (obj?.type === 'line' || obj?.type === 'path' || obj?.type === 'polyline') {
+              applyStrokeStyle(obj, ls, sw);
+            }
+            obj.data.__ls_applied = ls;
+          }
+        } catch (e) { /* ignore */ }
 	    };
 
 	    const seedLayerDataNow = (extra = {}) => {
@@ -1119,6 +1161,60 @@
 	        ...extra,
 	      };
 	    };
+
+      // Preferencias rápidas de estilo (flechas/trayectorias)
+      const lsGet = (k, fallback = '') => {
+        try {
+          const v = window.localStorage?.getItem?.(k);
+          return v == null ? fallback : String(v);
+        } catch (e) { return fallback; }
+      };
+      const lsSet = (k, v) => {
+        try { window.localStorage?.setItem?.(k, String(v)); } catch (e) { /* ignore */ }
+      };
+      const lineStyleKey = 'vs_line_style_v1';
+      const arrowDoubleKey = 'vs_arrow_double_v1';
+      const getLineStyle = () => {
+        const v = safeText(lineStyleSelect?.value, 'solid');
+        return (v === 'dash' || v === 'dot' || v === 'solid') ? v : 'solid';
+      };
+      const isArrowDouble = () => safeText(arrowDoubleBtn?.getAttribute?.('data-on'), '0') === '1';
+      const setArrowDouble = (on) => {
+        const v = on ? '1' : '0';
+        try { arrowDoubleBtn?.setAttribute?.('data-on', v); } catch (e) { /* ignore */ }
+        try { arrowDoubleBtn?.classList?.toggle?.('primary', Boolean(on)); } catch (e) { /* ignore */ }
+        lsSet(arrowDoubleKey, v);
+      };
+      const applyStrokeStyle = (obj, style, sw) => {
+        if (!obj) return;
+        const st = (style === 'dash' || style === 'dot' || style === 'solid') ? style : '';
+        if (!st || st === 'solid') {
+          try { obj.set({ strokeDashArray: null }); } catch (e) { /* ignore */ }
+          return;
+        }
+        const w = clamp(Number(sw) || 6, 1, 80);
+        const dash = st === 'dot'
+          ? [Math.max(0.1, Math.round(w * 0.35)), Math.max(3, Math.round(w * 1.9))]
+          : [Math.max(6, Math.round(w * 3.2)), Math.max(4, Math.round(w * 2.1))];
+        try {
+          obj.set({
+            strokeDashArray: dash,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round',
+          });
+        } catch (e) { /* ignore */ }
+      };
+      const applyArrowDefaultsFromStorage = () => {
+        const ls = safeText(lsGet(lineStyleKey, ''), '');
+        if (lineStyleSelect && (ls === 'solid' || ls === 'dash' || ls === 'dot')) {
+          try { lineStyleSelect.value = ls; } catch (e) { /* ignore */ }
+        }
+        const dbl = safeText(lsGet(arrowDoubleKey, ''), '0');
+        setArrowDouble(dbl === '1');
+      };
+      applyArrowDefaultsFromStorage();
+      lineStyleSelect?.addEventListener('change', () => lsSet(lineStyleKey, getLineStyle()));
+      arrowDoubleBtn?.addEventListener('click', () => setArrowDouble(!isArrowDouble()));
 
 	    const normalizeKeyframes = (raw) => {
 	      const arr = Array.isArray(raw) ? raw : [];
@@ -1411,9 +1507,15 @@
     const kindLabel = (obj) => {
       const kind = safeText(obj?.data?.kind) || safeText(obj?.type);
       if (kind === 'arrow') return 'Flecha';
+      if (kind === 'curve_arrow') return 'Flecha curva';
+      if (kind === 'movement_line') return 'Trayectoria';
+      if (kind === 'player_marker') return 'Jugador';
+      if (kind === 'base') return 'Base';
+      if (kind === 'surface_area') return 'Área';
+      if (kind === 'template') return 'Plantilla';
       if (kind === 'callout') return `Callout ${safeText(obj?.data?.callout_n)}`;
       if (kind === 'path') return 'Trazo';
-      if (kind === 'text') return 'Texto';
+      if (kind === 'text' || String(kind).startsWith('text_')) return 'Texto';
       if (kind === 'group') return safeText(obj?.data?.kind, 'Grupo');
       return safeText(kind, 'Capa');
     };
@@ -1915,6 +2017,7 @@
         layerEmpty.style.display = '';
         layerForm.style.display = 'none';
         if (fxForm) fxForm.style.display = 'none';
+        if (layerStyleForm) layerStyleForm.style.display = 'none';
         return;
       }
       layerEmpty.style.display = 'none';
@@ -1939,6 +2042,7 @@
         if (fxFeatherInput) fxFeatherInput.value = String(clamp(Number(fx.feather ?? 0.18), 0.02, 0.6));
         if (fxBlurInput) fxBlurInput.value = String(clamp(Number(fx.blur_px ?? 10), 0, 40));
         if (fxOpacityInput) fxOpacityInput.value = String(clamp(Number(fx.opacity ?? 1), 0, 1));
+        if (layerStyleForm) layerStyleForm.style.display = 'none';
         return;
       }
 
@@ -1952,6 +2056,19 @@
       if (layerAnimSelect) layerAnimSelect.value = safeText(obj.data.anim, 'none');
       if (layerAnimSelect) layerAnimSelect.disabled = false;
       if (fxForm) fxForm.style.display = 'none';
+      const kind = safeText(obj?.data?.kind, '');
+      const showArrowStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
+      if (layerStyleForm) layerStyleForm.style.display = '';
+      if (layerLineStyleSelect) {
+        const ls = safeText(obj?.data?.line_style, '');
+        layerLineStyleSelect.value = (ls === 'solid' || ls === 'dash' || ls === 'dot') ? ls : '';
+        layerLineStyleSelect.disabled = !showArrowStyle;
+      }
+      if (layerDoubleHeadToggle) {
+        layerDoubleHeadToggle.checked = Boolean(obj?.data?.double_head);
+        layerDoubleHeadToggle.disabled = !showArrowStyle;
+      }
+      if (layerLockedToggle) layerLockedToggle.checked = Boolean(obj?.data?.locked);
     };
 
     const applyLayerPanelEdits = () => {
@@ -1980,6 +2097,60 @@
       pushHistory();
     };
 
+    const applyLayerStyleEdits = () => {
+      const target = currentLayerTarget();
+      if (!target || target.type !== 'fabric') return;
+      const obj = target.obj;
+      ensureLayerData(obj);
+
+      const kind = safeText(obj?.data?.kind, '');
+      const showArrowStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
+
+      if (showArrowStyle && layerLineStyleSelect) {
+        const v = safeText(layerLineStyleSelect.value, '');
+        if (v === 'solid' || v === 'dash' || v === 'dot') obj.data.line_style = v;
+        else delete obj.data.line_style;
+        try {
+          const sw = Number(obj?._objects?.[0]?.strokeWidth) || Number(obj?.strokeWidth) || Number(strokeWidth()) || 6;
+          if (obj.type === 'group' && Array.isArray(obj._objects)) {
+            obj._objects.forEach((child) => {
+              if (child?.type === 'line' || child?.type === 'path' || child?.type === 'polyline') applyStrokeStyle(child, safeText(obj.data.line_style, ''), sw);
+            });
+          } else if (obj?.type === 'line' || obj?.type === 'path' || obj?.type === 'polyline') {
+            applyStrokeStyle(obj, safeText(obj.data.line_style, ''), sw);
+          }
+          obj.dirty = true;
+        } catch (e) { /* ignore */ }
+      }
+
+      if (showArrowStyle && layerDoubleHeadToggle) {
+        obj.data.double_head = Boolean(layerDoubleHeadToggle.checked);
+      }
+
+      if (layerLockedToggle) {
+        const locked = Boolean(layerLockedToggle.checked);
+        obj.data.locked = locked;
+        try {
+          obj.set({
+            lockMovementX: locked,
+            lockMovementY: locked,
+            lockScalingX: locked,
+            lockScalingY: locked,
+            lockRotation: locked,
+            hasControls: !locked,
+            evented: true,
+            selectable: true,
+          });
+          obj.dirty = true;
+        } catch (e) { /* ignore */ }
+      }
+
+      pushHistory();
+      updateLayerPanel();
+      renderDrawLayers();
+      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+    };
+
     const applyFxPanelEdits = () => {
       const fx = selectedFxId ? getFxById(selectedFxId) : null;
       if (!fx) return;
@@ -1997,8 +2168,51 @@
     [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
       el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); });
     });
+    [layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
+      el?.addEventListener('change', () => applyLayerStyleEdits());
+    });
     [fxIntensityInput, fxFeatherInput, fxBlurInput, fxOpacityInput].forEach((el) => {
       el?.addEventListener('change', () => { applyFxPanelEdits(); updateLayerPanel(); });
+    });
+
+    layerFrontBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target || target.type !== 'fabric') return;
+      try { fabricCanvas.bringToFront(target.obj); } catch (e) { /* ignore */ }
+      pushHistory();
+      renderDrawLayers();
+    });
+    layerBackBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target || target.type !== 'fabric') return;
+      try { fabricCanvas.sendToBack(target.obj); } catch (e) { /* ignore */ }
+      pushHistory();
+      renderDrawLayers();
+    });
+    layerDuplicateBtn?.addEventListener('click', () => {
+      const target = currentLayerTarget();
+      if (!target || target.type !== 'fabric') return;
+      try {
+        target.obj.clone((cloned) => {
+          if (!cloned) return;
+          try { ensureLayerData(cloned); } catch (e) { /* ignore */ }
+          try { cloned.data = { ...(target.obj?.data || {}), uid: newUid() }; } catch (e) { /* ignore */ }
+          try {
+            cloned.left = (Number(cloned.left) || 0) + 18;
+            cloned.top = (Number(cloned.top) || 0) + 12;
+          } catch (e) { /* ignore */ }
+          try { fabricCanvas.add(cloned); } catch (e) { /* ignore */ }
+          pushHistory();
+          try { fabricCanvas.setActiveObject(cloned); } catch (e) { /* ignore */ }
+          selectedFxId = 0;
+          updateLayerPanel();
+          renderDrawLayers();
+          renderFxList();
+          setStatus('Capa duplicada.');
+        });
+      } catch (e) {
+        setStatus('No se pudo duplicar la capa.', true);
+      }
     });
     layerInNowBtn?.addEventListener('click', () => {
       const target = currentLayerTarget();
@@ -2265,6 +2479,8 @@
         const end = fabricCanvas.getPointer(opt.e);
         const sw = strokeWidth();
         const color = strokeColor();
+        const style = getLineStyle();
+        const doubleHead = isArrowDouble();
         const dx = end.x - moveStart.x;
         const dy = end.y - moveStart.y;
         const dist = Math.max(1, Math.hypot(dx, dy));
@@ -2280,12 +2496,13 @@
           strokeWidth: clamp(sw, 2, 18),
           strokeLineCap: 'round',
           strokeLineJoin: 'round',
-          strokeDashArray: [10, 8],
+          strokeDashArray: null,
           selectable: false,
           evented: false,
           objectCaching: false,
           shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
         });
+        applyStrokeStyle(path, style, sw);
         const ang = Math.atan2(dy, dx);
         const headLen = clamp(18 + sw * 1.2, 16, 42);
         const headW = clamp(10 + sw * 0.8, 10, 28);
@@ -2305,8 +2522,30 @@
           evented: false,
           shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
         });
-        const group = new fabric.Group([path, head], { selectable: true });
-        group.data = seedLayerDataNow({ kind: 'movement_line' });
+        const objects = [path, head];
+        if (doubleHead) {
+          const sx = moveStart.x;
+          const sy = moveStart.y;
+          const shx1 = sx + headLen * Math.cos(ang) + headW * Math.cos(ang + Math.PI / 2);
+          const shy1 = sy + headLen * Math.sin(ang) + headW * Math.sin(ang + Math.PI / 2);
+          const shx2 = sx + headLen * Math.cos(ang) + headW * Math.cos(ang - Math.PI / 2);
+          const shy2 = sy + headLen * Math.sin(ang) + headW * Math.sin(ang - Math.PI / 2);
+          const headStart = new fabric.Polygon([
+            { x: sx, y: sy },
+            { x: shx1, y: shy1 },
+            { x: shx2, y: shy2 },
+          ], {
+            fill: color,
+            stroke: 'rgba(255,255,255,0.65)',
+            strokeWidth: 1,
+            selectable: false,
+            evented: false,
+            shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+          });
+          objects.push(headStart);
+        }
+        const group = new fabric.Group(objects, { selectable: true });
+        group.data = seedLayerDataNow({ kind: 'movement_line', line_style: style, double_head: doubleHead, anim: 'none' });
         fabricCanvas.add(group);
         pushHistory();
         try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
@@ -2343,6 +2582,8 @@
         const dx = end.x - arrowStart.x;
         const dy = end.y - arrowStart.y;
 	        const dist = Math.max(1, Math.hypot(dx, dy));
+          const style = getLineStyle();
+          const doubleHead = isArrowDouble();
 	        const mx = (arrowStart.x + end.x) / 2;
 	        const my = (arrowStart.y + end.y) / 2;
 	        const perpX = -dy / dist;
@@ -2361,6 +2602,7 @@
           strokeLineJoin: 'round',
           selectable: true,
         });
+        applyStrokeStyle(path, style, sw);
         path.data = { draw_len: Math.round(dist * 1.25) };
         const ang = Math.atan2(end.y - cy, end.x - cx);
         const headLen = 14 + sw;
@@ -2373,8 +2615,24 @@
           { x: hx1, y: hy1 },
           { x: hx2, y: hy2 },
         ], { fill: color, selectable: true });
-        const group = new fabric.Group([path, head], { selectable: true });
-        group.data = seedLayerDataNow({ kind: 'curve_arrow', anim: 'draw', anim_ms: 850 });
+        const objects = [path, head];
+        if (doubleHead) {
+          const sAng = Math.atan2(cy - arrowStart.y, cx - arrowStart.x);
+          const shx1 = arrowStart.x + (14 + sw) * Math.cos(sAng - Math.PI / 7);
+          const shy1 = arrowStart.y + (14 + sw) * Math.sin(sAng - Math.PI / 7);
+          const shx2 = arrowStart.x + (14 + sw) * Math.cos(sAng + Math.PI / 7);
+          const shy2 = arrowStart.y + (14 + sw) * Math.sin(sAng + Math.PI / 7);
+          const headStart = new fabric.Polygon([
+            { x: arrowStart.x, y: arrowStart.y },
+            { x: shx1, y: shy1 },
+            { x: shx2, y: shy2 },
+          ], { fill: color, selectable: true });
+          objects.push(headStart);
+        }
+        const group = new fabric.Group(objects, { selectable: true });
+        // Nota: el anim "draw" usa strokeDashArray como máscara; para estilos dash/dot dejamos anim en none.
+        const anim = (style === 'solid') ? 'draw' : 'none';
+        group.data = seedLayerDataNow({ kind: 'curve_arrow', anim, anim_ms: 850, line_style: style, double_head: doubleHead });
         fabricCanvas.add(group);
       } else {
         const line = new fabric.Line([arrowStart.x, arrowStart.y, end.x, end.y], {
@@ -2382,6 +2640,9 @@
           strokeWidth: sw,
           selectable: true,
         });
+        const style = getLineStyle();
+        const doubleHead = isArrowDouble();
+        applyStrokeStyle(line, style, sw);
         const ang = Math.atan2(end.y - arrowStart.y, end.x - arrowStart.x);
         const headLen = 14 + sw;
         const hx1 = end.x - headLen * Math.cos(ang - Math.PI / 7);
@@ -2393,8 +2654,25 @@
           { x: hx1, y: hy1 },
           { x: hx2, y: hy2 },
         ], { fill: color, selectable: true });
-        const group = new fabric.Group([line, head], { selectable: true });
-        group.data = seedLayerDataNow({ kind: 'arrow', anim: 'draw', anim_ms: 700 });
+        const objects = [line, head];
+        if (doubleHead) {
+          const sx = arrowStart.x;
+          const sy = arrowStart.y;
+          const sAng = ang + Math.PI;
+          const shx1 = sx - headLen * Math.cos(sAng - Math.PI / 7);
+          const shy1 = sy - headLen * Math.sin(sAng - Math.PI / 7);
+          const shx2 = sx - headLen * Math.cos(sAng + Math.PI / 7);
+          const shy2 = sy - headLen * Math.sin(sAng + Math.PI / 7);
+          const headStart = new fabric.Polygon([
+            { x: sx, y: sy },
+            { x: shx1, y: shy1 },
+            { x: shx2, y: shy2 },
+          ], { fill: color, selectable: true });
+          objects.push(headStart);
+        }
+        const group = new fabric.Group(objects, { selectable: true });
+        const anim = (style === 'solid') ? 'draw' : 'none';
+        group.data = seedLayerDataNow({ kind: 'arrow', anim, anim_ms: 700, line_style: style, double_head: doubleHead });
         fabricCanvas.add(group);
       }
       pushHistory();
@@ -7231,7 +7509,7 @@
           if (obj.type === 'group' && Array.isArray(obj._objects)) {
             const line = obj._objects.find((x) => x?.type === 'line');
             const path = obj._objects.find((x) => x?.type === 'path');
-            const head = obj._objects.find((x) => x?.type === 'polygon');
+            const heads = obj._objects.filter((x) => x?.type === 'polygon');
             if (line && Number.isFinite(line.x1) && Number.isFinite(line.x2)) {
               const len = Math.max(1, Math.hypot((line.x2 - line.x1), (line.y2 - line.y1)));
               line.strokeDashArray = [len, len];
@@ -7244,9 +7522,12 @@
               path.strokeDashOffset = len * (1 - prog);
               path.dirty = true;
             }
-            if (head) {
-              head.opacity = prog >= 0.98 ? 1 : 0;
-              head.dirty = true;
+            if (heads && heads.length) {
+              const op = prog >= 0.98 ? 1 : 0;
+              heads.forEach((h) => {
+                h.opacity = op;
+                h.dirty = true;
+              });
             }
           }
         }
@@ -7268,11 +7549,120 @@
       window.requestAnimationFrame(tick);
     };
     window.requestAnimationFrame(tick);
-    video.addEventListener('timeupdate', () => { if (video.paused) applyTimedLayers(); });
+	    video.addEventListener('timeupdate', () => { if (video.paused) applyTimedLayers(); });
 
-    pushHistory();
-    reseedFxSeq();
-    renderFxList();
+	    const autoTrackPlayers = async () => {
+	      if (!btnTrackAuto) return;
+	      if (!trackUrl || !videoId) { setStatus('AutoTrack no disponible.', true); return; }
+	      const a = Math.max(0, Number(inInput?.value || 0) || 0);
+	      const b = Math.max(0, Number(outInput?.value || 0) || 0);
+	      const start = Math.min(a, b);
+	      const end = Math.max(a, b);
+	      if (!end || end <= start + 0.05) { setStatus('AutoTrack: define IN/OUT de la jugada.', true); return; }
+
+	      const wasPlaying = !video.paused;
+	      try { video.pause(); } catch (e) { /* ignore */ }
+	      btnTrackAuto.disabled = true;
+	      const prevLabel = safeText(btnTrackAuto.textContent, 'AutoTrack');
+	      btnTrackAuto.textContent = 'AutoTrack…';
+	      setStatus('AutoTrack: preparando (ir a IN)…');
+
+	      try {
+	        await seekTo(start);
+	        await sleep(120);
+	        try { applyTimedLayers(); } catch (e0) { /* ignore */ }
+
+	        const canvasW = Number(fabricCanvas.getWidth?.()) || 0;
+	        const canvasH = Number(fabricCanvas.getHeight?.()) || 0;
+	        if (!canvasW || !canvasH) throw new Error('Canvas no listo');
+
+	        const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e2) { return null; } })();
+	        const selectedObjs = (() => {
+	          try {
+	            if (!active) return [];
+	            if (active.type === 'activeSelection' && typeof active.getObjects === 'function') return active.getObjects() || [];
+	            return [active];
+	          } catch (e3) { return []; }
+	        })();
+	        const hasSelectedMarkers = selectedObjs.some((o) => safeText(o?.data?.kind) === 'player_marker');
+	        const pool = hasSelectedMarkers ? selectedObjs : (fabricCanvas.getObjects?.() || []);
+
+	        const markers = [];
+	        const uidToObj = new Map();
+	        const defaultBoxPx = clamp(Math.round(Math.min(canvasW, canvasH) * 0.13), 56, 170);
+	        for (const obj of pool) {
+	          ensureLayerData(obj);
+	          if (safeText(obj?.data?.kind) !== 'player_marker') continue;
+	          if (!obj.visible) continue; // sólo lo que está "en pantalla" en IN
+	          const uid = safeText(obj?.data?.uid, '');
+	          if (!uid) continue;
+	          let p = null;
+	          try { p = obj.getCenterPoint?.(); } catch (e4) { p = null; }
+	          const cx = Number(p?.x ?? obj.left) || 0;
+	          const cy = Number(p?.y ?? obj.top) || 0;
+	          if (!Number.isFinite(cx) || !Number.isFinite(cy)) continue;
+	          const bw = clamp(Number(obj?.data?.track_box_w_px ?? defaultBoxPx), 40, Math.max(60, canvasW));
+	          const bh = clamp(Number(obj?.data?.track_box_h_px ?? defaultBoxPx), 40, Math.max(60, canvasH));
+	          markers.push({
+	            uid,
+	            x_rel: clamp(cx / canvasW, 0, 1),
+	            y_rel: clamp(cy / canvasH, 0, 1),
+	            bw_rel: clamp(bw / canvasW, 0.02, 0.35),
+	            bh_rel: clamp(bh / canvasH, 0.02, 0.35),
+	          });
+	          uidToObj.set(uid, obj);
+	        }
+	        if (!markers.length) throw new Error('No hay marcadores Jugador visibles en IN (selecciona uno o crea varios).');
+
+	        setStatus(`AutoTrack: siguiendo ${markers.length} jugador(es)… (beta)`);
+	        const resp = await fetch(trackUrl, {
+	          method: 'POST',
+	          credentials: 'same-origin',
+	          cache: 'no-store',
+	          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, Accept: 'application/json' },
+	          body: JSON.stringify({ video_id: videoId, start_s: start, end_s: end, fps: 10, max_w: 1280, markers }),
+	        });
+	        const data = await resp.json().catch(() => ({}));
+	        if (!resp.ok || !data?.ok) throw new Error(safeText(data?.error, 'No se pudo hacer tracking.'));
+
+	        const tracks = data.tracks && typeof data.tracks === 'object' ? data.tracks : {};
+	        let applied = 0;
+	        for (const [uid, points] of Object.entries(tracks)) {
+	          const obj = uidToObj.get(String(uid));
+	          if (!obj || !Array.isArray(points) || !points.length) continue;
+	          const kf = points
+	            .map((p0) => ({
+	              t: Number(p0?.t),
+	              x: Number(p0?.x_rel) * canvasW,
+	              y: Number(p0?.y_rel) * canvasH,
+	            }))
+	            .filter((p0) => Number.isFinite(p0.t) && Number.isFinite(p0.x) && Number.isFinite(p0.y));
+	          if (!kf.length) continue;
+	          ensureLayerData(obj);
+	          obj.data.track = true;
+	          obj.data.kf = normalizeKeyframes(kf);
+	          obj.data.t_in_s = start;
+	          obj.data.t_out_s = end;
+	          applied += 1;
+	        }
+	        if (!applied) throw new Error('No se pudo aplicar tracking (sin resultados).');
+	        pushHistory();
+	        renderDrawLayers();
+	        updateLayerPanel();
+	        setStatus(`AutoTrack: OK (${applied}/${markers.length}). Puedes corregir arrastrando en Play (se guardan keyframes).`);
+	      } catch (e) {
+	        setStatus(`AutoTrack: ${safeText(e?.message, 'error')}`, true);
+	      } finally {
+	        btnTrackAuto.textContent = prevLabel;
+	        btnTrackAuto.disabled = false;
+	        if (wasPlaying) { try { await video.play(); } catch (e9) { /* ignore */ } }
+	      }
+	    };
+	    btnTrackAuto?.addEventListener('click', () => { autoTrackPlayers(); });
+
+	    pushHistory();
+	    reseedFxSeq();
+	    renderFxList();
     updateLayerPanel();
     renderDrawLayers();
     setStatus('Listo.');
