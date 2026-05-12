@@ -73,5 +73,6 @@ fi
 
 echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
 exec gunicorn webstats.wsgi:application \
+  -k sync \
   --bind "0.0.0.0:${PORT}" \
   --timeout "${GUNICORN_TIMEOUT}"
