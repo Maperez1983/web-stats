@@ -384,6 +384,36 @@ def public_build_info(request):
     except Exception:
         loop_running = False
         loop_type = None
+    worker_pid = None
+    worker_ppid = None
+    try:
+        import os as _os
+
+        worker_pid = int(_os.getpid())
+        worker_ppid = int(_os.getppid())
+    except Exception:
+        worker_pid = None
+        worker_ppid = None
+    thread_name = None
+    thread_ident = None
+    try:
+        import threading
+
+        t = threading.current_thread()
+        thread_name = getattr(t, "name", None)
+        thread_ident = getattr(t, "ident", None)
+    except Exception:
+        thread_name = None
+        thread_ident = None
+    asyncio_task = None
+    try:
+        import asyncio
+
+        asyncio_task = asyncio.current_task()
+        if asyncio_task is not None:
+            asyncio_task = str(asyncio_task)
+    except Exception:
+        asyncio_task = None
     return JsonResponse(
             {
             'ok': True,
@@ -399,6 +429,11 @@ def public_build_info(request):
                 'asyncio_loop_running': bool(loop_running),
                 'asyncio_loop_type': loop_type,
                 'gunicorn_cmd_args_env': (os.getenv('GUNICORN_CMD_ARGS') or '').strip(),
+                'pid': worker_pid,
+                'ppid': worker_ppid,
+                'thread_name': thread_name,
+                'thread_ident': thread_ident,
+                'asyncio_current_task': asyncio_task,
             },
             'flags': {
                 'enable_public_signup': str(os.getenv('ENABLE_PUBLIC_SIGNUP', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'},

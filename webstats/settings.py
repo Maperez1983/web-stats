@@ -42,6 +42,12 @@ def _env_int(name, default):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 
+# Hard safety switch: allow ORM in async contexts (NOT recommended).
+# Only enable temporarily to unblock production if the environment forces an event loop.
+DJANGO_ALLOW_ASYNC_UNSAFE_ENV = os.getenv('DJANGO_ALLOW_ASYNC_UNSAFE', '').strip().lower()
+if DJANGO_ALLOW_ASYNC_UNSAFE_ENV in {'1', 'true', 'yes', 'on'}:
+    os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', '').strip()
 if not SECRET_KEY:
