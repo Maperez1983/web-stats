@@ -4,50 +4,26 @@ import base64
 import json
 import mimetypes
 import os
-import threading
+import contextlib
 from pathlib import Path
 from urllib.parse import urlparse
 
 from django.conf import settings
 
 
-_PW_LOCK = threading.Lock()
-_PW_HANDLE = None
-_PW_BROWSER = None
-
 # Render: ensure Playwright browsers are looked up from the "hermetic" install location (bundled with
 # the app) instead of a per-user cache that may not persist between build/runtime or across instances.
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", "0")
-
-
-def _reset_playwright():
-    global _PW_HANDLE, _PW_BROWSER
-    with _PW_LOCK:
-        try:
-            if _PW_BROWSER:
-                _PW_BROWSER.close()
-        except Exception:
-            pass
-        try:
-            if _PW_HANDLE:
-                _PW_HANDLE.stop()
-        except Exception:
-            pass
-        _PW_BROWSER = None
-        _PW_HANDLE = None
 
 
 def shutdown_preview_renderer() -> None:
     """
     Best-effort shutdown for Playwright resources.
 
-    Playwright's sync API uses an internal asyncio loop; keeping the browser handle alive can cause
-    Django management commands to be seen as "async context" at teardown (SynchronousOnlyOperation).
+    Nota: este módulo ya no mantiene un navegador global (para evitar que el loop interno de
+    Playwright contamine el hilo del worker y dispare `SynchronousOnlyOperation` en Django).
     """
-    try:
-        _reset_playwright()
-    except Exception:
-        pass
+    return None
 
 
 def _guess_mime(path_or_url: str) -> str:
@@ -152,34 +128,38 @@ def _rewrite_urls_to_data_urls(payload):
     return payload
 
 
-def _get_playwright_browser():
-    global _PW_HANDLE, _PW_BROWSER
-    with _PW_LOCK:
-        if _PW_HANDLE and _PW_BROWSER:
-            try:
-                if _PW_BROWSER.is_connected():
-                    return _PW_HANDLE, _PW_BROWSER
-            except Exception:
-                _PW_HANDLE = None
-                _PW_BROWSER = None
+@contextlib.contextmanager
+def _acquire_playwright_browser():
+    """
+    Crea un browser de Playwright y lo cierra al salir.
+
+    Importante: NO mantenemos Playwright "vivo" entre requests. Su Sync API usa un loop interno
+    y, si queda activo en el hilo del worker, Django puede lanzar `SynchronousOnlyOperation`
+    al acceder a ORM/sesiones en ese mismo hilo.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        yield None, None
+        return
+
+    pw = None
+    browser = None
+    try:
+        pw = sync_playwright().start()
+        browser = pw.chromium.launch(args=["--no-sandbox"])
+        yield pw, browser
+    finally:
         try:
-            from playwright.sync_api import sync_playwright
+            if browser:
+                browser.close()
         except Exception:
-            return None, None
+            pass
         try:
-            _PW_HANDLE = sync_playwright().start()
-            # In linux containers, chromium sandbox is often unavailable.
-            _PW_BROWSER = _PW_HANDLE.chromium.launch(args=["--no-sandbox"])
-            return _PW_HANDLE, _PW_BROWSER
+            if pw:
+                pw.stop()
         except Exception:
-            try:
-                if _PW_HANDLE:
-                    _PW_HANDLE.stop()
-            except Exception:
-                pass
-            _PW_HANDLE = None
-            _PW_BROWSER = None
-            return None, None
+            pass
 
 
 def render_task_preview_png(
@@ -199,9 +179,8 @@ def render_task_preview_png(
     """
     if not isinstance(canvas_state, dict):
         return None
-    pw, browser = _get_playwright_browser()
-    if not pw or not browser:
-        return None
+    pw = None
+    browser = None
 
     orientation = "portrait" if str(pitch_orientation).strip().lower() == "portrait" else "landscape"
     preset = str(pitch_preset or "full_pitch").strip() or "full_pitch"
@@ -336,29 +315,32 @@ def render_task_preview_png(
         # Fallback: static directory might be collected.
         fabric_path = Path(settings.STATIC_ROOT) / "vendor" / "fabric.min.js"
 
-    context = None
-    try:
-        context = browser.new_context(
-            viewport={"width": int(viewport_w), "height": int(viewport_h)},
-            device_scale_factor=float(dpr),
-        )
-        page = context.new_page()
-        # Avoid external network hangs when Fabric tries to load remote images.
-        # We inline local /static and /media URLs into data: URLs before rendering.
-        # Any other remote requests are aborted quickly.
+    with _acquire_playwright_browser() as (pw, browser):
+        if not pw or not browser:
+            return None
+        context = None
         try:
-            page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
-        except Exception:
-            pass
-        page.set_content(html, wait_until="load")
+            context = browser.new_context(
+                viewport={"width": int(viewport_w), "height": int(viewport_h)},
+                device_scale_factor=float(dpr),
+            )
+            page = context.new_page()
+            # Avoid external network hangs when Fabric tries to load remote images.
+            # We inline local /static and /media URLs into data: URLs before rendering.
+            # Any other remote requests are aborted quickly.
+            try:
+                page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+            except Exception:
+                pass
+            page.set_content(html, wait_until="load")
 
-        if fabric_path.exists():
-            page.add_script_tag(path=str(fabric_path))
-        if pitch_snippet:
-            page.add_script_tag(content=f"(function(){{\n{pitch_snippet}\n}})();")
+            if fabric_path.exists():
+                page.add_script_tag(path=str(fabric_path))
+            if pitch_snippet:
+                page.add_script_tag(content=f"(function(){{\n{pitch_snippet}\n}})();")
 
-        page.add_script_tag(
-            content="""
+            page.add_script_tag(
+                content="""
               (async () => {
                 const cfg = window.__TPAD_RENDER__ || {};
 	                const preset = String(cfg.preset || 'full_pitch');
@@ -418,21 +400,20 @@ def render_task_preview_png(
                 }
               })();
             """,
-        )
+            )
 
-        page.wait_for_function("window.__render_done === true", timeout=15000)
-        # Capture stage (pitch + overlay) at device scale.
-        png_bytes = page.locator("#stage").screenshot(type="png")
-        try:
-            context.close()
-        except Exception:
-            pass
-        return png_bytes
-    except Exception:
-        _reset_playwright()
-        try:
-            if context:
+            page.wait_for_function("window.__render_done === true", timeout=15000)
+            # Capture stage (pitch + overlay) at device scale.
+            png_bytes = page.locator("#stage").screenshot(type="png")
+            try:
                 context.close()
+            except Exception:
+                pass
+            return png_bytes
         except Exception:
-            pass
-        return None
+            try:
+                if context:
+                    context.close()
+            except Exception:
+                pass
+            return None
