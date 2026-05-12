@@ -373,6 +373,17 @@ def public_build_info(request):
             scope_type = (request.scope or {}).get('type')  # type: ignore[attr-defined]
         except Exception:
             scope_type = None
+    loop_running = False
+    loop_type = None
+    try:
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        loop_running = True
+        loop_type = loop.__class__.__name__
+    except Exception:
+        loop_running = False
+        loop_type = None
     return JsonResponse(
             {
             'ok': True,
@@ -385,6 +396,9 @@ def public_build_info(request):
                 'is_asgi': bool(is_asgi),
                 'scope_type': scope_type,
                 'django_run_asgi_env': (os.getenv('DJANGO_RUN_ASGI') or '').strip(),
+                'asyncio_loop_running': bool(loop_running),
+                'asyncio_loop_type': loop_type,
+                'gunicorn_cmd_args_env': (os.getenv('GUNICORN_CMD_ARGS') or '').strip(),
             },
             'flags': {
                 'enable_public_signup': str(os.getenv('ENABLE_PUBLIC_SIGNUP', '0') or '').strip().lower() in {'1', 'true', 'yes', 'on'},
