@@ -3642,7 +3642,17 @@
 	      {% endif %}
       <div class="topbar">
         <div>
-          <h1>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · Editor visual dedicado</h1>
+	          <h1>
+	            {% if analysis_item_mode %}
+	              Informe · {{ analysis_item_title|default:"Pizarra" }} · Editor visual
+	            {% elif tactics_mode %}
+	              Táctica · Editor visual dedicado
+	            {% elif task %}
+	              Editar tarea · Editor visual dedicado
+	            {% else %}
+	              Crear tarea · Editor visual dedicado
+	            {% endif %}
+	          </h1>
           <p class="meta">
             {% if tactics_mode %}
               Pizarra táctica + Playbook (clips), exportaciones y compartir. No crea tareas ni requiere sesión.
@@ -3651,16 +3661,24 @@
             {% endif %}
           </p>
         </div>
-		        <div class="actions">
-              {% if not tactics_mode %}
-              <button
-                type="button"
-                class="button primary"
-                id="task-builder-save-top"
-                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
-                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
-              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
-              {% endif %}
+			        <div class="actions">
+	              {% if analysis_item_mode %}
+	              <button
+	                type="button"
+	                class="button primary"
+	                id="task-builder-save-top"
+	                title="Guardar pizarra"
+	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+	              >Guardar</button>
+	              {% elif not tactics_mode %}
+	              <button
+	                type="button"
+	                class="button primary"
+	                id="task-builder-save-top"
+	                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
+	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
+	              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+	              {% endif %}
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>
               {% endif %}
@@ -5928,12 +5946,18 @@
 	                </div>
 	              </div>
 
-              {% if not tactics_mode %}
-              <div class="submit-row">
-                <button type="submit" class="button primary" id="task-submit-btn">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
-              </div>
-              {% else %}
-              <div class="submit-row" style="justify-content:flex-end;">
+	              {% if analysis_item_mode %}
+	              <div class="submit-row" style="justify-content:flex-end;">
+	                <div style="font-size:0.9rem; opacity:0.85; text-align:right;">
+	                  Pulsa <strong>Guardar</strong> para añadir la pizarra al informe.
+	                </div>
+	              </div>
+	              {% elif not tactics_mode %}
+	              <div class="submit-row">
+	                <button type="submit" class="button primary" id="task-submit-btn">{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
+	              </div>
+	              {% else %}
+	              <div class="submit-row" style="justify-content:flex-end;">
                 <div style="font-size:0.9rem; opacity:0.85; text-align:right;">
                   Guarda como <strong>clip</strong> desde el Playbook o exporta en “Exportar”.
                 </div>

@@ -2024,6 +2024,8 @@ class AnalysisVideoReportItem(models.Model):
     )
     title = models.CharField(max_length=180, blank=True)
     body = models.TextField(blank=True)
+    tactical_layout = models.JSONField(default=dict, blank=True)
+    tactical_preview_image = models.ImageField(upload_to='analysis-reports/tactics/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -129,11 +129,12 @@
                     {% endif %}
                   </div>
                 </div>
-                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
-                  <form method="post" style="margin:0;">
-                    {% csrf_token %}
-                    <input type="hidden" name="form_action" value="move_item_up" />
-                    <input type="hidden" name="item_id" value="{{ item.id }}" />
+	                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; justify-content:flex-end;">
+	                  <a class="button" href="{% url 'analysis-video-report-item-tactical' item.id %}">Pizarra</a>
+	                  <form method="post" style="margin:0;">
+	                    {% csrf_token %}
+	                    <input type="hidden" name="form_action" value="move_item_up" />
+	                    <input type="hidden" name="item_id" value="{{ item.id }}" />
                     <button class="button" type="submit">↑</button>
                   </form>
                   <form method="post" style="margin:0;">
@@ -171,12 +172,27 @@
                 <div style="margin-top:0.65rem; display:flex; gap:0.45rem; flex-wrap:wrap;">
                   <button class="button" type="submit">Guardar</button>
                 </div>
-              </form>
+	              </form>
 
-              <div style="margin-top:0.75rem;">
-                <div class="meta" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Capturas / imágenes</div>
-                {% if item.images.all %}
-                  <div class="thumbs">
+	              <div style="margin-top:0.75rem;">
+	                <div class="meta" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Pizarra táctica</div>
+	                <div style="margin-top:0.55rem; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:flex-start;">
+	                  <a class="button primary" href="{% url 'analysis-video-report-item-tactical' item.id %}">Abrir pizarra</a>
+	                  {% if item.tactical_preview_image %}
+	                    <div class="thumb" style="width:220px;">
+	                      <img src="{{ item.tactical_preview_image.url }}" alt="" loading="lazy" />
+	                      <div class="cap">Vista previa</div>
+	                    </div>
+	                  {% else %}
+	                    <div class="meta">Aún no hay pizarra guardada para este clip.</div>
+	                  {% endif %}
+	                </div>
+	              </div>
+
+	              <div style="margin-top:0.75rem;">
+	                <div class="meta" style="font-weight:950; letter-spacing:0.08em; text-transform:uppercase;">Capturas / imágenes</div>
+	                {% if item.images.all %}
+	                  <div class="thumbs">
                     {% for img in item.images.all %}
                       <div class="thumb">
                         <img src="{{ img.image.url }}" alt="" loading="lazy" />

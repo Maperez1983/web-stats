@@ -5575,13 +5575,23 @@ def _should_use_team_cover_image(request, workspace, team) -> bool:
     """
     if not team or not getattr(team, 'cover_image', None):
         return False
+    # Producto comercial (multicliente): si NO hay workspace activo, nunca usamos la portada del equipo
+    # porque puede caer al Team.is_primary global (p.ej. Benagalbón) y mezclar identidades entre clientes.
+    # Si se desea comportamiento legacy monoclub, se debe activar explícitamente ALLOW_SINGLE_CLUB_FALLBACK.
+    if not workspace:
+        try:
+            if request and getattr(request, 'user', None) and request.user.is_authenticated and _can_access_platform(request.user):
+                return True
+        except Exception:
+            pass
+        return bool(_single_club_fallback_enabled())
     try:
         if getattr(team, 'cover_updated_at', None):
             return True
     except Exception:
         pass
-    # Backcompat: si no es un workspace club (o solo hay un equipo), permitimos usar la portada igualmente.
-    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
+    # Backcompat: si no es un workspace club (p.ej. Task Studio), permitimos usar la portada igualmente.
+    if getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
         return True
     try:
         other_links_exist = WorkspaceTeam.objects.filter(workspace=workspace).exclude(team=team).exists()
@@ -45985,7 +45995,13 @@ def _pptx_bytes_for_analysis_video_report(request, report: AnalysisVideoReport, 
         except Exception:
             pass
 
-        # Capturas/imágenes (hasta 2)
+        # Capturas/imágenes (hasta 2) + pizarra (si existe).
+        board_path = ''
+        try:
+            board_field = getattr(item, 'tactical_preview_image', None)
+            board_path = board_field.path if board_field and hasattr(board_field, 'path') else ''
+        except Exception:
+            board_path = ''
         try:
             images = list(getattr(item, 'images', []).all()) if hasattr(getattr(item, 'images', None), 'all') else []
         except Exception:
@@ -45993,14 +46009,19 @@ def _pptx_bytes_for_analysis_video_report(request, report: AnalysisVideoReport, 
         _add_section_label(slide, 'Capturas', Inches(10.25), Inches(4.70), Inches(2.35))
         img_y = 4.95
         try:
-            for img in images[:2]:
+            img_paths = []
+            if board_path and os.path.exists(board_path):
+                img_paths.append(board_path)
+            for img in images:
                 try:
                     file_field = getattr(img, 'image', None)
                     path = file_field.path if file_field and hasattr(file_field, 'path') else ''
                 except Exception:
                     path = ''
-                if not path or not os.path.exists(path):
+                if not path or not os.path.exists(path) or path in img_paths:
                     continue
+                img_paths.append(path)
+            for path in img_paths[:2]:
                 slide.shapes.add_picture(path, Inches(10.25), Inches(img_y), Inches(2.35), Inches(1.20))
                 img_y += 1.33
         except Exception:
@@ -46271,6 +46292,257 @@ def analysis_video_report_page(request, report_id):
             'back_url': back_url,
             'message': message,
             'error': error,
+        },
+    )
+
+
+@login_required
+def analysis_video_report_item_tactical_page(request, item_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    item = (
+        AnalysisVideoReportItem.objects
+        .select_related('report', 'report__folder', 'report__folder__rival_team')
+        .filter(id=int(item_id), report__team=primary_team)
+        .first()
+    )
+    if not item:
+        raise Http404('Elemento no encontrado')
+    report = getattr(item, 'report', None)
+
+    message = ''
+    error = ''
+
+    if request.method == 'POST':
+        raw_canvas_state = (request.POST.get('draw_canvas_state') or '').strip()
+        canvas_state = {}
+        if raw_canvas_state:
+            try:
+                parsed = json.loads(raw_canvas_state)
+                if isinstance(parsed, dict):
+                    canvas_state = parsed
+            except Exception:
+                canvas_state = {}
+
+        canvas_width = max(320, min(3840, _parse_int(request.POST.get('draw_canvas_width')) or 1280))
+        canvas_height = max(180, min(2160, _parse_int(request.POST.get('draw_canvas_height')) or 720))
+        pitch_orientation = (request.POST.get('draw_task_pitch_orientation') or '').strip().lower() or 'landscape'
+        if pitch_orientation not in {'landscape', 'portrait'}:
+            pitch_orientation = 'landscape'
+        pitch_zoom = (request.POST.get('draw_task_pitch_zoom') or '').strip() or '1.00'
+        pitch_grass_style = (request.POST.get('draw_task_pitch_grass_style') or '').strip() or 'classic'
+        pitch_preset = (request.POST.get('draw_task_pitch_preset') or '').strip() or 'full_pitch'
+
+        tactical_layout = {
+            'tokens': canvas_state.get('objects') if isinstance(canvas_state.get('objects'), list) else [],
+            'timeline': canvas_state.get('timeline') if isinstance(canvas_state.get('timeline'), list) else [],
+            'meta': {
+                'scope': 'analysis_report',
+                'source': 'analysis-report-item',
+                'pitch_preset': pitch_preset,
+                'pitch_orientation': pitch_orientation,
+                'pitch_zoom': pitch_zoom,
+                'pitch_grass_style': pitch_grass_style,
+                'graphic_editor': {
+                    'canvas_state': canvas_state,
+                    'canvas_width': int(canvas_width),
+                    'canvas_height': int(canvas_height),
+                },
+            },
+        }
+
+        preview_data = (request.POST.get('draw_canvas_preview_data') or '').strip()
+        if preview_data:
+            raw_bytes, extension = _decode_canvas_data_url(preview_data)
+        else:
+            raw_bytes, extension = None, None
+        if raw_bytes and extension:
+            try:
+                embedded = _build_embedded_preview_data_url(raw_bytes)
+                if embedded:
+                    tactical_layout = dict(tactical_layout)
+                    meta = tactical_layout.get('meta') if isinstance(tactical_layout.get('meta'), dict) else {}
+                    meta = dict(meta)
+                    meta['embedded_preview_data_url'] = embedded
+                    tactical_layout['meta'] = meta
+            except Exception:
+                pass
+
+            try:
+                if getattr(item, 'tactical_preview_image', None):
+                    item.tactical_preview_image.delete(save=False)
+            except Exception:
+                pass
+            try:
+                filename = f'analysis-item-{int(item.id)}-tactic-{uuid.uuid4().hex[:10]}{extension}'
+                item.tactical_preview_image.save(filename, ContentFile(raw_bytes), save=False)
+            except Exception:
+                pass
+
+        item.tactical_layout = tactical_layout
+        item.save(update_fields=['tactical_layout', 'tactical_preview_image', 'updated_at'])
+        message = 'Pizarra guardada.'
+
+    # Initial state para la pizarra.
+    layout = item.tactical_layout if isinstance(getattr(item, 'tactical_layout', None), dict) else {}
+    if isinstance(layout, str):
+        layout = _coerce_json_dict(layout) or {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+    initial_state = _coerce_json_dict(graphic.get('canvas_state')) or {}
+    initial = {
+        'canvas_state': json.dumps(initial_state, ensure_ascii=False) if isinstance(initial_state, dict) else '',
+        'canvas_width': int(_parse_int(graphic.get('canvas_width')) or 1280),
+        'canvas_height': int(_parse_int(graphic.get('canvas_height')) or 720),
+        'pitch_orientation': str(meta.get('pitch_orientation') or 'landscape'),
+        'pitch_zoom': str(meta.get('pitch_zoom') or '1.00'),
+        'pitch_grass_style': str(meta.get('pitch_grass_style') or 'classic'),
+        'pitch_preset': str(meta.get('pitch_preset') or 'full_pitch'),
+    }
+
+    # Catálogos/recursos: igual que en Táctica.
+    player_catalog = []
+    available_players = []
+    try:
+        player_catalog = _build_tactical_player_catalog(request, primary_team)
+    except Exception:
+        player_catalog = []
+    try:
+        available_players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name')[:60]
+        )
+    except Exception:
+        available_players = []
+
+    pdf_assets = []
+    pdf_assets_json = '[]'
+    try:
+        system_team = None
+        try:
+            system_team = Team.objects.filter(slug='pizarra').first()
+        except Exception:
+            system_team = None
+        assets_filter = Q(team=primary_team) | Q(owner=request.user)
+        if system_team:
+            assets_filter |= Q(team=system_team)
+        pdf_assets = list(
+            PdfGraphicAsset.objects
+            .filter(assets_filter)
+            .exclude(file='')
+            .order_by('-created_at', '-id')[:80]
+        )
+        pdf_assets_json = json.dumps(
+            [
+                {
+                    'id': int(asset.id),
+                    'title': str(asset.title or '').strip(),
+                    'url': reverse('pdf-graphic-asset-file', args=[asset.id]),
+                    'width': int(asset.width or 0),
+                    'height': int(asset.height or 0),
+                }
+                for asset in pdf_assets
+                if getattr(asset, 'file', None)
+            ],
+            ensure_ascii=False,
+        )
+    except Exception:
+        pdf_assets = []
+        pdf_assets_json = '[]'
+
+    ppt_icons = []
+    try:
+        if TASK_MATERIAL_PPT_DIR.exists():
+            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
+            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+            files = sorted(files, key=lambda p: p.name.lower())[:90]
+            for p in files:
+                ppt_icons.append({'label': str(p.stem or '').strip()[:80], 'static_path': f'football/images/task-materials/ppt/{p.name}'})
+    except Exception:
+        ppt_icons = []
+
+    drills_catalog = []
+    try:
+        drills_catalog = [
+            {
+                'id': d.id,
+                'label': d.label,
+                'category': d.category,
+                'icon_static_path': d.icon_static_path,
+                'age_min': d.age_min,
+                'age_max': d.age_max,
+            }
+            for d in DRILL_CATALOG
+        ]
+    except Exception:
+        drills_catalog = []
+
+    back_url = reverse('analysis-video-report', args=[int(report.id)]) if report else reverse('analysis')
+    analysis_item_title = str(getattr(item, 'title', '') or '').strip()
+    if not analysis_item_title:
+        try:
+            analysis_item_title = str(getattr(getattr(item, 'clip', None), 'title', '') or '').strip()
+        except Exception:
+            analysis_item_title = ''
+    if not analysis_item_title:
+        analysis_item_title = f'Elemento {int(item.id)}'
+
+    return render(
+        request,
+        'football/task_builder.html',
+        {
+            'scope_key': 'analysis_report',
+            'scope_title': 'Análisis',
+            'scope_route_name': 'analysis-video-report-item-tactical',
+            'task': None,
+            'feedback': message,
+            'error': error,
+            'can_restore_original': False,
+            'task_blocks': SessionTask.BLOCK_CHOICES,
+            'all_sessions': [],
+            'task_surface_choices': TASK_SURFACE_CHOICES,
+            'task_pitch_choices': TASK_PITCH_FORMAT_CHOICES,
+            'task_complexity_choices': TASK_COMPLEXITY_CHOICES,
+            'task_strategy_choices': TASK_STRATEGY_CHOICES,
+            'task_coordination_skills_choices': TASK_COORDINATION_SKILLS_CHOICES,
+            'task_tactical_intent_choices': TASK_TACTICAL_INTENT_CHOICES,
+            'task_dynamics_choices': TASK_DYNAMICS_CHOICES,
+            'task_structure_choices': TASK_STRUCTURE_CHOICES,
+            'task_coordination_choices': TASK_COORDINATION_CHOICES,
+            'tactical_player_catalog': player_catalog,
+            'available_players': available_players,
+            'pdf_assets': pdf_assets,
+            'pdf_assets_json': pdf_assets_json,
+            'ppt_icons': ppt_icons,
+            'drills_catalog': drills_catalog,
+            'initial': initial,
+            'rivals_options': _build_rival_options_for_team(
+                primary_team,
+                cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
+                max_items=80,
+            ),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'rival_roster_api_url': reverse('rival-roster-api'),
+            'library_repository': LIBRARY_REPOSITORY_TRADITIONAL,
+            'back_url': back_url,
+            'back_label': 'Volver al informe',
+            'pdf_preview_url': '',
+            'video_import_url': '',
+            'task_preview_url': '',
+            'show_session_selector': False,
+            'show_dragon_nav': True,
+            'tactics_mode': True,
+            'analysis_item_mode': True,
+            'analysis_item_title': analysis_item_title,
         },
     )
 
