@@ -64,12 +64,14 @@ fi
 # Motivo: gran parte del stack es sync y, bajo ASGI, cualquier fuga de sync en un hilo con event-loop
 # puede provocar `SynchronousOnlyOperation` (p.ej. al guardar sesiones).
 if [ "${_run_asgi}" = "true" ]; then
+  echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting ASGI (UvicornWorker)" >&2
   exec gunicorn webstats.asgi:application \
     -k uvicorn.workers.UvicornWorker \
     --bind "0.0.0.0:${PORT}" \
     --timeout "${GUNICORN_TIMEOUT}"
 fi
 
+echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
 exec gunicorn webstats.wsgi:application \
   --bind "0.0.0.0:${PORT}" \
   --timeout "${GUNICORN_TIMEOUT}"
