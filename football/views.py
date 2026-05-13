@@ -25277,7 +25277,26 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
         except Exception:
             return ''
 
-    tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('order', 'id'))
+    # Mantén el mismo orden que la "ficha de sesión" (training_session_detail_page):
+    # orden por bloque/fase + orden dentro de bloque.
+    tasks = list(session.tasks.filter(deleted_at__isnull=True).order_by('block', 'order', 'id'))
+    block_order = [
+        SessionTask.BLOCK_CONDITIONING,
+        SessionTask.BLOCK_ACTIVATION,
+        SessionTask.BLOCK_MAIN_1,
+        SessionTask.BLOCK_MAIN_2,
+        SessionTask.BLOCK_SET_PIECES,
+        SessionTask.BLOCK_RECOVERY,
+        SessionTask.BLOCK_VIDEO,
+    ]
+    block_rank = {key: idx for idx, key in enumerate(block_order)}
+    tasks.sort(
+        key=lambda t: (
+            block_rank.get(str(getattr(t, 'block', '') or ''), 999),
+            int(getattr(t, 'order', 0) or 0),
+            int(getattr(t, 'id', 0) or 0),
+        )
+    )
     total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
     session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', ''))
     coach_name = (
