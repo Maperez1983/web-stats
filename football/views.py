@@ -44559,8 +44559,16 @@ def analysis_rival_profile_page(request, rival_id):
 
     standings_row = None
     if primary_team:
+        # Para inferir el `team_code` (Universo) necesitamos la clasificación de Universo cuando exista.
+        # La BD (TeamStanding) no incluye ese código.
+        snapshot = load_universo_snapshot()
+        standings_rows = []
         try:
-            standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) or []
+            standings_rows = _resolve_standings_for_team(
+                primary_team,
+                snapshot=snapshot,
+                provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            ) or []
         except Exception:
             standings_rows = []
         rival_keys = {
