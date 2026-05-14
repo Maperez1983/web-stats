@@ -44701,6 +44701,16 @@ def analysis_rival_profile_page(request, rival_id):
                     source_url = f'https://www.universorfaf.es/team/{universo_team_code}'
                 except Exception as exc:
                     fetch_error = str(exc) or 'No se pudo cargar la plantilla desde Universo.'
+                    try:
+                        logging.getLogger(__name__).warning(
+                            'Universo roster refresh failed for rival_id=%s team_code=%s: %s',
+                            rival_id,
+                            universo_team_code,
+                            fetch_error,
+                            exc_info=True,
+                        )
+                    except Exception:
+                        pass
                     roster_rows = []
 
             if not roster_rows:
@@ -44725,6 +44735,16 @@ def analysis_rival_profile_page(request, rival_id):
                         fetch_error = ''
                     except Exception as exc:
                         fetch_error = str(exc) or 'No se pudo cargar La Preferente.'
+                        try:
+                            logging.getLogger(__name__).warning(
+                                'Preferente roster refresh failed for rival_id=%s url=%s: %s',
+                                rival_id,
+                                candidate_url,
+                                fetch_error,
+                                exc_info=True,
+                            )
+                        except Exception:
+                            pass
                         roster_rows = []
 
             if roster_rows:
