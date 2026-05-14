@@ -8918,9 +8918,50 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
             'Universo RFAF rechazó la petición (sesión caducada). '
             'Regenera `data/input/rfaf_storage_state.json` o ejecuta el sync automático.'
         )
-    squad = payload.get('squad')
+    def _looks_like_player_row(item) -> bool:
+        if not isinstance(item, dict):
+            return False
+        # Universo usa `nombre` casi siempre, pero soportamos `name`.
+        return bool(str(item.get('nombre') or item.get('name') or item.get('nombre_jugador') or '').strip())
+
+    def _extract_squad(obj):
+        """
+        Intenta localizar la lista de jugadores en payloads variables.
+        Devuelve la lista más "jugador-like" encontrada.
+        """
+        if not isinstance(obj, dict):
+            return []
+        direct_keys = ('squad', 'plantilla', 'jugadores', 'players', 'roster')
+        for key in direct_keys:
+            value = obj.get(key)
+            if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
+                return value
+        # Búsqueda en 2 niveles (sin recursión profunda para evitar payloads enormes).
+        best = []
+        for value in obj.values():
+            if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
+                if len(value) > len(best):
+                    best = value
+                continue
+            if isinstance(value, dict):
+                for subkey in direct_keys:
+                    subvalue = value.get(subkey)
+                    if isinstance(subvalue, list) and any(_looks_like_player_row(x) for x in subvalue):
+                        if len(subvalue) > len(best):
+                            best = subvalue
+        return best
+
+    squad = _extract_squad(payload) or []
     if not isinstance(squad, list):
         squad = []
+    if squad and not any(isinstance(row, dict) for row in squad):
+        squad = []
+    if not squad:
+        # Si Universo responde pero no trae plantilla, devolvemos error explícito.
+        raise ValueError(
+            f'Universo RFAF no devolvió plantilla para el equipo {code}. '
+            'Prueba a refrescar más tarde o usa La Preferente si está disponible.'
+        )
 
     roster: list[dict] = []
     for row in squad:
