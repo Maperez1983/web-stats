@@ -44582,6 +44582,25 @@ def analysis_rival_profile_page(request, rival_id):
                 standings_row = row
                 break
 
+    # Si el rival no tiene aún código Universo/RFAF guardado, intenta inferirlo desde la clasificación.
+    inferred_universo_code = ''
+    try:
+        if isinstance(standings_row, dict):
+            inferred_universo_code = str(standings_row.get('team_code') or '').strip()
+    except Exception:
+        inferred_universo_code = ''
+    if inferred_universo_code and inferred_universo_code.isdigit():
+        try:
+            current_code = str(getattr(rival, 'external_id', '') or '').strip()
+        except Exception:
+            current_code = ''
+        if not current_code:
+            try:
+                rival.external_id = inferred_universo_code
+                rival.save(update_fields=['external_id'])
+            except Exception:
+                pass
+
     try:
         cache_days = max(1, int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'))
     except Exception:
@@ -44592,6 +44611,25 @@ def analysis_rival_profile_page(request, rival_id):
         .order_by('-updated_at', '-id')
         .first()
     )
+    # Prioriza el snapshot "más útil": con jugadores y sin error (Universo primero).
+    try:
+        candidates = list(TeamRosterSnapshot.objects.filter(team=rival).order_by('-updated_at', '-id')[:6])
+    except Exception:
+        candidates = []
+    best = None
+    for cand in candidates:
+        try:
+            payload = cand.roster_payload if isinstance(cand.roster_payload, list) else []
+            if payload and not (cand.error or '').strip():
+                if cand.provider == TeamRosterSnapshot.PROVIDER_UNIVERSO:
+                    best = cand
+                    break
+                if best is None:
+                    best = cand
+        except Exception:
+            continue
+    if best is not None:
+        roster_snapshot = best
 
     if request.method == 'POST':
         form_action = str(request.POST.get('form_action') or '').strip().lower()
@@ -44600,9 +44638,14 @@ def analysis_rival_profile_page(request, rival_id):
             roster_provider = ''
             source_url = ''
             fetch_error = ''
+            attempted_preferente = False
+            attempted_universo = False
 
             universo_team_code = str(getattr(rival, 'external_id', '') or '').strip()
+            if (not universo_team_code or not universo_team_code.isdigit()) and inferred_universo_code and inferred_universo_code.isdigit():
+                universo_team_code = inferred_universo_code
             if universo_team_code and universo_team_code.isdigit():
+                attempted_universo = True
                 try:
                     roster_rows = fetch_universo_team_roster(universo_team_code)
                     roster_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
@@ -44625,6 +44668,7 @@ def analysis_rival_profile_page(request, rival_id):
                         except Exception:
                             pass
                 if candidate_url:
+                    attempted_preferente = True
                     try:
                         roster_rows = fetch_preferente_team_roster(candidate_url)
                         roster_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
@@ -44650,9 +44694,13 @@ def analysis_rival_profile_page(request, rival_id):
                     error = 'No se pudo guardar la plantilla en caché.'
             else:
                 try:
+                    # Evita machacar snapshots válidos: guarda el error en el proveedor realmente intentado.
+                    error_provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                    if attempted_universo and not attempted_preferente:
+                        error_provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
                     TeamRosterSnapshot.objects.update_or_create(
                         team=rival,
-                        provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                        provider=error_provider,
                         defaults={
                             'error': (fetch_error or 'No se pudo actualizar la plantilla.')[:240],
                             'source_url': str(source_url or '').strip(),
@@ -44662,11 +44710,24 @@ def analysis_rival_profile_page(request, rival_id):
                     pass
                 error = fetch_error or 'No se pudo actualizar la plantilla.'
 
-            roster_snapshot = (
-                TeamRosterSnapshot.objects.filter(team=rival)
-                .order_by('-updated_at', '-id')
-                .first()
-            )
+            # Selecciona el mejor snapshot: prioriza Universo si tiene jugadores y no hay error.
+            try:
+                candidates = list(TeamRosterSnapshot.objects.filter(team=rival).order_by('-updated_at', '-id')[:6])
+            except Exception:
+                candidates = []
+            best = None
+            for cand in candidates:
+                try:
+                    payload = cand.roster_payload if isinstance(cand.roster_payload, list) else []
+                    if payload and not (cand.error or '').strip():
+                        if cand.provider == TeamRosterSnapshot.PROVIDER_UNIVERSO:
+                            best = cand
+                            break
+                        if best is None:
+                            best = cand
+                except Exception:
+                    continue
+            roster_snapshot = best or (candidates[0] if candidates else roster_snapshot)
 
     roster_payload = roster_snapshot.roster_payload if roster_snapshot and isinstance(roster_snapshot.roster_payload, list) else []
     roster_count = len(roster_payload) if roster_payload else 0
