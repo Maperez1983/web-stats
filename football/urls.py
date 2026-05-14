@@ -253,6 +253,7 @@ urlpatterns = [
     path('coach/analisis/', views.analysis_page, name='analysis'),
     path('coach/analisis/video/informe/<int:report_id>/', views.analysis_video_report_page, name='analysis-video-report'),
     path('coach/analisis/video/informe/<int:report_id>/export/pptx/', views.analysis_video_report_export_pptx, name='analysis-video-report-export-pptx'),
+    path('coach/analisis/video/informe/<int:report_id>/export/pdf/', views.analysis_video_report_export_pdf, name='analysis-video-report-export-pdf'),
     path('coach/analisis/video/informe/<int:report_id>/pptx/', views.analysis_video_report_pptx_file, name='analysis-video-report-pptx-file'),
     path('coach/analisis/video/informe/item/<int:item_id>/pizarra/', views.analysis_video_report_item_tactical_page, name='analysis-video-report-item-tactical'),
     path(

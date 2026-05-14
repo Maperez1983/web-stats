@@ -113,7 +113,8 @@ Para que el análisis/previa de partido no dependa de peticiones externas (403, 
 Recomendado: usar token de Universo RFAF:
 
 ```
-export RFAF_ACCESS_TOKEN="..."
+export UNIVERSO_RFAF_ACCESS_TOKEN="..."
+# (compatibilidad legacy) export RFAF_ACCESS_TOKEN="..."
 python3 manage.py sync_rival_rosters --provider universo_rfaf --group-id 45030656 --force
 ```
 

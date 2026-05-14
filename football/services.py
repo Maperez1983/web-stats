@@ -119,6 +119,7 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
     # Con vocales es suficiente para nombres en español y minimiza peticiones.
     queries = ['a', 'e', 'i', 'o', 'u']
     for q in queries:
+        response = None
         page = 1
         more = True
         while more and page <= 8:  # guardrail
@@ -131,7 +132,23 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
                 )
             except requests.RequestException:
                 break
-            if response.status_code == 403:
+            if response.status_code in {403, 429}:
+                # Reintento suave: refresca cookies y vuelve a probar (Cloudflare / rate limit).
+                try:
+                    time.sleep(0.9)
+                    session.get(PREFERENTE_BASE_URL, headers=_preferente_headers(PREFERENTE_BASE_URL), timeout=10)
+                except requests.RequestException:
+                    pass
+                try:
+                    response = session.get(
+                        urljoin(PREFERENTE_BASE_URL, 'json/buscaJugador.php'),
+                        params={'q': q, 'IDequipo': str(team_id), 'page': str(page)},
+                        headers=_preferente_headers(PREFERENTE_BASE_URL),
+                        timeout=timeout,
+                    )
+                except requests.RequestException:
+                    break
+            if response.status_code in {403, 429}:
                 break
             if not response.ok:
                 break
@@ -164,7 +181,7 @@ def _fetch_preferente_team_roster_via_json(team_id: str, timeout: int = 20) -> l
             pagination = payload.get('pagination') if isinstance(payload, dict) else None
             more = bool((pagination or {}).get('more')) if isinstance(pagination, dict) else False
             page += 1
-        if response.status_code == 403:
+        if getattr(response, 'status_code', None) in {403, 429}:
             # si nos bloquean aquí, no insistimos con más queries
             break
     return list(results_by_id.values())

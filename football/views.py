@@ -8274,18 +8274,44 @@ def _build_team_pending_cards(primary_team, weekly_brief=None):
 
     next_match = weekly_brief.get('match') if isinstance(weekly_brief, dict) else {}
     rival_name = str(next_match.get('opponent') or '').strip() if isinstance(next_match, dict) else ''
-    has_ready_rival_report = False
+    def _rival_needle_q(needle: str) -> Q:
+        value = (needle or '').strip()
+        if not value:
+            return Q(pk__in=[])
+        short = value[:48]
+        return (
+            Q(folder__rival_team__name__icontains=short)
+            | Q(folder__rival_team__short_name__icontains=short)
+            | Q(title__icontains=short)
+        )
+
+    has_ready_manual_report = False
+    has_any_pptx_report = False
+    has_exported_pptx = False
     if rival_name:
-        has_ready_rival_report = RivalAnalysisReport.objects.filter(
-            team=primary_team,
-            status=RivalAnalysisReport.STATUS_READY,
-        ).filter(
-            Q(rival_name__icontains=rival_name) | Q(rival_team__name__icontains=rival_name)
-        ).exists()
-    if rival_name and not has_ready_rival_report:
+        has_ready_manual_report = (
+            RivalAnalysisReport.objects
+            .filter(team=primary_team, status=RivalAnalysisReport.STATUS_READY)
+            .filter(Q(rival_name__icontains=rival_name) | Q(rival_team__name__icontains=rival_name))
+            .exists()
+        )
+        needle_q = _rival_needle_q(rival_name)
+        has_any_pptx_report = AnalysisVideoReport.objects.filter(team=primary_team).filter(needle_q).exists()
+        has_exported_pptx = (
+            AnalysisVideoReport.objects
+            .filter(team=primary_team)
+            .filter(needle_q)
+            .filter(pptx_file__isnull=False)
+            .exclude(pptx_file='')
+            .exists()
+        )
+    if rival_name and not (has_ready_manual_report or has_exported_pptx):
+        subtitle = f'No hay un informe rival listo para {rival_name}.'
+        if has_any_pptx_report and not has_exported_pptx:
+            subtitle = f'Hay un informe rival creado para {rival_name}, pero falta exportar el PPTX.'
         add_card(
             'Informe rival pendiente',
-            f'No hay un informe rival listo para {rival_name}.',
+            subtitle,
             reverse('analysis'),
             'Abrir análisis',
         )
@@ -8675,10 +8701,11 @@ def _load_universo_access_token_from_storage_state() -> tuple[str, float]:
 def _fetch_universo_access_token_via_login() -> tuple[str, float, str]:
     if requests is None:
         return '', 0.0, 'requests no disponible'
-    username = str(os.getenv('RFAF_USER', '') or '').strip()
-    password = str(os.getenv('RFAF_PASS', '') or '').strip()
+    # Naming: aunque históricamente usamos RFAF_*, estas credenciales son de Universo RFAF (universorfaf.es).
+    username = str(os.getenv('UNIVERSO_RFAF_USER', '') or os.getenv('RFAF_USER', '') or '').strip()
+    password = str(os.getenv('UNIVERSO_RFAF_PASS', '') or os.getenv('RFAF_PASS', '') or '').strip()
     if not username or not password:
-        return '', 0.0, 'Faltan RFAF_USER/RFAF_PASS'
+        return '', 0.0, 'Faltan UNIVERSO_RFAF_USER/UNIVERSO_RFAF_PASS (o RFAF_USER/RFAF_PASS)'
     url = 'https://www.universorfaf.es/api/login'
     headers = {
         'Accept': 'application/json',
@@ -8752,7 +8779,8 @@ def _load_universo_access_token():
             pass
         return token
 
-    env_token = str(os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
+    # Naming: aunque históricamente usamos RFAF_ACCESS_TOKEN, el valor es el access_token de Universo RFAF.
+    env_token = str(os.getenv('UNIVERSO_RFAF_ACCESS_TOKEN', '') or os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
     if env_token:
         env_exp = _jwt_exp_timestamp(env_token)
         if not env_exp or env_exp - 60 > now_ts:
@@ -8797,7 +8825,7 @@ def _load_universo_access_token_expires() -> float:
     _, exp_ts = _load_universo_access_token_from_storage_state()
     if exp_ts:
         return float(exp_ts) or 0.0
-    env_token = str(os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
+    env_token = str(os.getenv('UNIVERSO_RFAF_ACCESS_TOKEN', '') or os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
     if env_token:
         return _jwt_exp_timestamp(env_token)
     return 0.0
@@ -46761,6 +46789,165 @@ def analysis_video_report_export_pptx(request, report_id):
 
 
 @login_required
+@pdf_view_guard
+def analysis_video_report_export_pdf(request, report_id):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return HttpResponse('Equipo principal no configurado.', status=400)
+
+    report_id = int(report_id)
+    report = (
+        AnalysisVideoReport.objects
+        .select_related('folder', 'folder__rival_team', 'team')
+        .filter(team=primary_team, id=report_id)
+        .first()
+    )
+    if not report:
+        raise Http404('Informe no disponible')
+
+    items = list(
+        AnalysisVideoReportItem.objects
+        .select_related('clip', 'clip__video', 'export_asset')
+        .prefetch_related('images')
+        .filter(report=report)
+        .order_by('position', 'id')[:600]
+    )
+
+    def _mime_from_name(name: str) -> str:
+        ext = (Path(str(name or '')).suffix or '').lower()
+        return {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.gif': 'image/gif',
+        }.get(ext, 'image/jpeg')
+
+    def _field_data_uri(field, *, max_width=1400, max_height=900, quality=74) -> str:
+        if not field:
+            return ''
+        raw = b''
+        name = ''
+        try:
+            name = str(getattr(field, 'name', '') or '')
+            field.open('rb')
+            raw = field.read() or b''
+        except Exception:
+            raw = b''
+        finally:
+            try:
+                field.close()
+            except Exception:
+                pass
+        if not raw:
+            return ''
+        mime = _mime_from_name(name)
+        return _image_bytes_as_small_data_uri(
+            raw_bytes=raw,
+            mime_type=mime,
+            max_width=max_width,
+            max_height=max_height,
+            quality=quality,
+        ) or ''
+
+    use_share_links = str(request.GET.get('share') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    share_urls_by_clip_id = {}
+    if use_share_links:
+        try:
+            clip_ids = {int(getattr(it, 'clip_id', 0) or 0) for it in items if getattr(it, 'clip_id', None)}
+            clip_ids = {cid for cid in clip_ids if cid > 0}
+        except Exception:
+            clip_ids = set()
+        if clip_ids:
+            now = timezone.now()
+            try:
+                existing = list(
+                    ShareLink.objects
+                    .filter(kind=ShareLink.KIND_VIDEO_CLIP, is_active=True, expires_at__gt=now)
+                    .filter(payload__clip_id__in=list(clip_ids))[:400]
+                )
+            except Exception:
+                existing = []
+            for link in existing:
+                payload = link.payload if isinstance(link.payload, dict) else {}
+                cid = _parse_int(payload.get('clip_id'))
+                if not cid:
+                    continue
+                try:
+                    share_urls_by_clip_id[int(cid)] = request.build_absolute_uri(reverse('share-video-clip', args=[link.token]))
+                except Exception:
+                    share_urls_by_clip_id[int(cid)] = reverse('share-video-clip', args=[link.token])
+            missing = [cid for cid in clip_ids if cid not in share_urls_by_clip_id]
+            for cid in missing[:80]:
+                try:
+                    link = ShareLink.objects.create(
+                        token=ShareLink.generate_token(),
+                        kind=ShareLink.KIND_VIDEO_CLIP,
+                        payload={'clip_id': int(cid)},
+                        password_hash='',
+                        expires_at=now + timedelta(days=14),
+                        created_by=request.user.get_username() if request.user.is_authenticated else '',
+                        created_by_user=request.user if request.user.is_authenticated else None,
+                        is_active=True,
+                    )
+                    share_urls_by_clip_id[int(cid)] = request.build_absolute_uri(reverse('share-video-clip', args=[link.token]))
+                except Exception:
+                    continue
+
+    item_rows = []
+    for idx, item in enumerate(items, start=1):
+        clip = getattr(item, 'clip', None)
+        clip_url = ''
+        if clip:
+            try:
+                if use_share_links and int(getattr(clip, 'id', 0) or 0) in share_urls_by_clip_id:
+                    clip_url = share_urls_by_clip_id[int(clip.id)]
+                else:
+                    clip_url = request.build_absolute_uri(reverse('analysis-video-clip-view', args=[int(clip.id)]))
+            except Exception:
+                clip_url = reverse('analysis-video-clip-view', args=[int(clip.id)])
+        images_payload = []
+        tactical_src = _field_data_uri(getattr(item, 'tactical_preview_image', None), max_width=1400, max_height=900, quality=74)
+        if tactical_src:
+            images_payload.append({'src': tactical_src, 'caption': 'Pizarra'})
+        try:
+            for img in list(getattr(item, 'images', []).all() if hasattr(item, 'images') else []):
+                src = _field_data_uri(getattr(img, 'image', None), max_width=1400, max_height=900, quality=74)
+                if not src:
+                    continue
+                images_payload.append({'src': src, 'caption': str(getattr(img, 'caption', '') or '').strip()})
+        except Exception:
+            pass
+        item_rows.append(
+            {
+                'n': idx,
+                'item': item,
+                'clip': clip,
+                'clip_url': clip_url,
+                'images': images_payload,
+            }
+        )
+
+    context = {
+        'team': primary_team,
+        'report': report,
+        'generated_at': timezone.now(),
+        'items': item_rows,
+    }
+    html = render_to_string('football/analysis_video_presentation_report_pdf.html', context)
+    filename_hint = str(getattr(getattr(report, 'folder', None), 'name', '') or '').strip() or str(getattr(report, 'title', '') or '').strip()
+    filename = slugify(f'informe-rival-{primary_team.id}-{report_id}-{filename_hint}') or f'informe-rival-{report_id}'
+    inline = str(request.GET.get('inline') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    return _build_pdf_response_or_html_fallback(request, html, filename, inline=inline, force_pdf=True)
+
+
+@login_required
 def analysis_video_report_pptx_file(request, report_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
@@ -51983,6 +52170,13 @@ def _video_studio_apply_autocut_suggestions(
                 created_by=username,
             )
         )
+        tags = ['autocut', kind]
+        try:
+            principle = str(payload.get('principle') or '').strip().lower()
+        except Exception:
+            principle = ''
+        if principle:
+            tags.append(f'principle:{principle}'[:80])
         clip_objs.append(
             VideoClip(
                 team=scope_team if scope_team else None,
@@ -51992,7 +52186,7 @@ def _video_studio_apply_autocut_suggestions(
                 collection='AutoCut',
                 in_ms=int(max(0.0, clip_in_s) * 1000.0),
                 out_ms=int(max(0.0, max(clip_in_s + 0.2, clip_out_s)) * 1000.0),
-                tags=['autocut', kind],
+                tags=tags,
                 notes='',
                 overlay={},
                 created_by=username,
@@ -52208,6 +52402,9 @@ def analysis_video_studio_autocut_api(request):
     profile = str(data.get('profile') or 'balanced').strip().lower()
     if profile not in {'balanced', 'highlights', 'tactical'}:
         profile = 'balanced'
+
+    raw_seed = str(data.get('seed_from_timeline') if data.get('seed_from_timeline') is not None else '1').strip().lower()
+    seed_from_timeline = raw_seed in {'1', 'true', 'yes', 'on'}
     include_kinds = data.get('include_kinds')
     if not isinstance(include_kinds, list):
         include_kinds = None
@@ -52226,11 +52423,50 @@ def analysis_video_studio_autocut_api(request):
 
     from football.video_autocut import suggest_autocuts  # noqa: WPS433
 
+    seed_events = None
+    if seed_from_timeline:
+        try:
+            evs = list(
+                VideoTimelineEvent.objects
+                .filter(team=primary_team, video=video)
+                .only('time_ms', 'kind', 'label', 'payload')
+                .order_by('-updated_at', '-id')[:120]
+            )
+            seeds = []
+            for ev in evs:
+                payload = getattr(ev, 'payload', None)
+                if isinstance(payload, dict) and payload.get('autocut') is True:
+                    continue
+                label = str(getattr(ev, 'label', '') or '').strip()
+                if not label:
+                    continue
+                kind = str(getattr(ev, 'kind', '') or VideoTimelineEvent.KIND_TAG).strip().lower() or VideoTimelineEvent.KIND_TAG
+                principle = ''
+                try:
+                    if isinstance(payload, dict) and payload.get('principle'):
+                        principle = str(payload.get('principle') or '').strip()[:80]
+                except Exception:
+                    principle = ''
+                seeds.append(
+                    {
+                        'time_s': float(int(getattr(ev, 'time_ms', 0) or 0)) / 1000.0,
+                        'kind': kind,
+                        'label': label[:160],
+                        'principle': principle,
+                    }
+                )
+                if len(seeds) >= 12:
+                    break
+            seed_events = seeds if seeds else None
+        except Exception:
+            seed_events = None
+
     try:
         result = suggest_autocuts(
             video_path,
             profile=profile,
             include_kinds=include_kinds,
+            seed_events=seed_events,
             max_moments=int(max_moments),
             min_gap_s=float(min_gap_s),
             pre_s=float(pre_s),
@@ -52298,6 +52534,12 @@ def analysis_video_studio_autocut_api(request):
         )
         # Clip
         tags = ['autocut', kind]
+        try:
+            principle = str(payload.get('principle') or '').strip().lower()
+        except Exception:
+            principle = ''
+        if principle:
+            tags.append(f'principle:{principle}'[:80])
         clip_objs.append(
             VideoClip(
                 team=primary_team,

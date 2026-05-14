@@ -21,9 +21,12 @@ class Command(BaseCommand):
 
         group_id = str(options.get('group_id') or '').strip()
         self.stdout.write('== Universo RFAF diagnostics ==')
-        self.stdout.write(f'RFAF_USER set: {bool(str(os.getenv("RFAF_USER", "") or "").strip())}')
-        self.stdout.write(f'RFAF_PASS set: {bool(str(os.getenv("RFAF_PASS", "") or "").strip())}')
-        self.stdout.write(f'RFAF_ACCESS_TOKEN set: {bool(str(os.getenv("RFAF_ACCESS_TOKEN", "") or "").strip())}')
+        self.stdout.write(f'UNIVERSO_RFAF_USER set: {bool(str(os.getenv("UNIVERSO_RFAF_USER", "") or "").strip())}')
+        self.stdout.write(f'UNIVERSO_RFAF_PASS set: {bool(str(os.getenv("UNIVERSO_RFAF_PASS", "") or "").strip())}')
+        self.stdout.write(f'UNIVERSO_RFAF_ACCESS_TOKEN set: {bool(str(os.getenv("UNIVERSO_RFAF_ACCESS_TOKEN", "") or "").strip())}')
+        self.stdout.write(f'RFAF_USER set (legacy name): {bool(str(os.getenv("RFAF_USER", "") or "").strip())}')
+        self.stdout.write(f'RFAF_PASS set (legacy name): {bool(str(os.getenv("RFAF_PASS", "") or "").strip())}')
+        self.stdout.write(f'RFAF_ACCESS_TOKEN set (legacy name): {bool(str(os.getenv("RFAF_ACCESS_TOKEN", "") or "").strip())}')
 
         token = _load_universo_access_token()
         memo = getattr(_load_universo_access_token, '_memo', None)

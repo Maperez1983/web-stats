@@ -18,7 +18,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -45,6 +45,7 @@ from football.stats_audit import run_stats_audit
 from football.views import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from django.test import override_settings
 from unittest.mock import patch
+import requests
 
 
 class WriteEndpointAuthTests(TestCase):
@@ -117,6 +118,166 @@ class WriteEndpointAuthTests(TestCase):
             button = soup.select_one('a.button.primary[href]')
             self.assertIsNotNone(button)
             self.assertEqual(button.get('href'), 'https://web-stats.onrender.com/login/')
+
+
+class PendingCardsRivalReportTests(TestCase):
+    def setUp(self):
+        self.primary_team = Team.objects.create(
+            name='Club Test',
+            slug='club-test',
+            is_primary=True,
+        )
+        self.rival_team = Team.objects.create(
+            name='CD Rival',
+            slug='cd-rival',
+            is_primary=False,
+        )
+
+    def _brief_for(self, opponent_name: str):
+        return {
+            'match': {'opponent': opponent_name},
+            'convocated_count': 18,
+            'probable_eleven_count': 11,
+            'available_count': 18,
+        }
+
+    def _pending_card(self, cards, title):
+        for card in cards:
+            if card.get('title') == title:
+                return card
+        return None
+
+    def test_pending_card_appears_when_no_reports_exist(self):
+        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        card = self._pending_card(cards, 'Informe rival pendiente')
+        self.assertIsNotNone(card)
+        self.assertIn('No hay un informe rival listo', str(card.get('description') or ''))
+
+    def test_pending_card_mentions_export_when_report_exists_but_no_pptx(self):
+        folder = AnalystVideoFolder.objects.create(team=self.primary_team, rival_team=self.rival_team, name='J01')
+        AnalysisVideoReport.objects.create(team=self.primary_team, folder=folder, title='Informe CD Rival')
+        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        card = self._pending_card(cards, 'Informe rival pendiente')
+        self.assertIsNotNone(card)
+        self.assertIn('falta exportar el PPTX', str(card.get('description') or ''))
+
+    def test_pending_card_disappears_when_pptx_export_exists(self):
+        folder = AnalystVideoFolder.objects.create(team=self.primary_team, rival_team=self.rival_team, name='J01')
+        report = AnalysisVideoReport.objects.create(team=self.primary_team, folder=folder, title='Informe CD Rival')
+        report.pptx_file.save('informe-cd-rival.pptx', SimpleUploadedFile('informe-cd-rival.pptx', b'pptx-bytes'), save=True)
+        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        card = self._pending_card(cards, 'Informe rival pendiente')
+        self.assertIsNone(card)
+
+    def test_pending_card_disappears_when_manual_ready_report_exists(self):
+        RivalAnalysisReport.objects.create(
+            team=self.primary_team,
+            rival_team=self.rival_team,
+            rival_name='CD Rival',
+            status=RivalAnalysisReport.STATUS_READY,
+        )
+        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        card = self._pending_card(cards, 'Informe rival pendiente')
+        self.assertIsNone(card)
+
+
+class AnalysisVideoReportPdfExportTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='staff', password='pass-1234')
+        self.user.is_staff = True
+        self.user.save(update_fields=['is_staff'])
+        self.client.force_login(self.user)
+
+        self.team = Team.objects.create(name='Club Test', slug='club-test-2', is_primary=True)
+        self.rival = Team.objects.create(name='CD Rival', slug='cd-rival-2', is_primary=False)
+        self.folder = AnalystVideoFolder.objects.create(team=self.team, rival_team=self.rival, name='J01')
+        self.report = AnalysisVideoReport.objects.create(team=self.team, folder=self.folder, title='Informe rival')
+
+    def test_export_pdf_endpoint_returns_pdf_or_503(self):
+        url = reverse('analysis-video-report-export-pdf', args=[self.report.id])
+        response = self.client.get(f'{url}?team_id={self.team.id}&inline=1')
+        self.assertIn(response.status_code, {200, 503})
+        if response.status_code == 200:
+            self.assertEqual(response['Content-Type'], 'application/pdf')
+
+
+class PreferenteRosterJsonFallbackTests(SimpleTestCase):
+    def test_preferente_json_fallback_handles_request_exception(self):
+        from football import services as football_services
+
+        class FakeSession:
+            def __init__(self):
+                self.cookies = {'x': 'y'}
+
+            def get(self, *args, **kwargs):
+                raise requests.RequestException('network down')
+
+        with patch.object(football_services, '_get_preferente_session', return_value=FakeSession()):
+            # Debe devolver [] y no lanzar UnboundLocalError (regresión).
+            rows = football_services._fetch_preferente_team_roster_via_json('123')
+            self.assertEqual(rows, [])
+
+    def test_preferente_json_fallback_retries_on_403(self):
+        from football import services as football_services
+
+        class FakeResp:
+            def __init__(self, status_code=200, ok=True, payload=None):
+                self.status_code = status_code
+                self.ok = ok
+                self._payload = payload or {}
+
+            def json(self):
+                return self._payload
+
+        class FakeSession:
+            def __init__(self):
+                self.cookies = {'x': 'y'}
+                self.calls = 0
+
+            def get(self, url, *args, **kwargs):
+                self.calls += 1
+                if 'json/buscaJugador.php' in str(url):
+                    # 1º intento bloqueado, 2º ok sin resultados.
+                    if self.calls == 1:
+                        return FakeResp(status_code=403, ok=False, payload={})
+                    return FakeResp(status_code=200, ok=True, payload={'results': [], 'pagination': {'more': False}})
+                # Home warmup
+                return FakeResp(status_code=200, ok=True, payload={})
+
+        with patch.object(football_services, '_get_preferente_session', return_value=FakeSession()):
+            rows = football_services._fetch_preferente_team_roster_via_json('123')
+            self.assertEqual(rows, [])
+
+
+class UniversoEnvNamingTests(SimpleTestCase):
+    def test_universo_login_reads_universo_env_names(self):
+        from football import views as football_views
+
+        with patch.dict(
+            os.environ,
+            {
+                'UNIVERSO_RFAF_USER': 'user@example.com',
+                'UNIVERSO_RFAF_PASS': 'secret',
+                'RFAF_USER': '',
+                'RFAF_PASS': '',
+            },
+            clear=False,
+        ):
+            with patch.object(football_views, 'requests', create=True) as req:
+                # Simula un login OK con token.
+                class Resp:
+                    ok = True
+                    status_code = 200
+                    headers = {'content-type': 'application/json'}
+
+                    @staticmethod
+                    def json():
+                        return {'token': 'a.b.c'}
+
+                req.post.return_value = Resp()
+                token, exp, err = football_views._fetch_universo_access_token_via_login()
+                self.assertTrue(token)
+                self.assertEqual(err, '')
 
 
 class CanonicalAppBaseUrlNormalizationTests(TestCase):
@@ -2941,7 +3102,7 @@ class PlatformWorkspaceTests(TestCase):
         session['active_workspace_id'] = workspace.id
         session.save()
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Costero')
@@ -3579,7 +3740,7 @@ class PlatformWorkspaceTests(TestCase):
         response = self.client.get(reverse('dashboard-home'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Estado del equipo')
+        self.assertContains(response, 'Partido y contexto competitivo.')
         self.assertContains(response, 'Próximo rival')
         self.assertContains(response, 'Clasificación')
 
@@ -6826,7 +6987,10 @@ class StaffUserLinkingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Ya existe una sesión con la misma fecha y nombre en este microciclo.')
+        self.assertContains(
+            response,
+            'Sesión ya estaba creada: Transición + finalización. (Se evitó duplicado por doble envío.)',
+        )
         self.assertEqual(TrainingSession.objects.count(), 1)
 
     def test_update_session_plan_changes_schedule_fields(self):
@@ -6882,8 +7046,9 @@ class StaffUserLinkingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'No puedes borrar una sesión que ya tiene tareas asociadas.')
-        self.assertTrue(TrainingSession.objects.filter(id=session.id).exists())
+        self.assertContains(response, 'Sesión enviada a papelera: Sesión con tarea.')
+        trashed = TrainingSession.objects.get(id=session.id)
+        self.assertTrue(trashed.microcycle.title.strip().lower().startswith('papelera'))
 
     def test_create_tab_redirects_to_dedicated_editor_flow(self):
         response = self.client.get(reverse('sessions'), {'tab': 'create'})
@@ -6997,8 +7162,11 @@ class StaffUserLinkingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(SessionTask.objects.count(), before_count + 1)
-        task = SessionTask.objects.order_by('-id').first()
+        # Al guardar dentro de una sesión real, el editor crea:
+        # - 1 instancia dentro de la sesión
+        # - 1 plantilla en Biblioteca (para reutilización)
+        self.assertEqual(SessionTask.objects.count(), before_count + 2)
+        task = SessionTask.objects.filter(session=session).order_by('-id').first()
         self.assertIsNotNone(task)
         self.assertEqual(task.title, 'Juego aplicado 6 v 6')
         meta = task.tactical_layout.get('meta') or {}
@@ -7010,7 +7178,13 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(meta.get('assigned_player_ids'), [self.player.id])
         self.assertEqual(meta.get('assigned_player_names'), ['Hugo'])
         self.assertTrue(bool(task.task_preview_image))
-        self.assertContains(response, 'Tarea guardada correctamente.')
+        template_id = meta.get('library_source_task_id')
+        self.assertTrue(bool(template_id))
+        template_task = SessionTask.objects.get(id=template_id)
+        template_meta = template_task.tactical_layout.get('meta') or {}
+        self.assertNotEqual(template_task.session_id, session.id)
+        self.assertTrue(bool(template_meta.get('is_template')))
+        self.assertContains(response, 'Guardada en sesión 25/03/2026')
         self.assertContains(response, 'Imprimir UEFA')
         self.assertContains(response, 'Imprimir Club')
 
@@ -7046,7 +7220,8 @@ class StaffUserLinkingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        task = SessionTask.objects.get(title='Tarea con pasos')
+        task = SessionTask.objects.filter(session=session, title='Tarea con pasos').order_by('-id').first()
+        self.assertIsNotNone(task)
         self.assertEqual(len(task.tactical_layout.get('timeline') or []), 2)
         self.assertEqual(task.tactical_layout['timeline'][0]['title'], 'Salida')
         self.assertEqual(task.tactical_layout['timeline'][1]['duration'], 4)
@@ -7594,7 +7769,7 @@ class CoachOverviewTests(TestCase):
             is_current=True,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Futuro')
@@ -7624,7 +7799,7 @@ class CoachOverviewTests(TestCase):
             status=RivalAnalysisReport.STATUS_READY,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Futuro')
@@ -7654,7 +7829,7 @@ class CoachOverviewTests(TestCase):
             is_current=True,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Manual')
@@ -7680,7 +7855,7 @@ class CoachOverviewTests(TestCase):
             is_current=True,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rival Futuro')
@@ -7706,7 +7881,7 @@ class CoachOverviewTests(TestCase):
             away_team=self.rival_future,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Clasificación')
@@ -7739,7 +7914,7 @@ class CoachOverviewTests(TestCase):
             away_team=self.rival_future,
         )
 
-        response = self.client.get(reverse('coach-detail'))
+        response = self.client.get(f"{reverse('coach-detail')}?view=overview")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'BENAGALBON')
@@ -8167,7 +8342,7 @@ class SessionsPlannerLoadPastSessionTests(TestCase):
         html = response.content.decode('utf-8', errors='ignore')
         self.assertIn('data-tab=\"sessions\"', html)
         self.assertIn('tab-panel is-active', html)
-        self.assertIn('Sesión activa', html)
+        self.assertIn('Sesiones · Estructura por bloques', html)
 
 
 class StaticAssetBudgetTests(SimpleTestCase):

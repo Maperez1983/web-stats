@@ -54,6 +54,7 @@
           {% if report.pptx_file %}
             <a class="button" href="{% url 'analysis-video-report-pptx-file' report.id %}">Descargar PPTX</a>
           {% endif %}
+          <a class="button" href="{% url 'analysis-video-report-export-pdf' report.id %}?inline=1">Imprimir PDF</a>
           <form method="post" action="{% url 'analysis-video-report-export-pptx' report.id %}" style="margin:0;">
             {% csrf_token %}
             <button class="button primary" type="submit">Exportar PPTX</button>

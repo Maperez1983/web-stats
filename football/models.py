@@ -58,7 +58,7 @@ class Group(models.Model):
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='groups')
     name = models.CharField(max_length=80)
     slug = models.SlugField(max_length=80)
-    external_id = models.CharField(max_length=80, blank=True, help_text='ID que usa La Preferente')
+    external_id = models.CharField(max_length=80, blank=True, help_text='ID externo del grupo (Universo RFAF / LaPreferente)')
 
     class Meta:
         unique_together = ('season', 'slug')

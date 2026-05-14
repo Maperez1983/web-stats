@@ -27,6 +27,7 @@ class Command(BaseCommand):
         'Sincroniza y cachea la plantilla de rivales para preparar fichas técnicas de partido.\n'
         '- provider=universo_rfaf: usa Universo RFAF (requiere token; `RFAF_ACCESS_TOKEN` recomendado).\n'
         '- provider=lapreferente: usa LaPreferente (puede sufrir 403 puntuales).\n'
+        '- provider=auto: intenta Universo y si falla cae a LaPreferente.\n'
         'Guarda los resultados en TeamRosterSnapshot para consumo desde el análisis/partido.'
     )
 
@@ -34,7 +35,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--provider',
             default=os.getenv('RIVAL_ROSTER_PROVIDER', TeamRosterSnapshot.PROVIDER_UNIVERSO),
-            choices=[TeamRosterSnapshot.PROVIDER_UNIVERSO, TeamRosterSnapshot.PROVIDER_PREFERENTE],
+            choices=[TeamRosterSnapshot.PROVIDER_UNIVERSO, TeamRosterSnapshot.PROVIDER_PREFERENTE, 'auto'],
             help='Fuente principal para descargar plantillas.',
         )
         parser.add_argument(
@@ -96,6 +97,23 @@ class Command(BaseCommand):
         if not primary_team:
             primary_team = Team.objects.filter(is_primary=True).select_related('group', 'group__season', 'group__season__competition').first()
         group = primary_team.group if primary_team else None
+
+        # AUTO: decide la mejor fuente sin romper el comando.
+        if provider == 'auto':
+            provider = TeamRosterSnapshot.PROVIDER_UNIVERSO
+            if not group_id:
+                group_id = str(getattr(group, 'external_id', '') or '').strip() if group else ''
+            if not group_id:
+                provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+            else:
+                try:
+                    from football.views import _fetch_universo_live_classification
+                    payload = _fetch_universo_live_classification(group_id)
+                    rows = payload.get('clasificacion') if isinstance(payload, dict) else None
+                    if not isinstance(rows, list) or not rows:
+                        provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
+                except Exception:
+                    provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
 
         processed = 0
         refreshed = 0
@@ -399,12 +417,46 @@ class Command(BaseCommand):
                         )
                     refreshed += 1
                 except Exception as exc:
+                    # Fallback puntual a LaPreferente si Universo falla para un equipo.
+                    fallback_url = (team.preferente_url or '').strip()
+                    if not fallback_url:
+                        try:
+                            fallback_url = find_preferente_team_url(team.name)
+                        except Exception:
+                            fallback_url = ''
+                        if fallback_url:
+                            try:
+                                team.preferente_url = fallback_url
+                                team.save(update_fields=['preferente_url'])
+                            except Exception:
+                                pass
+                    if fallback_url:
+                        try:
+                            roster = fetch_preferente_team_roster(fallback_url)
+                            TeamRosterSnapshot.objects.update_or_create(
+                                team=team,
+                                provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                                defaults={'roster_payload': roster, 'source_url': fallback_url, 'error': ''},
+                            )
+                            if dump_payload is not None:
+                                dump_payload['teams'].append(
+                                    {
+                                        'team_code': team_code,
+                                        'team_name': team.name,
+                                        'source_url': fallback_url,
+                                        'roster': roster,
+                                        'error': '',
+                                    }
+                                )
+                            refreshed += 1
+                            continue
+                        except Exception:
+                            pass
                     failed += 1
                     TeamRosterSnapshot.objects.update_or_create(
                         team=team,
                         provider=provider,
                         defaults={
-                            'roster_payload': [],
                             'source_url': f'https://www.universorfaf.es/team/{team_code}',
                             'error': str(exc)[:240],
                         },
@@ -481,7 +533,7 @@ class Command(BaseCommand):
                     TeamRosterSnapshot.objects.update_or_create(
                         team=team,
                         provider=provider,
-                        defaults={'roster_payload': [], 'source_url': url, 'error': str(exc)[:240]},
+                        defaults={'source_url': url, 'error': str(exc)[:240]},
                     )
                     if dump_payload is not None:
                         dump_payload['teams'].append(

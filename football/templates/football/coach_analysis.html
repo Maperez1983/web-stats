@@ -668,263 +668,73 @@
             {% endif %}
           </div>
           <div class="item item-wide">
-            <h3>Informe manual de analista (plan partido)</h3>
-            <details class="collapsible" {% if manual_report_message or manual_report_error or manual_initial.report_title or manual_initial.rival_name %}open{% endif %}>
-              <summary>
-                Editar informe manual
-                {% if manual_reports %}<span class="meta" style="font-weight:600;">· {{ manual_reports|length }} en histórico</span>{% endif %}
-              </summary>
+            <h3>Informe rival (presentación · PPTX / PDF)</h3>
+            <div class="meta">Informe principal por rival/carpeta. Cada jugada = 1 clip + texto + capturas.</div>
+
+            <details class="collapsible" style="margin-top:0.65rem;" {% if report_message or report_error or selected_folder_id %}open{% endif %}>
+              <summary>Crear / abrir informe</summary>
               <div class="collapsible-body">
-                <form class="form" method="post">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="save_manual_report" />
+                <form class="form" method="get" style="margin:0;">
+                  <input type="hidden" name="tab" value="reports" />
                   <input type="hidden" name="team_id" value="{{ team_id }}" />
-                  <p class="meta" style="margin:0 0 0.5rem;">
-                    Plantilla guiada por bloques. Rellena lo esencial y deja el resto como apoyo.
-                  </p>
-
-                  <details class="collapsible" open>
-                    <summary>1) Contexto del partido</summary>
-                    <div class="collapsible-body">
-                      <div class="manual-grid">
-                        <div>
-                          <label for="manual_report_title">Título informe</label>
-                          <input id="manual_report_title" name="manual_report_title" type="text" value="{{ manual_initial.report_title }}" placeholder="Ej. Plan J25 vs Alhaurín" />
-                        </div>
-                        <div>
-                          <label for="manual_rival_name">Rival</label>
-                          <input id="manual_rival_name" name="manual_rival_name" type="text" value="{{ manual_initial.rival_name }}" />
-                        </div>
-                        <div>
-                          <label for="manual_match_round">Jornada</label>
-                          <input id="manual_match_round" name="manual_match_round" type="text" value="{{ manual_initial.match_round }}" />
-                        </div>
-                        <div>
-                          <label for="manual_match_date">Fecha/Hora</label>
-                          <input id="manual_match_date" name="manual_match_date" type="text" value="{{ manual_initial.match_date }}" />
-                        </div>
-                        <div class="wide">
-                          <label for="manual_match_location">Campo</label>
-                          <input id="manual_match_location" name="manual_match_location" type="text" value="{{ manual_initial.match_location }}" />
-                        </div>
-                        <div>
-                          <label for="manual_tactical_system">Sistema rival</label>
-                          <input id="manual_tactical_system" name="manual_tactical_system" type="text" value="{{ manual_initial.tactical_system }}" placeholder="1-4-2-3-1 / 1-4-4-2..." />
-                        </div>
-                        <div>
-                          <label for="manual_confidence">Nivel confianza (1-5)</label>
-                          <input id="manual_confidence" name="manual_confidence" type="number" min="1" max="5" value="{{ manual_initial.confidence|default:3 }}" />
-                        </div>
-                        <div>
-                          <label for="manual_status">Estado</label>
-                          <select id="manual_status" name="manual_status">
-                            {% for value,label in manual_report_status_choices %}
-                            <option value="{{ value }}" {% if manual_initial.status == value %}selected{% endif %}>{{ label }}</option>
-                            {% endfor %}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details class="collapsible">
-                    <summary>2) Cómo atacan (fase ofensiva)</summary>
-                    <div class="collapsible-body">
-                      <p class="meta" style="margin-top:0;">Progresión, zonas preferidas, mecanismos, centro/pared/juego directo.</p>
-                      <div class="manual-grid">
-                        <div class="wide">
-                          <label for="manual_attacking_patterns">Patrones ofensivos del rival</label>
-                          <textarea id="manual_attacking_patterns" name="manual_attacking_patterns" style="min-height:120px;" placeholder="• Salida: ...\n• Progresión: ...\n• Finalización: ...">{{ manual_initial.attacking_patterns }}</textarea>
-                        </div>
-                        <div class="wide">
-                          <label for="manual_key_players">Jugadores clave rival</label>
-                          <textarea id="manual_key_players" name="manual_key_players" style="min-height:92px;" placeholder="• #9 ...\n• #10 ...\n• Extremos ...">{{ manual_initial.key_players }}</textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details class="collapsible">
-                    <summary>3) Cómo defienden (fase defensiva)</summary>
-                    <div class="collapsible-body">
-                      <p class="meta" style="margin-top:0;">Altura de bloque, presión, ajustes, defensa de área, basculaciones.</p>
-                      <div class="manual-grid">
-                        <div class="wide">
-                          <label for="manual_defensive_patterns">Patrones defensivos del rival</label>
-                          <textarea id="manual_defensive_patterns" name="manual_defensive_patterns" style="min-height:120px;" placeholder="• Presión: ...\n• Repliegue: ...\n• Marca: ...">{{ manual_initial.defensive_patterns }}</textarea>
-                        </div>
-                        <div>
-                          <label for="manual_weaknesses">Debilidades detectadas</label>
-                          <textarea id="manual_weaknesses" name="manual_weaknesses" style="min-height:110px;" placeholder="• Espalda lateral...\n• Balón parado...\n• Distancias...">{{ manual_initial.weaknesses }}</textarea>
-                        </div>
-                        <div>
-                          <label for="manual_opportunities">Oportunidades para atacarles</label>
-                          <textarea id="manual_opportunities" name="manual_opportunities" style="min-height:110px;" placeholder="• Cambios de orientación...\n• Juego entre líneas...\n• 2º palo...">{{ manual_initial.opportunities }}</textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details class="collapsible">
-                    <summary>4) Transiciones (ataque/defensa)</summary>
-                    <div class="collapsible-body">
-                      <p class="meta" style="margin-top:0;">Reacción tras pérdida, contraataque, faltas tácticas, retorno.</p>
-                      <div class="manual-grid">
-                        <div class="wide">
-                          <label for="manual_transitions">Transiciones (OF/DEF)</label>
-                          <textarea id="manual_transitions" name="manual_transitions" style="min-height:120px;" placeholder="• Tras pérdida: ...\n• Tras robo: ...">{{ manual_initial.transitions }}</textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details class="collapsible">
-                    <summary>5) ABP (balón parado)</summary>
-                    <div class="collapsible-body">
-                      <p class="meta" style="margin-top:0;">Córners, faltas, saques de banda, rechaces, bloqueos.</p>
-                      <div class="manual-grid">
-                        <div>
-                          <label for="manual_set_pieces_for">ABP ofensivas rival</label>
-                          <textarea id="manual_set_pieces_for" name="manual_set_pieces_for" style="min-height:110px;" placeholder="• Córner: ...\n• Falta lateral: ...">{{ manual_initial.set_pieces_for }}</textarea>
-                        </div>
-                        <div>
-                          <label for="manual_set_pieces_against">ABP defensivas rival</label>
-                          <textarea id="manual_set_pieces_against" name="manual_set_pieces_against" style="min-height:110px;" placeholder="• Zonal/mixta: ...\n• 2ª jugada: ...">{{ manual_initial.set_pieces_against }}</textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-
-                  <details class="collapsible" open>
-                    <summary>6) Plan de partido + tareas</summary>
-                    <div class="collapsible-body">
-                      <p class="meta" style="margin-top:0;">Qué hacemos en salida, presión, alturas, ABP y gestión.</p>
-                      <div class="manual-grid">
-                        <div class="wide">
-                          <label for="manual_match_plan">Plan de partido propuesto</label>
-                          <textarea id="manual_match_plan" name="manual_match_plan" style="min-height:140px;" placeholder="• Objetivo: ...\n• Clave 1: ...\n• Clave 2: ...\n• ABP: ...">{{ manual_initial.match_plan }}</textarea>
-                        </div>
-                        <div class="wide">
-                          <label for="manual_individual_tasks">Tareas individuales (líneas/jugadores)</label>
-                          <textarea id="manual_individual_tasks" name="manual_individual_tasks" style="min-height:120px;" placeholder="- #...: ...\n- Línea defensiva: ...">{{ manual_initial.individual_tasks }}</textarea>
-                        </div>
-                        <div class="wide">
-                          <label for="manual_alert_notes">Alertas y riesgos (lesión, sanción, contexto)</label>
-                          <textarea id="manual_alert_notes" name="manual_alert_notes" style="min-height:110px;" placeholder="• Lesiones/sanciones...\n• Contexto (viaje, campo)...">{{ manual_initial.alert_notes }}</textarea>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-                  <div class="actions">
-                    <button class="button" type="submit">Guardar informe manual</button>
-                    <button class="button ghost" type="button" id="rival-report-to-tasks" data-report-id="{{ manual_report_latest_id|default:0 }}">Crear tareas (biblioteca)</button>
-                    {% if manual_report_latest_id %}
-                      <a class="button ghost" href="{% url 'analysis-rival-report-pdf' manual_report_latest_id %}" target="_blank" rel="noopener">Exportar PDF</a>
-                    {% else %}
-                      <span class="meta" style="align-self:center;">Guarda el informe para exportar PDF.</span>
-                    {% endif %}
-                  </div>
-                  <p class="meta" id="rival-report-to-tasks-status" style="margin:0.35rem 0 0;">Convierte el último informe guardado en plantillas reutilizables.</p>
-                  {% if manual_report_message %}
-                  <p class="ok">{{ manual_report_message }}</p>
-                  {% endif %}
-                  {% if manual_report_error %}
-                  <p class="error">{{ manual_report_error }}</p>
-                  {% endif %}
-                </form>
-                {% if manual_reports %}
-                <details class="collapsible" style="margin-top:0.75rem;">
-                  <summary>Histórico informes (últimos)</summary>
-                  <div class="collapsible-body">
-                    <ul class="list">
-                      {% for report in manual_reports %}
-                      <li>
-                        <strong>{{ report.report_title|default:"Informe sin título" }}</strong>
-                        <span class="meta"> · {{ report.rival_name }} · {{ report.get_status_display }} · {{ report.updated_at|date:"d/m/Y H:i" }}</span>
-                      </li>
-                      {% endfor %}
-                    </ul>
-                  </div>
-                </details>
-                {% endif %}
-              </div>
-            </details>
-          </div>
-          <div class="item item-wide">
-            <h3>Repositorio de informes de partido (archivo)</h3>
-            <details class="collapsible" {% if match_report_message or match_report_error %}open{% endif %}>
-              <summary>
-                Abrir archivo de informes
-                {% if match_reports %}<span class="meta" style="font-weight:600;">· {{ match_reports|length }} subidos</span>{% endif %}
-              </summary>
-              <div class="collapsible-body">
-                <p class="meta" style="margin-top:0;">Sube PDFs/JPG/PNG del analista para cada partido.</p>
-                <form class="form" method="post" enctype="multipart/form-data" style="margin-top:0.35rem;">
-                  {% csrf_token %}
-                  <input type="hidden" name="form_action" value="upload_match_report" />
                   <div class="manual-grid">
-                    <div class="wide">
-                      <label for="match_report_match_id">Partido (opcional)</label>
-                      <select id="match_report_match_id" name="match_report_match_id">
-                        <option value="">Selecciona un partido</option>
-                        {% for opt in match_options %}
-                        <option value="{{ opt.id }}">{{ opt.label }}</option>
+                    <div style="grid-column:1/-1;">
+                      <label for="folder_id_reports">Carpeta (del rival)</label>
+                      <select id="folder_id_reports" name="folder">
+                        <option value="">Selecciona una carpeta</option>
+                        {% for folder in video_folders %}
+                          <option value="{{ folder.id }}" {% if selected_folder_id == folder.id %}selected{% endif %}>
+                            {{ folder.name }}{% if folder.rival_team %} · {{ folder.rival_team.display_name }}{% endif %}
+                          </option>
                         {% endfor %}
                       </select>
+                      <div class="meta" style="margin-top:0.35rem;">Tip: crea la carpeta en la pestaña “Vídeos” si aún no existe.</div>
                     </div>
-                    <div>
-                      <label for="match_report_title">Título</label>
-                      <input id="match_report_title" name="match_report_title" type="text" placeholder="Ej. Informe J25" />
-                    </div>
-                    <div>
-                      <label for="match_report_opponent">Rival (si no hay partido)</label>
-                      <input id="match_report_opponent" name="match_report_opponent" type="text" placeholder="Ej. C.D. Torre del Mar" />
-                    </div>
-                    <div>
-                      <label for="match_report_date">Fecha (si no hay partido)</label>
-                      <input id="match_report_date" name="match_report_date" type="text" placeholder="dd/mm/aaaa" />
-                    </div>
-                    <div class="wide">
-                      <label for="match_report_file">Archivo</label>
-                      <input id="match_report_file" name="match_report_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" required />
-                    </div>
-                    <div class="wide">
-                      <label for="match_report_notes">Notas (opcional)</label>
-                      <textarea id="match_report_notes" name="match_report_notes" placeholder="Resumen, conclusiones, puntos clave..."></textarea>
+                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;">
+                      <button class="button ghost" type="submit">Aplicar</button>
                     </div>
                   </div>
-                  <div class="actions">
-                    <button class="button" type="submit">Subir informe</button>
-                  </div>
-                  {% if match_report_message %}<p class="ok">{{ match_report_message }}</p>{% endif %}
-                  {% if match_report_error %}<p class="error">{{ match_report_error }}</p>{% endif %}
                 </form>
-                <div style="margin-top:0.85rem;">
-                  {% for report in match_reports %}
-                    <div class="report-row">
-                      <div>
-                        <a href="{% url 'analysis-match-report-file' report_id=report.id %}" target="_blank" rel="noopener">
-                          {{ report.title|default:"Informe" }}
-                        </a>
-                        <div class="meta">
-                          {% if report.match %}{{ report.match.round|default:"Partido" }}{% endif %}
-                          {% if report.opponent_name %} · {{ report.opponent_name }}{% endif %}
-                          {% if report.match_date %} · {{ report.match_date }}{% endif %}
-                          · {{ report.created_at|date:"d/m/Y H:i" }}
-                        </div>
-                        {% if report.notes %}<div class="meta" style="margin-top:0.25rem;">{{ report.notes }}</div>{% endif %}
-                      </div>
-                      <form method="post" style="margin:0;">
-                        {% csrf_token %}
-                        <input type="hidden" name="form_action" value="delete_match_report" />
-                        <input type="hidden" name="match_report_id" value="{{ report.id }}" />
-                        <button class="button ghost" type="submit">Eliminar</button>
-                      </form>
+
+                <form class="form" method="post" style="margin-top:0.75rem;">
+                  {% csrf_token %}
+                  <input type="hidden" name="form_action" value="create_analysis_report" />
+                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
+                  <div class="manual-grid">
+                    <div style="grid-column:1/-1;">
+                      <label for="report_title_reports">Título</label>
+                      <input id="report_title_reports" name="report_title" type="text" placeholder="Ej. Scouting · presión alta / ABP / salida de balón…" />
                     </div>
-                  {% empty %}
-                    <p class="meta">Todavía no hay informes subidos.</p>
-                  {% endfor %}
-                </div>
+                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;">
+                      <button class="button ghost" type="submit" {% if not selected_folder_id %}disabled{% endif %}>Crear informe</button>
+                    </div>
+                  </div>
+                  {% if report_message %}<p class="ok">{{ report_message }}</p>{% endif %}
+                  {% if report_error %}<p class="error">{{ report_error }}</p>{% endif %}
+                </form>
+
+                {% if folder_reports %}
+                  <div class="grid" style="margin-top:0.85rem;">
+                    {% for rep in folder_reports %}
+                      <article class="item">
+                        <h4 style="margin:0;">{{ rep.title }}</h4>
+                        <p class="meta" style="margin:0.25rem 0 0;">
+                          Actualizado · {{ rep.updated_at|date:"d/m/Y H:i" }}
+                          {% if rep.pptx_updated_at %} · PPTX · {{ rep.pptx_updated_at|date:"d/m/Y H:i" }}{% endif %}
+                        </p>
+                        <div class="actions" style="justify-content:flex-start; margin-top:0.65rem;">
+                          <a class="button ghost" href="{% url 'analysis-video-report' rep.id %}">Editar</a>
+                          <a class="button ghost" href="{% url 'analysis-video-report-export-pdf' rep.id %}?inline=1" target="_blank" rel="noopener">Imprimir PDF</a>
+                          {% if rep.pptx_file %}
+                            <a class="button ghost" href="{% url 'analysis-video-report-pptx-file' rep.id %}">Descargar PPTX</a>
+                          {% endif %}
+                        </div>
+                      </article>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="meta" style="margin-top:0.85rem;">Todavía no hay informes en esta carpeta.</p>
+                {% endif %}
               </div>
             </details>
           </div>
@@ -1006,59 +816,9 @@
 			              </div>
 			            </details>
 
-		            <details class="collapsible" style="margin-top:0.75rem;" {% if report_message or report_error %}open{% endif %}>
-		              <summary>Informes (presentación · PPTX)</summary>
-		              <div class="collapsible-body">
-		                <p class="meta" style="margin-top:0;">
-		                  Crea un informe por rival/carpeta y exporta un PPTX con 1 clip por diapositiva (vídeo embebido + texto + capturas).
-		                </p>
-		                <form class="form" method="post" style="margin-top:0.75rem;">
-		                  {% csrf_token %}
-		                  <input type="hidden" name="form_action" value="create_analysis_report" />
-		                  <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
-		                  <div class="manual-grid">
-		                    <div style="grid-column:1/-1;">
-		                      <label for="report_title">Título</label>
-		                      <input id="report_title" name="report_title" type="text" placeholder="Ej. Scouting · presión alta / ABP / salida de balón…" />
-		                    </div>
-		                    <div class="actions" style="align-items:flex-end;justify-content:flex-start;">
-		                      <button class="button ghost" type="submit" {% if not selected_folder_id %}disabled{% endif %}>Crear informe</button>
-		                    </div>
-		                  </div>
-		                  {% if report_message %}<p class="ok">{{ report_message }}</p>{% endif %}
-		                  {% if report_error %}<p class="error">{{ report_error }}</p>{% endif %}
-		                </form>
-
-		                {% if folder_reports %}
-		                  <div class="grid" style="margin-top:0.85rem;">
-		                    {% for rep in folder_reports %}
-		                      <article class="item">
-		                        <h4 style="margin:0;">{{ rep.title }}</h4>
-		                        <p class="meta" style="margin:0.25rem 0 0;">
-		                          Actualizado · {{ rep.updated_at|date:"d/m/Y H:i" }}
-		                          {% if rep.pptx_updated_at %} · PPTX · {{ rep.pptx_updated_at|date:"d/m/Y H:i" }}{% endif %}
-		                        </p>
-		                        <div class="actions" style="justify-content:flex-start; margin-top:0.65rem;">
-		                          <a class="button ghost" href="{% url 'analysis-video-report' rep.id %}">Editar</a>
-		                          {% if rep.pptx_file %}
-		                            <a class="button ghost" href="{% url 'analysis-video-report-pptx-file' rep.id %}">Descargar PPTX</a>
-		                          {% endif %}
-		                          <form method="post" style="margin:0;">
-		                            {% csrf_token %}
-		                            <input type="hidden" name="form_action" value="delete_analysis_report" />
-		                            <input type="hidden" name="report_id" value="{{ rep.id }}" />
-		                            <input type="hidden" name="selected_folder_id" value="{{ selected_folder_id|default:'' }}" />
-		                            <button class="button ghost" type="submit">Eliminar</button>
-		                          </form>
-		                        </div>
-		                      </article>
-		                    {% endfor %}
-		                  </div>
-		                {% else %}
-		                  <p class="meta" style="margin-top:0.85rem;">Todavía no hay informes en esta carpeta.</p>
-		                {% endif %}
-		              </div>
-		            </details>
+			            <div class="meta" style="margin-top:0.75rem;">
+			              Los informes (PPTX/PDF) se gestionan en la pestaña <strong>Informes</strong>.
+			            </div>
 		
 		            <details class="collapsible" style="margin-top:0.75rem;" {% if video_message or video_error %}open{% endif %}>
 		              <summary>Añadir vídeo (archivo / YouTube)</summary>
