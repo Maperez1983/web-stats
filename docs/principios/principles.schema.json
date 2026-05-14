@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VideoStudioPrinciples",
+  "type": "object",
+  "properties": {
+    "version": {"type": "string"},
+    "principles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "label"],
+        "properties": {
+          "key": {"type": "string", "minLength": 1, "maxLength": 80},
+          "label": {"type": "string", "minLength": 1, "maxLength": 120},
+          "phase": {"type": "string", "enum": ["attack", "defense", "transition_of", "transition_def", "abp_for", "abp_against", ""]},
+          "tags": {"type": "array", "items": {"type": "string"}, "maxItems": 32},
+          "notes": {"type": "string", "maxLength": 2000}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["version", "principles"],
+  "additionalProperties": false
+}

@@ -3,19 +3,31 @@ set -euo pipefail
 
 : "${PORT:=8000}"
 : "${RUN_MIGRATIONS:=true}"
-: "${RUN_COLLECTSTATIC:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${GUNICORN_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
+: "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
 
-# Optional: ensure Playwright Chromium exists at runtime.
-# In platforms like Render, the build step might not run `./build.sh` (or caches may be ephemeral).
-# When enabled, we install browsers at boot if needed (idempotent).
-_pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
-if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
+# En Render, `collectstatic` suele ejecutarse en build. Si no has definido explícitamente
+# RUN_COLLECTSTATIC, lo desactivamos al detectar Render para acelerar el bind del puerto.
+if [ -z "${RUN_COLLECTSTATIC+x}" ]; then
+  if [ -n "${RENDER:-}" ] || [ -n "${RENDER_SERVICE_ID:-}" ] || [ -n "${RENDER_GIT_COMMIT:-}" ]; then
+    RUN_COLLECTSTATIC="false"
+  else
+    RUN_COLLECTSTATIC="true"
+  fi
+fi
+
+# Playwright: instala Chromium en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true`.
+# Runtime NO instala nada por defecto (evita arranques lentos / "No open ports detected").
+_pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
   export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
   python -m playwright install chromium || true
+elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
+  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
 
 # Media root (uploads). In Render the repo path can be read-only at runtime; default to /tmp.

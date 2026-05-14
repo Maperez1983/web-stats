@@ -1,0 +1,1159 @@
+{
+  "generated_at": "2026-05-14",
+  "file_count": 344,
+  "hit_count": 192,
+  "hits": [
+    {
+      "file": "football/services.py",
+      "line": 393,
+      "text": "response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=15)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/services.py",
+      "line": 399,
+      "text": "file_response = requests.get(file_url, headers={'User-Agent': USER_AGENT}, timeout=15)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/models.py",
+      "line": 142,
+      "text": "# Stripe billing (opcional). Mantener campos vacíos si Stripe no está configurado.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/models.py",
+      "line": 251,
+      "text": "Registro idempotente de eventos Stripe procesados.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/models.py",
+      "line": 253,
+      "text": "Evita procesar dos veces el mismo webhook cuando Stripe reintenta.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/video_autocut.py",
+      "line": 118,
+      "text": "proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603",
+      "kind": "subprocess_popen"
+    },
+    {
+      "file": "football/video_autocut.py",
+      "line": 192,
+      "text": "proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603",
+      "kind": "subprocess_popen"
+    },
+    {
+      "file": "football/video_autocut.py",
+      "line": 303,
+      "text": "proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)  # noqa: S603",
+      "kind": "subprocess_popen"
+    },
+    {
+      "file": "football/urls.py",
+      "line": 29,
+      "text": "path('stripe/webhook/', views.stripe_webhook, name='stripe-webhook'),",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59,
+      "text": "from django.views.decorators.csrf import csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 278,
+      "text": "# Stripe (opcional). No debe romper el sistema si no está configurado.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 280,
+      "text": "import stripe  # type: ignore",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 282,
+      "text": "stripe = None",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 573,
+      "text": "Map interno (plan_key, interval) -> Stripe price id.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 594,
+      "text": "return bool(_stripe_secret_key() and stripe is not None)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 605,
+      "text": "stripe.api_key = _stripe_secret_key()",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 624,
+      "text": "Crea una sesión de Stripe Checkout (suscripción) y devuelve URL para redirigir.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 634,
+      "text": "return JsonResponse({'ok': False, 'error': 'Stripe no está configurado.'}, status=501)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 714,
+      "text": "# En modo subscription, Stripe crea el customer automáticamente.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 719,
+      "text": "session = stripe.checkout.Session.create(**params)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 732,
+      "text": "Abre Stripe Customer Portal para gestionar/cancelar la suscripción.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 738,
+      "text": "return JsonResponse({'ok': False, 'error': 'Stripe no está configurado.'}, status=501)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 741,
+      "text": "return JsonResponse({'ok': False, 'error': 'Este club no tiene cliente Stripe todavía.'}, status=400)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 748,
+      "text": "portal = stripe.billing_portal.Session.create(customer=customer_id, return_url=return_url)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 911,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 915,
+      "text": "Webhook Stripe: activa/actualiza la suscripción del workspace.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 917,
+      "text": "if stripe is None:",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 918,
+      "text": "return JsonResponse({'ok': False, 'error': 'Stripe lib not available.'}, status=501)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 925,
+      "text": "event = stripe.Webhook.construct_event(payload=payload, sig_header=sig_header, secret=secret)",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 970,
+      "text": "sub = stripe.Subscription.retrieve(subscription_id, expand=['items.data.price'])",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 989,
+      "text": "sub_full = stripe.Subscription.retrieve(sub_id, expand=['items.data.price'])",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/views.py",
+      "line": 4101,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 4380,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 7296,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 8722,
+      "text": "response = requests.post(",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 8732,
+      "text": "response = requests.post(",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 8845,
+      "text": "response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 8856,
+      "text": "response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 8882,
+      "text": "response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 9190,
+      "text": "response = requests.get(",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 19106,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 22101,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 22506,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 22573,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 22702,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 29516,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 31009,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 35246,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 40173,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 40608,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 40788,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 40818,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 41235,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 41296,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42220,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42226,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42241,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42247,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42262,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 42268,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 46694,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 46750,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 47002,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 47125,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 47246,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 47316,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 47363,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48166,
+      "text": "out = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48195,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48348,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48488,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48545,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48579,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48669,
+      "text": "proc = subprocess.run(cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=25)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48730,
+      "text": "proc = subprocess.Popen(cmd_track, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_popen"
+    },
+    {
+      "file": "football/views.py",
+      "line": 48954,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49015,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49056,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49117,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49162,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49306,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49349,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49411,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49581,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49707,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49742,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 49936,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50019,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50062,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50244,
+      "text": "api_key = str(os.getenv('OPENAI_API_KEY') or '').strip()",
+      "kind": "openai_api_key_env"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50294,
+      "text": "resp = requests.post(",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50372,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50490,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 50685,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51072,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51142,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51247,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51281,
+      "text": "subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51375,
+      "text": "proc = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51507,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51592,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51624,
+      "text": "subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51652,
+      "text": "proc = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51767,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51867,
+      "text": "subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51874,
+      "text": "subprocess.run(cmd2, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 51880,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 52345,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 52567,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 53261,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 53385,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 53542,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 53608,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 53838,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 55649,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59283,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59518,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59723,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59799,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 59992,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 60250,
+      "text": "proc = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 60307,
+      "text": "proc = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 60441,
+      "text": "proc = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/views.py",
+      "line": 61538,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/views.py",
+      "line": 61557,
+      "text": "@csrf_exempt",
+      "kind": "csrf_exempt"
+    },
+    {
+      "file": "football/management/commands/seed_video_ocr.py",
+      "line": 23,
+      "text": "p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/management/commands/import_rival_video_mp4.py",
+      "line": 17,
+      "text": "p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=False)",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/management/commands/scrape_preferente.py",
+      "line": 88,
+      "text": "response = requests.get(",
+      "kind": "requests_http"
+    },
+    {
+      "file": "football/management/commands/refresh_federation_standings.py",
+      "line": 31,
+      "text": "result = subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/management/commands/import_player_licenses_pdf.py",
+      "line": 97,
+      "text": "return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=check)",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "football/static/football/js/kpi_explorer.js",
+      "line": 43,
+      "text": "const m = /filename=\\\"([^\\\"]+)\\\"/i.exec(cd);",
+      "kind": "exec"
+    },
+    {
+      "file": "football/static/football/js/analysis_video_studio.js",
+      "line": 782,
+      "text": "const m = /filename=\\\"([^\\\"]+)\\\"/i.exec(cd);",
+      "kind": "exec"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 871,
+      "text": "const tokenStripeColorInput = document.getElementById('task-token-stripe-color');",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 872,
+      "text": "const tokenStripeColorHexInput = document.getElementById('task-token-stripe-color-hex');",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 3530,
+      "text": "const stripeHex = parseColorToHex(options.stripe, parseColorToHex(group?.data?.token_stripe_color, baseHex)) || baseHex;",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 4245,
+      "text": "stripe: safeText(active?.data?.token_stripe_color) || safeText(active?.data?.color) || '#0f7a35',",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 5928,
+      "text": "const stripe = safeText(data.token_stripe_color || data.color || fill);",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 5929,
+      "text": "const key = tokenKind.includes('rival') ? stripe : stripe;",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 13971,
+      "text": "const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14094,
+      "text": "const stripe = new fabric.Rect({",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14103,
+      "text": "stripe.data = { role: isStripe ? 'token_stripe' : 'token_stripe_base' };",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14104,
+      "text": "stripes.push(stripe);",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14266,
+      "text": "const stripe = new fabric.Rect({",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14275,
+      "text": "stripe.data = { role: isGreen ? 'token_stripe' : 'token_stripe_base' };",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14276,
+      "text": "stripes.push(stripe);",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 14446,
+      "text": "applyTokenPalette(group, { base: baseColor, stripe: stripeColor, pattern });",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 18563,
+      "text": "applyTokenPalette(active, { stripe: tokenStripeColorInput.value });",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/football/js/sessions_tactical_pad.js",
+      "line": 18580,
+      "text": "applyTokenPalette(active, { stripe: hex });",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/static/vendor/three.min.js",
+      "line": 7,
+      "text": "function(t,e){\"object\"==typeof exports&&\"undefined\"!=typeof module?e(exports):\"function\"==typeof define&&define.amd?define([\"exports\"],e):e((t=\"undefined\"!=typeof globalThis?globalThis:t||self).THREE={})}(this,(function(t){\"use strict\";const e=\"160\",n=1,i=2,r=3,s=0,a=1,o=100,l=204,c=205,h=0,u=1,d=2,p=0,m=1,f=2,g=3,_=4,v=5,x=6,y=\"attached\",M=\"detached\",S=300,b=301,T=302,E=303,w=304,A=306,R=1e3,C=10",
+      "kind": "exec"
+    },
+    {
+      "file": "football/static/vendor/fabric.min.js",
+      "line": 1,
+      "text": "var fabric=fabric||{version:\"5.3.0\"};if(\"undefined\"!=typeof exports?exports.fabric=fabric:\"function\"==typeof define&&define.amd&&define([],function(){return fabric}),\"undefined\"!=typeof document&&\"undefined\"!=typeof window)document instanceof(\"undefined\"!=typeof HTMLDocument?HTMLDocument:Document)?fabric.document=document:fabric.document=document.implementation.createHTMLDocument(\"\"),fabric.window",
+      "kind": "exec"
+    },
+    {
+      "file": "football/templates/football/billing.html",
+      "line": 185,
+      "text": "Stripe no está configurado en este entorno. Contacta con soporte para activar manualmente.",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/templates/football/training_session_detail.html",
+      "line": 302,
+      "text": "{{ t.sheet.coaching_html|safe }}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/training_session_detail.html",
+      "line": 308,
+      "text": "<div style=\"margin-top:10px; color:#0f172a;\">{{ t.sheet.description_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/training_session_detail.html",
+      "line": 343,
+      "text": "{{ t.sheet.rules_html|safe }}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 596,
+      "text": "<div class=\"rich-text\">{{ description_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 605,
+      "text": "<div class=\"rich-text\">{{ coaching_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 624,
+      "text": "<div class=\"rich-text\">{{ rules_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 638,
+      "text": "<div class=\"rich-text\">{{ success_criteria_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 648,
+      "text": "<div class=\"rich-text\">{{ progression_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 664,
+      "text": "<div class=\"rich-text\">{{ description_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 673,
+      "text": "<div class=\"rich-text\">{{ coaching_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 694,
+      "text": "<div class=\"rich-text\">{{ rules_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 708,
+      "text": "<div class=\"rich-text\">{{ success_criteria_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 718,
+      "text": "<div class=\"rich-text\">{{ progression_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 880,
+      "text": "<div class=\"rich-text\">{{ description_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 889,
+      "text": "<div class=\"rich-text\">{{ coaching_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 900,
+      "text": "<div class=\"rich-text\">{{ rules_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 912,
+      "text": "<div class=\"rich-text\">{{ progression_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/session_task_pdf.html",
+      "line": 922,
+      "text": "<div class=\"rich-text\">{{ success_criteria_rich_html|safe }}</div>",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 4916,
+      "text": "<input type=\"color\" id=\"task-token-stripe-color\" value=\"#0f7a35\" />",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 4919,
+      "text": "id=\"task-token-stripe-color-hex\"",
+      "kind": "stripe"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5331,
+      "text": "{% if initial.description_html %}{{ initial.description_html|safe }}{% else %}{{ initial.description|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5351,
+      "text": "{% if initial.coaching_points_html %}{{ initial.coaching_points_html|safe }}{% else %}{{ initial.coaching_points|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5371,
+      "text": "{% if initial.confrontation_rules_html %}{{ initial.confrontation_rules_html|safe }}{% else %}{{ initial.confrontation_rules|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5704,
+      "text": "{% if initial.organization_html %}{{ initial.organization_html|safe }}{% else %}{{ initial.organization|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5753,
+      "text": "{% if initial.progression_html %}{{ initial.progression_html|safe }}{% else %}{{ initial.progression|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5773,
+      "text": "{% if initial.regression_html %}{{ initial.regression_html|safe }}{% else %}{{ initial.regression|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 5793,
+      "text": "{% if initial.success_criteria_html %}{{ initial.success_criteria_html|safe }}{% else %}{{ initial.success_criteria|linebreaksbr }}{% endif %}",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/task_builder.html",
+      "line": 8797,
+      "text": "while ((match = rx.exec(text)) !== null) {",
+      "kind": "exec"
+    },
+    {
+      "file": "football/templates/football/convocation.html",
+      "line": 624,
+      "text": "const opponentOptions = {{ opponent_options_json|safe }};",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/convocation.html",
+      "line": 675,
+      "text": "const selectedSet = new Set(({{ selected_player_ids_json|safe }} || []).map((item) => String(item)));",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/convocation.html",
+      "line": 676,
+      "text": "const initialCaptainId = {{ captain_id_json|safe }};",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/convocation.html",
+      "line": 677,
+      "text": "const initialGoalkeeperId = {{ goalkeeper_id_json|safe }};",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "football/templates/football/convocation.html",
+      "line": 680,
+      "text": "const injuredPlayerIds = new Set(({{ injured_player_ids_json|safe }} || []).map((item) => String(item)));",
+      "kind": "template_safe_filter"
+    },
+    {
+      "file": "scripts/ig_video_to_clip.py",
+      "line": 34,
+      "text": "proc = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "scripts/import_from_rfef.py",
+      "line": 128,
+      "text": "response = requests.get(URL, headers=headers, timeout=30)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "scripts/import_from_rfef.py",
+      "line": 381,
+      "text": "response = requests.get(url, headers=headers, timeout=30)",
+      "kind": "requests_http"
+    },
+    {
+      "file": "scripts/import_from_rfef.py",
+      "line": 486,
+      "text": "subprocess.run(",
+      "kind": "subprocess_run"
+    },
+    {
+      "file": "scripts/e2e_audit_playwright.js",
+      "line": 433,
+      "text": ".$$eval('a[href]', (anchors) => anchors.map((a) => a.getAttribute('href') || ''))",
+      "kind": "eval"
+    },
+    {
+      "file": "scripts/e2e_audit_playwright.js",
+      "line": 493,
+      "text": ".$$eval('a[href^=\"/player/\"]', (anchors) => anchors.map((a) => a.getAttribute('href') || ''))",
+      "kind": "eval"
+    },
+    {
+      "file": "scripts/e2e_editor_drag_playwright.js",
+      "line": 121,
+      "text": ".$eval('#task-builder-form', (el) => (el && el.dataset ? String(el.dataset.draftKey || '') : ''))",
+      "kind": "eval"
+    },
+    {
+      "file": "scripts/e2e_tacticalpad_smoke.js",
+      "line": 205,
+      "text": ".$eval('#task-builder-form', (el) => (el && el.dataset ? String(el.dataset.draftKey || '') : ''))",
+      "kind": "eval"
+    }
+  ]
+}

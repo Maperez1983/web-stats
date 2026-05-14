@@ -135,6 +135,7 @@ Además, Playwright se puede usar para generar previews HD (WYSIWYG) del editor 
 - `TPAD_SERVER_RENDER_PREVIEW=true`: intenta renderizar previews HD en servidor (fallback automático si Playwright/browsers no están disponibles).
 - `TPAD_SERVER_RENDER_PREVIEW_FORCE=true`: fuerza el render en cada guardado (más CPU).
 - `INSTALL_PLAYWRIGHT_BROWSERS=true`: en `build.sh`, instala Chromium durante el build.
+- `INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true`: instala Chromium en el arranque (no recomendado en Render; puede hacer el deploy inestable).
 - `PLAYWRIGHT_BROWSERS_PATH=0`: recomendado en Render para que los binarios de Chromium queden “embebidos” en el deploy (evita depender de caches efímeras por instancia).
 
 Si esas dependencias no estan disponibles, la app sigue funcionando en partes del flujo, pero algunas exportaciones o capturas pueden degradarse.
@@ -147,4 +148,20 @@ docker compose up --build
 
 La app quedara en http://localhost:8000
 
-En despliegues tipo Render/Heroku o Docker puro, usa `./start.sh` como comando de arranque para ejecutar `migrate` antes de levantar Gunicorn.
+En despliegues tipo Render, usa `./start_asgi.sh` como comando de arranque para ejecutar `migrate` antes de levantar Gunicorn.
+En otros despliegues (p.ej. Docker puro/Heroku), puedes usar `./start.sh`.
+
+## Render Blueprint (`render.yaml`)
+
+Si despliegas en Render como servicio **Python 3** y quieres que la configuración quede versionada (Infra-as-Code),
+usa `render.yaml` como Blueprint:
+
+- `buildCommand`: `./build.sh` (por defecto **no** ejecuta migraciones; controla con `RUN_MIGRATIONS_AT_BUILD=true`).
+- `startCommand`: `./start_asgi.sh` (ejecuta migraciones; en Render desactiva `collectstatic` por defecto para acelerar el bind al puerto).
+- Health check: `GET /healthz` (devuelve 200 OK o 503 si la DB/migraciones fallan).
+
+Si NO usas Blueprint y configuras el servicio a mano en Render:
+
+- Build Command: `./build.sh`
+- Start Command: `./start_asgi.sh`
+- Pre-Deploy Command: vacío (recomendado; las migraciones ya van en el start)

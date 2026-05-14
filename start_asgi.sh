@@ -3,35 +3,35 @@ set -euo pipefail
 
 : "${PORT:=8000}"
 : "${RUN_MIGRATIONS:=true}"
-: "${RUN_COLLECTSTATIC:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${GUNICORN_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
+: "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
 : "${DJANGO_RUN_ASGI:=false}"
 
-# Ensure Playwright Chromium exists at runtime (idempotent).
-# Render instances are ephemeral; even if Chromium was installed manually in a previous shell,
-# a restart/deploy can land on a fresh instance where `.local-browsers/` doesn't exist.
-export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-_pw_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
-_should_install_pw="false"
-if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "yes" ] || [ "${_pw_flag}" = "on" ]; then
-  _should_install_pw="true"
-else
-  # Auto-repair: if Playwright is installed but Chromium isn't present, download it.
-  python - <<'PY' >/dev/null 2>&1 || _should_install_pw="true"
-import os
-os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", os.getenv("PLAYWRIGHT_BROWSERS_PATH", "0"))
-from playwright.sync_api import sync_playwright
-p = sync_playwright().start()
-b = p.chromium.launch(args=["--no-sandbox"])
-b.close()
-p.stop()
-PY
+# En Render, `collectstatic` ya se ejecuta en build (`build.sh`). Repetirlo en runtime solo retrasa
+# el bind al puerto y puede provocar "No open ports detected".
+# Si no has definido explícitamente RUN_COLLECTSTATIC, lo desactivamos al detectar Render.
+if [ -z "${RUN_COLLECTSTATIC+x}" ]; then
+  if [ -n "${RENDER:-}" ] || [ -n "${RENDER_SERVICE_ID:-}" ] || [ -n "${RENDER_GIT_COMMIT:-}" ]; then
+    RUN_COLLECTSTATIC="false"
+  else
+    RUN_COLLECTSTATIC="true"
+  fi
 fi
-if [ "${_should_install_pw}" = "true" ]; then
+
+# Playwright (Chromium) es pesado (descarga ~160MB) y en Render puede hacer que el deploy falle
+# por "No open ports detected" si se ejecuta antes de arrancar Gunicorn.
+# Recomendación: instala Chromium en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true` y
+# `PLAYWRIGHT_BROWSERS_PATH=0`. En runtime NO instalamos nada por defecto.
+_pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
+  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
   python -m playwright install chromium || true
+elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
+  echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
 
 if [ "${RUN_MIGRATIONS}" = "true" ]; then

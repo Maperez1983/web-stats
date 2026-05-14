@@ -1,0 +1,3255 @@
+{
+  "generated_at": "2026-05-14",
+  "urls_files": [
+    "webstats/urls.py",
+    "football/urls.py"
+  ],
+  "pattern_count": 261,
+  "patterns": [
+    {
+      "route": ".well-known/apple-app-site-association",
+      "view_expr": "football_views.apple_app_site_association",
+      "name": "apple-app-site-association",
+      "source_file": "webstats/urls.py",
+      "lineno": 30,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "login/",
+      "view_expr": "RoleAwareLoginView.as_view()",
+      "name": "login",
+      "source_file": "webstats/urls.py",
+      "lineno": 32,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "logout/",
+      "view_expr": "auth_views.LogoutView.as_view(next_page='login')",
+      "name": "logout",
+      "source_file": "webstats/urls.py",
+      "lineno": 33,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "admin/",
+      "view_expr": "admin.site.urls",
+      "name": "",
+      "source_file": "webstats/urls.py",
+      "lineno": 34,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "",
+      "view_expr": "include('football.urls')",
+      "name": "",
+      "source_file": "webstats/urls.py",
+      "lineno": 35,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "manifest.webmanifest",
+      "view_expr": "pwa_views.pwa_manifest",
+      "name": "pwa-manifest",
+      "source_file": "football/urls.py",
+      "lineno": 7,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "sw.js",
+      "view_expr": "pwa_views.pwa_service_worker",
+      "name": "pwa-sw",
+      "source_file": "football/urls.py",
+      "lineno": 8,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "offline/",
+      "view_expr": "pwa_views.pwa_offline",
+      "name": "pwa-offline",
+      "source_file": "football/urls.py",
+      "lineno": 9,
+      "view_name": "",
+      "view_def_lineno": null,
+      "decorators": []
+    },
+    {
+      "route": "2j/",
+      "view_expr": "views.product_landing_page",
+      "name": "product-landing",
+      "source_file": "football/urls.py",
+      "lineno": 10,
+      "view_name": "product_landing_page",
+      "view_def_lineno": 2976,
+      "decorators": []
+    },
+    {
+      "route": "signup/",
+      "view_expr": "views.public_signup_page",
+      "name": "signup",
+      "source_file": "football/urls.py",
+      "lineno": 11,
+      "view_name": "public_signup_page",
+      "view_def_lineno": 11914,
+      "decorators": []
+    },
+    {
+      "route": "onboarding/",
+      "view_expr": "views.club_onboarding_page",
+      "name": "club-onboarding",
+      "source_file": "football/urls.py",
+      "lineno": 12,
+      "view_name": "club_onboarding_page",
+      "view_def_lineno": 12008,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "team/<int:team_id>/crest.svg",
+      "view_expr": "views.team_crest_svg",
+      "name": "team-crest-svg",
+      "source_file": "football/urls.py",
+      "lineno": 13,
+      "view_name": "team_crest_svg",
+      "view_def_lineno": 8629,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "",
+      "view_expr": "views.dashboard_page",
+      "name": "dashboard-home",
+      "source_file": "football/urls.py",
+      "lineno": 14,
+      "view_name": "dashboard_page",
+      "view_def_lineno": 11719,
+      "decorators": [
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "partido/",
+      "view_expr": "views.match_hub_page",
+      "name": "match-hub",
+      "source_file": "football/urls.py",
+      "lineno": 15,
+      "view_name": "match_hub_page",
+      "view_def_lineno": 58404,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "partido/crear/",
+      "view_expr": "views.match_hub_create_match",
+      "name": "match-hub-create",
+      "source_file": "football/urls.py",
+      "lineno": 16,
+      "view_name": "match_hub_create_match",
+      "view_def_lineno": 58599,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "partido/guardar/",
+      "view_expr": "views.match_hub_finalize_match",
+      "name": "match-hub-finalize",
+      "source_file": "football/urls.py",
+      "lineno": 17,
+      "view_name": "match_hub_finalize_match",
+      "view_def_lineno": 58717,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "buscar/",
+      "view_expr": "views.search_page",
+      "name": "search-page",
+      "source_file": "football/urls.py",
+      "lineno": 18,
+      "view_name": "search_page",
+      "view_def_lineno": 58780,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "calendario/club.ics",
+      "view_expr": "views.team_calendar_ics",
+      "name": "team-calendar-ics",
+      "source_file": "football/urls.py",
+      "lineno": 19,
+      "view_name": "team_calendar_ics",
+      "view_def_lineno": 59026,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/session/keepalive/",
+      "view_expr": "views.session_keepalive",
+      "name": "session-keepalive",
+      "source_file": "football/urls.py",
+      "lineno": 20,
+      "view_name": "session_keepalive",
+      "view_def_lineno": 340,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/match/video-links/",
+      "view_expr": "views.match_video_links_api",
+      "name": "match-video-links-api",
+      "source_file": "football/urls.py",
+      "lineno": 21,
+      "view_name": "match_video_links_api",
+      "view_def_lineno": 19068,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/match/video/marker/",
+      "view_expr": "views.match_video_marker_api",
+      "name": "match-video-marker-api",
+      "source_file": "football/urls.py",
+      "lineno": 22,
+      "view_name": "match_video_marker_api",
+      "view_def_lineno": 19109,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/build/",
+      "view_expr": "views.public_build_info",
+      "name": "public-build-info",
+      "source_file": "football/urls.py",
+      "lineno": 23,
+      "view_name": "public_build_info",
+      "view_def_lineno": 351,
+      "decorators": []
+    },
+    {
+      "route": "api/search/",
+      "view_expr": "views.search_api",
+      "name": "search-api",
+      "source_file": "football/urls.py",
+      "lineno": 24,
+      "view_name": "search_api",
+      "view_def_lineno": 58795,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/rivals/roster/",
+      "view_expr": "views.rival_roster_api",
+      "name": "rival-roster-api",
+      "source_file": "football/urls.py",
+      "lineno": 25,
+      "view_name": "rival_roster_api",
+      "view_def_lineno": 9994,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "billing/",
+      "view_expr": "views.billing_page",
+      "name": "billing",
+      "source_file": "football/urls.py",
+      "lineno": 26,
+      "view_name": "billing_page",
+      "view_def_lineno": 447,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/billing/checkout/",
+      "view_expr": "views.billing_checkout_session_api",
+      "name": "billing-checkout-session",
+      "source_file": "football/urls.py",
+      "lineno": 27,
+      "view_name": "billing_checkout_session_api",
+      "view_def_lineno": 622,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/billing/portal/",
+      "view_expr": "views.billing_portal_session_api",
+      "name": "billing-portal-session",
+      "source_file": "football/urls.py",
+      "lineno": 28,
+      "view_name": "billing_portal_session_api",
+      "view_def_lineno": 730,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "stripe/webhook/",
+      "view_expr": "views.stripe_webhook",
+      "name": "stripe-webhook",
+      "source_file": "football/urls.py",
+      "lineno": 29,
+      "view_name": "stripe_webhook",
+      "view_def_lineno": 913,
+      "decorators": [
+        "csrf_exempt",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/workspace/active/",
+      "view_expr": "views.workspace_set_active_workspace",
+      "name": "workspace-active",
+      "source_file": "football/urls.py",
+      "lineno": 30,
+      "view_name": "workspace_set_active_workspace",
+      "view_def_lineno": 1119,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/workspace/active-team/",
+      "view_expr": "views.workspace_set_active_team",
+      "name": "workspace-active-team",
+      "source_file": "football/urls.py",
+      "lineno": 31,
+      "view_name": "workspace_set_active_team",
+      "view_def_lineno": 1087,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/workspace/preferences/get/",
+      "view_expr": "views.workspace_preference_get_api",
+      "name": "workspace-pref-get",
+      "source_file": "football/urls.py",
+      "lineno": 32,
+      "view_name": "workspace_preference_get_api",
+      "view_def_lineno": 7283,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/workspace/preferences/set/",
+      "view_expr": "views.workspace_preference_set_api",
+      "name": "workspace-pref-set",
+      "source_file": "football/urls.py",
+      "lineno": 33,
+      "view_name": "workspace_preference_set_api",
+      "view_def_lineno": 7299,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/workspace/sync/",
+      "view_expr": "views.workspace_sync_competition_api",
+      "name": "workspace-sync-competition",
+      "source_file": "football/urls.py",
+      "lineno": 34,
+      "view_name": "workspace_sync_competition_api",
+      "view_def_lineno": 1138,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "team/<int:team_id>/cover/",
+      "view_expr": "views.team_cover_image_file",
+      "name": "team-cover-image-file",
+      "source_file": "football/urls.py",
+      "lineno": 35,
+      "view_name": "team_cover_image_file",
+      "view_def_lineno": 3889,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "platform/",
+      "view_expr": "views.platform_overview_page",
+      "name": "platform-overview",
+      "source_file": "football/urls.py",
+      "lineno": 36,
+      "view_name": "platform_overview_page",
+      "view_def_lineno": 12772,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "platform/asistente/",
+      "view_expr": "views.platform_assistant_page",
+      "name": "platform-assistant",
+      "source_file": "football/urls.py",
+      "lineno": 37,
+      "view_name": "platform_assistant_page",
+      "view_def_lineno": 61425,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "platform/clear/",
+      "view_expr": "views.platform_workspace_clear_page",
+      "name": "platform-workspace-clear",
+      "source_file": "football/urls.py",
+      "lineno": 38,
+      "view_name": "platform_workspace_clear_page",
+      "view_def_lineno": 14274,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "platform/workspaces/<int:workspace_id>/",
+      "view_expr": "views.platform_workspace_detail_page",
+      "name": "platform-workspace-detail",
+      "source_file": "football/urls.py",
+      "lineno": 39,
+      "view_name": "platform_workspace_detail_page",
+      "view_def_lineno": 13590,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "platform/workspaces/<int:workspace_id>/delete/",
+      "view_expr": "views.platform_workspace_delete_page",
+      "name": "platform-workspace-delete",
+      "source_file": "football/urls.py",
+      "lineno": 40,
+      "view_name": "platform_workspace_delete_page",
+      "view_def_lineno": 14181,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "platform/workspaces/<int:workspace_id>/enter/",
+      "view_expr": "views.platform_workspace_enter_page",
+      "name": "platform-workspace-enter",
+      "source_file": "football/urls.py",
+      "lineno": 41,
+      "view_name": "platform_workspace_enter_page",
+      "view_def_lineno": 14232,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "task-studio/",
+      "view_expr": "views.task_studio_home_page",
+      "name": "task-studio-home",
+      "source_file": "football/urls.py",
+      "lineno": 42,
+      "view_name": "task_studio_home_page",
+      "view_def_lineno": 41130,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "task-studio/profile/",
+      "view_expr": "views.task_studio_profile_page",
+      "name": "task-studio-profile",
+      "source_file": "football/urls.py",
+      "lineno": 43,
+      "view_name": "task_studio_profile_page",
+      "view_def_lineno": 41160,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "task-studio/roster/",
+      "view_expr": "views.task_studio_roster_page",
+      "name": "task-studio-roster",
+      "source_file": "football/urls.py",
+      "lineno": 44,
+      "view_name": "task_studio_roster_page",
+      "view_def_lineno": 41202,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "task-studio/task/create/",
+      "view_expr": "views.task_studio_task_create",
+      "name": "task-studio-task-create",
+      "source_file": "football/urls.py",
+      "lineno": 45,
+      "view_name": "task_studio_task_create",
+      "view_def_lineno": 41238,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "task-studio/task/<int:task_id>/delete/",
+      "view_expr": "views.task_studio_task_delete",
+      "name": "task-studio-task-delete",
+      "source_file": "football/urls.py",
+      "lineno": 46,
+      "view_name": "task_studio_task_delete",
+      "view_def_lineno": 41253,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "task-studio/task/<int:task_id>/duplicate/",
+      "view_expr": "views.task_studio_task_duplicate",
+      "name": "task-studio-task-duplicate",
+      "source_file": "football/urls.py",
+      "lineno": 47,
+      "view_name": "task_studio_task_duplicate",
+      "view_def_lineno": 41277,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "task-studio/task/pdf-preview/",
+      "view_expr": "views.task_studio_task_pdf_preview",
+      "name": "task-studio-task-pdf-preview",
+      "source_file": "football/urls.py",
+      "lineno": 48,
+      "view_name": "task_studio_task_pdf_preview",
+      "view_def_lineno": 41299,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/dashboard/",
+      "view_expr": "views.dashboard_data",
+      "name": "dashboard-data",
+      "source_file": "football/urls.py",
+      "lineno": 49,
+      "view_name": "dashboard_data",
+      "view_def_lineno": 10892,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/dashboard/refresh/",
+      "view_expr": "views.refresh_scraping",
+      "name": "dashboard-refresh",
+      "source_file": "football/urls.py",
+      "lineno": 50,
+      "view_name": "refresh_scraping",
+      "view_def_lineno": 55605,
+      "decorators": [
+        "csrf_exempt",
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "media/home-carousel/<int:image_id>/",
+      "view_expr": "views.home_carousel_image_file",
+      "name": "home-carousel-image-file",
+      "source_file": "football/urls.py",
+      "lineno": 51,
+      "view_name": "home_carousel_image_file",
+      "view_def_lineno": 3865,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "media/pdf-assets/<int:asset_id>/",
+      "view_expr": "views.pdf_graphic_asset_file",
+      "name": "pdf-graphic-asset-file",
+      "source_file": "football/urls.py",
+      "lineno": 52,
+      "view_name": "pdf_graphic_asset_file",
+      "view_def_lineno": 4005,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/",
+      "view_expr": "views.player_dashboard_page",
+      "name": "player-dashboard",
+      "source_file": "football/urls.py",
+      "lineno": 53,
+      "view_name": "player_dashboard_page",
+      "view_def_lineno": 17409,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/attendance/mark/",
+      "view_expr": "views.player_attendance_mark",
+      "name": "player-attendance-mark",
+      "source_file": "football/urls.py",
+      "lineno": 54,
+      "view_name": "player_attendance_mark",
+      "view_def_lineno": 21539,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/",
+      "view_expr": "views.player_video_library_page",
+      "name": "player-video-library",
+      "source_file": "football/urls.py",
+      "lineno": 55,
+      "view_name": "player_video_library_page",
+      "view_def_lineno": 45183,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/view/<int:video_id>/",
+      "view_expr": "views.player_video_view_page",
+      "name": "player-video-view",
+      "source_file": "football/urls.py",
+      "lineno": 56,
+      "view_name": "player_video_view_page",
+      "view_def_lineno": 45323,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/clip/view/<int:clip_id>/",
+      "view_expr": "views.player_video_clip_view_page",
+      "name": "player-video-clip-view",
+      "source_file": "football/urls.py",
+      "lineno": 57,
+      "view_name": "player_video_clip_view_page",
+      "view_def_lineno": 45375,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/inbox/",
+      "view_expr": "views.player_video_inbox_page",
+      "name": "player-video-inbox",
+      "source_file": "football/urls.py",
+      "lineno": 58,
+      "view_name": "player_video_inbox_page",
+      "view_def_lineno": 45144,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/inbox/open/<int:item_id>/",
+      "view_expr": "views.player_video_inbox_open",
+      "name": "player-video-inbox-open",
+      "source_file": "football/urls.py",
+      "lineno": 59,
+      "view_name": "player_video_inbox_open",
+      "view_def_lineno": 45451,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/clip/<int:item_id>/",
+      "view_expr": "views.player_video_inbox_clip_view_page",
+      "name": "player-video-inbox-clip-view",
+      "source_file": "football/urls.py",
+      "lineno": 60,
+      "view_name": "player_video_inbox_clip_view_page",
+      "view_def_lineno": 45481,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/export/<int:item_id>/",
+      "view_expr": "views.player_video_inbox_export_view_page",
+      "name": "player-video-inbox-export-view",
+      "source_file": "football/urls.py",
+      "lineno": 61,
+      "view_name": "player_video_inbox_export_view_page",
+      "view_def_lineno": 45542,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/export/<int:item_id>/stream/",
+      "view_expr": "views.player_video_inbox_export_stream",
+      "name": "player-video-inbox-export-stream",
+      "source_file": "football/urls.py",
+      "lineno": 62,
+      "view_name": "player_video_inbox_export_stream",
+      "view_def_lineno": 45575,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/playlist/<int:item_id>/",
+      "view_expr": "views.player_video_inbox_playlist_view_page",
+      "name": "player-video-inbox-playlist-view",
+      "source_file": "football/urls.py",
+      "lineno": 63,
+      "view_name": "player_video_inbox_playlist_view_page",
+      "view_def_lineno": 45610,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "players/videos/report/<int:item_id>/",
+      "view_expr": "views.player_video_inbox_report_view_page",
+      "name": "player-video-inbox-report",
+      "source_file": "football/urls.py",
+      "lineno": 64,
+      "view_name": "player_video_inbox_report_view_page",
+      "view_def_lineno": 45682,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/agenda/",
+      "view_expr": "views.team_agenda_page",
+      "name": "team-agenda",
+      "source_file": "football/urls.py",
+      "lineno": 65,
+      "view_name": "team_agenda_page",
+      "view_def_lineno": 20966,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/informes/",
+      "view_expr": "views.reports_hub_page",
+      "name": "reports-hub",
+      "source_file": "football/urls.py",
+      "lineno": 66,
+      "view_name": "reports_hub_page",
+      "view_def_lineno": 17561,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/dashboard/",
+      "view_expr": "views.kpi_dashboard_page",
+      "name": "kpi-dashboard",
+      "source_file": "football/urls.py",
+      "lineno": 67,
+      "view_name": "kpi_dashboard_page",
+      "view_def_lineno": 22452,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/informes/equipo/pdf/",
+      "view_expr": "views.team_season_report_pdf",
+      "name": "team-season-report-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 68,
+      "view_name": "team_season_report_pdf",
+      "view_def_lineno": 22808,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/informes/partido/",
+      "view_expr": "views.match_staff_report_page",
+      "name": "match-staff-report",
+      "source_file": "football/urls.py",
+      "lineno": 69,
+      "view_name": "match_staff_report_page",
+      "view_def_lineno": 22059,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/informes/partido/pdf/",
+      "view_expr": "views.match_staff_report_pdf",
+      "name": "match-staff-report-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 70,
+      "view_name": "match_staff_report_pdf",
+      "view_def_lineno": 22022,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/match/postmatch/to-blueprints/",
+      "view_expr": "views.match_postmatch_pro_to_blueprints_api",
+      "name": "match-postmatch-pro-to-blueprints-api",
+      "source_file": "football/urls.py",
+      "lineno": 71,
+      "view_name": "match_postmatch_pro_to_blueprints_api",
+      "view_def_lineno": 22104,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "admin-tools/",
+      "view_expr": "views.admin_page",
+      "name": "admin-page",
+      "source_file": "football/urls.py",
+      "lineno": 72,
+      "view_name": "admin_page",
+      "view_def_lineno": 14324,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "invitation/<str:token>/",
+      "view_expr": "views.invitation_accept_page",
+      "name": "user-invite-accept",
+      "source_file": "football/urls.py",
+      "lineno": 73,
+      "view_name": "invitation_accept_page",
+      "view_def_lineno": 15842,
+      "decorators": [
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "share/task-pdf/<str:token>/",
+      "view_expr": "views.share_task_pdf_page",
+      "name": "share-task-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 74,
+      "view_name": "share_task_pdf_page",
+      "view_def_lineno": 16544,
+      "decorators": []
+    },
+    {
+      "route": "api/share/task-pdf/create/",
+      "view_expr": "views.share_task_pdf_create",
+      "name": "share-task-pdf-create",
+      "source_file": "football/urls.py",
+      "lineno": 75,
+      "view_name": "share_task_pdf_create",
+      "view_def_lineno": 15991,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "share/task-simulation/<str:token>/",
+      "view_expr": "views.share_task_simulation_page",
+      "name": "share-task-simulation",
+      "source_file": "football/urls.py",
+      "lineno": 76,
+      "view_name": "share_task_simulation_page",
+      "view_def_lineno": 16503,
+      "decorators": []
+    },
+    {
+      "route": "api/share/task-simulation/create/",
+      "view_expr": "views.share_task_simulation_create",
+      "name": "share-task-simulation-create",
+      "source_file": "football/urls.py",
+      "lineno": 77,
+      "view_name": "share_task_simulation_create",
+      "view_def_lineno": 16060,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "share/tactical-playbook/<str:token>/",
+      "view_expr": "views.share_tactical_playbook_clip_page",
+      "name": "share-tactical-playbook-clip",
+      "source_file": "football/urls.py",
+      "lineno": 78,
+      "view_name": "share_tactical_playbook_clip_page",
+      "view_def_lineno": 59904,
+      "decorators": []
+    },
+    {
+      "route": "api/share/tactical-playbook/create/",
+      "view_expr": "views.tactical_playbook_clip_share_create",
+      "name": "share-tactical-playbook-clip-create",
+      "source_file": "football/urls.py",
+      "lineno": 79,
+      "view_name": "tactical_playbook_clip_share_create",
+      "view_def_lineno": 59796,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "share/convocation-pdf/<str:token>/",
+      "view_expr": "views.share_convocation_pdf_page",
+      "name": "share-convocation-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 80,
+      "view_name": "share_convocation_pdf_page",
+      "view_def_lineno": 16235,
+      "decorators": []
+    },
+    {
+      "route": "share/video-clip/<str:token>/",
+      "view_expr": "views.share_video_clip_page",
+      "name": "share-video-clip",
+      "source_file": "football/urls.py",
+      "lineno": 81,
+      "view_name": "share_video_clip_page",
+      "view_def_lineno": 16887,
+      "decorators": []
+    },
+    {
+      "route": "share/video-clip/<str:token>/stream/",
+      "view_expr": "views.share_video_clip_stream",
+      "name": "share-video-clip-stream",
+      "source_file": "football/urls.py",
+      "lineno": 82,
+      "view_name": "share_video_clip_stream",
+      "view_def_lineno": 16935,
+      "decorators": []
+    },
+    {
+      "route": "share/video-report/<str:token>/",
+      "view_expr": "views.share_video_report_page",
+      "name": "share-video-report",
+      "source_file": "football/urls.py",
+      "lineno": 83,
+      "view_name": "share_video_report_page",
+      "view_def_lineno": 17251,
+      "decorators": []
+    },
+    {
+      "route": "share/video-report/<str:token>/pdf/",
+      "view_expr": "views.share_video_report_pdf",
+      "name": "share-video-report-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 84,
+      "view_name": "share_video_report_pdf",
+      "view_def_lineno": 17281,
+      "decorators": []
+    },
+    {
+      "route": "share/video-playlist/<str:token>/",
+      "view_expr": "views.share_video_playlist_page",
+      "name": "share-video-playlist",
+      "source_file": "football/urls.py",
+      "lineno": 85,
+      "view_name": "share_video_playlist_page",
+      "view_def_lineno": 17124,
+      "decorators": []
+    },
+    {
+      "route": "share/video-playlist/<str:token>/stream/",
+      "view_expr": "views.share_video_playlist_stream",
+      "name": "share-video-playlist-stream",
+      "source_file": "football/urls.py",
+      "lineno": 86,
+      "view_name": "share_video_playlist_stream",
+      "view_def_lineno": 17174,
+      "decorators": []
+    },
+    {
+      "route": "share/video-export/<str:token>/",
+      "view_expr": "views.share_video_export_page",
+      "name": "share-video-export",
+      "source_file": "football/urls.py",
+      "lineno": 87,
+      "view_name": "share_video_export_page",
+      "view_def_lineno": 17355,
+      "decorators": []
+    },
+    {
+      "route": "share/video-export/<str:token>/stream/",
+      "view_expr": "views.share_video_export_stream",
+      "name": "share-video-export-stream",
+      "source_file": "football/urls.py",
+      "lineno": 88,
+      "view_name": "share_video_export_stream",
+      "view_def_lineno": 17382,
+      "decorators": []
+    },
+    {
+      "route": "api/share/convocation-pdf/create/",
+      "view_expr": "views.share_convocation_pdf_create",
+      "name": "share-convocation-pdf-create",
+      "source_file": "football/urls.py",
+      "lineno": 89,
+      "view_name": "share_convocation_pdf_create",
+      "view_def_lineno": 16184,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/share/video-clip/create/",
+      "view_expr": "views.share_video_clip_create",
+      "name": "share-video-clip-create",
+      "source_file": "football/urls.py",
+      "lineno": 90,
+      "view_name": "share_video_clip_create",
+      "view_def_lineno": 16857,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/share/video-report/create/",
+      "view_expr": "views.share_video_report_create",
+      "name": "share-video-report-create",
+      "source_file": "football/urls.py",
+      "lineno": 91,
+      "view_name": "share_video_report_create",
+      "view_def_lineno": 17196,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/share/video-playlist/create/",
+      "view_expr": "views.share_video_playlist_create",
+      "name": "share-video-playlist-create",
+      "source_file": "football/urls.py",
+      "lineno": 92,
+      "view_name": "share_video_playlist_create",
+      "view_def_lineno": 17056,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/share/revoke/<str:token>/",
+      "view_expr": "views.share_link_revoke",
+      "name": "share-link-revoke",
+      "source_file": "football/urls.py",
+      "lineno": 93,
+      "view_name": "share_link_revoke",
+      "view_def_lineno": 16616,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/system/diagnostics/",
+      "view_expr": "views.system_diagnostics",
+      "name": "system-diagnostics",
+      "source_file": "football/urls.py",
+      "lineno": 94,
+      "view_name": "system_diagnostics",
+      "view_def_lineno": 1174,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/system/healthcheck/",
+      "view_expr": "views.system_healthcheck_api",
+      "name": "system-healthcheck-api",
+      "source_file": "football/urls.py",
+      "lineno": 95,
+      "view_name": "system_healthcheck_api",
+      "view_def_lineno": 1230,
+      "decorators": []
+    },
+    {
+      "route": "api/system/settings/set/",
+      "view_expr": "views.system_setting_set_api",
+      "name": "system-setting-set-api",
+      "source_file": "football/urls.py",
+      "lineno": 96,
+      "view_name": "system_setting_set_api",
+      "view_def_lineno": 61494,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "legal/privacidad/",
+      "view_expr": "views.privacy_policy_page",
+      "name": "privacy-policy",
+      "source_file": "football/urls.py",
+      "lineno": 97,
+      "view_name": "privacy_policy_page",
+      "view_def_lineno": 3060,
+      "decorators": []
+    },
+    {
+      "route": "legal/terminos/",
+      "view_expr": "views.terms_page",
+      "name": "terms-page",
+      "source_file": "football/urls.py",
+      "lineno": 98,
+      "view_name": "terms_page",
+      "view_def_lineno": 3074,
+      "decorators": []
+    },
+    {
+      "route": "support/",
+      "view_expr": "views.support_page",
+      "name": "support-page",
+      "source_file": "football/urls.py",
+      "lineno": 99,
+      "view_name": "support_page",
+      "view_def_lineno": 3114,
+      "decorators": []
+    },
+    {
+      "route": "account/",
+      "view_expr": "views.account_page",
+      "name": "account-page",
+      "source_file": "football/urls.py",
+      "lineno": 100,
+      "view_name": "account_page",
+      "view_def_lineno": 3125,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "account/delete/",
+      "view_expr": "views.account_delete",
+      "name": "account-delete",
+      "source_file": "football/urls.py",
+      "lineno": 101,
+      "view_name": "account_delete",
+      "view_def_lineno": 3138,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/system/kpi-audit/",
+      "view_expr": "views.kpi_audit",
+      "name": "kpi-audit",
+      "source_file": "football/urls.py",
+      "lineno": 102,
+      "view_name": "kpi_audit",
+      "view_def_lineno": 1294,
+      "decorators": []
+    },
+    {
+      "route": "api/analysis/rival-form/",
+      "view_expr": "views.analysis_rival_form_api",
+      "name": "analysis-rival-form-api",
+      "source_file": "football/urls.py",
+      "lineno": 103,
+      "view_name": "analysis_rival_form_api",
+      "view_def_lineno": 53605,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/rival-report/to-blueprints/",
+      "view_expr": "views.analysis_rival_report_to_blueprints_api",
+      "name": "analysis-rival-report-to-blueprints-api",
+      "source_file": "football/urls.py",
+      "lineno": 104,
+      "view_name": "analysis_rival_report_to_blueprints_api",
+      "view_def_lineno": 53794,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "analysis/video/<int:video_id>/",
+      "view_expr": "views.analysis_video_studio_page",
+      "name": "analysis-video-studio",
+      "source_file": "football/urls.py",
+      "lineno": 105,
+      "view_name": "analysis_video_studio_page",
+      "view_def_lineno": 44811,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "analysis/video/clip/<int:clip_id>/",
+      "view_expr": "views.analysis_video_clip_view_page",
+      "name": "analysis-video-clip-view",
+      "source_file": "football/urls.py",
+      "lineno": 106,
+      "view_name": "analysis_video_clip_view_page",
+      "view_def_lineno": 44861,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "analysis/video/export/<int:export_id>/",
+      "view_expr": "views.analysis_video_export_view_page",
+      "name": "analysis-video-export-view",
+      "source_file": "football/urls.py",
+      "lineno": 107,
+      "view_name": "analysis_video_export_view_page",
+      "view_def_lineno": 44923,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "analysis/video/export/<int:export_id>/stream/",
+      "view_expr": "views.analysis_video_export_stream",
+      "name": "analysis-video-export-stream",
+      "source_file": "football/urls.py",
+      "lineno": 108,
+      "view_name": "analysis_video_export_stream",
+      "view_def_lineno": 44948,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "analysis/video/playlist/inbox/<int:item_id>/",
+      "view_expr": "views.analysis_video_inbox_playlist_view_page",
+      "name": "analysis-video-inbox-playlist-view",
+      "source_file": "football/urls.py",
+      "lineno": 109,
+      "view_name": "analysis_video_inbox_playlist_view_page",
+      "view_def_lineno": 44976,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "analysis/video/report/inbox/<int:item_id>/",
+      "view_expr": "views.analysis_video_inbox_report",
+      "name": "analysis-video-inbox-report",
+      "source_file": "football/urls.py",
+      "lineno": 110,
+      "view_name": "analysis_video_inbox_report",
+      "view_def_lineno": 45760,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/kpis/",
+      "view_expr": "views.kpi_explorer_page",
+      "name": "kpi-explorer",
+      "source_file": "football/urls.py",
+      "lineno": 111,
+      "view_name": "kpi_explorer_page",
+      "view_def_lineno": 22415,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/projects/",
+      "view_expr": "views.analysis_video_studio_projects_api",
+      "name": "analysis-video-studio-projects-api",
+      "source_file": "football/urls.py",
+      "lineno": 112,
+      "view_name": "analysis_video_studio_projects_api",
+      "view_def_lineno": 47542,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/projects/save/",
+      "view_expr": "views.analysis_video_studio_project_save_api",
+      "name": "analysis-video-studio-project-save-api",
+      "source_file": "football/urls.py",
+      "lineno": 113,
+      "view_name": "analysis_video_studio_project_save_api",
+      "view_def_lineno": 53498,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/projects/delete/",
+      "view_expr": "views.analysis_video_studio_project_delete_api",
+      "name": "analysis-video-studio-project-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 114,
+      "view_name": "analysis_video_studio_project_delete_api",
+      "view_def_lineno": 53564,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/clips/",
+      "view_expr": "views.analysis_video_studio_clips_api",
+      "name": "analysis-video-studio-clips-api",
+      "source_file": "football/urls.py",
+      "lineno": 115,
+      "view_name": "analysis_video_studio_clips_api",
+      "view_def_lineno": 48775,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/clips/save/",
+      "view_expr": "views.analysis_video_studio_clip_save_api",
+      "name": "analysis-video-studio-clip-save-api",
+      "source_file": "football/urls.py",
+      "lineno": 116,
+      "view_name": "analysis_video_studio_clip_save_api",
+      "view_def_lineno": 49118,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/clips/delete/",
+      "view_expr": "views.analysis_video_studio_clip_delete_api",
+      "name": "analysis-video-studio-clip-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 117,
+      "view_name": "analysis_video_studio_clip_delete_api",
+      "view_def_lineno": 49262,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/voiceovers/",
+      "view_expr": "views.analysis_video_studio_voiceovers_api",
+      "name": "analysis-video-studio-voiceovers-api",
+      "source_file": "football/urls.py",
+      "lineno": 118,
+      "view_name": "analysis_video_studio_voiceovers_api",
+      "view_def_lineno": 48824,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/voiceovers/upload/",
+      "view_expr": "views.analysis_video_studio_voiceover_upload_api",
+      "name": "analysis-video-studio-voiceover-upload-api",
+      "source_file": "football/urls.py",
+      "lineno": 119,
+      "view_name": "analysis_video_studio_voiceover_upload_api",
+      "view_def_lineno": 49012,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/voiceovers/delete/",
+      "view_expr": "views.analysis_video_studio_voiceover_delete_api",
+      "name": "analysis-video-studio-voiceover-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 120,
+      "view_name": "analysis_video_studio_voiceover_delete_api",
+      "view_def_lineno": 49073,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/music/",
+      "view_expr": "views.analysis_video_studio_music_api",
+      "name": "analysis-video-studio-music-api",
+      "source_file": "football/urls.py",
+      "lineno": 121,
+      "view_name": "analysis_video_studio_music_api",
+      "view_def_lineno": 48866,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/music/upload/",
+      "view_expr": "views.analysis_video_studio_music_upload_api",
+      "name": "analysis-video-studio-music-upload-api",
+      "source_file": "football/urls.py",
+      "lineno": 122,
+      "view_name": "analysis_video_studio_music_upload_api",
+      "view_def_lineno": 48910,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/music/delete/",
+      "view_expr": "views.analysis_video_studio_music_delete_api",
+      "name": "analysis-video-studio-music-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 123,
+      "view_name": "analysis_video_studio_music_delete_api",
+      "view_def_lineno": 48971,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/assign/",
+      "view_expr": "views.analysis_video_studio_assign_api",
+      "name": "analysis-video-studio-assign-api",
+      "source_file": "football/urls.py",
+      "lineno": 124,
+      "view_name": "analysis_video_studio_assign_api",
+      "view_def_lineno": 49305,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/video/trim/",
+      "view_expr": "views.analysis_video_studio_video_trim_api",
+      "name": "analysis-video-studio-video-trim-api",
+      "source_file": "football/urls.py",
+      "lineno": 125,
+      "view_name": "analysis_video_studio_video_trim_api",
+      "view_def_lineno": 49367,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/",
+      "view_expr": "views.analysis_video_studio_timeline_api",
+      "name": "analysis-video-studio-timeline-api",
+      "source_file": "football/urls.py",
+      "lineno": 126,
+      "view_name": "analysis_video_studio_timeline_api",
+      "view_def_lineno": 49422,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/save/",
+      "view_expr": "views.analysis_video_studio_timeline_save_api",
+      "name": "analysis-video-studio-timeline-save-api",
+      "source_file": "football/urls.py",
+      "lineno": 127,
+      "view_name": "analysis_video_studio_timeline_save_api",
+      "view_def_lineno": 49892,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/delete/",
+      "view_expr": "views.analysis_video_studio_timeline_delete_api",
+      "name": "analysis-video-studio-timeline-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 128,
+      "view_name": "analysis_video_studio_timeline_delete_api",
+      "view_def_lineno": 49975,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/export/",
+      "view_expr": "views.analysis_video_studio_timeline_export_api",
+      "name": "analysis-video-studio-timeline-export-api",
+      "source_file": "football/urls.py",
+      "lineno": 129,
+      "view_name": "analysis_video_studio_timeline_export_api",
+      "view_def_lineno": 49462,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/import/",
+      "view_expr": "views.analysis_video_studio_timeline_import_api",
+      "name": "analysis-video-studio-timeline-import-api",
+      "source_file": "football/urls.py",
+      "lineno": 130,
+      "view_name": "analysis_video_studio_timeline_import_api",
+      "view_def_lineno": 49537,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/timeline/clear/",
+      "view_expr": "views.analysis_video_studio_timeline_clear_api",
+      "name": "analysis-video-studio-timeline-clear-api",
+      "source_file": "football/urls.py",
+      "lineno": 131,
+      "view_name": "analysis_video_studio_timeline_clear_api",
+      "view_def_lineno": 49663,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/review/",
+      "view_expr": "views.analysis_video_studio_review_api",
+      "name": "analysis-video-studio-review-api",
+      "source_file": "football/urls.py",
+      "lineno": 132,
+      "view_name": "analysis_video_studio_review_api",
+      "view_def_lineno": 49697,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/ocr/dorsal/",
+      "view_expr": "views.analysis_video_studio_ocr_dorsal_api",
+      "name": "analysis-video-studio-ocr-dorsal-api",
+      "source_file": "football/urls.py",
+      "lineno": 133,
+      "view_name": "analysis_video_studio_ocr_dorsal_api",
+      "view_def_lineno": 48304,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/kpi-explorer/options/",
+      "view_expr": "views.kpi_explorer_options_api",
+      "name": "kpi-explorer-options-api",
+      "source_file": "football/urls.py",
+      "lineno": 134,
+      "view_name": "kpi_explorer_options_api",
+      "view_def_lineno": 22488,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/kpi-explorer/query/",
+      "view_expr": "views.kpi_explorer_query_api",
+      "name": "kpi-explorer-query-api",
+      "source_file": "football/urls.py",
+      "lineno": 135,
+      "view_name": "kpi_explorer_query_api",
+      "view_def_lineno": 22509,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/kpi-explorer/sources/",
+      "view_expr": "views.kpi_explorer_sources_api",
+      "name": "kpi-explorer-sources-api",
+      "source_file": "football/urls.py",
+      "lineno": 136,
+      "view_name": "kpi_explorer_sources_api",
+      "view_def_lineno": 22576,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/kpi-explorer/pdf/",
+      "view_expr": "views.kpi_explorer_pdf_api",
+      "name": "kpi-explorer-pdf-api",
+      "source_file": "football/urls.py",
+      "lineno": 137,
+      "view_name": "kpi_explorer_pdf_api",
+      "view_def_lineno": 22705,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/pdf/",
+      "view_expr": "views.analysis_video_studio_export_pdf_api",
+      "name": "analysis-video-studio-export-pdf-api",
+      "source_file": "football/urls.py",
+      "lineno": 138,
+      "view_name": "analysis_video_studio_export_pdf_api",
+      "view_def_lineno": 50446,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/package/",
+      "view_expr": "views.analysis_video_studio_export_package_api",
+      "name": "analysis-video-studio-export-package-api",
+      "source_file": "football/urls.py",
+      "lineno": 139,
+      "view_name": "analysis_video_studio_export_package_api",
+      "view_def_lineno": 50641,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/upload/",
+      "view_expr": "views.analysis_video_studio_export_upload_api",
+      "name": "analysis-video-studio-export-upload-api",
+      "source_file": "football/urls.py",
+      "lineno": 140,
+      "view_name": "analysis_video_studio_export_upload_api",
+      "view_def_lineno": 53390,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/server/",
+      "view_expr": "views.analysis_video_studio_export_server_api",
+      "name": "analysis-video-studio-export-server-api",
+      "source_file": "football/urls.py",
+      "lineno": 141,
+      "view_name": "analysis_video_studio_export_server_api",
+      "view_def_lineno": 51836,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/server-playlist/",
+      "view_expr": "views.analysis_video_studio_export_server_playlist_api",
+      "name": "analysis-video-studio-export-server-playlist-api",
+      "source_file": "football/urls.py",
+      "lineno": 142,
+      "view_name": "analysis_video_studio_export_server_playlist_api",
+      "view_def_lineno": 52523,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/jobs/create/",
+      "view_expr": "views.analysis_video_studio_export_job_create_api",
+      "name": "analysis-video-studio-export-job-create-api",
+      "source_file": "football/urls.py",
+      "lineno": 143,
+      "view_name": "analysis_video_studio_export_job_create_api",
+      "view_def_lineno": 53217,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/jobs/status/",
+      "view_expr": "views.analysis_video_studio_export_job_status_api",
+      "name": "analysis-video-studio-export-job-status-api",
+      "source_file": "football/urls.py",
+      "lineno": 144,
+      "view_name": "analysis_video_studio_export_job_status_api",
+      "view_def_lineno": 53286,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/export/jobs/cancel/",
+      "view_expr": "views.analysis_video_studio_export_job_cancel_api",
+      "name": "analysis-video-studio-export-job-cancel-api",
+      "source_file": "football/urls.py",
+      "lineno": 145,
+      "view_name": "analysis_video_studio_export_job_cancel_api",
+      "view_def_lineno": 53341,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/report/pdf/",
+      "view_expr": "views.analysis_video_studio_report_pdf_api",
+      "name": "analysis-video-studio-report-pdf-api",
+      "source_file": "football/urls.py",
+      "lineno": 146,
+      "view_name": "analysis_video_studio_report_pdf_api",
+      "view_def_lineno": 50018,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/ai/",
+      "view_expr": "views.analysis_video_studio_ai_api",
+      "name": "analysis-video-studio-ai-api",
+      "source_file": "football/urls.py",
+      "lineno": 147,
+      "view_name": "analysis_video_studio_ai_api",
+      "view_def_lineno": 50328,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/autocut/",
+      "view_expr": "views.analysis_video_studio_autocut_api",
+      "name": "analysis-video-studio-autocut-api",
+      "source_file": "football/urls.py",
+      "lineno": 148,
+      "view_name": "analysis_video_studio_autocut_api",
+      "view_def_lineno": 52301,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/share-links/",
+      "view_expr": "views.analysis_video_studio_share_links_api",
+      "name": "analysis-video-studio-share-links-api",
+      "source_file": "football/urls.py",
+      "lineno": 149,
+      "view_name": "analysis_video_studio_share_links_api",
+      "view_def_lineno": 49781,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/frame-capture/",
+      "view_expr": "views.analysis_video_studio_frame_capture_api",
+      "name": "analysis-video-studio-frame-capture-api",
+      "source_file": "football/urls.py",
+      "lineno": 150,
+      "view_name": "analysis_video_studio_frame_capture_api",
+      "view_def_lineno": 48444,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-studio/track/players/",
+      "view_expr": "views.analysis_video_studio_track_players_api",
+      "name": "analysis-video-studio-track-players-api",
+      "source_file": "football/urls.py",
+      "lineno": 151,
+      "view_name": "analysis_video_studio_track_players_api",
+      "view_def_lineno": 48535,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-inbox/recipients/",
+      "view_expr": "views.analysis_video_inbox_recipients_api",
+      "name": "analysis-video-inbox-recipients-api",
+      "source_file": "football/urls.py",
+      "lineno": 152,
+      "view_name": "analysis_video_inbox_recipients_api",
+      "view_def_lineno": 46929,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/video-inbox/send/",
+      "view_expr": "views.analysis_video_inbox_send_api",
+      "name": "analysis-video-inbox-send-api",
+      "source_file": "football/urls.py",
+      "lineno": 153,
+      "view_name": "analysis_video_inbox_send_api",
+      "view_def_lineno": 46958,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/video-inbox/comments/",
+      "view_expr": "views.analysis_video_inbox_comments_api",
+      "name": "analysis-video-inbox-comments-api",
+      "source_file": "football/urls.py",
+      "lineno": 154,
+      "view_name": "analysis_video_inbox_comments_api",
+      "view_def_lineno": 47080,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/analysis/rival-videos/chunk/init/",
+      "view_expr": "views.analysis_rival_video_chunk_init_api",
+      "name": "analysis-rival-video-chunk-init-api",
+      "source_file": "football/urls.py",
+      "lineno": 155,
+      "view_name": "analysis_rival_video_chunk_init_api",
+      "view_def_lineno": 47202,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/rival-videos/chunk/put/",
+      "view_expr": "views.analysis_rival_video_chunk_put_api",
+      "name": "analysis-rival-video-chunk-put-api",
+      "source_file": "football/urls.py",
+      "lineno": 156,
+      "view_name": "analysis_rival_video_chunk_put_api",
+      "view_def_lineno": 47272,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/rival-videos/chunk/finish/",
+      "view_expr": "views.analysis_rival_video_chunk_finish_api",
+      "name": "analysis-rival-video-chunk-finish-api",
+      "source_file": "football/urls.py",
+      "lineno": 157,
+      "view_name": "analysis_rival_video_chunk_finish_api",
+      "view_def_lineno": 47319,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/analysis/rival-videos/import-youtube/",
+      "view_expr": "views.analysis_rival_video_import_youtube_api",
+      "name": "analysis-rival-video-import-youtube-api",
+      "source_file": "football/urls.py",
+      "lineno": 158,
+      "view_name": "analysis_rival_video_import_youtube_api",
+      "view_def_lineno": 47433,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/pdf-assets/upload/",
+      "view_expr": "views.pdf_graphic_asset_upload",
+      "name": "pdf-graphic-asset-upload",
+      "source_file": "football/urls.py",
+      "lineno": 159,
+      "view_name": "pdf_graphic_asset_upload",
+      "view_def_lineno": 4104,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/pdf-assets/delete/",
+      "view_expr": "views.pdf_graphic_asset_delete_api",
+      "name": "pdf-graphic-asset-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 160,
+      "view_name": "pdf_graphic_asset_delete_api",
+      "view_def_lineno": 4383,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/task-assistant/blueprints/",
+      "view_expr": "views.task_assistant_blueprints_api",
+      "name": "task-assistant-blueprints-api",
+      "source_file": "football/urls.py",
+      "lineno": 161,
+      "view_name": "task_assistant_blueprints_api",
+      "view_def_lineno": 59183,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/task-assistant/blueprints/save/",
+      "view_expr": "views.task_assistant_blueprint_save_api",
+      "name": "task-assistant-blueprint-save-api",
+      "source_file": "football/urls.py",
+      "lineno": 162,
+      "view_name": "task_assistant_blueprint_save_api",
+      "view_def_lineno": 59239,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/task-assistant/knowledge/",
+      "view_expr": "views.task_assistant_knowledge_api",
+      "name": "task-assistant-knowledge-api",
+      "source_file": "football/urls.py",
+      "lineno": 163,
+      "view_name": "task_assistant_knowledge_api",
+      "view_def_lineno": 61384,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/task-assistant/knowledge/upload/",
+      "view_expr": "views.task_assistant_knowledge_upload_api",
+      "name": "task-assistant-knowledge-upload-api",
+      "source_file": "football/urls.py",
+      "lineno": 164,
+      "view_name": "task_assistant_knowledge_upload_api",
+      "view_def_lineno": 61513,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/clips/",
+      "view_expr": "views.tactical_playbook_clips_api",
+      "name": "tactical-playbook-clips-api",
+      "source_file": "football/urls.py",
+      "lineno": 165,
+      "view_name": "tactical_playbook_clips_api",
+      "view_def_lineno": 59309,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/clips/save/",
+      "view_expr": "views.tactical_playbook_clip_save_api",
+      "name": "tactical-playbook-clip-save-api",
+      "source_file": "football/urls.py",
+      "lineno": 166,
+      "view_name": "tactical_playbook_clip_save_api",
+      "view_def_lineno": 59474,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/clips/delete/",
+      "view_expr": "views.tactical_playbook_clip_delete_api",
+      "name": "tactical-playbook-clip-delete-api",
+      "source_file": "football/urls.py",
+      "lineno": 167,
+      "view_name": "tactical_playbook_clip_delete_api",
+      "view_def_lineno": 59679,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/clips/favorite/",
+      "view_expr": "views.tactical_playbook_clip_favorite_api",
+      "name": "tactical-playbook-clip-favorite-api",
+      "source_file": "football/urls.py",
+      "lineno": 168,
+      "view_name": "tactical_playbook_clip_favorite_api",
+      "view_def_lineno": 59755,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/clips/clone/",
+      "view_expr": "views.tactical_playbook_clip_clone_api",
+      "name": "tactical-playbook-clip-clone-api",
+      "source_file": "football/urls.py",
+      "lineno": 169,
+      "view_name": "tactical_playbook_clip_clone_api",
+      "view_def_lineno": 59948,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/teams/",
+      "view_expr": "views.tactical_playbook_teams_api",
+      "name": "tactical-playbook-teams-api",
+      "source_file": "football/urls.py",
+      "lineno": 170,
+      "view_name": "tactical_playbook_teams_api",
+      "view_def_lineno": 60038,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "api/tactical-playbook/versions/",
+      "view_expr": "views.tactical_playbook_versions_api",
+      "name": "tactical-playbook-versions-api",
+      "source_file": "football/urls.py",
+      "lineno": 171,
+      "view_name": "tactical_playbook_versions_api",
+      "view_def_lineno": 60059,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/",
+      "view_expr": "views.coach_overview_page",
+      "name": "coach-detail",
+      "source_file": "football/urls.py",
+      "lineno": 172,
+      "view_name": "coach_overview_page",
+      "view_def_lineno": 17614,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/",
+      "view_expr": "views.player_detail_page",
+      "name": "player-detail",
+      "source_file": "football/urls.py",
+      "lineno": 173,
+      "view_name": "player_detail_page",
+      "view_def_lineno": 54001,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/photo/",
+      "view_expr": "views.player_photo_file",
+      "name": "player-photo-file",
+      "source_file": "football/urls.py",
+      "lineno": 174,
+      "view_name": "player_photo_file",
+      "view_def_lineno": 3243,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/license/",
+      "view_expr": "views.player_license_file",
+      "name": "player-license-file",
+      "source_file": "football/urls.py",
+      "lineno": 175,
+      "view_name": "player_license_file",
+      "view_def_lineno": 3285,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/pdf/",
+      "view_expr": "views.player_pdf",
+      "name": "player-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 176,
+      "view_name": "player_pdf",
+      "view_def_lineno": 54644,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/presentacion/",
+      "view_expr": "views.player_presentation",
+      "name": "player-presentation",
+      "source_file": "football/urls.py",
+      "lineno": 177,
+      "view_name": "player_presentation",
+      "view_def_lineno": 54949,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "player/<int:player_id>/match/<int:match_id>/",
+      "view_expr": "views.player_match_stats_page",
+      "name": "player-match-stats",
+      "source_file": "football/urls.py",
+      "lineno": 178,
+      "view_name": "player_match_stats_page",
+      "view_def_lineno": 55575,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "match/<int:match_id>/",
+      "view_expr": "views.match_stats_page",
+      "name": "match-stats",
+      "source_file": "football/urls.py",
+      "lineno": 179,
+      "view_name": "match_stats_page",
+      "view_def_lineno": 54974,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/partidos/<int:match_id>/editar/",
+      "view_expr": "views.match_editor_page",
+      "name": "match-editor",
+      "source_file": "football/urls.py",
+      "lineno": 180,
+      "view_name": "match_editor_page",
+      "view_def_lineno": 55124,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "incidencias/",
+      "view_expr": "views.incident_page",
+      "name": "incident-page",
+      "source_file": "football/urls.py",
+      "lineno": 181,
+      "view_name": "incident_page",
+      "view_def_lineno": 17919,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "registro-acciones/",
+      "view_expr": "views.match_action_page",
+      "name": "match-action-page",
+      "source_file": "football/urls.py",
+      "lineno": 182,
+      "view_name": "match_action_page",
+      "view_def_lineno": 18711,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "registro-acciones/quick-buttons/",
+      "view_expr": "views.matchday_quick_buttons_api",
+      "name": "matchday-quick-buttons-api",
+      "source_file": "football/urls.py",
+      "lineno": 183,
+      "view_name": "matchday_quick_buttons_api",
+      "view_def_lineno": 18594,
+      "decorators": [
+        "login_required",
+        "require_http_methods(['GET', 'POST'])"
+      ]
+    },
+    {
+      "route": "registro-acciones/guardar/",
+      "view_expr": "views.register_match_action",
+      "name": "match-action-record",
+      "source_file": "football/urls.py",
+      "lineno": 184,
+      "view_name": "register_match_action",
+      "view_def_lineno": 19277,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/lineup/save/",
+      "view_expr": "views.save_match_lineup",
+      "name": "match-lineup-save",
+      "source_file": "football/urls.py",
+      "lineno": 185,
+      "view_name": "save_match_lineup",
+      "view_def_lineno": 19457,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/lineup/get/",
+      "view_expr": "views.get_match_lineup",
+      "name": "match-lineup-get",
+      "source_file": "football/urls.py",
+      "lineno": 186,
+      "view_name": "get_match_lineup",
+      "view_def_lineno": 19562,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "registro-acciones/rival-lineup/save/",
+      "view_expr": "views.save_match_rival_lineup",
+      "name": "match-rival-lineup-save",
+      "source_file": "football/urls.py",
+      "lineno": 187,
+      "view_name": "save_match_rival_lineup",
+      "view_def_lineno": 19622,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/rival-lineup/get/",
+      "view_expr": "views.get_match_rival_lineup",
+      "name": "match-rival-lineup-get",
+      "source_file": "football/urls.py",
+      "lineno": 188,
+      "view_name": "get_match_rival_lineup",
+      "view_def_lineno": 19593,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "registro-acciones/eliminar/",
+      "view_expr": "views.delete_match_action",
+      "name": "match-action-delete",
+      "source_file": "football/urls.py",
+      "lineno": 189,
+      "view_name": "delete_match_action",
+      "view_def_lineno": 19658,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/actualizar/",
+      "view_expr": "views.update_match_action",
+      "name": "match-action-update",
+      "source_file": "football/urls.py",
+      "lineno": 190,
+      "view_name": "update_match_action",
+      "view_def_lineno": 19688,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/eventos/",
+      "view_expr": "views.match_actions_events_api",
+      "name": "match-actions-events-api",
+      "source_file": "football/urls.py",
+      "lineno": 191,
+      "view_name": "match_actions_events_api",
+      "view_def_lineno": 19793,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "registro-acciones/partido/guardar/",
+      "view_expr": "views.save_match_info",
+      "name": "match-info-save",
+      "source_file": "football/urls.py",
+      "lineno": 192,
+      "view_name": "save_match_info",
+      "view_def_lineno": 19953,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/finalizar/",
+      "view_expr": "views.finalize_match_actions",
+      "name": "match-action-finalize",
+      "source_file": "football/urls.py",
+      "lineno": 193,
+      "view_name": "finalize_match_actions",
+      "view_def_lineno": 19829,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/reiniciar/",
+      "view_expr": "views.reset_match_action_register",
+      "name": "match-action-reset",
+      "source_file": "football/urls.py",
+      "lineno": 194,
+      "view_name": "reset_match_action_register",
+      "view_def_lineno": 20051,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "registro-acciones/acta/",
+      "view_expr": "views.match_report_pdf",
+      "name": "match-report-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 195,
+      "view_name": "match_report_pdf",
+      "view_def_lineno": 20083,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard",
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "convocatoria/",
+      "view_expr": "views.convocation_page",
+      "name": "convocation",
+      "source_file": "football/urls.py",
+      "lineno": 196,
+      "view_name": "convocation_page",
+      "view_def_lineno": 23007,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "convocatoria/save/",
+      "view_expr": "views.save_convocation",
+      "name": "convocation-save",
+      "source_file": "football/urls.py",
+      "lineno": 197,
+      "view_name": "save_convocation",
+      "view_def_lineno": 23419,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "convocatoria/pdf/",
+      "view_expr": "views.convocation_pdf",
+      "name": "convocation-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 198,
+      "view_name": "convocation_pdf",
+      "view_def_lineno": 23625,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "convocatoria/arbitro/pdf/",
+      "view_expr": "views.convocation_referee_pdf",
+      "name": "convocation-referee-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 199,
+      "view_name": "convocation_referee_pdf",
+      "view_def_lineno": 23875,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "pdf/viewer/",
+      "view_expr": "views.pdf_viewer_page",
+      "name": "pdf-viewer",
+      "source_file": "football/urls.py",
+      "lineno": 200,
+      "view_name": "pdf_viewer_page",
+      "view_def_lineno": 17303,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/cards/",
+      "view_expr": "views.coach_cards_page",
+      "name": "coach-cards",
+      "source_file": "football/urls.py",
+      "lineno": 201,
+      "view_name": "coach_cards_page",
+      "view_def_lineno": 27219,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/staff/",
+      "view_expr": "views.staff_directory_page",
+      "name": "staff-directory",
+      "source_file": "football/urls.py",
+      "lineno": 202,
+      "view_name": "staff_directory_page",
+      "view_def_lineno": 3462,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/staff/nuevo/",
+      "view_expr": "views.staff_member_create_page",
+      "name": "staff-member-create",
+      "source_file": "football/urls.py",
+      "lineno": 203,
+      "view_name": "staff_member_create_page",
+      "view_def_lineno": 3509,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/staff/<int:staff_id>/",
+      "view_expr": "views.staff_member_detail_page",
+      "name": "staff-member-detail",
+      "source_file": "football/urls.py",
+      "lineno": 204,
+      "view_name": "staff_member_detail_page",
+      "view_def_lineno": 3607,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/staff/<int:staff_id>/photo/",
+      "view_expr": "views.staff_member_photo_file",
+      "name": "staff-member-photo-file",
+      "source_file": "football/urls.py",
+      "lineno": 205,
+      "view_name": "staff_member_photo_file",
+      "view_def_lineno": 3697,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/staff/<int:staff_id>/license/",
+      "view_expr": "views.staff_member_license_file",
+      "name": "staff-member-license-file",
+      "source_file": "football/urls.py",
+      "lineno": 206,
+      "view_name": "staff_member_license_file",
+      "view_def_lineno": 3727,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/staff/<int:staff_id>/cert/",
+      "view_expr": "views.staff_member_cert_file",
+      "name": "staff-member-cert-file",
+      "source_file": "football/urls.py",
+      "lineno": 207,
+      "view_name": "staff_member_cert_file",
+      "view_def_lineno": 3756,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/staff/<int:staff_id>/pdf/",
+      "view_expr": "views.staff_member_pdf",
+      "name": "staff-member-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 208,
+      "view_name": "staff_member_pdf",
+      "view_def_lineno": 3786,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/rival/",
+      "view_expr": "views.coach_rival_page",
+      "name": "coach-rival",
+      "source_file": "football/urls.py",
+      "lineno": 209,
+      "view_name": "coach_rival_page",
+      "view_def_lineno": 29261,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/plantilla/",
+      "view_expr": "views.coach_roster_page",
+      "name": "coach-roster",
+      "source_file": "football/urls.py",
+      "lineno": 210,
+      "view_name": "coach_roster_page",
+      "view_def_lineno": 28342,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/torneos/",
+      "view_expr": "views.coach_tournaments_page",
+      "name": "coach-tournaments",
+      "source_file": "football/urls.py",
+      "lineno": 211,
+      "view_name": "coach_tournaments_page",
+      "view_def_lineno": 28724,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/lesiones/",
+      "view_expr": "views.coach_injuries_page",
+      "name": "coach-injuries",
+      "source_file": "football/urls.py",
+      "lineno": 212,
+      "view_name": "coach_injuries_page",
+      "view_def_lineno": 28557,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/carga/",
+      "view_expr": "views.coach_load_page",
+      "name": "coach-load",
+      "source_file": "football/urls.py",
+      "lineno": 213,
+      "view_name": "coach_load_page",
+      "view_def_lineno": 28963,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/roles/entrenador/",
+      "view_expr": "views.coach_role_trainer_page",
+      "name": "coach-role-trainer",
+      "source_file": "football/urls.py",
+      "lineno": 214,
+      "view_name": "coach_role_trainer_page",
+      "view_def_lineno": 27388,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/roles/porteros/",
+      "view_expr": "views.coach_role_goalkeeper_page",
+      "name": "coach-role-goalkeeper",
+      "source_file": "football/urls.py",
+      "lineno": 215,
+      "view_name": "coach_role_goalkeeper_page",
+      "view_def_lineno": 28025,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/roles/preparacion-fisica/",
+      "view_expr": "views.coach_role_fitness_page",
+      "name": "coach-role-fitness",
+      "source_file": "football/urls.py",
+      "lineno": 216,
+      "view_name": "coach_role_fitness_page",
+      "view_def_lineno": 28050,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/roles/abp/",
+      "view_expr": "views.coach_role_abp_page",
+      "name": "coach-role-abp",
+      "source_file": "football/urls.py",
+      "lineno": 217,
+      "view_name": "coach_role_abp_page",
+      "view_def_lineno": 28076,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/abp/pizarra/",
+      "view_expr": "views.coach_abp_board_page",
+      "name": "coach-abp-board",
+      "source_file": "football/urls.py",
+      "lineno": 218,
+      "view_name": "coach_abp_board_page",
+      "view_def_lineno": 28097,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/tactica/",
+      "view_expr": "views.coach_tactics_page",
+      "name": "coach-tactics",
+      "source_file": "football/urls.py",
+      "lineno": 219,
+      "view_name": "coach_tactics_page",
+      "view_def_lineno": 28125,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/11-inicial/",
+      "view_expr": "views.initial_eleven_page",
+      "name": "initial-eleven",
+      "source_file": "football/urls.py",
+      "lineno": 220,
+      "view_name": "initial_eleven_page",
+      "view_def_lineno": 29194,
+      "decorators": []
+    },
+    {
+      "route": "coach/sesiones/",
+      "view_expr": "views.sessions_page",
+      "name": "sessions",
+      "source_file": "football/urls.py",
+      "lineno": 221,
+      "view_name": "sessions_page",
+      "view_def_lineno": 41319,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/sesiones/api/confirmed-players/",
+      "view_expr": "views.sessions_confirmed_players_api",
+      "name": "sessions-confirmed-players-api",
+      "source_file": "football/urls.py",
+      "lineno": 222,
+      "view_name": "sessions_confirmed_players_api",
+      "view_def_lineno": 40576,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tareas/nueva/",
+      "view_expr": "views.sessions_task_create_page",
+      "name": "sessions-task-create",
+      "source_file": "football/urls.py",
+      "lineno": 223,
+      "view_name": "sessions_task_create_page",
+      "view_def_lineno": 42222,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/ia-trainer/",
+      "view_expr": "views.ai_trainer_page",
+      "name": "ai-trainer",
+      "source_file": "football/urls.py",
+      "lineno": 224,
+      "view_name": "ai_trainer_page",
+      "view_def_lineno": 41790,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/sesiones/modelo-juego/",
+      "view_expr": "views.coach_model_of_play_page",
+      "name": "coach-model-of-play",
+      "source_file": "football/urls.py",
+      "lineno": 225,
+      "view_name": "coach_model_of_play_page",
+      "view_def_lineno": 42117,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tareas/pdf-preview/",
+      "view_expr": "views.session_task_pdf_preview",
+      "name": "sessions-task-pdf-preview",
+      "source_file": "football/urls.py",
+      "lineno": 226,
+      "view_name": "session_task_pdf_preview",
+      "view_def_lineno": 40611,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tareas/video-import/",
+      "view_expr": "views.session_task_video_import_api",
+      "name": "sessions-task-video-import",
+      "source_file": "football/urls.py",
+      "lineno": 227,
+      "view_name": "session_task_video_import_api",
+      "view_def_lineno": 40634,
+      "decorators": [
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tareas/<int:task_id>/editar/",
+      "view_expr": "views.sessions_task_edit_page",
+      "name": "sessions-task-edit",
+      "source_file": "football/urls.py",
+      "lineno": 228,
+      "view_name": "sessions_task_edit_page",
+      "view_def_lineno": 42228,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/porteros/",
+      "view_expr": "views.sessions_goalkeeper_page",
+      "name": "sessions-goalkeeper",
+      "source_file": "football/urls.py",
+      "lineno": 229,
+      "view_name": "sessions_goalkeeper_page",
+      "view_def_lineno": 42234,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/sesiones/porteros/tareas/nueva/",
+      "view_expr": "views.sessions_goalkeeper_task_create_page",
+      "name": "sessions-goalkeeper-task-create",
+      "source_file": "football/urls.py",
+      "lineno": 230,
+      "view_name": "sessions_goalkeeper_task_create_page",
+      "view_def_lineno": 42243,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/porteros/tareas/<int:task_id>/editar/",
+      "view_expr": "views.sessions_goalkeeper_task_edit_page",
+      "name": "sessions-goalkeeper-task-edit",
+      "source_file": "football/urls.py",
+      "lineno": 231,
+      "view_name": "sessions_goalkeeper_task_edit_page",
+      "view_def_lineno": 42249,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/preparacion-fisica/",
+      "view_expr": "views.sessions_fitness_page",
+      "name": "sessions-fitness",
+      "source_file": "football/urls.py",
+      "lineno": 232,
+      "view_name": "sessions_fitness_page",
+      "view_def_lineno": 42255,
+      "decorators": [
+        "login_required",
+        "ensure_csrf_cookie"
+      ]
+    },
+    {
+      "route": "coach/sesiones/preparacion-fisica/tareas/nueva/",
+      "view_expr": "views.sessions_fitness_task_create_page",
+      "name": "sessions-fitness-task-create",
+      "source_file": "football/urls.py",
+      "lineno": 233,
+      "view_name": "sessions_fitness_task_create_page",
+      "view_def_lineno": 42264,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/preparacion-fisica/tareas/<int:task_id>/editar/",
+      "view_expr": "views.sessions_fitness_task_edit_page",
+      "name": "sessions-fitness-task-edit",
+      "source_file": "football/urls.py",
+      "lineno": 234,
+      "view_name": "sessions_fitness_task_edit_page",
+      "view_def_lineno": 42270,
+      "decorators": [
+        "csrf_exempt",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/",
+      "view_expr": "views.session_task_detail_page",
+      "name": "session-task-detail",
+      "source_file": "football/urls.py",
+      "lineno": 235,
+      "view_name": "session_task_detail_page",
+      "view_def_lineno": 42275,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/bookmark/toggle/",
+      "view_expr": "views.toggle_session_task_bookmark",
+      "name": "session-task-bookmark-toggle",
+      "source_file": "football/urls.py",
+      "lineno": 236,
+      "view_name": "toggle_session_task_bookmark",
+      "view_def_lineno": 42533,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/related/",
+      "view_expr": "views.session_task_related_api",
+      "name": "session-task-related",
+      "source_file": "football/urls.py",
+      "lineno": 237,
+      "view_name": "session_task_related_api",
+      "view_def_lineno": 42552,
+      "decorators": []
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/graphic/save/",
+      "view_expr": "views.save_session_task_graphic",
+      "name": "session-task-graphic-save",
+      "source_file": "football/urls.py",
+      "lineno": 238,
+      "view_name": "save_session_task_graphic",
+      "view_def_lineno": 42644,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/graphic/recreate/",
+      "view_expr": "views.recreate_session_task_graphic",
+      "name": "session-task-graphic-recreate",
+      "source_file": "football/urls.py",
+      "lineno": 239,
+      "view_name": "recreate_session_task_graphic",
+      "view_def_lineno": 42713,
+      "decorators": [
+        "authenticated_write",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/archivo/",
+      "view_expr": "views.session_task_file",
+      "name": "session-task-file",
+      "source_file": "football/urls.py",
+      "lineno": 240,
+      "view_name": "session_task_file",
+      "view_def_lineno": 42972,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/preview/",
+      "view_expr": "views.session_task_preview_file",
+      "name": "session-task-preview-file",
+      "source_file": "football/urls.py",
+      "lineno": 241,
+      "view_name": "session_task_preview_file",
+      "view_def_lineno": 42793,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/sesion-importada/<int:doc_id>/archivo/",
+      "view_expr": "views.imported_session_file",
+      "name": "imported-session-file",
+      "source_file": "football/urls.py",
+      "lineno": 242,
+      "view_name": "imported_session_file",
+      "view_def_lineno": 43076,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/sesion-importada/<int:doc_id>/preview/",
+      "view_expr": "views.imported_session_preview_file",
+      "name": "imported-session-preview-file",
+      "source_file": "football/urls.py",
+      "lineno": 243,
+      "view_name": "imported_session_preview_file",
+      "view_def_lineno": 42995,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/pdf/",
+      "view_expr": "views.session_task_pdf",
+      "name": "session-task-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 244,
+      "view_name": "session_task_pdf",
+      "view_def_lineno": 26993,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/sesiones/sesion/<int:session_id>/pdf/",
+      "view_expr": "views.session_plan_pdf",
+      "name": "session-plan-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 245,
+      "view_name": "session_plan_pdf",
+      "view_def_lineno": 26015,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/sesiones/sesion/<int:session_id>/",
+      "view_expr": "views.training_session_detail_page",
+      "name": "training-session-detail",
+      "source_file": "football/urls.py",
+      "lineno": 246,
+      "view_name": "training_session_detail_page",
+      "view_def_lineno": 26044,
+      "decorators": [
+        "never_cache",
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/sesiones/microciclo/<int:microcycle_id>/presentacion/",
+      "view_expr": "views.microcycle_presentation_pdf",
+      "name": "microcycle-presentation-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 247,
+      "view_name": "microcycle_presentation_pdf",
+      "view_def_lineno": 26882,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/sesiones/sesion/<int:session_id>/presentacion/",
+      "view_expr": "views.session_presentation_pdf",
+      "name": "session-presentation-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 248,
+      "view_name": "session_presentation_pdf",
+      "view_def_lineno": 26966,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/sesiones/tarea/<int:task_id>/canva/",
+      "view_expr": "views.session_task_canva_export",
+      "name": "session-task-canva-export",
+      "source_file": "football/urls.py",
+      "lineno": 249,
+      "view_name": "session_task_canva_export",
+      "view_def_lineno": 27090,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/multas/",
+      "view_expr": "views.fines_page",
+      "name": "fines",
+      "source_file": "football/urls.py",
+      "lineno": 250,
+      "view_name": "fines_page",
+      "view_def_lineno": 43097,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/informe/<int:report_id>/pdf/",
+      "view_expr": "views.analysis_rival_report_pdf",
+      "name": "analysis-rival-report-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 251,
+      "view_name": "analysis_rival_report_pdf",
+      "view_def_lineno": 44779,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/informes/<int:report_id>/file/",
+      "view_expr": "views.analysis_match_report_file",
+      "name": "analysis-match-report-file",
+      "source_file": "football/urls.py",
+      "lineno": 252,
+      "view_name": "analysis_match_report_file",
+      "view_def_lineno": 44747,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/",
+      "view_expr": "views.analysis_page",
+      "name": "analysis",
+      "source_file": "football/urls.py",
+      "lineno": 253,
+      "view_name": "analysis_page",
+      "view_def_lineno": 43162,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/<int:report_id>/",
+      "view_expr": "views.analysis_video_report_page",
+      "name": "analysis-video-report",
+      "source_file": "football/urls.py",
+      "lineno": 254,
+      "view_name": "analysis_video_report_page",
+      "view_def_lineno": 46232,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/<int:report_id>/export/pptx/",
+      "view_expr": "views.analysis_video_report_export_pptx",
+      "name": "analysis-video-report-export-pptx",
+      "source_file": "football/urls.py",
+      "lineno": 255,
+      "view_name": "analysis_video_report_export_pptx",
+      "view_def_lineno": 46753,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/<int:report_id>/export/pdf/",
+      "view_expr": "views.analysis_video_report_export_pdf",
+      "name": "analysis-video-report-export-pdf",
+      "source_file": "football/urls.py",
+      "lineno": 256,
+      "view_name": "analysis_video_report_export_pdf",
+      "view_def_lineno": 46791,
+      "decorators": [
+        "login_required",
+        "pdf_view_guard"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/<int:report_id>/pptx/",
+      "view_expr": "views.analysis_video_report_pptx_file",
+      "name": "analysis-video-report-pptx-file",
+      "source_file": "football/urls.py",
+      "lineno": 257,
+      "view_name": "analysis_video_report_pptx_file",
+      "view_def_lineno": 46902,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/item/<int:item_id>/pizarra/",
+      "view_expr": "views.analysis_video_report_item_tactical_page",
+      "name": "analysis-video-report-item-tactical",
+      "source_file": "football/urls.py",
+      "lineno": 258,
+      "view_name": "analysis_video_report_item_tactical_page",
+      "view_def_lineno": 46443,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/video/informe/item/<int:item_id>/pizarra/video/upload/",
+      "view_expr": "views.analysis_video_report_item_tactical_video_upload_api",
+      "name": "analysis-video-report-item-tactical-video-upload-api",
+      "source_file": "football/urls.py",
+      "lineno": 259,
+      "view_name": "analysis_video_report_item_tactical_video_upload_api",
+      "view_def_lineno": 46697,
+      "decorators": [
+        "csrf_exempt",
+        "login_required",
+        "require_POST"
+      ]
+    },
+    {
+      "route": "coach/analisis/inbox/",
+      "view_expr": "views.analysis_video_inbox_page",
+      "name": "analysis-video-inbox",
+      "source_file": "football/urls.py",
+      "lineno": 264,
+      "view_name": "analysis_video_inbox_page",
+      "view_def_lineno": 45055,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/analisis/inbox/open/<int:item_id>/",
+      "view_expr": "views.analysis_video_inbox_open",
+      "name": "analysis-video-inbox-open",
+      "source_file": "football/urls.py",
+      "lineno": 265,
+      "view_name": "analysis_video_inbox_open",
+      "view_def_lineno": 45091,
+      "decorators": [
+        "login_required"
+      ]
+    },
+    {
+      "route": "coach/estadisticas-manuales/",
+      "view_expr": "views.manual_player_stats_page",
+      "name": "manual-player-stats",
+      "source_file": "football/urls.py",
+      "lineno": 266,
+      "view_name": "manual_player_stats_page",
+      "view_def_lineno": 53910,
+      "decorators": [
+        "login_required"
+      ]
+    }
+  ]
+}

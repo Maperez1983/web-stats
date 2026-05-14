@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: web-stats
+    runtime: python
+    plan: standard
+    branch: main
+    buildCommand: ./build.sh
+    startCommand: ./start_asgi.sh
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: GUNICORN_TIMEOUT
+        value: "60"
+      # Arranque rápido: `collectstatic` ya se hace en build (`build.sh`).
+      - key: RUN_COLLECTSTATIC
+        value: "false"
+      # Render expone el hostname externo en esta variable; `webstats/settings.py`
+      # lo usa para completar `ALLOWED_HOSTS` y CSRF trusted origins.
+      - key: RENDER_EXTERNAL_HOSTNAME
+        sync: false
+      # Obligatorios en producción
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DEBUG
+        value: "false"
+      # Recomendación: mantener instalado Chromium durante el build si usas previews HD.
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "0"
+      # Opcional: instala chromium en build (coste CPU/tiempo). Desactivado por defecto.
+      - key: INSTALL_PLAYWRIGHT_BROWSERS
+        value: "false"
+      # Seguridad: NO instalar Chromium en runtime (puede romper el deploy por "No open ports detected").
+      - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
+        value: "false"
+      # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
+      - key: ALLOW_SINGLE_CLUB_FALLBACK
+        value: "false"

@@ -1,0 +1,29 @@
+{
+  "pinned": [
+    "Django==4.2.27",
+    "gunicorn==23.0.0",
+    "uvicorn==0.30.6",
+    "dj-database-url==2.1.0",
+    "psycopg2-binary==2.9.9",
+    "whitenoise==6.11.0",
+    "Pillow==10.0.1",
+    "pillow-heif==0.15.0",
+    "numpy==1.26.4",
+    "opencv-python-headless==4.10.0.84",
+    "pytesseract==0.3.13",
+    "openpyxl==3.1.5",
+    "python-pptx==0.6.23",
+    "requests==2.31.0",
+    "beautifulsoup4==4.13.0",
+    "weasyprint==57.0",
+    "stripe==9.7.0",
+    "pydyf==0.10.0",
+    "playwright==1.44.0",
+    "boto3==1.42.73",
+    "django-storages==1.14.6",
+    "pypdf==5.4.0"
+  ],
+  "unpinned": [
+    "yt-dlp"
+  ]
+}

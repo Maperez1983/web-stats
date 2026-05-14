@@ -59,7 +59,10 @@ if [ "${_pw_flag}" = "true" ] || [ "${_pw_flag}" = "1" ] || [ "${_pw_flag}" = "y
   PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}" python -m playwright install chromium
 fi
 
-python manage.py migrate --noinput
+_build_migrate_flag="$(echo "${RUN_MIGRATIONS_AT_BUILD:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [ "${_build_migrate_flag}" = "true" ] || [ "${_build_migrate_flag}" = "1" ] || [ "${_build_migrate_flag}" = "yes" ] || [ "${_build_migrate_flag}" = "on" ]; then
+  python manage.py migrate --noinput
+fi
 python manage.py collectstatic --noinput
 
 # Render no crea MEDIA_ROOT por defecto; algunas rutas (fotos/licencias) y healthchecks esperan que exista.

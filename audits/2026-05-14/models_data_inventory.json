@@ -1,0 +1,2613 @@
+{
+  "generated_at": "2026-05-14",
+  "models_file": "football/models.py",
+  "field_count": 275,
+  "fields": [
+    {
+      "model": "DataSource",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 16,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Competition",
+      "field": "description",
+      "type": "TextField",
+      "lineno": 29,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Season",
+      "field": "start_date",
+      "type": "DateField",
+      "lineno": 45,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Season",
+      "field": "end_date",
+      "type": "DateField",
+      "lineno": 46,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Team",
+      "field": "crest_image",
+      "type": "ImageField",
+      "lineno": 79,
+      "keywords": {
+        "upload_to": "'team-crests/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Team",
+      "field": "cover_image",
+      "type": "ImageField",
+      "lineno": 80,
+      "keywords": {
+        "upload_to": "'team-covers/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Team",
+      "field": "cover_updated_at",
+      "type": "DateTimeField",
+      "lineno": 81,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "enabled_modules",
+      "type": "JSONField",
+      "lineno": 134,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "trial_expires_at",
+      "type": "DateTimeField",
+      "lineno": 135,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "subscription_current_period_end",
+      "type": "DateTimeField",
+      "lineno": 146,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "subscription_canceled_at",
+      "type": "DateTimeField",
+      "lineno": 148,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "paid_modules",
+      "type": "JSONField",
+      "lineno": 150,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 152,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 153,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "Workspace",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 154,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeason",
+      "field": "start_date",
+      "type": "DateField",
+      "lineno": 183,
+      "keywords": {}
+    },
+    {
+      "model": "WorkspaceSeason",
+      "field": "end_date",
+      "type": "DateField",
+      "lineno": 184,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeason",
+      "field": "archived_at",
+      "type": "DateTimeField",
+      "lineno": 186,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeason",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 187,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeason",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 188,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeasonPlayer",
+      "field": "confirmed_at",
+      "type": "DateTimeField",
+      "lineno": 205,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeasonPlayer",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 213,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "WorkspaceSeasonPlayer",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 214,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceTeam",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 237,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "StripeEventLog",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 260,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "StripeEventLog",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 261,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceTeamAccess",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 284,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "WorkspacePreference",
+      "field": "value",
+      "type": "JSONField",
+      "lineno": 307,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspacePreference",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 308,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionContext",
+      "field": "last_sync_at",
+      "type": "DateTimeField",
+      "lineno": 350,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionContext",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 353,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionContext",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 354,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionSnapshot",
+      "field": "standings_payload",
+      "type": "JSONField",
+      "lineno": 381,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionSnapshot",
+      "field": "next_match_payload",
+      "type": "JSONField",
+      "lineno": 382,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionSnapshot",
+      "field": "schedule_payload",
+      "type": "JSONField",
+      "lineno": 383,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceCompetitionSnapshot",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 384,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TeamRosterSnapshot",
+      "field": "roster_payload",
+      "type": "JSONField",
+      "lineno": 405,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TeamRosterSnapshot",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 408,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TeamRosterSnapshot",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 409,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "Player",
+      "field": "birth_date",
+      "type": "DateField",
+      "lineno": 435,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Player",
+      "field": "injury_date",
+      "type": "DateField",
+      "lineno": 444,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Player",
+      "field": "manual_sanction_until",
+      "type": "DateField",
+      "lineno": 447,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Player",
+      "field": "photo_updated_at",
+      "type": "DateTimeField",
+      "lineno": 450,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Player",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 451,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "email",
+      "type": "EmailField",
+      "lineno": 482,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "photo",
+      "type": "ImageField",
+      "lineno": 483,
+      "keywords": {
+        "upload_to": "'staff/photos/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "photo_updated_at",
+      "type": "DateTimeField",
+      "lineno": 484,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "federation_license",
+      "type": "FileField",
+      "lineno": 485,
+      "keywords": {
+        "upload_to": "'staff/licenses/'",
+        "null": "True",
+        "blank": "True",
+        "help_text": "'PDF/JPG/PNG'"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "federation_license_expires_at",
+      "type": "DateField",
+      "lineno": 487,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Caducidad licencia federativa (opcional).'"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "license_updated_at",
+      "type": "DateTimeField",
+      "lineno": 488,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "certification_document",
+      "type": "FileField",
+      "lineno": 489,
+      "keywords": {
+        "upload_to": "'staff/certifications/'",
+        "null": "True",
+        "blank": "True",
+        "help_text": "'PDF/JPG/PNG de titulación (opcional).'"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "certification_expires_at",
+      "type": "DateField",
+      "lineno": 490,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Caducidad titulación (opcional).'"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "certification_updated_at",
+      "type": "DateTimeField",
+      "lineno": 491,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 492,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 494,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "StaffMember",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 495,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "injury_date",
+      "type": "DateField",
+      "lineno": 526,
+      "keywords": {}
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "diagnosed_on",
+      "type": "DateField",
+      "lineno": 527,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Fecha de diagnóstico (opcional).'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "rehab_started_on",
+      "type": "DateField",
+      "lineno": 528,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Inicio de readaptación/rehab (opcional).'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "estimated_return_date",
+      "type": "DateField",
+      "lineno": 529,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Alta estimada (orientativa).'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "return_date",
+      "type": "DateField",
+      "lineno": 530,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Fecha de alta médica/deportiva'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "return_to_train_on",
+      "type": "DateField",
+      "lineno": 531,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Vuelta a entrenar (opcional).'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "return_to_play_on",
+      "type": "DateField",
+      "lineno": 532,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Vuelta a competir (opcional).'"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 538,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 540,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "PlayerInjuryRecord",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 541,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "InjuryCatalogEntry",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 601,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "InjuryCatalogEntry",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 604,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "InjuryCatalogEntry",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 605,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "PlayerPhysicalMetric",
+      "field": "recorded_on",
+      "type": "DateField",
+      "lineno": 618,
+      "keywords": {
+        "default": "timezone.localdate"
+      }
+    },
+    {
+      "model": "PlayerPhysicalMetric",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 623,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "PlayerPhysicalMetric",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 624,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "PlayerCommunication",
+      "field": "message",
+      "type": "TextField",
+      "lineno": 646,
+      "keywords": {}
+    },
+    {
+      "model": "PlayerCommunication",
+      "field": "scheduled_for",
+      "type": "DateTimeField",
+      "lineno": 647,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Fecha/hora objetivo de la comunicación'"
+      }
+    },
+    {
+      "model": "PlayerCommunication",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 649,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "PlayerFine",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 675,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ConvocationRecord",
+      "field": "match_date",
+      "type": "DateField",
+      "lineno": 694,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ConvocationRecord",
+      "field": "lineup_data",
+      "type": "JSONField",
+      "lineno": 698,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ConvocationRecord",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 714,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "RivalConvocationRecord",
+      "field": "convocation_data",
+      "type": "JSONField",
+      "lineno": 756,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "RivalConvocationRecord",
+      "field": "lineup_data",
+      "type": "JSONField",
+      "lineno": 758,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "RivalConvocationRecord",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 759,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "RivalConvocationRecord",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 760,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "RivalConvocationRecord",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 761,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "Match",
+      "field": "date",
+      "type": "DateField",
+      "lineno": 799,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "Match",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 807,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TeamStanding",
+      "field": "last_updated",
+      "type": "DateTimeField",
+      "lineno": 832,
+      "keywords": {
+        "default": "timezone.now"
+      }
+    },
+    {
+      "model": "CustomMetric",
+      "field": "recorded_at",
+      "type": "DateTimeField",
+      "lineno": 878,
+      "keywords": {
+        "default": "timezone.now"
+      }
+    },
+    {
+      "model": "CustomMetric",
+      "field": "source_notes",
+      "type": "TextField",
+      "lineno": 879,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "MatchReport",
+      "field": "imported_at",
+      "type": "DateTimeField",
+      "lineno": 893,
+      "keywords": {
+        "default": "timezone.now"
+      }
+    },
+    {
+      "model": "MatchReport",
+      "field": "raw_data",
+      "type": "JSONField",
+      "lineno": 894,
+      "keywords": {
+        "default": "dict"
+      }
+    },
+    {
+      "model": "MatchEvent",
+      "field": "raw_data",
+      "type": "JSONField",
+      "lineno": 915,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "MatchEvent",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 916,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingMicrocycle",
+      "field": "week_start",
+      "type": "DateField",
+      "lineno": 948,
+      "keywords": {}
+    },
+    {
+      "model": "TrainingMicrocycle",
+      "field": "week_end",
+      "type": "DateField",
+      "lineno": 949,
+      "keywords": {}
+    },
+    {
+      "model": "TrainingMicrocycle",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 951,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingMicrocycle",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 952,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingMicrocycle",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 953,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TrainingSession",
+      "field": "session_date",
+      "type": "DateField",
+      "lineno": 987,
+      "keywords": {}
+    },
+    {
+      "model": "TrainingSession",
+      "field": "content",
+      "type": "TextField",
+      "lineno": 992,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingSession",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 995,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingSession",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 996,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TrainingSession",
+      "field": "workflow_updated_at",
+      "type": "DateTimeField",
+      "lineno": 1010,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingSession",
+      "field": "locked_at",
+      "type": "DateTimeField",
+      "lineno": 1018,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionReview",
+      "field": "what_worked",
+      "type": "TextField",
+      "lineno": 1050,
+      "keywords": {
+        "blank": "True",
+        "default": "''"
+      }
+    },
+    {
+      "model": "TrainingSessionReview",
+      "field": "what_failed",
+      "type": "TextField",
+      "lineno": 1051,
+      "keywords": {
+        "blank": "True",
+        "default": "''"
+      }
+    },
+    {
+      "model": "TrainingSessionReview",
+      "field": "next_adjustment",
+      "type": "TextField",
+      "lineno": 1052,
+      "keywords": {
+        "blank": "True",
+        "default": "''"
+      }
+    },
+    {
+      "model": "TrainingSessionReview",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1061,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionReview",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1062,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AuditLogEntry",
+      "field": "meta",
+      "type": "JSONField",
+      "lineno": 1093,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AuditLogEntry",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1095,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionAttendance",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1132,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionAttendance",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1133,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionTimelineSegment",
+      "field": "started_at",
+      "type": "DateTimeField",
+      "lineno": 1168,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionTimelineSegment",
+      "field": "ended_at",
+      "type": "DateTimeField",
+      "lineno": 1169,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionTimelineSegment",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1180,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TrainingSessionTimelineSegment",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1181,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "coaching_points",
+      "type": "TextField",
+      "lineno": 1227,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Consignas clave para ejecutar la tarea'"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "confrontation_rules",
+      "type": "TextField",
+      "lineno": 1228,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Reglas de confrontación y puntuación'"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "tactical_layout",
+      "type": "JSONField",
+      "lineno": 1229,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "task_pdf",
+      "type": "FileField",
+      "lineno": 1230,
+      "keywords": {
+        "upload_to": "'session-tasks-pdf/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "task_preview_image",
+      "type": "ImageField",
+      "lineno": 1231,
+      "keywords": {
+        "upload_to": "'session-tasks-preview/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 1234,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1235,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1236,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "SessionTask",
+      "field": "deleted_at",
+      "type": "DateTimeField",
+      "lineno": 1242,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "db_index": "True"
+      }
+    },
+    {
+      "model": "SessionTaskBackup",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 1259,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SessionTaskBackup",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1260,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AiTrainerEvent",
+      "field": "meta",
+      "type": "JSONField",
+      "lineno": 1297,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerEvent",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1299,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AiTrainerTokenWeight",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1323,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AiTrainerTaskIndex",
+      "field": "content",
+      "type": "TextField",
+      "lineno": 1347,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerTaskIndex",
+      "field": "content_norm",
+      "type": "TextField",
+      "lineno": 1348,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerTaskIndex",
+      "field": "tokens",
+      "type": "JSONField",
+      "lineno": 1349,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerTaskIndex",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1350,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AiTrainerDictionaryEntry",
+      "field": "keywords",
+      "type": "JSONField",
+      "lineno": 1385,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerDictionaryEntry",
+      "field": "coaching_points",
+      "type": "JSONField",
+      "lineno": 1386,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AiTrainerDictionaryEntry",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1388,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AiTrainerDictionaryEntry",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1389,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "SessionTaskBookmark",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1406,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "SessionTaskCollection",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1428,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "SessionTaskCollectionItem",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1441,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ImportedSessionDocument",
+      "field": "session_date",
+      "type": "DateField",
+      "lineno": 1462,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ImportedSessionDocument",
+      "field": "pdf",
+      "type": "FileField",
+      "lineno": 1463,
+      "keywords": {
+        "upload_to": "'imported-sessions-pdf/'"
+      }
+    },
+    {
+      "model": "ImportedSessionDocument",
+      "field": "preview_image",
+      "type": "ImageField",
+      "lineno": 1464,
+      "keywords": {
+        "upload_to": "'imported-sessions-preview/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ImportedSessionDocument",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1466,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "PdfGraphicAsset",
+      "field": "file",
+      "type": "ImageField",
+      "lineno": 1491,
+      "keywords": {
+        "upload_to": "'pdf-graphic-assets/'"
+      }
+    },
+    {
+      "model": "PdfGraphicAsset",
+      "field": "embedded_data_url",
+      "type": "TextField",
+      "lineno": 1494,
+      "keywords": {
+        "blank": "True",
+        "default": "''"
+      }
+    },
+    {
+      "model": "PdfGraphicAsset",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1498,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "DataImportLog",
+      "field": "imported_at",
+      "type": "DateTimeField",
+      "lineno": 1522,
+      "keywords": {
+        "default": "timezone.now"
+      }
+    },
+    {
+      "model": "DataImportLog",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 1524,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TacticalPlaybookClip",
+      "field": "tags",
+      "type": "JSONField",
+      "lineno": 1543,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TacticalPlaybookClip",
+      "field": "steps",
+      "type": "JSONField",
+      "lineno": 1544,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TacticalPlaybookClip",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1549,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TacticalPlaybookClip",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1550,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TacticalPlaybookClipFavorite",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1567,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ScrapeSource",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1581,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ScrapeRun",
+      "field": "message",
+      "type": "TextField",
+      "lineno": 1600,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ScrapeRun",
+      "field": "started_at",
+      "type": "DateTimeField",
+      "lineno": 1601,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ScrapeRun",
+      "field": "completed_at",
+      "type": "DateTimeField",
+      "lineno": 1602,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "HomeCarouselImage",
+      "field": "image",
+      "type": "ImageField",
+      "lineno": 1625,
+      "keywords": {
+        "upload_to": "'home-carousel/'"
+      }
+    },
+    {
+      "model": "HomeCarouselImage",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1628,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AnalystVideoFolder",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1662,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "RivalVideo",
+      "field": "video",
+      "type": "FileField",
+      "lineno": 1705,
+      "keywords": {
+        "upload_to": "'rival-videos/'",
+        "blank": "True",
+        "null": "True"
+      }
+    },
+    {
+      "model": "RivalVideo",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 1708,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "RivalVideo",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1726,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "MatchVideoLink",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1754,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "MatchVideoLink",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1755,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "VideoTelestrationProject",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 1787,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoTelestrationProject",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1789,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoTelestrationProject",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1790,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "VideoTimelineEvent",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 1841,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoTimelineEvent",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1843,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoTimelineEvent",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1844,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "tags",
+      "type": "JSONField",
+      "lineno": 1882,
+      "keywords": {
+        "default": "list",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 1883,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "overlay",
+      "type": "JSONField",
+      "lineno": 1884,
+      "keywords": {
+        "default": "dict",
+        "blank": "True",
+        "help_text": "'Estado de la pizarra (fabric/canvas) para este clip.'"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "thumbnail",
+      "type": "ImageField",
+      "lineno": 1885,
+      "keywords": {
+        "upload_to": "'video-clips/thumbs/'",
+        "null": "True",
+        "blank": "True",
+        "help_text": "'Carátula del clip (snapshot del primer frame en IN).'"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1892,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoClip",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1893,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "VideoAiInsight",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 1935,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoAiInsight",
+      "field": "error",
+      "type": "TextField",
+      "lineno": 1936,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoAiInsight",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1938,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoAiInsight",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 1939,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "VideoExportAsset",
+      "field": "file",
+      "type": "FileField",
+      "lineno": 1964,
+      "keywords": {
+        "upload_to": "'video-exports/'"
+      }
+    },
+    {
+      "model": "VideoExportAsset",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1967,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReport",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 1995,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReport",
+      "field": "pptx_file",
+      "type": "FileField",
+      "lineno": 1996,
+      "keywords": {
+        "upload_to": "'analysis-reports/pptx/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReport",
+      "field": "pptx_updated_at",
+      "type": "DateTimeField",
+      "lineno": 1997,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReport",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 1999,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReport",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2000,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "body",
+      "type": "TextField",
+      "lineno": 2026,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "tactical_layout",
+      "type": "JSONField",
+      "lineno": 2027,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "tactical_preview_image",
+      "type": "ImageField",
+      "lineno": 2028,
+      "keywords": {
+        "upload_to": "'analysis-reports/tactics/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "tactical_video",
+      "type": "FileField",
+      "lineno": 2029,
+      "keywords": {
+        "upload_to": "'analysis-reports/tactics/video/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2030,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItem",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2031,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItemImage",
+      "field": "image",
+      "type": "ImageField",
+      "lineno": 2047,
+      "keywords": {
+        "upload_to": "'analysis-reports/images/'"
+      }
+    },
+    {
+      "model": "AnalysisVideoReportItemImage",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2049,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoVoiceoverAsset",
+      "field": "file",
+      "type": "FileField",
+      "lineno": 2069,
+      "keywords": {
+        "upload_to": "'video-voiceovers/'"
+      }
+    },
+    {
+      "model": "VideoVoiceoverAsset",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2073,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoMusicAsset",
+      "field": "file",
+      "type": "FileField",
+      "lineno": 2094,
+      "keywords": {
+        "upload_to": "'video-music/'"
+      }
+    },
+    {
+      "model": "VideoMusicAsset",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2098,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoInboxItem",
+      "field": "message",
+      "type": "TextField",
+      "lineno": 2133,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoInboxItem",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 2134,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoInboxItem",
+      "field": "read_at",
+      "type": "DateTimeField",
+      "lineno": 2142,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoInboxItem",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2143,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoInboxComment",
+      "field": "message",
+      "type": "TextField",
+      "lineno": 2174,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoInboxComment",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2175,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ChunkedRivalVideoUpload",
+      "field": "meta",
+      "type": "JSONField",
+      "lineno": 2200,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ChunkedRivalVideoUpload",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2201,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ChunkedRivalVideoUpload",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2202,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "attacking_patterns",
+      "type": "TextField",
+      "lineno": 2236,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Cómo progresan, zonas, mecanismos'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "defensive_patterns",
+      "type": "TextField",
+      "lineno": 2237,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Altura bloque, presión, ajustes'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "transitions",
+      "type": "TextField",
+      "lineno": 2238,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Comportamiento en transición OF/DEF'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "set_pieces_for",
+      "type": "TextField",
+      "lineno": 2239,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'ABP ofensivas del rival'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "set_pieces_against",
+      "type": "TextField",
+      "lineno": 2240,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'ABP defensivas del rival'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "key_players",
+      "type": "TextField",
+      "lineno": 2241,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Jugadores determinantes y perfil'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "weaknesses",
+      "type": "TextField",
+      "lineno": 2242,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Puntos atacables'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "opportunities",
+      "type": "TextField",
+      "lineno": 2243,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Dónde hacer daño'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "match_plan",
+      "type": "TextField",
+      "lineno": 2244,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Plan de partido propuesto'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "individual_tasks",
+      "type": "TextField",
+      "lineno": 2245,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Tareas por línea/jugador'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "alert_notes",
+      "type": "TextField",
+      "lineno": 2246,
+      "keywords": {
+        "blank": "True",
+        "help_text": "'Alertas: sanciones, lesiones, riesgos'"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2250,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "RivalAnalysisReport",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2251,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AnalystMatchReport",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 2278,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AnalystMatchReport",
+      "field": "document",
+      "type": "FileField",
+      "lineno": 2279,
+      "keywords": {
+        "upload_to": "'match-reports/'"
+      }
+    },
+    {
+      "model": "AnalystMatchReport",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2281,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "UserInvitation",
+      "field": "email",
+      "type": "EmailField",
+      "lineno": 2295,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "UserInvitation",
+      "field": "expires_at",
+      "type": "DateTimeField",
+      "lineno": 2296,
+      "keywords": {}
+    },
+    {
+      "model": "UserInvitation",
+      "field": "accepted_at",
+      "type": "DateTimeField",
+      "lineno": 2297,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "UserInvitation",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2300,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "ShareLink",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 2342,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ShareLink",
+      "field": "expires_at",
+      "type": "DateTimeField",
+      "lineno": 2344,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ShareLink",
+      "field": "last_accessed_at",
+      "type": "DateTimeField",
+      "lineno": 2349,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "ShareLink",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2350,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 2400,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "error",
+      "type": "TextField",
+      "lineno": 2404,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2430,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "started_at",
+      "type": "DateTimeField",
+      "lineno": 2431,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "finished_at",
+      "type": "DateTimeField",
+      "lineno": 2432,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "VideoStudioExportJob",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2433,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AuditEvent",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 2453,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AuditEvent",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2455,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoReviewMark",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2484,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "VideoReviewMark",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2485,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AppUserRole",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2521,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "AppUserRole",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2522,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "WorkspaceMembership",
+      "field": "module_access",
+      "type": "JSONField",
+      "lineno": 2550,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "WorkspaceMembership",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2551,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TaskStudioProfile",
+      "field": "crest_image",
+      "type": "ImageField",
+      "lineno": 2575,
+      "keywords": {
+        "upload_to": "'task-studio/crests/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioProfile",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2580,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TaskStudioProfile",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2581,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TaskStudioRosterPlayer",
+      "field": "photo",
+      "type": "ImageField",
+      "lineno": 2600,
+      "keywords": {
+        "upload_to": "'task-studio/roster/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioRosterPlayer",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 2601,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioRosterPlayer",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2603,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TaskStudioRosterPlayer",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2604,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "coaching_points",
+      "type": "TextField",
+      "lineno": 2623,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "confrontation_rules",
+      "type": "TextField",
+      "lineno": 2624,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "tactical_layout",
+      "type": "JSONField",
+      "lineno": 2625,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "task_pdf",
+      "type": "FileField",
+      "lineno": 2626,
+      "keywords": {
+        "upload_to": "'task-studio/task-pdfs/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "task_preview_image",
+      "type": "ImageField",
+      "lineno": 2627,
+      "keywords": {
+        "upload_to": "'task-studio/task-previews/'",
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "notes",
+      "type": "TextField",
+      "lineno": 2628,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2629,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2630,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "TaskStudioTask",
+      "field": "deleted_at",
+      "type": "DateTimeField",
+      "lineno": 2632,
+      "keywords": {
+        "null": "True",
+        "blank": "True",
+        "db_index": "True"
+      }
+    },
+    {
+      "model": "TaskBlueprint",
+      "field": "payload",
+      "type": "JSONField",
+      "lineno": 2668,
+      "keywords": {
+        "default": "dict",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "TaskBlueprint",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2670,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "TaskBlueprint",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2671,
+      "keywords": {
+        "auto_now": "True"
+      }
+    },
+    {
+      "model": "AssistantKnowledgeDocument",
+      "field": "file",
+      "type": "FileField",
+      "lineno": 2692,
+      "keywords": {
+        "upload_to": "'assistant-knowledge/'"
+      }
+    },
+    {
+      "model": "AssistantKnowledgeDocument",
+      "field": "extracted_text",
+      "type": "TextField",
+      "lineno": 2695,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AssistantKnowledgeDocument",
+      "field": "extracted_at",
+      "type": "DateTimeField",
+      "lineno": 2696,
+      "keywords": {
+        "null": "True",
+        "blank": "True"
+      }
+    },
+    {
+      "model": "AssistantKnowledgeDocument",
+      "field": "created_at",
+      "type": "DateTimeField",
+      "lineno": 2698,
+      "keywords": {
+        "auto_now_add": "True"
+      }
+    },
+    {
+      "model": "SystemSetting",
+      "field": "value",
+      "type": "TextField",
+      "lineno": 2722,
+      "keywords": {
+        "blank": "True"
+      }
+    },
+    {
+      "model": "SystemSetting",
+      "field": "updated_at",
+      "type": "DateTimeField",
+      "lineno": 2723,
+      "keywords": {
+        "auto_now": "True"
+      }
+    }
+  ]
+}

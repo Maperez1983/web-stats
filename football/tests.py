@@ -8377,6 +8377,15 @@ class StaticAssetBudgetTests(SimpleTestCase):
         self.assertFalse(offenders, f"Large player PNGs (>1MB): {offenders}")
 
 
+class HealthzEndpointTests(TestCase):
+    def test_healthz_returns_payload(self):
+        response = self.client.get('/healthz')
+        self.assertIn(response.status_code, (200, 503))
+        payload = response.json()
+        self.assertIn('ok', payload)
+        self.assertIn('checks', payload)
+
+
 class TeamCoverGuardrailTests(TestCase):
     @override_settings(MEDIA_URL='/media-test/')
     def test_cover_image_is_ignored_in_multi_team_when_missing_updated_at(self):

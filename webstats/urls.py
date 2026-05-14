@@ -25,8 +25,11 @@ from django.contrib.auth import views as auth_views
 from football.auth_views import RoleAwareLoginView
 from football import views as football_views
 from webstats.media import protected_media_serve
+from webstats.health import healthz
 
 urlpatterns = [
+    path('healthz', healthz, name='healthz'),
+    path('healthz/', healthz, name='healthz-slash'),
     path('.well-known/apple-app-site-association', football_views.apple_app_site_association, name='apple-app-site-association'),
     path('apple-app-site-association', football_views.apple_app_site_association, name='apple-app-site-association-root'),
     path('login/', RoleAwareLoginView.as_view(), name='login'),

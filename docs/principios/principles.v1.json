@@ -1,0 +1,40 @@
+{
+  "version": "v1",
+  "principles": [
+    {
+      "key": "marcaje_zonal_abp_against",
+      "label": "Marcaje zonal (ABP en contra)",
+      "phase": "abp_against",
+      "tags": ["principle:marcaje_zonal_abp_against"],
+      "notes": "Defensa por zonas en córners/faltas laterales (sin seguimiento constante)."
+    },
+    {
+      "key": "marcaje_mixto_abp_against",
+      "label": "Marcaje mixto (ABP en contra)",
+      "phase": "abp_against",
+      "tags": ["principle:marcaje_mixto_abp_against"],
+      "notes": "Combinación de jugadores en zona + emparejamientos al hombre."
+    },
+    {
+      "key": "marcaje_hombre_abp_against",
+      "label": "Marcaje al hombre (ABP en contra)",
+      "phase": "abp_against",
+      "tags": ["principle:marcaje_hombre_abp_against"],
+      "notes": "Asignación clara de rivales; perseguir desmarques."
+    },
+    {
+      "key": "bloque_defensivo_organizado",
+      "label": "Bloque defensivo organizado",
+      "phase": "defense",
+      "tags": ["principle:bloque_defensivo_organizado"],
+      "notes": "Estructura compacta (líneas) + basculación. No implica por sí sola zonal vs hombre."
+    },
+    {
+      "key": "basculacion_bloque",
+      "label": "Basculación del bloque",
+      "phase": "defense",
+      "tags": ["principle:basculacion_bloque"],
+      "notes": "Desplazamiento lateral coordinado del bloque defensivo."
+    }
+  ]
+}
