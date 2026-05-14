@@ -3,7 +3,7 @@ set -euo pipefail
 
 : "${PORT:=8000}"
 : "${RUN_MIGRATIONS:=true}"
-: "${RUN_COLLECTSTATIC:=false}"
+: "${RUN_COLLECTSTATIC:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${GUNICORN_TIMEOUT:=30}"
