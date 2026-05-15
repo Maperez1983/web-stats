@@ -29,6 +29,11 @@ class Command(BaseCommand):
         parser.add_argument('--team-id', type=int, default=0, help='ID del equipo en nuestra BD (football.Team).')
         parser.add_argument('--team-code', default='', help='Código de equipo en Universo (Team.external_id).')
         parser.add_argument('--team-name', default='', help='Nombre del equipo (fallback si no hay código).')
+        parser.add_argument(
+            '--no-auto-filters',
+            action='store_true',
+            help='No autocompleta filtros (season/competition/group) desde Team.group. Útil para buscar en toda la delegación.',
+        )
         parser.add_argument('--season-contains', default='', help='Filtra temporada (texto contenido). Ej: 2025/2026')
         parser.add_argument('--delegation-contains', default='', help='Filtra delegación (texto contenido). Ej: Málaga')
         parser.add_argument('--competition-contains', default='', help='Filtra competición (texto contenido).')
@@ -49,6 +54,7 @@ class Command(BaseCommand):
         team_id = int(options.get('team_id') or 0)
         team_code = str(options.get('team_code') or '').strip()
         team_name = str(options.get('team_name') or '').strip()
+        no_auto_filters = bool(options.get('no_auto_filters'))
         season_contains = str(options.get('season_contains') or '').strip()
         delegation_contains = str(options.get('delegation_contains') or '').strip()
         competition_contains = str(options.get('competition_contains') or '').strip()
@@ -63,12 +69,13 @@ class Command(BaseCommand):
                 team_code = str(getattr(team, 'external_id', '') or '').strip()
             if not team_name:
                 team_name = str(getattr(team, 'name', '') or '').strip()
-            if not group_contains and getattr(team, 'group', None):
-                group_contains = str(getattr(team.group, 'name', '') or '').strip()
-            if not competition_contains and getattr(team, 'group', None) and getattr(team.group, 'season', None):
-                competition_contains = str(getattr(team.group.season.competition, 'name', '') or '').strip()
-            if not season_contains and getattr(team, 'group', None) and getattr(team.group, 'season', None):
-                season_contains = str(getattr(team.group.season, 'name', '') or '').strip()
+            if (not no_auto_filters) and getattr(team, 'group', None):
+                if not group_contains:
+                    group_contains = str(getattr(team.group, 'name', '') or '').strip()
+                if not competition_contains and getattr(team.group, 'season', None):
+                    competition_contains = str(getattr(team.group.season.competition, 'name', '') or '').strip()
+                if not season_contains and getattr(team.group, 'season', None):
+                    season_contains = str(getattr(team.group.season, 'name', '') or '').strip()
 
         if not team_code and not team_name:
             raise CommandError('Indica --team-id o bien --team-code/--team-name.')
