@@ -1,7 +1,6 @@
 from django.urls import path
 
 from . import views
-from . import kit2d_views
 from . import pwa as pwa_views
 
 urlpatterns = [
@@ -24,8 +23,6 @@ urlpatterns = [
     path('api/build/', views.public_build_info, name='public-build-info'),
     path('api/search/', views.search_api, name='search-api'),
     path('api/rivals/roster/', views.rival_roster_api, name='rival-roster-api'),
-    path('kits/2d/', kit2d_views.kit2d_generator_page, name='kit2d-generator-page'),
-    path('api/kits/2d/generate/', kit2d_views.kit2d_generate_api, name='kit2d-generate-api'),
     path('billing/', views.billing_page, name='billing'),
     path('api/billing/checkout/', views.billing_checkout_session_api, name='billing-checkout-session'),
     path('api/billing/portal/', views.billing_portal_session_api, name='billing-portal-session'),
