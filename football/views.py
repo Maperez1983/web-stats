@@ -9033,6 +9033,71 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
             }
         )
 
+    # Enriquecimiento opcional: estadísticas por jugador (PJ/Goles/Minutos/Tarjetas).
+    # Ojo: requiere que `code` sea el `id_player` que espera el endpoint.
+    stats_enabled = str(os.getenv('UNIVERSO_ROSTER_STATS_ENABLED', '1') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    if not stats_enabled or not roster:
+        return roster
+
+    def _normalize_key(text: str) -> str:
+        return re.sub(r'\s+', ' ', str(text or '').strip().lower())
+
+    def _parse_int_safe(value, default=0):
+        try:
+            return int(str(value).strip() or 0)
+        except Exception:
+            return default
+
+    def _fetch_player_general_stats(player_id: str) -> dict:
+        payload = _universo_api_post('player/get-player-general-stats', {'id_player': str(player_id)})
+        if not isinstance(payload, dict) or str(payload.get('estado') or '').strip() != '1':
+            return {}
+        partidos_map = {}
+        for entry in payload.get('partidos') or []:
+            if isinstance(entry, dict):
+                partidos_map[_normalize_key(entry.get('nombre'))] = str(entry.get('valor') or '').strip()
+        tarjetas_map = {}
+        for entry in payload.get('tarjetas') or []:
+            if isinstance(entry, dict):
+                tarjetas_map[_normalize_key(entry.get('nombre'))] = str(entry.get('valor') or '').strip()
+        return {
+            'name': str(payload.get('nombre_jugador') or '').strip(),
+            'position': str(payload.get('posicion_jugador') or '').strip(),
+            'dorsal': _parse_int_safe(payload.get('dorsal_jugador') or 0),
+            'age': _parse_int_safe(payload.get('edad') or 0),
+            'pj': _parse_int_safe(partidos_map.get('jugados') or partidos_map.get('partidos jugados') or 0),
+            'pt': _parse_int_safe(partidos_map.get('titular') or 0),
+            'minutes': _parse_int_safe(payload.get('minutos_totales_jugados') or 0),
+            'goals': _parse_int_safe(partidos_map.get('total goles') or partidos_map.get('goles') or 0),
+            'yellow_cards': _parse_int_safe(tarjetas_map.get('amarillas') or 0),
+            'red_cards': _parse_int_safe(tarjetas_map.get('rojas') or 0),
+        }
+
+    # Guardrails: no disparar demasiadas peticiones desde una request web.
+    max_players = max(0, int(os.getenv('UNIVERSO_ROSTER_STATS_MAX_PLAYERS', '28') or 28))
+    max_seconds = max(1.0, float(os.getenv('UNIVERSO_ROSTER_STATS_MAX_SECONDS', '5.5') or 5.5))
+    started = timezone.now().timestamp()
+    enriched = 0
+    for item in roster:
+        if max_players and enriched >= max_players:
+            break
+        if timezone.now().timestamp() - started > max_seconds:
+            break
+        pid = str(item.get('code') or '').strip()
+        if not pid.isdigit():
+            continue
+        try:
+            stats = _fetch_player_general_stats(pid)
+        except Exception:
+            stats = {}
+        if not stats:
+            continue
+        # Mezcla: mantiene nombre original si el endpoint viene vacío.
+        for key in ('position', 'dorsal', 'age', 'pj', 'pt', 'minutes', 'goals', 'yellow_cards', 'red_cards'):
+            if key in stats and stats.get(key) not in (None, ''):
+                item[key] = stats.get(key)
+        enriched += 1
+
     return roster
 
 
