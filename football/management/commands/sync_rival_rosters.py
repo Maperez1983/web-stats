@@ -283,6 +283,7 @@ class Command(BaseCommand):
                 return (len(items), _roster_stats_rows(items))
 
             min_players = max(1, int(os.getenv('RIVAL_ROSTER_MIN_PLAYERS', '10') or 10))
+            prefer_preferente = str(os.getenv('RIVAL_ROSTER_PREFER_PREFERENTE', 'true') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
             payload = _fetch_universo_live_classification(group_id)
             rows = payload.get('clasificacion') if isinstance(payload, dict) else None
@@ -427,10 +428,14 @@ class Command(BaseCommand):
                         },
                     )
 
-                    # Si Universo devuelve una plantilla parcial (p.ej. 6 jugadores), intenta completar con La Preferente.
+                    # Preferente suele traer stats más completas (PJ/min/goles) y plantillas actualizadas.
+                    # La intentamos siempre que sea posible y elegimos la mejor.
                     preferente_roster = []
                     fallback_url = (team.preferente_url or '').strip()
-                    should_try_preferente = (not roster) or (len(roster) < min_players)
+                    should_try_preferente = True
+                    # Si el roster de Universo es grande y no queremos gastar peticiones, se puede desactivar.
+                    if not prefer_preferente and roster and len(roster) >= min_players:
+                        should_try_preferente = False
                     if should_try_preferente:
                         if not fallback_url:
                             try:
