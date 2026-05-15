@@ -1654,6 +1654,16 @@
         }
       }
 
+      // Verificación inicial suave (evita badge pegado tras volver del background).
+      try {
+        window.setTimeout(() => {
+          void (async () => {
+            const ok = await verifyConnectivity();
+            if (ok) setNetBadge({ offline: false });
+          })();
+        }, 900);
+      } catch (e) {}
+
       window.addEventListener('online', () => setNetBadge({ offline: false }));
       window.addEventListener('offline', () => {
         void (async () => {
@@ -1662,6 +1672,19 @@
           else setNetBadge({ offline: true, cached: true });
         })();
       });
+
+      // iOS/WKWebView: a veces no dispara `online` tras recuperar conectividad.
+      // Si el badge está visible, re-verificamos periódicamente y lo ocultamos en cuanto el servidor responda.
+      try {
+        window.setInterval(() => {
+          const badge = document.getElementById('net-badge');
+          if (!badge || badge.hidden) return;
+          void (async () => {
+            const ok = await verifyConnectivity();
+            if (ok) setNetBadge({ offline: false });
+          })();
+        }, 9000);
+      } catch (e) {}
 
       function preloadImage(src) {
         return new Promise((resolve) => {
@@ -2170,12 +2193,26 @@
           loading.hidden = false;
           loading.textContent = 'Cargando datos del dashboard…';
         }
-        try {
-          const response = await fetch(buildDashboardUrl({ fresh }), {
+        const fetchDashboard = async () => {
+          return fetch(buildDashboardUrl({ fresh }), {
             credentials: 'same-origin',
             cache: 'no-store',
             headers: { Accept: 'application/json' },
           });
+        };
+        const shouldRetryStatus = (status) => status === 502 || status === 503 || status === 504;
+        try {
+          // Render despliegues / reinicios breves pueden devolver 502/503/504 (HTML gateway) durante unos segundos.
+          // Reintentamos 2 veces con backoff corto para evitar mostrar "Offline" falsos.
+          let response = await fetchDashboard();
+          if (response && !response.ok && shouldRetryStatus(response.status)) {
+            await new Promise((r) => window.setTimeout(r, 650));
+            response = await fetchDashboard();
+          }
+          if (response && !response.ok && shouldRetryStatus(response.status)) {
+            await new Promise((r) => window.setTimeout(r, 1100));
+            response = await fetchDashboard();
+          }
           dashLastSource = (String(response.headers.get('x-webstats-cache') || '').trim() === '1') ? 'cache' : 'network';
           const ctype = String(response.headers.get('content-type') || '');
           if (!response.ok) throw new Error(`DASH_HTTP_${response.status}`);
@@ -2222,6 +2259,10 @@
                 offline = true;
               }
             }
+          }
+          // Si fue 502/503/504, probablemente es un reinicio/despliegue; no lo tratamos como offline.
+          if (isHttpError && (msg.startsWith('dash_http_502') || msg.startsWith('dash_http_503') || msg.startsWith('dash_http_504'))) {
+            offline = false;
           }
           setNetBadge({ offline, cached: dashLastSource === 'cache' });
           if (loading) {
