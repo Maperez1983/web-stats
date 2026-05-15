@@ -34,6 +34,11 @@ class Command(BaseCommand):
             action='store_true',
             help='No autocompleta filtros (season/competition/group) desde Team.group. Útil para buscar en toda la delegación.',
         )
+        parser.add_argument(
+            '--list-matches',
+            action='store_true',
+            help='En vez de parar en el primer match, lista todos los grupos donde aparece el equipo (por nombre/código).',
+        )
         parser.add_argument('--season-contains', default='', help='Filtra temporada (texto contenido). Ej: 2025/2026')
         parser.add_argument('--delegation-contains', default='', help='Filtra delegación (texto contenido). Ej: Málaga')
         parser.add_argument('--competition-contains', default='', help='Filtra competición (texto contenido).')
@@ -55,6 +60,7 @@ class Command(BaseCommand):
         team_code = str(options.get('team_code') or '').strip()
         team_name = str(options.get('team_name') or '').strip()
         no_auto_filters = bool(options.get('no_auto_filters'))
+        list_matches = bool(options.get('list_matches'))
         season_contains = str(options.get('season_contains') or '').strip()
         delegation_contains = str(options.get('delegation_contains') or '').strip()
         competition_contains = str(options.get('competition_contains') or '').strip()
@@ -136,6 +142,7 @@ class Command(BaseCommand):
         tested = 0
         candidates_seen = 0
         started = timezone.now()
+        matches = []
 
         for delegation in delegations:
             delegation_id = str(delegation.get('id') or delegation.get('codigo') or delegation.get('cod_delegacion') or delegation.get('delegation_id') or '').strip()
@@ -206,16 +213,34 @@ class Command(BaseCommand):
 
                     if found:
                         group_label = str(group.get('nombre') or group.get('grupo') or group.get('name') or '').strip() or f'group {group_id}'
-                        self.stdout.write(self.style.SUCCESS('MATCH'))
-                        self.stdout.write(f'- delegation: {delegation_label} (id={delegation_id})')
-                        self.stdout.write(f'- competition: {comp_label} (id={comp_id})')
-                        self.stdout.write(f'- group: {group_label} (id_group={group_id})')
-                        self.stdout.write(f'- tested_groups: {tested} / candidates_seen: {candidates_seen}')
-                        elapsed = (timezone.now() - started).total_seconds()
-                        self.stdout.write(f'- elapsed_s: {elapsed:.1f}')
-                        self.stdout.write('')
-                        self.stdout.write('Sugerencia: guarda este id en `Group.external_id` para ese equipo/categoría.')
-                        return
+                        matches.append(
+                            {
+                                'delegation': delegation_label,
+                                'delegation_id': delegation_id,
+                                'competition': comp_label,
+                                'competition_id': comp_id,
+                                'group': group_label,
+                                'group_id': group_id,
+                            }
+                        )
+                        if not list_matches:
+                            self.stdout.write(self.style.SUCCESS('MATCH'))
+                            self.stdout.write(f'- delegation: {delegation_label} (id={delegation_id})')
+                            self.stdout.write(f'- competition: {comp_label} (id={comp_id})')
+                            self.stdout.write(f'- group: {group_label} (id_group={group_id})')
+                            self.stdout.write(f'- tested_groups: {tested} / candidates_seen: {candidates_seen}')
+                            elapsed = (timezone.now() - started).total_seconds()
+                            self.stdout.write(f'- elapsed_s: {elapsed:.1f}')
+                            self.stdout.write('')
+                            self.stdout.write('Sugerencia: guarda este id en `Group.external_id` para ese equipo/categoría.')
+                            return
 
         elapsed = (timezone.now() - started).total_seconds()
+        if matches:
+            self.stdout.write(self.style.SUCCESS(f'MATCHES ({len(matches)}):'))
+            for item in matches[:50]:
+                self.stdout.write(f"- {item['competition']} · {item['group']} · id_group={item['group_id']}")
+            self.stdout.write(f'- tested_groups: {tested} / candidates_seen: {candidates_seen}')
+            self.stdout.write(f'- elapsed_s: {elapsed:.1f}')
+            return
         raise CommandError(f'No se encontró group-id (probados {tested}, candidatos {candidates_seen}) en {elapsed:.1f}s. Ajusta filtros.')
