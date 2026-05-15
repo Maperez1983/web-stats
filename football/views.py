@@ -8948,16 +8948,26 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
             if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
                 candidates.append(value)
 
-        # 2) Búsqueda en 2 niveles (sin recursión profunda para evitar payloads enormes).
-        for value in obj.values():
-            if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
-                candidates.append(value)
-                continue
-            if isinstance(value, dict):
-                for subkey in direct_keys:
-                    subvalue = value.get(subkey)
-                    if isinstance(subvalue, list) and any(_looks_like_player_row(x) for x in subvalue):
-                        candidates.append(subvalue)
+        # 2) Búsqueda recursiva acotada (evita depender de un nivel fijo del JSON).
+        def _walk(node, depth: int = 0):
+            if depth > 6:
+                return
+            if isinstance(node, list):
+                if node and any(_looks_like_player_row(x) for x in node):
+                    candidates.append(node)
+                # Evita recorrer listas enormes.
+                for item in node[:80]:
+                    _walk(item, depth + 1)
+                return
+            if isinstance(node, dict):
+                for key in direct_keys:
+                    value = node.get(key)
+                    if isinstance(value, list) and value and any(_looks_like_player_row(x) for x in value):
+                        candidates.append(value)
+                for value in list(node.values())[:120]:
+                    _walk(value, depth + 1)
+
+        _walk(obj, 0)
 
         if not candidates:
             return []
