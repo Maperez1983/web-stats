@@ -263,6 +263,27 @@ class Command(BaseCommand):
             # Import tardío para evitar cargar `football.views` en cada comando.
             from football.views import _fetch_universo_live_classification, fetch_universo_team_roster
 
+            def _roster_stats_rows(items):
+                if not isinstance(items, list):
+                    return 0
+                total = 0
+                for row in items[:120]:
+                    if not isinstance(row, dict):
+                        continue
+                    try:
+                        if int(row.get('pj') or 0) > 0 or int(row.get('minutes') or 0) > 0 or int(row.get('goals') or 0) > 0:
+                            total += 1
+                    except Exception:
+                        continue
+                return total
+
+            def _roster_score(items):
+                if not isinstance(items, list) or not items:
+                    return (0, 0)
+                return (len(items), _roster_stats_rows(items))
+
+            min_players = max(1, int(os.getenv('RIVAL_ROSTER_MIN_PLAYERS', '10') or 10))
+
             payload = _fetch_universo_live_classification(group_id)
             rows = payload.get('clasificacion') if isinstance(payload, dict) else None
             if not isinstance(rows, list) or not rows:
@@ -405,12 +426,48 @@ class Command(BaseCommand):
                             'error': '',
                         },
                     )
+
+                    # Si Universo devuelve una plantilla parcial (p.ej. 6 jugadores), intenta completar con La Preferente.
+                    preferente_roster = []
+                    fallback_url = (team.preferente_url or '').strip()
+                    should_try_preferente = (not roster) or (len(roster) < min_players)
+                    if should_try_preferente:
+                        if not fallback_url:
+                            try:
+                                fallback_url = find_preferente_team_url(team.name)
+                            except Exception:
+                                fallback_url = ''
+                            if fallback_url:
+                                try:
+                                    team.preferente_url = fallback_url
+                                    team.save(update_fields=['preferente_url'])
+                                except Exception:
+                                    pass
+                        if fallback_url:
+                            try:
+                                preferente_roster = fetch_preferente_team_roster(fallback_url)
+                            except Exception:
+                                preferente_roster = []
+
+                    # Guarda snapshot de Preferente si mejora (más jugadores o más stats).
+                    if preferente_roster and _roster_score(preferente_roster) > _roster_score(roster):
+                        TeamRosterSnapshot.objects.update_or_create(
+                            team=team,
+                            provider=TeamRosterSnapshot.PROVIDER_PREFERENTE,
+                            defaults={'roster_payload': preferente_roster, 'source_url': fallback_url, 'error': ''},
+                        )
+                        # Para el dump, nos interesa el roster mejor.
+                        roster = preferente_roster
+                        source_url = fallback_url
+                    else:
+                        source_url = f'https://www.universorfaf.es/team/{team_code}'
+
                     if dump_payload is not None:
                         dump_payload['teams'].append(
                             {
                                 'team_code': team_code,
                                 'team_name': team.name,
-                                'source_url': f'https://www.universorfaf.es/team/{team_code}',
+                                'source_url': source_url,
                                 'roster': roster,
                                 'error': '',
                             }
