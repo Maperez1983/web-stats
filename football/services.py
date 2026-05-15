@@ -676,7 +676,74 @@ def find_preferente_team_url(team_name: str) -> str:
         normalized = _norm(original)
         if normalized == 'cpalmeria':
             return ['Poli Almería', 'Poli Almeria', 'Polideportivo Almeria']
+        # "ATCO" suele aparecer como "Atlético" en La Preferente.
+        if 'atco' in normalized and 'marbella' in normalized:
+            return [
+                'Atlético de Marbella',
+                'Atletico de Marbella',
+                'Atlético Marbella',
+                'Atletico Marbella',
+                'Marbella Balompié',
+                'Marbella Balompie',
+            ]
         return []
+
+    def _query_variants(original: str) -> list[str]:
+        """
+        Genera variantes de búsqueda tolerantes a:
+        - abreviaturas (ATCO -> Atlético)
+        - prefijos/sufijos (C.D., C.F., S.A.D., etc.)
+        - signos/puntuación
+        """
+        base = re.sub(r'\s+', ' ', str(original or '').strip())
+        if not base:
+            return []
+        variants = [base]
+        # Quita contenido entre paréntesis.
+        no_parens = re.sub(r'\([^)]*\)', ' ', base)
+        no_parens = re.sub(r'\s+', ' ', no_parens).strip()
+        if no_parens and no_parens not in variants:
+            variants.append(no_parens)
+        # Normaliza separadores comunes.
+        punct = re.sub(r'[·•,;:/_\\-]+', ' ', no_parens or base)
+        punct = re.sub(r'\s+', ' ', punct).strip()
+        if punct and punct not in variants:
+            variants.append(punct)
+        # Elimina tokens "formales" frecuentes que no ayudan a buscar.
+        without = re.sub(
+            r'\b(C\.?\s*D\.?|C\.?\s*F\.?|A\.?\s*D\.?|U\.?\s*D\.?|S\.?\s*A\.?\s*D\.?|SAD|S\.A\.D\.)\b',
+            ' ',
+            punct or base,
+            flags=re.IGNORECASE,
+        )
+        without = re.sub(r'\s+', ' ', without).strip()
+        if without and without not in variants:
+            variants.append(without)
+        # Expande abreviaturas típicas.
+        expanded = without or punct or base
+        expanded = re.sub(r'\bATCO\.?\b', 'Atlético', expanded, flags=re.IGNORECASE)
+        expanded = re.sub(r'\bATCO\.?\b', 'Atletico', expanded, flags=re.IGNORECASE)
+        expanded = re.sub(r'\s+', ' ', expanded).strip()
+        if expanded and expanded not in variants:
+            variants.append(expanded)
+        # Variante corta con palabras clave (sin "de/del/la/el").
+        tokens = [t for t in re.split(r'\s+', expanded or without or base) if t]
+        stop = {'de', 'del', 'la', 'el', 'los', 'las', 'club', 'cd', 'cf', 'sad'}
+        compact_tokens = [t for t in tokens if t.lower() not in stop]
+        if len(compact_tokens) >= 2:
+            short = ' '.join(compact_tokens[:4]).strip()
+            if short and short not in variants:
+                variants.append(short)
+        # Dedup conservando orden.
+        out = []
+        seen = set()
+        for v in variants:
+            key = _norm(v)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(v)
+        return out
 
     def _norm(text: str) -> str:
         return re.sub(r'[^a-z0-9]+', '', normalize_player_name(text or ''))
@@ -767,13 +834,10 @@ def find_preferente_team_url(team_name: str) -> str:
     # 1) Buscador oficial (select2) vía JSON: json/buscaEquipos.php?q=...
     # Es la forma más estable de localizar el IDequipo y construir /?IDequipo=...
     if len(query) >= 3:
-        direct = _try_json_search(query)
-        if direct:
-            return direct
-        for alias in _alias_queries(query):
-            found = _try_json_search(alias)
-            if found:
-                return found
+        for candidate in (_query_variants(query) + _alias_queries(query)):
+            direct = _try_json_search(candidate)
+            if direct:
+                return direct
 
     # 2) Fallback HTML: extrae enlaces a páginas "equipo" cuando existan.
     # (Mantiene compatibilidad si LaPreferente cambia el buscador.)
