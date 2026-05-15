@@ -1940,13 +1940,17 @@
 	    if (!Array.isArray(confirmedPlayerIds)) confirmedPlayerIds = [];
 	    let confirmedPlayerIdSet = new Set(confirmedPlayerIds.map((value) => String(value)));
 
-	    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
-	    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
-	    const normalizeTokenStyle = (value) => {
-	      const v = safeText(value).trim().toLowerCase();
-	      if (v === 'jersey' || v === 'photo') return v;
-	      return 'disk';
-	    };
+		    // Estilo global de fichas (para nuevos jugadores colocados en la pizarra).
+		    const TOKEN_STYLE_STORAGE_KEY = 'webstats:tpad:token-style';
+		    // Silueta de camiseta: queremos un look “2D kit” (icono de camiseta) más reconocible,
+		    // y que sea consistente entre el banco de jugadores (SVG) y la pizarra (Fabric).
+		    // Coordenadas en el mismo espacio que el viewBox del SVG (-26..26 / -30..30 aprox).
+		    const JERSEY_PATH_DEF = 'M -22 -18 Q -21 -22 -17 -22 L -9 -22 L -6 -28 Q -4 -30 0 -30 Q 4 -30 6 -28 L 9 -22 L 17 -22 Q 21 -22 22 -18 L 26 -10 Q 27 -8 26 -6 L 21 4 L 18 12 L 18 24 Q 18 26 16 26 L -16 26 Q -18 26 -18 24 L -18 12 L -21 4 L -26 -6 Q -27 -8 -26 -10 Z';
+		    const normalizeTokenStyle = (value) => {
+		      const v = safeText(value).trim().toLowerCase();
+		      if (v === 'jersey' || v === 'photo') return v;
+		      return 'disk';
+		    };
 	    const normalizeTokenPattern = (value) => {
 	      const v = safeText(value).trim().toLowerCase();
 	      if (v === 'solid' || v === 'half' || v === 'sash') return v;
@@ -14069,13 +14073,13 @@
 		            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
 		          });
 		          nameText.data = { role: 'token_name' };
-		          tokenParts.push(nameText);
-		        } else if (style === 'jersey') {
-		          const shirtDef = 'M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z';
-		          const shirtPath = new fabric.Path(shirtDef, {
-		            left: 0,
-		            top: 0,
-		            originX: 'center',
+			          tokenParts.push(nameText);
+			        } else if (style === 'jersey') {
+			          const shirtDef = JERSEY_PATH_DEF;
+			          const shirtPath = new fabric.Path(shirtDef, {
+			            left: 0,
+			            top: 0,
+			            originX: 'center',
 		            originY: 'center',
 		            fill: effectiveBase,
 		            stroke: 'rgba(255,255,255,0.92)',
@@ -16095,13 +16099,13 @@
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
 	          badge.innerHTML = `
 	            <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
-	              <defs>
-	                <clipPath id="${clipId}">
-	                  <path d="M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z"></path>
-	                </clipPath>
-	                <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
-	                  <stop offset="0" stop-color="#1d4ed8"></stop>
-	                  <stop offset="1" stop-color="#0ea5e9"></stop>
+		              <defs>
+		                <clipPath id="${clipId}">
+		                  <path d="${JERSEY_PATH_DEF}"></path>
+		                </clipPath>
+		                <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
+		                  <stop offset="0" stop-color="#1d4ed8"></stop>
+		                  <stop offset="1" stop-color="#0ea5e9"></stop>
 	                </linearGradient>
 	              </defs>
 	              <g clip-path="url(#${clipId})">
@@ -16118,10 +16122,10 @@
 	                  </g>
 	                `}
 	              </g>
-	              <path d="M -22 -18 L -10 -18 L -6 -26 L 6 -26 L 10 -18 L 22 -18 L 16 -2 L 16 22 L -16 22 L -16 -2 Z"
-	                    fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
-	            </svg>
-	          `.trim();
+		              <path d="${JERSEY_PATH_DEF}"
+		                    fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
+		            </svg>
+		          `.trim();
 	          badge.appendChild(number);
 	        } else if (style === 'photo') {
 	          badge.className = 'token-photo';
