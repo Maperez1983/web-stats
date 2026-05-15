@@ -306,6 +306,9 @@
                     </div>
                     <div class="sub">
                       {{ p.position|default:"—" }}
+                      {% if p.pj %} · PJ {{ p.pj }}{% endif %}
+                      {% if p.minutes %} · {{ p.minutes }} min{% endif %}
+                      {% if p.goals %} · {{ p.goals }} goles{% endif %}
                       {% if p.birth_year %} · {{ p.birth_year }}{% endif %}
                       {% if p.license %} · {{ p.license }}{% endif %}
                     </div>

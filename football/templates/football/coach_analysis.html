@@ -1172,6 +1172,7 @@
                         <th style="width:54px;">Sel</th>
                         <th>Jugador</th>
                         <th>Pos</th>
+                        <th>PJ</th>
                         <th>Min</th>
                         <th>Goles</th>
                         <th>Amarillas</th>
@@ -1186,6 +1187,7 @@
                         </td>
                         <td><strong>{{ p.name|default:"-" }}</strong></td>
                         <td class="meta">{{ p.position|default:"-" }}</td>
+                        <td class="meta">{{ p.pj|default:"-" }}</td>
                         <td class="meta">{{ p.minutes|default:"-" }}</td>
                         <td class="meta">{{ p.goals|default:"-" }}</td>
                         <td class="meta">{{ p.yellow_cards|default:"-" }}</td>
