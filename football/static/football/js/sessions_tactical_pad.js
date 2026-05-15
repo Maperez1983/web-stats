@@ -1945,7 +1945,8 @@
 		    // Silueta de camiseta: queremos un look “2D kit” (icono de camiseta) más reconocible,
 		    // y que sea consistente entre el banco de jugadores (SVG) y la pizarra (Fabric).
 		    // Coordenadas en el mismo espacio que el viewBox del SVG (-26..26 / -30..30 aprox).
-		    const JERSEY_PATH_DEF = 'M -22 -18 Q -21 -22 -17 -22 L -9 -22 L -6 -28 Q -4 -30 0 -30 Q 4 -30 6 -28 L 9 -22 L 17 -22 Q 21 -22 22 -18 L 26 -10 Q 27 -8 26 -6 L 21 4 L 18 12 L 18 24 Q 18 26 16 26 L -16 26 Q -18 26 -18 24 L -18 12 L -21 4 L -26 -6 Q -27 -8 -26 -10 Z';
+		    const JERSEY_PATH_DEF = 'M -22 -18 C -22 -24 -20 -26 -15 -26 L -8 -26 L -5 -30 C -3 -32 3 -32 5 -30 L 8 -26 L 15 -26 C 20 -26 22 -24 22 -18 L 28 -10 C 29 -8 28 -5 26 -4 L 20 -1 L 20 24 C 20 27 18 29 15 29 L -15 29 C -18 29 -20 27 -20 24 L -20 -1 L -26 -4 C -28 -5 -29 -8 -28 -10 Z';
+		    const JERSEY_COLLAR_DEF = 'M -9 -26 L -5 -30 C -3 -32 3 -32 5 -30 L 9 -26 L 6 -23 L 0 -26 L -6 -23 Z';
 		    const normalizeTokenStyle = (value) => {
 		      const v = safeText(value).trim().toLowerCase();
 		      if (v === 'jersey' || v === 'photo') return v;
@@ -14088,10 +14089,10 @@
 		          });
 		          shirtPath.data = { role: 'token_base' };
 		          tokenParts.push(shirtPath);
-		          if (!isAway && !isGoalkeeper) {
-		            const stripeWidth = 8;
-		            const stripeCount = 7;
-		            const start = -24 + (stripeWidth / 2);
+			          if (!isAway && !isGoalkeeper) {
+			            const stripeWidth = 8;
+			            const stripeCount = 7;
+			            const start = -24 + (stripeWidth / 2);
 		            const stripes = [];
 		            for (let i = 0; i < stripeCount; i += 1) {
 		              const isStripe = i % 2 === 0;
@@ -14121,13 +14122,26 @@
 		              originX: 'center',
 		              originY: 'center',
 		            });
-		            stripeGroup.data = { role: 'token_stripes' };
-		            tokenParts.push(stripeGroup);
-		          }
-			          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+			            stripeGroup.data = { role: 'token_stripes' };
+			            tokenParts.push(stripeGroup);
+			          }
+			          const collarPath = new fabric.Path(JERSEY_COLLAR_DEF, {
+			            left: 0,
+			            top: 0,
 			            originX: 'center',
 			            originY: 'center',
-			            left: 0,
+			            fill: 'rgba(15,23,42,0.22)',
+			            stroke: 'rgba(255,255,255,0.18)',
+			            strokeWidth: 1,
+			            selectable: false,
+			            evented: false,
+			          });
+			          collarPath.data = { role: 'token_collar' };
+			          tokenParts.push(collarPath);
+				          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+				            originX: 'center',
+				            originY: 'center',
+				            left: 0,
 			            top: -2,
 			            fontSize: 14,
 			            fontWeight: '800',
@@ -16108,20 +16122,21 @@
 		                  <stop offset="1" stop-color="#0ea5e9"></stop>
 	                </linearGradient>
 	              </defs>
-	              <g clip-path="url(#${clipId})">
-	                <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
-	                ${kind === 'goalkeeper_local' ? '' : `
-	                  <g>
-	                    <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-	                    <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-	                    <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-	                    <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-	                    <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-	                    <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-	                    <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-	                  </g>
-	                `}
-	              </g>
+		              <g clip-path="url(#${clipId})">
+		                <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
+		                ${kind === 'goalkeeper_local' ? '' : `
+		                  <g>
+		                    <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+		                    <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+		                    <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+		                    <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+		                    <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+		                    <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+		                    <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+		                  </g>
+		                `}
+		                <path d="${JERSEY_COLLAR_DEF}" fill="rgba(15,23,42,0.22)" stroke="rgba(255,255,255,0.18)" stroke-width="1"></path>
+		              </g>
 		              <path d="${JERSEY_PATH_DEF}"
 		                    fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
 		            </svg>
