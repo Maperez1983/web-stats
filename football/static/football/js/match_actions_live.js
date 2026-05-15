@@ -1308,8 +1308,20 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     } catch (e) {}
   });
 
+  const closestSafe = (node, selector) => {
+    try {
+      if (!node) return null;
+      if (node.closest) return node.closest(selector);
+      const parent = node.parentElement || node.parentNode;
+      if (parent && parent.closest) return parent.closest(selector);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
   historyList.addEventListener('click', async (event) => {
-    const replayBtn = event.target.closest('.history-replay');
+    const replayBtn = closestSafe(event.target, '.history-replay');
     if (replayBtn) {
       event.preventDefault();
       const timeMs = Number(replayBtn.getAttribute('data-vtime')) || 0;
@@ -1322,7 +1334,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       } catch (e) {}
       return;
     }
-    const button = event.target.closest('.history-delete');
+    const button = closestSafe(event.target, '.history-delete');
     if (!button) return;
     const article = button.closest('[data-event-id]');
     const eventId = article?.dataset?.eventId;
@@ -1335,13 +1347,13 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       emitSummaryChange();
       return;
     }
-    try {
-      const response = await fetch(deleteUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-CSRFToken': csrfToken },
-        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
-      });
+	    try {
+	      const response = await fetch(deleteUrl, {
+	        method: 'POST',
+	        credentials: 'same-origin',
+	        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+	        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
+	      });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         showPageStatus(data.error || 'No se pudo eliminar la acción.', 'danger', 5200);
@@ -1374,13 +1386,13 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       emitSummaryChange();
       return true;
     }
-    try {
-      const response = await fetch(deleteUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-CSRFToken': csrfToken },
-        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
-      });
+	    try {
+	      const response = await fetch(deleteUrl, {
+	        method: 'POST',
+	        credentials: 'same-origin',
+	        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+	        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
+	      });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         showPageStatus(data.error || 'No se pudo eliminar la acción.', 'danger', 5200);

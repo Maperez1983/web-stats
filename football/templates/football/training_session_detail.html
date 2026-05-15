@@ -706,13 +706,14 @@
 	            <div class="meta">Marca excepciones (ausencias, tarde, lesión…).</div>
 	          </div>
 	        </div>
-	        <form method="post" style="margin-top:0.65rem;">
-	          {% csrf_token %}
-	          <input type="hidden" name="action" value="attendance" />
-	          <input type="hidden" name="return_to" value="attendance" />
-	          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
-	            <table>
-	              <tbody>
+		        <form method="post" style="margin-top:0.65rem;">
+		          {% csrf_token %}
+		          <input type="hidden" name="action" value="attendance" />
+		          <input type="hidden" name="return_to" value="attendance" />
+              <input type="hidden" name="team" value="{{ team.id }}" />
+		          <div style="max-height:56vh; overflow:auto; border-radius:14px; border:1px solid rgba(148,163,184,0.14); padding:0.35rem 0.55rem; background:rgba(255,255,255,0.02);">
+		            <table>
+		              <tbody>
                 {% for row in attendance_rows %}
                   {% with p=row.player mark=row.mark %}
                   <tr>

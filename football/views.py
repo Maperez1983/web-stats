@@ -26486,8 +26486,13 @@ def training_session_detail_page(request, session_id):
                 # PRG: evita re-POST en iPad/Safari y asegura que la UI refleje el contenido recién guardado.
                 msg = quote(message or 'Ficha guardada.')
                 detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                try:
+                    detail_url = f'{detail_url}?{urlencode({"team": int(primary_team.id)})}'
+                except Exception:
+                    detail_url = f'{detail_url}?team={int(primary_team.id)}'
                 # Mantener la UI en modo edición tras guardar (iPad/WKWebView suele "perder" el estado visual).
-                return redirect(f'{detail_url}?msg={msg}&return_to=edit')
+                sep = '&' if '?' in detail_url else '?'
+                return redirect(f'{detail_url}{sep}msg={msg}&return_to=edit')
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar.'
 
@@ -26735,8 +26740,13 @@ def training_session_detail_page(request, session_id):
             if not error:
                 msg = quote(message or 'Asistencia guardada.')
                 detail_url = reverse('training-session-detail', args=[int(session_obj.id)])
+                try:
+                    detail_url = f'{detail_url}?{urlencode({"team": int(primary_team.id)})}'
+                except Exception:
+                    detail_url = f'{detail_url}?team={int(primary_team.id)}'
                 # Mantener la UI en el bloque de asistencia tras guardar.
-                return redirect(f'{detail_url}?msg={msg}&return_to=attendance#asistencia')
+                sep = '&' if '?' in detail_url else '?'
+                return redirect(f'{detail_url}{sep}msg={msg}&return_to=attendance#asistencia-edit')
         # Añadir tareas se gestiona desde Biblioteca (pestaña Biblioteca en Sesiones).
 
     # Refresca post-sesión / auditoría tras POST.
@@ -38555,6 +38565,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 {
                     'id': int(player.id),
                     'name': str(player.name or '').strip(),
+                    'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                     'number': _parse_int(player.number) or '',
                     'position': str(player.position or '').strip(),
                     'photo_url': str(resolve_player_photo_url(request, player) or '').strip(),
@@ -38835,7 +38846,7 @@ def _build_tactical_player_catalog(request, primary_team):
     players = (
         Player.objects
         .filter(team=primary_team, is_active=True)
-        .only('id', 'name', 'number', 'position', 'photo_updated_at')
+        .only('id', 'name', 'nickname', 'number', 'position', 'photo_updated_at')
         .order_by('number', 'name')[:60]
     )
     for player in players:
@@ -38857,6 +38868,7 @@ def _build_tactical_player_catalog(request, primary_team):
             {
                 'id': int(player.id),
                 'name': str(player.name or '').strip(),
+                'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': _parse_int(player.number) or '',
                 'position': str(player.position or '').strip(),
                 'photo_url': str(photo_url or '').strip(),

@@ -150,13 +150,14 @@
 	    arrow_solid: 'una flecha continua',
 	    arrow_thick: 'una flecha gruesa',
 	    arrow_dash: 'una flecha discontinua',
-	    arrow_dot: 'una flecha de puntos',
-	    arrow_curve: 'una flecha curva',
-	    measure: 'una regla de medida',
-	    marker_start: 'un marcador (inicio)',
-	    marker_end: 'un marcador (fin)',
-	    marker_pass: 'un marcador (pase)',
-	    marker_shot: 'un marcador (tiro)',
+		    arrow_dot: 'una flecha de puntos',
+		    arrow_curve: 'una flecha curva',
+		    arrow_curve_left: 'una flecha curva (lado contrario)',
+		    measure: 'una regla de medida',
+		    marker_start: 'un marcador (inicio)',
+		    marker_end: 'un marcador (fin)',
+		    marker_pass: 'un marcador (pase)',
+		    marker_shot: 'un marcador (tiro)',
 	    marker_support: 'un marcador (apoyo)',
 	    shape_circle: 'un círculo',
 	    shape_square: 'un cuadrado',
@@ -920,6 +921,8 @@
 				    const playbookOpen3dBtn = document.getElementById('task-playbook-open-3d');
 				    const playbookOpenVideoBtn = document.getElementById('task-playbook-open-video');
 				    const playbookExportPackBtn = document.getElementById('task-playbook-export-pack');
+				    const tacticsSaveTopBtn = document.getElementById('tactics-save-top');
+				    const tacticsSaveClipTopBtn = document.getElementById('tactics-save-clip-top');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
@@ -1055,7 +1058,15 @@
 				    const restoreTacticsUi = () => {
 				      if (!isTacticsMode) return;
 				      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
-				      try { setTacticsToolsOpen(safeText(window.localStorage.getItem('tpad_tactics_tools_open_v1')) === '1'); } catch (e) { setTacticsToolsOpen(false); }
+				      // UX: en Tácticas, si el usuario aún no ha guardado preferencia, abrimos “Herramientas”
+				      // por defecto para que se vean balón / flechas / fichas (evita sensación de "no hay herramientas").
+				      try {
+				        const stored = window.localStorage.getItem('tpad_tactics_tools_open_v1');
+				        if (stored === null) setTacticsToolsOpen(true);
+				        else setTacticsToolsOpen(safeText(stored) === '1');
+				      } catch (e) {
+				        setTacticsToolsOpen(true);
+				      }
 				    };
 
 				    // Backdrop global (evita “superposición” visual de popovers/modales).
@@ -1974,23 +1985,65 @@
 	      });
 	    };
 	    syncTokenGlobalStyleUi();
-	    tokenGlobalStyleActions?.addEventListener('click', (event) => {
-	      const btn = event.target.closest('button[data-global-token-style]');
-	      if (!btn) return;
-	      event.preventDefault();
-	      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+		    tokenGlobalStyleActions?.addEventListener('click', (event) => {
+		      const btn = event.target.closest('button[data-global-token-style]');
+		      if (!btn) return;
+		      event.preventDefault();
+		      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
 	      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
 	      syncTokenGlobalStyleUi();
 	      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
 	      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
-	      runWhenIdle(() => {
-	        try { renderPlayerBank(); } catch (e) { /* ignore */ }
-	      }, 120);
-	    });
+		      runWhenIdle(() => {
+		        try { renderPlayerBank(); } catch (e) { /* ignore */ }
+		      }, 120);
+		    });
 
-	    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
-	    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
-	    const pdfAssetImages = new Map();
+		    // Kit 2D (opcional): si el club ha guardado un token PNG, lo usamos para el estilo "camiseta".
+		    // Se guarda como preferencia de workspace para evitar migraciones y permitir cambios rápidos.
+		    const KIT2D_PREF_KEY = 'kit2d.tokens';
+		    let kit2dEditorDataUrl = '';
+		    let kit2dClubDataUrl = '';
+		    let kit2dEditorImageEl = null;
+		    let kit2dPrefLoadStarted = false;
+		    const loadKit2dTokensPreference = async () => {
+		      if (kit2dPrefLoadStarted) return;
+		      kit2dPrefLoadStarted = true;
+		      try {
+		        const resp = await fetch(`/api/workspace/preferences/get/?key=${encodeURIComponent(KIT2D_PREF_KEY)}`, {
+		          credentials: 'same-origin',
+		        });
+		        const payload = await resp.json().catch(() => null);
+		        if (!payload || !payload.ok) return;
+		        const value = payload.value;
+		        if (!value || typeof value !== 'object') return;
+		        const editor = safeText(value.editor_data_url || value.editor_png_data_url || value.editor_png || value.editor || '');
+		        const club = safeText(value.club_data_url || value.club_png_data_url || value.club_png || value.club || '');
+		        if (editor.startsWith('data:image/') || editor.startsWith('/') || editor.startsWith('http')) kit2dEditorDataUrl = editor;
+		        if (club.startsWith('data:image/') || club.startsWith('/') || club.startsWith('http')) kit2dClubDataUrl = club;
+		        if (!kit2dEditorDataUrl) return;
+		        try {
+		          const img = new Image();
+		          try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+		          img.onload = () => {
+		            kit2dEditorImageEl = img;
+		            // Refresca el banco para que el token se vea (sin bloquear el arranque).
+		            try { runWhenIdle(() => { try { renderPlayerBank(); } catch (e) { /* ignore */ } }, 120); } catch (e) { /* ignore */ }
+		            // Si hay objetos en canvas usando estilo "jersey", al menos repintamos.
+		            try { if (canvas && typeof canvas.requestRenderAll === 'function') canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		          };
+		          img.onerror = () => { /* ignore */ };
+		          img.src = kit2dEditorDataUrl;
+		        } catch (e) { /* ignore */ }
+		      } catch (e) {
+		        // ignore
+		      }
+		    };
+		    runWhenIdle(() => { try { void loadKit2dTokensPreference(); } catch (e) { /* ignore */ } }, 650);
+
+		    // Assets extraídos de PDFs importados. El catálogo de iconos se ha eliminado,
+		    // pero seguimos renderizando cualquier `pdf_asset:<id>` existente en tareas previas.
+		    const pdfAssetImages = new Map();
 	    const pdfAssetLoading = new Set();
 	    const pdfAssetPendingRefresh = new Set();
 	    const normalizePdfAssetId = (value) => String(value ?? '').trim();
@@ -9580,6 +9633,80 @@
 				      return data;
 				    };
 
+				    const saveCurrentTacticSnapshotToPlaybook = async () => {
+				      if (!isTacticsMode) return;
+				      if (!playbookSaveUrl) {
+				        setStatus('Playbook no disponible.', true);
+				        return;
+				      }
+				      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Táctica');
+				      const name = safeText(window.prompt('Nombre de la táctica', defaultName)).slice(0, 160);
+				      if (!name) return;
+				      const folder = safeText(window.prompt('Carpeta (opcional)', 'Tácticas')).slice(0, 80);
+				      const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+				      let tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				      try {
+				        const hasTag = tags.some((t) => safeText(t).toLowerCase() === 'tactica');
+				        if (!hasTag) tags = ['tactica', ...tags].slice(0, 12);
+				      } catch (e) { /* ignore */ }
+
+				      const { w, h } = worldSize();
+				      ensureLayerUidsOnCanvas();
+				      const nextState = serializeCanvasOnly();
+				      const steps = [
+				        {
+				          title: 'Táctica',
+				          duration: 6,
+				          canvas_state: nextState,
+				          canvas_width: Math.round(w || 0),
+				          canvas_height: Math.round(h || 0),
+				          moves: [],
+				          routes: {},
+				          ball_follow_uid: '',
+				        },
+				      ];
+				      try {
+				        const res = await savePlaybookClip({ scope: 'team', name, folder, tags, steps });
+				        if (res?.canceled) return;
+				        await fetchPlaybookClips({ force: true, silent: true });
+				        renderClipsLibrary();
+				        setStatus('Táctica guardada en Playbook (equipo).');
+				      } catch (e) {
+				        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
+				      }
+				    };
+
+				    const openSimulatorForClipSave = () => {
+				      if (!isTacticsMode) return;
+				      try {
+				        const playbookTab = document.querySelector('#task-side-tabs [data-pane="playbook"]');
+				        if (playbookTab) playbookTab.click();
+				      } catch (e) { /* ignore */ }
+				      try {
+				        if (simClipDestSelect && safeText(simClipDestSelect.value, 'local') === 'local') simClipDestSelect.value = 'team';
+				      } catch (e) { /* ignore */ }
+				      try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				      try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
+				      try { syncSimUi(); } catch (e) { /* ignore */ }
+				      try {
+				        // Solo dispara guardar si ya hay pasos.
+				        if (Array.isArray(simulationSteps) && simulationSteps.length && simClipSaveBtn && !simClipSaveBtn.hidden) {
+				          simClipSaveBtn.click();
+				        } else {
+				          setStatus('Simulador abierto: captura pasos y pulsa “Guardar clip”.');
+				        }
+				      } catch (e) { /* ignore */ }
+				    };
+
+				    tacticsSaveTopBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      void saveCurrentTacticSnapshotToPlaybook();
+				    });
+				    tacticsSaveClipTopBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      openSimulatorForClipSave();
+				    });
+
 				    const togglePlaybookFavorite = async (id) => {
 				      if (!playbookFavoriteUrl) throw new Error('Favoritos no disponible.');
 				      const csrf = form.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
@@ -13552,7 +13679,7 @@
 			          label: 'un texto',
 			        };
 			      }
-			      if (payload.playerId) {
+      if (payload.playerId) {
 			        const player = players.find((item) => String(item.id) === String(payload.playerId));
 		        if (!player) return null;
 		        return {
@@ -13560,6 +13687,18 @@
 	          label: safeText(player.name, 'el jugador'),
 	        };
 	      }
+      // Rival con nombre/número (desde panel scouting o DnD custom).
+      if (payload.kind === 'player_rival') {
+        const playerName = safeText(payload.playerName || payload.name || payload.title || payload.text, '');
+        const playerNumber = safeText(payload.playerNumber || payload.number || payload.label, '');
+        if (playerName || playerNumber) {
+          const pseudo = { name: playerName || 'Rival', number: playerNumber || '' };
+          return {
+            factory: playerTokenFactory('player_rival', pseudo, { style: 'disk' }),
+            label: playerName ? safeText(playerName, 'un jugador rival') : 'un jugador rival',
+          };
+        }
+      }
       if (payload.kind === 'player_local') return { factory: playerTokenFactory('player_local', null), label: 'un jugador local' };
       if (payload.kind === 'player_rival') return { factory: playerTokenFactory('player_rival', null), label: 'un jugador rival' };
       if (payload.kind === 'player_away') return { factory: playerTokenFactory('player_away', null), label: 'un jugador con segunda equipación' };
@@ -13947,18 +14086,19 @@
 			    };
 
 				    const playerTokenFactory = (kind, player, options = {}) => (left, top) => {
-	      const playerNameLower = safeText(player?.name, '').toLowerCase();
-	      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
+		      const preferredName = safeText(player?.nickname || player?.name, '');
+		      const playerNameLower = preferredName.toLowerCase();
+		      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
 	      const palette = kind === 'goalkeeper_local'
 	        ? (goalkeeperPreferBlue ? COLORS.goalkeeper_blue : COLORS.goalkeeper)
 	        : kind === 'player_rival'
 	          ? COLORS.rival
 	          : COLORS.local;
       const label = player?.number ? String(player.number).slice(0, 2) : (kind === 'goalkeeper_local' ? 'GK' : 'J');
-      const playerName = safeText(
-        player?.name,
-        kind === 'goalkeeper_local' ? 'Portero' : (kind === 'player_rival' ? 'Rival' : 'Jugador'),
-      );
+	      const playerName = safeText(
+	        preferredName,
+	        kind === 'goalkeeper_local' ? 'Portero' : (kind === 'player_rival' ? 'Rival' : 'Jugador'),
+	      );
       const displayName = shortPlayerName(playerName);
       const initials = safeText(playerName, kind === 'player_rival' ? 'Rival' : 'Jugador')
         .split(/\s+/)
@@ -14075,74 +14215,97 @@
 		          });
 		          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
-			        } else if (style === 'jersey') {
-			          const shirtDef = JERSEY_PATH_DEF;
-			          const shirtPath = new fabric.Path(shirtDef, {
-			            left: 0,
-			            top: 0,
-			            originX: 'center',
-		            originY: 'center',
-		            fill: effectiveBase,
-		            stroke: 'rgba(255,255,255,0.92)',
-		            strokeWidth: 2,
-		            shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
-		          });
-		          shirtPath.data = { role: 'token_base' };
-		          tokenParts.push(shirtPath);
-			          if (!isAway && !isGoalkeeper) {
-			            const stripeWidth = 8;
-			            const stripeCount = 7;
-			            const start = -24 + (stripeWidth / 2);
-		            const stripes = [];
-		            for (let i = 0; i < stripeCount; i += 1) {
-		              const isStripe = i % 2 === 0;
-		              const stripe = new fabric.Rect({
-		                left: start + (i * stripeWidth),
-		                top: 0,
-		                width: stripeWidth,
-		                height: 64,
-		                fill: isStripe ? stripeColor : effectiveBase,
-		                originX: 'center',
-		                originY: 'center',
-		              });
-		              stripe.data = { role: isStripe ? 'token_stripe' : 'token_stripe_base' };
-		              stripes.push(stripe);
-		            }
-		            const stripeGroup = new fabric.Group(stripes, {
-		              originX: 'center',
-		              originY: 'center',
-		              left: 0,
-		              top: 0,
-		              selectable: false,
-		              evented: false,
-		            });
-		            stripeGroup.clipPath = new fabric.Path(shirtDef, {
-		              left: 0,
-		              top: 0,
-		              originX: 'center',
-		              originY: 'center',
-		            });
-			            stripeGroup.data = { role: 'token_stripes' };
-			            tokenParts.push(stripeGroup);
-			          }
-			          const collarPath = new fabric.Path(JERSEY_COLLAR_DEF, {
-			            left: 0,
-			            top: 0,
-			            originX: 'center',
-			            originY: 'center',
-			            fill: 'rgba(15,23,42,0.22)',
-			            stroke: 'rgba(255,255,255,0.18)',
-			            strokeWidth: 1,
-			            selectable: false,
-			            evented: false,
-			          });
-			          collarPath.data = { role: 'token_collar' };
-			          tokenParts.push(collarPath);
-				          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-				            originX: 'center',
-				            originY: 'center',
-				            left: 0,
-			            top: -2,
+				        } else if (style === 'jersey') {
+				          const canUseKit2d = !isGoalkeeper && kit2dEditorImageEl && (kit2dEditorImageEl.naturalWidth || kit2dEditorImageEl.width);
+				          if (canUseKit2d) {
+				            const naturalW = Number(kit2dEditorImageEl.naturalWidth || kit2dEditorImageEl.width || 1);
+				            const naturalH = Number(kit2dEditorImageEl.naturalHeight || kit2dEditorImageEl.height || 1);
+				            const desired = 54; // similar al SVG (56px) usado en el banco.
+				            const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
+				            const imgObj = new fabric.Image(kit2dEditorImageEl, {
+				              left: 0,
+				              top: 0,
+				              originX: 'center',
+				              originY: 'center',
+				              scaleX: baseScale,
+				              scaleY: baseScale,
+				              selectable: false,
+				              evented: false,
+				              shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+				            });
+				            try { imgObj.objectCaching = false; } catch (e) { /* ignore */ }
+				            try { imgObj.noScaleCache = true; } catch (e) { /* ignore */ }
+				            imgObj.data = { role: 'token_kit2d' };
+				            tokenParts.push(imgObj);
+				          } else {
+				            const shirtDef = JERSEY_PATH_DEF;
+				            const shirtPath = new fabric.Path(shirtDef, {
+				              left: 0,
+				              top: 0,
+				              originX: 'center',
+				              originY: 'center',
+				              fill: effectiveBase,
+				              stroke: 'rgba(255,255,255,0.92)',
+				              strokeWidth: 2,
+				              shadow: 'rgba(15,23,42,0.28) 0 6px 14px',
+				            });
+				            shirtPath.data = { role: 'token_base' };
+				            tokenParts.push(shirtPath);
+				            if (!isAway && !isGoalkeeper) {
+				              const stripeWidth = 8;
+				              const stripeCount = 7;
+				              const start = -24 + (stripeWidth / 2);
+				              const stripes = [];
+				              for (let i = 0; i < stripeCount; i += 1) {
+				                const isStripe = i % 2 === 0;
+				                const stripe = new fabric.Rect({
+				                  left: start + (i * stripeWidth),
+				                  top: 0,
+				                  width: stripeWidth,
+				                  height: 64,
+				                  fill: isStripe ? stripeColor : effectiveBase,
+				                  originX: 'center',
+				                  originY: 'center',
+				                });
+				                stripe.data = { role: isStripe ? 'token_stripe' : 'token_stripe_base' };
+				                stripes.push(stripe);
+				              }
+				              const stripeGroup = new fabric.Group(stripes, {
+				                originX: 'center',
+				                originY: 'center',
+				                left: 0,
+				                top: 0,
+				                selectable: false,
+				                evented: false,
+				              });
+				              stripeGroup.clipPath = new fabric.Path(shirtDef, {
+				                left: 0,
+				                top: 0,
+				                originX: 'center',
+				                originY: 'center',
+				              });
+				              stripeGroup.data = { role: 'token_stripes' };
+				              tokenParts.push(stripeGroup);
+				            }
+				            const collarPath = new fabric.Path(JERSEY_COLLAR_DEF, {
+				              left: 0,
+				              top: 0,
+				              originX: 'center',
+				              originY: 'center',
+				              fill: 'rgba(15,23,42,0.22)',
+				              stroke: 'rgba(255,255,255,0.18)',
+				              strokeWidth: 1,
+				              selectable: false,
+				              evented: false,
+				            });
+				            collarPath.data = { role: 'token_collar' };
+				            tokenParts.push(collarPath);
+				          }
+					          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+					            originX: 'center',
+					            originY: 'center',
+					            left: 0,
+				            top: -2,
 			            fontSize: 14,
 			            fontWeight: '800',
 			            fill: '#ffffff',
@@ -15607,13 +15770,13 @@
 	      if (kind === 'arrow_dash') {
 	        return (left, top) => buildArrowGroup(left, top, { kind: 'arrow-dash', dash: [12, 8] });
 	      }
-	      if (kind === 'arrow_dot') {
-	        return (left, top) => buildArrowGroup(left, top, { kind: 'arrow-dot', dash: [2, 10], cap: 'round' });
-	      }
-		      if (kind === 'arrow_curve') {
-		        return (left, top) => new fabric.Group([
-		          new fabric.Path('M -50 22 Q -8 -30 46 10', {
-	            left: 0,
+		      if (kind === 'arrow_dot') {
+		        return (left, top) => buildArrowGroup(left, top, { kind: 'arrow-dot', dash: [2, 10], cap: 'round' });
+		      }
+			      if (kind === 'arrow_curve') {
+			        return (left, top) => new fabric.Group([
+			          new fabric.Path('M -50 22 Q -8 -30 46 10', {
+		            left: 0,
 	            top: 0,
 	            originX: 'center',
 	            originY: 'center',
@@ -15622,14 +15785,31 @@
 	            strokeWidth: 4,
 	            strokeLineCap: 'round',
 	            strokeLineJoin: 'round',
-	          }),
-	          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
-	        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
-	      }
-      if (kind === 'shape_circle') {
-        return (left, top) => new fabric.Circle({
-          left, top, originX: 'center', originY: 'center',
-          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle' },
+		          }),
+		          new fabric.Triangle({ left: 58, top: 10, width: 18, height: 18, angle: 122, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: 1 } });
+		      }
+		      if (kind === 'arrow_curve_left') {
+		        // Mismo objeto (arrow-curve) pero curvado hacia el lado contrario desde el inicio.
+		        return (left, top) => new fabric.Group([
+		          new fabric.Path('M -50 -22 Q -8 30 46 -10', {
+		            left: 0,
+		            top: 0,
+		            originX: 'center',
+		            originY: 'center',
+		            stroke: '#22d3ee',
+		            fill: '',
+		            strokeWidth: 4,
+		            strokeLineCap: 'round',
+		            strokeLineJoin: 'round',
+		          }),
+		          new fabric.Triangle({ left: 58, top: -10, width: 18, height: 18, angle: 238, fill: '#22d3ee', originX: 'center', originY: 'center' }),
+		        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'arrow-curve', curve_sign: -1 } });
+		      }
+	      if (kind === 'shape_circle') {
+	        return (left, top) => new fabric.Circle({
+	          left, top, originX: 'center', originY: 'center',
+	          radius: 46, fill: 'rgba(34,211,238,0.12)', stroke: '#22d3ee', strokeWidth: 3, data: { kind: 'shape-circle' },
         });
       }
       if (kind === 'shape_square') {
@@ -15834,6 +16014,21 @@
 		    window.addEventListener('webstats:tpad:assistant-board', (event) => {
 		      try { applyAssistantBoardTemplate(event?.detail || {}); } catch (e) { /* ignore */ }
 		    });
+
+		    // Integración (scouting): helpers para que la plantilla (HTML) pueda crear fichas del rival
+		    // desde el panel “Rival y jugadores”, reutilizando el motor del Tactical Pad.
+		    // Se mantienen como API privada (prefijo __webstats) para no acoplar frontend externo.
+		    window.__webstatsTpadRegisterDraggableButton = (button, payloadBuilder) => {
+		      try { registerDraggableButton(button, payloadBuilder); } catch (e) { /* ignore */ }
+		    };
+		    window.__webstatsTpadActivateRivalToken = (name, number) => {
+		      const safeName = safeText(name || '', 'Rival');
+		      const safeNumber = safeText(number || '').slice(0, 6);
+		      const pseudo = { name: safeName, number: safeNumber };
+		      try {
+		        activateFactory(playerTokenFactory('player_rival', pseudo, { style: 'disk' }), safeName || 'un jugador rival', 'player_rival');
+		      } catch (e) { /* ignore */ }
+		    };
 
 			    const restoreState = () => {
 		      let parsed = { version: '5.3.0', objects: [] };
@@ -16097,52 +16292,58 @@
 		        button.type = 'button';
 		        button.className = 'player-token-bank';
 		        button.dataset.playerId = String(player.id || '');
-		        const name = document.createElement('span');
-		        name.className = 'token-name';
-		        name.textContent = shortPlayerName(player.name);
+			        const name = document.createElement('span');
+			        name.className = 'token-name';
+			        name.textContent = shortPlayerName(safeText(player?.nickname || player?.name));
 	        const style = normalizeTokenStyle(tokenGlobalStyle);
 	        const badge = document.createElement('span');
 	        const number = document.createElement('span');
 	        number.className = 'token-number';
 	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
 
-	        if (style === 'jersey') {
-	          const clipId = `tpad-shirt-clip-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
-	          const gkGradId = `tpad-gk-grad-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
-	          badge.className = 'token-jersey';
-	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
-	          badge.innerHTML = `
-	            <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
-		              <defs>
-		                <clipPath id="${clipId}">
-		                  <path d="${JERSEY_PATH_DEF}"></path>
-		                </clipPath>
-		                <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
-		                  <stop offset="0" stop-color="#1d4ed8"></stop>
-		                  <stop offset="1" stop-color="#0ea5e9"></stop>
-	                </linearGradient>
-	              </defs>
-		              <g clip-path="url(#${clipId})">
-		                <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
-		                ${kind === 'goalkeeper_local' ? '' : `
-		                  <g>
-		                    <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-		                    <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-		                    <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-		                    <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-		                    <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-		                    <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
-		                    <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
-		                  </g>
-		                `}
-		                <path d="${JERSEY_COLLAR_DEF}" fill="rgba(15,23,42,0.22)" stroke="rgba(255,255,255,0.18)" stroke-width="1"></path>
-		              </g>
-		              <path d="${JERSEY_PATH_DEF}"
-		                    fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
-		            </svg>
-		          `.trim();
-	          badge.appendChild(number);
-	        } else if (style === 'photo') {
+		        if (style === 'jersey') {
+		          const clipId = `tpad-shirt-clip-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+		          const gkGradId = `tpad-gk-grad-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
+		          badge.className = 'token-jersey';
+		          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
+		          const useKit2d = kind !== 'goalkeeper_local' && !!kit2dEditorDataUrl;
+		          if (useKit2d) {
+		            badge.classList.add('is-kit2d');
+		            badge.innerHTML = `<img class="token-jersey-img" src="${escapeHtml(kit2dEditorDataUrl)}" alt="" aria-hidden="true" />`;
+		          } else {
+		            badge.innerHTML = `
+		              <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
+			                <defs>
+			                  <clipPath id="${clipId}">
+			                    <path d="${JERSEY_PATH_DEF}"></path>
+			                  </clipPath>
+			                  <linearGradient id="${gkGradId}" x1="0" y1="0" x2="1" y2="1">
+			                    <stop offset="0" stop-color="#1d4ed8"></stop>
+			                    <stop offset="1" stop-color="#0ea5e9"></stop>
+			                  </linearGradient>
+			                </defs>
+			                <g clip-path="url(#${clipId})">
+			                  <rect x="-28" y="-32" width="56" height="64" fill="${kind === 'goalkeeper_local' ? `url(#${gkGradId})` : '#f8fafc'}"></rect>
+			                  ${kind === 'goalkeeper_local' ? '' : `
+			                    <g>
+			                      <rect x="-28" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+			                      <rect x="-20" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+			                      <rect x="-12" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+			                      <rect x="-4" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+			                      <rect x="4" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+			                      <rect x="12" y="-32" width="8" height="64" fill="#f8fafc"></rect>
+			                      <rect x="20" y="-32" width="8" height="64" fill="#0f7a35"></rect>
+			                    </g>
+			                  `}
+			                  <path d="${JERSEY_COLLAR_DEF}" fill="rgba(15,23,42,0.22)" stroke="rgba(255,255,255,0.18)" stroke-width="1"></path>
+			                </g>
+			                <path d="${JERSEY_PATH_DEF}"
+			                      fill="none" stroke="rgba(255,255,255,0.92)" stroke-width="2"></path>
+			              </svg>
+		            `.trim();
+		          }
+		          badge.appendChild(number);
+		        } else if (style === 'photo') {
 	          badge.className = 'token-photo';
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
 	          const photoUrl = resolvePlayerPhotoUrl(player?.photo_url);
@@ -16151,7 +16352,7 @@
 	          } else {
 	            const initials = document.createElement('span');
 	            initials.className = 'token-initials';
-	            initials.textContent = computeInitials(player?.name, number.textContent);
+		            initials.textContent = computeInitials(safeText(player?.nickname || player?.name), number.textContent);
 	            badge.appendChild(initials);
 	          }
 	          badge.appendChild(number);

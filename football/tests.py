@@ -8386,6 +8386,12 @@ class HealthzEndpointTests(TestCase):
         self.assertIn('checks', payload)
 
 
+class Kit2DGeneratorEndpointTests(TestCase):
+    def test_kit2d_generate_requires_login(self):
+        resp = self.client.post('/api/kits/2d/generate/')
+        self.assertIn(resp.status_code, (302, 401, 403))
+
+
 class TeamCoverGuardrailTests(TestCase):
     @override_settings(MEDIA_URL='/media-test/')
     def test_cover_image_is_ignored_in_multi_team_when_missing_updated_at(self):

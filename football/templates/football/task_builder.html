@@ -5,18 +5,18 @@
 	    <meta charset="UTF-8" />
 		    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <script>
-      window.__webstatsTaskLandingGo = function(href) {
-        try {
-          if (href) { window.location.href = href; }
-        } catch (e) {}
-        return false;
-      };
-    </script>
-		    {% include 'football/pwa_head.html' %}
-		    <style>
+	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    <script>
+	      window.__webstatsTaskLandingGo = function(href) {
+	        try {
+	          if (href) { window.location.href = href; }
+	        } catch (e) {}
+	        return false;
+	      };
+	    </script>
+			    {% include 'football/pwa_head.html' %}
+			    <style>
 	      :root {
 	        --bg: var(--prod-bg, #071320);
 	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
@@ -665,6 +665,10 @@
         gap: 0.3rem;
         background: rgba(255, 255, 255, 0.04);
       }
+      .player-bank.is-opponent button.player-token-bank {
+        background: rgba(239, 68, 68, 0.06);
+        border-color: rgba(239, 68, 68, 0.18);
+      }
       .player-bank button.player-token-bank .token-name {
         display: block;
         max-width: 100%;
@@ -691,6 +695,14 @@
         place-items: center;
         box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
       }
+      .player-bank.is-opponent button.player-token-bank .token-disk {
+        background:
+          repeating-linear-gradient(
+            90deg,
+            #ef4444 0 8px,
+            #fff1f2 8px 16px
+          );
+      }
       .player-bank button.player-token-bank .token-disk.is-goalkeeper {
         background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.42), transparent 38%),
           linear-gradient(135deg, #1d4ed8, #0ea5e9);
@@ -716,6 +728,17 @@
         width: 56px;
         height: 56px;
         display: block;
+      }
+      .player-bank button.player-token-bank .token-jersey.is-kit2d {
+        background: transparent;
+      }
+      .player-bank button.player-token-bank .token-jersey img.token-jersey-img {
+        width: 56px;
+        height: 56px;
+        display: block;
+        object-fit: contain;
+        z-index: 1;
+        filter: drop-shadow(0 8px 14px rgba(2, 6, 23, 0.28));
       }
       .player-bank button.player-token-bank .token-photo {
         background-size: cover;
@@ -1887,11 +1910,19 @@
         padding-right: 2px;
       }
       body.tactics-mode .pitch-side {
-        position: relative;
+        position: fixed;
+        left: calc(14px + env(safe-area-inset-left));
+        right: calc(14px + env(safe-area-inset-right));
+        bottom: calc(14px + env(safe-area-inset-bottom));
         top: auto;
-        max-height: none;
-        overflow: visible;
-        padding-right: 0;
+        max-height: min(520px, calc(100vh - 160px));
+        overflow: auto;
+        padding: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        z-index: 1450;
         display: none;
       }
       body.tactics-mode.tactics-tools-open .pitch-side {
@@ -3661,8 +3692,8 @@
             {% endif %}
           </p>
         </div>
-			        <div class="actions">
-	              {% if analysis_item_mode %}
+				        <div class="actions">
+		              {% if analysis_item_mode %}
 	              <button
 	                type="button"
 	                class="button primary"
@@ -3670,11 +3701,24 @@
 	                title="Guardar pizarra"
 	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 	              >Guardar</button>
-	              {% elif not tactics_mode %}
-	              <button
-	                type="button"
-	                class="button primary"
-	                id="task-builder-save-top"
+		              {% elif tactics_mode %}
+		              <button
+		                type="button"
+		                class="button primary"
+		                id="tactics-save-top"
+		                title="Guardar táctica (fija) en Playbook"
+		              >Guardar táctica</button>
+		              <button
+		                type="button"
+		                class="button"
+		                id="tactics-save-clip-top"
+		                title="Guardar clip (simulación) en Playbook"
+		              >Guardar clip</button>
+		              {% elif not tactics_mode %}
+		              <button
+		                type="button"
+		                class="button primary"
+		                id="task-builder-save-top"
 	                title="{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}"
 	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 	              >{% if task %}Guardar tarea{% else %}Crear tarea{% endif %}</button>
@@ -4169,8 +4213,8 @@
 						                            <label style="display:flex; gap:10px; align-items:center;" id="task-sim-clip-dest-wrap" hidden>
 						                              Destino
 						                              <select id="task-sim-clip-dest">
-						                                <option value="local" selected>Local</option>
-						                                <option value="team">Playbook equipo</option>
+						                                <option value="local" {% if not tactics_mode %}selected{% endif %}>Local</option>
+						                                <option value="team" {% if tactics_mode %}selected{% endif %}>Playbook equipo</option>
 						                                {% if user.is_superuser %}
 						                                <option value="system">Playbook sistema</option>
 						                                {% endif %}
@@ -5027,11 +5071,12 @@
 	                  <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha continua" aria-label="Flecha continua"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha continua</span></button>
 	                  <button type="button" class="tool-icon" data-add="arrow_thick" title="Flecha gruesa" aria-label="Flecha gruesa"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha gruesa</span></button>
 	                  <button type="button" class="tool-icon" data-add="arrow_dash" title="Flecha discontinua" aria-label="Flecha discontinua"><span class="tool-emoji" aria-hidden="true">➟</span><span class="sr-only">Flecha discontinua</span></button>
-	                  <button type="button" class="tool-icon" data-add="arrow_dot" title="Flecha de puntos" aria-label="Flecha de puntos"><span class="tool-emoji" aria-hidden="true">➟</span><span class="sr-only">Flecha de puntos</span></button>
-	                  <button type="button" class="tool-icon" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Flecha curva</span></button>
-	                  <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión (táctica)" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">🟥</span><span class="sr-only">Línea de presión</span></button>
-	                  <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva (táctica)" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">🟦</span><span class="sr-only">Línea defensiva</span></button>
-	                  <button type="button" class="tool-icon" data-add="line_offside" title="Línea fuera de juego (táctica)" aria-label="Fuera de juego"><span class="tool-emoji" aria-hidden="true">🚫</span><span class="sr-only">Fuera de juego</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_dot" title="Flecha de puntos" aria-label="Flecha de puntos"><span class="tool-emoji" aria-hidden="true">➟</span><span class="sr-only">Flecha de puntos</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Flecha curva</span></button>
+		                  <button type="button" class="tool-icon" data-add="arrow_curve_left" title="Flecha curva (lado contrario)" aria-label="Flecha curva (lado contrario)"><span class="tool-emoji" aria-hidden="true">↩️</span><span class="sr-only">Flecha curva (lado contrario)</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión (táctica)" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">🟥</span><span class="sr-only">Línea de presión</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva (táctica)" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">🟦</span><span class="sr-only">Línea defensiva</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_offside" title="Línea fuera de juego (táctica)" aria-label="Fuera de juego"><span class="tool-emoji" aria-hidden="true">🚫</span><span class="sr-only">Fuera de juego</span></button>
 	                  <button type="button" class="tool-icon" data-add="measure" title="Regla (mide distancias al ajustar)" aria-label="Medir"><span class="tool-emoji" aria-hidden="true">📏</span><span class="sr-only">Medir</span></button>
 	                  <button type="button" data-add="marker_start" title="Marcador inicio">I</button>
 	                  <button type="button" data-add="marker_pass" title="Marcador pase">P</button>
@@ -5141,6 +5186,13 @@
                     <button type="button" data-global-token-style="photo" title="Foto" aria-label="Foto">Foto</button>
                   </div>
                 <div class="player-bank" id="task-player-bank"></div>
+                <div class="section" id="task-opponent-bank-section" hidden style="margin-top:0.9rem;">
+                  <div class="player-bank-head">
+                    <h3 style="margin:0;">Plantilla rival</h3>
+                    <div class="meta" style="opacity:0.9;">Arrastra al campo o pulsa para activar inserción.</div>
+                  </div>
+                  <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
+                </div>
               </div>
               </div>
               </div>
@@ -6559,6 +6611,8 @@
 					            const filter = document.getElementById('task-opponent-player-filter');
 					            const statusEl = document.getElementById('task-opponent-status');
 					            const tbody = document.getElementById('task-opponent-roster-body');
+                      const tokenBank = document.getElementById('task-opponent-token-bank');
+                      const tokenBankSection = document.getElementById('task-opponent-bank-section');
 					            const hiddenTeamId = document.getElementById('draw-task-opponent-team-id');
 					            const hiddenName = document.getElementById('draw-task-opponent-name');
 					            const hiddenCode = document.getElementById('draw-task-opponent-team-code');
@@ -6596,6 +6650,76 @@
 					              });
 					              return norm.slice(0, 40);
 					            };
+
+                      const shortTokenName = (name) => {
+                        const raw = String(name || '').trim();
+                        if (!raw) return '';
+                        const parts = raw.split(/\s+/).filter(Boolean);
+                        const pick = parts.length >= 2 ? parts.slice(-2).join(' ') : raw;
+                        return pick.slice(0, 22);
+                      };
+
+                      const renderTokenBank = (items) => {
+                        if (!tokenBank) return;
+                        const list = Array.isArray(items) ? items : [];
+                        if (!list.length) {
+                          tokenBank.textContent = '';
+                          tokenBank.hidden = true;
+                          try { if (tokenBankSection) tokenBankSection.hidden = true; } catch (e) {}
+                          return;
+                        }
+                        try { if (tokenBankSection) tokenBankSection.hidden = false; } catch (e) {}
+                        tokenBank.hidden = false;
+                        tokenBank.textContent = '';
+                        list.slice(0, 60).forEach((p) => {
+                          const name = String(p?.name || '').trim();
+                          if (!name) return;
+                          const num = String(p?.number || '').trim().slice(0, 6);
+                          const btn = document.createElement('button');
+                          btn.type = 'button';
+                          btn.className = 'player-token-bank';
+                          btn.setAttribute('title', name);
+                          const label = document.createElement('span');
+                          label.className = 'token-name';
+                          label.textContent = shortTokenName(name) || name;
+                          const badge = document.createElement('span');
+                          badge.className = 'token-disk';
+                          const number = document.createElement('span');
+                          number.className = 'token-number';
+                          number.textContent = num ? num.slice(0, 2) : 'R';
+                          badge.appendChild(number);
+                          btn.appendChild(label);
+                          btn.appendChild(badge);
+
+                          // Click → activa inserción en el Tactical Pad (si la API está disponible).
+                          btn.addEventListener('click', () => {
+                            try {
+                              if (window.__webstatsTpadActivateRivalToken) {
+                                window.__webstatsTpadActivateRivalToken(name, num);
+                              }
+                            } catch (e) {}
+                          });
+                          // Drag & drop → coloca directamente en el campo.
+                          const wireDnD = () => {
+                            try {
+                              if (!window.__webstatsTpadRegisterDraggableButton) return false;
+                              window.__webstatsTpadRegisterDraggableButton(btn, () => ({
+                                kind: 'player_rival',
+                                playerName: name,
+                                playerNumber: num,
+                              }));
+                              return true;
+                            } catch (e) {
+                              return false;
+                            }
+                          };
+                          if (!wireDnD()) {
+                            // Si el Tactical Pad termina de inicializar después, lo reintentamos una vez.
+                            window.setTimeout(wireDnD, 800);
+                          }
+                          tokenBank.appendChild(btn);
+                        });
+                      };
 					            const writeSelectedPlayers = (players) => {
 					              const list = Array.isArray(players) ? players : [];
 					              try {
@@ -6629,6 +6753,7 @@
 					              const q = String(filter?.value || '').trim().toLowerCase();
 					              const rows = Array.isArray(items) ? items : [];
 					              const visible = q ? rows.filter((x) => String(x?.name || '').toLowerCase().includes(q)) : rows;
+                        try { renderTokenBank(visible); } catch (e) {}
 
 					              tbody.textContent = '';
 					              if (!visible.length) {
