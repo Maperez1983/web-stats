@@ -8931,25 +8931,40 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
         """
         if not isinstance(obj, dict):
             return []
-        direct_keys = ('squad', 'plantilla', 'jugadores', 'players', 'roster')
+        direct_keys = ('plantilla', 'jugadores', 'players', 'roster', 'squad')
+
+        def _score_list(lst) -> tuple[int, int]:
+            # (jugadores válidos, longitud)
+            if not isinstance(lst, list):
+                return (0, 0)
+            valid = sum(1 for x in lst if _looks_like_player_row(x))
+            return (valid, len(lst))
+
+        candidates: list[list] = []
+
+        # 1) Claves directas.
         for key in direct_keys:
             value = obj.get(key)
             if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
-                return value
-        # Búsqueda en 2 niveles (sin recursión profunda para evitar payloads enormes).
-        best = []
+                candidates.append(value)
+
+        # 2) Búsqueda en 2 niveles (sin recursión profunda para evitar payloads enormes).
         for value in obj.values():
             if isinstance(value, list) and any(_looks_like_player_row(x) for x in value):
-                if len(value) > len(best):
-                    best = value
+                candidates.append(value)
                 continue
             if isinstance(value, dict):
                 for subkey in direct_keys:
                     subvalue = value.get(subkey)
                     if isinstance(subvalue, list) and any(_looks_like_player_row(x) for x in subvalue):
-                        if len(subvalue) > len(best):
-                            best = subvalue
-        return best
+                        candidates.append(subvalue)
+
+        if not candidates:
+            return []
+
+        # Preferimos la lista con más filas válidas; en empate, la más larga.
+        candidates.sort(key=lambda lst: _score_list(lst), reverse=True)
+        return candidates[0]
 
     squad = _extract_squad(payload) or []
     if not isinstance(squad, list):
@@ -8964,12 +8979,21 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
         )
 
     roster: list[dict] = []
+    seen_keys = set()
     for row in squad:
         if not isinstance(row, dict):
             continue
         name = (row.get('nombre') or row.get('name') or row.get('nombre_jugador') or '').strip()
         if not name:
             continue
+        code_key = str(row.get('codigo_jugador') or row.get('code') or row.get('id') or '').strip()
+        if code_key:
+            uniq = f'code:{code_key}'
+        else:
+            uniq = f'name:{normalize_label(name)}'
+        if uniq in seen_keys:
+            continue
+        seen_keys.add(uniq)
         position = (row.get('posicion') or row.get('posicion_jugador') or row.get('position') or '').strip()
         dorsal_raw = (
             row.get('dorsal')
@@ -8995,7 +9019,7 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
                 'yellow_cards': 0,
                 'red_cards': 0,
                 'dorsal': dorsal,
-                'code': str(row.get('codigo_jugador') or row.get('code') or row.get('id') or '').strip(),
+                'code': code_key,
             }
         )
 
