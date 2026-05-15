@@ -1,12 +1,20 @@
 import os
 import re
+import unicodedata
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 
 def _norm(text: str) -> str:
-    return re.sub(r'[^a-z0-9]+', '', str(text or '').strip().lower())
+    raw = str(text or '').strip().lower()
+    # Quita acentos/diacríticos (Benagalbón -> benagalbon).
+    try:
+        raw = unicodedata.normalize('NFD', raw)
+        raw = ''.join(ch for ch in raw if unicodedata.category(ch) != 'Mn')
+    except Exception:
+        pass
+    return re.sub(r'[^a-z0-9]+', '', raw)
 
 
 class Command(BaseCommand):
@@ -177,8 +185,17 @@ class Command(BaseCommand):
                     found = False
                     if team_code and team_code in codes:
                         found = True
-                    elif normalized_team_name and normalized_team_name in names:
-                        found = True
+                    elif normalized_team_name:
+                        if normalized_team_name in names:
+                            found = True
+                        else:
+                            # Match tolerante (prefijos/sufijos tipo "C.D.", acentos, etc.)
+                            for candidate in names:
+                                if not candidate:
+                                    continue
+                                if normalized_team_name in candidate or candidate in normalized_team_name:
+                                    found = True
+                                    break
 
                     if found:
                         group_label = str(group.get('nombre') or group.get('grupo') or group.get('name') or '').strip() or f'group {group_id}'
