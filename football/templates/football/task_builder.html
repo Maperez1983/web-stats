@@ -6048,35 +6048,83 @@
 		          try { if (statusEl) statusEl.textContent = String(msg || '').trim(); } catch (e) { /* ignore */ }
 		        };
 
-		        const loadOnce = (src, key) => {
-		          if (!src) return Promise.reject(new Error('no-src'));
-		          if (window[key]) return window[key];
-		          window[key] = new Promise((resolve, reject) => {
-		            try {
-		              const existing = Array.from(document.scripts || []).find((s) => String(s.src || '').includes(src.split('?')[0]));
-		              if (existing) { resolve(true); return; }
-		            } catch (e) { /* ignore */ }
-		            const s = document.createElement('script');
-		            s.src = src;
-		            s.defer = true;
-		            s.onload = () => resolve(true);
-		            s.onerror = () => reject(new Error('load-failed'));
-		            document.head.appendChild(s);
-		          });
-		          return window[key];
-		        };
+			        const loadOnce = (src, key, isReady) => {
+			          if (!src) return Promise.reject(new Error('no-src'));
+			          try {
+			            if (typeof isReady === 'function' && isReady()) return Promise.resolve(true);
+			          } catch (e) { /* ignore */ }
+			          if (window[key]) return window[key];
+			          window[key] = new Promise((resolve, reject) => {
+			            try {
+			              const base = src.split('?')[0];
+			              const existing = Array.from(document.scripts || []).find((s) => String(s.src || '').includes(base));
+			              if (existing) {
+			                try {
+			                  if (typeof isReady === 'function' && isReady()) { resolve(true); return; }
+			                } catch (e) { /* ignore */ }
+			                // Si el script existe pero aún no ha ejecutado (defer), esperamos a su load.
+			                try {
+			                  if (existing.__webstatsLoadOncePromise) {
+			                    existing.__webstatsLoadOncePromise.then(resolve).catch(reject);
+			                    return;
+			                  }
+			                } catch (e) { /* ignore */ }
+			                const p = new Promise((res, rej) => {
+			                  let settled = false;
+			                  const done = () => {
+			                    if (settled) return;
+			                    settled = true;
+			                    try { existing.dataset.webstatsLoaded = '1'; } catch (e) { /* ignore */ }
+			                    res(true);
+			                  };
+			                  const fail = () => {
+			                    if (settled) return;
+			                    settled = true;
+			                    rej(new Error('load-failed'));
+			                  };
+			                  try { existing.addEventListener('load', done, { once: true }); } catch (e) { /* ignore */ }
+			                  try { existing.addEventListener('error', fail, { once: true }); } catch (e) { /* ignore */ }
+			                  // Fallback: algunos WebViews no disparan load si ya ocurrió.
+			                  window.setTimeout(() => {
+			                    try {
+			                      // Si no podemos detectar readiness, asumimos que el script existente ya está OK.
+			                      if (typeof isReady !== 'function') { done(); return; }
+			                      if (isReady()) done();
+			                      else fail();
+			                    } catch (e) {
+			                      fail();
+			                    }
+			                  }, 2500);
+			                });
+			                try { existing.__webstatsLoadOncePromise = p; } catch (e) { /* ignore */ }
+			                p.then(resolve).catch(reject);
+			                return;
+			              }
+			            } catch (e) { /* ignore */ }
+			            const s = document.createElement('script');
+			            s.src = src;
+			            s.defer = true;
+			            s.onload = () => {
+			              try { s.dataset.webstatsLoaded = '1'; } catch (e) { /* ignore */ }
+			              resolve(true);
+			            };
+			            s.onerror = () => reject(new Error('load-failed'));
+			            document.head.appendChild(s);
+			          });
+			          return window[key];
+			        };
 
-		        const ensureFabric = () => {
-		          try { if (window.fabric) return Promise.resolve(true); } catch (e) { /* ignore */ }
-		          return loadOnce(fabricSrc, '__webstats_fabric_promise');
-		        };
-		        const ensureTpad = () => loadOnce(tpadSrc, '__webstats_tpad_promise');
+			        const ensureFabric = () => {
+			          try { if (window.fabric) return Promise.resolve(true); } catch (e) { /* ignore */ }
+			          return loadOnce(fabricSrc, '__webstats_fabric_promise', () => !!window.fabric);
+			        };
+			        const ensureTpad = () => loadOnce(tpadSrc, '__webstats_tpad_promise', () => typeof window.initSessionsTacticalPad === 'function');
 
-		        const ensureThree = () => {
-		          try { if (window.THREE) return Promise.resolve(true); } catch (e) { /* ignore */ }
-		          return loadOnce(threeSrc, '__webstats_three_promise');
-		        };
-		        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
+			        const ensureThree = () => {
+			          try { if (window.THREE) return Promise.resolve(true); } catch (e) { /* ignore */ }
+			          return loadOnce(threeSrc, '__webstats_three_promise', () => !!window.THREE);
+			        };
+			        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
 
 		        const ensureEditorStack = () => {
 		          setStatus('Cargando editor…');
@@ -6126,12 +6174,18 @@
 		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-step-add', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-step-play', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-step-duplicate', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('task-step-remove', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-playbook-open-video', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-playbook-export-pack', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-step-add', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-step-play', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-step-duplicate', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-step-remove', ensureEditorStack, 'webstatsEditorReady');
+			        // Táctica: botones superiores (Playbook/Herramientas/Simulador + guardado) también deben cargar el editor.
+			        hookClick('task-tactics-panel-toggle', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-tactics-tools-toggle', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('task-tactics-sim-open', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('tactics-save-top', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('tactics-save-clip-top', ensureEditorStack, 'webstatsEditorReady');
 
 		        // Heurística: si el usuario está realmente en el editor (no solo leyendo),
 		        // precargamos en idle para que el primer toque sea instantáneo.

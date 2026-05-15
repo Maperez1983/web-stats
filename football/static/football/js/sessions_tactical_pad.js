@@ -773,12 +773,17 @@
     return new XMLSerializer().serializeToString(doc);
   };
 
-  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
-    try {
-    const form = document.getElementById('task-builder-form');
-    if (!form) return;
-    // Limpia el marcador del último error para evitar mensajes “fantasma” tras una recarga.
-    try { window.localStorage.removeItem('webstats:tpad:last_error'); } catch (e) { /* ignore */ }
+	  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
+	    try {
+	    const form = document.getElementById('task-builder-form');
+	    if (!form) return;
+	    // Evita doble inicialización si el editor se carga por lazy-load y luego por navegación/recarga parcial.
+	    try {
+	      if (form.dataset && form.dataset.webstatsTpadInit === '1') return;
+	      if (form.dataset) form.dataset.webstatsTpadInit = '1';
+	    } catch (e) { /* ignore */ }
+	    // Limpia el marcador del último error para evitar mensajes “fantasma” tras una recarga.
+	    try { window.localStorage.removeItem('webstats:tpad:last_error'); } catch (e) { /* ignore */ }
     const coachDictionaryUrl = String(form?.dataset?.coachDictionaryUrl || '').trim()
       || '/static/football/data/coach_dictionary_es_v1.json';
     let coachDictionary = null;
