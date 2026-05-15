@@ -1050,7 +1050,7 @@
 				      if (!isTacticsMode) return;
 				      const enabled = !!open;
 				      document.body.classList.toggle('tactics-tools-open', enabled);
-				      try { window.localStorage.setItem('tpad_tactics_tools_open_v1', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+				      try { window.localStorage.setItem('tpad_tactics_tools_open_v2', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
 				      if (!enabled) {
 				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 				      }
@@ -1061,7 +1061,7 @@
 				      // UX: en Tácticas, si el usuario aún no ha guardado preferencia, abrimos “Herramientas”
 				      // por defecto para que se vean balón / flechas / fichas (evita sensación de "no hay herramientas").
 				      try {
-				        const stored = window.localStorage.getItem('tpad_tactics_tools_open_v1');
+				        const stored = window.localStorage.getItem('tpad_tactics_tools_open_v2');
 				        if (stored === null) setTacticsToolsOpen(true);
 				        else setTacticsToolsOpen(safeText(stored) === '1');
 				      } catch (e) {
