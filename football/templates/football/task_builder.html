@@ -2649,6 +2649,12 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: var(--panel-soft);
       }
+      /* Tácticas: el panel fijo de recursos debe ser opaco para no “tapar”/mezclarse con el campo. */
+      body.tactics-mode .pitch-side.section {
+        background: rgba(8, 18, 30, 0.96);
+        border-color: rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(12px);
+      }
       .section h3 {
         margin: 0 0 0.7rem;
         font-size: 0.75rem;
