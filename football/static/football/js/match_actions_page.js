@@ -2891,6 +2891,31 @@ const urlWithMatchId = (baseUrl) => {
 			        pendingSubstitution.nextPick = 'out';
 			      };
 		      let subTapModeActive = false;
+		      // iOS/WKWebView: algunos taps no disparan `click` o lo disparan tarde/doble.
+		      // Usamos `pointerup/touchend` + un throttle para mejorar la fiabilidad del registro.
+		      const bindFastTap = (el, handler, { throttleMs = 360 } = {}) => {
+		        if (!el || typeof handler !== 'function') return;
+		        let lastTapAt = 0;
+		        const wrapped = (event) => {
+		          const now = Date.now();
+		          // Evita doble ejecución (touchend -> click).
+		          if (now - lastTapAt < throttleMs) {
+		            if (event && (event.type === 'click' || event.type === 'pointerup' || event.type === 'touchend')) {
+		              try { event.preventDefault(); } catch (e) {}
+		              try { event.stopPropagation?.(); } catch (e) {}
+		              return;
+		            }
+		          }
+		          lastTapAt = now;
+		          try { event?.preventDefault?.(); } catch (e) {}
+		          try { event?.stopPropagation?.(); } catch (e) {}
+		          handler(event);
+		        };
+		        el.addEventListener('click', wrapped);
+		        el.addEventListener('pointerup', wrapped);
+		        // `passive:false` para poder preventDefault en iOS.
+		        el.addEventListener('touchend', wrapped, { passive: false });
+		      };
 			      const renderSubTapSummary = () => {
 		        if (!playerQuickSubsSummaryEl) return;
 		        if (!subTapModeActive || activeStage !== 'live') {
@@ -2928,7 +2953,7 @@ const urlWithMatchId = (baseUrl) => {
 			        renderSubTapSummary();
 			      };
 			      if (playerQuickSubsToggleBtn) {
-			        playerQuickSubsToggleBtn.addEventListener('click', () => {
+			        bindFastTap(playerQuickSubsToggleBtn, () => {
 			          if (activeStage !== 'live') {
 			            showPageStatus('Las sustituciones se registran en vivo.', 'warning', 3200);
 			            return;
@@ -2940,7 +2965,7 @@ const urlWithMatchId = (baseUrl) => {
 			        });
 			      }
 				      if (subsModeToggleBtn) {
-				        subsModeToggleBtn.addEventListener('click', () => {
+				        bindFastTap(subsModeToggleBtn, () => {
 				          if (activeStage !== 'live') {
 				            showPageStatus('Las sustituciones se registran en vivo.', 'warning', 3200);
 				            return;
@@ -4031,12 +4056,12 @@ const urlWithMatchId = (baseUrl) => {
 	          try { liveController?.redoLastUndo?.(); } catch (e) {}
 	        });
 	      }
-		      playerQuickButtons.forEach((btn) => {
-		        btn.addEventListener('click', async () => {
-	          if (activeStage !== 'live') {
-	            showPageStatus('Las tarjetas se registran en vivo.', 'warning', 3200);
-	            return;
-	          }
+			      playerQuickButtons.forEach((btn) => {
+			        bindFastTap(btn, async () => {
+		          if (activeStage !== 'live') {
+		            showPageStatus('Las tarjetas se registran en vivo.', 'warning', 3200);
+		            return;
+		          }
 	          if (!selectedPlayerId) {
 	            showPageStatus('Selecciona primero un jugador.', 'warning', 3200);
 	            return;
@@ -4118,12 +4143,12 @@ const urlWithMatchId = (baseUrl) => {
 	              data.duplicate ? 'warning' : 'success',
 	              2600,
 	            );
-	          } catch (err) {
-	            console.error(err);
-	            showPageStatus('Error registrando tarjeta.', 'warning', 4200);
-	          }
-	        });
-	      });
+		          } catch (err) {
+		            console.error(err);
+		            showPageStatus('Error registrando tarjeta.', 'warning', 4200);
+		          }
+		        });
+		      });
       updateCloseSummary();
       updatePlayerQuickPanel();
 
