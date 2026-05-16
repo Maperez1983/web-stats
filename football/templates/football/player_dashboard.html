@@ -640,11 +640,11 @@
 		      })();
 		    </script>
         <script>
-          (() => {
-            const grid = document.getElementById('playersGrid');
-            const sortBy = document.getElementById('sortBy');
-            const sortDirBtn = document.getElementById('sortDir');
-            if (!grid || !sortBy || !sortDirBtn) return;
+	          (() => {
+	            const grid = document.getElementById('playersGrid');
+	            const sortBy = document.getElementById('sortBy');
+	            const sortDirBtn = document.getElementById('sortDir');
+	            if (!grid || !sortBy || !sortDirBtn) return;
 
             const storageKey = 'player_dash_sort:v1';
             const readPref = () => {
@@ -681,22 +681,23 @@
               }
             };
 
-            const applySort = () => {
-              const key = String(sortBy.value || 'minutes');
-              const dsKey = keyToDataset(key);
-              const cards = Array.from(grid.querySelectorAll('.card'));
-              const visible = cards.filter((c) => c.style.display !== 'none');
-              visible.sort((a, b) => {
-                const av = parseNum(a.dataset[dsKey]);
-                const bv = parseNum(b.dataset[dsKey]);
-                if (bv !== av) return dir * (bv - av);
-                const an = String(a.dataset.playerName || '');
-                const bn = String(b.dataset.playerName || '');
-                return an.localeCompare(bn, 'es', { sensitivity: 'base' });
-              });
-              visible.forEach((c) => grid.appendChild(c));
-              writePref({ key, dir });
-            };
+	            const applySort = () => {
+	              const key = String(sortBy.value || 'minutes');
+	              const dsKey = keyToDataset(key);
+	              const cards = Array.from(grid.querySelectorAll('.card'));
+	              const visible = cards.filter((c) => c.style.display !== 'none');
+	              visible.sort((a, b) => {
+	                const av = parseNum(a.dataset[dsKey]);
+	                const bv = parseNum(b.dataset[dsKey]);
+	                // dir: -1 => desc (mayor primero), +1 => asc (menor primero)
+	                if (bv !== av) return dir * (av - bv);
+	                const an = String(a.dataset.playerName || '');
+	                const bn = String(b.dataset.playerName || '');
+	                return an.localeCompare(bn, 'es', { sensitivity: 'base' });
+	              });
+	              visible.forEach((c) => grid.appendChild(c));
+	              writePref({ key, dir });
+	            };
 
             sortBy.addEventListener('change', applySort);
             sortDirBtn.addEventListener('click', () => {
