@@ -17582,7 +17582,11 @@ def player_dashboard_page(request):
         .order_by('-date', '-id')
     )
     if scope != 'all':
-        match_qs = match_qs.filter(context=scope)
+        if scope == Match.CONTEXT_LEAGUE:
+            # Compatibilidad: legacy `context=''` se trata como Liga.
+            match_qs = match_qs.filter(Q(context=Match.CONTEXT_LEAGUE) | Q(context=''))
+        else:
+            match_qs = match_qs.filter(context=scope)
     if scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
         match_qs = match_qs.filter(tournament_name=tournament_filter)
     team_matches = list(match_qs)
@@ -57154,7 +57158,11 @@ def preferred_event_source_by_match(primary_team, scope=None):
         )
     )
     if scope_value and scope_value != 'all':
-        team_events = team_events.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            # Compatibilidad: partidos legacy pueden venir con `context=''` y se consideran Liga.
+            team_events = team_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            team_events = team_events.filter(match__context=scope_value)
     preferred = {}
     registro_match_ids = set(
         team_events.filter(source_file='registro-acciones')
@@ -57650,7 +57658,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
     convocation_base_qs = ConvocationRecord.objects.filter(team=primary_team, match__isnull=False)
     if scope_value != 'all':
-        convocation_base_qs = convocation_base_qs.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            convocation_base_qs = convocation_base_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            convocation_base_qs = convocation_base_qs.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
         convocation_base_qs = convocation_base_qs.filter(match__tournament_name=tournament_filter)
     convocation_seed_by_match_id = {}
@@ -57727,7 +57738,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         )
     )
     if scope_value != 'all':
-        stats_events = stats_events.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            stats_events = stats_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            stats_events = stats_events.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
         stats_events = stats_events.filter(match__tournament_name=tournament_filter)
     events = (
@@ -57968,7 +57982,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         )
     )
     if scope_value != 'all':
-        live_events = live_events.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            live_events = live_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            live_events = live_events.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
         live_events = live_events.filter(match__tournament_name=tournament_filter)
     live_events = (
