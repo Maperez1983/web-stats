@@ -404,7 +404,7 @@
                 <option value="success_rate">Orden: % Éxito</option>
               {% endif %}
             </select>
-            <button type="button" id="sortDir" aria-label="Cambiar dirección de orden" title="Asc/Desc">↓</button>
+            <button type="button" id="sortDir" aria-label="Cambiar dirección de orden" title="Ascendente/Descendente">↓ Desc</button>
             <input id="playerSearch" type="search" placeholder="Buscar jugador" />
             <button type="submit">Aplicar</button>
           </form>
@@ -664,7 +664,7 @@
               if (pref.key && Array.from(sortBy.options).some((o) => o.value === pref.key)) sortBy.value = pref.key;
               if (pref.dir === 1 || pref.dir === -1) dir = pref.dir;
             }
-            sortDirBtn.textContent = dir === -1 ? '↓' : '↑';
+            sortDirBtn.textContent = dir === -1 ? '↓ Desc' : '↑ Asc';
 
             const keyToDataset = (key) => {
               switch (key) {
@@ -701,7 +701,7 @@
             sortBy.addEventListener('change', applySort);
             sortDirBtn.addEventListener('click', () => {
               dir = dir === -1 ? 1 : -1;
-              sortDirBtn.textContent = dir === -1 ? '↓' : '↑';
+              sortDirBtn.textContent = dir === -1 ? '↓ Desc' : '↑ Asc';
               applySort();
             });
 
