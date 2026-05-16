@@ -20432,12 +20432,43 @@
 					    const resourceHelper = document.querySelector('.resource-helper');
             const libraryToggleBtn = document.getElementById('task-library-toggle');
             const libraryFilterInput = document.getElementById('task-library-filter');
-					    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
-				    const getDeviceMode = () => {
-				      const raw = safeText(document.body?.dataset?.deviceMode);
-				      if (raw === 'desktop' || raw === 'tablet') return raw;
-				      return 'auto';
-			    };
+						    const isTacticsModeUi = document.body.classList.contains('tactics-mode');
+	            // iPad portrait UX: cuando la biblioteca es un bottom-sheet, puede tapar la "Plantilla disponible"
+	            // (banco de jugadores). Movemos esa sección dentro del panel de Recursos mientras el sheet esté abierto
+	            // para que el usuario no “pierda” a los jugadores.
+	            const rosterBank = document.getElementById('task-roster-bank');
+	            const rosterSlot = document.getElementById('task-roster-bank-slot');
+	            const rosterHome = rosterBank ? { parent: rosterBank.parentElement, next: rosterBank.nextSibling } : null;
+	            const isTabletPortraitUi = () => {
+	              try {
+	                if (!document.body.classList.contains('ui-tablet')) return false;
+	                if (!window.matchMedia) return false;
+	                return !!window.matchMedia('(orientation: portrait)').matches;
+	              } catch (e) {
+	                return false;
+	              }
+	            };
+	            const syncRosterPlacement = () => {
+	              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
+	              const wantInSlot = isTabletPortraitUi() && !document.body.classList.contains('library-collapsed');
+	              try {
+	                if (wantInSlot) {
+	                  rosterSlot.hidden = false;
+	                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
+	                } else {
+	                  if (rosterBank.parentElement !== rosterHome.parent) {
+	                    if (rosterHome.next && rosterHome.next.parentNode === rosterHome.parent) rosterHome.parent.insertBefore(rosterBank, rosterHome.next);
+	                    else rosterHome.parent.appendChild(rosterBank);
+	                  }
+	                  rosterSlot.hidden = true;
+	                }
+	              } catch (e) { /* ignore */ }
+	            };
+					    const getDeviceMode = () => {
+					      const raw = safeText(document.body?.dataset?.deviceMode);
+					      if (raw === 'desktop' || raw === 'tablet') return raw;
+					      return 'auto';
+				    };
 		    const isDesktopUi = () => {
 		      if (getDeviceMode() === 'desktop') return true;
 		      if (getDeviceMode() === 'tablet') return false;
@@ -20461,32 +20492,43 @@
               if (getDeviceMode() === 'desktop') return false;
               try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) { return false; }
             })();
-            const applyLibraryCollapsed = (collapsed, { persist = true } = {}) => {
-              libraryCollapsed = !!collapsed;
-              document.body.classList.toggle('library-collapsed', libraryCollapsed);
-              try { libraryToggleBtn?.setAttribute('aria-pressed', libraryCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
-              try { libraryToggleBtn?.setAttribute('title', libraryCollapsed ? 'Expandir recursos' : 'Colapsar recursos'); } catch (e) { /* ignore */ }
-              if (libraryCollapsed) {
-                try { if (libraryFilterInput) libraryFilterInput.value = ''; } catch (e) { /* ignore */ }
-              }
-              if (persist) {
-                try { window.localStorage?.setItem(LIBRARY_COLLAPSED_KEY, libraryCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
-              }
-            };
+	            const applyLibraryCollapsed = (collapsed, { persist = true } = {}) => {
+	              libraryCollapsed = !!collapsed;
+	              document.body.classList.toggle('library-collapsed', libraryCollapsed);
+	              try { libraryToggleBtn?.setAttribute('aria-pressed', libraryCollapsed ? 'true' : 'false'); } catch (e) { /* ignore */ }
+	              try { libraryToggleBtn?.setAttribute('title', libraryCollapsed ? 'Expandir recursos' : 'Colapsar recursos'); } catch (e) { /* ignore */ }
+	              if (libraryCollapsed) {
+	                try { if (libraryFilterInput) libraryFilterInput.value = ''; } catch (e) { /* ignore */ }
+	              }
+	              // iPad portrait: si el panel se abre/cierra, reubica la Plantilla para que sea accesible.
+	              syncRosterPlacement();
+	              if (persist) {
+	                try { window.localStorage?.setItem(LIBRARY_COLLAPSED_KEY, libraryCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
+	              }
+	            };
             try {
               const stored = window.localStorage?.getItem(LIBRARY_COLLAPSED_KEY);
               if (stored == null) applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
               else applyLibraryCollapsed(stored === '1', { persist: false });
-            } catch (e) {
-              applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
-            }
-            libraryToggleBtn?.addEventListener('click', () => applyLibraryCollapsed(!libraryCollapsed));
-            window.__webstatsTpadSetLibraryCollapsed = (value) => applyLibraryCollapsed(!!value);
-            window.__webstatsTpadGetLibraryCollapsed = () => libraryCollapsed;
+	            } catch (e) {
+	              applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
+	            }
+	            libraryToggleBtn?.addEventListener('click', () => applyLibraryCollapsed(!libraryCollapsed));
+	            window.__webstatsTpadSetLibraryCollapsed = (value) => applyLibraryCollapsed(!!value);
+	            window.__webstatsTpadGetLibraryCollapsed = () => libraryCollapsed;
+	            // Inicial + listeners: si rota o cambia viewport, reubica.
+	            syncRosterPlacement();
+	            try {
+	              if (window.matchMedia) {
+	                const mq = window.matchMedia('(orientation: portrait)');
+	                mq?.addEventListener?.('change', syncRosterPlacement);
+	              }
+	            } catch (e) { /* ignore */ }
+	            try { window.addEventListener('resize', () => window.setTimeout(syncRosterPlacement, 60)); } catch (e) { /* ignore */ }
 
-            const normalizeLookupText = (raw) => {
-              try {
-                return String(raw || '')
+	            const normalizeLookupText = (raw) => {
+	              try {
+	                return String(raw || '')
                   .toLowerCase()
                   .normalize('NFD')
                   .replace(/[\u0300-\u036f]/g, '')
