@@ -715,7 +715,7 @@
 		            <table>
 		              <tbody>
                 {% for row in attendance_rows %}
-                  {% with p=row.player mark=row.mark %}
+                  {% with p=row.player mark=row.mark injury_default=row.injury_default %}
                   <tr>
                     <td class="player-cell">
                       {{ p.name }}
@@ -723,25 +723,25 @@
                     </td>
                     <td style="width:170px;">
                       <select name="attendance_status_{{ p.id }}" class="js-attendance-status">
-                        <option value="" {% if not mark or mark.status == 'present' %}selected{% endif %}>Sin marcar</option>
+                        <option value="" {% if not mark and not injury_default %}selected{% endif %}>Sin marcar</option>
                         {% for value, label in allowed_statuses %}
-                          <option value="{{ value }}" {% if mark and mark.status == value and value != 'present' %}selected{% endif %}>{{ label }}</option>
+                          <option value="{{ value }}" {% if (mark and mark.status == value and value != 'present') or (not mark and injury_default and value == 'injured') %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                       </select>
                     </td>
                     <td style="width:220px;">
-                      <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% endif %}" />
+                      <input type="text" name="attendance_notes_{{ p.id }}" maxlength="180" placeholder="Nota…" value="{% if mark %}{{ mark.notes }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" />
                     </td>
                     <td style="width:240px;">
 	                      <div class="js-injury-fields" style="display:none; gap:6px; align-items:center;">
 	                        <select name="attendance_injury_catalog_{{ p.id }}" style="flex:1;">
 	                          <option value="">Lesión (catálogo)…</option>
 	                          {% for entry in injury_catalog_entries %}
-	                            <option value="{{ entry.id }}" {% if mark and mark.injury_catalog_entry_id == entry.id %}selected{% endif %}>{{ entry.get_region_display }} · {{ entry.name }}</option>
+	                            <option value="{{ entry.id }}" {% if (mark and mark.injury_catalog_entry_id == entry.id) or (not mark and injury_default and injury_default.catalog_entry_id == entry.id) %}selected{% endif %}>{{ entry.get_region_display }} · {{ entry.name }}</option>
 	                          {% endfor %}
 	                        </select>
-	                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="{% if mark %}{{ mark.injury_detail }}{% endif %}" style="flex:1;" />
-	                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="{% if mark and mark.injury_return_date %}{{ mark.injury_return_date|date:'Y-m-d' }}{% endif %}" title="Alta estimada" style="width:140px;" />
+	                        <input type="text" name="attendance_injury_{{ p.id }}" maxlength="180" placeholder="Detalle (opcional)" value="{% if mark %}{{ mark.injury_detail }}{% elif injury_default %}{{ injury_default.injury|default:'' }}{% endif %}" style="flex:1;" />
+	                        <input type="date" name="attendance_injury_return_{{ p.id }}" value="{% if mark and mark.injury_return_date %}{{ mark.injury_return_date|date:'Y-m-d' }}{% elif injury_default and injury_default.estimated_return_date %}{{ injury_default.estimated_return_date|date:'Y-m-d' }}{% endif %}" title="Alta estimada" style="width:140px;" />
 	                      </div>
 	                    </td>
 	                  </tr>

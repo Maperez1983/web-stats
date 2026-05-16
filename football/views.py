@@ -26247,6 +26247,31 @@ def training_session_detail_page(request, session_id):
         )
     }
 
+    # Persistencia "natural" de lesiones: si el jugador tiene una lesión activa, por defecto
+    # lo mostramos como lesionado en esta sesión aunque no se haya marcado explícitamente.
+    # Esto evita tener que "re-marcar" cada entrenamiento mientras la lesión siga activa.
+    # Nota: NO escribimos en BD automáticamente para permitir que el staff decida en esa sesión.
+    injury_default_by_player_id = {}
+    try:
+        session_day = getattr(session_obj, 'session_date', None) or timezone.localdate()
+        roster_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
+        if roster_ids:
+            active_records = (
+                PlayerInjuryRecord.objects
+                .filter(player_id__in=roster_ids, is_active=True)
+                .filter(injury_date__lte=session_day)
+                .filter(Q(return_date__isnull=True) | Q(return_date__gt=session_day))
+                .select_related('catalog_entry')
+                .order_by('player_id', '-injury_date', '-id')
+            )
+            for rec in active_records:
+                pid = int(getattr(rec, 'player_id', 0) or 0)
+                if not pid or pid in injury_default_by_player_id:
+                    continue
+                injury_default_by_player_id[pid] = rec
+    except Exception:
+        injury_default_by_player_id = {}
+
     # Persistencia de lesión por sesión sin migraciones:
     # se serializa catálogo/detalle/alta estimada dentro de `TrainingSessionAttendance.notes`.
     INJURY_NOTE_PREFIX = 'inj1|'
@@ -26300,7 +26325,14 @@ def training_session_detail_page(request, session_id):
                     mark.injury_return_date = None
         except Exception:
             continue
-    attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
+    attendance_rows = [
+        {
+            'player': p,
+            'mark': marks.get(int(p.id)),
+            'injury_default': injury_default_by_player_id.get(int(p.id)),
+        }
+        for p in players
+    ]
     allowed_statuses = [(value, label) for value, label in TrainingSessionAttendance.STATUS_CHOICES]
 
     plan_fields = _parse_session_plan_fields(getattr(session_obj, 'content', ''))
@@ -26734,7 +26766,35 @@ def training_session_detail_page(request, session_id):
                         .exclude(status=TrainingSessionAttendance.STATUS_PRESENT)
                     )
                 }
-                attendance_rows = [{'player': p, 'mark': marks.get(int(p.id))} for p in players]
+                # Recalcula defaults de lesión (por si se ha creado/quitado una lesión en el POST).
+                injury_default_by_player_id = {}
+                try:
+                    session_day = getattr(session_obj, 'session_date', None) or timezone.localdate()
+                    roster_ids = [int(p.id) for p in players if getattr(p, 'id', None)]
+                    if roster_ids:
+                        active_records = (
+                            PlayerInjuryRecord.objects
+                            .filter(player_id__in=roster_ids, is_active=True)
+                            .filter(injury_date__lte=session_day)
+                            .filter(Q(return_date__isnull=True) | Q(return_date__gt=session_day))
+                            .select_related('catalog_entry')
+                            .order_by('player_id', '-injury_date', '-id')
+                        )
+                        for rec in active_records:
+                            pid = int(getattr(rec, 'player_id', 0) or 0)
+                            if not pid or pid in injury_default_by_player_id:
+                                continue
+                            injury_default_by_player_id[pid] = rec
+                except Exception:
+                    injury_default_by_player_id = {}
+                attendance_rows = [
+                    {
+                        'player': p,
+                        'mark': marks.get(int(p.id)),
+                        'injury_default': injury_default_by_player_id.get(int(p.id)),
+                    }
+                    for p in players
+                ]
             except Exception:
                 error = 'No se pudo guardar la asistencia.'
             if not error:
