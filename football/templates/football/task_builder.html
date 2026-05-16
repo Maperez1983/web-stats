@@ -2303,6 +2303,13 @@
 	      body.tactics-mode #task-stroke-width-row {
 	        display: none !important;
 	      }
+	      /* En tácticas, la plantilla se abre desde Herramientas (drawer). Evita que robe alto bajo el campo. */
+	      body.tactics-mode #task-roster-bank {
+	        display: none;
+	      }
+	      body.tactics-mode.tactics-tools-open #task-roster-bank {
+	        display: block;
+	      }
 	      .pitch-zoom button,
 	      .pitch-size button {
 	        border-radius: 10px;

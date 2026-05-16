@@ -20564,22 +20564,23 @@
 	                return false;
 	              }
 	            };
-	            const syncRosterPlacement = () => {
-	              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
-	              const wantInSlot = isTabletPortraitUi() && !document.body.classList.contains('library-collapsed');
-	              try {
-	                if (wantInSlot) {
-	                  rosterSlot.hidden = false;
-	                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
-	                } else {
-	                  if (rosterBank.parentElement !== rosterHome.parent) {
+		            const syncRosterPlacement = () => {
+		              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
+		              const wantsTools = isTacticsModeUi && document.body.classList.contains('tactics-tools-open');
+		              const wantInSlot = (wantsTools || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
+		              try {
+		                if (wantInSlot) {
+		                  rosterSlot.hidden = false;
+		                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
+		                } else {
+		                  if (rosterBank.parentElement !== rosterHome.parent) {
 	                    if (rosterHome.next && rosterHome.next.parentNode === rosterHome.parent) rosterHome.parent.insertBefore(rosterBank, rosterHome.next);
 	                    else rosterHome.parent.appendChild(rosterBank);
 	                  }
-	                  rosterSlot.hidden = true;
-	                }
-	              } catch (e) { /* ignore */ }
-	            };
+		                  rosterSlot.hidden = true;
+		                }
+		              } catch (e) { /* ignore */ }
+		            };
 					    const getDeviceMode = () => {
 					      const raw = safeText(document.body?.dataset?.deviceMode);
 					      if (raw === 'desktop' || raw === 'tablet') return raw;
