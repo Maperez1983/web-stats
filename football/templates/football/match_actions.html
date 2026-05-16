@@ -3348,10 +3348,22 @@
                   {% if edit_match_url %}
                   <a href="{{ edit_match_url }}" target="_blank" rel="noopener">Editar partido</a>
                   {% endif %}
-                </div>
-                <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
-                <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">
-                  <label for="match-selector">Editar partido:</label>
+	                </div>
+	                <p class="match-db-badge">Partido BBDD · ID <strong id="match-db-id">{{ match_info.match_id }}</strong></p>
+                  {% if show_last_actions_hint and last_actions_match %}
+                    <div class="match-db-badge" style="margin-top:0.55rem; background: rgba(245,158,11,0.10); border-color: rgba(245,158,11,0.22);">
+                      Este partido no tiene acciones, pero hay acciones recientes en el partido <strong>#{{ last_actions_match.id }}</strong>.
+                      <a
+                        href="{% url 'match-action-page' %}?match_id={{ last_actions_match.id }}"
+                        style="margin-left:0.45rem; text-decoration: underline;"
+                        title="Cargar el último partido con acciones"
+                      >
+                        Cargar último con acciones
+                      </a>
+                    </div>
+                  {% endif %}
+	                <form class="match-selector-form" method="get" action="{% url 'match-action-page' %}">
+	                  <label for="match-selector">Editar partido:</label>
                   <select id="match-selector" name="match_id">
                     {% for match_option in match_selector_options %}
                     <option value="{{ match_option.id }}" {% if selected_match_id == match_option.id %}selected{% endif %}>
@@ -3456,23 +3468,23 @@
 	          <div class="match-status-panels">
 	            <article class="status-card">
 	              <h5>Tarjetas</h5>
-                <p>Amarillas · <span class="status-value" id="status-yellow-count">0</span></p>
-                <p>Rojas · <span class="status-value" id="status-red-count">0</span></p>
+	                <p>Amarillas · <span class="status-value" id="status-yellow-count">{{ initial_quick_counts.amarilla|default:0 }}</span></p>
+	                <p>Rojas · <span class="status-value" id="status-red-count">{{ initial_quick_counts.roja|default:0 }}</span></p>
               </article>
               <article class="status-card">
                 <h5>Sustituciones</h5>
-                <p>Realizadas · <span class="status-value" id="status-subs-used-count">0</span></p>
-                <p>Disponibles · <span class="status-value" id="status-subs-left-count">5</span></p>
+	                <p>Realizadas · <span class="status-value" id="status-subs-used-count">{{ initial_quick_counts.subs|default:0 }}</span></p>
+	                <p>Disponibles · <span class="status-value" id="status-subs-left-count">{{ initial_subs_left|default:5 }}</span></p>
             </article>
             <article class="status-card">
               <h5>Córners</h5>
-              <p>A favor · <span class="status-value" id="status-corner-for-count">0</span></p>
-              <p>En contra · <span class="status-value" id="status-corner-against-count">0</span></p>
+	              <p>A favor · <span class="status-value" id="status-corner-for-count">{{ initial_quick_counts.corner_for|default:0 }}</span></p>
+	              <p>En contra · <span class="status-value" id="status-corner-against-count">{{ initial_quick_counts.corner_against|default:0 }}</span></p>
             </article>
             <article class="status-card">
               <h5>Goles</h5>
-              <p>Goles · <span class="status-value" id="status-goal-count">0</span></p>
-              <p>Asistencias · <span class="status-value" id="status-assist-count">0</span></p>
+	              <p>Goles · <span class="status-value" id="status-goal-count">{{ initial_quick_counts.goal|default:0 }}</span></p>
+	              <p>Asistencias · <span class="status-value" id="status-assist-count">{{ initial_quick_counts.assist|default:0 }}</span></p>
             </article>
           </div>
 	          <div class="quick-action-columns">
@@ -3481,8 +3493,8 @@
                 <div class="quick-action-header">
                   <span>Tarjetas</span>
                   <div class="quick-action-counts">
-                    <span>Amarillas · <strong id="yellow-count">0</strong></span>
-                    <span>Rojas · <strong id="red-count">0</strong></span>
+	                    <span>Amarillas · <strong id="yellow-count">{{ initial_quick_counts.amarilla|default:0 }}</strong></span>
+	                    <span>Rojas · <strong id="red-count">{{ initial_quick_counts.roja|default:0 }}</strong></span>
                   </div>
                 </div>
                 <div class="quick-drop-row">
@@ -3522,7 +3534,7 @@
                 <div class="quick-action-header">
                     <span>Sustituciones</span>
                     <div class="quick-action-counts">
-                      <span>Realizadas · <strong id="sub-count">0</strong></span>
+	                      <span>Realizadas · <strong id="sub-count">{{ initial_quick_counts.subs|default:0 }}</strong></span>
                     </div>
                   </div>
                 <div class="quick-drop-row">
@@ -3556,8 +3568,8 @@
                 <div class="quick-action-header">
                   <span>Córners</span>
                   <div class="quick-action-counts">
-                    <span>A favor · <strong id="corner-for-count">0</strong></span>
-                    <span>En contra · <strong id="corner-against-count">0</strong></span>
+	                    <span>A favor · <strong id="corner-for-count">{{ initial_quick_counts.corner_for|default:0 }}</strong></span>
+	                    <span>En contra · <strong id="corner-against-count">{{ initial_quick_counts.corner_against|default:0 }}</strong></span>
                   </div>
                 </div>
                 <div class="quick-drop-row">
@@ -3593,8 +3605,8 @@
                   <div class="quick-action-header">
                     <span>Goles</span>
                     <div class="quick-action-counts">
-                      <span>Goles · <strong id="goal-count">0</strong></span>
-                      <span>Asist. · <strong id="assist-count">0</strong></span>
+	                      <span>Goles · <strong id="goal-count">{{ initial_quick_counts.goal|default:0 }}</strong></span>
+	                      <span>Asist. · <strong id="assist-count">{{ initial_quick_counts.assist|default:0 }}</strong></span>
                     </div>
                   </div>
                   <div class="quick-drop-row">

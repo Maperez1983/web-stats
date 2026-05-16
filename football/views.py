@@ -19107,6 +19107,77 @@ def match_action_page(request):
         _team_match_queryset(primary_team).order_by('-date', '-id')
     )
     selected_match_id = active_match.id if active_match else None
+
+    # --- Contadores iniciales (server-side) ---
+    # Si el JS falla (Safari/iPad/bfcache/caché), los contadores quedaban en 0 aunque el historial
+    # venga ya renderizado. Precalcula desde `recent_events` para que la UI sea coherente al cargar.
+    recent_events_list = list(recent_events or [])
+    initial_quick_counts = {
+        'amarilla': 0,
+        'roja': 0,
+        'subs': 0,
+        'corner_for': 0,
+        'corner_against': 0,
+        'goal': 0,
+        'assist': 0,
+    }
+    initial_subs_left = 5
+    try:
+        subs_in = 0
+        subs_out = 0
+        subs_other = 0
+        corner_for = 0
+        corner_against = 0
+        for ev in recent_events_list:
+            event_type = getattr(ev, 'event_type', '') or ''
+            result = getattr(ev, 'result', '') or ''
+            zone = getattr(ev, 'zone', '') or ''
+            observation = getattr(ev, 'observation', '') or ''
+
+            if is_yellow_card_event(event_type, result, zone):
+                initial_quick_counts['amarilla'] += 1
+            if is_red_card_event(event_type, result, zone):
+                initial_quick_counts['roja'] += 1
+            if is_goal_event(event_type, result, observation):
+                initial_quick_counts['goal'] += 1
+            if is_assist_event(event_type, result, observation):
+                initial_quick_counts['assist'] += 1
+
+            # Sustituciones: aproximamos "realizadas" como max(entradas + otras, salidas).
+            if is_substitution_exit(event_type, result, zone) or str(result).strip().lower().startswith('sal'):
+                subs_out += 1
+            elif is_substitution_entry(event_type, result, zone) or str(result).strip().lower().startswith('ent'):
+                subs_in += 1
+            elif is_substitution_event(event_type, zone):
+                subs_other += 1
+
+            # Córners: asigna a favor/en contra leyendo acción + resultado.
+            text = f"{event_type} {result}".lower()
+            if ('corner' in text) or ('córner' in text) or ('esquina' in text):
+                if 'en contra' in text or 'contra' in text:
+                    corner_against += 1
+                elif 'a favor' in text or 'favor' in text:
+                    corner_for += 1
+        initial_quick_counts['subs'] = max(subs_in + subs_other, subs_out)
+        initial_quick_counts['corner_for'] = corner_for
+        initial_quick_counts['corner_against'] = corner_against
+        initial_subs_left = max(0, 5 - int(initial_quick_counts.get('subs') or 0))
+    except Exception:
+        pass
+
+    # UX: si el match activo no tiene acciones pero existe un match reciente con acciones guardadas,
+    # muestra un atajo para cargarlo (evita "se han perdido las acciones" tras Guardar).
+    last_actions_match = None
+    try:
+        last_actions_match = get_latest_live_match(primary_team) or get_latest_pizarra_match(primary_team)
+    except Exception:
+        last_actions_match = None
+    show_last_actions_hint = bool(
+        last_actions_match
+        and getattr(last_actions_match, 'id', None)
+        and (selected_match_id is None or int(last_actions_match.id) != int(selected_match_id))
+        and int(actions_total_count or 0) == 0
+    )
     edit_match_url = ''
     if active_match and getattr(active_match, 'id', None):
         try:
@@ -19131,10 +19202,14 @@ def match_action_page(request):
             'result_options': load_match_results(),
             'tercio_options': STANDARD_TERCIO_LABELS,
             'recent_events': recent_events,
+            'initial_quick_counts': initial_quick_counts,
+            'initial_subs_left': initial_subs_left,
             'match_info': match_info,
             'actions_total_count': actions_total_count,
             'actions_pending_count': actions_pending_count,
             'actions_final_count': actions_final_count,
+            'last_actions_match': last_actions_match,
+            'show_last_actions_hint': show_last_actions_hint,
             'category_rivals': category_rivals,
             'team_fields': team_fields,
             'substitution_history': substitution_history,
