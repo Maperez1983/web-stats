@@ -86,6 +86,12 @@
         justify-content: space-between;
         gap: 0.6rem;
       }
+      .head-right {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 0 0 auto;
+      }
       .head-main {
         display: flex;
         align-items: center;
@@ -158,6 +164,34 @@
         font-weight: 800;
         color: #0a1520;
         background: #f4b400;
+      }
+      svg.participation-ring {
+        width: 36px;
+        height: 36px;
+        display: block;
+        flex: 0 0 auto;
+        filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.25));
+      }
+      .participation-ring .ring-bg {
+        fill: none;
+        stroke: rgba(148, 163, 184, 0.22);
+        stroke-width: 3.6;
+      }
+      .participation-ring .ring-fg {
+        fill: none;
+        stroke: rgba(244, 180, 0, 0.92);
+        stroke-width: 3.6;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 18px 18px;
+      }
+      .participation-ring .ring-text {
+        fill: rgba(255, 242, 199, 0.96);
+        font-size: 9px;
+        font-weight: 900;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        letter-spacing: 0.02em;
       }
       .subline {
         margin-top: 0.25rem;
@@ -348,14 +382,29 @@
                     {% endfor %}
                   </select>
                 {% endif %}
-		            <select name="match">
-		              <option value="">Modo global</option>
-	              {% for option in match_options %}
-	                <option value="{{ option.id }}" {% if selected_match_id|stringformat:"s" == option.id|stringformat:"s" %}selected{% endif %}>
-	                  {{ option.label }}
+	            <select name="match">
+	              <option value="">Modo global</option>
+              {% for option in match_options %}
+                <option value="{{ option.id }}" {% if selected_match_id|stringformat:"s" == option.id|stringformat:"s" %}selected{% endif %}>
+                  {{ option.label }}
                 </option>
               {% endfor %}
             </select>
+            <select id="sortBy" aria-label="Ordenar jugadores">
+              {% if selected_match %}
+                <option value="match_actions">Orden: Acciones (partido)</option>
+                <option value="match_goals">Orden: Goles (partido)</option>
+                <option value="match_assists">Orden: Asistencias (partido)</option>
+                <option value="match_success_rate">Orden: % Éxito (partido)</option>
+              {% else %}
+                <option value="participation_pct">Orden: Participación %</option>
+                <option value="minutes">Orden: Minutos</option>
+                <option value="goals">Orden: Goles</option>
+                <option value="assists">Orden: Asistencias</option>
+                <option value="success_rate">Orden: % Éxito</option>
+              {% endif %}
+            </select>
+            <button type="button" id="sortDir" aria-label="Cambiar dirección de orden" title="Asc/Desc">↓</button>
             <input id="playerSearch" type="search" placeholder="Buscar jugador" />
             <button type="submit">Aplicar</button>
           </form>
@@ -380,8 +429,21 @@
       </div>
 
       <div class="grid" id="playersGrid">
-        {% for player in player_stats %}
-          <article class="card" data-player-name="{{ player.name|lower }}" data-player="{{ player.player_id }}">
+	        {% for player in player_stats %}
+	          <article
+              class="card"
+              data-player-name="{{ player.name|lower }}"
+              data-player="{{ player.player_id }}"
+              data-minutes="{{ player.minutes|default:0 }}"
+              data-goals="{{ player.goals|default:0 }}"
+              data-assists="{{ player.assists|default:0 }}"
+              data-success-rate="{{ player.success_rate|default:0 }}"
+              data-participation-pct="{{ player.participation_pct|default:0 }}"
+              data-match-actions="{{ player.match_actions|default:0 }}"
+              data-match-goals="{{ player.match_goals|default:0 }}"
+              data-match-assists="{{ player.match_assists|default:0 }}"
+              data-match-success-rate="{{ player.match_success_rate|default:0 }}"
+            >
 	            <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}">
               <div class="head">
                 <div class="head-main">
@@ -398,10 +460,17 @@
                     {% if player.is_sanctioned %}
                       <span class="status-icon sanction" title="Sancionado">🟥</span>
                     {% endif %}
-                  </span>
-                </div>
-                {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
-              </div>
+	                  </span>
+	                </div>
+                  <div class="head-right">
+                    <svg class="participation-ring" viewBox="0 0 36 36" data-pct="{{ player.participation_pct|default:0 }}" title="Participación: {{ player.participation_pct|default:0 }}%">
+                      <circle class="ring-bg" cx="18" cy="18" r="15.5"></circle>
+                      <circle class="ring-fg" cx="18" cy="18" r="15.5"></circle>
+                      <text class="ring-text" x="18" y="18">0%</text>
+                    </svg>
+                    {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
+                  </div>
+	              </div>
               <div class="subline">{{ player.profile_label }}</div>
 
                   <div class="mini-kpis" aria-label="KPIs clave">
@@ -503,15 +572,31 @@
 	      })();
 	    </script>
 	    <script>
-	      (() => {
-	        const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
-	        const num = (v) => {
-	          const n = Number(String(v ?? '').replace(',', '.'));
-	          return Number.isFinite(n) ? n : 0;
-	        };
-	        const render = (svg, values) => {
-	          const n = values.length;
-	          if (!n) return;
+		      (() => {
+		        const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+		        const num = (v) => {
+		          const n = Number(String(v ?? '').replace(',', '.'));
+		          return Number.isFinite(n) ? n : 0;
+		        };
+            const renderParticipationRings = () => {
+              const rings = Array.from(document.querySelectorAll('svg.participation-ring'));
+              rings.forEach((svg) => {
+                const pct = clamp(num(svg.dataset.pct), 0, 100);
+                const fg = svg.querySelector('.ring-fg');
+                const text = svg.querySelector('.ring-text');
+                const r = 15.5;
+                const C = 2 * Math.PI * r;
+                if (fg) {
+                  fg.style.strokeDasharray = `${C.toFixed(2)} ${C.toFixed(2)}`;
+                  const offset = C * (1 - pct / 100);
+                  fg.style.strokeDashoffset = offset.toFixed(2);
+                }
+                if (text) text.textContent = `${Math.round(pct)}%`;
+              });
+            };
+		        const render = (svg, values) => {
+		          const n = values.length;
+		          if (!n) return;
 	          const cx = 50;
 	          const cy = 50;
 	          const R = 34;
@@ -541,17 +626,94 @@
 
 	        const svgs = Array.from(document.querySelectorAll('svg.mini-radar'));
 	        if (!svgs.length) return;
-	        svgs.forEach((svg) => {
-	          const values = [
-	            svg.dataset.a90,
-	            svg.dataset.sr,
-	            svg.dataset.part,
-	            svg.dataset.inf,
-	            svg.dataset.imp,
-	          ];
-	          render(svg, values);
-	        });
-	      })();
-	    </script>
+		        svgs.forEach((svg) => {
+		          const values = [
+		            svg.dataset.a90,
+		            svg.dataset.sr,
+		            svg.dataset.part,
+		            svg.dataset.inf,
+		            svg.dataset.imp,
+		          ];
+		          render(svg, values);
+		        });
+            renderParticipationRings();
+		      })();
+		    </script>
+        <script>
+          (() => {
+            const grid = document.getElementById('playersGrid');
+            const sortBy = document.getElementById('sortBy');
+            const sortDirBtn = document.getElementById('sortDir');
+            if (!grid || !sortBy || !sortDirBtn) return;
+
+            const storageKey = 'player_dash_sort:v1';
+            const readPref = () => {
+              try { return JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch (e) { return {}; }
+            };
+            const writePref = (pref) => {
+              try { localStorage.setItem(storageKey, JSON.stringify(pref || {})); } catch (e) {}
+            };
+            const parseNum = (v) => {
+              const n = Number(String(v ?? '').replace(',', '.'));
+              return Number.isFinite(n) ? n : 0;
+            };
+
+            let dir = -1; // -1 desc, +1 asc
+            const pref = readPref();
+            if (pref && typeof pref === 'object') {
+              if (pref.key && Array.from(sortBy.options).some((o) => o.value === pref.key)) sortBy.value = pref.key;
+              if (pref.dir === 1 || pref.dir === -1) dir = pref.dir;
+            }
+            sortDirBtn.textContent = dir === -1 ? '↓' : '↑';
+
+            const keyToDataset = (key) => {
+              switch (key) {
+                case 'minutes': return 'minutes';
+                case 'goals': return 'goals';
+                case 'assists': return 'assists';
+                case 'success_rate': return 'successRate';
+                case 'participation_pct': return 'participationPct';
+                case 'match_actions': return 'matchActions';
+                case 'match_goals': return 'matchGoals';
+                case 'match_assists': return 'matchAssists';
+                case 'match_success_rate': return 'matchSuccessRate';
+                default: return 'minutes';
+              }
+            };
+
+            const applySort = () => {
+              const key = String(sortBy.value || 'minutes');
+              const dsKey = keyToDataset(key);
+              const cards = Array.from(grid.querySelectorAll('.card'));
+              const visible = cards.filter((c) => c.style.display !== 'none');
+              visible.sort((a, b) => {
+                const av = parseNum(a.dataset[dsKey]);
+                const bv = parseNum(b.dataset[dsKey]);
+                if (bv !== av) return dir * (bv - av);
+                const an = String(a.dataset.playerName || '');
+                const bn = String(b.dataset.playerName || '');
+                return an.localeCompare(bn, 'es', { sensitivity: 'base' });
+              });
+              visible.forEach((c) => grid.appendChild(c));
+              writePref({ key, dir });
+            };
+
+            sortBy.addEventListener('change', applySort);
+            sortDirBtn.addEventListener('click', () => {
+              dir = dir === -1 ? 1 : -1;
+              sortDirBtn.textContent = dir === -1 ? '↓' : '↑';
+              applySort();
+            });
+
+            // Si el usuario busca, volvemos a ordenar lo visible tras cambiar display.
+            const searchInput = document.getElementById('playerSearch');
+            if (searchInput) {
+              searchInput.addEventListener('input', () => {
+                window.requestAnimationFrame(applySort);
+              });
+            }
+            applySort();
+          })();
+        </script>
 	  </body>
 	</html>
