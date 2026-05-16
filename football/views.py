@@ -58314,6 +58314,52 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             has_stats_activity = bool(match_stats_entry and int(match_stats_entry.get('actions', 0) or 0) > 0)
             has_player_event = bool(timeline.get('has_event')) or has_stats_activity
             is_starter = player_key in lineup_starters
+
+            # Si el jugador participa (titular o con algún evento) pero no existe entrada en `matches`,
+            # crea una fila base para que aparezca en "Ver jornadas" aunque tenga 0 acciones.
+            if match_stats_entry is None and isinstance(stats.get('matches'), dict) and (is_starter or has_player_event):
+                match_obj = canonical_match_obj_by_id.get(int(match_id)) if canonical_match_obj_by_id else None
+                conv_seed = None
+                try:
+                    conv_seed = (convocation_seed_by_match_id or {}).get(int(match_id)) or (convocation_seed_by_match_id or {}).get(int(canonical_match_id_by_id.get(int(match_id), int(match_id))))  # noqa: E501
+                except Exception:
+                    conv_seed = None
+                conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
+                conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
+                conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
+                home_flag = bool(match_obj and match_obj.home_team_id == primary_team.id)
+                opponent_label = ''
+                if match_obj:
+                    try:
+                        if match_obj.home_team_id == primary_team.id and match_obj.away_team:
+                            opponent_label = match_obj.away_team.display_name
+                        elif match_obj.away_team_id == primary_team.id and match_obj.home_team:
+                            opponent_label = match_obj.home_team.display_name
+                    except Exception:
+                        opponent_label = ''
+                if not opponent_label:
+                    opponent_label = conv_opponent
+                stats['matches'][int(match_id)] = {
+                    'match_id': int(match_id),
+                    'round': (match_obj.round if match_obj else '') or conv_round or 'Partido sin jornada',
+                    'date': (
+                        match_obj.date.isoformat()
+                        if match_obj and match_obj.date
+                        else (conv_date.isoformat() if conv_date else None)
+                    ),
+                    'home': home_flag,
+                    'opponent': opponent_label or 'Rival desconocido',
+                    'home_score': (match_obj.home_score if match_obj else None),
+                    'away_score': (match_obj.away_score if match_obj else None),
+                    'result': ((match_obj.result or '').strip() if match_obj else ''),
+                    'played': False,
+                    'goals': 0,
+                    'assists': 0,
+                    'actions': 0,
+                    'successes': 0,
+                    'success_rate': 0,
+                }
+                match_stats_entry = stats['matches'].get(int(match_id))
             if entry_minute is None:
                 if is_starter or has_player_event:
                     entry_minute = 0
@@ -58333,6 +58379,11 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 exit_minute = entry_minute
             if not stats.get('totals_locked'):
                 played_match = has_player_event or is_starter
+                try:
+                    if played_match and match_stats_entry is not None:
+                        match_stats_entry['played'] = True
+                except Exception:
+                    pass
                 stats['minutes'] += max(0, exit_minute - entry_minute)
                 stats['pj'] += 1 if played_match else 0
                 if is_starter:
