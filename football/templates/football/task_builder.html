@@ -2266,10 +2266,43 @@
         font-size: 0.68rem;
         cursor: pointer;
       }
-      .token-global-style button.is-active {
-        border-color: rgba(244,180,0,0.52);
-        background: rgba(244,180,0,0.16);
-      }
+	      .token-global-style button.is-active {
+	        border-color: rgba(244,180,0,0.52);
+	        background: rgba(244,180,0,0.16);
+	      }
+	      .token-global-color {
+	        display: inline-flex;
+	        align-items: center;
+	        gap: 0.45rem;
+	        margin-left: auto;
+	        flex-wrap: wrap;
+	      }
+	      .token-global-color input[type="color"] {
+	        width: 44px;
+	        height: 36px;
+	        padding: 0;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	      }
+	      .token-global-color input[type="text"] {
+	        width: 110px;
+	        min-width: 0;
+	        padding: 0.42rem 0.55rem;
+	        border-radius: 12px;
+	        border: 1px solid rgba(255,255,255,0.14);
+	        background: rgba(255,255,255,0.04);
+	        color: rgba(248,250,252,0.92);
+	        font-weight: 800;
+	        letter-spacing: 0.02em;
+	        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	      }
+	      body.tactics-mode .selection-actions#task-scale-presets,
+	      body.tactics-mode .selection-actions#task-token-size-presets,
+	      body.tactics-mode .selection-actions#task-stroke-presets,
+	      body.tactics-mode #task-stroke-width-row {
+	        display: none !important;
+	      }
 	      .pitch-zoom button,
 	      .pitch-size button {
 	        border-radius: 10px;
@@ -5201,12 +5234,29 @@
 	                    <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
 	                  </div>
 	                </div>
-                  <div class="token-global-style" id="task-token-style-global" aria-label="Estilo global de fichas">
-                    <span class="label">Estilo</span>
-                    <button type="button" data-global-token-style="disk" title="Chapa" aria-label="Chapa">Chapa</button>
-                    <button type="button" data-global-token-style="jersey" title="Camiseta" aria-label="Camiseta">Camiseta</button>
-                    <button type="button" data-global-token-style="photo" title="Foto" aria-label="Foto">Foto</button>
-                  </div>
+	                  <div class="token-global-style" id="task-token-style-global" aria-label="Estilo global de fichas">
+	                    <span class="label">Estilo</span>
+	                    <button type="button" data-global-token-style="disk" title="Chapa" aria-label="Chapa">Chapa</button>
+	                    <button type="button" data-global-token-style="jersey" title="Camiseta" aria-label="Camiseta">Camiseta</button>
+	                    <button type="button" data-global-token-style="photo" title="Foto" aria-label="Foto">Foto</button>
+	                    {% if tactics_mode %}
+	                      <span class="label">Color</span>
+	                      <span class="token-global-color" id="task-token-global-color-wrap" aria-label="Color de fichas">
+	                        <input type="color" id="task-token-global-color" value="#0f7a35" aria-label="Color de fichas" />
+	                        <input
+	                          type="text"
+	                          id="task-token-global-color-hex"
+	                          value="#0f7a35"
+	                          inputmode="text"
+	                          autocomplete="off"
+	                          autocapitalize="off"
+	                          spellcheck="false"
+	                          placeholder="#RRGGBB"
+	                          aria-label="Color de fichas (hex)"
+	                        />
+	                      </span>
+	                    {% endif %}
+	                  </div>
                 <div class="player-bank" id="task-player-bank"></div>
                 <div class="section" id="task-opponent-bank-section" hidden style="margin-top:0.9rem;">
                   <div class="player-bank-head">

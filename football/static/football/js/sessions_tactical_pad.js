@@ -938,6 +938,18 @@
 				    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
 				    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
 				    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
+				    // Táctica simple: ocultamos controles de tamaño/rotación/patrones que no aportan en pizarra rápida.
+				    try {
+				      if (isTacticsMode) {
+				        try { scaleXInput?.closest('label')?.setAttribute('hidden', ''); } catch (e) { /* ignore */ }
+				        try { scaleYInput?.closest('label')?.setAttribute('hidden', ''); } catch (e) { /* ignore */ }
+				        try { rotationInput?.closest('label')?.setAttribute('hidden', ''); } catch (e) { /* ignore */ }
+				        try { tokenColorGrid && (tokenColorGrid.hidden = true); } catch (e) { /* ignore */ }
+				        try { tokenPatternActions && (tokenPatternActions.hidden = true); } catch (e) { /* ignore */ }
+				        try { tokenNameTagActions && (tokenNameTagActions.hidden = true); } catch (e) { /* ignore */ }
+				        try { zoneStyleActions && (zoneStyleActions.hidden = true); } catch (e) { /* ignore */ }
+				      }
+				    } catch (e) { /* ignore */ }
 
 				    // iPad/Safari (WebKit): `position: fixed` dentro de un contenedor con `overflow:auto`
 				    // se comporta como `absolute` y puede dejar la barra de comandos fuera de pantalla
@@ -1973,35 +1985,93 @@
 	      if (v === 'solid' || v === 'half' || v === 'sash') return v;
 	      return 'striped';
 	    };
-	    const TOKEN_PATTERN_LABEL = {
-	      striped: 'rayas',
-	      solid: 'sólido',
-	      half: 'mitad',
-	      sash: 'banda',
-	    };
-	    let tokenGlobalStyle = 'disk';
-	    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
-	    const syncTokenGlobalStyleUi = () => {
-	      if (!tokenGlobalStyleActions) return;
-	      Array.from(tokenGlobalStyleActions.querySelectorAll('button[data-global-token-style]') || []).forEach((btn) => {
-	        const style = normalizeTokenStyle(btn.dataset.globalTokenStyle);
-	        btn.classList.toggle('is-active', style === tokenGlobalStyle);
+		    const TOKEN_PATTERN_LABEL = {
+		      striped: 'rayas',
+		      solid: 'sólido',
+		      half: 'mitad',
+		      sash: 'banda',
+		    };
+		    let tokenGlobalStyle = 'disk';
+		    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
+		    // Color global de fichas (para nuevos jugadores colocados en la pizarra).
+		    // En Táctica queremos un control ultra simple: un único color libre ("todos los colores").
+		    const TOKEN_COLOR_STORAGE_KEY = 'webstats:tpad:token-color-v1';
+		    const tokenGlobalColorInput = document.getElementById('task-token-global-color');
+		    const tokenGlobalColorHexInput = document.getElementById('task-token-global-color-hex');
+		    let tokenGlobalColor = '#0f7a35';
+		    try {
+		      const stored = window.localStorage?.getItem(TOKEN_COLOR_STORAGE_KEY);
+		      const parsed = parseColorToHex(stored, '') || '';
+		      if (parsed) tokenGlobalColor = parsed;
+		    } catch (e) { /* ignore */ }
+		    const syncTokenGlobalColorUi = () => {
+		      try { if (tokenGlobalColorInput) tokenGlobalColorInput.value = tokenGlobalColor; } catch (e) { /* ignore */ }
+		      try { if (tokenGlobalColorHexInput) tokenGlobalColorHexInput.value = tokenGlobalColor; } catch (e) { /* ignore */ }
+		    };
+		    const setTokenGlobalColor = (value, { persist = true } = {}) => {
+		      const parsed = parseColorToHex(value, '') || '';
+		      if (!parsed) return false;
+		      tokenGlobalColor = parsed;
+		      if (persist) {
+		        try { window.localStorage?.setItem(TOKEN_COLOR_STORAGE_KEY, tokenGlobalColor); } catch (e) { /* ignore */ }
+		      }
+		      syncTokenGlobalColorUi();
+		      return true;
+		    };
+		    syncTokenGlobalColorUi();
+
+		    const syncTokenGlobalStyleUi = () => {
+		      if (!tokenGlobalStyleActions) return;
+		      Array.from(tokenGlobalStyleActions.querySelectorAll('button[data-global-token-style]') || []).forEach((btn) => {
+		        const style = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+		        btn.classList.toggle('is-active', style === tokenGlobalStyle);
 	        try { btn.setAttribute('aria-pressed', style === tokenGlobalStyle ? 'true' : 'false'); } catch (e) { /* ignore */ }
 	      });
 	    };
 	    syncTokenGlobalStyleUi();
-		    tokenGlobalStyleActions?.addEventListener('click', (event) => {
-		      const btn = event.target.closest('button[data-global-token-style]');
-		      if (!btn) return;
-		      event.preventDefault();
-		      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
-	      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
-	      syncTokenGlobalStyleUi();
-	      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
-	      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
-		      runWhenIdle(() => {
-		        try { renderPlayerBank(); } catch (e) { /* ignore */ }
-		      }, 120);
+			    tokenGlobalStyleActions?.addEventListener('click', (event) => {
+			      const btn = event.target.closest('button[data-global-token-style]');
+			      if (!btn) return;
+			      event.preventDefault();
+			      tokenGlobalStyle = normalizeTokenStyle(btn.dataset.globalTokenStyle);
+		      try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
+		      syncTokenGlobalStyleUi();
+		      setStatus(`Estilo de fichas: ${tokenGlobalStyle === 'disk' ? 'chapa' : (tokenGlobalStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+		      // Refresca el banco de jugadores para que el estilo se vea inmediatamente.
+			      runWhenIdle(() => {
+			        try { renderPlayerBank(); } catch (e) { /* ignore */ }
+			      }, 120);
+			    });
+
+		    // Conecta el selector de color (solo existe en Táctica).
+		    tokenGlobalColorInput?.addEventListener('input', () => {
+		      if (!setTokenGlobalColor(tokenGlobalColorInput.value)) return;
+		      // Aplica al token seleccionado (si hay) para edición rápida en Táctica.
+		      try {
+		        applyToActiveFlexibleObject?.((active) => {
+		          if (!isTokenGroup(active)) return;
+		          applyTokenPalette(active, { base: tokenGlobalColor, stripe: tokenGlobalColor, pattern: 'solid' });
+		          // Asegura que el texto (dorsal) también se adapte al nuevo color.
+		          applyTokenColor(active, tokenGlobalColor);
+		        }, 'Color actualizado.');
+		      } catch (e) { /* ignore */ }
+		      setStatus(`Color de fichas: ${tokenGlobalColor}.`);
+		    });
+		    tokenGlobalColorHexInput?.addEventListener('change', () => {
+		      const ok = setTokenGlobalColor(tokenGlobalColorHexInput.value);
+		      if (!ok) {
+		        syncTokenGlobalColorUi();
+		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
+		        return;
+		      }
+		      try {
+		        applyToActiveFlexibleObject?.((active) => {
+		          if (!isTokenGroup(active)) return;
+		          applyTokenPalette(active, { base: tokenGlobalColor, stripe: tokenGlobalColor, pattern: 'solid' });
+		          applyTokenColor(active, tokenGlobalColor);
+		        }, 'Color actualizado.');
+		      } catch (e) { /* ignore */ }
+		      setStatus(`Color de fichas: ${tokenGlobalColor}.`);
 		    });
 
 		    // Kit 2D (opcional): si el club ha guardado un token PNG, lo usamos para el estilo "camiseta".
@@ -3405,16 +3475,50 @@
       return '#22d3ee';
     };
 		    const applyTokenColor = (group, colorHex) => {
-		      if (!group || !Array.isArray(group._objects)) return;
-		      // Compat: el selector de color "único" sigue asignando `data.color`.
-		      // Para fichas a rayas, este color representa el color de la franja principal.
-		      setObjectData(group, { color: colorHex, token_stripe_color: colorHex });
-		      const tokenKind = safeText(group?.data?.token_kind);
-		      const walkObjects = (node, fn) => {
-	        if (!node) return;
-	        try { fn(node); } catch (e) { /* ignore */ }
-	        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
-	      };
+			      if (!group || !Array.isArray(group._objects)) return;
+			      // Compat: el selector de color "único" sigue asignando `data.color`.
+			      // Para fichas a rayas, este color representa el color de la franja principal.
+			      setObjectData(group, { color: colorHex, token_stripe_color: colorHex });
+			      const tokenKind = safeText(group?.data?.token_kind);
+			      const paintTokenText = () => {
+			        const contrast = contrastTextForFill(colorHex);
+			        const outline = contrast === '#000000' ? 'rgba(255,255,255,0.70)' : 'rgba(2,6,23,0.70)';
+			        const walk = (node) => {
+			          if (!node) return;
+			          if (node.type === 'text') {
+			            const role = safeText(node?.data?.role);
+			            // En modo tácticas, queremos que el color aplique "a todo": número sin cartucho fijo.
+			            if (role === 'token_number') {
+			              try {
+			                if (isTacticsMode) node.set({ backgroundColor: '' });
+			              } catch (e) { /* ignore */ }
+			              try {
+			                if (!isTacticsMode && node.backgroundColor) node.set({ fill: '#ffffff' });
+			                else node.set({ fill: contrast });
+			              } catch (e) { /* ignore */ }
+			              // Si existe stroke (jersey), mantenemos contorno legible.
+			              try {
+			                if (node.strokeWidth && Number(node.strokeWidth) > 0) node.set({ stroke: outline });
+			              } catch (e) { /* ignore */ }
+			              return;
+			            }
+			            // Nombre/etiqueta: mantenemos legibilidad y no lo "tintamos" agresivo.
+			            if (role === 'token_name') return;
+			            try {
+			              if (node.backgroundColor) node.set({ fill: '#ffffff' });
+			              else node.set({ fill: contrast });
+			            } catch (e) { /* ignore */ }
+			            return;
+			          }
+			          if (Array.isArray(node?._objects)) node._objects.forEach((child) => walk(child));
+			        };
+			        try { walk(group); } catch (e) { /* ignore */ }
+			      };
+			      const walkObjects = (node, fn) => {
+		        if (!node) return;
+		        try { fn(node); } catch (e) { /* ignore */ }
+		        if (Array.isArray(node?._objects)) node._objects.forEach((child) => walkObjects(child, fn));
+		      };
 	      const stripeRects = [];
 	      const paintableStripes = [];
 	      walkObjects(group, (child) => {
@@ -3425,11 +3529,11 @@
 	        stripeRects.push(child);
 	        if (safeText(child?.data?.role) === 'token_stripe') paintableStripes.push(child);
 	      });
-	      const treatAsLocal = tokenKind === 'player_local' || tokenKind === 'goalkeeper_local' || (!tokenKind && paintableStripes.length >= 2);
-	      if (treatAsLocal) {
-	        if (paintableStripes.length) {
-	          paintableStripes.forEach((child) => child.set({ fill: colorHex }));
-	        } else if (stripeRects.length) {
+		      const treatAsLocal = tokenKind === 'player_local' || tokenKind === 'goalkeeper_local' || (!tokenKind && paintableStripes.length >= 2);
+		      if (treatAsLocal) {
+		        if (paintableStripes.length) {
+		          paintableStripes.forEach((child) => child.set({ fill: colorHex }));
+		        } else if (stripeRects.length) {
 	          // Compat: tareas creadas antes de que marcásemos las franjas verdes con role=token_stripe.
 	          // Recoloreamos solo las franjas "no blancas".
 	          stripeRects.forEach((child) => {
@@ -3437,16 +3541,18 @@
 	            if (!current || current === '#f8fafc') return;
 	            child.set({ fill: colorHex });
 	          });
-	        } else {
-	          // Portero u otros tokens sin franjas: intentamos recolorear el círculo principal.
-	          const circles = [];
-	          walkObjects(group, (child) => { if (child?.type === 'circle') circles.push(child); });
-	          const target = circles.length > 1 ? circles[1] : circles[0];
-	          if (target) target.set({ fill: colorHex });
-	        }
-	        group.dirty = true;
-	        return;
-	      }
+		        } else {
+		          // Portero u otros tokens sin franjas: intentamos recolorear el círculo principal.
+		          const circles = [];
+		          walkObjects(group, (child) => { if (child?.type === 'circle') circles.push(child); });
+		          const target = circles.length > 1 ? circles[1] : circles[0];
+		          if (target) target.set({ fill: colorHex });
+		        }
+		        // Asegura que el número/texto también cambia con el color.
+		        paintTokenText();
+		        group.dirty = true;
+		        return;
+		      }
 	      if (tokenKind === 'player_away') {
 	        const circle = group._objects.find((child) => child && child.type === 'circle');
 	        if (circle) {
@@ -3458,14 +3564,15 @@
 	        const contrast = contrastTextForFill(colorHex);
 	        const textNodes = group._objects.filter((child) => child && child.type === 'text');
 	        // Solo recolorea el dorsal central; el nombre va sobre una etiqueta oscura fija.
-	        textNodes.forEach((node) => {
-	          if (!node) return;
-	          const top = Number(node.top) || 0;
-	          if (Math.abs(top) < 1) node.set({ fill: contrast });
-	        });
-	        group.dirty = true;
-	        return;
-	      }
+		        textNodes.forEach((node) => {
+		          if (!node) return;
+		          const top = Number(node.top) || 0;
+		          if (Math.abs(top) < 1) node.set({ fill: contrast });
+		        });
+		        paintTokenText();
+		        group.dirty = true;
+		        return;
+		      }
 	      const circle = group._objects.find((child) => child && child.type === 'circle');
 	      if (circle) {
 	        circle.set({
@@ -3475,17 +3582,18 @@
 	      }
       const textNodes = group._objects.filter((child) => child && child.type === 'text');
       const contrast = contrastTextForFill(colorHex);
-      textNodes.forEach((node) => {
-        if (!node) return;
-        // Mantén blanco si el texto tiene fondo oscuro (etiqueta inferior).
-        if (node.backgroundColor) {
-          node.set({ fill: '#ffffff' });
-          return;
-        }
-        node.set({ fill: contrast });
-	      });
-	      group.dirty = true;
-	    };
+	      textNodes.forEach((node) => {
+	        if (!node) return;
+	        // Mantén blanco si el texto tiene fondo oscuro (etiqueta inferior).
+	        if (node.backgroundColor) {
+	          node.set({ fill: '#ffffff' });
+	          return;
+	        }
+	        node.set({ fill: contrast });
+		      });
+		      paintTokenText();
+		      group.dirty = true;
+		    };
 
 	    const walkTokenObjects = (group, fn) => {
 	      const walk = (node) => {
@@ -14114,9 +14222,11 @@
 		      const tokenParts = [];
 		      let baseRadius = 22;
 		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
-		      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || 'striped');
-		      const defaultBase = kind === 'player_away' ? '#facc15' : '#ffffff';
-		      const defaultStripe = kind === 'player_local' ? '#0f7a35' : palette.fill;
+			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || (isTacticsMode ? 'solid' : 'striped'));
+			      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColor : '#facc15') : '#ffffff';
+			      const defaultStripe = (isTacticsMode && (kind === 'player_local' || kind === 'goalkeeper_local' || kind === 'player_away'))
+			        ? tokenGlobalColor
+			        : (kind === 'player_local' ? '#0f7a35' : palette.fill);
 		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
 		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
@@ -14178,18 +14288,20 @@
 		          initialsText.data = { role: 'token_initials' };
 		          tokenParts.push(initialsText);
 
-		          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-		            originX: 'center',
-		            originY: 'center',
-		            left: 0,
-		            top: 18,
-		            fontSize: 10,
-		            fontWeight: '800',
-		            fill: '#ffffff',
-		            backgroundColor: 'rgba(15,23,42,0.92)',
-		          });
-		          numberText.data = { role: 'token_number' };
-		          tokenParts.push(numberText);
+			          const tokenNumberFill = isTacticsMode ? contrastTextForFill(effectiveBase) : '#ffffff';
+			          const tokenNumberBg = isTacticsMode ? '' : 'rgba(15,23,42,0.92)';
+			          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 18,
+			            fontSize: 10,
+			            fontWeight: '800',
+			            fill: tokenNumberFill,
+			            backgroundColor: tokenNumberBg,
+			          });
+			          numberText.data = { role: 'token_number' };
+			          tokenParts.push(numberText);
 		          const nameBg = new fabric.Rect({
 		            originX: 'center',
 		            originY: 'center',
@@ -14306,19 +14418,23 @@
 				            collarPath.data = { role: 'token_collar' };
 				            tokenParts.push(collarPath);
 				          }
-					          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-					            originX: 'center',
-					            originY: 'center',
-					            left: 0,
-				            top: -2,
-			            fontSize: 14,
-			            fontWeight: '800',
-			            fill: '#ffffff',
-			            stroke: 'rgba(2,6,23,0.65)',
-			            strokeWidth: 2,
-			            paintFirst: 'stroke',
-			            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
-			          });
+						          const tokenNumberFill = isTacticsMode ? contrastTextForFill(effectiveBase) : '#ffffff';
+						          const tokenNumberStroke = isTacticsMode
+						            ? (tokenNumberFill === '#000000' ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.70)')
+						            : 'rgba(2,6,23,0.65)';
+						          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+						            originX: 'center',
+						            originY: 'center',
+						            left: 0,
+					            top: -2,
+				            fontSize: 14,
+				            fontWeight: '800',
+				            fill: tokenNumberFill,
+				            stroke: tokenNumberStroke,
+				            strokeWidth: 2,
+				            paintFirst: 'stroke',
+				            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+				          });
 		          numberText.data = { role: 'token_number' };
 		          tokenParts.push(numberText);
 		          const nameBg = new fabric.Rect({
