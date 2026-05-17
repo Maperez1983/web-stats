@@ -29901,6 +29901,56 @@ def initial_eleven_page(request):
         else:
             has_pending_lineup = bool(convocation_players)
 
+    rival_lineup_seed = {'starters': [], 'bench': []}
+    rival_team_name = ''
+    rival_team_crest_url = ''
+    try:
+        rival_record = (
+            RivalConvocationRecord.objects
+            .filter(team=primary_team, match=target_match)
+            .select_related('rival_team')
+            .first()
+            if target_match
+            else None
+        )
+    except Exception:
+        rival_record = None
+    if rival_record:
+        try:
+            allowed_rows = rival_record.convocation_data if isinstance(rival_record.convocation_data, list) else []
+            stored = rival_record.lineup_data if isinstance(rival_record.lineup_data, dict) else {}
+            rival_lineup_seed = _normalize_rival_lineup_payload_with_limit(
+                stored,
+                allowed_rows,
+                starters_limit=starters_limit,
+            )
+            # Asegura orientación TB para mostrar en vertical en esta pantalla.
+            try:
+                rival_lineup_seed = _ensure_lineup_orientation(rival_lineup_seed, target='tb')
+            except Exception:
+                pass
+        except Exception:
+            rival_lineup_seed = {'starters': [], 'bench': []}
+        try:
+            rival_team_name = (
+                str(getattr(getattr(rival_record, 'rival_team', None), 'display_name', '') or '').strip()
+                or str(getattr(getattr(rival_record, 'rival_team', None), 'name', '') or '').strip()
+                or str(getattr(convocation_record, 'opponent_name', '') or '').strip()
+                or 'Rival'
+            )
+        except Exception:
+            rival_team_name = 'Rival'
+        try:
+            if getattr(rival_record, 'rival_team', None):
+                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=True) or ''
+        except Exception:
+            rival_team_crest_url = ''
+        if not rival_team_crest_url:
+            try:
+                rival_team_crest_url = _absolute_universo_url(_resolve_rival_identity(rival_team_name)[1]) if rival_team_name else ''
+            except Exception:
+                rival_team_crest_url = ''
+
     return render(
         request,
         'football/coach_initial_eleven.html',
@@ -29913,9 +29963,13 @@ def initial_eleven_page(request):
                     getattr(convocation_record, 'opponent_name', '') or 'Rival por confirmar'
                 )[1]
             ) if convocation_record else '',
+            'match_id': int(target_match.id) if target_match and getattr(target_match, 'id', None) else None,
+            'rival_team_name': rival_team_name,
+            'rival_team_crest_url': rival_team_crest_url,
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
+            'rival_lineup_seed_json': json.dumps(rival_lineup_seed, ensure_ascii=False),
             'has_pending_convocation': has_pending_convocation,
             'has_pending_lineup': has_pending_lineup,
         },

@@ -28,7 +28,7 @@
         top: 0;
         z-index: 40;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
         gap: 0.85rem;
         align-items: center;
         padding: 0.7rem 0.85rem;
@@ -37,13 +37,17 @@
         background: linear-gradient(180deg, rgba(16, 31, 51, 0.76), rgba(11, 22, 38, 0.68));
         backdrop-filter: blur(10px);
       }
-      .top-brand {
+      .top-side {
         display: flex;
         align-items: center;
         gap: 0.85rem;
         min-width: 0;
       }
-      .top-brand img {
+      .top-side.is-away {
+        justify-content: flex-end;
+        text-align: right;
+      }
+      .top-side img {
         width: 62px;
         height: 62px;
         border-radius: 16px;
@@ -52,22 +56,48 @@
         padding: 0.3rem;
         border: 1px solid rgba(255, 255, 255, 0.14);
       }
-      .top h1 {
+      .top h1,
+      .top .away-name {
         margin: 0;
         font-size: 1.05rem;
         letter-spacing: 0.02em;
-        font-weight: 650;
+        font-weight: 850;
         text-transform: none;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .top .away-name { font-size: 1.02rem; }
+      .top .meta-line {
+        margin-top: 0.18rem;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.78);
+      }
+      .top-mid {
+        display: grid;
+        gap: 0.22rem;
+        text-align: center;
+        justify-items: center;
+      }
+      .vs-pill {
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid rgba(244, 180, 0, 0.32);
+        background: rgba(244, 180, 0, 0.12);
+        color: rgba(254, 243, 199, 0.95);
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
       }
       .top-actions {
         display: flex;
         gap: 0.45rem;
         align-items: center;
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: center;
       }
       .bc-btn {
         border: 1px solid rgba(148, 163, 184, 0.35);
@@ -475,29 +505,69 @@
         .layout { grid-template-columns: 1fr; }
         .field { width: min(100%, 560px); }
       }
+      .field .rival-layer {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .field-token.is-rival {
+        opacity: 0.92;
+      }
+      .field-token.is-rival .token {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(15, 23, 42, 0.66));
+        border-color: rgba(239, 68, 68, 0.42);
+      }
+      .field-token.is-rival .token-num {
+        background: rgba(239, 68, 68, 0.85);
+        color: #fff;
+      }
+      .field-token.is-rival .token-name {
+        color: rgba(254, 242, 242, 0.95);
+      }
+      .field-token.is-rival .token-role {
+        color: rgba(254, 202, 202, 0.92);
+      }
     </style>
   </head>
   <body class="prod-commercial">
     <main class="page">
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
-        <div class="top-brand">
+        <div class="top-side is-home">
           <img src="{{ team_crest_url|default_if_none:'' }}" alt="Escudo {{ team_name }}" />
           <div>
-            <h1>Alineación inicial · {{ team_name }}</h1>
+            <h1>{{ team_name }}</h1>
             {% if convocation_record %}
-            <p class="bc-sub">
-              {% if rival_crest_url %}
-              <img src="{{ rival_crest_url }}" alt="Escudo rival" loading="lazy" />
-              {% endif %}
-              <span>{{ convocation_record.round|default:"Sin jornada" }} · {{ convocation_record.opponent_name|default:"Rival por confirmar" }}</span>
-            </p>
+              <div class="meta-line">{{ convocation_record.round|default:"Sin jornada" }}{% if convocation_record.match_date %} · {{ convocation_record.match_date|date:"d/m/Y" }}{% endif %}</div>
             {% endif %}
           </div>
         </div>
-        <div class="top-actions">
+        <div class="top-mid">
+          <div class="vs-pill">XI · Broadcast</div>
+          <div class="top-actions">
           <button type="button" class="bc-btn" id="presentation-toggle">Presentación</button>
+          <button type="button" class="bc-btn" id="rival-toggle-btn">Rival: OFF</button>
+          {% if match_id %}
+            <a class="bc-btn" href="{% url 'coach-rival' %}?match_id={{ match_id }}" title="Preparar convocatoria y 11 del rival">Preparar rival</a>
+          {% endif %}
           <a class="bc-btn primary" href="{% url 'coach-role-trainer' %}">Volver</a>
+          </div>
+          {% if convocation_record %}
+            <div class="meta-line">{{ convocation_record.opponent_name|default:"Rival por confirmar" }}</div>
+          {% endif %}
+        </div>
+        <div class="top-side is-away">
+          <div>
+            <div class="away-name">{{ rival_team_name|default:convocation_record.opponent_name|default:"Rival" }}</div>
+            {% if convocation_record and convocation_record.location %}
+              <div class="meta-line">{{ convocation_record.location }}</div>
+            {% endif %}
+          </div>
+          {% if rival_team_crest_url %}
+            <img src="{{ rival_team_crest_url }}" alt="Escudo rival" loading="lazy" />
+          {% elif rival_crest_url %}
+            <img src="{{ rival_crest_url }}" alt="Escudo rival" loading="lazy" />
+          {% endif %}
         </div>
       </header>
       <section class="layout">
@@ -526,6 +596,11 @@
             <p>No hay jugadores convocados.</p>
             {% endfor %}
           </div>
+          <details style="margin-top:0.85rem;">
+            <summary class="field-help" style="cursor:pointer; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">11 rival (preview)</summary>
+            <div class="players" id="rival-lineup-list" style="margin-top:0.55rem; max-height: 260px;"></div>
+            <p class="field-help" style="margin-top:0.55rem;">Se alimenta de “Preparar rival”. Activa “Rival: ON” para superponerlo en el campo.</p>
+          </details>
 	          <div class="toolbar">
 	            <button type="button" id="auto-fill-btn" {% if has_pending_convocation %}class="is-disabled"{% endif %}>Auto completar</button>
 	            <button type="button" id="clear-btn">Limpiar</button>
@@ -568,8 +643,10 @@
       </section>
     </main>
     {{ lineup_seed_json|json_script:"lineup-seed-data" }}
+    {{ rival_lineup_seed_json|default:"{}"|json_script:"rival-lineup-seed-data" }}
     <script>
       const saveUrl = '{% url "match-lineup-save" %}';
+      const rivalToggleBtn = document.getElementById('rival-toggle-btn');
       const playerCards = Array.from(document.querySelectorAll('.player-card'));
       const field = document.getElementById('lineup-field');
       const statusMsg = document.getElementById('status-msg');
@@ -671,6 +748,71 @@
       })();
 
       let lineupState = { formation: defaultFormationKey, starters: [], bench: [] };
+      let rivalLineupState = { starters: [], bench: [] };
+      try {
+        const seed = JSON.parse(document.getElementById('rival-lineup-seed-data')?.textContent || '{}');
+        if (seed && typeof seed === 'object') {
+          rivalLineupState = {
+            starters: Array.isArray(seed.starters) ? seed.starters : [],
+            bench: Array.isArray(seed.bench) ? seed.bench : [],
+          };
+        }
+      } catch (_) {}
+      const rivalPrefKey = 'webstats:initial_eleven:rival_visible:v1';
+      let rivalVisible = false;
+      try { rivalVisible = window.localStorage?.getItem(rivalPrefKey) === '1'; } catch (_) {}
+      const syncRivalToggle = () => {
+        if (!rivalToggleBtn) return;
+        const hasRival = Array.isArray(rivalLineupState?.starters) && rivalLineupState.starters.length > 0;
+        rivalToggleBtn.disabled = !hasRival;
+        rivalToggleBtn.textContent = hasRival ? (rivalVisible ? 'Rival: ON' : 'Rival: OFF') : 'Rival: —';
+        rivalToggleBtn.classList.toggle('primary', rivalVisible);
+      };
+      syncRivalToggle();
+      const rivalListEl = document.getElementById('rival-lineup-list');
+      const renderRivalList = () => {
+        if (!rivalListEl) return;
+        rivalListEl.innerHTML = '';
+        const starters = Array.isArray(rivalLineupState?.starters) ? rivalLineupState.starters.slice(0, STARTERS_REQUIRED) : [];
+        if (!starters.length) {
+          const empty = document.createElement('div');
+          empty.className = 'field-help';
+          empty.textContent = 'No hay 11 rival guardado todavía.';
+          rivalListEl.appendChild(empty);
+          return;
+        }
+        starters.forEach((p) => {
+          const row = document.createElement('div');
+          row.className = 'player-card';
+          const avatar = document.createElement('span');
+          avatar.className = 'avatar';
+          avatar.textContent = String(getInitials(p?.name || p?.number || 'R'));
+          const main = document.createElement('span');
+          const name = document.createElement('span');
+          name.className = 'player-name';
+          name.textContent = String(p?.name || 'RIVAL').toUpperCase();
+          const meta = document.createElement('span');
+          meta.className = 'player-meta';
+          meta.textContent = `#${String(p?.number || '--')} · ${String(p?.position || '').trim() || '—'}`;
+          main.appendChild(name);
+          main.appendChild(meta);
+          row.appendChild(avatar);
+          row.appendChild(main);
+          const dummy = document.createElement('span');
+          dummy.textContent = '';
+          row.appendChild(dummy);
+          rivalListEl.appendChild(row);
+        });
+      };
+      renderRivalList();
+      rivalToggleBtn?.addEventListener('click', () => {
+        const hasRival = Array.isArray(rivalLineupState?.starters) && rivalLineupState.starters.length > 0;
+        if (!hasRival) return;
+        rivalVisible = !rivalVisible;
+        try { window.localStorage?.setItem(rivalPrefKey, rivalVisible ? '1' : '0'); } catch (_) {}
+        syncRivalToggle();
+        renderField();
+      });
       let manualMode = false;
       let activePlayerId = '';
       const avatarFallback = '{% static "football/images/player-avatar.svg" %}';
@@ -883,10 +1025,44 @@
           </div>
         `;
         field.appendChild(l3);
+        const rivalLayer = document.createElement('div');
+        rivalLayer.className = 'rival-layer';
+        field.appendChild(rivalLayer);
         // Asegura posiciones iniciales si vienen de un seed antiguo o de autocompletado.
         ensureStarterPositionsFromTemplate({ force: false });
 
-        // Render tokens libres (arrastre).
+        // Rival overlay (solo lectura).
+        try {
+          if (rivalVisible && Array.isArray(rivalLineupState?.starters) && rivalLineupState.starters.length) {
+            const starters = rivalLineupState.starters.slice(0, STARTERS_REQUIRED);
+            const fallbackSlots = ensureStarterPositionsFromTemplate({ force: false }) || [];
+            starters.forEach((player, idx) => {
+              const code = String(player?.code || player?.id || player?.name || '').trim();
+              if (!code) return;
+              const num = (player?.number != null && String(player.number).trim()) ? String(player.number).trim() : '--';
+              const role = String(player.position || player.role || 'rival');
+              const x = clamp(Number(player.x_pct ?? 50), 2, 98);
+              const y = clamp(Number(player.y_pct ?? 50), 2, 98);
+              const wrap = document.createElement('div');
+              wrap.className = 'field-token is-rival';
+              wrap.dataset.playerCode = code;
+              wrap.style.left = `${x}%`;
+              wrap.style.top = `${y}%`;
+              wrap.innerHTML = `
+                <div class="token token--mid">
+                  <span class="token-num">${num === '--' ? '--' : num}</span>
+                  <span>
+                    <span class="token-name">${String(player.name || '').toUpperCase()}</span>
+                    <span class="token-role">${String(role || 'RIVAL').toUpperCase()}</span>
+                  </span>
+                </div>
+              `;
+              rivalLayer.appendChild(wrap);
+            });
+          }
+        } catch (_) {}
+
+        // Render tokens libres (arrastre) - equipo propio.
         const renderedKeys = new Set();
         (lineupState.starters || []).forEach((player) => {
           const pid = String(player?.id || '').trim();
