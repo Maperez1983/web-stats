@@ -12660,6 +12660,7 @@
 		    const fitCanvas = (preserveObjects = false) => {
 		      const previousWidth = canvas.getWidth() || 0;
 		      const previousHeight = canvas.getHeight() || 0;
+	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	      // En iPad/rotación, clientWidth puede no reflejar el tamaño renderizado real (viewport scaling).
 	      // Usamos getBoundingClientRect para mantener punteros/targets coherentes.
 	      const stageRect = stage?.getBoundingClientRect?.() || { width: stage?.clientWidth || 960, height: stage?.clientHeight || 640 };
@@ -12695,9 +12696,34 @@
 	      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
 	      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
 	      orientationToggleQuick?.classList.toggle('is-active', pitchOrientation === 'portrait');
+	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	    };
 	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
 	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
+	    const setStageUserMaxWidth = (valuePx) => {
+	      if (!stage) return;
+	      const maxW = Math.max(220, Math.round(Number(valuePx) || 0));
+	      try { stage.style.setProperty('--stage-max-user', `${maxW}px`); } catch (e) { /* ignore */ }
+	      // Compat: evita que un `maxWidth` inline (antiguo) anule la regla `min()` del CSS.
+	      try { stage.style.maxWidth = ''; } catch (e) { /* ignore */ }
+	    };
+	    const setStageFitMaxWidth = (valuePx) => {
+	      if (!stage) return;
+	      const maxW = Math.max(220, Math.round(Number(valuePx) || 0));
+	      try { stage.style.setProperty('--stage-max-fit', `${maxW}px`); } catch (e) { /* ignore */ }
+	    };
+	    const applyStageFitConstraint = () => {
+	      if (!stage || !viewportEl) return;
+	      const viewportRect = viewportEl?.getBoundingClientRect?.() || { width: viewportEl?.clientWidth || 0, height: viewportEl?.clientHeight || 0 };
+	      const vw = Math.max(0, Number(viewportRect.width) || 0);
+	      const vh = Math.max(0, Number(viewportRect.height) || 0);
+	      if (vw < 10 || vh < 10) return;
+	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
+	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height
+	      const maxWByHeight = vh * ratio;
+	      const fitW = Math.floor(Math.max(320, Math.min(vw, maxWByHeight) - 2));
+	      setStageFitMaxWidth(fitW);
+	    };
 	    const writeStageFactor = (value) => {
 	      const factor = clamp(Number(value) || 1, 0.55, 1.15);
 	      if (pitchOrientation === 'portrait') stageFactorPortrait = factor;
@@ -12715,11 +12741,13 @@
 	      const factor = getStageFactor();
 	      const base = stageBaseMaxWidth();
 	      const maxW = Math.round(base * factor);
-	      try { stage.style.maxWidth = `${maxW}px`; } catch (error) { /* ignore */ }
+	      setStageUserMaxWidth(maxW);
+	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	      if (stageSizeLabel) stageSizeLabel.textContent = `Campo ${Math.round(factor * 100)}%`;
 	      if (options.noFit) return;
 	      try {
 	        window.requestAnimationFrame(() => {
+	          try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	          try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
 	          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 	          try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
@@ -12760,8 +12788,9 @@
 	        const desiredW = clamp(start.width + dx, 320, 2400);
 	        const base = stageBaseMaxWidth();
 	        const next = writeStageFactor(desiredW / Math.max(1, base));
-	        // Actualiza sin reflow pesado: set maxWidth directo.
-	        try { stage.style.maxWidth = `${Math.round(base * next)}px`; } catch (error) { /* ignore */ }
+	        // Actualiza sin reflow pesado: escribe variable CSS (y el layoutManager limitará por viewport).
+	        setStageUserMaxWidth(Math.round(base * next));
+	        try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 	        if (stageSizeLabel) stageSizeLabel.textContent = `Campo ${Math.round(next * 100)}%`;
 	        scheduleFit();
 	        try { event.preventDefault(); } catch (error) { /* ignore */ }
@@ -20661,6 +20690,14 @@
 	              }
 	              // iPad portrait: si el panel se abre/cierra, reubica la Plantilla para que sea accesible.
 	              syncRosterPlacement();
+	              // Cambia el ancho disponible del campo: re-ajusta el stage/canvas sin tocar objetos.
+	              try {
+	                window.requestAnimationFrame(() => {
+	                  try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+	                  try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+	                  try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+	                });
+	              } catch (e) { /* ignore */ }
 	              if (persist) {
 	                try { window.localStorage?.setItem(LIBRARY_COLLAPSED_KEY, libraryCollapsed ? '1' : '0'); } catch (e) { /* ignore */ }
 	              }
@@ -20797,6 +20834,7 @@
 	    const clearResizeBaseline = () => { resizeBaseline = null; };
 		    const applyResizeFromBaseline = () => {
 		      const baseline = captureResizeBaseline();
+		      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 		      const stageRect = stage?.getBoundingClientRect?.() || { width: stage?.clientWidth || 960, height: stage?.clientHeight || 640 };
 		      const width = Math.max(320, Math.round(stageRect.width || 960));
 		      const height = Math.max(220, Math.round(stageRect.height || 640));

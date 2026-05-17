@@ -697,33 +697,35 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (actionText.includes('gol') || resultText.includes('gol')) return 'goal';
     if (actionText.includes('roja') || resultText.includes('roja')) return 'roja';
     if (actionText.includes('amarilla') || resultText.includes('amarilla')) return 'amarilla';
-    if (actionText.includes('saque de esquina a favor') || actionText.includes('corner a favor') || resultText.includes('a favor')) return 'corner_for';
-    if (actionText.includes('saque de esquina en contra') || actionText.includes('corner en contra') || resultText.includes('en contra')) return 'corner_against';
+    const isCorner = actionText.includes('corner') || actionText.includes('córner') || actionText.includes('esquina');
+    if (isCorner) {
+      if (actionText.includes('en contra') || resultText.includes('en contra') || actionText.includes('contra') || resultText.includes('contra')) return 'corner_against';
+      if (actionText.includes('a favor') || resultText.includes('a favor') || actionText.includes('favor') || resultText.includes('favor')) return 'corner_for';
+    }
     if (actionText.includes('sustituci') || actionText.includes('cambio') || resultText.includes('entrada') || resultText.includes('salida')) {
       return resultText.includes('salida') ? 'bajada' : 'subida';
     }
     return '';
   };
 
-  const bootstrapQuickHudFromExistingHistory = () => {
-    if (!historyList) return;
-    // El servidor renderiza el historial de acciones pendientes al cargar la página, pero los contadores
-    // (amarillas/rojas/córners/cambios) se recalculan en cliente. Si no lo hacemos, la UI muestra 0 aunque
-    // el historial tenga acciones.
-    const resetKeys = ['amarilla', 'roja', 'corner_for', 'corner_against', 'goal', 'assist'];
-    resetKeys.forEach((key) => {
-      quickStats[key] = 0;
-      quickHistoryState[key] = [];
-    });
+	  const bootstrapQuickHudFromExistingHistory = () => {
+	    if (!historyList) return;
+	    // Sincroniza estado interno (quickStats/quickHistory) con el historial visible.
+	    // Importante: esto debe ser idempotente para que editar/borrar acciones mantenga contadores correctos.
+	    const resetKeys = ['amarilla', 'roja', 'corner_for', 'corner_against', 'goal', 'assist', 'subs'];
+	    resetKeys.forEach((key) => { quickHistoryState[key] = []; });
+	    const counts = {
+	      amarilla: 0,
+	      roja: 0,
+	      corner_for: 0,
+	      corner_against: 0,
+	      goal: 0,
+	      assist: 0,
+	    };
 
-    const shouldBootstrapSubs = !(Array.isArray(quickHistoryState?.subs) && quickHistoryState.subs.length);
-    if (shouldBootstrapSubs) {
-      quickHistoryState.subs = [];
-    }
-
-    const safeText = (value) => String(value ?? '').trim();
-    const pushHistoryRow = (historyKey, playerName, minute, label) => {
-      if (!historyKey) return;
+	    const safeText = (value) => String(value ?? '').trim();
+	    const pushHistoryRow = (historyKey, playerName, minute, label) => {
+	      if (!historyKey) return;
       const minuteNum = parseInt(String(minute ?? '').replace(/[^\d]/g, ''), 10);
       const minuteLabel = Number.isFinite(minuteNum) ? minuteNum : Math.floor(elapsedRef.value / 60);
       const nameLabel = safeText(playerName).toUpperCase() || 'JUGADOR';
@@ -739,47 +741,60 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (!derived) return;
       const minuteLabel = item.querySelector('.hist-minute')?.textContent || '';
       const playerLabel = item.querySelector('strong')?.textContent || '';
-      const normalizedPlayer = safeText(playerLabel).replace(/^#\S+\s+/, '').trim() || playerLabel || 'Jugador';
+	      const normalizedPlayer = safeText(playerLabel).replace(/^#\S+\s+/, '').trim() || playerLabel || 'Jugador';
 
-      if (derived === 'amarilla') {
-        quickStats.amarilla += 1;
-        pushHistoryRow('amarilla', normalizedPlayer, minuteLabel, result || action);
-      } else if (derived === 'roja') {
-        quickStats.roja += 1;
-        pushHistoryRow('roja', normalizedPlayer, minuteLabel, result || action);
-      } else if (derived === 'corner_for') {
-        quickStats.corner_for += 1;
-        pushHistoryRow('corner_for', normalizedPlayer, minuteLabel, result || action);
-      } else if (derived === 'corner_against') {
-        quickStats.corner_against += 1;
-        pushHistoryRow('corner_against', normalizedPlayer, minuteLabel, result || action);
-      } else if (derived === 'goal') {
-        quickStats.goal += 1;
-        pushHistoryRow('goal', normalizedPlayer, minuteLabel, result || action || 'Gol');
-      } else if (derived === 'assist') {
-        quickStats.assist += 1;
-        pushHistoryRow('assist', normalizedPlayer, minuteLabel, result || action || 'Asistencia');
-      } else if (shouldBootstrapSubs && (derived === 'subida' || derived === 'bajada')) {
-        pushHistoryRow('subs', normalizedPlayer, minuteLabel, result || action || 'Sustitución');
-      }
-    });
+	      if (derived === 'amarilla') {
+	        counts.amarilla += 1;
+	        pushHistoryRow('amarilla', normalizedPlayer, minuteLabel, result || action);
+	      } else if (derived === 'roja') {
+	        counts.roja += 1;
+	        pushHistoryRow('roja', normalizedPlayer, minuteLabel, result || action);
+	      } else if (derived === 'corner_for') {
+	        counts.corner_for += 1;
+	        pushHistoryRow('corner_for', normalizedPlayer, minuteLabel, result || action);
+	      } else if (derived === 'corner_against') {
+	        counts.corner_against += 1;
+	        pushHistoryRow('corner_against', normalizedPlayer, minuteLabel, result || action);
+	      } else if (derived === 'goal') {
+	        counts.goal += 1;
+	        pushHistoryRow('goal', normalizedPlayer, minuteLabel, result || action || 'Gol');
+	      } else if (derived === 'assist') {
+	        counts.assist += 1;
+	        pushHistoryRow('assist', normalizedPlayer, minuteLabel, result || action || 'Asistencia');
+	      } else if (derived === 'subida' || derived === 'bajada') {
+	        pushHistoryRow('subs', normalizedPlayer, minuteLabel, result || action || 'Sustitución');
+	      }
+	    });
 
-    // Actualiza contadores y previews.
-    if (quickCounters.amarilla) quickCounters.amarilla.textContent = String(quickStats.amarilla || 0);
-    if (quickCounters.roja) quickCounters.roja.textContent = String(quickStats.roja || 0);
-    if (quickCounters.corner_for) quickCounters.corner_for.textContent = String(quickStats.corner_for || 0);
-    if (quickCounters.corner_against) quickCounters.corner_against.textContent = String(quickStats.corner_against || 0);
-    if (quickCounters.goal) quickCounters.goal.textContent = String(quickStats.goal || 0);
-    if (quickCounters.assist) quickCounters.assist.textContent = String(quickStats.assist || 0);
-    renderQuickHistoryPreview('amarilla');
-    renderQuickHistoryPreview('roja');
-    renderQuickHistoryPreview('corner_for');
-    renderQuickHistoryPreview('corner_against');
-    renderQuickHistoryPreview('goal');
-    renderQuickHistoryPreview('assist');
-    if (shouldBootstrapSubs) renderQuickHistoryPreview('subs');
-    refreshStatusCounters();
-  };
+	    // Aplica contadores recalculados.
+	    quickStats.amarilla = counts.amarilla;
+	    quickStats.roja = counts.roja;
+	    quickStats.corner_for = counts.corner_for;
+	    quickStats.corner_against = counts.corner_against;
+	    quickStats.goal = counts.goal;
+	    quickStats.assist = counts.assist;
+	    Object.entries({
+	      amarilla: quickStats.amarilla,
+	      roja: quickStats.roja,
+	      corner_for: quickStats.corner_for,
+	      corner_against: quickStats.corner_against,
+	      goal: quickStats.goal,
+	      assist: quickStats.assist,
+	    }).forEach(([key, value]) => {
+	      const el = quickCounters[key];
+	      if (el) el.textContent = String(value || 0);
+	    });
+
+	    // Actualiza previews/modales y contadores "status".
+	    renderQuickHistoryPreview('amarilla');
+	    renderQuickHistoryPreview('roja');
+	    renderQuickHistoryPreview('corner_for');
+	    renderQuickHistoryPreview('corner_against');
+	    renderQuickHistoryPreview('goal');
+	    renderQuickHistoryPreview('assist');
+	    renderQuickHistoryPreview('subs');
+	    refreshStatusCounters();
+	  };
 
   Object.entries({
     amarilla: document.getElementById('yellow-history'),
@@ -1339,18 +1354,18 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const article = button.closest('[data-event-id]');
     const eventId = article?.dataset?.eventId;
     if (!eventId) return;
-    if (isOfflineId(eventId)) {
-      article.remove();
-      removeLiveEvent(eventId);
-      removeOfflineQueuedById(eventId);
-      showPageStatus('Acción offline eliminada.', 'success', 2600);
-      emitSummaryChange();
-      return;
-    }
-	    try {
-	      const response = await fetch(deleteUrl, {
-	        method: 'POST',
-	        credentials: 'same-origin',
+	    if (isOfflineId(eventId)) {
+	      article.remove();
+	      removeLiveEvent(eventId);
+	      removeOfflineQueuedById(eventId);
+	      showPageStatus('Acción offline eliminada.', 'success', 2600);
+	      try { bootstrapQuickHudFromExistingHistory(); } catch (e) { emitSummaryChange(); }
+	      return;
+	    }
+		    try {
+		      const response = await fetch(deleteUrl, {
+		        method: 'POST',
+		        credentials: 'same-origin',
 	        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
 	        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
 	      });
@@ -1358,37 +1373,37 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         const data = await response.json().catch(() => ({}));
         showPageStatus(data.error || 'No se pudo eliminar la acción.', 'danger', 5200);
         return;
-      }
-      article.remove();
-      removeLiveEvent(eventId);
-      showPageStatus('Acción eliminada del registro en vivo.', 'success', 2600);
-      emitSummaryChange();
-    } catch (err) {
-      console.error(err);
-      showPageStatus('No se pudo eliminar la acción.', 'danger', 5200);
-    }
-  });
+	      }
+	      article.remove();
+	      removeLiveEvent(eventId);
+	      showPageStatus('Acción eliminada del registro en vivo.', 'success', 2600);
+	      try { bootstrapQuickHudFromExistingHistory(); } catch (e) { emitSummaryChange(); }
+	    } catch (err) {
+	      console.error(err);
+	      showPageStatus('No se pudo eliminar la acción.', 'danger', 5200);
+	    }
+	  });
 
   const deleteHistoryArticle = async (article, successMessage = 'Última acción deshecha.') => {
     const eventId = article?.dataset?.eventId;
     if (!eventId) return false;
     const parsedForRedo = parseHistoryArticle(article);
-    if (isOfflineId(eventId)) {
-      article.remove();
-      removeLiveEvent(eventId);
-      removeOfflineQueuedById(eventId);
+	    if (isOfflineId(eventId)) {
+	      article.remove();
+	      removeLiveEvent(eventId);
+	      removeOfflineQueuedById(eventId);
       if (parsedForRedo) {
         redoStack.push(parsedForRedo);
         if (redoStack.length > 12) redoStack.shift();
         updateRedoUi();
-      }
-      showPageStatus(successMessage, 'success', 2600);
-      emitSummaryChange();
-      return true;
-    }
-	    try {
-	      const response = await fetch(deleteUrl, {
-	        method: 'POST',
+	      }
+	      showPageStatus(successMessage, 'success', 2600);
+	      try { bootstrapQuickHudFromExistingHistory(); } catch (e) { emitSummaryChange(); }
+	      return true;
+	    }
+		    try {
+		      const response = await fetch(deleteUrl, {
+		        method: 'POST',
 	        credentials: 'same-origin',
 	        headers: { 'X-CSRFToken': csrfToken, 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
 	        body: new URLSearchParams({ event_id: eventId, match_id: currentMatchId }),
@@ -1400,17 +1415,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       }
       article.remove();
       removeLiveEvent(eventId);
-      if (parsedForRedo) {
-        redoStack.push(parsedForRedo);
-        if (redoStack.length > 12) redoStack.shift();
-        updateRedoUi();
-      }
-      emitSummaryChange();
-      showPageStatus(successMessage, 'success', 2400);
-      return true;
-    } catch (err) {
-      console.error(err);
-      showPageStatus('No se pudo deshacer la acción.', 'danger', 5200);
+	      if (parsedForRedo) {
+	        redoStack.push(parsedForRedo);
+	        if (redoStack.length > 12) redoStack.shift();
+	        updateRedoUi();
+	      }
+	      try { bootstrapQuickHudFromExistingHistory(); } catch (e) { emitSummaryChange(); }
+	      showPageStatus(successMessage, 'success', 2400);
+	      return true;
+	    } catch (err) {
+	      console.error(err);
+	      showPageStatus('No se pudo deshacer la acción.', 'danger', 5200);
       return false;
     }
   };
@@ -1902,17 +1917,40 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         const offlineId = makeOfflineId();
         const fields = serializeFormData(payload);
         enqueueOfflineAction({ offlineId, fields });
+        const offlineAction = payload.get('action_type') || String(actionInput?.value || '').trim() || 'Acción';
+        const offlineResult = payload.get('result') || '';
+        const offlineZone = payload.get('zone') || zoneInput.value || '';
         appendHistoryEntry({
           minute: payload.get('minute') || Math.floor(elapsedRef.value / 60),
           player: isTeamOnlyAction
             ? null
             : { id: playerInput.value, name: (playerInput.selectedOptions?.[0]?.textContent || 'Jugador'), number: '' },
-          action: payload.get('action_type') || String(actionInput?.value || '').trim() || 'Acción',
-          zone: payload.get('zone') || zoneInput.value || '',
-          result: payload.get('result') || '',
+          action: offlineAction,
+          zone: offlineZone,
+          result: offlineResult,
           event_id: offlineId,
           pending: true,
         });
+        // Mantén el HUD inferior (acciones/posesión/ritmo) coherente incluso sin conexión.
+        try {
+          if (typeof registerLiveEvent === 'function') {
+            const minuteRaw = payload.get('minute') || Math.floor(elapsedRef.value / 60);
+            registerLiveEvent({ id: offlineId, action: offlineAction, zone: offlineZone, result: offlineResult, minute: minuteRaw });
+          }
+        } catch (e) {}
+        // Mantén el panel superior coherente incluso sin conexión (popup normal, no quick-drop).
+        try {
+          const derivedDropKey = classifyCounterDropKey({ action: offlineAction, result: offlineResult });
+          if (derivedDropKey) {
+            incrementQuickCounter(derivedDropKey);
+            appendQuickHistory(
+              derivedDropKey,
+              isTeamOnlyAction ? 'Equipo' : (playerInput.selectedOptions?.[0]?.textContent || 'Jugador'),
+              payload.get('minute') || Math.floor(elapsedRef.value / 60),
+              offlineResult || offlineAction
+            );
+          }
+        } catch (e) {}
         hidePopup();
         emitSummaryChange();
         updateOfflineQueueUi();
@@ -2210,6 +2248,12 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           event_id: offlineId,
           pending: true,
         });
+        // Mantén el HUD inferior (acciones/posesión/ritmo) coherente incluso sin conexión.
+        try {
+          if (typeof registerLiveEvent === 'function') {
+            registerLiveEvent({ id: offlineId, action: eventType, zone: zoneLabel || '', result: result || '', minute });
+          }
+        } catch (e) {}
         incrementQuickCounter(dropKey);
         appendQuickHistory(dropKey, player?.name || 'Equipo', minute, result || eventType);
         emitSummaryChange();

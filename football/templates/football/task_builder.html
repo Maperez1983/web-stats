@@ -236,19 +236,9 @@
         align-items: center;
         justify-content: center;
       }
+      /* En táctica, el tamaño del campo lo gestiona el layoutManager (JS) para que quepa en una sola vista. */
       body.tactics-mode .pitch-stage {
         max-height: 100%;
-        max-width: 100%;
-      }
-      /* Importante: en Táctica el campo debe adaptarse al alto disponible.
-         Al poner `width:auto`, la `aspect-ratio` limita por alto y evita cortes. */
-      body.tactics-mode .pitch-stage,
-      body.tactics-mode .pitch-stage.is-portrait {
-        width: auto;
-      }
-      /* En vertical (portrait) la pizarra puede quedar demasiado estrecha: ponemos un mínimo razonable. */
-      body.tactics-mode .pitch-stage.is-portrait {
-        min-width: min(520px, 62vw);
       }
       .simple-hint {
         margin: 0.65rem 0 0;
@@ -1840,7 +1830,10 @@
         position: relative;
         --pitch-zoom: 1;
         width: 100%;
-        max-width: 1500px;
+        /* `--stage-max-user` = tamaño elegido por el usuario (botones/drag).
+           `--stage-max-fit`  = límite calculado para que quepa en el viewport (layoutManager).
+           Si no existen, cae al max-width clásico. */
+        max-width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
         margin: 0 auto;
         /* Mantener misma proporción que el SVG (viewBox -2 -2 1054x684). */
         aspect-ratio: 1054 / 684;
@@ -1978,6 +1971,7 @@
         max-height: calc(100dvh - 210px);
         overflow-x: hidden;
         overflow-y: auto;
+        overscroll-behavior: contain;
         padding-right: 2px;
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 18px;
@@ -1985,6 +1979,17 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
+      /* Evita scroll lateral “fantasma” en el panel (iPad/Safari y sliders anchos). */
+      body.tactics-mode .pitch-side .resource-details,
+      body.tactics-mode .pitch-side .resource-panel.is-visible {
+        overflow-x: hidden;
+      }
+      body.tactics-mode .pitch-side input,
+      body.tactics-mode .pitch-side select,
+      body.tactics-mode .pitch-side button,
+      body.tactics-mode .pitch-side textarea {
+        max-width: 100%;
       }
       /* En tácticas, el botón “Recursos” colapsa/expande el panel; no lo ocultamos completo. */
       body.tactics-mode.tactics-tools-open .pitch-side { }

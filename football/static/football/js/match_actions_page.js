@@ -1204,18 +1204,22 @@ const urlWithMatchId = (baseUrl) => {
         if (!txt) return false;
         return terms.some((term) => txt.includes(term));
       };
-      const summarizeLiveEvent = ({ action = '', zone = '', result = '' }) => {
-        const shot =
-          containsText(action, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']) ||
-          containsText(result, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']);
-        const shotOnTarget =
-          shot && (
-            containsText(result, ['a puerta', 'apuerta', 'ap', 'a/p'])
-            || containsText(result, ['ok', 'ganad', 'ganó'])
-            || containsText(action, ['gol'])
-            || containsText(result, ['gol'])
-          );
-        const pass = containsText(action, ['pase']) || containsText(result, ['pase']);
+	      const summarizeLiveEvent = ({ action = '', zone = '', result = '' }) => {
+	        const goal = containsText(action, ['gol']) || containsText(result, ['gol']);
+	        const shot =
+	          containsText(action, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']) ||
+	          containsText(result, ['tiro', 'remate', 'disparo', 'parad', 'ataj', 'blocaj']) ||
+	          goal;
+	        const shotOnTarget =
+	          shot && (
+	            containsText(result, ['a puerta', 'apuerta', 'ap', 'a/p'])
+	            || containsText(result, ['ok', 'ganad', 'ganó'])
+	            || goal
+	          );
+	        const pass = containsText(action, ['pase', 'cambio orient']) || containsText(result, ['pase', 'cambio orient']);
+	        const dribble =
+	          containsText(action, ['regate', 'dribbl', 'dribb', 'conduccion', 'conducción', 'encare', '1v1', '1x1', '1vs1']) ||
+          containsText(result, ['regate', 'dribbl', 'dribb', 'conduccion', 'conducción']);
         const card = containsText(action, ['amarilla', 'roja', 'tarjeta']) || containsText(result, ['amarilla', 'roja']);
         const sub = containsText(action, ['sustituci', 'cambio']) || containsText(result, ['entrada', 'salida']) || containsText(zone, ['sustituci']);
         const setPiece =
@@ -1234,10 +1238,10 @@ const urlWithMatchId = (baseUrl) => {
         const offensiveDuel =
           containsText(action, ['regate', 'dribbl', 'conduccion', 'conducción', 'encare', '1v1', '1x1']) ||
           containsText(result, ['regate', 'dribbl']);
-        const defensiveDuel =
-          containsText(action, ['duelo', 'robo', 'intercep', 'entrada', 'presion', 'disputa']) ||
-          containsText(result, ['robo', 'intercep', 'recuper']) ||
-          containsText(zone, ['duelo']);
+	        const defensiveDuel =
+	          containsText(action, ['duelo', 'robo', 'intercep', 'entrada', 'presion', 'disputa']) ||
+	          containsText(result, ['robo', 'intercep', 'recuper']) ||
+	          containsText(zone, ['duelo']);
         const duel = offensiveDuel || defensiveDuel;
         const offensiveSuccess = containsText(result, ['ganad', 'ok', 'superad', 'complet', 'favorable']);
         const offensiveFail = containsText(result, ['perdid', 'fall', 'error', 'falta', 'intercept', 'robad']);
@@ -1250,16 +1254,33 @@ const urlWithMatchId = (baseUrl) => {
           (defensiveDuel && defensiveSuccess && !defensiveFail)
         );
         const passOk = pass && offensiveSuccess && !offensiveFail;
-        const zoneText = String(zone || '').toLowerCase();
-        const tercio =
-          zoneText.includes('porter') || zoneText.includes('defensa') ? 'def'
-          : zoneText.includes('medio') ? 'mid'
+	        const foulReceived = containsText(action, ['falta recib']) || containsText(result, ['falta recib']);
+	        const foulCommitted = containsText(action, ['falta cometi', 'falta comet']) || containsText(result, ['falta cometi', 'falta comet']);
+	        const againstText =
+	          containsText(action, ['en contra', 'contra', 'rival']) ||
+	          containsText(result, ['en contra', 'contra', 'rival']) ||
+	          containsText(zone, ['en contra', 'contra', 'rival']);
+	        const secondBall = containsText(action, ['caida', 'caída']) || containsText(result, ['caida', 'caída']);
+	        const secondBallWon = secondBall && (offensiveSuccess || defensiveSuccess) && !(offensiveFail || defensiveFail);
+	        const secondBallLost = secondBall && (offensiveFail || defensiveFail) && !(offensiveSuccess || defensiveSuccess);
+	        const zoneText = String(zone || '').toLowerCase();
+	        const tercio =
+	          zoneText.includes('porter') || zoneText.includes('defensa') ? 'def'
+	          : zoneText.includes('medio') ? 'mid'
           : zoneText.includes('ataque') ? 'att'
           : '';
-        const lossDef = loss && tercio === 'def';
-        const stealHigh = steal && tercio === 'att';
-        return { shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, crossOk, aerial, aerialWon, loss, lossDef, steal, stealHigh, duel, duelWon, tercio };
-      };
+	        const lossDef = loss && tercio === 'def';
+	        const stealHigh = (steal && tercio === 'att') || containsText(action, ['recuperación alta', 'recuperacion alta']);
+	        // Posesión aproximada (quién TIENE el balón tras esta acción).
+	        // - Para: acciones de ataque (pase/centro/regate/tiro/ABP) y también recuperaciones ganadas (robo/2ª jugada ganada).
+	        // - Contra: acciones "en contra" (p.ej. córner en contra) o falta cometida; 2ª jugada perdida.
+	        const setPieceFor = setPiece && !againstText;
+	        const setPieceAgainst = setPiece && againstText;
+	        const possessionFor = pass || cross || shot || setPieceFor || dribble || foulReceived || steal || (secondBall && (secondBallWon || !secondBallLost)) || (duel && duelWon) || loss;
+	        const possessionAgainst = setPieceAgainst || foulCommitted || (secondBall && secondBallLost) || (duel && !duelWon && defensiveDuel);
+	        const possessionOwner = possessionFor ? 'for' : (possessionAgainst ? 'against' : '');
+	        return { goal, shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, crossOk, aerial, aerialWon, loss, lossDef, steal, stealHigh, duel, duelWon, tercio, possessionOwner };
+	      };
       const refreshLiveStatsHud = () => {
         // KPIs primarios (configurables)
         const kpiPrimaryEls = {
@@ -1310,11 +1331,12 @@ const urlWithMatchId = (baseUrl) => {
           cards: { label: 'Tarjetas', value: (t) => String(t.cards) },
           subs: { label: 'Cambios', value: (t) => String(t.subs) },
         };
-        const totals = {
-          actions: liveEventStore.size,
-          shots: 0,
-          shotsTarget: 0,
-          passes: 0,
+	        const totals = {
+	          actions: liveEventStore.size,
+	          goals: 0,
+	          shots: 0,
+	          shotsTarget: 0,
+	          passes: 0,
           passesOk: 0,
           cards: 0,
           subs: 0,
@@ -1333,6 +1355,9 @@ const urlWithMatchId = (baseUrl) => {
           tercio_mid: 0,
           tercio_att: 0,
         };
+        let possessionForSignals = 0;
+        let possessionAgainstSignals = 0;
+        const possessionPoints = [];
         const currentMinute = Math.max(0, Math.floor(elapsedRef.value / 60));
         const windowStart = Math.max(0, currentMinute - 5);
         const last5 = {
@@ -1345,8 +1370,12 @@ const urlWithMatchId = (baseUrl) => {
         let subExits = 0;
         liveEventStore.forEach((eventData) => {
           const summary = summarizeLiveEvent(eventData);
+          const elapsedSRaw = Number(eventData?.elapsed_s);
+          const minuteRaw = Number(eventData?.minute);
+          const eventTimeS = Number.isFinite(elapsedSRaw) ? elapsedSRaw : (Number.isFinite(minuteRaw) ? minuteRaw * 60 : null);
           if (summary.shot) totals.shots += 1;
           if (summary.shotOnTarget) totals.shotsTarget += 1;
+          if (summary.goal) totals.goals += 1;
           if (summary.pass) totals.passes += 1;
           if (summary.passOk) totals.passesOk += 1;
           if (summary.card) totals.cards += 1;
@@ -1370,6 +1399,13 @@ const urlWithMatchId = (baseUrl) => {
           if (summary.tercio === 'def') totals.tercio_def += 1;
           else if (summary.tercio === 'mid') totals.tercio_mid += 1;
           else if (summary.tercio === 'att') totals.tercio_att += 1;
+          if (summary.possessionOwner === 'for') {
+            possessionForSignals += 1;
+            if (Number.isFinite(eventTimeS)) possessionPoints.push({ t: eventTimeS, owner: 'for' });
+          } else if (summary.possessionOwner === 'against') {
+            possessionAgainstSignals += 1;
+            if (Number.isFinite(eventTimeS)) possessionPoints.push({ t: eventTimeS, owner: 'against' });
+          }
 
           const minute = Number(eventData?.minute);
           if (Number.isFinite(minute) && minute >= windowStart && minute <= currentMinute) {
@@ -1384,9 +1420,48 @@ const urlWithMatchId = (baseUrl) => {
         const pace = totals.actions / minutes;
         const pace5 = last5.actions / 5;
         const passAcc = totals.passes ? Math.round((totals.passesOk / totals.passes) * 100) : 0;
-        const possessionApprox = totals.actions
-          ? Math.round(Math.max(35, Math.min(75, 35 + (totals.passes / totals.actions) * 40)))
-          : 50;
+        const possTotalSignals = possessionForSignals + possessionAgainstSignals;
+        const nowS = Number(elapsedRef.value) || 0;
+        let possessionApprox = 50;
+        if (nowS > 0 && possessionPoints.length) {
+          const points = possessionPoints
+            .filter((p) => p && Number.isFinite(Number(p.t)) && (p.owner === 'for' || p.owner === 'against'))
+            .map((p) => ({ t: Number(p.t), owner: p.owner }))
+            .sort((a, b) => a.t - b.t);
+          const windowStartS = Math.max(0, nowS - 5 * 60);
+          let ownerAtStart = 'for';
+          points.forEach((p) => { if (p.t <= windowStartS) ownerAtStart = p.owner; });
+          let lastOwner = ownerAtStart;
+          let lastT = windowStartS;
+          let forTime = 0;
+          let againstTime = 0;
+          points.forEach((p) => {
+            const t = Math.max(windowStartS, Math.min(nowS, p.t));
+            if (!(t > lastT)) {
+              lastOwner = p.owner;
+              lastT = t;
+              return;
+            }
+            const dt = t - lastT;
+            if (lastOwner === 'for') forTime += dt;
+            else againstTime += dt;
+            lastOwner = p.owner;
+            lastT = t;
+          });
+          const tail = nowS - lastT;
+          if (tail > 0) {
+            if (lastOwner === 'for') forTime += tail;
+            else againstTime += tail;
+          }
+          const totalTime = forTime + againstTime;
+          if (totalTime >= 15) {
+            possessionApprox = Math.round((forTime / totalTime) * 100);
+          }
+        }
+        if (possessionApprox === 50 && possTotalSignals >= 3) {
+          possessionApprox = Math.round((possessionForSignals / possTotalSignals) * 100);
+        }
+        possessionApprox = Math.max(5, Math.min(95, possessionApprox));
         const duelRate = totals.duels ? Math.round((totals.duelsWon / totals.duels) * 100) : 0;
         const aerialRate = totals.aerial ? Math.round((totals.aerialWon / totals.aerial) * 100) : 0;
         const shotAcc = totals.shots ? Math.round((totals.shotsTarget / totals.shots) * 100) : 0;
@@ -1659,10 +1734,23 @@ const urlWithMatchId = (baseUrl) => {
           refreshLiveStatsHud();
         }
       };
-      const registerLiveEvent = ({ id = null, action = '', zone = '', result = '', minute = null }) => {
+      const registerLiveEvent = ({ id = null, action = '', zone = '', result = '', minute = null, elapsed_s = null }) => {
         const key = id ? `id:${id}` : `tmp:${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const minuteNum = Number(minute);
-        liveEventStore.set(key, { action, zone, result, minute: Number.isFinite(minuteNum) ? minuteNum : null });
+        const minuteValue = Number.isFinite(minuteNum) ? minuteNum : null;
+        const elapsedCandidate = Number(elapsed_s);
+        let elapsedValue = Number.isFinite(elapsedCandidate) ? elapsedCandidate : Number(elapsedRef?.value);
+        if (!Number.isFinite(elapsedValue) || elapsedValue <= 0) {
+          elapsedValue = (minuteValue != null) ? minuteValue * 60 : null;
+        }
+        liveEventStore.set(key, {
+          id: id != null ? String(id) : null,
+          action,
+          zone,
+          result,
+          minute: minuteValue,
+          elapsed_s: Number.isFinite(Number(elapsedValue)) ? Number(elapsedValue) : null,
+        });
         scheduleRefreshLiveStatsHud();
       };
       const removeLiveEvent = (eventId) => {
