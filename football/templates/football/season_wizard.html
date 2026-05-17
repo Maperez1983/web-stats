@@ -1,0 +1,329 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Temporada · Cierre y nueva · 2J Club</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <style>
+      :root {
+        --deep: #050913;
+        --panel: rgba(7, 16, 30, 0.82);
+        --line: rgba(255, 255, 255, 0.16);
+        --ink: #eef2ff;
+        --muted: rgba(226, 232, 240, 0.76);
+        --amber: #f4b400;
+        --green: #22c55e;
+        --danger: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
+          radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        padding: 1rem;
+      }
+      .page { max-width: 980px; margin: 0 auto; }
+      .card {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 18px;
+        padding: 1rem;
+        backdrop-filter: blur(10px);
+      }
+      .topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.9rem;
+        flex-wrap: wrap;
+      }
+      .title { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.02em; }
+      .subtitle { color: var(--muted); font-size: 0.95rem; }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+        margin: 0.75rem 0 1rem;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 0.6rem 0.7rem;
+        color: var(--muted);
+        display: flex;
+        gap: 0.55rem;
+        align-items: center;
+      }
+      .step strong { color: var(--ink); font-weight: 700; }
+      .dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: rgba(226,232,240,0.25);
+        border: 1px solid rgba(255,255,255,0.18);
+      }
+      .step.active { border-color: rgba(244,180,0,0.35); color: var(--ink); }
+      .step.active .dot { background: var(--amber); border-color: rgba(255,255,255,0.25); }
+      .grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      label { display: block; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.25rem; }
+      input, select {
+        width: 100%;
+        padding: 0.7rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.52);
+        color: var(--ink);
+        outline: none;
+      }
+      .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.85rem; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem 0.9rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2, 6, 23, 0.44);
+        color: var(--ink);
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      .btn-primary { background: rgba(244,180,0,0.14); border-color: rgba(244,180,0,0.34); }
+      .btn-danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.34); }
+      .btn-ghost { background: rgba(2,6,23,0.18); }
+      .alert {
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 14px;
+        padding: 0.75rem 0.85rem;
+        margin: 0.85rem 0 0;
+      }
+      .alert.error { border-color: rgba(239,68,68,0.35); color: rgba(254,226,226,0.95); background: rgba(239,68,68,0.06); }
+      .alert.ok { border-color: rgba(34,197,94,0.35); color: rgba(220,252,231,0.95); background: rgba(34,197,94,0.06); }
+      .player-card {
+        display: flex;
+        gap: 0.9rem;
+        align-items: center;
+        padding: 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(2,6,23,0.32);
+        margin-top: 0.75rem;
+      }
+      .player-meta { flex: 1; min-width: 0; }
+      .player-name { font-weight: 800; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .player-sub { color: var(--muted); margin-top: 0.15rem; }
+      .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); color: var(--muted); font-size: 0.85rem; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+      @media (max-width: 720px) {
+        .grid { grid-template-columns: 1fr; }
+        .steps { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="topline">
+        <div>
+          <div class="title">Temporada · Cierre y configuración</div>
+          <div class="subtitle">{{ workspace.name }}</div>
+        </div>
+        <div class="actions" style="margin:0;">
+          <a class="btn btn-ghost" href="{% url 'club-onboarding' %}">Volver a configuración</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="steps">
+          <div class="step {% if step == 'close' %}active{% endif %}"><span class="dot"></span><strong>1)</strong> Cerrar temporada</div>
+          <div class="step {% if step == 'reports' %}active{% endif %}"><span class="dot"></span><strong>2)</strong> Informes jugador</div>
+          <div class="step {% if step == 'new' %}active{% endif %}"><span class="dot"></span><strong>3)</strong> Nueva temporada</div>
+        </div>
+
+        {% if error %}
+          <div class="alert error">{{ error }}</div>
+        {% endif %}
+        {% if message %}
+          <div class="alert ok">{{ message }}</div>
+        {% endif %}
+
+        {% if step == 'close' %}
+          <p class="subtitle" style="margin:0.2rem 0 0.6rem;">
+            Al cerrar la temporada, el contenido anterior queda como histórico. Las tareas se conservan.
+          </p>
+          {% if active_club_season %}
+            <div class="alert" style="margin-top:0.65rem;">
+              Temporada activa: <strong>{{ active_club_season.label }}</strong> · inicio {{ active_club_season.start_date }}
+              {% if active_club_season.end_date %}· fin {{ active_club_season.end_date }}{% endif %}
+            </div>
+            <form method="post" style="margin-top:0.85rem;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="close_season" />
+              <div class="grid">
+                <div>
+                  <label for="id_season_end_date">Fecha fin</label>
+                  <input id="id_season_end_date" type="date" name="season_end_date" value="{% now 'Y-m-d' %}" />
+                </div>
+                <div>
+                  <label for="id_report_team_id">Equipo para informes</label>
+                  <select id="id_report_team_id" name="report_team_id">
+                    {% for t in teams %}
+                      <option value="{{ t.id }}" {% if active_team and t.id == active_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn btn-danger" type="submit" onclick="return confirm('Esto cerrará la temporada activa y la pasará a histórico. ¿Continuar?');">Finalizar temporada</button>
+                <a class="btn btn-ghost" href="{% url 'club-season-wizard' %}?step=new">Ir a crear nueva temporada</a>
+              </div>
+            </form>
+          {% else %}
+            <div class="alert" style="margin-top:0.65rem;">
+              No hay temporada activa configurada. Puedes crear una nueva ahora.
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="{% url 'club-season-wizard' %}?step=new">Crear nueva temporada</a>
+            </div>
+          {% endif %}
+        {% endif %}
+
+        {% if step == 'reports' %}
+          <div class="row" style="margin-top:0.25rem;">
+            <div class="subtitle" style="margin:0;">
+              {% if closed_season %}
+                Cerrada: <strong>{{ closed_season.label }}</strong>
+              {% else %}
+                Temporada: <strong>(sin cerrar)</strong>
+              {% endif %}
+            </div>
+            <form method="post" style="margin:0;min-width:280px;">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reports_set_team" />
+              <label for="id_report_team_pick" style="margin:0 0 0.25rem;">Equipo</label>
+              <div style="display:flex; gap:0.5rem; align-items:center;">
+                <select id="id_report_team_pick" name="report_team_id">
+                  {% for t in teams %}
+                    <option value="{{ t.id }}" {% if report_team and t.id == report_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-ghost" type="submit">Cargar</button>
+              </div>
+            </form>
+          </div>
+
+          {% if current_player %}
+            <div class="player-card">
+              <div class="player-meta">
+                <div class="player-name">
+                  {{ current_player.name }}
+                  {% if current_player.number %}<span class="badge" style="margin-left:0.4rem;">#{{ current_player.number }}</span>{% endif %}
+                </div>
+                <div class="player-sub">
+                  {{ player_idx|add:1 }} / {{ player_total }} · {{ report_team.display_name|default:report_team.name }}
+                </div>
+              </div>
+              <div class="actions" style="margin:0;">
+                {% if pdf_url %}
+                  <a class="btn btn-primary" href="{{ pdf_url }}" target="_blank" rel="noopener">Descargar PDF</a>
+                {% endif %}
+              </div>
+            </div>
+            <form method="post" class="actions">
+              {% csrf_token %}
+              <button class="btn btn-ghost" type="submit" name="action" value="reports_prev" {% if player_idx == 0 %}disabled{% endif %}>Anterior</button>
+              <button class="btn btn-ghost" type="submit" name="action" value="reports_next" {% if player_total <= 1 or player_idx|add:1 >= player_total %}disabled{% endif %}>Siguiente</button>
+              <button class="btn btn-primary" type="submit" name="action" value="goto_new_season">Continuar a nueva temporada</button>
+            </form>
+          {% else %}
+            <div class="alert" style="margin-top:0.75rem;">
+              No hay jugadores en esta plantilla. Elige otro equipo o continúa.
+            </div>
+            <form method="post" class="actions">
+              {% csrf_token %}
+              <button class="btn btn-primary" type="submit" name="action" value="goto_new_season">Continuar a nueva temporada</button>
+            </form>
+          {% endif %}
+        {% endif %}
+
+        {% if step == 'new' %}
+          <p class="subtitle" style="margin:0.2rem 0 0.6rem;">
+            Configura la nueva temporada y, si quieres, define las fases con fechas (opcional).
+          </p>
+          <form method="post" style="margin-top:0.85rem;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_new_season" />
+            <div class="grid">
+              <div>
+                <label for="id_new_season_label">Etiqueta</label>
+                <input id="id_new_season_label" type="text" name="season_label" value="{{ season_form.label|default:'' }}" placeholder="2026/2027" required />
+              </div>
+              <div>
+                <label for="id_new_season_start_date">Inicio</label>
+                <input id="id_new_season_start_date" type="date" name="season_start_date" value="{{ season_form.start_date|default:'' }}" required />
+              </div>
+              <div style="grid-column: 1 / -1;">
+                <label for="id_inherit_team_id">Heredar plantilla (pendiente de confirmar)</label>
+                <select id="id_inherit_team_id" name="inherit_team_id">
+                  {% for t in teams %}
+                    <option value="{{ t.id }}" {% if active_team and t.id == active_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="alert" style="margin-top:0.9rem;">
+              <strong>Fases (opcionales):</strong> si no rellenas fechas, puedes configurarlas más tarde.
+            </div>
+            <div class="grid" style="margin-top:0.75rem;">
+              <div>
+                <label>Captación · inicio</label>
+                <input type="date" name="phase_recruitment_start" />
+              </div>
+              <div>
+                <label>Captación · fin</label>
+                <input type="date" name="phase_recruitment_end" />
+              </div>
+              <div>
+                <label>Pretemporada · inicio</label>
+                <input type="date" name="phase_preseason_start" />
+              </div>
+              <div>
+                <label>Pretemporada · fin</label>
+                <input type="date" name="phase_preseason_end" />
+              </div>
+              <div>
+                <label>Temporada regular · inicio</label>
+                <input type="date" name="phase_regular_start" />
+              </div>
+              <div>
+                <label>Temporada regular · fin</label>
+                <input type="date" name="phase_regular_end" />
+              </div>
+              <div>
+                <label>Playoff · inicio</label>
+                <input type="date" name="phase_playoffs_start" />
+              </div>
+              <div>
+                <label>Playoff · fin</label>
+                <input type="date" name="phase_playoffs_end" />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn-primary" type="submit">Crear temporada</button>
+              <a class="btn btn-ghost" href="{% url 'club-season-wizard' %}?step=close">Volver</a>
+            </div>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>
+

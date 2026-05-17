@@ -223,6 +223,48 @@ class WorkspaceSeasonPlayer(models.Model):
         return f'{self.season.label} · {self.player.name}'
 
 
+class WorkspaceSeasonPhase(models.Model):
+    """
+    Fases internas de una temporada de club (captación, pretemporada, liga, etc.).
+
+    Se usan principalmente para planificación (agenda/sesiones) y UX del producto.
+    """
+
+    KEY_RECRUITMENT = 'recruitment'
+    KEY_PRESEASON = 'preseason'
+    KEY_REGULAR = 'regular'
+    KEY_PLAYOFFS = 'playoffs'
+    KEY_OFFSEASON = 'offseason'
+    KEY_CUSTOM = 'custom'
+
+    KEY_CHOICES = (
+        (KEY_RECRUITMENT, 'Captación'),
+        (KEY_PRESEASON, 'Pretemporada'),
+        (KEY_REGULAR, 'Temporada regular'),
+        (KEY_PLAYOFFS, 'Playoff / eliminatorias'),
+        (KEY_OFFSEASON, 'Fuera de temporada'),
+        (KEY_CUSTOM, 'Personalizada'),
+    )
+
+    season = models.ForeignKey(WorkspaceSeason, on_delete=models.CASCADE, related_name='phases')
+    key = models.CharField(max_length=24, choices=KEY_CHOICES, default=KEY_CUSTOM, db_index=True)
+    label = models.CharField(max_length=80, help_text='Nombre visible. Ej: Captación, Pretemporada…')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['season_id', 'sort_order', 'start_date', 'id']
+        verbose_name = 'Fase de temporada (club)'
+        verbose_name_plural = 'Fases de temporada (club)'
+
+    def __str__(self):
+        return f'{self.season.label} · {self.label}'
+
+
 class WorkspaceTeam(models.Model):
     """
     Vínculo entre un cliente (workspace club) y sus equipos/categorías.
