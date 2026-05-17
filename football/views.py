@@ -55515,11 +55515,13 @@ def player_season_report_edit_page(request, player_id):
         return redirect(f'{request.path}?{qs}' if qs else request.path)
 
     pdf_url = reverse('player-pdf', args=[player.id])
+    preview_url = pdf_url + '?format=html'
     back_url = reverse('player-detail', args=[player.id])
     try:
         qs = request.GET.copy()
         if qs:
             pdf_url = f'{pdf_url}?{qs.urlencode()}'
+            preview_url = f'{pdf_url}&format=html'
             back_url = f'{back_url}?{qs.urlencode()}'
     except Exception:
         pass
@@ -55536,6 +55538,7 @@ def player_season_report_edit_page(request, player_id):
             'tournament_filter': tournament_filter,
             'report': report,
             'pdf_url': pdf_url,
+            'preview_url': preview_url,
             'back_url': back_url,
         },
     )
@@ -55868,6 +55871,12 @@ def player_pdf(request, player_id):
         },
         request=request,
     )
+    try:
+        output_format = str(request.GET.get('format') or '').strip().lower()
+    except Exception:
+        output_format = ''
+    if output_format == 'html':
+        return HttpResponse(html, content_type='text/html; charset=utf-8')
     filename = slugify(player.name or 'jugador')
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
