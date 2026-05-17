@@ -1932,39 +1932,26 @@ const urlWithMatchId = (baseUrl) => {
 		        } catch (err) {
 		          console.warn('No se pudo leer el once inicial del servidor', err);
 		        }
+		        // Nota: no usamos localStorage como fuente de verdad del XI.
+            // Sirve para resiliencia durante el partido, pero en multi-dispositivo genera divergencias.
+            // El XI oficial debe venir siempre de servidor (seed o lineup-get).
 		        if (lineupStorageKey) {
 		          try {
 		            const rawPersisted = localStorage.getItem(lineupStorageKey);
 		            if (rawPersisted) {
 		              const persisted = JSON.parse(rawPersisted);
 		              const serverSavedAt = parseEpoch(lineupState?._meta?.saved_at || lineupState?._meta?.server_saved_at);
-		              const persistedServerSavedAt = parseEpoch(persisted?._meta?.server_saved_at || persisted?._meta?.saved_at);
-		              const prefersServer = Boolean(
-		                serverSavedAt
-		                && (!persistedServerSavedAt || serverSavedAt > persistedServerSavedAt)
-		                && !isRecentLocal(persisted),
-		              );
                   const canTrustServerSeed = serverSeedLooksReal(serverSeed) || serverSavedAt > 0;
-                  const shouldUsePersisted = Boolean(
-                    persisted
-                    && typeof persisted === 'object'
-                    && (
-                      // Solo usamos persisted si el usuario está editando "en caliente" (últimos 2 min)
-                      // o si NO tenemos un seed fiable del servidor (p.ej. sin lineup aún).
-                      isRecentLocal(persisted)
-                      || !canTrustServerSeed
-                    )
-                    && !prefersServer
-                  );
-		              if (prefersServer) {
-		                try {
-		                  localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] }));
-		                } catch (e) {}
-		              } else if (shouldUsePersisted) {
-		                lineupState = persisted;
+                  // Si no hay seed fiable, permitimos mostrar persisted como "borrador" muy reciente.
+                  if (!canTrustServerSeed && isRecentLocal(persisted) && persisted && typeof persisted === 'object') {
+                    lineupState = persisted;
                     ensureLineupOrientationLR();
-		                return;
-		              }
+                    return;
+                  }
+                  // Si hay seed del servidor, aseguramos que localStorage no "pise" en el futuro.
+                  if (canTrustServerSeed) {
+                    try { localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] })); } catch (e) {}
+                  }
 		            }
 		          } catch (err) {
 			            console.warn('No se pudo recuperar el once inicial persistido', err);
