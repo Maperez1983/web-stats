@@ -158,6 +158,7 @@
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-command-palette>Buscar / Ir a…</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-shortcuts>Atajos</button>
       <button type="button" class="nav-command-btn nav-command-btn--panel" data-webstats-presentation-toggle>Presentación</button>
+      <button type="button" class="nav-command-btn nav-command-btn--panel" id="webstats-reset-cache" title="Útil en iPad/PWA cuando no ves cambios tras un deploy">Reset caché</button>
       <a href="{% url 'search-page' %}">Buscar</a>
       {% if is_admin_user and active_workspace_options and active_workspace_options|length > 1 %}
       <div class="nav-more-subtitle">Clientes</div>
@@ -295,6 +296,50 @@
         try { window.location.href = '/'; } catch (e) {}
       }
     }, 280);
+  });
+})();
+</script>
+<script>
+(function () {
+  const btn = document.getElementById('webstats-reset-cache');
+  if (!btn) return;
+  const clearLocalLineupDrafts = () => {
+    try {
+      const keys = Object.keys(window.localStorage || {});
+      keys.forEach((key) => {
+        if (key.startsWith('touchFieldLineup:')) {
+          try { localStorage.removeItem(key); } catch (e) {}
+        }
+      });
+    } catch (e) {}
+  };
+  const clearCaches = async () => {
+    try {
+      if (!('caches' in window)) return;
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => {
+        if (String(key || '').startsWith('webstats-')) {
+          return caches.delete(key);
+        }
+        return Promise.resolve(false);
+      }));
+    } catch (e) {}
+  };
+  const unregisterServiceWorkers = async () => {
+    try {
+      if (!('serviceWorker' in navigator)) return;
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all((regs || []).map((reg) => reg.unregister()));
+    } catch (e) {}
+  };
+  btn.addEventListener('click', async () => {
+    const ok = window.confirm('¿Resetear caché offline (PWA) y recargar?');
+    if (!ok) return;
+    try { btn.disabled = true; btn.textContent = 'Reseteando…'; } catch (e) {}
+    clearLocalLineupDrafts();
+    await clearCaches();
+    await unregisterServiceWorkers();
+    try { window.location.reload(); } catch (e) {}
   });
 })();
 </script>
