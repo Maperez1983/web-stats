@@ -627,6 +627,84 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      /* Táctica: barra rápida de inserción (chips local/rival + recursos mínimos + export) */
+      body.tactics-mode .tactics-quickbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        align-items: center;
+        margin-left: auto;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip {
+        border-radius: 999px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148,163,184,0.9);
+      }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_local"] .dot,
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_local"] .dot { background: rgba(34, 197, 94, 0.95); }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_rival"] .dot,
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_rival"] .dot { background: rgba(239, 68, 68, 0.95); }
+      body.tactics-mode .tactics-quickbar .tactics-chip.is-active {
+        background: rgba(34, 211, 238, 0.14);
+        border-color: rgba(34, 211, 238, 0.38);
+        color: rgba(224, 242, 254, 0.98);
+      }
+      body.tactics-mode #tactics-quick-recents {
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+      body.tactics-mode #tactics-quick-recents .tactics-chip {
+        padding: 0.5rem 0.65rem;
+        font-size: 0.74rem;
+      }
+      body.tactics-mode .tactics-quickbar details summary.surface-trigger { cursor: pointer; }
+      body.tactics-mode .tactics-quickbar details summary::-webkit-details-marker { display: none; }
+      body.tactics-mode .tactics-quickbar .tactics-menu {
+        position: relative;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        z-index: 120;
+        width: min(520px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.55rem;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row .meta {
+        font-size: 0.78rem;
+        opacity: 0.85;
+      }
+      body.tactics-mode .tactics-quickbar .tactics-menu-body .row .button {
+        padding: 0.55rem 0.75rem;
+        border-radius: 14px;
+        font-weight: 900;
+      }
 	      .resource-strip button {
 	        display: inline-flex;
 	        align-items: center;
@@ -4058,6 +4136,64 @@
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
                   <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
                   <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
+                  <div class="tactics-quickbar" id="tactics-quickbar" aria-label="Barra rápida de táctica">
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_local" id="tactics-tool-local" title="Insertar ficha local" aria-label="Insertar ficha local">
+                      <span class="dot" aria-hidden="true"></span>Local
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_rival" id="tactics-tool-rival" title="Insertar ficha rival" aria-label="Insertar ficha rival">
+                      <span class="dot" aria-hidden="true"></span>Rival
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="goalkeeper_local" id="tactics-tool-gk-local" title="Insertar portero local" aria-label="Insertar portero local">
+                      <span class="dot" aria-hidden="true"></span>GK L
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="goalkeeper_rival" id="tactics-tool-gk-rival" title="Insertar portero rival" aria-label="Insertar portero rival">
+                      <span class="dot" aria-hidden="true"></span>GK R
+                    </button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="ball" id="tactics-tool-ball" title="Insertar balón" aria-label="Insertar balón">⚽</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="arrow_solid" id="tactics-tool-arrow" title="Insertar flecha" aria-label="Insertar flecha">➡︎</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="cone" id="tactics-tool-cone" title="Insertar cono" aria-label="Insertar cono">Cono</button>
+
+                    <details class="tactics-menu" id="tactics-formation-menu">
+                      <summary class="surface-trigger" aria-label="Formaciones y autocolocado">
+                        <span>Formación</span>
+                        <span class="current">Auto</span>
+                      </summary>
+                      <div class="tactics-menu-body" role="dialog" aria-label="Formaciones">
+                        <div class="row">
+                          <span class="meta"><strong>Local</strong> (11v11)</span>
+                          <button type="button" class="button" data-tactics-formation="11:433:local">4-3-3</button>
+                          <button type="button" class="button" data-tactics-formation="11:442:local">4-4-2</button>
+                          <button type="button" class="button" data-tactics-formation="11:4231:local">4-2-3-1</button>
+                          <button type="button" class="button" data-tactics-formation="11:352:local">3-5-2</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta"><strong>Local</strong> (7v7)</span>
+                          <button type="button" class="button" data-tactics-formation="7:231:local">2-3-1</button>
+                          <button type="button" class="button" data-tactics-formation="7:321:local">3-2-1</button>
+                          <button type="button" class="button" data-tactics-formation="7:222:local">2-2-2</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta"><strong>Rival</strong> (copiar)</span>
+                          <button type="button" class="button" data-tactics-formation="11:433:rival">4-3-3</button>
+                          <button type="button" class="button" data-tactics-formation="11:442:rival">4-4-2</button>
+                          <button type="button" class="button" data-tactics-formation="7:231:rival">2-3-1</button>
+                        </div>
+                        <div class="row">
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-formation-clear" checked />
+                            Reemplazar fichas
+                          </label>
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-formation-numbers" checked />
+                            Dorsales 1–11
+                          </label>
+                        </div>
+                      </div>
+                    </details>
+
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-export-png" title="Exportar PNG" aria-label="Exportar PNG">PNG</button>
+                    <button type="button" class="surface-trigger tactics-chip" id="tactics-export-pdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>
+                  </div>
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
                     <button type="button" class="surface-trigger" id="surface-trigger">
@@ -4974,6 +5110,7 @@
 			                      <input type="text" id="task-token-global-color-rival-hex" value="#ef4444" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
 			                    </span>
 			                  </div>
+			                  <div class="resource-strip" id="tactics-quick-recents" hidden aria-label="Recientes y favoritos"></div>
 			                  <div class="resource-strip" id="task-basic-tools">
 			                    <button type="button" class="tool-icon" data-add="player_local" title="Chapa local" aria-label="Chapa local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Chapa local</span></button>
 			                    <button type="button" class="tool-icon" data-add="player_rival" title="Chapa rival" aria-label="Chapa rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Chapa rival</span></button>

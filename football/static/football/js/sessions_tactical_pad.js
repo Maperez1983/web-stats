@@ -19491,6 +19491,314 @@
 	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 					    });
 
+              // TÁCTICA: barra rápida (local/rival/porteros + recursos mínimos + formaciones + export)
+              // Objetivo: flujo "montar táctica en 30s" sin depender del panel lateral.
+              const tacticsQuickbar = document.getElementById('tactics-quickbar');
+              const tacticsFormationMenu = document.getElementById('tactics-formation-menu');
+              const tacticsFormationClear = document.getElementById('tactics-formation-clear');
+              const tacticsFormationNumbers = document.getElementById('tactics-formation-numbers');
+              const tacticsExportPngBtn = document.getElementById('tactics-export-png');
+              const tacticsExportPdfBtn = document.getElementById('tactics-export-pdf');
+              const tacticsQuickRecentsEl = document.getElementById('tactics-quick-recents');
+              const QUICK_RECENTS_KEY = 'webstats:tpad:tactics-quick-recents-v1';
+              const QUICK_FAVS_KEY = 'webstats:tpad:tactics-quick-favs-v1';
+
+              const readStoredList = (key, fallback = []) => {
+                try {
+                  const raw = safeText(window.localStorage.getItem(key));
+                  const parsed = raw ? JSON.parse(raw) : null;
+                  return Array.isArray(parsed) ? parsed.map((v) => safeText(v)).filter(Boolean) : fallback;
+                } catch (e) {
+                  return fallback;
+                }
+              };
+              const writeStoredList = (key, value) => {
+                try { window.localStorage.setItem(key, JSON.stringify(value || [])); } catch (e) { /* ignore */ }
+              };
+              let quickFavs = readStoredList(QUICK_FAVS_KEY, []);
+              let quickRecents = readStoredList(QUICK_RECENTS_KEY, []);
+
+              const quickLabelFor = (kind) => {
+                const k = safeText(kind);
+                if (k === 'player_local') return 'Local';
+                if (k === 'player_rival') return 'Rival';
+                if (k === 'goalkeeper_local') return 'GK Local';
+                if (k === 'goalkeeper_rival') return 'GK Rival';
+                if (k === 'ball') return 'Balón';
+                if (k === 'arrow_solid') return 'Flecha';
+                if (k === 'arrow_curve') return 'Flecha curva';
+                if (k === 'cone') return 'Cono';
+                return RESOURCE_LABELS[k] || k;
+              };
+
+              const renderQuickRecents = () => {
+                if (!tacticsQuickRecentsEl) return;
+                const merged = [
+                  ...quickFavs,
+                  ...quickRecents.filter((k) => !quickFavs.includes(k)),
+                ].filter(Boolean).slice(0, 8);
+                if (!merged.length) {
+                  try { tacticsQuickRecentsEl.hidden = true; } catch (e) { /* ignore */ }
+                  tacticsQuickRecentsEl.innerHTML = '';
+                  return;
+                }
+                try { tacticsQuickRecentsEl.hidden = false; } catch (e) { /* ignore */ }
+                tacticsQuickRecentsEl.innerHTML = '';
+                merged.forEach((kind) => {
+                  const isFav = quickFavs.includes(kind);
+                  const btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'surface-trigger tactics-chip';
+                  btn.dataset.tacticsTool = kind;
+                  btn.title = `Insertar ${quickLabelFor(kind)}`;
+                  btn.textContent = quickLabelFor(kind);
+                  const star = document.createElement('button');
+                  star.type = 'button';
+                  star.className = 'surface-trigger tactics-chip';
+                  star.dataset.tacticsFavToggle = kind;
+                  star.title = isFav ? 'Quitar de favoritos' : 'Añadir a favoritos';
+                  star.textContent = isFav ? '★' : '☆';
+                  const wrap = document.createElement('span');
+                  wrap.style.display = 'inline-flex';
+                  wrap.style.gap = '0.35rem';
+                  wrap.style.alignItems = 'center';
+                  wrap.appendChild(btn);
+                  wrap.appendChild(star);
+                  tacticsQuickRecentsEl.appendChild(wrap);
+                });
+              };
+
+              const highlightTacticsQuickTool = (add) => {
+                if (!tacticsQuickbar) return;
+                const buttons = Array.from(tacticsQuickbar.querySelectorAll('[data-tactics-tool]') || []);
+                buttons.forEach((btn) => btn.classList.toggle('is-active', safeText(btn.dataset.tacticsTool) === safeText(add)));
+              };
+
+              const rememberQuickTool = (add) => {
+                const kind = safeText(add);
+                if (!kind) return;
+                quickRecents = [kind, ...quickRecents.filter((x) => x !== kind)].slice(0, 10);
+                writeStoredList(QUICK_RECENTS_KEY, quickRecents);
+                renderQuickRecents();
+              };
+
+              const activateAddKind = (add, { fromQuickbar = false } = {}) => {
+                const kind = safeText(add);
+                if (!kind) return;
+                if (freeDrawMode) handleCanvasAction('draw_free');
+                if (fromQuickbar) highlightTacticsQuickTool(kind);
+                rememberQuickTool(kind);
+                if (kind === 'player_local') {
+                  activateFactory(playerTokenFactory('player_local', null, { style: 'disk' }), 'un jugador local', 'player_local');
+                  return;
+                }
+                if (kind === 'player_rival') {
+                  activateFactory(playerTokenFactory('player_rival', null, { style: 'disk' }), 'un jugador rival', 'player_rival');
+                  return;
+                }
+                if (kind === 'goalkeeper_local') {
+                  activateFactory(playerTokenFactory('goalkeeper_local', null, { style: 'disk' }), 'un portero', 'goalkeeper_local');
+                  return;
+                }
+                if (kind === 'goalkeeper_rival') {
+                  activateFactory(playerTokenFactory('goalkeeper_rival', null, { style: 'disk' }), 'un portero rival', 'goalkeeper_rival');
+                  return;
+                }
+                activateFactory(simpleFactory(kind), RESOURCE_LABELS[kind] || kind, kind);
+              };
+
+              const clearTokensBySide = (side) => {
+                const want = safeText(side);
+                if (!want) return 0;
+                const toRemove = [];
+                canvas.getObjects().forEach((obj) => {
+                  const tokenKind = safeText(obj?.data?.token_kind);
+                  if (!tokenKind) return;
+                  const isLocal = tokenKind === 'player_local' || tokenKind === 'goalkeeper_local' || tokenKind === 'player_away';
+                  const isRival = tokenKind === 'player_rival' || tokenKind === 'goalkeeper_rival';
+                  if (want === 'local' && isLocal) toRemove.push(obj);
+                  if (want === 'rival' && isRival) toRemove.push(obj);
+                });
+                if (!toRemove.length) return 0;
+                try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+                toRemove.forEach((obj) => {
+                  try { canvas.remove(obj); } catch (e) { /* ignore */ }
+                });
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                return toRemove.length;
+              };
+
+              const addObjectsBatch = (objects) => {
+                const list = Array.isArray(objects) ? objects.filter(Boolean) : [];
+                if (!list.length) return false;
+                if (isSimulating) return false;
+                try { canvas.discardActiveObject(); } catch (e) { /* ignore */ }
+                list.forEach((object) => {
+                  try {
+                    if (!object) return;
+                    if (isBackgroundShape(object)) {
+                      object.data = object.data || {};
+                      object.data.background_edit = true;
+                    }
+                    normalizeEditableObject(object);
+                    canvas.add(object);
+                    if (isBackgroundShape(object)) canvas.sendToBack(object);
+                  } catch (e) { /* ignore */ }
+                });
+                try {
+                  const last = list[list.length - 1];
+                  if (last) canvas.setActiveObject(last);
+                } catch (e) { /* ignore */ }
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                try { pushHistory(); } catch (e) { /* ignore */ }
+                try { syncInspector(); } catch (e) { /* ignore */ }
+                return true;
+              };
+
+              const FORMATIONS = {
+                // Normalizadas sobre el rectángulo del campo (x: 0–1 izquierda→derecha, y: 0–1 arriba→abajo).
+                '11:433': [
+                  { kind: 'goalkeeper', x: 0.08, y: 0.50 },
+                  { kind: 'player', x: 0.22, y: 0.18 }, { kind: 'player', x: 0.20, y: 0.40 }, { kind: 'player', x: 0.20, y: 0.60 }, { kind: 'player', x: 0.22, y: 0.82 },
+                  { kind: 'player', x: 0.43, y: 0.32 }, { kind: 'player', x: 0.40, y: 0.50 }, { kind: 'player', x: 0.43, y: 0.68 },
+                  { kind: 'player', x: 0.70, y: 0.22 }, { kind: 'player', x: 0.76, y: 0.50 }, { kind: 'player', x: 0.70, y: 0.78 },
+                ],
+                '11:442': [
+                  { kind: 'goalkeeper', x: 0.08, y: 0.50 },
+                  { kind: 'player', x: 0.22, y: 0.18 }, { kind: 'player', x: 0.20, y: 0.40 }, { kind: 'player', x: 0.20, y: 0.60 }, { kind: 'player', x: 0.22, y: 0.82 },
+                  { kind: 'player', x: 0.45, y: 0.22 }, { kind: 'player', x: 0.40, y: 0.42 }, { kind: 'player', x: 0.40, y: 0.58 }, { kind: 'player', x: 0.45, y: 0.78 },
+                  { kind: 'player', x: 0.72, y: 0.42 }, { kind: 'player', x: 0.72, y: 0.58 },
+                ],
+                '11:4231': [
+                  { kind: 'goalkeeper', x: 0.08, y: 0.50 },
+                  { kind: 'player', x: 0.22, y: 0.18 }, { kind: 'player', x: 0.20, y: 0.40 }, { kind: 'player', x: 0.20, y: 0.60 }, { kind: 'player', x: 0.22, y: 0.82 },
+                  { kind: 'player', x: 0.38, y: 0.42 }, { kind: 'player', x: 0.38, y: 0.58 },
+                  { kind: 'player', x: 0.56, y: 0.22 }, { kind: 'player', x: 0.56, y: 0.50 }, { kind: 'player', x: 0.56, y: 0.78 },
+                  { kind: 'player', x: 0.76, y: 0.50 },
+                ],
+                '11:352': [
+                  { kind: 'goalkeeper', x: 0.08, y: 0.50 },
+                  { kind: 'player', x: 0.20, y: 0.30 }, { kind: 'player', x: 0.18, y: 0.50 }, { kind: 'player', x: 0.20, y: 0.70 },
+                  { kind: 'player', x: 0.36, y: 0.14 }, { kind: 'player', x: 0.36, y: 0.86 },
+                  { kind: 'player', x: 0.44, y: 0.34 }, { kind: 'player', x: 0.40, y: 0.50 }, { kind: 'player', x: 0.44, y: 0.66 },
+                  { kind: 'player', x: 0.72, y: 0.42 }, { kind: 'player', x: 0.72, y: 0.58 },
+                ],
+                '7:231': [
+                  { kind: 'goalkeeper', x: 0.12, y: 0.50 },
+                  { kind: 'player', x: 0.30, y: 0.34 }, { kind: 'player', x: 0.30, y: 0.66 },
+                  { kind: 'player', x: 0.52, y: 0.22 }, { kind: 'player', x: 0.48, y: 0.50 }, { kind: 'player', x: 0.52, y: 0.78 },
+                  { kind: 'player', x: 0.76, y: 0.50 },
+                ],
+                '7:321': [
+                  { kind: 'goalkeeper', x: 0.12, y: 0.50 },
+                  { kind: 'player', x: 0.30, y: 0.24 }, { kind: 'player', x: 0.26, y: 0.50 }, { kind: 'player', x: 0.30, y: 0.76 },
+                  { kind: 'player', x: 0.52, y: 0.36 }, { kind: 'player', x: 0.52, y: 0.64 },
+                  { kind: 'player', x: 0.76, y: 0.50 },
+                ],
+                '7:222': [
+                  { kind: 'goalkeeper', x: 0.12, y: 0.50 },
+                  { kind: 'player', x: 0.32, y: 0.34 }, { kind: 'player', x: 0.32, y: 0.66 },
+                  { kind: 'player', x: 0.54, y: 0.34 }, { kind: 'player', x: 0.54, y: 0.66 },
+                  { kind: 'player', x: 0.78, y: 0.40 }, { kind: 'player', x: 0.78, y: 0.60 },
+                ],
+              };
+
+              const applyFormation = (spec) => {
+                const raw = safeText(spec);
+                if (!raw) return;
+                const parts = raw.split(':').map((p) => safeText(p));
+                if (parts.length < 3) return;
+                const size = parts[0];
+                const key = parts[1];
+                const side = parts[2] === 'rival' ? 'rival' : 'local';
+                const formationKey = `${size}:${key}`;
+                const points = FORMATIONS[formationKey];
+                if (!Array.isArray(points) || !points.length) {
+                  setStatus('Formación no disponible.', true);
+                  return;
+                }
+                if (isSimulating) {
+                  setStatus('Sal del simulador para aplicar una formación.', true);
+                  return;
+                }
+                const shouldClear = tacticsFormationClear ? !!tacticsFormationClear.checked : true;
+                const shouldNumbers = tacticsFormationNumbers ? !!tacticsFormationNumbers.checked : true;
+                if (shouldClear) clearTokensBySide(side);
+                const { w, h } = worldSize();
+                const created = [];
+                let num = 1;
+                points.forEach((pt) => {
+                  const isGk = pt.kind === 'goalkeeper';
+                  const tokenKind = side === 'rival'
+                    ? (isGk ? 'goalkeeper_rival' : 'player_rival')
+                    : (isGk ? 'goalkeeper_local' : 'player_local');
+                  const pseudo = shouldNumbers ? { name: isGk ? 'Portero' : 'Jugador', number: String(num) } : null;
+                  const factory = playerTokenFactory(tokenKind, pseudo, { style: 'disk' });
+                  const pointer = { x: (Number(pt.x) || 0) * w, y: (Number(pt.y) || 0) * h };
+                  const obj = objectAtPointer(factory, pointer);
+                  if (obj) created.push(obj);
+                  num += 1;
+                });
+                if (!created.length) return;
+                addObjectsBatch(created);
+                setStatus(`Formación aplicada (${formationKey.replace(':', ' ')}) · ${side === 'rival' ? 'Rival' : 'Local'}.`);
+                try { if (tacticsFormationMenu) tacticsFormationMenu.open = false; } catch (e) { /* ignore */ }
+              };
+
+              if (tacticsQuickbar) {
+                tacticsQuickbar.addEventListener('click', (event) => {
+                  const btn = event.target.closest('[data-tactics-tool]');
+                  if (btn) {
+                    event.preventDefault();
+                    const kind = safeText(btn.dataset.tacticsTool);
+                    if (kind) activateAddKind(kind, { fromQuickbar: true });
+                    return;
+                  }
+                  const formationBtn = event.target.closest('[data-tactics-formation]');
+                  if (formationBtn) {
+                    event.preventDefault();
+                    const spec = safeText(formationBtn.getAttribute('data-tactics-formation'));
+                    applyFormation(spec);
+                    return;
+                  }
+                });
+              }
+              if (tacticsQuickRecentsEl) {
+                tacticsQuickRecentsEl.addEventListener('click', (event) => {
+                  const favBtn = event.target.closest('[data-tactics-fav-toggle]');
+                  if (favBtn) {
+                    event.preventDefault();
+                    const kind = safeText(favBtn.getAttribute('data-tactics-fav-toggle'));
+                    if (!kind) return;
+                    if (quickFavs.includes(kind)) quickFavs = quickFavs.filter((k) => k !== kind);
+                    else quickFavs = [kind, ...quickFavs].slice(0, 12);
+                    writeStoredList(QUICK_FAVS_KEY, quickFavs);
+                    renderQuickRecents();
+                    return;
+                  }
+                  const toolBtn = event.target.closest('[data-tactics-tool]');
+                  if (toolBtn) {
+                    event.preventDefault();
+                    const kind = safeText(toolBtn.getAttribute('data-tactics-tool'));
+                    if (kind) activateAddKind(kind, { fromQuickbar: true });
+                  }
+                });
+              }
+              try { renderQuickRecents(); } catch (e) { /* ignore */ }
+              tacticsExportPngBtn?.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (exportInFlight || isSimulating) return;
+                exportInFlight = true;
+                (async () => {
+                  try { await exportCurrentPng(1280); } catch (e) { /* ignore */ }
+                  exportInFlight = false;
+                })();
+              });
+              tacticsExportPdfBtn?.addEventListener('click', (event) => {
+                event.preventDefault();
+                void submitPrintPreview('uefa', { one_page: true });
+              });
+
 						    // Ejecutar al final para que `simpleFactory` y `playerTokenFactory` estén listos.
 						    try { renderResourceButtonPreviews(); } catch (e) { /* ignore */ }
 						    runWhenIdle(() => {
