@@ -5708,6 +5708,7 @@ def _workspace_default_modules(kind):
             'task_studio_tasks': True,
             'task_studio_pdfs': True,
         }
+    academy_default = str(os.environ.get('ACADEMY_DEFAULT_ENABLED', '') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     return {
         'dashboard': True,
         'coach_overview': True,
@@ -5716,7 +5717,8 @@ def _workspace_default_modules(kind):
         'match_actions': True,
         'sessions': True,
         # Academia (guías interactivas). Por defecto lo dejamos apagado para no afectar a clubs existentes.
-        'academy': False,
+        # Si quieres que esté activo “en todo el sistema por igual” en nuevos clubs, define `ACADEMY_DEFAULT_ENABLED=true`.
+        'academy': academy_default,
         'analysis': True,
         'abp_board': True,
         'tactics': True,
