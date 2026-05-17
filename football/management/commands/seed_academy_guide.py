@@ -743,7 +743,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--workspace", type=int, default=0, help="Workspace (club) al que asignar las lecciones.")
+        parser.add_argument("--workspace-slug", type=str, default="", help="Slug de Workspace (alternativa a --workspace).")
         parser.add_argument("--team", type=int, default=0, help="Team (categoría) al que asignar las lecciones.")
+        parser.add_argument("--team-slug", type=str, default="", help="Slug de Team (alternativa a --team).")
         parser.add_argument("--publish", action="store_true", help="Publica las lecciones creadas.")
         parser.add_argument("--assign", action="store_true", help="Crea asignaciones en el workspace/team indicados.")
         parser.add_argument("--seed-blueprints", action="store_true", help="Crea plantillas del sistema (TaskBlueprint) en el team 'pizarra'.")
@@ -757,6 +759,8 @@ class Command(BaseCommand):
         full = bool(options.get("full"))
         workspace_id = int(options.get("workspace") or 0)
         team_id = int(options.get("team") or 0)
+        workspace_slug = str(options.get("workspace_slug") or "").strip()
+        team_slug = str(options.get("team_slug") or "").strip()
         reset = bool(options.get("reset"))
 
         pack = _mk_seed_pack()
@@ -877,8 +881,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Blueprints (system): {bp_created} creadas, {bp_updated} actualizadas."))
 
         if assign:
+            if not workspace_id and workspace_slug:
+                workspace = Workspace.objects.filter(slug=workspace_slug).first()
+                workspace_id = int(workspace.id) if workspace else 0
+            if not team_id and team_slug:
+                team = Team.objects.filter(slug=team_slug).first()
+                team_id = int(team.id) if team else 0
             if not workspace_id:
-                raise SystemExit("--assign requiere --workspace")
+                raise SystemExit("--assign requiere --workspace o --workspace-slug")
             workspace = Workspace.objects.filter(id=workspace_id).first()
             if not workspace:
                 raise SystemExit("Workspace no encontrado.")
