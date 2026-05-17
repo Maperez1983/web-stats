@@ -19748,11 +19748,15 @@ def register_match_action(request):
     action_type = (request.POST.get('action_type') or '').strip()
     action_type_key = action_type.lower()
     target_match = _resolve_active_match_for_flow(request, primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=target_match,
-        fallback_to_latest=True,
-    )
+    convocation_record = None
+    if target_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, target_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=target_match,
+            fallback_to_latest=False if target_match else True,
+        )
     if not convocation_record and target_match:
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
