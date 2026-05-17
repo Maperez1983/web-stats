@@ -68,6 +68,33 @@
       .cta:hover { border-color: rgba(34, 211, 238, 0.5); }
       .section-title { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(148,163,184,0.86); }
       .empty { color: rgba(148,163,184,0.86); margin-top: 0.65rem; }
+      .searchbar { margin-top: 0.85rem; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; }
+      .searchbar input{
+        flex: 1 1 240px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2,6,23,0.55);
+        color: rgba(241,245,249,0.92);
+        padding: 0.55rem 0.7rem;
+        outline: none;
+        font-weight: 700;
+      }
+      .searchbar input:focus{ border-color: rgba(34,211,238,0.55); box-shadow: 0 0 0 3px rgba(34,211,238,0.10); }
+      .searchbar .btn{
+        border-radius: 12px;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid rgba(148,163,184,0.28);
+        background: rgba(148,163,184,0.10);
+        color: rgba(241,245,249,0.92);
+        font-weight: 900;
+        cursor:pointer;
+        text-decoration:none;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+      }
+      details.library { margin-top: 0.55rem; border-radius: 14px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.02); padding: 0.55rem 0.7rem; }
+      details.library summary { cursor: pointer; font-weight: 950; letter-spacing: 0.02em; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -122,8 +149,57 @@
         {% else %}
         <div class="empty">No hay recomendaciones para esta categoría todavía.</div>
         {% endif %}
+
+        <div class="section-title">Biblioteca (todo el sistema)</div>
+        <form class="searchbar" method="get" action="{% url 'academy-home' %}">
+          {% if active_team %}<input type="hidden" name="team" value="{{ active_team.id }}" />{% endif %}
+          <input name="q" value="{{ academy_query|default:'' }}" placeholder="Buscar guías (ej.: presión, zona, ABP, salida, transición...)" />
+          <button class="btn" type="submit">Buscar</button>
+          {% if academy_query %}
+          <a class="btn" href="{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Limpiar</a>
+          {% endif %}
+        </form>
+
+        {% if academy_query and academy_library_results %}
+          <div class="muted" style="margin-top:0.45rem;">Resultados ({{ academy_library_results|length }}):</div>
+          <div class="grid">
+            {% for lesson in academy_library_results %}
+            <div class="card">
+              <h2>{{ lesson.title }}</h2>
+              {% if lesson.summary %}<p>{{ lesson.summary }}</p>{% endif %}
+              <div class="meta">
+                <span class="pill">{{ lesson.get_min_category_display }} → {{ lesson.get_max_category_display }}</span>
+              </div>
+              <a class="cta" href="{% url 'academy-lesson' lesson_id=lesson.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir lección</a>
+            </div>
+            {% endfor %}
+          </div>
+        {% elif academy_query %}
+          <div class="empty">No hay resultados para “{{ academy_query }}”.</div>
+        {% endif %}
+
+        {% if academy_library_sections %}
+          {% for section in academy_library_sections %}
+          <details class="library" {% if forloop.first %}open{% endif %}>
+            <summary>{{ section.title }}</summary>
+            <div class="grid" style="margin-top:0.7rem;">
+              {% for lesson in section.lessons %}
+              <div class="card">
+                <h2>{{ lesson.title }}</h2>
+                {% if lesson.summary %}<p>{{ lesson.summary }}</p>{% endif %}
+                <div class="meta">
+                  <span class="pill">{{ lesson.get_min_category_display }} → {{ lesson.get_max_category_display }}</span>
+                </div>
+                <a class="cta" href="{% url 'academy-lesson' lesson_id=lesson.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir lección</a>
+              </div>
+              {% endfor %}
+            </div>
+          </details>
+          {% endfor %}
+        {% else %}
+          <div class="empty">La biblioteca aún no tiene lecciones publicadas para esta categoría.</div>
+        {% endif %}
       </div>
     </div>
   </body>
 </html>
-

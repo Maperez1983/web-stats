@@ -135,12 +135,10 @@ def academy_home_page(request):
             )
         )
 
-    # Recomendadas: publicadas y válidas para categoría (siempre sin “ensuciar” el home).
+    # Recomendadas: publicadas y válidas para categoría.
     recommended = []
     try:
-        candidates = list(
-            AcademyLesson.objects.filter(is_published=True).order_by("-updated_at", "-id")[:40]
-        )
+        candidates = list(AcademyLesson.objects.filter(is_published=True).order_by("-updated_at", "-id")[:60])
         for lesson in candidates:
             if int(lesson.id) in progress_by_lesson_id:
                 continue
@@ -152,12 +150,68 @@ def academy_home_page(request):
     except Exception:
         recommended = []
 
+    # Biblioteca (sistema): catálogo completo filtrado por categoría, agrupado por tags.
+    query = str(request.GET.get("q") or "").strip()
+    library_sections = []
+    library_results = []
+    try:
+        all_lessons = list(AcademyLesson.objects.filter(is_published=True).order_by("title", "id")[:800])
+        filtered = []
+        q_low = query.casefold()
+        for lesson in all_lessons:
+            if not _lesson_matches_team(lesson, team):
+                continue
+            title = str(getattr(lesson, "title", "") or "")
+            summary = str(getattr(lesson, "summary", "") or "")
+            if q_low and (q_low not in title.casefold()) and (q_low not in summary.casefold()):
+                continue
+            filtered.append(lesson)
+
+        buckets = {
+            "Metodología": ["metodologia", "didactica", "constraints", "sesion", "planificacion"],
+            "Ataque": ["ataque", "progresion", "salida", "finalizacion", "amplitud", "profundidad", "cambio_orientacion"],
+            "Defensa": ["defensa", "zona", "presion", "bloque", "bloque_medio", "centros", "area"],
+            "Transición": ["transicion", "perdida", "recuperacion", "contrapresion", "repliegue"],
+            "ABP": ["abp", "corner", "falta_lateral", "banda", "penalti"],
+            "Porteros": ["portero", "porteros", "gk"],
+            "Partido": ["partido", "match", "descanso", "plan", "ajustes"],
+            "Entorno": ["entorno", "motivacion", "valores", "safeguarding", "seguridad"],
+            "Físico": ["fisico", "prevencion", "calentamiento", "fuerza"],
+        }
+        used_ids = set()
+        for section_title, tags in buckets.items():
+            rows = []
+            for lesson in filtered:
+                if int(lesson.id) in used_ids:
+                    continue
+                lesson_tags = getattr(lesson, "tags", None)
+                if not isinstance(lesson_tags, list):
+                    lesson_tags = []
+                low_tags = [str(t or "").casefold() for t in lesson_tags if str(t or "").strip()]
+                if any(tag in low_tags for tag in tags):
+                    rows.append(lesson)
+                    used_ids.add(int(lesson.id))
+                if len(rows) >= 18:
+                    break
+            if rows:
+                library_sections.append({"title": section_title, "lessons": rows})
+        others = [lesson for lesson in filtered if int(lesson.id) not in used_ids]
+        if others:
+            library_sections.append({"title": "Otros", "lessons": others[:18]})
+        library_results = filtered[:120] if q_low else []
+    except Exception:
+        library_sections = []
+        library_results = []
+
     return render(
         request,
         "football/academy_home.html",
         {
             "academy_cards": cards,
             "academy_recommended": recommended,
+            "academy_library_sections": library_sections,
+            "academy_query": query,
+            "academy_library_results": library_results,
             "academy_team": team,
             "academy_workspace": workspace,
             "now": timezone.now(),
@@ -353,4 +407,3 @@ def academy_complete_api(request):
         progress.save(update_fields=["status", "completed_at", "started_at", "updated_at"])
 
     return JsonResponse({"ok": True, "status": progress.status, "completed_at": progress.completed_at.isoformat() if progress.completed_at else ""})
-
