@@ -18964,6 +18964,28 @@ def _ensure_matchday_convocation_record(primary_team, *, match=None):
     return record
 
 
+def _get_convocation_record_for_match(primary_team, match):
+    """
+    Devuelve la última ConvocationRecord para un partido concreto, aunque no sea `is_current`.
+
+    Motivo: en edición de partidos pasados (o cuando el `is_current` apunta a otro partido),
+    necesitamos cargar/guardar el 11 del `match_id` seleccionado sin mezclarlo con la convocatoria
+    "actual" del equipo.
+    """
+    if not primary_team or not match:
+        return None
+    try:
+        return (
+            ConvocationRecord.objects
+            .filter(team=primary_team, match=match)
+            .prefetch_related('players')
+            .order_by('-created_at', '-id')
+            .first()
+        )
+    except Exception:
+        return None
+
+
 @login_required
 def match_action_page(request):
     if not _can_edit_match_actions(request.user):
@@ -18977,11 +18999,15 @@ def match_action_page(request):
     starters_limit = _required_starters_for_team(primary_team)
     # Match "activo" del flujo matchday (robusto ante refrescos/reinicios en iPad).
     active_match = _resolve_active_match_for_flow(request, primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=active_match,
-        fallback_to_latest=True,
-    )
+    convocation_record = None
+    if active_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, active_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=active_match,
+            fallback_to_latest=False if active_match else True,
+        )
     if active_match and not convocation_record:
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=active_match)
     convocation_players = convocation_record.players.order_by('name') if convocation_record else Player.objects.none()
@@ -19880,11 +19906,15 @@ def save_match_lineup(request):
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=target_match,
-        fallback_to_latest=True,
-    )
+    convocation_record = None
+    if target_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, target_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=target_match,
+            fallback_to_latest=False if target_match else True,
+        )
     if not convocation_record and target_match:
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
@@ -19977,11 +20007,15 @@ def get_match_lineup(request):
         return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=target_match,
-        fallback_to_latest=True,
-    )
+    convocation_record = None
+    if target_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, target_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=target_match,
+            fallback_to_latest=False if target_match else True,
+        )
     if not convocation_record and target_match:
         convocation_record = _ensure_matchday_convocation_record(primary_team, match=target_match)
     if not convocation_record:
@@ -29876,11 +29910,15 @@ def initial_eleven_page(request):
         return HttpResponse('Este club no tiene equipo/configuración. Completa el onboarding primero.', status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
-    convocation_record = get_current_convocation_record(
-        primary_team,
-        match=target_match,
-        fallback_to_latest=True,
-    )
+    convocation_record = None
+    if target_match:
+        convocation_record = _get_convocation_record_for_match(primary_team, target_match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(
+            primary_team,
+            match=target_match,
+            fallback_to_latest=False if target_match else True,
+        )
     convocation_players = list(convocation_record.players.order_by('number', 'name')) if convocation_record else []
     for player in convocation_players:
         player.photo_url = resolve_player_photo_url(request, player)

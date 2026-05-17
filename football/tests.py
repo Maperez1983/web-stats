@@ -5263,6 +5263,34 @@ class MatchActionWorkflowTests(TestCase):
         self.assertTrue(record.is_current)
         self.assertGreater(record.players.count(), 0)
 
+    def test_match_actions_uses_convocation_for_selected_match_even_if_not_current(self):
+        other_match = Match.objects.create(
+            season=self.match.season,
+            group=self.match.group,
+            home_team=self.team,
+            away_team=self.rival,
+            round='25',
+            date=date(2026, 3, 29),
+        )
+        # Convocatoria del partido objetivo (NO current).
+        target_record = self.convocation
+        target_record.is_current = False
+        target_record.lineup_data = {'starters': [{'id': str(self.player.id)}], 'bench': []}
+        target_record.save(update_fields=['is_current', 'lineup_data'])
+        # Otra convocatoria current para otro partido (simula que el staff ya está preparando otro partido).
+        other_record = ConvocationRecord.objects.create(
+            team=self.team,
+            match=other_match,
+            is_current=True,
+        )
+        other_record.players.add(self.player)
+
+        response = self.client.get(reverse('match-action-page'), {'match_id': self.match.id})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.context['initial_lineup_payload']
+        self.assertEqual(str(payload['starters'][0]['id']), str(self.player.id))
+
     def test_register_match_action_allows_identical_same_minute_actions_with_distinct_client_uids(self):
         # En fútbol, es habitual registrar varias acciones iguales en el mismo minuto (pases, duelos, etc.).
         # El servidor solo debe deduplicar reintentos de red, no acciones reales consecutivas.
