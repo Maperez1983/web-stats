@@ -1869,6 +1869,16 @@ const urlWithMatchId = (baseUrl) => {
 	            return false;
 	          }
 		        };
+            const serverSeedLooksReal = (seed) => {
+              try {
+                if (!seed || typeof seed !== 'object') return false;
+                const starters = Array.isArray(seed.starters) ? seed.starters : [];
+                const bench = Array.isArray(seed.bench) ? seed.bench : [];
+                return starters.length > 0 || bench.length > 0;
+              } catch (e) {
+                return false;
+              }
+            };
             const ensureLineupOrientationLR = () => {
               // Asegura que el 11 inicial esté en la misma orientación que el campo del registro (LR: izquierda→derecha).
               // El editor de "11 inicial" histórico guardaba coordenadas TB (vertical). Eso rompe el auto-jugador por zonas.
@@ -1909,11 +1919,13 @@ const urlWithMatchId = (baseUrl) => {
                 }
               } catch (e) {}
             };
+		        let serverSeed = null;
 		        try {
 		          const seedRaw = document.getElementById('initial-lineup-server')?.textContent || '';
 		          if (seedRaw) {
 		            const seed = JSON.parse(seedRaw);
 		            if (seed && typeof seed === 'object') {
+		              serverSeed = seed;
 		              lineupState = seed;
 		            }
 		          }
@@ -1932,11 +1944,23 @@ const urlWithMatchId = (baseUrl) => {
 		                && (!persistedServerSavedAt || serverSavedAt > persistedServerSavedAt)
 		                && !isRecentLocal(persisted),
 		              );
+                  const canTrustServerSeed = serverSeedLooksReal(serverSeed) || serverSavedAt > 0;
+                  const shouldUsePersisted = Boolean(
+                    persisted
+                    && typeof persisted === 'object'
+                    && (
+                      // Solo usamos persisted si el usuario está editando "en caliente" (últimos 2 min)
+                      // o si NO tenemos un seed fiable del servidor (p.ej. sin lineup aún).
+                      isRecentLocal(persisted)
+                      || !canTrustServerSeed
+                    )
+                    && !prefersServer
+                  );
 		              if (prefersServer) {
 		                try {
 		                  localStorage.setItem(lineupStorageKey, JSON.stringify(lineupState || { starters: [], bench: [] }));
 		                } catch (e) {}
-		              } else if (persisted && typeof persisted === 'object') {
+		              } else if (shouldUsePersisted) {
 		                lineupState = persisted;
                     ensureLineupOrientationLR();
 		                return;
