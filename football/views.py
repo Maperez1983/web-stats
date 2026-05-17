@@ -4732,17 +4732,35 @@ def get_competition_total_rounds(primary_team):
 
 def _serialize_match_event(event, duplicate=False):
     player = event.player
+    raw = event.raw_data if isinstance(getattr(event, 'raw_data', None), dict) else {}
+    team_side = str(raw.get('team_side') or '').strip().lower()
+    if team_side not in ('for', 'against'):
+        team_side = ''
+    minute_label = str(raw.get('minute_label') or '').strip()
+    # Acepta formatos tipo "45+2" / "90+4". Si es inválido, no lo expone al cliente.
+    if minute_label and not re.match(r'^\d+\s*\+\s*\d+$', minute_label):
+        minute_label = ''
+    if minute_label:
+        minute_label = re.sub(r'\s+', '', minute_label)
+    nickname = ''
+    try:
+        nickname = str(getattr(player, 'nickname', '') or '').strip() if player else ''
+    except Exception:
+        nickname = ''
     return {
         'id': event.id,
         'minute': event.minute,
+        'minute_label': minute_label,
         'period': event.period,
         'action': event.event_type,
         'zone': event.zone,
         'result': event.result,
         'duplicate': bool(duplicate),
+        'team_side': team_side,
         'player': {
             'id': player.id if player else None,
             'name': player.name if player else 'Equipo',
+            'nickname': nickname,
             'number': (player.number if player and player.number is not None else '--'),
         },
     }
@@ -19660,11 +19678,33 @@ def register_match_action(request):
     if minute is not None:
         minute = max(0, min(minute, 120))
     period = _parse_int(request.POST.get('period'))
+    team_side = str(request.POST.get('team_side') or '').strip().lower()
+    if team_side not in ('', 'for', 'against'):
+        team_side = ''
+    minute_label = str(request.POST.get('minute_label') or '').strip()
     result = (request.POST.get('result') or '').strip()
     zone = (request.POST.get('zone') or '').strip()
     tercio = zone_to_tercio(zone)
     observation = (request.POST.get('observation') or '').strip()
     client_event_uid = (request.POST.get('client_event_uid') or '').strip()
+    # A favor / en contra (explícito). Se guarda en raw_data para evitar migraciones.
+    team_side = str(request.POST.get('team_side') or '').strip().lower()
+    if team_side not in ('for', 'against'):
+        team_side = ''
+        # Compat: si el cliente antiguo no manda `team_side`, inferimos desde texto cuando sea obvio.
+        try:
+            combined = ' · '.join([action_type_key, (result or '').lower(), (zone or '').lower()])
+            if 'en contra' in combined or 'rival' in combined or 'contra' in combined:
+                team_side = 'against'
+            elif 'a favor' in combined or 'favor' in combined:
+                team_side = 'for'
+        except Exception:
+            team_side = ''
+    # Tiempo añadido: el cliente puede mandar `minute_label` tipo "45+2". Se guarda en raw_data para UI/report.
+    if minute_label and not re.match(r'^\d+\s*\+\s*\d+$', minute_label):
+        minute_label = ''
+    if minute_label:
+        minute_label = re.sub(r'\s+', '', minute_label)
     # Dedupe anti doble-click / reintentos de red muy inmediatos.
     # Ventana muy pequeña para no bloquear acciones reales consecutivas.
     # Nota: con "minuto" como granularidad, es muy fácil que dos acciones reales caigan en el mismo minuto.
@@ -19704,6 +19744,11 @@ def register_match_action(request):
                 return info_resp
             return JsonResponse(_serialize_match_event(existing, duplicate=True))
 
+    raw_data = {'client_event_uid': client_event_uid} if client_event_uid else {}
+    if team_side:
+        raw_data['team_side'] = team_side
+    if minute_label:
+        raw_data['minute_label'] = minute_label
     event = MatchEvent.objects.create(
         match=match,
         player=player if player else None,
@@ -19716,7 +19761,7 @@ def register_match_action(request):
         observation=observation,
         source_file='registro-acciones',
         system='touch-field',
-        raw_data={'client_event_uid': client_event_uid} if client_event_uid else {},
+        raw_data=raw_data,
     )
     try:
         video_link = _maybe_create_video_marker_for_match_action(primary_team, match=match, event=event, action_type=action_type, result=result, zone=zone, observation=observation)
@@ -20033,6 +20078,14 @@ def update_match_action(request):
     if minute is not None:
         minute = max(0, min(minute, 120))
     period = _parse_int(request.POST.get('period'))
+    team_side = str(request.POST.get('team_side') or '').strip().lower()
+    if team_side not in ('', 'for', 'against'):
+        team_side = ''
+    minute_label = str(request.POST.get('minute_label') or '').strip()
+    if minute_label and not re.match(r'^\d+\s*\+\s*\d+$', minute_label):
+        minute_label = ''
+    if minute_label:
+        minute_label = re.sub(r'\s+', '', minute_label)
 
     # Player: solo si no es acción de equipo.
     player = None
@@ -20073,6 +20126,41 @@ def update_match_action(request):
         if int(player.id) != int(event.player_id or 0):
             event.player = player
             changed.append('player')
+
+    # A favor / en contra: persistir en raw_data sin tocar otras claves.
+    if team_side in ('for', 'against', ''):
+        try:
+            raw = event.raw_data if isinstance(event.raw_data, dict) else {}
+            raw = dict(raw)
+            if team_side:
+                if str(raw.get('team_side') or '') != team_side:
+                    raw['team_side'] = team_side
+                    event.raw_data = raw
+                    changed.append('raw_data')
+            else:
+                if 'team_side' in raw:
+                    raw.pop('team_side', None)
+                    event.raw_data = raw
+                    changed.append('raw_data')
+        except Exception:
+            pass
+
+    # Tiempo añadido: persistir `minute_label` (p.ej. "45+2") en raw_data.
+    try:
+        raw = event.raw_data if isinstance(event.raw_data, dict) else {}
+        raw = dict(raw)
+        if minute_label:
+            if str(raw.get('minute_label') or '') != minute_label:
+                raw['minute_label'] = minute_label
+                event.raw_data = raw
+                changed.append('raw_data')
+        else:
+            if 'minute_label' in raw:
+                raw.pop('minute_label', None)
+                event.raw_data = raw
+                changed.append('raw_data')
+    except Exception:
+        pass
 
     if changed:
         event.save(update_fields=list(dict.fromkeys(changed)))
@@ -22307,6 +22395,151 @@ def _percentile_rank(value, population):
             break
     pct = int(round((le / len(vals)) * 100))
     return max(0, min(100, pct))
+
+
+def _build_player_percentiles(detail_row, population_rows):
+    """
+    Percentiles (0-100) de un jugador vs. la población actual (plantilla / filtro).
+    Se usa para el radar (araña) y lectura rápida tipo "TV".
+    """
+    if not isinstance(detail_row, dict):
+        detail_row = {}
+    rows = [r for r in (population_rows or []) if isinstance(r, dict)]
+
+    def _num(value, default=0.0):
+        try:
+            return float(value or 0)
+        except Exception:
+            return float(default)
+
+    def _passes_acc(row):
+        p = row.get('passes') if isinstance(row.get('passes'), dict) else {}
+        return _num(p.get('accuracy'), 0.0)
+
+    def _shots_acc(row):
+        s = row.get('shots') if isinstance(row.get('shots'), dict) else {}
+        return _num(s.get('accuracy'), 0.0)
+
+    def _aerial_rate(row):
+        a = row.get('aerial_duel_summary') if isinstance(row.get('aerial_duel_summary'), dict) else {}
+        won = _parse_int(a.get('won')) or 0
+        total = _parse_int(a.get('total')) or 0
+        return (won / total) * 100.0 if total else 0.0
+
+    pop = {
+        'success_rate': [_num(r.get('success_rate')) for r in rows],
+        'duel_rate': [_num(r.get('duel_rate')) for r in rows],
+        'passes_accuracy': [_passes_acc(r) for r in rows],
+        'shots_accuracy': [_shots_acc(r) for r in rows],
+        'aerial_rate': [_aerial_rate(r) for r in rows],
+        'decisive_actions_per90': [_num(r.get('decisive_actions_per90')) for r in rows],
+        'total_actions': [_num(r.get('total_actions')) for r in rows],
+    }
+
+    out = {
+        'success_rate': _percentile_rank(_num(detail_row.get('success_rate')), pop['success_rate']),
+        'duel_rate': _percentile_rank(_num(detail_row.get('duel_rate')), pop['duel_rate']),
+        'passes_accuracy': _percentile_rank(_passes_acc(detail_row), pop['passes_accuracy']),
+        'shots_accuracy': _percentile_rank(_shots_acc(detail_row), pop['shots_accuracy']),
+        'aerial_rate': _percentile_rank(_aerial_rate(detail_row), pop['aerial_rate']),
+        'decisive_actions_per90': _percentile_rank(_num(detail_row.get('decisive_actions_per90')), pop['decisive_actions_per90']),
+        'total_actions': _percentile_rank(_num(detail_row.get('total_actions')), pop['total_actions']),
+    }
+    return out
+
+
+def _build_player_radar_data(detail_row, *, player_percentiles=None):
+    """
+    Construye ejes + path SVG del radar (araña) para PDF (sin JS).
+    Replica la heurística usada en `player_detail.html` (preset auto).
+    """
+    if not isinstance(detail_row, dict):
+        detail_row = {}
+    pcts = player_percentiles or {}
+
+    def _num(value, default=0.0):
+        try:
+            return float(value or 0)
+        except Exception:
+            return float(default)
+
+    def _clamp(value, lo=0.0, hi=100.0):
+        try:
+            return max(lo, min(float(value), hi))
+        except Exception:
+            return lo
+
+    def _aerial_rate():
+        a = detail_row.get('aerial_duel_summary') if isinstance(detail_row.get('aerial_duel_summary'), dict) else {}
+        won = _parse_int(a.get('won')) or 0
+        total = _parse_int(a.get('total')) or 0
+        return (won / total) * 100.0 if total else 0.0
+
+    profile = str(detail_row.get('profile') or '').strip().lower()
+    success_rate = _clamp(_num(detail_row.get('success_rate')))
+    duel_rate = _clamp(_num(detail_row.get('duel_rate')))
+    pass_acc = _clamp(_num((detail_row.get('passes') or {}).get('accuracy') if isinstance(detail_row.get('passes'), dict) else 0))
+    shot_acc = _clamp(_num((detail_row.get('shots') or {}).get('accuracy') if isinstance(detail_row.get('shots'), dict) else 0))
+    aerial_rate = _clamp(_aerial_rate())
+
+    actions = max(0.0, _num(detail_row.get('total_actions')))
+    pj = max(0.0, _num(detail_row.get('pj')))
+    actions_per_match = (actions / pj) if pj > 0 else actions
+    volume_score = _clamp((actions_per_match / 60.0) * 100.0)
+
+    goals = max(0.0, _num(detail_row.get('goals')))
+    assists = max(0.0, _num(detail_row.get('assists')))
+    contrib_per_match = ((goals + assists) / pj) if pj > 0 else 0.0
+    impact_score = _clamp(contrib_per_match * 100.0)
+
+    saves = max(0.0, _num(detail_row.get('goalkeeper_saves')))
+    saves_per_match = (saves / pj) if pj > 0 else saves
+    saves_score = _clamp((saves_per_match / 8.0) * 100.0)
+
+    def _fmt_pct(value):
+        return f"{int(round(value))}%"
+
+    def _mk(key, value, display, pct_rank):
+        return {
+            'key': str(key),
+            'value': float(_clamp(value)),
+            'display': str(display or ''),
+            'pct_rank': int(_clamp(_num(pct_rank), 0, 100)),
+        }
+
+    axis_values = {
+        'exito': _mk('Éxito', success_rate, _fmt_pct(success_rate), pcts.get('success_rate', 0)),
+        'duelos': _mk('Duelos', duel_rate, _fmt_pct(duel_rate), pcts.get('duel_rate', 0)),
+        'aereo': _mk('Aéreo', aerial_rate, _fmt_pct(aerial_rate), pcts.get('aerial_rate', 0)),
+        'pase': _mk('Pase', pass_acc, _fmt_pct(pass_acc), pcts.get('passes_accuracy', 0)),
+        'tiro': _mk('Tiro', shot_acc, _fmt_pct(shot_acc), pcts.get('shots_accuracy', 0)),
+        'impacto': _mk('Impacto', impact_score, f"{contrib_per_match:.2f} G+A/PJ" if pj > 0 else f"{int(goals + assists)}", pcts.get('decisive_actions_per90', 0)),
+        'volumen': _mk('Volumen', volume_score, f"{int(round(actions_per_match))}/PJ" if pj > 0 else f"{int(round(actions))}", pcts.get('total_actions', 0)),
+        'paradas': _mk('Paradas', saves_score, f"{round(saves_per_match, 1)}/PJ" if pj > 0 else f"{int(round(saves))}", pcts.get('decisive_actions_per90', 0)),
+    }
+
+    if profile == 'goalkeeper':
+        axes = [axis_values['exito'], axis_values['paradas'], axis_values['pase'], axis_values['duelos'], axis_values['aereo'], axis_values['volumen']]
+    else:
+        axes = [axis_values['exito'], axis_values['duelos'], axis_values['aereo'], axis_values['pase'], axis_values['tiro'], axis_values['impacto']]
+
+    # SVG path
+    try:
+        import math  # noqa: WPS433
+
+        cx, cy, rmax = 180.0, 180.0, 120.0
+        n = max(3, len(axes))
+        pts = []
+        for i, axis in enumerate(axes):
+            angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
+            rr = rmax * (_clamp(axis.get('value', 0.0)) / 100.0)
+            x = cx + math.cos(angle) * rr
+            y = cy + math.sin(angle) * rr
+            pts.append((x, y))
+        d = ' '.join([('M' if idx == 0 else 'L') + f' {x:.1f} {y:.1f}' for idx, (x, y) in enumerate(pts)]) + ' Z'
+        return {'axes': axes, 'path_d': d, 'points': [{'x': round(x, 1), 'y': round(y, 1)} for (x, y) in pts]}
+    except Exception:
+        return {'axes': axes, 'path_d': '', 'points': []}
 
 
 @login_required
@@ -55441,6 +55674,10 @@ def player_pdf(request, player_id):
         {'label': 'Influencia', 'value': _clamp_pct(detail.get('influence_score') if isinstance(detail, dict) else 0), 'unit': ''},
         {'label': 'Éxito', 'value': _clamp_pct(detail.get('success_rate') if isinstance(detail, dict) else 0), 'unit': '%'},
     ]
+    pdf_style = 'club'
+    pdf_palette = _team_pdf_palette(primary_team, pdf_style)
+    player_percentiles = _build_player_percentiles(detail, matches)
+    radar_data = _build_player_radar_data(detail, player_percentiles=player_percentiles)
     player_initials = ''
     try:
         parts = [p for p in re.split(r'\\s+', str(player.name or '').strip()) if p]
@@ -55461,9 +55698,13 @@ def player_pdf(request, player_id):
             'division_label': division_label,
             'team_points': team_points,
             'team_rank': team_rank,
+            'pdf_style': pdf_style,
+            'pdf_palette': pdf_palette,
             'general_kpis': general_kpis,
             'advanced_kpis': advanced_kpis,
             'visual_kpis': visual_kpis,
+            'player_percentiles': player_percentiles,
+            'radar_data': radar_data,
             'played_matches': played_matches,
             'upcoming_matches': upcoming_matches,
             'latest_played_match': latest_played_match,
@@ -55494,17 +55735,26 @@ def player_presentation(request, player_id):
     forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
     if forbidden:
         return forbidden
-    stats_scope = _get_stats_scope_for_request(request, primary_team)
-    tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=stats_scope)
-    matches = compute_player_dashboard(primary_team, scope=stats_scope, tournament_name=tournament_filter)
-    detail = next((p for p in matches if p.get('player_id') == player_id), None)
-    if not detail:
-        raise Http404('Sin datos para generar la presentación')
-    return render(
-        request,
-        'football/player_pdf.html',
-        {'player': player, 'stats': detail},
-    )
+    # La presentación es el modo "player view" (pantalla) de la ficha del jugador.
+    # El PDF de temporada se descarga desde /pdf/.
+    try:
+        url = reverse('player-detail', args=[int(player_id)])
+    except Exception:
+        url = '/'
+    params = {'preview': 'player'}
+    try:
+        team = str(request.GET.get('team') or '').strip()
+        if team:
+            params['team'] = team
+    except Exception:
+        pass
+    try:
+        workspace = str(request.GET.get('workspace') or '').strip()
+        if workspace:
+            params['workspace'] = workspace
+    except Exception:
+        pass
+    return redirect(f"{url}?{urlencode(params)}")
 
 @login_required
 def match_stats_page(request, match_id):
@@ -57039,6 +57289,16 @@ def _infer_team_goals_from_events(match, primary_team):
     except Exception:
         events = []
     def _is_goal_against_event(ev):
+        # Prioridad: si el cliente marcó explícitamente "en contra", no aplicamos heurísticas.
+        try:
+            raw = ev.raw_data if isinstance(getattr(ev, 'raw_data', None), dict) else {}
+            side = str(raw.get('team_side') or '').strip().lower()
+            if side == 'against':
+                return True
+            if side == 'for':
+                return False
+        except Exception:
+            pass
         # Heurística: en Registro de acciones, el staff suele registrar goles encajados como
         # "parada fallada" / "gol rival" / "gol en contra". Sin esta separación, se sumarían como goles a favor.
         text = normalize_label(
@@ -57091,6 +57351,19 @@ def _infer_team_goals_against_from_events(match, primary_team):
 
     goals_against = 0
     for ev in events:
+        # Prioridad: si el cliente marcó explícitamente "en contra", cuenta como gol encajado.
+        try:
+            raw = ev.raw_data if isinstance(getattr(ev, 'raw_data', None), dict) else {}
+            side = str(raw.get('team_side') or '').strip().lower()
+            if side == 'against':
+                if is_goal_event(ev.event_type, ev.result, ev.observation):
+                    goals_against += 1
+                continue
+            if side == 'for':
+                # Si está marcado a favor, nunca suma como encajado.
+                continue
+        except Exception:
+            pass
         text = normalize_label(
             ' '.join(
                 [
