@@ -1999,32 +1999,58 @@
 		    };
 		    let tokenGlobalStyle = 'disk';
 		    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
-		    // Color global de fichas (para nuevos jugadores colocados en la pizarra).
-		    // En Táctica queremos un control ultra simple: un único color libre ("todos los colores").
-		    const TOKEN_COLOR_STORAGE_KEY = 'webstats:tpad:token-color-v1';
-		    const tokenGlobalColorInput = document.getElementById('task-token-global-color');
-		    const tokenGlobalColorHexInput = document.getElementById('task-token-global-color-hex');
-		    let tokenGlobalColor = '#0f7a35';
+		    // Color de fichas (para nuevos jugadores colocados en la pizarra).
+		    // En Táctica: 2 colores (local / rival) para que el entrenador no tenga que recolorear cada ficha.
+		    const TOKEN_COLORS_STORAGE_KEY = 'webstats:tpad:token-colors-v2';
+		    const TOKEN_COLOR_STORAGE_KEY_LEGACY = 'webstats:tpad:token-color-v1';
+		    const tokenGlobalColorLocalInput = document.getElementById('task-token-global-color-local') || document.getElementById('task-token-global-color');
+		    const tokenGlobalColorLocalHexInput = document.getElementById('task-token-global-color-local-hex') || document.getElementById('task-token-global-color-hex');
+		    const tokenGlobalColorRivalInput = document.getElementById('task-token-global-color-rival');
+		    const tokenGlobalColorRivalHexInput = document.getElementById('task-token-global-color-rival-hex');
+		    let tokenGlobalColorLocal = '#0f7a35';
+		    let tokenGlobalColorRival = '#ef4444';
 		    try {
-		      const stored = window.localStorage?.getItem(TOKEN_COLOR_STORAGE_KEY);
-		      const parsed = parseColorToHex(stored, '') || '';
-		      if (parsed) tokenGlobalColor = parsed;
+		      const stored = window.localStorage?.getItem(TOKEN_COLORS_STORAGE_KEY);
+		      const parsed = stored ? JSON.parse(stored) : null;
+		      if (parsed && typeof parsed === 'object') {
+		        const local = parseColorToHex(parsed.local, '');
+		        const rival = parseColorToHex(parsed.rival, '');
+		        if (local) tokenGlobalColorLocal = local;
+		        if (rival) tokenGlobalColorRival = rival;
+		      } else {
+		        // Backward compat: si existía el color único, lo aplicamos al local.
+		        const legacy = parseColorToHex(window.localStorage?.getItem(TOKEN_COLOR_STORAGE_KEY_LEGACY), '');
+		        if (legacy) tokenGlobalColorLocal = legacy;
+		      }
 		    } catch (e) { /* ignore */ }
-		    const syncTokenGlobalColorUi = () => {
-		      try { if (tokenGlobalColorInput) tokenGlobalColorInput.value = tokenGlobalColor; } catch (e) { /* ignore */ }
-		      try { if (tokenGlobalColorHexInput) tokenGlobalColorHexInput.value = tokenGlobalColor; } catch (e) { /* ignore */ }
+		    const persistTokenColors = () => {
+		      try {
+		        window.localStorage?.setItem(TOKEN_COLORS_STORAGE_KEY, JSON.stringify({ local: tokenGlobalColorLocal, rival: tokenGlobalColorRival }));
+		      } catch (e) { /* ignore */ }
 		    };
-		    const setTokenGlobalColor = (value, { persist = true } = {}) => {
+		    const syncTokenColorsUi = () => {
+		      try { if (tokenGlobalColorLocalInput) tokenGlobalColorLocalInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
+		      try { if (tokenGlobalColorLocalHexInput) tokenGlobalColorLocalHexInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
+		      try { if (tokenGlobalColorRivalInput) tokenGlobalColorRivalInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
+		      try { if (tokenGlobalColorRivalHexInput) tokenGlobalColorRivalHexInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
+		    };
+		    const setTokenColorLocal = (value, { persist = true } = {}) => {
 		      const parsed = parseColorToHex(value, '') || '';
 		      if (!parsed) return false;
-		      tokenGlobalColor = parsed;
-		      if (persist) {
-		        try { window.localStorage?.setItem(TOKEN_COLOR_STORAGE_KEY, tokenGlobalColor); } catch (e) { /* ignore */ }
-		      }
-		      syncTokenGlobalColorUi();
+		      tokenGlobalColorLocal = parsed;
+		      if (persist) persistTokenColors();
+		      syncTokenColorsUi();
 		      return true;
 		    };
-		    syncTokenGlobalColorUi();
+		    const setTokenColorRival = (value, { persist = true } = {}) => {
+		      const parsed = parseColorToHex(value, '') || '';
+		      if (!parsed) return false;
+		      tokenGlobalColorRival = parsed;
+		      if (persist) persistTokenColors();
+		      syncTokenColorsUi();
+		      return true;
+		    };
+		    syncTokenColorsUi();
 
 		    const syncTokenGlobalStyleUi = () => {
 		      if (!tokenGlobalStyleActions) return;
@@ -2049,35 +2075,32 @@
 			      }, 120);
 			    });
 
-		    // Conecta el selector de color (solo existe en Táctica).
-		    tokenGlobalColorInput?.addEventListener('input', () => {
-		      if (!setTokenGlobalColor(tokenGlobalColorInput.value)) return;
-		      // Aplica al token seleccionado (si hay) para edición rápida en Táctica.
-		      try {
-		        applyToActiveFlexibleObject?.((active) => {
-		          if (!isTokenGroup(active)) return;
-		          applyTokenPalette(active, { base: tokenGlobalColor, stripe: tokenGlobalColor, pattern: 'solid' });
-		          // Asegura que el texto (dorsal) también se adapte al nuevo color.
-		          applyTokenColor(active, tokenGlobalColor);
-		        }, 'Color actualizado.');
-		      } catch (e) { /* ignore */ }
-		      setStatus(`Color de fichas: ${tokenGlobalColor}.`);
+		    // Conecta los selectores de color (táctica).
+		    tokenGlobalColorLocalInput?.addEventListener('input', () => {
+		      if (!setTokenColorLocal(tokenGlobalColorLocalInput.value)) return;
+		      setStatus(`Color local: ${tokenGlobalColorLocal}.`);
 		    });
-		    tokenGlobalColorHexInput?.addEventListener('change', () => {
-		      const ok = setTokenGlobalColor(tokenGlobalColorHexInput.value);
+		    tokenGlobalColorLocalHexInput?.addEventListener('change', () => {
+		      const ok = setTokenColorLocal(tokenGlobalColorLocalHexInput.value);
 		      if (!ok) {
-		        syncTokenGlobalColorUi();
+		        syncTokenColorsUi();
 		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
-		        return;
+		      } else {
+		        setStatus(`Color local: ${tokenGlobalColorLocal}.`);
 		      }
-		      try {
-		        applyToActiveFlexibleObject?.((active) => {
-		          if (!isTokenGroup(active)) return;
-		          applyTokenPalette(active, { base: tokenGlobalColor, stripe: tokenGlobalColor, pattern: 'solid' });
-		          applyTokenColor(active, tokenGlobalColor);
-		        }, 'Color actualizado.');
-		      } catch (e) { /* ignore */ }
-		      setStatus(`Color de fichas: ${tokenGlobalColor}.`);
+		    });
+		    tokenGlobalColorRivalInput?.addEventListener('input', () => {
+		      if (!setTokenColorRival(tokenGlobalColorRivalInput.value)) return;
+		      setStatus(`Color rival: ${tokenGlobalColorRival}.`);
+		    });
+		    tokenGlobalColorRivalHexInput?.addEventListener('change', () => {
+		      const ok = setTokenColorRival(tokenGlobalColorRivalHexInput.value);
+		      if (!ok) {
+		        syncTokenColorsUi();
+		        setStatus('Color HEX inválido. Usa formato #RRGGBB.', true);
+		      } else {
+		        setStatus(`Color rival: ${tokenGlobalColorRival}.`);
+		      }
 		    });
 
 		    // Kit 2D (opcional): si el club ha guardado un token PNG, lo usamos para el estilo "camiseta".
@@ -4300,18 +4323,18 @@
 		    const updateTokenAppearance = (group, { name, number }) => {
 		      if (!group || !isTokenGroup(group)) return;
 		      const tokenKind = safeText(group?.data?.token_kind);
-		      const defaultNumber = tokenKind === 'goalkeeper_local' ? 'GK' : 'J';
+		      const defaultNumber = (tokenKind === 'goalkeeper_local' || tokenKind === 'goalkeeper_rival') ? 'GK' : 'J';
 		      const nextNumber = sanitizeTokenNumber(number, defaultNumber);
 		      const nextName = safeText(name);
 	      const displayName = shortPlayerName(
-	        nextName || (tokenKind === 'goalkeeper_local' ? 'Portero' : (tokenKind === 'player_rival' ? 'Rival' : 'Jugador')),
-	      );
+		        nextName || ((tokenKind === 'goalkeeper_local' || tokenKind === 'goalkeeper_rival') ? 'Portero' : (tokenKind === 'player_rival' ? 'Rival' : 'Jugador')),
+		      );
 
 	      group.data = group.data || {};
 	      group.data.playerName = nextName;
 	      group.data.playerNumber = nextNumber;
 
-		      const isLocalStyle = tokenKind === 'player_local' || tokenKind === 'player_away' || tokenKind === 'goalkeeper_local';
+		      const isLocalStyle = tokenKind === 'player_local' || tokenKind === 'player_away' || tokenKind === 'goalkeeper_local' || tokenKind === 'goalkeeper_rival';
 		      const numberText = findTokenChild(
 		        group,
 		        'token_number',
@@ -4981,8 +5004,14 @@
 			        return;
 			      }
 
-			      const gkTokens = tokens.filter((t) => safeText(t?.data?.token_kind) === 'goalkeeper_local');
-			      const fieldTokens = tokens.filter((t) => safeText(t?.data?.token_kind) !== 'goalkeeper_local');
+			      const gkTokens = tokens.filter((t) => {
+			        const k = safeText(t?.data?.token_kind);
+			        return k === 'goalkeeper_local' || k === 'goalkeeper_rival';
+			      });
+			      const fieldTokens = tokens.filter((t) => {
+			        const k = safeText(t?.data?.token_kind);
+			        return k !== 'goalkeeper_local' && k !== 'goalkeeper_rival';
+			      });
 
 			      const attackDir = safeText(formationDirectionSelect?.value, 'right') === 'left' ? 'left' : 'right';
 			      const sortFactor = attackDir === 'right' ? 1 : -1;
@@ -12937,7 +12966,7 @@
 	        // las convertimos a estilo "disco" para que se parezcan a la plantilla disponible.
         // Solo afecta a objetos con data.kind='token' y token_kind de jugadores.
         try {
-          const playerTokenKinds = new Set(['player_local', 'player_away', 'player_rival', 'goalkeeper_local']);
+          const playerTokenKinds = new Set(['player_local', 'player_away', 'player_rival', 'goalkeeper_local', 'goalkeeper_rival']);
           const current = canvas.getObjects().slice();
           const active = canvas.getActiveObject();
           const replacementMap = new Map();
@@ -13822,6 +13851,7 @@
       if (payload.kind === 'player_rival') return { factory: playerTokenFactory('player_rival', null), label: 'un jugador rival' };
       if (payload.kind === 'player_away') return { factory: playerTokenFactory('player_away', null), label: 'un jugador con segunda equipación' };
       if (payload.kind === 'goalkeeper_local') return { factory: playerTokenFactory('goalkeeper_local', null), label: 'un portero' };
+      if (payload.kind === 'goalkeeper_rival') return { factory: playerTokenFactory('goalkeeper_rival', null), label: 'un portero rival' };
       return { factory: simpleFactory(payload.kind), label: RESOURCE_LABELS[payload.kind] || payload.kind };
     };
 		    const addPayloadAtPointer = (payload, pointer) => {
@@ -14208,18 +14238,19 @@
 		      const preferredName = safeText(player?.nickname || player?.name, '');
 		      const playerNameLower = preferredName.toLowerCase();
 		      const goalkeeperPreferBlue = playerNameLower.includes('trivi') || playerNameLower.includes('antonio');
-	      const palette = kind === 'goalkeeper_local'
-	        ? (goalkeeperPreferBlue ? COLORS.goalkeeper_blue : COLORS.goalkeeper)
-	        : kind === 'player_rival'
-	          ? COLORS.rival
-	          : COLORS.local;
-      const label = player?.number ? String(player.number).slice(0, 2) : (kind === 'goalkeeper_local' ? 'GK' : 'J');
+      const isGoalkeeperKind = kind === 'goalkeeper_local' || kind === 'goalkeeper_rival';
+      const palette = isGoalkeeperKind
+        ? (goalkeeperPreferBlue ? COLORS.goalkeeper_blue : COLORS.goalkeeper)
+        : kind === 'player_rival'
+          ? COLORS.rival
+          : COLORS.local;
+      const label = player?.number ? String(player.number).slice(0, 2) : (isGoalkeeperKind ? 'GK' : 'J');
 	      const playerName = safeText(
 	        preferredName,
-	        kind === 'goalkeeper_local' ? 'Portero' : (kind === 'player_rival' ? 'Rival' : 'Jugador'),
+        isGoalkeeperKind ? 'Portero' : (kind === 'player_rival' ? 'Rival' : 'Jugador'),
 	      );
       const displayName = shortPlayerName(playerName);
-      const initials = safeText(playerName, kind === 'player_rival' ? 'Rival' : 'Jugador')
+      const initials = safeText(playerName, kind === 'player_rival' ? 'Rival' : (isGoalkeeperKind ? 'Portero' : 'Jugador'))
         .split(/\s+/)
         .map((piece) => piece[0] || '')
         .join('')
@@ -14229,21 +14260,21 @@
 		      let baseRadius = 22;
 		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
 			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || (isTacticsMode ? 'solid' : 'striped'));
-			      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColor : '#facc15') : '#ffffff';
-			      const defaultStripe = (isTacticsMode && (kind === 'player_local' || kind === 'goalkeeper_local' || kind === 'player_away'))
-			        ? tokenGlobalColor
-			        : (kind === 'player_local' ? '#0f7a35' : palette.fill);
+      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : '#ffffff';
+      const defaultStripe = isTacticsMode
+        ? ((kind === 'player_rival' || kind === 'goalkeeper_rival') ? tokenGlobalColorRival : tokenGlobalColorLocal)
+        : (kind === 'player_local' ? '#0f7a35' : palette.fill);
 		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
 		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
 		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
-		      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local') {
+      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') {
 		        const radius = 22;
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
-		        const isGoalkeeper = kind === 'goalkeeper_local';
+        const isGoalkeeper = isGoalkeeperKind;
 		        if (style === 'photo') {
 		          const tokenShadow = new fabric.Circle({
 		            radius: radius + 4,
@@ -14663,7 +14694,7 @@
 			        tokenParts.push(nameText);
 			        }
 		      } else {
-	        baseRadius = kind === 'goalkeeper_local' ? 24 : 21;
+	        baseRadius = (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') ? 24 : 21;
 	        const circle = new fabric.Circle({
 	          radius: baseRadius,
 	          fill: palette.fill,
@@ -19253,11 +19284,12 @@
 				      }
 		      Array.from(toolStrip.querySelectorAll('[data-add]')).forEach((item) => item.classList.remove('is-active'));
 		      button.classList.add('is-active');
-			      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
-			      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
-			      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
-			      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
-				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+	      else if (add === 'goalkeeper_rival') activateFactory(playerTokenFactory('goalkeeper_rival', null), 'un portero rival', 'goalkeeper_rival');
+	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 				    });
 	
 				    // Clicks en otros paneles de recursos (líneas, figuras, etc.).
@@ -19374,15 +19406,16 @@
 					          || add === 'ball'
 					          || add === 'goal'
 					          || add === 'goal_mini'
-					          || add === 'goalkeeper_local'
-					          || add === 'player_local'
+		          || add === 'goalkeeper_local'
+		          || add === 'goalkeeper_rival'
+		          || add === 'player_local'
 					          || add === 'player_rival'
 					          || add === 'player_away'
 					        );
 					        if (!isCandidate) return;
-					        const factory = (add === 'player_local' || add === 'player_rival' || add === 'player_away' || add === 'goalkeeper_local')
-					          ? playerTokenFactory(add, null)
-					          : simpleFactory(add);
+		        const factory = (add === 'player_local' || add === 'player_rival' || add === 'player_away' || add === 'goalkeeper_local' || add === 'goalkeeper_rival')
+		          ? playerTokenFactory(add, null)
+		          : simpleFactory(add);
 					        const url = toDataUrlForFactory(factory, sizeByButton(button));
 					        if (!url) return;
 					        try { holder.textContent = ''; } catch (e) { /* ignore */ }
@@ -19421,11 +19454,12 @@
 					        activateFactory((left, top) => buildPdfAssetObject(assetId, left, top), 'un recurso gráfico', add);
 					        return;
 					      }
-				      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
-				      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
-				      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
-				      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
-				      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
+	      if (add === 'player_local') activateFactory(playerTokenFactory('player_local', null), 'un jugador local', 'player_local');
+	      else if (add === 'player_rival') activateFactory(playerTokenFactory('player_rival', null), 'un jugador rival', 'player_rival');
+	      else if (add === 'player_away') activateFactory(playerTokenFactory('player_away', null), 'un jugador con segunda equipación', 'player_away');
+	      else if (add === 'goalkeeper_local') activateFactory(playerTokenFactory('goalkeeper_local', null), 'un portero', 'goalkeeper_local');
+	      else if (add === 'goalkeeper_rival') activateFactory(playerTokenFactory('goalkeeper_rival', null), 'un portero rival', 'goalkeeper_rival');
+	      else activateFactory(simpleFactory(add), RESOURCE_LABELS[add] || add, add);
 					    });
 
 						    // Ejecutar al final para que `simpleFactory` y `playerTokenFactory` estén listos.

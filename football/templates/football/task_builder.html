@@ -4196,16 +4196,20 @@
                         <div class="library-current" id="task-resource-summary-label">Base</div>
                       </div>
                       <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-	                      <div class="resource-tabs" aria-label="Categorías de recursos">
-	                        {% if tactics_mode %}
-	                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
-	                          <span class="lib-label">Plantilla</span>
-	                        </button>
-	                        {% endif %}
-	                        <button type="button" class="resource-tab" data-resource="base" title="Base">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-	                          <span class="lib-label">Base</span>
+                      <div class="resource-tabs" aria-label="Categorías de recursos">
+                        {% if tactics_mode %}
+                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+                          <span class="lib-label">Base</span>
+                        </button>
+                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+                          <span class="lib-label">Plantilla</span>
+                        </button>
+                        {% else %}
+                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+                          <span class="lib-label">Base</span>
                         </button>
                         <button type="button" class="resource-tab" data-resource="importados" title="Importados">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
@@ -4223,6 +4227,7 @@
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
                           <span class="lib-label">Emoji</span>
                         </button>
+                        {% endif %}
                       </div>
                     </div>
 				                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
@@ -4948,40 +4953,66 @@
 		                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
 		                </div>
 	                {% endif %}
-		                <div class="resource-panel" data-panel="base" hidden>
-		                  <h3 class="tool-group-title">Recursos base</h3>
+			                <div class="resource-panel" data-panel="base" hidden>
+			                  <h3 class="tool-group-title">Recursos base</h3>
+			                  {% if tactics_mode %}
+			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">
+			                    <span class="label">Colores</span>
+			                    <span class="token-global-color" aria-label="Color local">
+			                      <span class="label" style="opacity:0.9;">Local</span>
+			                      <input type="color" id="task-token-global-color-local" value="#0f7a35" aria-label="Color local" />
+			                      <input type="text" id="task-token-global-color-local-hex" value="#0f7a35" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color local (hex)" />
+			                    </span>
+			                    <span class="token-global-color" aria-label="Color rival">
+			                      <span class="label" style="opacity:0.9;">Rival</span>
+			                      <input type="color" id="task-token-global-color-rival" value="#ef4444" aria-label="Color rival" />
+			                      <input type="text" id="task-token-global-color-rival-hex" value="#ef4444" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
+			                    </span>
+			                  </div>
 			                  <div class="resource-strip" id="task-basic-tools">
-		                  <button type="button" class="tool-icon" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Jugador local</span></button>
-		                  <button type="button" class="tool-icon" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Jugador rival</span></button>
-		                  <button type="button" class="tool-icon" data-add="player_away" title="Jugador 2ª equipación" aria-label="Jugador 2ª equipación"><span class="tool-emoji" aria-hidden="true">🟡</span><span class="sr-only">Jugador 2ª equipación</span></button>
-		                  <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero</span></button>
-		                  <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
-		                  <button type="button" class="tool-icon" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
-		                  <button type="button" class="tool-icon" data-add="goal_posts" title="Portería (marco)" aria-label="Portería (marco)"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Portería (marco)</span></button>
-		                  <button type="button" class="tool-icon" data-add="goal_3d" title="Portería 3D" aria-label="Portería 3D"><span class="tool-emoji" aria-hidden="true">🧊</span><span class="sr-only">Portería 3D</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_mini" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_target" title="Portería con dianas (finalización)" aria-label="Portería con dianas (finalización)"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="sr-only">Portería con dianas (finalización)</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up (portable)" aria-label="Portería pop-up (portable)"><span class="tool-emoji" aria-hidden="true">⛺</span><span class="sr-only">Portería pop-up (portable)</span></button>
-			                  <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal / handball" aria-label="Portería futsal / handball"><span class="tool-emoji" aria-hidden="true">🤾</span><span class="sr-only">Portería futsal / handball</span></button>
-		                  <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
-		                  <button type="button" class="tool-icon" data-add="cone_striped" title="Cono (a rayas)" aria-label="Cono (a rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Cono (a rayas)</span></button>
-			                  <button type="button" class="tool-icon" data-add="pole_marker" title="Pica / poste de slalom" aria-label="Pica / poste de slalom"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica / poste de slalom</span></button>
-			                  <button type="button" class="tool-icon" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
-			                  <button type="button" class="tool-icon" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera de coordinación</span></button>
-			                  <button type="button" class="tool-icon" data-add="ladder_L" title="Escalera en L" aria-label="Escalera en L"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Escalera en L</span></button>
-			                  <button type="button" class="tool-icon" data-add="ladder_zigzag" title="Escalera en zigzag" aria-label="Escalera en zigzag"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Escalera en zigzag</span></button>
-			                  <button type="button" class="tool-icon" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
-			                  <button type="button" class="tool-icon" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="sr-only">Mini valla</span></button>
-			                  <button type="button" class="tool-icon" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="sr-only">Cinta / línea de suelo</span></button>
-			                  <button type="button" class="tool-icon" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="sr-only">Puerta (2 conos)</span></button>
-			                  <button type="button" class="tool-icon" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
-			                  <button type="button" class="tool-icon" data-add="wall" title="Muro / panel" aria-label="Muro / panel"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro / panel</span></button>
-			                  <button type="button" class="tool-icon" data-add="rebounder" title="Rebounder" aria-label="Rebounder"><span class="tool-emoji" aria-hidden="true">🧲</span><span class="sr-only">Rebounder</span></button>
-			                  <button type="button" class="tool-icon" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Barrera (4 maniquíes)</span></button>
-			                  <button type="button" class="tool-icon" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona</span></button>
-			                  <button type="button" class="tool-icon" data-add="text" title="Texto" aria-label="Texto"><span class="tool-emoji" aria-hidden="true">🔤</span><span class="sr-only">Texto</span></button>
-					                  <button type="button" class="tool-icon" data-action="duplicate" title="Duplicar" aria-label="Duplicar"><span class="tool-emoji" aria-hidden="true">📄</span><span class="sr-only">Duplicar</span></button>
-	                </div>
+			                    <button type="button" class="tool-icon" data-add="player_local" title="Chapa local" aria-label="Chapa local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Chapa local</span></button>
+			                    <button type="button" class="tool-icon" data-add="player_rival" title="Chapa rival" aria-label="Chapa rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Chapa rival</span></button>
+			                    <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero local" aria-label="Portero local"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero local</span></button>
+			                    <button type="button" class="tool-icon" data-add="goalkeeper_rival" title="Portero rival" aria-label="Portero rival"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero rival</span></button>
+			                    <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
+			                    <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+			                    <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha" aria-label="Flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha</span></button>
+			                    <button type="button" class="tool-icon" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Flecha curva</span></button>
+			                  </div>
+			                  {% else %}
+				                  <div class="resource-strip" id="task-basic-tools">
+			                  <button type="button" class="tool-icon" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Jugador local</span></button>
+			                  <button type="button" class="tool-icon" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Jugador rival</span></button>
+			                  <button type="button" class="tool-icon" data-add="player_away" title="Jugador 2ª equipación" aria-label="Jugador 2ª equipación"><span class="tool-emoji" aria-hidden="true">🟡</span><span class="sr-only">Jugador 2ª equipación</span></button>
+			                  <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero" aria-label="Portero"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero</span></button>
+			                  <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
+			                  <button type="button" class="tool-icon" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
+			                  <button type="button" class="tool-icon" data-add="goal_posts" title="Portería (marco)" aria-label="Portería (marco)"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Portería (marco)</span></button>
+			                  <button type="button" class="tool-icon" data-add="goal_3d" title="Portería 3D" aria-label="Portería 3D"><span class="tool-emoji" aria-hidden="true">🧊</span><span class="sr-only">Portería 3D</span></button>
+				                  <button type="button" class="tool-icon" data-add="goal_mini" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
+				                  <button type="button" class="tool-icon" data-add="goal_target" title="Portería con dianas (finalización)" aria-label="Portería con dianas (finalización)"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="sr-only">Portería con dianas (finalización)</span></button>
+				                  <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up (portable)" aria-label="Portería pop-up (portable)"><span class="tool-emoji" aria-hidden="true">⛺</span><span class="sr-only">Portería pop-up (portable)</span></button>
+				                  <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal / handball" aria-label="Portería futsal / handball"><span class="tool-emoji" aria-hidden="true">🤾</span><span class="sr-only">Portería futsal / handball</span></button>
+			                  <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+			                  <button type="button" class="tool-icon" data-add="cone_striped" title="Cono (a rayas)" aria-label="Cono (a rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Cono (a rayas)</span></button>
+				                  <button type="button" class="tool-icon" data-add="pole_marker" title="Pica / poste de slalom" aria-label="Pica / poste de slalom"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica / poste de slalom</span></button>
+				                  <button type="button" class="tool-icon" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
+				                  <button type="button" class="tool-icon" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera de coordinación</span></button>
+				                  <button type="button" class="tool-icon" data-add="ladder_L" title="Escalera en L" aria-label="Escalera en L"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Escalera en L</span></button>
+				                  <button type="button" class="tool-icon" data-add="ladder_zigzag" title="Escalera en zigzag" aria-label="Escalera en zigzag"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Escalera en zigzag</span></button>
+				                  <button type="button" class="tool-icon" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
+				                  <button type="button" class="tool-icon" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="sr-only">Mini valla</span></button>
+				                  <button type="button" class="tool-icon" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="sr-only">Cinta / línea de suelo</span></button>
+				                  <button type="button" class="tool-icon" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="sr-only">Puerta (2 conos)</span></button>
+				                  <button type="button" class="tool-icon" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
+				                  <button type="button" class="tool-icon" data-add="wall" title="Muro / panel" aria-label="Muro / panel"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro / panel</span></button>
+				                  <button type="button" class="tool-icon" data-add="rebounder" title="Rebounder" aria-label="Rebounder"><span class="tool-emoji" aria-hidden="true">🧲</span><span class="sr-only">Rebounder</span></button>
+				                  <button type="button" class="tool-icon" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Barrera (4 maniquíes)</span></button>
+				                  <button type="button" class="tool-icon" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="sr-only">Zona</span></button>
+				                  <button type="button" class="tool-icon" data-add="text" title="Texto" aria-label="Texto"><span class="tool-emoji" aria-hidden="true">🔤</span><span class="sr-only">Texto</span></button>
+						                  <button type="button" class="tool-icon" data-action="duplicate" title="Duplicar" aria-label="Duplicar"><span class="tool-emoji" aria-hidden="true">📄</span><span class="sr-only">Duplicar</span></button>
+		                </div>
+		                {% endif %}
                   <div data-inspector-slot="base">
 	                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
 	                      <div>
