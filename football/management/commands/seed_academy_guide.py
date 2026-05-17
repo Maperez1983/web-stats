@@ -230,6 +230,76 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         SeedLesson(
+            title="Seguridad del menor · Protección y límites (safeguarding)",
+            summary="Checklist práctico para entrenar en un entorno seguro e inclusivo (sin burocracia).",
+            min_category=AcademyLesson.CATEGORY_BABY,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["entorno", "seguridad", "safeguarding", "club"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Checklist (entreno y partido)",
+                    "body": (
+                        "- Normas claras (contacto físico, vestuarios, fotos/vídeo, redes sociales).\n"
+                        "- Visibilidad: evita estar a solas con un menor (siempre que sea posible).\n"
+                        "- Comunicación: mensajes por canales oficiales y tono profesional.\n"
+                        "- Transporte: no improvisar; acordar por escrito con familias/club.\n"
+                        "- Señales de alerta: cambios bruscos de conducta, miedo, aislamiento.\n\n"
+                        "Objetivo: que los niños disfruten el fútbol en un entorno seguro y respetuoso."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TASK,
+                    "title": "Reto (club)",
+                    "body": (
+                        "Crea/actualiza 5 reglas del equipo (1 página) y compártelas con familias y jugadores.\n"
+                        "Incluye: horarios, recogidas, uso de móvil, redes, y a quién avisar si pasa algo."
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Prevención de lesiones · Calentamiento neuromuscular (inspirado en FIFA 11+ Kids)",
+            summary="Rutina corta y repetible (8–12') para reducir riesgo y mejorar calidad de movimiento.",
+            min_category=AcademyLesson.CATEGORY_BENJAMIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["fisico", "prevencion", "calentamiento"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Estructura (8–12 minutos)",
+                    "body": (
+                        "1) Activación (2–3'): carrera suave + cambios de dirección.\n"
+                        "2) Control motor (3–4'): equilibrio 1 pierna, core simple, fuerza básica.\n"
+                        "3) Saltos/aterrizajes (2–3'): caer “suave” (rodillas alineadas), mini vallas imaginarias.\n"
+                        "4) Aceleración (1–2'): 3–4 sprints cortos (con y sin balón).\n\n"
+                        "Regla: mejor poco y constante que mucho y esporádico."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Claves para que funcione",
+                    "body": (
+                        "- Técnica > intensidad: primero bien hecho.\n"
+                        "- Progresión: sube dificultad cada 2–3 semanas.\n"
+                        "- Variación con balón: en cantera mejora adherencia.\n"
+                        "- Señal del entrenador: “alineo rodilla”, “tronco estable”, “caigo suave”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TASK,
+                    "title": "Reto (hoy)",
+                    "body": (
+                        "Antes de tu sesión, mete 1 bloque de 10' con 3 ejercicios:\n"
+                        "- equilibrio (1 pierna) + pase corto\n"
+                        "- sentadilla parcial controlada (8 rep)\n"
+                        "- 4 sprints de 10–15m con frenada\n\n"
+                        "Mide: ¿llegan más “finos” al juego inicial?"
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
             min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
