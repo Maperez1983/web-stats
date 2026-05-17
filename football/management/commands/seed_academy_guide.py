@@ -391,6 +391,257 @@ def _mk_seed_pack() -> list[SeedLesson]:
     ]
 
 
+def _mk_category_curriculum() -> list[SeedLesson]:
+    """
+    Currículo completo por categoría (Baby→Senior).
+
+    Nota:
+    - Contenido original (no copiado de manuales). Se apoya en enfoques ampliamente aceptados:
+      Play-Practice-Play, game-based learning y constraints-led practice design.
+    """
+
+    C = AcademyLesson
+    base = [
+        # Core transversal (sirve a todos).
+        SeedLesson(
+            title="Principios de diseño · Play–Practice–Play (PPP)",
+            summary="Estructura simple de sesión: jugar → entrenar jugando → volver a jugar.",
+            min_category=C.CATEGORY_BABY,
+            max_category=C.CATEGORY_SENIOR,
+            tags=["metodologia", "ppp", "sesion"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "PPP en 1 minuto",
+                    "body": (
+                        "PPP = 1) *Play* (juego real, observar) → 2) *Practice* (misma idea, con una condición) → "
+                        "3) *Play* (volver al juego, comprobar si aparece lo aprendido).\n\n"
+                        "Ventaja: el niño aprende *en contexto* y el entrenador corrige con menos paradas."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Preguntas que aceleran el aprendizaje",
+                    "body": (
+                        "En vez de “haz X”, prueba:\n"
+                        "- ¿Qué viste antes de recibir?\n"
+                        "- ¿Qué opción era la más segura/rápida?\n"
+                        "- ¿Cuándo sí y cuándo no?\n\n"
+                        "Regla: 1 pregunta + 1 repeticiones → no charla."
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Caja de herramientas · Constraints (5 palancas)",
+            summary="Cómo cambiar una tarea sin rehacerla: espacio, tiempo, reglas, puntuación y superioridades.",
+            min_category=C.CATEGORY_PREBENJAMIN,
+            max_category=C.CATEGORY_SENIOR,
+            tags=["constraints", "tareas", "metodologia"],
+            steps=[
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Las 5 palancas", "body": (
+                    "1) Espacio (ancho/profundidad) · 2) Tiempo (toques/segundos) · 3) Reglas (orientar)\n"
+                    "4) Puntuación (doble si…) · 5) Superioridades (comodín dentro/fuera).\n\n"
+                    "Cambia 1 palanca cada vez y observa el comportamiento."
+                )},
+                {"type": AcademyLessonStep.TYPE_TASK, "title": "Reto rápido", "body": (
+                    "En tu tarea principal, añade un punto extra por *perfil corporal* o *3º hombre*.\n"
+                    "Comprueba si aumenta la calidad de decisión."
+                )},
+            ],
+        ),
+    ]
+
+    def route_overview(cat_key: str, cat_label: str, *, focus: str, session_minutes: str, cues: str, must_have: list[str], avoid: list[str]) -> SeedLesson:
+        return SeedLesson(
+            title=f"Ruta {cat_label} · Prioridades",
+            summary=f"Qué priorizar en {cat_label}: {focus}",
+            min_category=cat_key,
+            max_category=cat_key,
+            tags=["ruta", cat_key],
+            steps=[
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Objetivo de la categoría", "body": focus},
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Sesión tipo", "body": (
+                    f"Duración orientativa: {session_minutes}.\n"
+                    "Estructura recomendada: Play (5–10') → Practice (20–35') → Play (15–25').\n"
+                    "En pequeños: más mini-juegos y menos explicación."
+                )},
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Lenguaje del entrenador", "body": cues},
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Imprescindibles", "body": "- " + "\n- ".join(must_have)},
+                {"type": AcademyLessonStep.TYPE_TEXT, "title": "Evitar", "body": "- " + "\n- ".join(avoid)},
+            ],
+        )
+
+    routes = [
+        route_overview(
+            C.CATEGORY_BABY,
+            "Baby",
+            focus="Diversión + motricidad + muchos contactos con balón (sin miedo a fallar).",
+            session_minutes="35–50 min",
+            cues="Palabras: ‘conduce’, ‘cambia’, ‘mira’, ‘protege’ · Correcciones de 10s.",
+            must_have=["Muchos 1v1/2v2", "Conducciones y cambios de dirección", "Goles cerca (muchos intentos)"],
+            avoid=["Filas largas", "Charlas", "Tareas sin balón"],
+        ),
+        route_overview(
+            C.CATEGORY_PREBENJAMIN,
+            "Prebenjamín",
+            focus="Hábito técnico en juego: conducir, pasar corto, recibir y girar cuando hay espacio.",
+            session_minutes="45–60 min",
+            cues="Palabras: ‘perfil’, ‘apoyo’, ‘hoy juego fácil’ · Premiar el intento.",
+            must_have=["2v2/3v3 con porterías", "Perfil corporal básico", "Reglas simples de transición (3 pasos)"],
+            avoid=["Táctica larga", "Demasiadas reglas", "Solo tiros sin decisión"],
+        ),
+        route_overview(
+            C.CATEGORY_BENJAMIN,
+            "Benjamín",
+            focus="Decidir antes: mirar, perfilarse, jugar hacia delante si hay ventaja.",
+            session_minutes="55–70 min",
+            cues="‘Mira antes’, ‘si no puedes, apoya’, ‘pasa y muévete’.",
+            must_have=["Rondos con intención", "3º hombre simple", "Defender orientando a banda"],
+            avoid=["Ejercicios sin rival", "Paradas largas", "Pedir perfección técnica sin contexto"],
+        ),
+        route_overview(
+            C.CATEGORY_ALEVIN,
+            "Alevín",
+            focus="Principios de juego: amplitud/profundidad, presión con cobertura, transiciones.",
+            session_minutes="65–80 min",
+            cues="‘Ancho para entrar’, ‘juntos para defender’, ‘5 segundos’.",
+            must_have=["Juegos posicionales 4v4+3", "Transición 5s", "Llegadas al área (primer palo/rechazo)"],
+            avoid=["Solo físico", "Tareas enormes sin objetivos", "Cambiar 5 constraints a la vez"],
+        ),
+        route_overview(
+            C.CATEGORY_INFANTIL,
+            "Infantil",
+            focus="Juego por líneas: temporizar, fijar/saltar, compactar y orientar según el rival.",
+            session_minutes="70–90 min",
+            cues="‘Cuándo sí/cuándo no’, ‘temporiza’, ‘equilibrio’.",
+            must_have=["Partidos condicionados por carriles", "Basculación y coberturas", "Salida (tercer hombre / giro)"],
+            avoid=["Correcciones en público humillantes", "Exceso de táctica sin jugar", "Ignorar contexto emocional"],
+        ),
+        route_overview(
+            C.CATEGORY_CADETE,
+            "Cadete",
+            focus="Modelo: automatismos + lectura; mejorar velocidad de juego y toma de decisión.",
+            session_minutes="75–95 min",
+            cues="‘Escanea’, ‘orienta’, ‘juega a 2 toques si hay ventaja’.",
+            must_have=["Juegos con superioridad/inferioridad", "Presión tras pérdida organizada", "ABP simples con roles claros"],
+            avoid=["Solo correr", "Repetir sin feedback", "No conectar tarea con partido"],
+        ),
+        route_overview(
+            C.CATEGORY_JUVENIL,
+            "Juvenil",
+            focus="Rendimiento: plan semanal + microdetalles por posición y rival.",
+            session_minutes="80–100 min",
+            cues="‘Gatillos’, ‘siguiente acción’, ‘control del ritmo’.",
+            must_have=["Análisis + tarea dirigida", "Transiciones por zona", "Finalización con oposición real"],
+            avoid=["Sobrecargar con teoría", "Tareas irrelevantes", "No medir progreso"],
+        ),
+        route_overview(
+            C.CATEGORY_SENIOR,
+            "Senior",
+            focus="Competición: eficacia, gestión de partido, identidad (modelo) y adaptación.",
+            session_minutes="80–105 min",
+            cues="‘Plan A/B’, ‘gestión del riesgo’, ‘control emocional’.",
+            must_have=["Plan de partido", "ABP a favor/en contra", "Escenarios (ganando/perdiendo)"],
+            avoid=["Cambiar modelo cada semana", "Entrenar lejos del juego", "No revisar postpartido"],
+        ),
+    ]
+
+    def category_module(cat_key: str, cat_label: str, *, name: str, body: str, quiz=None, task=None) -> SeedLesson:
+        steps = [{"type": AcademyLessonStep.TYPE_TEXT, "title": name, "body": body}]
+        if quiz:
+            steps.append({"type": AcademyLessonStep.TYPE_QUIZ, "title": "Mini-quiz", "questions": quiz})
+        if task:
+            steps.append({"type": AcademyLessonStep.TYPE_TASK, "title": "Reto de campo", "body": task})
+        return SeedLesson(
+            title=f"{cat_label} · {name}",
+            summary=f"Guía práctica para {cat_label}: {name}.",
+            min_category=cat_key,
+            max_category=cat_key,
+            tags=["categoria", cat_key, "guia"],
+            steps=steps,
+        )
+
+    modules = []
+    # 6 módulos por categoría: técnica aplicada, ataque, defensa, transición, finalización, ABP.
+    for cat_key, cat_label in [
+        (C.CATEGORY_BABY, "Baby"),
+        (C.CATEGORY_PREBENJAMIN, "Prebenjamín"),
+        (C.CATEGORY_BENJAMIN, "Benjamín"),
+        (C.CATEGORY_ALEVIN, "Alevín"),
+        (C.CATEGORY_INFANTIL, "Infantil"),
+        (C.CATEGORY_CADETE, "Cadete"),
+        (C.CATEGORY_JUVENIL, "Juvenil"),
+        (C.CATEGORY_SENIOR, "Senior"),
+    ]:
+        modules.extend(
+            [
+                category_module(
+                    cat_key, cat_label,
+                    name="Técnica aplicada",
+                    body=(
+                        "Objetivo: técnica *para decidir*, no técnica aislada.\n\n"
+                        "Diseño: 1v1/2v2/3v3 + reglas simples.\n"
+                        "Corrección clave: primer toque hacia el espacio y cabeza arriba 1 vez antes de decidir."
+                    ),
+                ),
+                category_module(
+                    cat_key, cat_label,
+                    name="Ataque (principio 1): avanzar con apoyo",
+                    body=(
+                        "Señal: si no puedes girar, usa apoyo y crea 3er hombre.\n"
+                        "Constraint: apoyo a 2 toques, punto extra por jugar hacia delante tras devolución."
+                    ),
+                    quiz=[
+                        {
+                            "prompt": "Si recibes presionado de espaldas, lo primero es…",
+                            "explanation": "Asegurar continuidad para poder progresar después.",
+                            "options": [
+                                {"label": "Asegurar con apoyo cercano", "correct": True, "feedback": "Bien: juego simple."},
+                                {"label": "Girar siempre", "correct": False, "feedback": "Depende del espacio/ventaja."},
+                                {"label": "Balón largo sin mirar", "correct": False, "feedback": "Solo si es parte del plan y hay ventaja."},
+                            ],
+                        }
+                    ] if cat_key != C.CATEGORY_BABY else None,
+                ),
+                category_module(
+                    cat_key, cat_label,
+                    name="Defensa (principio 1): orientar con cobertura",
+                    body=(
+                        "1º defensor orienta; 2º defensor cubre; 3º equilibra.\n"
+                        "Punto extra si recuperas tras orientar a banda."
+                    ),
+                ),
+                category_module(
+                    cat_key, cat_label,
+                    name="Transición: 3 pasos / 5 segundos",
+                    body=(
+                        "Tras pérdida: 3 pasos agresivos → decide presionar o replegar.\n"
+                        "Tras recuperación: 1 pase hacia delante si hay ventaja; si no, fija y descarga."
+                    ),
+                ),
+                category_module(
+                    cat_key, cat_label,
+                    name="Finalización: atacar área",
+                    body=(
+                        "Centros: primer palo + punto de penalti + rechazo.\n"
+                        "En categorías tempranas: premio a rematar (aunque no haya gol)."
+                    ),
+                ),
+                category_module(
+                    cat_key, cat_label,
+                    name="ABP: corner simple",
+                    body=(
+                        "Roles mínimos: saque · primer palo · segundo palo · rechazo · seguridad.\n"
+                        "Objetivo: 1 remate + 1 segunda jugada dirigida."
+                    ),
+                ),
+            ]
+        )
+
+    return base + routes + modules
+
+
 def _mk_seed_blueprints() -> list[dict]:
     """
     Plantillas del sistema (TaskBlueprint) que el editor/Asistente puede reutilizar.
@@ -496,17 +747,21 @@ class Command(BaseCommand):
         parser.add_argument("--publish", action="store_true", help="Publica las lecciones creadas.")
         parser.add_argument("--assign", action="store_true", help="Crea asignaciones en el workspace/team indicados.")
         parser.add_argument("--seed-blueprints", action="store_true", help="Crea plantillas del sistema (TaskBlueprint) en el team 'pizarra'.")
+        parser.add_argument("--full", action="store_true", help="Genera el currículo completo por categoría (además del pack base).")
         parser.add_argument("--reset", action="store_true", help="Borra y recrea (solo lecciones con tag 'seed_v1').")
 
     def handle(self, *args, **options):
         publish = bool(options.get("publish"))
         assign = bool(options.get("assign"))
         seed_blueprints = bool(options.get("seed_blueprints"))
+        full = bool(options.get("full"))
         workspace_id = int(options.get("workspace") or 0)
         team_id = int(options.get("team") or 0)
         reset = bool(options.get("reset"))
 
         pack = _mk_seed_pack()
+        if full:
+            pack = pack + _mk_category_curriculum()
         seed_tag = "seed_v1"
 
         try:
