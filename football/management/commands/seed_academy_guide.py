@@ -490,6 +490,222 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         SeedLesson(
+            title="ABP · Saque de banda a favor (3 opciones y 1 regla)",
+            summary="Guía práctica para sacar de banda con continuidad: opción corta, tercer hombre y opción larga sin regalar transición.",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["abp", "banda", "ataque", "salida"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "La regla #1 (que lo cambia todo)",
+                    "body": (
+                        "Un saque de banda a favor no es “tirar por tirar”. Es una REINICIACIÓN de posesión.\n\n"
+                        "Regla #1: antes de sacar, define SIEMPRE 1 pase seguro (evita contraataque).\n"
+                        "Si no hay pase seguro: saca atrás o reinicia a zona de seguridad."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Estructura simple (3 opciones)",
+                    "body": (
+                        "Opción A (segura): saque al apoyo corto → devolución → cambio de orientación.\n"
+                        "Opción B (progresar): saque al apoyo corto → 3er hombre por dentro.\n"
+                        "Opción C (larga): bloqueo y ataque del espacio (si hay ventaja real).\n\n"
+                        "Roles mínimos: sacador + apoyo corto + apoyo interior + cobertura (seguridad)."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Checklist del sacador (rápido)",
+                    "body": (
+                        "1) ¿Tengo pase atrás/seguro?\n"
+                        "2) ¿Puedo jugar a 3er hombre?\n"
+                        "3) ¿Hay ventaja para larga (espacio y timing)?\n\n"
+                        "Palabras: “SEGURA”, “TERCER”, “LARGA SI HAY VENTAJA”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Errores típicos",
+                    "body": (
+                        "Error: sacar al pie marcado → pérdida inmediata.\n"
+                        "Error: todos vienen al balón → no hay salida.\n"
+                        "Error: larga sin ventaja → balón dividido y transición en contra.\n\n"
+                        "Corrección: “apoyo + tercer hombre”, y 1 jugador SIEMPRE de seguridad."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: saque a favor (A/B/C)",
+                    "body": "Dibuja 3 variantes: (A) segura atrás, (B) tercer hombre interior, (C) ataque largo con bloqueo.",
+                    "payload": {"hint": "Incluye 1 jugador fijo de seguridad y marca el 3er hombre por dentro."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="ABP · Saque de banda en contra (trampa + segunda jugada)",
+            summary="Cómo defender saques de banda: evitar el saque rápido, orientar a banda, y ganar la segunda jugada.",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["abp", "defensa", "banda", "segunda_jugada"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Prioridad",
+                    "body": (
+                        "En saque de banda en contra, el peligro real suele ser:\n"
+                        "- saque rápido (desorden),\n"
+                        "- pared/tercer hombre en banda,\n"
+                        "- y la segunda jugada tras balón dividido.\n\n"
+                        "Objetivo: que el rival reciba de espaldas y sin giro."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Reglas simples",
+                    "body": (
+                        "1) Evita saque rápido: balón fuera → 1 jugador “molesta” la reposición sin provocar falta.\n"
+                        "2) Cierra dentro: el receptor no puede girar hacia interior.\n"
+                        "3) Segunda jugada: 1 jugador a rechace SIEMPRE.\n\n"
+                        "Frases: “DENTRO CERRADO”, “DE ESPALDAS”, “RECHACE”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "La trampa (banda)",
+                    "body": (
+                        "Cuando el rival recibe pegado a banda:\n"
+                        "- 1 presiona orientando fuera,\n"
+                        "- 2º cierra pase interior,\n"
+                        "- 3º protege espalda/cambio.\n\n"
+                        "Si no hay 2º defensor, el 1º temporiza (no se lanza)."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: trampa en banda",
+                    "body": "Escena tipo: saque corto a banda, presión orientada fuera y cierre interior, con jugador de rechace.",
+                    "payload": {"hint": "Marca el 2º defensor cerrando el interior y el jugador de segunda jugada."},
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_QUIZ,
+                    "title": "Mini-quiz (banda en contra)",
+                    "questions": [
+                        {
+                            "prompt": "¿Qué es lo más importante tras un saque de banda en contra?",
+                            "explanation": "Muchas jugadas se deciden por el rechace.",
+                            "options": [
+                                {"label": "Ganar la segunda jugada (rechace)", "correct": True, "feedback": "Correcto: asegura continuidad defensiva."},
+                                {"label": "Correr todos al balón", "correct": False, "feedback": "Eso abre interior y espalda."},
+                                {"label": "Quedarse esperando para no romperse", "correct": False, "feedback": "Hay que ajustar con roles."},
+                            ],
+                        }
+                    ],
+                },
+            ],
+        ),
+        SeedLesson(
+            title="ABP · Falta lateral a favor (1 remate + 1 rechace)",
+            summary="Guía práctica para faltas laterales: señales, carreras, zonas de remate y plan B si no hay ventaja.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["abp", "ataque", "falta_lateral", "centro"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Objetivo (simple)",
+                    "body": (
+                        "Falta lateral a favor: buscamos 1 remate limpio y 1 segunda jugada.\n\n"
+                        "No hace falta “jugada de pizarra” complicada:\n"
+                        "- hace falta coordinación (timing),\n"
+                        "- y roles claros."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Roles mínimos",
+                    "body": (
+                        "- Lanzador (define tipo de centro: tenso / segundo palo / corto)\n"
+                        "- 2 atacantes de área (primer palo + penalti/segundo)\n"
+                        "- 1 bloqueo (legal) o pantalla para liberar\n"
+                        "- 2 fuera para rechace y prevención de contra\n\n"
+                        "Regla: siempre hay “seguridad” (siempre)."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Señales y timing",
+                    "body": (
+                        "Timing gana: el que llega con carrera suele rematar mejor.\n"
+                        "Señal simple: ‘mano arriba’ = centro al segundo; ‘mano abajo’ = primer palo.\n\n"
+                        "Si el rival defiende muy alto: opción corta + centro desde mejor ángulo."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Errores típicos",
+                    "body": (
+                        "Error: todos atacan la misma zona → se estorban.\n"
+                        "Error: nadie al rechace → segundo balón del rival.\n"
+                        "Error: centro “flojo” → despeje fácil.\n\n"
+                        "Corrección: 2 zonas distintas + 2 fuera + centro tenso."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: falta lateral a favor",
+                    "body": "Dibuja primer palo, punto penalti/segundo palo, 1 bloqueo y 2 jugadores fuera (rechace + seguridad).",
+                    "payload": {"hint": "Marca 2 rutas de remate y 1 ruta de bloqueo/pantalla; deja 2 fuera bien colocados."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="ABP · Falta lateral en contra (línea + zonas + rechace)",
+            summary="Cómo defender faltas laterales: línea, referencias, evitar segundo remate y salir tras despeje.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["abp", "defensa", "falta_lateral", "zona"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Prioridades",
+                    "body": (
+                        "En falta lateral en contra, el rival busca:\n"
+                        "- primer contacto (remate),\n"
+                        "- segunda jugada (rechace),\n"
+                        "- y desajuste de la línea.\n\n"
+                        "Objetivo: 1) atacar balón, 2) despejar a zona segura, 3) ganar rechace."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Estructura simple (híbrida)",
+                    "body": (
+                        "- 2–3 zonas (primer palo, centro, segundo)\n"
+                        "- 2 marcas al hombre (mejores rematadores)\n"
+                        "- 1 para rechace + 1 para salida\n\n"
+                        "Regla: nadie se queda “en tierra de nadie” mirando el balón."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "La línea (cuándo sí y cuándo no)",
+                    "body": (
+                        "Si hay tiempo y el lanzador está lejos: línea coordinada (subir juntos).\n"
+                        "Si el lanzador está cerca o hay riesgo de centro rápido: prioriza zonas y remate.\n\n"
+                        "Clave: una línea sin coordinación = te matan la espalda."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: falta lateral en contra",
+                    "body": "Dibuja zonas + 2 marcas al hombre + 1 jugador de rechace. Marca dirección de despeje (a banda).",
+                    "payload": {"hint": "Incluye 2 variantes: centro rápido (zonas) vs centro lento (línea coordinada)."},
+                },
+            ],
+        ),
+        SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
             min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
