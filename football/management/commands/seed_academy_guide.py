@@ -451,6 +451,194 @@ def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
     ]
 
 
+def _mk_game_encyclopedia_positions() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: guías por posiciones (qué mirar / qué hacer / errores típicos).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Posición · Central (salida, cobertura y duelos)",
+            summary="Guía práctica para centrales: salida limpia, coberturas y cuándo defender hacia delante.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "central", "defensa", "salida", "duelos"],
+            objective="Dar seguridad al equipo: iniciar juego sin regalar pérdidas y proteger espalda/área.",
+            rules=[
+                "Antes de recibir: escaneo (hombre libre y presión).",
+                "Si el rival aprieta: primer pase seguro + opción de 3er hombre.",
+                "Sin balón: perfil para correr hacia atrás y proteger la espalda.",
+            ],
+            triggers=[
+                "Si el 9 rival recibe de espaldas sin apoyo → saltar con cobertura.",
+                "Si el balón está en banda y hay centro → prioriza zona caliente + rechace.",
+            ],
+            checklist=[
+                "¿Tengo pase seguro? (pivote/lateral/portero)",
+                "¿Quién cubre mi espalda si salto?",
+                "¿Dónde está el 9 rival?",
+            ],
+            errors=[
+                "Conducir sin ventaja → “FIJA Y SUELTA”.",
+                "Saltar sin cobertura → “SI NO HAY COBERTURA, TEMPORIZA”.",
+                "Despejar al centro → “A BANDA/SEGURIDAD”.",
+            ],
+            scene_hint="Escena: central recibe con presión. Variante A: pase al pivote perfilado. Variante B: pared con portero y salida al lateral. En defensa: central salta al 9 con mediocentro cubriendo.",
+            measure=["Pérdidas en salida del central (bajan).", "Duelos defensivos ganados.", "Centros/remates evitados en zona caliente."],
+        ),
+        _mk_guide(
+            title="Posición · Lateral (altura, 1v1 y cierres)",
+            summary="Guía práctica para laterales: cuándo subir, cuándo fijar y cómo cerrar dentro sin regalar banda.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "lateral", "defensa", "ataque", "amplitud"],
+            objective="Dar amplitud y profundidad sin romper el equilibrio defensivo.",
+            rules=[
+                "Con balón: si extremo viene dentro → tú das amplitud/altura.",
+                "Sin balón: primero proteger interior, luego orientar a banda.",
+                "Si el lateral contrario sube: el lado débil ajusta (rest defense).",
+            ],
+            triggers=["Si el extremo rival recibe pegado a línea → presión orientada fuera.", "Si el balón va a tu espalda → gira y corre (no mires)."],
+            checklist=["¿Tengo cobertura (central/pivote)?", "¿Mi extremo me ayuda a cerrar dentro?", "¿Qué pasa si pierdo el balón arriba?"],
+            errors=["Subir los dos laterales a la vez sin seguridad → “UNO SE QUEDA”.", "Defender mirando balón → “BALÓN‑HOMBRE‑PORTERÍA”."],
+            scene_hint="Escena: ataque por banda (lateral alto + extremo dentro). Luego pérdida y lateral debe replegar con cobertura del central/pivote.",
+            measure=["Centros generados y centros defendidos.", "1v1 defensivos ganados.", "Contraataques por tu banda (bajan)."],
+        ),
+        _mk_guide(
+            title="Posición · Pivote (ancla, perfil y primer pase)",
+            summary="Guía práctica para mediocentro: ser salida, proteger transiciones y ordenar al equipo.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "pivote", "salida", "transicion", "equilibrio"],
+            objective="Ser el estabilizador: conectar líneas y cortar transiciones rivales.",
+            rules=[
+                "Perfilado siempre que puedas (ver campo).",
+                "Si estás presionado: juega a 1–2 toques (apoyo/3er hombre).",
+                "Tras pérdida: primera puerta que cierro es el pase interior/contraataque.",
+            ],
+            triggers=["Si recibes entre dos rivales → apoyo inmediato (no girar).", "Si hay pérdida cerca → contra‑presión; si lejos → repliegue y temporiza."],
+            checklist=["¿Estoy perfilado?", "¿Dónde está el hombre libre?", "¿Quién protege mi espalda si salto?"],
+            errors=["Recibir de espaldas presionado → “PERFIL O APOYO”.", "Ir al área y dejar vacío el ancla → “QUÉDATE COMO SEGURIDAD”."],
+            scene_hint="Escena: central→pivote bajo presión. Variante: descarga a central y 3er hombre a interior. Tras pérdida: pivote corta pase interior.",
+            measure=["Pases progresivos del pivote.", "Intercepciones/robos en transición.", "Pérdidas del pivote (bajan)."],
+        ),
+        _mk_guide(
+            title="Posición · Interior/8 (entre líneas, giro y último pase)",
+            summary="Guía práctica para interiores: recibir entre líneas, girar con criterio y dar el pase que rompe.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "interior", "ataque", "entre_lineas", "ultimo_pase"],
+            objective="Recibir con ventaja y acelerar cuando toca (no antes).",
+            rules=[
+                "Antes de recibir: escaneo y perfil para girar si hay espacio.",
+                "Si no hay giro: apoyo + 3er hombre.",
+                "En zona 14: primero asegurar ventaja, luego filtrar/tiro.",
+            ],
+            triggers=["Si recibes de cara y el 6 rival está lejos → girar y conducir.", "Si el rival salta → jugar a la espalda (tercer hombre)."],
+            checklist=["¿Puedo girar?", "¿Dónde está el 9 y el extremo del lado débil?", "¿Hay pase a la espalda o mejor pausa?"],
+            errors=["Forzar pase imposible → “FIJA Y SUELTA, NO REGALAS”.", "Conducir hacia presión → “SAL DEL FOCO”."],
+            scene_hint="Escena: interior recibe entre líneas. Variante A: gira y filtra. Variante B: 3er hombre al extremo/lateral profundo.",
+            measure=["Pases clave / asistencias.", "Pérdidas en zona central (bajan).", "Progresiones (a tercio ataque) creadas."],
+        ),
+        _mk_guide(
+            title="Posición · Extremo (1v1, amplitud y último gesto)",
+            summary="Guía práctica para extremos: aislar 1v1, decidir centro/tiro/pase atrás y ayudar a presionar.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "extremo", "1v1", "centros", "finalizacion"],
+            objective="Crear peligro constante sin perder balones tontos (1v1 con ventaja).",
+            rules=[
+                "Si hay 1v1 con espacio: atacar (cambio ritmo).",
+                "Si atraes 2: suelta al hombre libre (pase atrás/2º palo).",
+                "Sin balón: orientar presión para que el rival no juegue dentro.",
+            ],
+            triggers=["Si el lateral rival está solo → 1v1.", "Si llega el 2º defensor → descarga rápida."],
+            checklist=["¿Tengo ventaja real (espacio)?", "¿Dónde está el centro más peligroso (raso atrás/2º palo)?", "¿Quién llega al área?"],
+            errors=["Regate sin espacio → “AISLA ANTES”.", "Centro sin mirar → “MIRA 1 SEGUNDO: ¿1º/2º/ATRÁS?”."],
+            scene_hint="Escena: extremo aislado en banda. Variante A: regate y centro raso atrás. Variante B: atrae y cambio al lado débil.",
+            measure=["Regates con éxito (en ventaja).", "Centros útiles (tiro/ocasión tras centro).", "Pérdidas del extremo (bajan)."],
+        ),
+        _mk_guide(
+            title="Posición · Delantero/9 (fijar, desmarque y presión)",
+            summary="Guía práctica para el 9: fijar centrales, atacar espacios y ser el primer defensor inteligente.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["posicion", "delantero", "9", "presion", "finalizacion"],
+            objective="Generar ventajas para el equipo: fijar, descargar y atacar área con intención.",
+            rules=[
+                "Si viene el balón a pie: fija y descarga (tercer hombre).",
+                "Si el balón está en banda: ataca primer palo o punto penalti según centro.",
+                "Sin balón: orientar presión para cerrar pase interior.",
+            ],
+            triggers=["Central recibe de espaldas → saltar a presión.", "Si el lateral rival recibe abierto → orientar y guiar a banda."],
+            checklist=["¿Puedo fijar a dos centrales?", "¿Qué centro viene (raso atrás/primer/segundo palo)?", "¿Estoy activando presión con trigger o corriendo sin sentido?"],
+            errors=["Bajar siempre al balón → “FIJA Y ATACA ESPALDA”.", "Presión recta abriendo interior → “CARRERA CURVA, CIERRA DENTRO”.",],
+            scene_hint="Escena: 9 fija y descarga a interior, luego ataca área en centro lateral. En defensa: 9 orienta presión tras pase atrás.",
+            measure=["Tiros y remates del 9.", "Asistencias/descargas que acaban en progresión.", "Recuperaciones altas forzadas por presión."],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: guías por formato (qué cambia en distancias, reglas y foco).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Formato · 5v5 (Baby/Preben): muchos duelos y decisiones simples",
+            summary="Qué priorizar en 5v5: diversión, 1v1, conducción y finalización cerca.",
+            min_category=L.CATEGORY_BABY,
+            max_category=L.CATEGORY_PREBENJAMIN,
+            tags=["formato", "5v5", "baby", "prebenjamin"],
+            objective="Máxima participación: muchos contactos, muchos intentos y reglas muy simples.",
+            rules=["Campos pequeños y porterías cerca.", "Premiar 1v1 y conducción.", "Transición: si la pierdes, corre al balón (3 pasos)."],
+            checklist=["¿Hay colas? (si sí, mal)", "¿Muchos contactos por minuto?", "¿Goles/tiros frecuentes?"],
+            errors=["Explicar mucho → “JUEGA Y CORRIGE 1 IDEA”.", "Campos enormes → “MÁS PEQUEÑO = MÁS ACCIONES”."],
+            scene_hint="Escena: 2 mini‑porterías, 2v2+comodín. Mostrar regla de 3 pasos tras pérdida.",
+            measure=["Acciones por minuto (sube).", "Tiros totales (suben)."],
+        ),
+        _mk_guide(
+            title="Formato · 7v7 (Benjamín/Alevín): ocupar ancho y atacar espacios",
+            summary="Qué cambia en 7v7: aparece más espacio, el ancho importa y las transiciones son clave.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_ALEVIN,
+            tags=["formato", "7v7", "benjamin", "alevin"],
+            objective="Enseñar principios: ancho/profundidad, apoyo y presión con cobertura.",
+            rules=["Siempre 1 ancho + 1 profundidad.", "Tercer hombre simple para salir de presión.", "Presión orientada a banda (triángulo)."],
+            checklist=["¿Tenemos ancho real?", "¿Quién da seguridad por detrás?", "¿Saltamos con cobertura?"],
+            errors=["Todos por dentro → “ABRE PARA ENTRAR”.", "Presión 1v1 sin ayudas → “CUBRE DENTRO”.",],
+            scene_hint="Escena: 7v7 con 3 carriles. Mostrar ancho (extremos) + profundidad (9) + pivote seguridad.",
+            measure=["Pases progresivos.", "Recuperaciones tras presión orientada.", "Pérdidas en salida (bajan)."],
+        ),
+        _mk_guide(
+            title="Formato · 8v8 (Infantil): líneas y distancias (compactar/bascular)",
+            summary="En 8v8 se ven mejor las líneas: distancias, basculación y juego entre líneas.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_INFANTIL,
+            tags=["formato", "8v8", "infantil"],
+            objective="Consolidar: defender el centro, jugar entre líneas y ordenar transiciones.",
+            rules=["Distancias cortas sin balón (compactar).", "Bascular juntos al lado del balón.", "Rest defense: 2–3 por detrás al atacar."],
+            checklist=["¿Bloque partido? (malo)", "¿Rechace controlado?", "¿Quién corta la transición rival?"],
+            errors=["Líneas separadas → “JUNTOS PARA DEFENDER”.", "Nadie al rechace → “RECHACE”."],
+            scene_hint="Escena: 8v8 con 3 líneas. Mostrar basculación al lado del balón y el jugador de rechace.",
+            measure=["Remates concedidos en zona caliente (bajan).", "Segundas jugadas ganadas."],
+        ),
+        _mk_guide(
+            title="Formato · 11v11 (Cadete+): modelo, detalles y plan A/B/C",
+            summary="En 11v11 mandan los detalles: alturas, ocupación, rest defense y ABP completo.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["formato", "11v11", "cadete", "juvenil", "senior"],
+            objective="Sostener un modelo de juego: atacar con estructura y defender con coordinación.",
+            rules=["Define altura de bloque (alto/medio/bajo) y triggers.", "Ocupación de carriles + lado débil preparado.", "ABP con roles + rechace + salida."],
+            checklist=["¿Bloque acompaña la presión?", "¿Tenemos 2–3 de seguridad al atacar?", "¿ABP organizado en ambos sentidos?"],
+            errors=["Modelo cambia cada 5 minutos → “POCAS REGLAS, MUY CLARAS”.", "ABP improvisado → “ROLES SIEMPRE”."],
+            scene_hint="Escena: 11v11, salida bajo presión + cambio al lado débil; luego pérdida y rest defense.",
+            measure=["Recuperaciones altas (si bloque alto).", "Contraataques recibidos (bajan con rest defense).", "Eficacia ABP."],
+        ),
+    ]
+
 def _mk_seed_pack() -> list[SeedLesson]:
     """
     Pack inicial (MVP) de una guía “top” reutilizable para todos los entrenadores.
@@ -1344,6 +1532,8 @@ def _mk_seed_pack() -> list[SeedLesson]:
         *_mk_game_encyclopedia_core(),
         *_mk_game_encyclopedia_goalkeepers(),
         *_mk_game_encyclopedia_set_pieces_extra(),
+        *_mk_game_encyclopedia_positions(),
+        *_mk_game_encyclopedia_formats(),
         SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
