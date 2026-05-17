@@ -199,11 +199,14 @@
       /* Táctica: layout de 1 sola vista (sin scroll de página).
          Permitimos scroll interno solo en paneles que lo necesitan (Recursos/Playbook). */
       body.tactics-mode {
-        overflow: hidden;
+        /* Importante: no bloqueamos el scroll del documento.
+           El campo se auto-ajusta, pero si algún dispositivo/zoom provoca overflow, el usuario debe poder desplazarse. */
+        overflow-y: auto;
+        overflow-x: hidden;
       }
       body.tactics-mode .page {
-        height: 100dvh;
-        overflow: hidden;
+        min-height: 100dvh;
+        overflow: visible;
         display: flex;
         flex-direction: column;
       }
