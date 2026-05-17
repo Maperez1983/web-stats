@@ -573,6 +573,13 @@
 		          {% if not player_view_preview %}
 		          <a class="btn alt" href="{% url 'player-season-report-edit' player.id %}">Valoración staff</a>
 		          {% endif %}
+		          {% if can_preview_player_view %}
+		            {% if player_view_preview %}
+		              <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace preview=None %}">Salir vista previa</a>
+		            {% else %}
+		              <a class="btn alt" href="{% url 'player-detail' player.id %}?{% qs_replace preview='player' %}">Vista previa jugador</a>
+		            {% endif %}
+		          {% endif %}
 		          <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">Imprimir PDF</a>
 		          <button class="btn alt" type="button" id="playerPresentToggle" title="Modo presentación">Presentación</button>
 		          <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>
