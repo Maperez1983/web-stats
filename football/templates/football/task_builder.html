@@ -4430,27 +4430,23 @@
                         </button>
                         <div class="library-title">Recursos</div>
                         <div class="library-current" id="task-resource-summary-label">Base</div>
-                      </div>
-                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-                      <div class="resource-tabs" aria-label="Categorías de recursos">
-                        {% if tactics_mode %}
-                        <button type="button" class="resource-tab" data-resource="base" title="Base">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-                          <span class="lib-label">Base</span>
-                        </button>
-                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
-                          <span class="lib-label">Plantilla</span>
-                        </button>
-                        {% else %}
-                        <button type="button" class="resource-tab" data-resource="base" title="Base">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-                          <span class="lib-label">Base</span>
-                        </button>
-                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
-                          <span class="lib-label">Importados</span>
-                        </button>
+	                      </div>
+	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
+	                      <div class="resource-tabs" aria-label="Categorías de recursos">
+	                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+	                          <span class="lib-label">Base</span>
+	                        </button>
+	                        {% if tactics_mode %}
+	                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+	                          <span class="lib-label">Plantilla</span>
+	                        </button>
+	                        {% endif %}
+	                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
+	                          <span class="lib-label">Importados</span>
+	                        </button>
                         <button type="button" class="resource-tab" data-resource="trazos" title="Trazos y flechas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
                           <span class="lib-label">Trazos</span>
@@ -4459,13 +4455,12 @@
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
                           <span class="lib-label">Figuras</span>
                         </button>
-                        <button type="button" class="resource-tab" data-resource="emoji" title="Recursos emoji">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
-                          <span class="lib-label">Emoji</span>
-                        </button>
-                        {% endif %}
-                      </div>
-                    </div>
+	                        <button type="button" class="resource-tab" data-resource="emoji" title="Recursos emoji">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
+	                          <span class="lib-label">Emoji</span>
+	                        </button>
+	                      </div>
+	                    </div>
 				                  <div class="command-bar" id="task-command-bar" aria-label="Comandos rápidos">
 		                    <button type="button" class="icon-btn" data-action="undo" title="Deshacer" aria-label="Deshacer">
 		                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7V4L2 9l5 5v-3h7a4 4 0 1 1 0 8H9v2h5a6 6 0 1 0 0-12H7Z"/></svg>
