@@ -23,9 +23,9 @@ fi
 # Runtime NO instala nada por defecto (evita arranques lentos / "No open ports detected").
 _pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 _pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_pw_rt_install="false"
 if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
-  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-  python -m playwright install chromium || true
+  _pw_rt_install="true"
 elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
   echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
@@ -54,4 +54,14 @@ if [ "${RUN_COLLECTSTATIC}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-exec gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}" --timeout "${GUNICORN_TIMEOUT}"
+gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}" --timeout "${GUNICORN_TIMEOUT}" &
+server_pid="$!"
+
+# Si alguien insiste en instalar Chromium en runtime, lo hacemos DESPUÉS de abrir el puerto.
+if [ "${_pw_rt_install}" = "true" ]; then
+  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+  python -m playwright install chromium || true
+fi
+
+trap 'kill -TERM "${server_pid}" 2>/dev/null || true' TERM INT
+wait "${server_pid}"

@@ -1272,12 +1272,16 @@ const urlWithMatchId = (baseUrl) => {
 	        const lossDef = loss && tercio === 'def';
 	        const stealHigh = (steal && tercio === 'att') || containsText(action, ['recuperación alta', 'recuperacion alta']);
 	        // Posesión aproximada (quién TIENE el balón tras esta acción).
-	        // - Para: acciones de ataque (pase/centro/regate/tiro/ABP) y también recuperaciones ganadas (robo/2ª jugada ganada).
-	        // - Contra: acciones "en contra" (p.ej. córner en contra) o falta cometida; 2ª jugada perdida.
-	        const setPieceFor = setPiece && !againstText;
-	        const setPieceAgainst = setPiece && againstText;
-	        const possessionFor = pass || cross || shot || setPieceFor || dribble || foulReceived || steal || (secondBall && (secondBallWon || !secondBallLost)) || (duel && duelWon) || loss;
-	        const possessionAgainst = setPieceAgainst || foulCommitted || (secondBall && secondBallLost) || (duel && !duelWon && defensiveDuel);
+	        // Regla práctica: tratamos "posesión" como *propiedad del balón después* del evento registrado.
+	        // - Si registramos una acción de ataque "a favor", asumimos que seguimos teniendo balón.
+	        // - Si registramos una acción "en contra", asumimos que lo tiene el rival.
+	        // - Excepción importante: una "pérdida" cambia la posesión al equipo contrario (salvo que se marque explícitamente como del rival).
+	        const isAgainst = againstText;
+	        const setPieceFor = setPiece && !isAgainst;
+	        const setPieceAgainst = setPiece && isAgainst;
+	        const genericPossessionAction = pass || cross || shot || dribble || setPiece || foulReceived || steal || (secondBall && (secondBallWon || !secondBallLost)) || (duel && duelWon);
+	        const possessionFor = (genericPossessionAction && !isAgainst) || (loss && isAgainst);
+	        const possessionAgainst = setPieceAgainst || (genericPossessionAction && isAgainst) || foulCommitted || (secondBall && secondBallLost) || (duel && !duelWon && defensiveDuel) || (loss && !isAgainst);
 	        const possessionOwner = possessionFor ? 'for' : (possessionAgainst ? 'against' : '');
 	        return { goal, shot, shotOnTarget, pass, passOk, card, sub, setPiece, cross, crossOk, aerial, aerialWon, loss, lossDef, steal, stealHigh, duel, duelWon, tercio, possessionOwner };
 	      };

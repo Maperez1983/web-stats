@@ -22,14 +22,14 @@ if [ -z "${RUN_COLLECTSTATIC+x}" ]; then
 fi
 
 # Playwright (Chromium) es pesado (descarga ~160MB) y en Render puede hacer que el deploy falle
-# por "No open ports detected" si se ejecuta antes de arrancar Gunicorn.
+# por "No open ports detected" si se ejecuta ANTES del bind del puerto.
 # Recomendación: instala Chromium en build (`build.sh`) con `INSTALL_PLAYWRIGHT_BROWSERS=true` y
 # `PLAYWRIGHT_BROWSERS_PATH=0`. En runtime NO instalamos nada por defecto.
 _pw_build_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
 _pw_rt_flag="$(echo "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:-false}" | tr '[:upper:]' '[:lower:]' | xargs)"
+_pw_rt_install="false"
 if [ "${_pw_rt_flag}" = "true" ] || [ "${_pw_rt_flag}" = "1" ] || [ "${_pw_rt_flag}" = "yes" ] || [ "${_pw_rt_flag}" = "on" ]; then
-  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
-  python -m playwright install chromium || true
+  _pw_rt_install="true"
 elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_pw_build_flag}" = "yes" ] || [ "${_pw_build_flag}" = "on" ]; then
   echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS está pensado para el build. Runtime no instalará Chromium; usa INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME=true (no recomendado) si lo necesitas." >&2
 fi
@@ -63,16 +63,34 @@ fi
 # Default: WSGI.
 # Motivo: gran parte del stack es sync y, bajo ASGI, cualquier fuga de sync en un hilo con event-loop
 # puede provocar `SynchronousOnlyOperation` (p.ej. al guardar sesiones).
-if [ "${_run_asgi}" = "true" ]; then
-  echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting ASGI (UvicornWorker)" >&2
-  exec gunicorn webstats.asgi:application \
-    -k uvicorn.workers.UvicornWorker \
-    --bind "0.0.0.0:${PORT}" \
-    --timeout "${GUNICORN_TIMEOUT}"
+_start_server() {
+  if [ "${_run_asgi}" = "true" ]; then
+    echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting ASGI (UvicornWorker)" >&2
+    gunicorn webstats.asgi:application \
+      -k uvicorn.workers.UvicornWorker \
+      --bind "0.0.0.0:${PORT}" \
+      --timeout "${GUNICORN_TIMEOUT}" &
+  else
+    echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
+    gunicorn webstats.wsgi:application \
+      -k sync \
+      --bind "0.0.0.0:${PORT}" \
+      --timeout "${GUNICORN_TIMEOUT}" &
+  fi
+  echo $!
+}
+
+server_pid="$(_start_server)"
+
+# Si alguien insiste en instalar Chromium en runtime, lo hacemos DESPUÉS de abrir el puerto
+# para no romper el deploy en Render.
+if [ "${_pw_rt_install}" = "true" ]; then
+  if [ -n "${RENDER:-}" ] || [ -n "${RENDER_SERVICE_ID:-}" ] || [ -n "${RENDER_GIT_COMMIT:-}" ]; then
+    echo "[boot] Aviso: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME está activado en Render; puede ralentizar y consumir disco." >&2
+  fi
+  export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-0}"
+  python -m playwright install chromium || true
 fi
 
-echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
-exec gunicorn webstats.wsgi:application \
-  -k sync \
-  --bind "0.0.0.0:${PORT}" \
-  --timeout "${GUNICORN_TIMEOUT}"
+trap 'kill -TERM "${server_pid}" 2>/dev/null || true' TERM INT
+wait "${server_pid}"
