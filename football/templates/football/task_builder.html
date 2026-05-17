@@ -2303,13 +2303,14 @@
 	      body.tactics-mode #task-stroke-width-row {
 	        display: none !important;
 	      }
-	      /* En tácticas, la plantilla se abre desde Herramientas (drawer). Evita que robe alto bajo el campo. */
-	      body.tactics-mode #task-roster-bank {
-	        display: none;
-	      }
-	      body.tactics-mode.tactics-tools-open #task-roster-bank {
-	        display: block;
-	      }
+		      /* En tácticas, la plantilla no debe ocupar alto bajo el campo.
+		         Se muestra solo cuando está “dockeada” dentro de Herramientas (slot). */
+		      body.tactics-mode #task-roster-bank {
+		        display: none;
+		      }
+		      body.tactics-mode #task-roster-bank-slot #task-roster-bank {
+		        display: block;
+		      }
 	      .pitch-zoom button,
 	      .pitch-size button {
 	        border-radius: 10px;
@@ -2351,11 +2352,16 @@
 	        gap: 0.45rem;
 	        min-width: 0;
 	      }
-	      .roster-bank-slot {
-	        margin-top: 0.85rem;
-	        padding-top: 0.85rem;
-	        border-top: 1px solid rgba(255,255,255,0.10);
-	      }
+		      .roster-bank-slot {
+		        margin-top: 0.85rem;
+		        padding-top: 0.85rem;
+		        border-top: 1px solid rgba(255,255,255,0.10);
+		      }
+		      body.tactics-mode .resource-panel[data-panel="plantilla"] .roster-bank-slot {
+		        margin-top: 0;
+		        padding-top: 0;
+		        border-top: 0;
+		      }
 	      .pitch-side .roster-bank {
 	        margin-top: 0 !important;
 	      }
@@ -3724,7 +3730,7 @@
 	      }
 	    </style>
 	  </head>
-	  <body class="prod-commercial{% if tactics_mode %} tactics-mode tactics-tools-open{% endif %}">
+		  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
 	    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
 	    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
 	    <main class="page">
@@ -4124,10 +4130,16 @@
                         <div class="library-current" id="task-resource-summary-label">Base</div>
                       </div>
                       <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-                      <div class="resource-tabs" aria-label="Categorías de recursos">
-                        <button type="button" class="resource-tab" data-resource="base" title="Base">
-                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-                          <span class="lib-label">Base</span>
+	                      <div class="resource-tabs" aria-label="Categorías de recursos">
+	                        {% if tactics_mode %}
+	                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+	                          <span class="lib-label">Plantilla</span>
+	                        </button>
+	                        {% endif %}
+	                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+	                          <span class="lib-label">Base</span>
                         </button>
                         <button type="button" class="resource-tab" data-resource="importados" title="Importados">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
@@ -4863,9 +4875,15 @@
 				                    </div>
 		                  </div>
 		                </div>
-                <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
-	                <div class="resource-panel" data-panel="base" hidden>
-	                  <h3 class="tool-group-title">Recursos base</h3>
+	                <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
+	                {% if tactics_mode %}
+		                <div class="resource-panel" data-panel="plantilla" hidden>
+		                  <h3 class="tool-group-title">Plantilla</h3>
+		                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
+		                </div>
+	                {% endif %}
+		                <div class="resource-panel" data-panel="base" hidden>
+		                  <h3 class="tool-group-title">Recursos base</h3>
 			                  <div class="resource-strip" id="task-basic-tools">
 		                  <button type="button" class="tool-icon" data-add="player_local" title="Jugador local" aria-label="Jugador local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Jugador local</span></button>
 		                  <button type="button" class="tool-icon" data-add="player_rival" title="Jugador rival" aria-label="Jugador rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Jugador rival</span></button>
@@ -5183,8 +5201,10 @@
 		                </div>
 		                  <div data-inspector-slot="emoji"></div>
 		                </div>
-			                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
-			              </div>
+				                  {% if not tactics_mode %}
+				                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
+				                  {% endif %}
+				              </div>
 
 			              <div class="pitch-main">
 		              <div class="pitch-viewport" id="task-pitch-viewport">
@@ -6516,13 +6536,13 @@
 	            if (guideBtn) guideBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
 	            if (guideHint) guideHint.hidden = !on;
 	          };
-	          let guideOn = true;
-	          try {
-	            const raw = window.localStorage?.getItem(guideKey);
-	            guideOn = raw == null ? true : raw === '1';
-	          } catch (e) {
-	            guideOn = true;
-	          }
+		          let guideOn = !isTacticsMode;
+		          try {
+		            const raw = window.localStorage?.getItem(guideKey);
+		            guideOn = raw == null ? !isTacticsMode : raw === '1';
+		          } catch (e) {
+		            guideOn = !isTacticsMode;
+		          }
 	          applyGuide(guideOn);
 	          if (guideBtn) {
 	            guideBtn.addEventListener('click', () => {

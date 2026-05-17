@@ -1063,28 +1063,30 @@
 				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 				      }
 				    };
-				    const setTacticsToolsOpen = (open) => {
-				      if (!isTacticsMode) return;
-				      const enabled = !!open;
-				      document.body.classList.toggle('tactics-tools-open', enabled);
-				      try { window.localStorage.setItem('tpad_tactics_tools_open_v2', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
-				      if (!enabled) {
-				        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
-				      }
-				    };
+					    const setTacticsToolsOpen = (open) => {
+					      if (!isTacticsMode) return;
+					      const enabled = !!open;
+					      document.body.classList.toggle('tactics-tools-open', enabled);
+					      try { window.localStorage.setItem('tpad_tactics_tools_open_v2', enabled ? '1' : '0'); } catch (e) { /* ignore */ }
+					      // Si la Plantilla está "dockeada" dentro de Herramientas, reubícala al abrir/cerrar.
+					      try { window.__webstatsTpadSyncRosterPlacement?.(); } catch (e) { /* ignore */ }
+					      if (!enabled) {
+					        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					      }
+					    };
 				    const restoreTacticsUi = () => {
 				      if (!isTacticsMode) return;
 				      try { setTacticsPanelOpen(safeText(window.localStorage.getItem('tpad_tactics_panel_open_v1')) === '1'); } catch (e) { setTacticsPanelOpen(false); }
-				      // UX: en Tácticas, si el usuario aún no ha guardado preferencia, abrimos “Herramientas”
-				      // por defecto para que se vean balón / flechas / fichas (evita sensación de "no hay herramientas").
-				      try {
-				        const stored = window.localStorage.getItem('tpad_tactics_tools_open_v2');
-				        if (stored === null) setTacticsToolsOpen(true);
-				        else setTacticsToolsOpen(safeText(stored) === '1');
-				      } catch (e) {
-				        setTacticsToolsOpen(true);
-				      }
-				    };
+					      // UX: en Tácticas, si el usuario aún no ha guardado preferencia, dejamos “Herramientas”
+					      // cerradas por defecto para que el campo quepa en una sola vista (menos scroll).
+					      try {
+					        const stored = window.localStorage.getItem('tpad_tactics_tools_open_v2');
+					        if (stored === null) setTacticsToolsOpen(false);
+					        else setTacticsToolsOpen(safeText(stored) === '1');
+					      } catch (e) {
+					        setTacticsToolsOpen(false);
+					      }
+					    };
 
 				    // Backdrop global (evita “superposición” visual de popovers/modales).
 				    // OJO: `task-resource-details` se usa como selector/tabs de recursos (no es un modal).
@@ -20564,23 +20566,24 @@
 	                return false;
 	              }
 	            };
-		            const syncRosterPlacement = () => {
-		              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
-		              const wantsTools = isTacticsModeUi && document.body.classList.contains('tactics-tools-open');
-		              const wantInSlot = (wantsTools || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
-		              try {
-		                if (wantInSlot) {
-		                  rosterSlot.hidden = false;
-		                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
-		                } else {
-		                  if (rosterBank.parentElement !== rosterHome.parent) {
-	                    if (rosterHome.next && rosterHome.next.parentNode === rosterHome.parent) rosterHome.parent.insertBefore(rosterBank, rosterHome.next);
-	                    else rosterHome.parent.appendChild(rosterBank);
-	                  }
-		                  rosterSlot.hidden = true;
-		                }
-		              } catch (e) { /* ignore */ }
-		            };
+			            const syncRosterPlacement = () => {
+			              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
+			              const wantsTools = isTacticsModeUi && document.body.classList.contains('tactics-tools-open');
+			              const wantInSlot = (wantsTools || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
+			              try {
+			                if (wantInSlot) {
+			                  rosterSlot.hidden = false;
+			                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
+			                } else {
+			                  if (rosterBank.parentElement !== rosterHome.parent) {
+		                    if (rosterHome.next && rosterHome.next.parentNode === rosterHome.parent) rosterHome.parent.insertBefore(rosterBank, rosterHome.next);
+		                    else rosterHome.parent.appendChild(rosterBank);
+		                  }
+			                  rosterSlot.hidden = true;
+			                }
+			              } catch (e) { /* ignore */ }
+			            };
+			            try { window.__webstatsTpadSyncRosterPlacement = syncRosterPlacement; } catch (e) { /* ignore */ }
 					    const getDeviceMode = () => {
 					      const raw = safeText(document.body?.dataset?.deviceMode);
 					      if (raw === 'desktop' || raw === 'tablet') return raw;
