@@ -953,7 +953,6 @@
 				    } catch (e) { /* ignore */ }
 
 				    // Táctica: modo pantalla completa (native fullscreen si está disponible).
-				    const TACTICS_FULLSCREEN_KEY = 'webstats:tpad:tactics-fullscreen-v1';
 				    const getFullscreenElement = () => (
 				      document.fullscreenElement
 				      || document.webkitFullscreenElement
@@ -992,7 +991,7 @@
 				    const syncTacticsFullscreenUi = () => {
 				      if (!isTacticsMode || !tacticsFullscreenBtn) return;
 				      const nativeOn = !!getFullscreenElement();
-				      const on = !!(tacticsFullscreenWanted || nativeOn);
+				      const on = !!(nativeOn || tacticsFullscreenWanted);
 				      document.body.classList.toggle('tactics-fullscreen', on);
 				      try {
 				        tacticsFullscreenBtn.textContent = on ? 'Salir' : 'Pantalla completa';
@@ -1002,35 +1001,38 @@
 				      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 				      try { window.requestAnimationFrame(() => { try { applyStageFitConstraint(); } catch (err) { /* ignore */ } }); } catch (e) { /* ignore */ }
 				    };
-				    const setTacticsFullscreenWanted = async (wanted, { persist = true } = {}) => {
+				    const setTacticsFullscreenWanted = async (wanted) => {
 				      if (!isTacticsMode) return;
-				      tacticsFullscreenWanted = !!wanted;
-				      if (persist) {
-				        try { window.localStorage.setItem(TACTICS_FULLSCREEN_KEY, tacticsFullscreenWanted ? '1' : '0'); } catch (e) { /* ignore */ }
-				      }
-				      // Preferimos fullscreen nativo cuando existe, pero no lo forzamos si falla.
-				      if (tacticsFullscreenWanted && canNativeFullscreen() && !getFullscreenElement()) {
-				        await requestFullscreen(document.documentElement);
-				      } else if (!tacticsFullscreenWanted && getFullscreenElement()) {
-				        await exitFullscreen();
+				      const wantsOn = !!wanted;
+				      if (wantsOn) {
+				        // Preferimos fullscreen nativo cuando existe.
+				        if (canNativeFullscreen()) {
+				          const ok = await requestFullscreen(document.documentElement);
+				          const nativeOn = !!getFullscreenElement();
+				          tacticsFullscreenWanted = false; // en navegadores modernos solo aceptamos native.
+				          if (!ok || !nativeOn) {
+				            try { setStatus('El navegador bloqueó la pantalla completa.'); } catch (e) { /* ignore */ }
+				          }
+				        } else {
+				          // Fallback: modo "fullscreen" por CSS (solo si el navegador no soporta native).
+				          tacticsFullscreenWanted = true;
+				        }
+				      } else {
+				        tacticsFullscreenWanted = false;
+				        if (getFullscreenElement()) await exitFullscreen();
 				      }
 				      syncTacticsFullscreenUi();
 				    };
-				    try {
-				      if (isTacticsMode) {
-				        const stored = safeText(window.localStorage.getItem(TACTICS_FULLSCREEN_KEY));
-				        tacticsFullscreenWanted = stored === '1';
-				        syncTacticsFullscreenUi();
-				      }
-				    } catch (e) { /* ignore */ }
 				    tacticsFullscreenBtn?.addEventListener('click', async (ev) => {
 				      ev.preventDefault();
-				      await setTacticsFullscreenWanted(!tacticsFullscreenWanted);
+				      const nativeOn = !!getFullscreenElement();
+				      await setTacticsFullscreenWanted(!nativeOn);
 				    });
 				    try {
 				      document.addEventListener('fullscreenchange', syncTacticsFullscreenUi);
 				      document.addEventListener('webkitfullscreenchange', syncTacticsFullscreenUi);
 				    } catch (e) { /* ignore */ }
+				    try { syncTacticsFullscreenUi(); } catch (e) { /* ignore */ }
 
 				    // iPad/Safari (WebKit): `position: fixed` dentro de un contenedor con `overflow:auto`
 				    // se comporta como `absolute` y puede dejar la barra de comandos fuera de pantalla
