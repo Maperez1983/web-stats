@@ -19223,6 +19223,51 @@ def match_action_page(request):
     )
     selected_match_id = active_match.id if active_match else None
 
+    rival_lineup_payload = {}
+    rival_team_name = ''
+    rival_team_crest_url = ''
+    try:
+        if active_match:
+            rival_record = (
+                RivalConvocationRecord.objects
+                .filter(team=primary_team, match=active_match)
+                .select_related('rival_team')
+                .first()
+            )
+        else:
+            rival_record = None
+    except Exception:
+        rival_record = None
+    if rival_record:
+        try:
+            allowed_rows = rival_record.convocation_data if isinstance(rival_record.convocation_data, list) else []
+            stored = rival_record.lineup_data if isinstance(rival_record.lineup_data, dict) else {}
+            rival_lineup_payload = _normalize_rival_lineup_payload_with_limit(
+                stored,
+                allowed_rows,
+                starters_limit=starters_limit,
+            )
+        except Exception:
+            rival_lineup_payload = {}
+        try:
+            rival_team_name = (
+                str(getattr(getattr(rival_record, 'rival_team', None), 'display_name', '') or '').strip()
+                or str(getattr(getattr(rival_record, 'rival_team', None), 'name', '') or '').strip()
+                or str(getattr(rival_record, 'notes', '') or '').strip()
+                or str(match_info.get('opponent') or '').strip()
+                or 'Rival'
+            )
+        except Exception:
+            rival_team_name = 'Rival'
+        try:
+            if getattr(rival_record, 'rival_team', None):
+                rival_team_crest_url = resolve_team_crest_url(request, rival_record.rival_team, sync=True) or ''
+            if not rival_team_crest_url:
+                # Fallback: crest del nombre rival desde Universo (si está disponible en snapshot).
+                rival_team_crest_url = _absolute_universo_url(_resolve_rival_identity(rival_team_name)[1]) if rival_team_name else ''
+        except Exception:
+            rival_team_crest_url = ''
+
     # --- Contadores iniciales (server-side) ---
     # Si el JS falla (Safari/iPad/bfcache/caché), los contadores quedaban en 0 aunque el historial
     # venga ya renderizado. Precalcula desde `recent_events` para que la UI sea coherente al cargar.
@@ -19330,6 +19375,9 @@ def match_action_page(request):
             'substitution_history': substitution_history,
             'initial_lineup_payload': initial_lineup_payload,
             'initial_lineup_json': json.dumps(initial_lineup_payload, ensure_ascii=False),
+            'rival_lineup_payload': rival_lineup_payload,
+            'rival_team_name': rival_team_name,
+            'rival_team_crest_url': rival_team_crest_url,
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,
             'match_half_minutes': _half_minutes_for_team(primary_team),
