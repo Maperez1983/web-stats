@@ -29910,6 +29910,10 @@ def initial_eleven_page(request):
         return HttpResponse('Este club no tiene equipo/configuración. Completa el onboarding primero.', status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
+    match_selector_options = list(
+        _team_match_queryset(primary_team).order_by('-date', '-id')
+    )
+    selected_match_id = target_match.id if target_match and getattr(target_match, 'id', None) else None
     convocation_record = None
     if target_match:
         convocation_record = _get_convocation_record_for_match(primary_team, target_match)
@@ -30002,6 +30006,8 @@ def initial_eleven_page(request):
                 )[1]
             ) if convocation_record else '',
             'match_id': int(target_match.id) if target_match and getattr(target_match, 'id', None) else None,
+            'match_selector_options': match_selector_options,
+            'selected_match_id': selected_match_id,
             'rival_team_name': rival_team_name,
             'rival_team_crest_url': rival_team_crest_url,
             'convocation_record': convocation_record,

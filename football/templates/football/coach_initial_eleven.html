@@ -540,6 +540,9 @@
             {% if convocation_record %}
               <div class="meta-line">{{ convocation_record.round|default:"Sin jornada" }}{% if convocation_record.match_date %} · {{ convocation_record.match_date|date:"d/m/Y" }}{% endif %}</div>
             {% endif %}
+            {% if match_id %}
+              <div class="meta-line">Partido BBDD · ID {{ match_id }}</div>
+            {% endif %}
           </div>
         </div>
         <div class="top-mid">
@@ -549,9 +552,24 @@
           <button type="button" class="bc-btn" id="rival-toggle-btn">Rival: OFF</button>
           {% if match_id %}
             <a class="bc-btn" href="{% url 'coach-rival' %}?match_id={{ match_id }}" title="Preparar convocatoria y 11 del rival">Preparar rival</a>
+            <a class="bc-btn" href="{% url 'match-action-page' %}?match_id={{ match_id }}" title="Abrir el registro de acciones en el mismo partido">Registro</a>
           {% endif %}
           <a class="bc-btn primary" href="{% url 'coach-role-trainer' %}">Volver</a>
           </div>
+          {% if match_selector_options and match_selector_options|length > 1 %}
+            <form method="get" action="{% url 'initial-eleven' %}" style="margin-top:0.6rem; display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap;">
+              {% if request.GET.team %}<input type="hidden" name="team" value="{{ request.GET.team|escape }}"/>{% endif %}
+              <label for="xi-match-selector" class="field-help" style="margin:0; opacity:0.9;">Partido:</label>
+              <select id="xi-match-selector" name="match_id" style="min-width:min(520px, 92vw);">
+                {% for match_option in match_selector_options %}
+                  <option value="{{ match_option.id }}" {% if selected_match_id == match_option.id %}selected{% endif %}>
+                    #{{ match_option.id }} · {{ match_option.home_team.display_name|default:"-" }} vs {{ match_option.away_team.display_name|default:"-" }} · {{ match_option.date|date:"d/m/Y"|default:"Sin fecha" }}
+                  </option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="bc-btn">Cargar</button>
+            </form>
+          {% endif %}
           {% if convocation_record %}
             <div class="meta-line">{{ convocation_record.opponent_name|default:"Rival por confirmar" }}</div>
           {% endif %}
