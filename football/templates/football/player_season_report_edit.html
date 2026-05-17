@@ -1,0 +1,125 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Informe temporada · {{ player.name }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      .wrap { width: min(1080px, 94vw); margin: 0 auto; padding: 18px 0 28px; }
+      .head {
+        display:flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 18px 0 10px;
+      }
+      .head h1 { margin: 0; font-size: 1.15rem; letter-spacing: 0.02em; }
+      .head .meta { margin-top: 6px; opacity: 0.82; }
+      .actions { display:flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+      .card {
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        background: rgba(10, 22, 38, 0.78);
+        box-shadow: 0 18px 54px rgba(2, 6, 23, 0.35);
+        padding: 14px;
+      }
+      label { display:block; font-weight: 800; letter-spacing: 0.02em; margin-top: 10px; }
+      input[type="number"], input[type="text"], textarea {
+        width: 100%;
+        margin-top: 6px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.06);
+        color: rgba(248,250,252,0.92);
+        padding: 10px 12px;
+        font: inherit;
+        font-weight: 800;
+      }
+      textarea { min-height: 92px; resize: vertical; line-height: 1.4; font-weight: 650; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .btnrow { margin-top: 14px; display:flex; gap: 0.6rem; flex-wrap: wrap; align-items:center; justify-content: flex-end; }
+      .check { display:flex; gap: 10px; align-items: center; margin-top: 12px; opacity: 0.95; }
+      .check input { width: 18px; height: 18px; }
+      .hint { margin-top: 10px; opacity: 0.82; font-size: 0.92rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    <main class="page">
+      <div class="wrap">
+        <div class="head">
+          <div>
+            <h1>Informe de temporada · {{ player.name }}</h1>
+            <div class="meta">{{ primary_team.display_name }} · {{ division_label|default:"" }} · {{ season_label }}</div>
+            {% if scope or tournament_filter %}
+            <div class="meta">Filtro: {{ scope|default:"liga" }}{% if tournament_filter %} · {{ tournament_filter }}{% endif %}</div>
+            {% endif %}
+          </div>
+          <div class="actions">
+            <a class="button" href="{{ pdf_url }}" target="_blank" rel="noopener">Ver PDF</a>
+            <a class="button" href="{{ back_url }}">Volver</a>
+          </div>
+        </div>
+
+        <form method="post" class="card">
+          {% csrf_token %}
+          <div class="grid">
+            <label>Valoración global (1-10)
+              <input type="number" name="overall_rating" min="1" max="10" value="{{ report.overall_rating|default:'' }}" />
+            </label>
+            <label>Técnica (1-10)
+              <input type="number" name="technical_rating" min="1" max="10" value="{{ report.technical_rating|default:'' }}" />
+            </label>
+            <label>Táctica (1-10)
+              <input type="number" name="tactical_rating" min="1" max="10" value="{{ report.tactical_rating|default:'' }}" />
+            </label>
+            <label>Físico (1-10)
+              <input type="number" name="physical_rating" min="1" max="10" value="{{ report.physical_rating|default:'' }}" />
+            </label>
+            <label>Mental (1-10)
+              <input type="number" name="mental_rating" min="1" max="10" value="{{ report.mental_rating|default:'' }}" />
+            </label>
+            <label>Social / equipo (1-10)
+              <input type="number" name="social_rating" min="1" max="10" value="{{ report.social_rating|default:'' }}" />
+            </label>
+          </div>
+
+          <label>Fortalezas
+            <textarea name="strengths" placeholder="3–6 puntos claros. Ej: juego entre líneas, último pase, agresividad defensiva...">{{ report.strengths|default:'' }}</textarea>
+          </label>
+          <label>Aspectos a mejorar
+            <textarea name="improvements" placeholder="Puntos concretos + ejemplos. Ej: perfil corporal, orientaciones, toma de decisión...">{{ report.improvements|default:'' }}</textarea>
+          </label>
+          <label>Objetivos próxima temporada
+            <textarea name="objectives_next" placeholder="2–4 objetivos medibles. Ej: subir % éxito, mejorar duelos aéreos, X acciones/partido...">{{ report.objectives_next|default:'' }}</textarea>
+          </label>
+          <label>Comentario del cuerpo técnico
+            <textarea name="coach_comments" placeholder="Mensaje final para el jugador / familia, recomendaciones, rol, proyección...">{{ report.coach_comments|default:'' }}</textarea>
+          </label>
+
+          <label class="check">
+            <input type="checkbox" name="is_final" {% if report and report.is_final %}checked{% endif %} />
+            Marcar como versión final
+          </label>
+
+          <div class="btnrow">
+            <button type="submit" class="button primary">Guardar</button>
+          </div>
+          <div class="hint">Al guardar, el PDF del jugador (`Imprimir PDF`) incluirá esta valoración.</div>
+        </form>
+      </div>
+    </main>
+  </body>
+</html>
+

@@ -2257,6 +2257,46 @@ class RivalAnalysisReport(models.Model):
         return f'{self.rival_name} · {self.report_title or "Informe"}'
 
 
+class PlayerSeasonReport(models.Model):
+    """
+    Valoración cualitativa + ratings del cuerpo técnico para el informe de fin de temporada del jugador.
+    """
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='player_season_reports')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='season_reports')
+    season_label = models.CharField(max_length=80, blank=True, default='')
+    scope = models.CharField(max_length=24, blank=True, default='')
+    tournament_name = models.CharField(max_length=120, blank=True, default='')
+
+    overall_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    technical_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    tactical_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    physical_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    mental_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+    social_rating = models.PositiveSmallIntegerField(null=True, blank=True, help_text='1-10 (opcional)')
+
+    strengths = models.TextField(blank=True)
+    improvements = models.TextField(blank=True)
+    objectives_next = models.TextField(blank=True)
+    coach_comments = models.TextField(blank=True)
+    is_final = models.BooleanField(default=False)
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_player_season_reports')
+    updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_player_season_reports')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Informe de temporada (jugador)'
+        verbose_name_plural = 'Informes de temporada (jugadores)'
+        ordering = ['-updated_at', '-id']
+        unique_together = ('team', 'player', 'season_label', 'scope', 'tournament_name')
+
+    def __str__(self):
+        label = self.season_label or 'Temporada'
+        return f'{self.player_id} · {label}'
+
+
 class AnalystMatchReport(models.Model):
     """
     Repositorio de informes de partido (PDF/JPG/PNG) que sube el analista.

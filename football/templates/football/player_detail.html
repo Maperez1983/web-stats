@@ -570,6 +570,9 @@
 		          {% if can_preview_player_view and player_view_preview %}
 		          <a class="btn alt" href="{% url 'player-detail' player.id %}{% if active_tab %}?tab={{ active_tab }}{% endif %}">Volver a edición staff</a>
 		          {% endif %}
+		          {% if not player_view_preview %}
+		          <a class="btn alt" href="{% url 'player-season-report-edit' player.id %}">Valoración staff</a>
+		          {% endif %}
 		          <a class="btn" href="{% url 'player-pdf' player.id %}" target="_blank" rel="noopener">Imprimir PDF</a>
 		          <button class="btn alt" type="button" id="playerPresentToggle" title="Modo presentación">Presentación</button>
 		          <a class="btn" href="{% url 'player-dashboard' %}">Volver</a>

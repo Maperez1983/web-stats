@@ -481,5 +481,100 @@
         </div>
       </div>
     </section>
+
+    <section class="sheet">
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="{{ brand_mark_src }}" alt="2J" />
+          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+        </div>
+        <div class="brand-copy">
+          <h1>Valoración cuerpo técnico · {{ player.name }}</h1>
+          <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+        </div>
+        <div class="brand-meta">
+          <div>Versión: <strong>{% if staff_report and staff_report.is_final %}Final{% else %}Borrador{% endif %}</strong></div>
+          <div>Actualizado: <strong>{% if staff_report and staff_report.updated_at %}{{ staff_report.updated_at|date:"d/m/Y" }}{% else %}—{% endif %}</strong></div>
+        </div>
+      </div>
+
+      <div class="pad">
+        <div class="section-title">Ratings (1–10)</div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width: 22%;">Global</th>
+              <th style="width: 16%;">Técnica</th>
+              <th style="width: 16%;">Táctica</th>
+              <th style="width: 16%;">Físico</th>
+              <th style="width: 16%;">Mental</th>
+              <th style="width: 14%;">Social</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>{{ staff_report.overall_rating|default:"—" }}</strong></td>
+              <td><strong>{{ staff_report.technical_rating|default:"—" }}</strong></td>
+              <td><strong>{{ staff_report.tactical_rating|default:"—" }}</strong></td>
+              <td><strong>{{ staff_report.physical_rating|default:"—" }}</strong></td>
+              <td><strong>{{ staff_report.mental_rating|default:"—" }}</strong></td>
+              <td><strong>{{ staff_report.social_rating|default:"—" }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:12px;">
+          <div class="section-title">Fortalezas</div>
+          <div class="card" style="margin-top:10px;">
+            {% if staff_report and staff_report.strengths %}
+              <div style="white-space:pre-wrap;">{{ staff_report.strengths }}</div>
+            {% else %}
+              <div class="muted">Pendiente de completar.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="section-title">Aspectos a mejorar</div>
+          <div class="card" style="margin-top:10px;">
+            {% if staff_report and staff_report.improvements %}
+              <div style="white-space:pre-wrap;">{{ staff_report.improvements }}</div>
+            {% else %}
+              <div class="muted">Pendiente de completar.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="section-title">Objetivos próxima temporada</div>
+          <div class="card" style="margin-top:10px;">
+            {% if staff_report and staff_report.objectives_next %}
+              <div style="white-space:pre-wrap;">{{ staff_report.objectives_next }}</div>
+            {% else %}
+              <div class="muted">Pendiente de completar.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="section-title">Comentario del cuerpo técnico</div>
+          <div class="card" style="margin-top:10px;">
+            {% if staff_report and staff_report.coach_comments %}
+              <div style="white-space:pre-wrap;">{{ staff_report.coach_comments }}</div>
+            {% else %}
+              <div class="muted">Pendiente de completar.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="foot">
+          <div class="brandline">
+            <img src="{{ brand_mark_src }}" alt="2J" />
+            <div class="fine">Valoración staff · Documento interno</div>
+          </div>
+          <div class="fine">Firma: ____________________</div>
+        </div>
+      </div>
+    </section>
   </body>
 </html>

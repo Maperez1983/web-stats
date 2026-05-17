@@ -162,6 +162,7 @@ from football.models import (
     VideoInboxItem,
     VideoInboxComment,
     ChunkedRivalVideoUpload,
+    PlayerSeasonReport,
     RivalAnalysisReport,
     AnalystMatchReport,
     AppUserRole,
@@ -55409,6 +55410,138 @@ def player_detail_page(request, player_id):
 
 
 @login_required
+@ensure_csrf_cookie
+def player_season_report_edit_page(request, player_id):
+    """
+    Editor de valoración del cuerpo técnico para el informe final de temporada del jugador.
+
+    Esta info se incrusta en `player_pdf` (PDF club) para que el documento sea entregable.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede editar el informe del jugador.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
+    if forbidden:
+        return forbidden
+
+    primary_team, player = _resolve_player_for_request_scope(request, int(player_id))
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+    if not player:
+        raise Http404('Jugador no encontrado')
+    forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+    if forbidden:
+        return forbidden
+
+    scope = _get_stats_scope_for_request(request, primary_team)
+    tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=scope)
+
+    season_label = 'Temporada actual'
+    division_label = primary_team.group.name if primary_team.group else ''
+    try:
+        season = primary_team.group.season if primary_team.group else None
+        if season:
+            if season.start_date and season.end_date:
+                season_label = f'{season.start_date.year}-{season.end_date.year}'
+            elif season.name:
+                season_label = season.name
+    except Exception:
+        pass
+
+    tournament_key = str(tournament_filter or '').strip()
+    report = (
+        PlayerSeasonReport.objects
+        .filter(
+            team=primary_team,
+            player=player,
+            season_label=season_label,
+            scope=str(scope or '').strip(),
+            tournament_name=tournament_key,
+        )
+        .first()
+    )
+
+    def _clean_rating(value):
+        try:
+            raw = str(value or '').strip()
+        except Exception:
+            raw = ''
+        if not raw:
+            return None
+        try:
+            num = int(float(raw))
+        except Exception:
+            return None
+        if num < 1:
+            return 1
+        if num > 10:
+            return 10
+        return num
+
+    if request.method == 'POST':
+        payload = request.POST
+        if report is None:
+            report = PlayerSeasonReport(
+                team=primary_team,
+                player=player,
+                season_label=season_label,
+                scope=str(scope or '').strip(),
+                tournament_name=tournament_key,
+                created_by=request.user if isinstance(request.user, User) else None,
+            )
+
+        report.overall_rating = _clean_rating(payload.get('overall_rating'))
+        report.technical_rating = _clean_rating(payload.get('technical_rating'))
+        report.tactical_rating = _clean_rating(payload.get('tactical_rating'))
+        report.physical_rating = _clean_rating(payload.get('physical_rating'))
+        report.mental_rating = _clean_rating(payload.get('mental_rating'))
+        report.social_rating = _clean_rating(payload.get('social_rating'))
+        report.strengths = str(payload.get('strengths') or '').strip()
+        report.improvements = str(payload.get('improvements') or '').strip()
+        report.objectives_next = str(payload.get('objectives_next') or '').strip()
+        report.coach_comments = str(payload.get('coach_comments') or '').strip()
+        report.is_final = str(payload.get('is_final') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+        report.updated_by = request.user if isinstance(request.user, User) else None
+        report.save()
+        try:
+            messages.success(request, 'Valoración guardada.')
+        except Exception:
+            pass
+
+        qs = ''
+        try:
+            qs = str(getattr(request, 'META', {}).get('QUERY_STRING') or '').strip()
+        except Exception:
+            qs = ''
+        return redirect(f'{request.path}?{qs}' if qs else request.path)
+
+    pdf_url = reverse('player-pdf', args=[player.id])
+    back_url = reverse('player-detail', args=[player.id])
+    try:
+        qs = request.GET.copy()
+        if qs:
+            pdf_url = f'{pdf_url}?{qs.urlencode()}'
+            back_url = f'{back_url}?{qs.urlencode()}'
+    except Exception:
+        pass
+
+    return render(
+        request,
+        'football/player_season_report_edit.html',
+        {
+            'player': player,
+            'primary_team': primary_team,
+            'division_label': division_label,
+            'season_label': season_label,
+            'scope': scope,
+            'tournament_filter': tournament_filter,
+            'report': report,
+            'pdf_url': pdf_url,
+            'back_url': back_url,
+        },
+    )
+
+
+@login_required
 @pdf_view_guard
 def player_pdf(request, player_id):
     forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='módulo de jugadores')
@@ -55687,12 +55820,29 @@ def player_pdf(request, player_id):
             player_initials = (parts[0][0] + parts[-1][0]).upper()
     except Exception:
         player_initials = ''
+
+    staff_report = None
+    try:
+        staff_report = (
+            PlayerSeasonReport.objects
+            .filter(
+                team=primary_team,
+                player=player,
+                season_label=season_label,
+                scope=str(scope or '').strip(),
+                tournament_name=str(tournament_filter or '').strip(),
+            )
+            .first()
+        )
+    except Exception:
+        staff_report = None
     html = render_to_string(
         'football/player_pdf.html',
         {
             **_build_pdf_nav_urls(request),
             'player': player,
             'stats': detail,
+            'staff_report': staff_report,
             'primary_team': primary_team,
             'season_label': season_label,
             'division_label': division_label,
