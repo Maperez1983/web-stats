@@ -21345,6 +21345,7 @@
 			              try {
 			                if (wantInSlot) {
 			                  rosterSlot.hidden = false;
+			                  try { rosterBank.hidden = false; } catch (e) { /* ignore */ }
 			                  if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
 			                } else {
 			                  if (rosterBank.parentElement !== rosterHome.parent) {
@@ -21352,6 +21353,8 @@
 		                    else rosterHome.parent.appendChild(rosterBank);
 		                  }
 			                  rosterSlot.hidden = true;
+			                  // En modo táctica nunca queremos que la Plantilla quede debajo del campo.
+			                  try { if (isTacticsModeUi) rosterBank.hidden = true; } catch (e) { /* ignore */ }
 			                }
 			              } catch (e) { /* ignore */ }
 			            };

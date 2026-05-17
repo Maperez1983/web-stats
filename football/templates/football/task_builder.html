@@ -5577,8 +5577,7 @@
 		                </div>
 		              </div>
 
-		              {% if not tactics_mode %}
-		              <div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;">
+		              <div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;" {% if tactics_mode %}hidden{% endif %}>
 		                <div class="player-bank-head">
 		                  <h3 style="margin:0;">Plantilla disponible</h3>
 		                  <div class="player-bank-tools">
@@ -5627,8 +5626,7 @@
 	                  </div>
 	                  <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
 	                </div>
-	              </div>
-		              {% endif %}
+		              </div>
 	              </div>
 	              </div>
 	            </div>
