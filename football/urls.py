@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from . import kit2d_views
 from . import pwa as pwa_views
 
 urlpatterns = [
@@ -31,6 +32,8 @@ urlpatterns = [
     path('api/workspace/active-team/', views.workspace_set_active_team, name='workspace-active-team'),
     path('api/workspace/preferences/get/', views.workspace_preference_get_api, name='workspace-pref-get'),
     path('api/workspace/preferences/set/', views.workspace_preference_set_api, name='workspace-pref-set'),
+    path('api/kits/2d/generate/', kit2d_views.kit2d_generate_api, name='kit2d-generate-api'),
+    path('tools/kit2d/', kit2d_views.kit2d_generator_page, name='kit2d-generator'),
     path('api/workspace/sync/', views.workspace_sync_competition_api, name='workspace-sync-competition'),
     path('team/<int:team_id>/cover/', views.team_cover_image_file, name='team-cover-image-file'),
     path('platform/', views.platform_overview_page, name='platform-overview'),

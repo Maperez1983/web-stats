@@ -1,0 +1,396 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Generador Kit 2D</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card: rgba(255, 255, 255, 0.06);
+        --card2: rgba(255, 255, 255, 0.04);
+        --text: #e5e7eb;
+        --muted: rgba(226, 232, 240, 0.74);
+        --accent: #22d3ee;
+        --danger: #fb7185;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: radial-gradient(1200px 700px at 20% -10%, rgba(34,211,238,0.22), transparent 55%),
+          radial-gradient(900px 520px at 90% 0%, rgba(99,102,241,0.18), transparent 52%),
+          var(--bg);
+        color: var(--text);
+      }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 1.25rem 1.1rem 2rem; }
+      h1 { margin: 0; font-size: 1.4rem; letter-spacing: 0.01em; }
+      .sub { margin-top: 0.4rem; color: var(--muted); line-height: 1.35; }
+      .panel {
+        margin-top: 1rem;
+        padding: 1rem;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.035));
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+      }
+      .row { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+      @media (min-width: 780px) {
+        .row { grid-template-columns: 1.35fr 0.65fr; align-items: start; }
+      }
+      .field { display: grid; gap: 0.35rem; }
+      .field label { font-size: 0.85rem; color: rgba(226,232,240,0.9); }
+      .field input[type="file"] { width: 100%; }
+      .field input[type="number"] {
+        width: 100%;
+        padding: 0.6rem 0.7rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(2,6,23,0.35);
+        color: var(--text);
+        outline: none;
+      }
+      .actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 0.6rem; }
+      button {
+        appearance: none;
+        border: 1px solid rgba(34,211,238,0.32);
+        background: rgba(34,211,238,0.12);
+        color: rgba(236,254,255,0.95);
+        padding: 0.6rem 0.9rem;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 700;
+      }
+      button.secondary { border-color: rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color: rgba(226,232,240,0.92); }
+      button:disabled { opacity: 0.55; cursor: default; }
+      .hint { margin-top: 0.6rem; font-size: 0.85rem; color: var(--muted); }
+      .err { margin-top: 0.6rem; color: var(--danger); font-weight: 700; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 0.85rem; margin-top: 0.95rem; }
+      @media (min-width: 780px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .card {
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+        padding: 0.9rem;
+      }
+      .card h2 { margin: 0; font-size: 1rem; }
+      .card p { margin: 0.45rem 0 0.7rem; color: var(--muted); font-size: 0.9rem; line-height: 1.35; }
+      .preview {
+        display: grid;
+        place-items: center;
+        min-height: 140px;
+        border-radius: 14px;
+        background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.10), transparent 45%),
+          rgba(2,6,23,0.35);
+        border: 1px dashed rgba(255,255,255,0.14);
+      }
+      .preview img {
+        image-rendering: auto;
+        max-width: 100%;
+        max-height: 220px;
+        filter: drop-shadow(0 10px 18px rgba(2,6,23,0.55));
+      }
+      .downloads { display: flex; gap: 0.55rem; margin-top: 0.75rem; flex-wrap: wrap; }
+      a.dl {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        text-decoration: none;
+        padding: 0.55rem 0.75rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.06);
+        color: rgba(226,232,240,0.94);
+        font-weight: 700;
+      }
+      a.dl[aria-disabled="true"] { opacity: 0.55; pointer-events: none; }
+      .mini { font-size: 0.83rem; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Generador de Kit 2D</h1>
+      <div class="sub">
+        Sube una foto de la camiseta (JPG/PNG/HEIC) y genera 2 tokens PNG:
+        <span class="mini">uno a <b>96×96</b> (escudo)</span> y
+        <span class="mini">otro a <b>44×44</b> (chapas/fotos del editor).</span>
+      </div>
+
+      <div class="panel">
+        <div class="row">
+          <div>
+            <div class="field">
+              <label for="file">Foto</label>
+              <input id="file" type="file" accept="image/*,.heic,.heif" />
+            </div>
+            <div class="actions">
+              <button id="btn-generate" type="button">Generar</button>
+              <button id="btn-zip" class="secondary" type="button">Descargar ZIP</button>
+              <button id="btn-save" class="secondary" type="button" disabled>Guardar en el club</button>
+            </div>
+            <div class="hint">
+              Consejo: intenta que la camiseta ocupe el centro de la foto y haya poco fondo. Si sale mal, recorta la imagen y reintenta.
+            </div>
+            <div id="err" class="err" hidden></div>
+          </div>
+
+          <div>
+            <div class="field">
+              <label for="club_size">Tamaño escudo (px)</label>
+              <input id="club_size" type="number" inputmode="numeric" min="32" max="512" value="96" />
+            </div>
+            <div class="field" style="margin-top:0.65rem;">
+              <label for="editor_size">Tamaño editor (px)</label>
+              <input id="editor_size" type="number" inputmode="numeric" min="24" max="256" value="44" />
+            </div>
+            <div class="field" style="margin-top:0.65rem;">
+              <label><input id="debug" type="checkbox" /> Incluir máscara (debug)</label>
+            </div>
+            <div class="field" style="margin-top:0.65rem;">
+              <label for="mode">Modo</label>
+              <select id="mode" style="width:100%;padding:0.6rem 0.7rem;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(2,6,23,0.35);color:var(--text);outline:none;">
+                <option value="warp" selected>Kit 2D (FM)</option>
+                <option value="template">Plantilla simple</option>
+                <option value="cutout">Foto (recorte)</option>
+              </select>
+            </div>
+            <div class="field" style="margin-top:0.65rem;">
+              <label for="logo_preset">Logos</label>
+              <select id="logo_preset" style="width:100%;padding:0.6rem 0.7rem;border-radius:12px;border:1px solid rgba(255,255,255,0.12);background:rgba(2,6,23,0.35);color:var(--text);outline:none;">
+                <option value="" selected>Auto (desde la foto)</option>
+                <option value="benagalbon">Benagalbón + Nike + Modernia</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h2>Token escudo</h2>
+            <p>PNG con fondo transparente, pensado para mostrarlo junto al escudo.</p>
+            <div class="preview"><img id="prev-club" alt="Preview token escudo" /></div>
+            <div class="downloads">
+              <a id="dl-club" class="dl" href="#" aria-disabled="true">Descargar PNG</a>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Token editor</h2>
+            <p>PNG con fondo transparente, pensado para chapas/fotos del editor (pizarra/tareas).</p>
+            <div class="preview"><img id="prev-editor" alt="Preview token editor" /></div>
+            <div class="downloads">
+              <a id="dl-editor" class="dl" href="#" aria-disabled="true">Descargar PNG</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const apiUrl = '/api/kits/2d/generate/';
+      const prefSaveUrl = '/api/workspace/preferences/set/';
+      const prefKey = 'kit2d.tokens';
+      let lastGenerated = null;
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+      }
+
+      function b64ToBlob(b64, contentType) {
+        const binStr = atob(b64);
+        const len = binStr.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binStr.charCodeAt(i);
+        return new Blob([bytes], { type: contentType || 'application/octet-stream' });
+      }
+
+      function setError(msg) {
+        const el = document.getElementById('err');
+        if (!msg) { el.hidden = true; el.textContent = ''; return; }
+        el.hidden = false;
+        el.textContent = msg;
+      }
+
+      function setDownloadLink(anchorId, blob, filename) {
+        const a = document.getElementById(anchorId);
+        if (!a) return;
+        if (!blob) {
+          a.setAttribute('aria-disabled', 'true');
+          a.removeAttribute('download');
+          a.href = '#';
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = filename;
+        a.setAttribute('aria-disabled', 'false');
+      }
+
+      async function generateJson() {
+        const file = document.getElementById('file')?.files?.[0];
+        if (!file) throw new Error('Selecciona una foto primero.');
+
+        const clubSize = String(document.getElementById('club_size')?.value || '96');
+        const editorSize = String(document.getElementById('editor_size')?.value || '44');
+        const debug = document.getElementById('debug')?.checked ? '1' : '';
+        const mode = String(document.getElementById('mode')?.value || 'warp');
+        const logoPreset = String(document.getElementById('logo_preset')?.value || '');
+
+        const fd = new FormData();
+        fd.append('image', file, file.name);
+        fd.append('club_size', clubSize);
+        fd.append('editor_size', editorSize);
+        fd.append('debug', debug);
+        fd.append('format', 'json');
+        fd.append('mode', mode);
+        if (logoPreset) fd.append('logo_preset', logoPreset);
+
+        const resp = await fetch(apiUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          credentials: 'same-origin',
+        });
+
+        let payload = null;
+        try { payload = await resp.json(); } catch (e) {}
+        if (!resp.ok || !payload?.ok) {
+          throw new Error(payload?.error || `Error HTTP ${resp.status}`);
+        }
+        return payload;
+      }
+
+      async function generateZipBlob() {
+        const file = document.getElementById('file')?.files?.[0];
+        if (!file) throw new Error('Selecciona una foto primero.');
+
+        const clubSize = String(document.getElementById('club_size')?.value || '96');
+        const editorSize = String(document.getElementById('editor_size')?.value || '44');
+        const debug = document.getElementById('debug')?.checked ? '1' : '';
+        const mode = String(document.getElementById('mode')?.value || 'warp');
+        const logoPreset = String(document.getElementById('logo_preset')?.value || '');
+
+        const fd = new FormData();
+        fd.append('image', file, file.name);
+        fd.append('club_size', clubSize);
+        fd.append('editor_size', editorSize);
+        fd.append('debug', debug);
+        fd.append('format', 'zip');
+        fd.append('mode', mode);
+        if (logoPreset) fd.append('logo_preset', logoPreset);
+
+        const resp = await fetch(apiUrl, {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          credentials: 'same-origin',
+        });
+        if (!resp.ok) {
+          let err = '';
+          try {
+            const j = await resp.json();
+            err = j?.error || '';
+          } catch (e) {}
+          throw new Error(err || `Error HTTP ${resp.status}`);
+        }
+        return await resp.blob();
+      }
+
+      async function onGenerateClick() {
+        setError('');
+        const btn = document.getElementById('btn-generate');
+        const btnZip = document.getElementById('btn-zip');
+        const btnSave = document.getElementById('btn-save');
+        btn.disabled = true;
+        btnZip.disabled = true;
+        btnSave.disabled = true;
+        try {
+          const data = await generateJson();
+          lastGenerated = data;
+          const clubBlob = b64ToBlob(data.kit_club_png_b64 || '', 'image/png');
+          const editorBlob = b64ToBlob(data.kit_editor_png_b64 || '', 'image/png');
+
+          document.getElementById('prev-club').src = `data:image/png;base64,${data.kit_club_png_b64 || ''}`;
+          document.getElementById('prev-editor').src = `data:image/png;base64,${data.kit_editor_png_b64 || ''}`;
+          setDownloadLink('dl-club', clubBlob, `kit_club_${data.club_size || 96}.png`);
+          setDownloadLink('dl-editor', editorBlob, `kit_editor_${data.editor_size || 44}.png`);
+          btnSave.disabled = false;
+        } catch (e) {
+          setError(e?.message || 'No se pudo generar el kit 2D.');
+          setDownloadLink('dl-club', null, '');
+          setDownloadLink('dl-editor', null, '');
+          lastGenerated = null;
+        } finally {
+          btn.disabled = false;
+          btnZip.disabled = false;
+          btnSave.disabled = !lastGenerated;
+        }
+      }
+
+      async function onZipClick() {
+        setError('');
+        const btn = document.getElementById('btn-generate');
+        const btnZip = document.getElementById('btn-zip');
+        btn.disabled = true;
+        btnZip.disabled = true;
+        try {
+          const blob = await generateZipBlob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'kit2d.zip';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2500);
+        } catch (e) {
+          setError(e?.message || 'No se pudo descargar el ZIP.');
+        } finally {
+          btn.disabled = false;
+          btnZip.disabled = false;
+        }
+      }
+
+      document.getElementById('btn-generate')?.addEventListener('click', () => void onGenerateClick());
+      document.getElementById('btn-zip')?.addEventListener('click', () => void onZipClick());
+
+      async function onSaveClick() {
+        setError('');
+        const btn = document.getElementById('btn-save');
+        if (!lastGenerated?.kit_club_png_b64 || !lastGenerated?.kit_editor_png_b64) {
+          setError('Primero genera un kit 2D.');
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const value = {
+            club_data_url: `data:image/png;base64,${lastGenerated.kit_club_png_b64}`,
+            editor_data_url: `data:image/png;base64,${lastGenerated.kit_editor_png_b64}`,
+            club_size: Number(lastGenerated.club_size || 96) || 96,
+            editor_size: Number(lastGenerated.editor_size || 44) || 44,
+            saved_at: new Date().toISOString(),
+          };
+          const resp = await fetch(prefSaveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ key: prefKey, value }),
+          });
+          const payload = await resp.json().catch(() => null);
+          if (!resp.ok || !payload?.ok) throw new Error(payload?.error || `Error HTTP ${resp.status}`);
+          setError('');
+          alert('Kit 2D guardado. Abre el editor/tareas y selecciona estilo “camiseta”.');
+        } catch (e) {
+          setError(e?.message || 'No se pudo guardar el kit 2D.');
+        } finally {
+          btn.disabled = false;
+        }
+      }
+      document.getElementById('btn-save')?.addEventListener('click', () => void onSaveClick());
+    </script>
+  </body>
+</html>
