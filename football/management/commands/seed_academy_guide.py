@@ -706,6 +706,219 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         SeedLesson(
+            title="Defensa · Bloque medio: temporizar o saltar",
+            summary="Guía práctica para defender en bloque medio: alturas, referencias, y triggers para saltar sin partirse.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["defensa", "bloque_medio", "temporizar", "triggers"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Objetivo (bloque medio)",
+                    "body": (
+                        "Bloque medio = proteger el centro, negar pases entre líneas y preparar robo.\n\n"
+                        "Prioridad: que el rival juegue por fuera y de cara (sin girar)."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Cuándo SALTAR (triggers)",
+                    "body": (
+                        "- Pase lento o flotado.\n"
+                        "- Receptor de espaldas.\n"
+                        "- Control malo.\n"
+                        "- Línea interior cerrada (apoyos tapados).\n\n"
+                        "Si no hay trigger: temporiza (no muerdas)."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Temporizar bien (sin regalar)",
+                    "body": (
+                        "Temporizar NO es retroceder: es orientar el juego donde te conviene.\n"
+                        "1er defensor: cuerpo de lado, tapa dentro.\n"
+                        "2º/3º defensor: cierran puertas y acortan distancias.\n\n"
+                        "Frases: “DENTRO CERRADO”, “ACOMPAÑA”, “AHORA SÍ”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: bloque medio (salto por trigger)",
+                    "body": "Escena tipo: rival intenta jugar dentro; interior cerrado; salto cuando el receptor recibe de espaldas.",
+                    "payload": {"hint": "Dibuja dos momentos: (1) temporizar sin trigger (2) salto con cobertura cuando aparece el trigger."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Defensa · Defender centros (primer palo, penalti, segundo)",
+            summary="Cómo defender centros sin caos: roles por zonas, orientación corporal y segunda jugada.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["defensa", "centros", "area", "segunda_jugada"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Reglas simples del área",
+                    "body": (
+                        "1) Nadie remata solo en primer palo.\n"
+                        "2) El punto de penalti es “zona caliente”.\n"
+                        "3) Segundo palo: espalda protegida.\n"
+                        "4) Rechace: 1 jugador SIEMPRE.\n\n"
+                        "Regla: primero protejo remate, luego salgo."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Orientación corporal",
+                    "body": (
+                        "Balón–hombre–portería: escaneo constante.\n"
+                        "Cuerpo entre rival y zona de remate.\n"
+                        "Si el centro es tenso: ataca balón; si es bombeado: gana posición primero."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: defensa de centro",
+                    "body": "Dibuja zonas (1º palo, penalti, 2º palo) y quién ataca el balón + quién va al rechace.",
+                    "payload": {"hint": "Incluye 2 centros: raso atrás y bombeado. Marca el jugador de rechace en ambos."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Ataque · Salir de presión (perfil, giro y 3er hombre)",
+            summary="Guía práctica para progresar bajo presión: escaneo, apoyo, fijar y soltar.",
+            min_category=AcademyLesson.CATEGORY_BENJAMIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["ataque", "salida", "tercer_hombre", "perfil"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Principio",
+                    "body": (
+                        "Bajo presión, no gana el más rápido: gana el que crea una salida.\n\n"
+                        "Checklist del receptor:\n"
+                        "- escaneo (mirar antes)\n"
+                        "- perfil (¿puedo girar?)\n"
+                        "- si no giro: apoyo + 3er hombre."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "3 soluciones típicas",
+                    "body": (
+                        "1) Giro (si hay espacio) → romper línea.\n"
+                        "2) Pared (apoyo) → salir del foco.\n"
+                        "3) 3er hombre (pase-apoyo-progresión) → la más estable.\n\n"
+                        "Regla: si no puedes progresar, mejora tu posición y vuelve a intentarlo."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: salida con tercer hombre",
+                    "body": "Escena tipo: central → pivote (de espaldas) → devolución → interior rompe a la espalda.",
+                    "payload": {"hint": "Dibuja 3 pasos y marca la orientación del receptor (perfil) en el 2º paso."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Ataque · Cambio de orientación (fijar para soltar)",
+            summary="Cómo mover al rival antes de cambiar: fijar, atraer y cambiar a tiempo (no por cambiar).",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["ataque", "cambio_orientacion", "amplitud", "decision"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "La idea (simple)",
+                    "body": (
+                        "Cambiar de orientación funciona si antes has FIJADO al rival.\n"
+                        "Si cambias sin fijar: solo mueves el balón, no al rival.\n\n"
+                        "Regla: 2–3 pases para atraer → cambio rápido al lado débil."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Señales para cambiar",
+                    "body": (
+                        "- Rival bascula tarde.\n"
+                        "- Lado débil con 1v1.\n"
+                        "- Interior libre entre líneas.\n\n"
+                        "Palabras: “ATRAE”, “CAMBIA”, “ATACA”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: fijar y cambiar",
+                    "body": "Escena tipo: lado fuerte atrae; pivote/central cambia al extremo del lado débil.",
+                    "payload": {"hint": "Marca ‘lado fuerte’ y ‘lado débil’ y el timing del cambio (cuando rival bascula)."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Transición · Tras pérdida: ¿contra-presión o repliegue?",
+            summary="Guía práctica para decidir tras pérdida: 3 preguntas y roles para no regalar la espalda.",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["transicion", "perdida", "contrapresion", "repliegue"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Decisión en 2 segundos (3 preguntas)",
+                    "body": (
+                        "1) ¿Dónde se pierde? (cerca de balón o lejos)\n"
+                        "2) ¿Tengo ayudas cerca?\n"
+                        "3) ¿El rival puede correr hacia mi portería?\n\n"
+                        "Si (1) cerca + (2) sí + (3) no → contra-presión.\n"
+                        "Si no → repliegue + temporizar."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Roles",
+                    "body": (
+                        "- 1º: presión al balón (molestar).\n"
+                        "- 2º: cortar pase de salida (primera opción).\n"
+                        "- 3º: proteger espalda / falta táctica si es necesario.\n\n"
+                        "Error típico: todos presionan → nadie protege la espalda."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: pérdida y contra-presión",
+                    "body": "Escena tipo: pérdida en carril central; 1 presiona, 2 corta pase, 3 equilibra.",
+                    "payload": {"hint": "Dibuja dos variantes: pérdida cerca (contra-presión) y pérdida lejos (repliegue)."},
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Transición · Tras recuperación: primer pase + amenaza",
+            summary="Cómo atacar tras recuperar: asegurar el primer pase y amenazar profundidad sin perderla al instante.",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["transicion", "recuperacion", "primer_pase", "profundidad"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "2 reglas",
+                    "body": (
+                        "1) Primer pase: seguro y con ventaja (no regales otra pérdida).\n"
+                        "2) Amenaza: alguien ataca espacio para fijar (aunque no reciba).\n\n"
+                        "Error típico: correr todos al balón y cerrar tus propias líneas de pase."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Opciones (orden)",
+                    "body": (
+                        "A) Pase adelante si hay ventaja clara.\n"
+                        "B) Pase al apoyo y tercer hombre.\n"
+                        "C) Reinicio rápido para atacar organizado.\n\n"
+                        "Regla: velocidad con cabeza > velocidad sin plan."
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
             min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
