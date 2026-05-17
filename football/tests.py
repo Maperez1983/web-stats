@@ -5361,6 +5361,38 @@ class MatchActionWorkflowTests(TestCase):
         self.convocation.refresh_from_db()
         self.assertEqual(int(self.convocation.lineup_data['starters'][0]['id']), self.player.id)
 
+    def test_match_actions_bulk_add_creates_events(self):
+        response = self.client.post(
+            reverse('match-action-bulk-add'),
+            data=json.dumps(
+                {
+                    'match_id': self.match.id,
+                    'player_id': self.player.id,
+                    'action_type': 'Pérdida',
+                    'result': 'Mal',
+                    'zone': 'Medio Centro',
+                    'quantity': 6,
+                }
+            ),
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertEqual(payload.get('created'), 6)
+        self.assertEqual(
+            MatchEvent.objects.filter(
+                match=self.match,
+                player=self.player,
+                event_type='Pérdida',
+                result='Mal',
+                zone='Medio Centro',
+                source_file='manual-bulk',
+                system='touch-field-final',
+            ).count(),
+            6,
+        )
+
     def test_rival_lineup_get_and_save_works_from_match_actions(self):
         from football.models import RivalConvocationRecord
 
