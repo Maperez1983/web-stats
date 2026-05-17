@@ -203,8 +203,26 @@ ASSIST_KEYWORDS = {'asistencia', 'asist', 'pase gol', 'asiste'}
 YELLOW_CARD_KEYWORDS = {'amarilla', 'tarjeta amarilla'}
 RED_CARD_KEYWORDS = {'roja', 'tarjeta roja'}
 SUBSTITUTION_KEYWORDS = {'sustitucion', 'sustitución', 'cambio'}
-SUB_ENTRY_KEYWORDS = {'entrada', 'entrante', 'subida'}
-SUB_EXIT_KEYWORDS = {'salida', 'saliente', 'bajada'}
+SUB_ENTRY_KEYWORDS = {
+    'entrada',
+    'entrante',
+    'subida',
+    'entra',
+    'entrar',
+    'ingresa',
+    'ingresar',
+    'in',
+}
+SUB_EXIT_KEYWORDS = {
+    'salida',
+    'saliente',
+    'bajada',
+    'sale',
+    'salir',
+    'retira',
+    'retirado',
+    'out',
+}
 
 
 def _build_field_zones():
