@@ -4015,6 +4015,14 @@
           </div>
           <input type="hidden" id="initial-lineup-data" name="initial_lineup" value='{{ initial_lineup_json|default:"{\"starters\":[],\"bench\":[]}"|escape }}' />
         </div>
+        <div class="sidebar-lineup-builder" style="margin-top:0.85rem;">
+          <div class="lineup-toolbar">
+            <button type="button" id="manual-bulk-open-btn">Carga manual (cantidad)</button>
+          </div>
+          <div class="lineup-status" style="opacity:0.9;">
+            Útil para recuperar partidos: añade <em>N</em> acciones iguales a un jugador (ej. “Pérdida no forzada” × 6).
+          </div>
+        </div>
         <div class="convocation-list" id="convocation-list">
           {% if convocation_players %}
           {% for player in convocation_players %}
@@ -4042,6 +4050,55 @@
           {% endif %}
         </div>
       </aside>
+      <div class="quick-history-modal" id="manual-bulk-modal" aria-hidden="true">
+        <div class="quick-history-dialog" role="dialog" aria-modal="true" aria-labelledby="manual-bulk-title" style="max-width: 720px;">
+          <header>
+            <h4 id="manual-bulk-title">Carga manual (por cantidad)</h4>
+            <button type="button" class="quick-history-close" id="manual-bulk-close">Cerrar</button>
+          </header>
+          <form id="manual-bulk-form" style="display:grid; gap:0.7rem; padding: 0.25rem 0 0.25rem;">
+            {% csrf_token %}
+            <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
+            <label style="display:grid; gap:0.35rem;">
+              <span>Jugador</span>
+              <select name="player_id" required>
+                <option value="">Selecciona…</option>
+                {% for player in convocation_players %}
+                  <option value="{{ player.id }}">#{{ player.number|default:"--" }} {{ player.name|upper }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label style="display:grid; gap:0.35rem;">
+              <span>Acción</span>
+              <input type="text" name="action_type" placeholder="Ej: Pérdida, Pase, Duelo…" required />
+              <small style="opacity:0.75;">Puedes escribirla tal cual. (Si quieres, luego lo mejoramos con selector.)</small>
+            </label>
+            <label style="display:grid; gap:0.35rem;">
+              <span>Resultado</span>
+              <select name="result" required>
+                <option value="">Selecciona…</option>
+                {% for result in result_options %}
+                  <option value="{{ result }}">{{ result }}</option>
+                {% endfor %}
+                <option value="OK">OK</option>
+              </select>
+            </label>
+            <label style="display:grid; gap:0.35rem;">
+              <span>Zona (opcional)</span>
+              <input type="text" name="zone" placeholder="Ej: Defensa Centro, Ataque Derecha…" />
+            </label>
+            <label style="display:grid; gap:0.35rem;">
+              <span>Cantidad</span>
+              <input type="number" name="quantity" min="1" max="500" value="1" required />
+            </label>
+            <div style="display:flex; gap:0.6rem; justify-content:flex-end;">
+              <button type="button" class="button" id="manual-bulk-cancel">Cancelar</button>
+              <button type="submit" class="button">Añadir</button>
+            </div>
+            <div id="manual-bulk-status" style="opacity:0.85;"></div>
+          </form>
+        </div>
+      </div>
       <div class="match-video-modal" id="match-video-modal" hidden aria-label="Replay de partido" role="dialog">
         <div class="match-video-card">
           <div class="match-video-toolbar">
@@ -4188,6 +4245,7 @@
           analysisVideoClipUrlTemplate: '{% url "analysis-video-clip-view" 0 %}',
 	          lineupSaveUrl: '{% url "match-lineup-save" %}',
 	          lineupGetUrl: '{% url "match-lineup-get" %}',
+	          bulkAddUrl: '{% url "match-action-bulk-add" %}',
 	          rivalLineupSaveUrl: '{% url "match-rival-lineup-save" %}',
 	          rivalLineupGetUrl: '{% url "match-rival-lineup-get" %}',
 	          workspacePrefGetUrl: '{% url "workspace-pref-get" %}',

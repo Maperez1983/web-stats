@@ -773,6 +773,7 @@
   const analysisVideoClipUrlTemplate = String(urls.analysisVideoClipUrlTemplate || "");
   const lineupSaveUrl = String(urls.lineupSaveUrl || "");
   const lineupGetUrl = String(urls.lineupGetUrl || "");
+  const bulkAddUrl = String(urls.bulkAddUrl || "");
   const workspacePrefGetUrl = String(urls.workspacePrefGetUrl || "");
   const workspacePrefSetUrl = String(urls.workspacePrefSetUrl || "");
 
@@ -805,6 +806,92 @@ const urlWithMatchId = (baseUrl) => {
       const matchVideoClipBtn = document.getElementById('match-video-clip');
       const matchVideoOpenStudioBtn = document.getElementById('match-video-open-studio');
       const teamName = String(boot.teamName || '');
+
+      // --- Carga manual (por cantidad) ---
+      const manualBulkOpenBtn = document.getElementById('manual-bulk-open-btn');
+      const manualBulkModal = document.getElementById('manual-bulk-modal');
+      const manualBulkCloseBtn = document.getElementById('manual-bulk-close');
+      const manualBulkCancelBtn = document.getElementById('manual-bulk-cancel');
+      const manualBulkForm = document.getElementById('manual-bulk-form');
+      const manualBulkStatus = document.getElementById('manual-bulk-status');
+      const openManualBulk = () => {
+        if (!manualBulkModal) return;
+        try { manualBulkModal.setAttribute('aria-hidden', 'false'); } catch (e) {}
+        try { manualBulkModal.classList.add('is-open'); } catch (e) {}
+        // Reutiliza estilos del modal de historial (no usa "hidden").
+        try { manualBulkModal.classList.add('is-visible'); } catch (e) {}
+      };
+      const closeManualBulk = () => {
+        if (!manualBulkModal) return;
+        try { manualBulkModal.setAttribute('aria-hidden', 'true'); } catch (e) {}
+        try { manualBulkModal.classList.remove('is-open'); } catch (e) {}
+        try { manualBulkModal.classList.remove('is-visible'); } catch (e) {}
+      };
+      manualBulkOpenBtn?.addEventListener('click', openManualBulk);
+      manualBulkCloseBtn?.addEventListener('click', closeManualBulk);
+      manualBulkCancelBtn?.addEventListener('click', closeManualBulk);
+      manualBulkModal?.addEventListener('click', (ev) => {
+        if (ev.target === manualBulkModal) closeManualBulk();
+      });
+      manualBulkForm?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        if (!bulkAddUrl) return;
+        const form = ev.currentTarget;
+        const fd = new FormData(form);
+        // Si el usuario tiene un convocado seleccionado en el sidebar, lo ponemos por defecto.
+        try {
+          const sel = document.querySelector('.convocation-card.selected[data-player-id]');
+          const current = String(fd.get('player_id') || '').trim();
+          if (!current && sel) fd.set('player_id', String(sel.getAttribute('data-player-id') || '').trim());
+        } catch (e) {}
+        const payload = {
+          match_id: String(fd.get('match_id') || '').trim() || currentMatchId,
+          player_id: String(fd.get('player_id') || '').trim(),
+          action_type: String(fd.get('action_type') || '').trim(),
+          result: String(fd.get('result') || '').trim(),
+          zone: String(fd.get('zone') || '').trim(),
+          quantity: Number(fd.get('quantity') || 1) || 1,
+        };
+        if (!payload.match_id) {
+          if (manualBulkStatus) manualBulkStatus.textContent = 'Falta match_id.';
+          return;
+        }
+        if (!payload.player_id) {
+          if (manualBulkStatus) manualBulkStatus.textContent = 'Selecciona jugador.';
+          return;
+        }
+        if (!payload.action_type) {
+          if (manualBulkStatus) manualBulkStatus.textContent = 'Escribe una acción.';
+          return;
+        }
+        if (!payload.result) {
+          if (manualBulkStatus) manualBulkStatus.textContent = 'Selecciona resultado.';
+          return;
+        }
+        if (manualBulkStatus) manualBulkStatus.textContent = 'Guardando…';
+        try {
+          const resp = await fetch(urlWithMatchId(bulkAddUrl), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken, Accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.ok) {
+            if (manualBulkStatus) manualBulkStatus.textContent = data?.error || 'No se pudo guardar.';
+            return;
+          }
+          if (manualBulkStatus) manualBulkStatus.textContent = `Añadidas ${Number(data.created) || 0} acciones.`;
+          // Refresca eventos/contadores sin recargar página.
+          try {
+            document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { bulk: true } }));
+          } catch (e) {}
+          // Cierra modal y refresca historial desde servidor (si aplica).
+          try { closeManualBulk(); } catch (e) {}
+        } catch (e) {
+          if (manualBulkStatus) manualBulkStatus.textContent = 'Error de red.';
+        }
+      });
       const matchdayQuickActions = (() => {
         try {
           const raw = document.getElementById('matchday-quick-actions')?.textContent || '[]';

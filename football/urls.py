@@ -192,6 +192,7 @@ urlpatterns = [
     path('registro-acciones/', views.match_action_page, name='match-action-page'),
     path('registro-acciones/quick-buttons/', views.matchday_quick_buttons_api, name='matchday-quick-buttons-api'),
     path('registro-acciones/guardar/', views.register_match_action, name='match-action-record'),
+    path('registro-acciones/bulk-add/', views.bulk_add_match_actions, name='match-action-bulk-add'),
     path('registro-acciones/lineup/save/', views.save_match_lineup, name='match-lineup-save'),
     path('registro-acciones/lineup/get/', views.get_match_lineup, name='match-lineup-get'),
     path('registro-acciones/rival-lineup/save/', views.save_match_rival_lineup, name='match-rival-lineup-save'),

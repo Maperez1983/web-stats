@@ -19893,6 +19893,125 @@ def register_match_action(request):
 
 @authenticated_write
 @require_POST
+def bulk_add_match_actions(request):
+    """
+    Carga manual rápida de acciones para un partido (por cantidad).
+
+    Caso de uso: recuperar partidos atrasados cuando no se pudo registrar evento a evento.
+    - Crea MatchEvent(s) `touch-field-final` con `source_file='manual-bulk'`.
+    - Respeta match_id seleccionado y la convocatoria del partido.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'error': 'El registro de acciones no está activo en el workspace actual.'}, status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'error': 'Equipo principal no configurado'}, status=400)
+
+    # Acepta JSON o form-urlencoded (por compat con iOS/PWA).
+    payload = {}
+    try:
+        if request.body:
+            payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    match_id = _parse_int(payload.get('match_id') or request.POST.get('match_id') or request.GET.get('match_id'))
+    if not match_id:
+        return JsonResponse({'error': 'Falta match_id.'}, status=400)
+    match = _team_match_queryset(primary_team).filter(id=match_id).first()
+    if not match:
+        return JsonResponse({'error': 'Partido no válido.'}, status=404)
+
+    action_type = str(payload.get('action_type') or request.POST.get('action_type') or '').strip()
+    result = str(payload.get('result') or request.POST.get('result') or '').strip()
+    zone = str(payload.get('zone') or request.POST.get('zone') or '').strip()
+    quantity = _parse_int(payload.get('quantity') or request.POST.get('quantity')) or 1
+    if quantity < 1:
+        quantity = 1
+    if quantity > 500:
+        quantity = 500
+    if not action_type:
+        return JsonResponse({'error': 'Falta acción.'}, status=400)
+    if not result:
+        return JsonResponse({'error': 'Falta resultado.'}, status=400)
+
+    # Convocatoria del partido (aunque no sea "current").
+    convocation_record = _get_convocation_record_for_match(primary_team, match)
+    if not convocation_record:
+        convocation_record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+    if not convocation_record:
+        convocation_record = _ensure_matchday_convocation_record(primary_team, match=match)
+    if not convocation_record:
+        return JsonResponse({'error': 'No hay convocatoria para este partido.'}, status=400)
+
+    action_type_key = action_type.lower()
+    player_id = _parse_int(payload.get('player_id') or request.POST.get('player_id'))
+    player = None
+    if not _is_team_only_action(action_type_key):
+        if not player_id:
+            return JsonResponse({'error': 'Selecciona un jugador.'}, status=400)
+        player = convocation_record.players.filter(id=player_id).first()
+        if not player:
+            return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido.'}, status=400)
+
+    tercio = zone_to_tercio(zone) if zone else ''
+    half = _half_minutes_for_team(primary_team)
+    base_minute = 1
+    minute_override = _parse_int(payload.get('minute') or request.POST.get('minute'))
+    if minute_override is not None:
+        base_minute = max(0, min(120, minute_override))
+    else:
+        try:
+            last_min = (
+                MatchEvent.objects.filter(match=match, player=player if player else None)
+                .exclude(minute__isnull=True)
+                .order_by('-minute')
+                .values_list('minute', flat=True)
+                .first()
+            )
+            if isinstance(last_min, int):
+                base_minute = max(0, min(120, last_min))
+        except Exception:
+            base_minute = 1
+
+    events = []
+    now_dt = timezone.now()
+    for idx in range(quantity):
+        minute_value = min(120, max(0, base_minute + (idx % 5)))
+        period_value = 1 if minute_value <= half else 2
+        events.append(
+            MatchEvent(
+                match=match,
+                player=player,
+                minute=minute_value,
+                period=period_value,
+                event_type=action_type,
+                result=result,
+                zone=zone,
+                tercio=tercio,
+                observation='Carga manual',
+                source_file='manual-bulk',
+                system='touch-field-final',
+                raw_data={
+                    'bulk': True,
+                    'bulk_quantity': int(quantity),
+                    'bulk_index': int(idx),
+                    'created_at': now_dt.isoformat(),
+                },
+            )
+        )
+    MatchEvent.objects.bulk_create(events, batch_size=250)
+    _invalidate_team_dashboard_caches(primary_team)
+    return JsonResponse({'ok': True, 'created': len(events)})
+
+
+@authenticated_write
+@require_POST
 def save_match_lineup(request):
     if not _can_edit_match_actions(request.user):
         return JsonResponse({'error': 'Solo el cuerpo técnico puede editar estadísticas de partido.'}, status=403)
