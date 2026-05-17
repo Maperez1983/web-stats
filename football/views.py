@@ -30040,11 +30040,52 @@ def coach_rival_page(request):
         snapshot = (
             TeamRosterSnapshot.objects
             .filter(team=selected_rival, provider=provider)
-            .order_by('-updated_at')
+            .order_by('-updated_at', '-id')
             .first()
         )
-        if snapshot and isinstance(snapshot.roster_payload, list):
+        if snapshot and isinstance(snapshot.roster_payload, list) and snapshot.roster_payload:
             roster_payload = snapshot.roster_payload
+        else:
+            # Fallback: si no hay snapshot para el provider seleccionado (o viene vacío),
+            # usa el más reciente "útil" entre proveedores (evita UX de "no hay plantilla" cuando sí existe).
+            def _snapshot_score(snapshot_obj):
+                try:
+                    payload = snapshot_obj.roster_payload if isinstance(snapshot_obj.roster_payload, list) else []
+                except Exception:
+                    payload = []
+                if not payload:
+                    return (-1, -1, -1, -1)
+                if (snapshot_obj.error or '').strip():
+                    return (-1, -1, -1, -1)
+                try:
+                    updated_ts = snapshot_obj.updated_at.timestamp() if snapshot_obj.updated_at else 0.0
+                except Exception:
+                    updated_ts = 0.0
+                stat_rows = 0
+                for row in payload[:80]:
+                    if not isinstance(row, dict):
+                        continue
+                    if int(row.get('pj') or 0) > 0 or int(row.get('minutes') or 0) > 0 or int(row.get('goals') or 0) > 0:
+                        stat_rows += 1
+                provider_bonus = 1 if snapshot_obj.provider == TeamRosterSnapshot.PROVIDER_PREFERENTE else 0
+                return (updated_ts, stat_rows, len(payload), provider_bonus)
+
+            try:
+                candidates = list(
+                    TeamRosterSnapshot.objects
+                    .filter(team=selected_rival)
+                    .order_by('-updated_at', '-id')[:6]
+                )
+            except Exception:
+                candidates = []
+            if candidates:
+                try:
+                    best = sorted(candidates, key=_snapshot_score, reverse=True)[0]
+                except Exception:
+                    best = candidates[0]
+                if best and isinstance(best.roster_payload, list) and best.roster_payload:
+                    snapshot = best
+                    roster_payload = best.roster_payload
 
     # Map por código (Universo -> code). Si no hay code, usamos índice estable.
     roster_map = {}
