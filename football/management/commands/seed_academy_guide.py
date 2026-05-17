@@ -174,6 +174,283 @@ def _mk_game_encyclopedia_core() -> list[SeedLesson]:
     ]
 
 
+def _mk_game_encyclopedia_goalkeepers() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: Porteros (guías prácticas).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Porteros · Colocación (ángulo, distancia, timing)",
+            summary="Guía práctica para colocarse: reducir ángulo sin regalar el palo corto ni el pase atrás.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["porteros", "portero", "gk", "colocacion"],
+            objective="Estar en la mejor posición para parar y para reaccionar al siguiente evento (rebote/2º balón).",
+            rules=[
+                "Primero ángulo: entre balón y centro de portería.",
+                "Luego distancia: ni pegado a línea ni fuera sin control.",
+                "Último paso antes del tiro: equilibrio (listo para caer).",
+            ],
+            checklist=[
+                "¿Veo el balón? ¿Tengo equilibrio?",
+                "¿Estoy tapando el palo corto sin perder el largo?",
+                "¿Qué pasa si hay rebote (dónde caigo)?",
+            ],
+            errors=[
+                "Quedarse en línea siempre → “DA UN PASO, GANA ÁNGULO”.",
+                "Salir demasiado sin control → “SALE SI PUEDES LLEGAR”.",
+                "Pierna/cuerpo mal orientados → “CADERA HACIA BALÓN, LISTO”.",
+            ],
+            scene_hint="Escena: tiro desde banda vs tiro frontal. Dibuja 2 colocaciones distintas (ángulo) y el ‘último paso’ antes del golpeo.",
+            measure=[
+                "Tiros a puerta recibidos vs goles encajados (eficiencia).",
+                "Rechaces concedidos (deberían bajar al blocar mejor).",
+            ],
+        ),
+        _mk_guide(
+            title="Porteros · 1v1 (salida, paciencia y achique)",
+            summary="Cómo ganar 1v1: cuándo salir, cuándo aguantar y cómo orientar al atacante.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["porteros", "gk", "1v1", "defensa_area"],
+            objective="Reducir opciones del atacante sin ser superado con un toque.",
+            rules=[
+                "Si estás a tiempo: achica en línea balón‑portería.",
+                "Si no llegas: aguanta (no te tires pronto).",
+                "Cierra el centro y obliga a decidir (tiro/pase).",
+            ],
+            triggers=[
+                "Balón dividido/adelantado → salida agresiva.",
+                "Atacante con control limpio y ventaja → aguantar y temporizar.",
+            ],
+            checklist=[
+                "¿Llego primero? Si sí: voy fuerte y seguro.",
+                "Si no: ¿puedo aguantar y ganar tiempo para mis defensas?",
+            ],
+            errors=[
+                "Tirarse pronto → “AGUANTA, NO TE REGALAS”.",
+                "Salir tarde a medias → “SI SALES, SALES”.",
+            ],
+            scene_hint="Escena: pase a la espalda. Variante A: portero llega primero (sale). Variante B: llega tarde (aguanta y orienta al atacante).",
+            measure=[
+                "1v1 concedidos vs paradas/errores (tendencia).",
+                "Goles tras pase atrás o balón raso lateral (lectura 1v1).",
+            ],
+        ),
+        _mk_guide(
+            title="Porteros · Centros (decidir: salir o quedarse)",
+            summary="Guía práctica para centros: lectura del vuelo, tráfico y coordinación con defensas.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["porteros", "gk", "centros", "area"],
+            objective="Evitar remate limpio y dominar el área sin chocar ni dudar.",
+            rules=[
+                "Si puedes coger: ve con decisión (mano arriba) y bloquea.",
+                "Si no puedes coger: despeja (puños) a banda/seguridad.",
+                "Si no llegas: quédate y prepara el segundo acto (parada/2º balón).",
+            ],
+            roles=[
+                "Portero: manda (“¡MÍA!”) y decide.",
+                "Defensas: protegen zona caliente y bloquean rematador (sin estorbar al portero).",
+                "Rechace: 1 jugador siempre fuera del área pequeña.",
+            ],
+            checklist=[
+                "¿Llego a coger? ¿Hay tráfico?",
+                "¿Dónde despejo si no puedo blocar?",
+                "¿Quién va al rechace?",
+            ],
+            errors=[
+                "Dudar y quedarse a medias → “DECIDE ANTES: MÍA O QUÉDATE”.",
+                "Despejar al centro → “PUÑOS A BANDA”.",
+            ],
+            scene_hint="Escena: centro al 2º palo con tráfico. Marca decisión: blocaje vs puños y el jugador de rechace.",
+            measure=[
+                "Centros recibidos vs remates limpios concedidos.",
+                "Goles de segunda jugada tras centros (deberían bajar).",
+            ],
+        ),
+        _mk_guide(
+            title="Porteros · Juego de pies (salida corta vs directa)",
+            summary="Decidir rápido para ayudar al equipo: cuándo asegurar y cuándo progresar.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["porteros", "gk", "salida", "pase"],
+            objective="Ser una solución, no un riesgo: elegir el pase que mantiene ventaja.",
+            rules=[
+                "Si el rival presiona: primer objetivo = seguridad (no regalar pérdida).",
+                "Si hay hombre libre: jugar al lado débil o al pivote perfilado.",
+                "Si no hay salida: directo a zona/duelo preparado (equipo listo para 2ª jugada).",
+            ],
+            triggers=[
+                "Rival salta a central → portero activa 3er hombre (central‑portero‑pivote).",
+                "Rival cierra por dentro → salida a banda o cambio al lado débil.",
+            ],
+            checklist=[
+                "¿Tengo pase seguro? (siempre)",
+                "¿Quién es el hombre libre?",
+                "Si voy directo: ¿quién gana 2ª jugada?",
+            ],
+            errors=[
+                "Pase interior sin perfil → “NO JUEGUES A UN COMPAÑERO DE ESPALDAS PRESIONADO”.",
+                "Directo sin preparación → “SI VAS LARGO, PREPARA LA CAÍDA”.",
+            ],
+            scene_hint="Escena: saque corto con presión 2 delanteros. Dibuja salida por pivote vs salida a banda vs directo preparado.",
+            measure=[
+                "Pérdidas en salida (deberían bajar).",
+                "Progresiones tras pase del portero (suben).",
+            ],
+        ),
+        _mk_guide(
+            title="Porteros · ABP (córners y faltas): mando y organización",
+            summary="Qué debe ordenar el portero en ABP: zonas, marcas y quién va al rechace.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["porteros", "gk", "abp", "organizacion"],
+            objective="Eliminar dudas: que todos tengan rol y que el portero mande la defensa del área.",
+            rules=[
+                "Define 3 zonas (1º/centro/2º palo) + 1 rechace.",
+                "Nombra 2 marcas al hombre (mejores rematadores rivales).",
+                "Ordena salida: despeje a banda y líneas para segunda jugada.",
+            ],
+            checklist=[
+                "¿Quién ataca balón? ¿Quién cubre segundo?",
+                "¿Quién está al rechace?",
+                "¿Dónde despejamos si no blocamos?",
+            ],
+            errors=[
+                "Silencio en ABP → “EL PORTERO MANDA: MÍA/NO MÍA”.",
+                "Nadie al rechace → “1 FUERA SIEMPRE”.",
+            ],
+            scene_hint="Escena: córner en contra. Marca zonas, 2 marcas al hombre y 1 rechace. Añade ‘despeje a banda’ como salida.",
+            measure=[
+                "Goles/ocasiones concedidas en ABP (bajan).",
+                "Segundas jugadas ganadas en ABP (suben).",
+            ],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_set_pieces_extra() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: ABP restante (penaltis, saques, faltas frontales).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="ABP · Penalti a favor (rutina + roles de rechace)",
+            summary="Guía práctica para lanzar penaltis con rutina estable y equipo preparado al rechace.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "penalti", "ataque"],
+            objective="Aumentar consistencia del lanzador y evitar contraataques tras rebote.",
+            rules=[
+                "Rutina fija (misma respiración, mismos pasos).",
+                "Decisión antes de correr (no cambiar en el último paso).",
+                "Rechace: 2 roles claros (zona frontal + segunda jugada) y 1 seguridad.",
+            ],
+            roles=[
+                "Lanzador: rutina + decisión.",
+                "Rechace 1: entra frontal al punto de penalti.",
+                "Rechace 2: entra a segundo balón (banda/segunda jugada).",
+                "Seguridad: evita contra y recoge despeje.",
+            ],
+            checklist=["¿Rutina lista?", "¿Quién entra al rechace?", "¿Quién se queda de seguridad?"],
+            errors=["Cambiar decisión tarde → “DECIDE ANTES”.", "Todos entran al rechace → “UNO DE SEGURIDAD”."],
+            scene_hint="Escena: penalti a favor. Marca 2 rutas de rechace y 1 jugador de seguridad por detrás.",
+            measure=["Penaltis convertidos vs fallados.", "Contraataques tras penalti (deberían bajar)."],
+        ),
+        _mk_guide(
+            title="ABP · Penalti en contra (portero + rechace)",
+            summary="Guía práctica para defender penaltis: lectura del lanzador y roles para el rechace.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "penalti", "defensa", "porteros"],
+            objective="Maximizar probabilidad de parada sin desordenar el equipo en el rebote.",
+            rules=[
+                "Portero: rutina propia (respira, fija, espera).",
+                "Defensas: listos para rechace (sin invadir antes).",
+                "Tras rebote: despeje a banda/seguridad y reorganizar.",
+            ],
+            roles=["Portero: decide timing.", "2 rechaces: uno frontal, uno a lado débil.", "1 seguridad: evita segunda jugada peligrosa."],
+            checklist=["¿Quién rechaza?", "¿Dónde despejamos?", "¿Quién protege la transición?"],
+            errors=["Todos miran el balón y nadie al rechace → “RECHACE ES NUESTRO”.", "Despeje al centro → “A BANDA”."],
+            scene_hint="Escena: penalti en contra con rebote. Marca despeje a banda y salida del bloque.",
+            measure=["Rechaces ganados tras penalti.", "Segundas jugadas concedidas tras penalti (bajan)."],
+        ),
+        _mk_guide(
+            title="ABP · Saque de portería a favor (salida corta o directa)",
+            summary="Guía práctica para sacar de portería: decidir según presión rival sin regalar pérdidas.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "saque_porteria", "salida", "ataque"],
+            objective="Progresar con ventaja o, si no se puede, jugar directo con segunda jugada preparada.",
+            rules=[
+                "Si rival presiona alto: 1 salida clara (pivote o banda) + 1 plan B directo.",
+                "Si sales corto: perfiles orientados (no recibir de espaldas presionado).",
+                "Si vas largo: prepara la caída (2ª jugada) y rest defense.",
+            ],
+            checklist=["¿Dónde está el hombre libre?", "¿Hay perfil para recibir?", "Si voy largo, ¿quién gana la caída?"],
+            errors=["Corto sin perfil → “NO A UN COMPAÑERO DE ESPALDAS”.", "Largo sin caída → “PREPARA LA CAÍDA”."],
+            scene_hint="Escena: rival presiona 3‑2. Dibuja salida por pivote vs salida a lateral vs directo con 2ª jugada.",
+            measure=["Pérdidas en salida (bajan).", "Progresiones tras saque de portería (suben)."],
+        ),
+        _mk_guide(
+            title="ABP · Saque de portería en contra (presión y cierres)",
+            summary="Guía práctica para presionar el saque rival: orientar, cerrar interior y estar listos para balón largo.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "saque_porteria", "defensa", "presion"],
+            objective="Forzar pase incómodo o balón largo y ganar segunda jugada.",
+            rules=[
+                "Cierra interior primero (pivote rival).",
+                "Orienta a banda/central débil.",
+                "Si van largo: línea preparada para duelo + segunda jugada.",
+            ],
+            triggers=["Portero con perfil incómodo.", "Central de espaldas.", "Pase flotado."],
+            checklist=["¿Interior cerrado?", "¿Quién salta al lateral?", "¿Quién gana la 2ª jugada si van largo?"],
+            errors=["Presión sin segunda jugada → “SI VAN LARGO, LA CAÍDA ES NUESTRA”.", "Saltos sin cierres → “PRIMERO CIERRO, LUEGO SALTO”."],
+            scene_hint="Escena: saque rival. Dibuja 9 orienta, extremos saltan, interiores cierran pivote y centrales listos para duelo aéreo.",
+            measure=["Recuperaciones altas tras saque rival.", "Segundas jugadas ganadas tras balón largo rival."],
+        ),
+        _mk_guide(
+            title="ABP · Saque de centro (2 planes simples)",
+            summary="Guía práctica para iniciar: plan seguro y plan agresivo, sin regalar pérdidas.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "saque_centro", "ataque"],
+            objective="Empezar con control o atacar ventaja preparada (según momento).",
+            rules=[
+                "Plan seguro: atrás → lado fuerte → progresar con apoyos.",
+                "Plan agresivo: directo a zona preparada + 2ª jugada.",
+                "Tras saque: rest defense (no partirse).",
+            ],
+            checklist=["¿Qué plan hacemos (seguro/agresivo)?", "¿Quién fija? ¿Quién ataca 2ª jugada?", "¿Quién queda de seguridad?"],
+            errors=["Directo sin estructura → “SI VAMOS DIRECTO, HAY CAÍDA”.", "Todos corren hacia delante → “SEGURIDAD”."],
+            scene_hint="Escena: saque de centro. Variante A: atrás y salida por banda. Variante B: balón directo a zona con 2ª jugada.",
+            measure=["Pérdidas tras saque de centro (bajan).", "Llegadas al último tercio tras saque (suben)."],
+        ),
+        _mk_guide(
+            title="ABP · Falta frontal directa (decisión: tiro, pase, centro)",
+            summary="Guía práctica para faltas frontales: elegir opción según barrera, distancia y superioridad.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["abp", "falta_frontal", "ataque"],
+            objective="Elegir la opción con mayor probabilidad (no tirar por tirar).",
+            rules=[
+                "Si hay tiro claro: rutina y golpeo (no cambiar tarde).",
+                "Si no hay tiro: pase corto para cambiar ángulo o centro lateral.",
+                "Siempre 1–2 al rechace + 1 seguridad.",
+            ],
+            triggers=["Barrera mal colocada.", "Portero tapado.", "Superioridad clara en banda para centro."],
+            checklist=["¿Tiro real o engaño?", "¿Quién al rechace?", "¿Quién se queda de seguridad?"],
+            errors=["Tiro sin probabilidad → “SI NO ES CLARO, CAMBIA ÁNGULO”.", "Sin rechace → “RECHACE”."],
+            scene_hint="Escena: falta frontal. Variante tiro vs pase corto a banda para centro. Marca rechace y seguridad.",
+            measure=["Tiros a puerta en faltas.", "Segundas jugadas ganadas tras faltas."],
+        ),
+    ]
+
+
 def _mk_seed_pack() -> list[SeedLesson]:
     """
     Pack inicial (MVP) de una guía “top” reutilizable para todos los entrenadores.
@@ -1065,6 +1342,8 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         *_mk_game_encyclopedia_core(),
+        *_mk_game_encyclopedia_goalkeepers(),
+        *_mk_game_encyclopedia_set_pieces_extra(),
         SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
