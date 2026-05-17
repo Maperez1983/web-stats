@@ -240,15 +240,15 @@
         max-height: 100%;
         max-width: 100%;
       }
-      /* Ajuste fino: limita el tamaño del campo para que no obligue a scroll,
-         preservando la proporción tanto en horizontal como en vertical. */
-      body.tactics-mode .pitch-stage:not(.is-portrait) {
-        max-height: calc(100dvh - 260px);
-        max-width: calc((100dvh - 260px) * 1054 / 684);
-      }
+      /* Importante: en Táctica el campo debe adaptarse al alto disponible.
+         Al poner `width:auto`, la `aspect-ratio` limita por alto y evita cortes. */
+      body.tactics-mode .pitch-stage,
       body.tactics-mode .pitch-stage.is-portrait {
-        max-height: calc(100dvh - 260px);
-        max-width: calc((100dvh - 260px) * 684 / 1054);
+        width: auto;
+      }
+      /* En vertical (portrait) la pizarra puede quedar demasiado estrecha: ponemos un mínimo razonable. */
+      body.tactics-mode .pitch-stage.is-portrait {
+        min-width: min(520px, 62vw);
       }
       .simple-hint {
         margin: 0.65rem 0 0;
@@ -492,13 +492,8 @@
       }
       /* En Táctica, el hint no debe "empujar" el campo ni crear scroll: se muestra como toast flotante. */
       body.tactics-mode #tpad-hint {
-        position: fixed;
-        left: calc(14px + env(safe-area-inset-left));
-        right: calc(14px + env(safe-area-inset-right));
-        top: calc(72px + env(safe-area-inset-top));
-        z-index: 1600;
-        margin: 0;
-        max-width: 1480px;
+        /* En la práctica estorba más que ayuda en una vista única; se deja accesible vía “Guía”. */
+        display: none !important;
       }
       .builder {
         display: grid;
@@ -522,7 +517,8 @@
         left: auto;
         width: min(420px, calc(100vw - 28px));
         max-height: calc(100vh - 110px - env(safe-area-inset-top));
-        overflow: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
         z-index: 1400;
         display: none;
       }
@@ -2922,16 +2918,17 @@
 	      .selection-toolbar .selection-dock-actions {
 	        display: none;
 	      }
-	      .selection-dock {
-	        position: fixed;
-	        left: calc(12px + env(safe-area-inset-left));
-	        bottom: calc(90px + env(safe-area-inset-bottom));
-	        width: min(460px, calc(100vw - 24px));
-	        max-height: min(62vh, calc(100dvh - 180px));
-	        overflow: auto;
-	        z-index: 1100;
-	        pointer-events: auto;
-	      }
+		      .selection-dock {
+		        position: fixed;
+		        left: calc(12px + env(safe-area-inset-left));
+		        bottom: calc(90px + env(safe-area-inset-bottom));
+		        width: min(460px, calc(100vw - 24px));
+		        max-height: min(62vh, calc(100dvh - 180px));
+		        overflow-x: hidden;
+		        overflow-y: auto;
+		        z-index: 1100;
+		        pointer-events: auto;
+		      }
 	      .selection-dock .selection-toolbar {
 	        margin: 0;
 	      }

@@ -1645,13 +1645,17 @@
 	      if (!hintEl) return;
 	      hintEl.hidden = !visible;
 	    };
-	    (() => {
-	      if (!hintEl) return;
-	      let dismissed = false;
-	      if (canUseStorage) {
-	        try { dismissed = safeText(window.localStorage.getItem(HINT_STORAGE_KEY)) === '1'; } catch (e) { dismissed = false; }
-	      }
-	      setHintVisible(!dismissed);
+		    (() => {
+		      if (!hintEl) return;
+		      let dismissed = false;
+		      if (canUseStorage) {
+		        try { dismissed = safeText(window.localStorage.getItem(HINT_STORAGE_KEY)) === '1'; } catch (e) { dismissed = false; }
+		      }
+		      // En modo Táctica (vista única) el hint ocupa espacio/ruido; usa “Guía” si hace falta.
+		      try {
+		        if (document.body && document.body.classList.contains('tactics-mode')) dismissed = true;
+		      } catch (e) { /* ignore */ }
+		      setHintVisible(!dismissed);
 	      hintCloseBtn?.addEventListener('click', (event) => {
 	        event.preventDefault();
 	        setHintVisible(false);
