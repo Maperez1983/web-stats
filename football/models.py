@@ -2280,6 +2280,7 @@ class PlayerSeasonReport(models.Model):
     objectives_next = models.TextField(blank=True)
     coach_comments = models.TextField(blank=True)
     is_final = models.BooleanField(default=False)
+    ring_kpis = models.JSONField(default=list, blank=True, help_text='Listado (max 4) de KPIs en anillos (0-100).')
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_player_season_reports')
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_player_season_reports')

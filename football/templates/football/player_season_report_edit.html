@@ -75,6 +75,18 @@
 
         <form method="post" class="card">
           {% csrf_token %}
+          <div style="margin-bottom:14px;">
+            <label style="margin-top:0;">KPIs del informe (anillos, máx. 4)</label>
+            <div class="hint" style="margin-top:6px;">Se usan en el resumen visual del PDF. Si no marcas nada, se usa el set por defecto.</div>
+            <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top:10px;">
+              {% for k in available_ring_kpis %}
+                <label class="check" style="margin:0; padding:10px 12px; border-radius:14px; border:1px solid rgba(255,255,255,0.12); background: rgba(2,6,23,0.25);">
+                  <input type="checkbox" name="ring_kpis" value="{{ k.key }}" {% if report and report.ring_kpis and k.key in report.ring_kpis %}checked{% endif %} />
+                  {{ k.label }}
+                </label>
+              {% endfor %}
+            </div>
+          </div>
           <div class="grid">
             <label>Valoración global (1-10)
               <input type="number" name="overall_rating" min="1" max="10" value="{{ report.overall_rating|default:'' }}" />

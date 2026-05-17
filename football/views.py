@@ -55477,6 +55477,19 @@ def player_season_report_edit_page(request, player_id):
             return 10
         return num
 
+    available_ring_kpis = [
+        {'key': 'participation_pct', 'label': 'Participación (%)'},
+        {'key': 'success_rate', 'label': 'Éxito (%)'},
+        {'key': 'importance_score', 'label': 'Importancia (0-100)'},
+        {'key': 'influence_score', 'label': 'Influencia (0-100)'},
+        {'key': 'availability_pct', 'label': 'Disponibilidad (0-100)'},
+        {'key': 'success_volume_pct', 'label': 'Volumen éxito (0-100)'},
+        {'key': 'duel_rate', 'label': 'Duelos ganados (%)'},
+        {'key': 'aerial_duel_rate', 'label': 'Duelos aéreos (%)'},
+        {'key': 'pass_accuracy', 'label': 'Pase completo (%)'},
+        {'key': 'shot_accuracy', 'label': 'Tiro a puerta (%)'},
+    ]
+
     if request.method == 'POST':
         payload = request.POST
         if report is None:
@@ -55500,6 +55513,13 @@ def player_season_report_edit_page(request, player_id):
         report.objectives_next = str(payload.get('objectives_next') or '').strip()
         report.coach_comments = str(payload.get('coach_comments') or '').strip()
         report.is_final = str(payload.get('is_final') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+        chosen_ring = payload.getlist('ring_kpis') if hasattr(payload, 'getlist') else []
+        chosen_ring = [str(x or '').strip() for x in chosen_ring if str(x or '').strip()]
+        allowed_keys = {row['key'] for row in available_ring_kpis}
+        chosen_ring = [k for k in chosen_ring if k in allowed_keys]
+        if len(chosen_ring) > 4:
+            chosen_ring = chosen_ring[:4]
+        report.ring_kpis = chosen_ring
         report.updated_by = request.user if isinstance(request.user, User) else None
         report.save()
         try:
@@ -55537,6 +55557,7 @@ def player_season_report_edit_page(request, player_id):
             'scope': scope,
             'tournament_filter': tournament_filter,
             'report': report,
+            'available_ring_kpis': available_ring_kpis,
             'pdf_url': pdf_url,
             'preview_url': preview_url,
             'back_url': back_url,
@@ -55804,12 +55825,6 @@ def player_pdf(request, player_id):
         except Exception:
             return 0.0
 
-    visual_kpis = [
-        {'label': 'Participación', 'value': _clamp_pct(detail.get('participation_pct') if isinstance(detail, dict) else 0), 'unit': '%'},
-        {'label': 'Importancia', 'value': _clamp_pct(detail.get('importance_score') if isinstance(detail, dict) else 0), 'unit': ''},
-        {'label': 'Influencia', 'value': _clamp_pct(detail.get('influence_score') if isinstance(detail, dict) else 0), 'unit': ''},
-        {'label': 'Éxito', 'value': _clamp_pct(detail.get('success_rate') if isinstance(detail, dict) else 0), 'unit': '%'},
-    ]
     pdf_style = 'club'
     pdf_palette = _team_pdf_palette(primary_team, pdf_style)
     player_percentiles = _build_player_percentiles(detail, matches)
@@ -55839,6 +55854,62 @@ def player_pdf(request, player_id):
         )
     except Exception:
         staff_report = None
+
+    def _ring_kpi_value(key: str):
+        if not isinstance(detail, dict):
+            return 0.0
+        if key == 'participation_pct':
+            return _clamp_pct(detail.get('participation_pct'))
+        if key == 'success_rate':
+            return _clamp_pct(detail.get('success_rate'))
+        if key == 'importance_score':
+            return _clamp_pct(detail.get('importance_score'))
+        if key == 'influence_score':
+            return _clamp_pct(detail.get('influence_score'))
+        if key == 'availability_pct':
+            return _clamp_pct(detail.get('availability_pct'))
+        if key == 'success_volume_pct':
+            return _clamp_pct(detail.get('success_volume_pct'))
+        if key == 'duel_rate':
+            return _clamp_pct(detail.get('duel_rate'))
+        if key == 'aerial_duel_rate':
+            aerial = detail.get('aerial_duel_rate')
+            if aerial is None and isinstance(detail.get('aerial_duel_summary'), dict):
+                aerial = detail['aerial_duel_summary'].get('rate')
+            return _clamp_pct(aerial)
+        if key == 'pass_accuracy':
+            passes = detail.get('passes') if isinstance(detail.get('passes'), dict) else {}
+            return _clamp_pct((passes or {}).get('accuracy'))
+        if key == 'shot_accuracy':
+            shots = detail.get('shots') if isinstance(detail.get('shots'), dict) else {}
+            return _clamp_pct((shots or {}).get('accuracy'))
+        return 0.0
+
+    ring_defs = {
+        'participation_pct': ('Participación', '%'),
+        'success_rate': ('Éxito', '%'),
+        'importance_score': ('Importancia', ''),
+        'influence_score': ('Influencia', ''),
+        'availability_pct': ('Disponibilidad', ''),
+        'success_volume_pct': ('Volumen', ''),
+        'duel_rate': ('Duelos', '%'),
+        'aerial_duel_rate': ('Aéreos', '%'),
+        'pass_accuracy': ('Pase', '%'),
+        'shot_accuracy': ('Tiro', '%'),
+    }
+    ring_keys = []
+    try:
+        if staff_report and isinstance(getattr(staff_report, 'ring_kpis', None), list):
+            ring_keys = [str(k or '').strip() for k in staff_report.ring_kpis if str(k or '').strip()]
+    except Exception:
+        ring_keys = []
+    if not ring_keys:
+        ring_keys = ['participation_pct', 'importance_score', 'influence_score', 'success_rate']
+    ring_keys = [k for k in ring_keys if k in ring_defs][:4]
+    visual_kpis = [
+        {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
+        for k in ring_keys
+    ]
     html = render_to_string(
         'football/player_pdf.html',
         {
