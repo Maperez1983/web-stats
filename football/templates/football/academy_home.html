@@ -1,0 +1,129 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Academia · 2J</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 12% -12%, rgba(34, 211, 238, 0.16), transparent 38%),
+          radial-gradient(circle at 95% 0%, rgba(99, 102, 241, 0.14), transparent 38%),
+          linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
+        color: rgba(245, 247, 250, 0.92);
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+      }
+      .shell { max-width: 980px; margin: 0 auto; padding: 1.15rem; }
+      .panel {
+        margin-top: 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(7, 16, 30, 0.78);
+        box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+        padding: 1rem;
+      }
+      h1 { margin: 0; font-size: 1rem; letter-spacing: 0.14em; text-transform: uppercase; }
+      .muted { color: rgba(148, 163, 184, 0.78); font-size: 0.85rem; }
+      .grid { display: grid; grid-template-columns: 1fr; gap: 0.8rem; margin-top: 0.9rem; }
+      @media (min-width: 880px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .card {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.85rem 0.9rem;
+      }
+      .card h2 { margin: 0; font-size: 0.95rem; }
+      .card p { margin: 0.35rem 0 0; color: rgba(226, 232, 240, 0.82); line-height: 1.45; font-size: 0.92rem; }
+      .meta { margin-top: 0.55rem; display: flex; gap: 0.5rem; flex-wrap: wrap; color: rgba(148,163,184,0.82); font-size: 0.82rem; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(15, 23, 42, 0.52);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        text-decoration: none;
+        border-radius: 12px;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid rgba(34, 211, 238, 0.28);
+        background: rgba(34, 211, 238, 0.10);
+        color: rgba(236, 254, 255, 0.95);
+        font-weight: 900;
+        margin-top: 0.7rem;
+      }
+      .cta:hover { border-color: rgba(34, 211, 238, 0.5); }
+      .section-title { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(148,163,184,0.86); }
+      .empty { color: rgba(148,163,184,0.86); margin-top: 0.65rem; }
+    </style>
+  </head>
+  <body class="prod-commercial">
+    {% include 'football/includes/dragon_nav.html' %}
+    <div class="shell">
+      <div class="panel">
+        <h1>Academia</h1>
+        <p class="muted" style="margin:0.45rem 0 0;">
+          {{ academy_team.category|default:"" }}{% if academy_team.category %} · {% endif %}{{ academy_team.display_name|default:academy_team.name }}
+        </p>
+
+        <div class="section-title">Asignadas</div>
+        {% if academy_cards %}
+        <div class="grid">
+          {% for card in academy_cards %}
+          <div class="card">
+            <h2>{{ card.assignment.title_override|default:card.lesson.title }}</h2>
+            {% if card.lesson.summary %}
+            <p>{{ card.lesson.summary }}</p>
+            {% endif %}
+            <div class="meta">
+              <span class="pill">
+                {% if card.status == 'completed' %}Completado{% elif card.status == 'in_progress' %}En progreso{% else %}Pendiente{% endif %}
+              </span>
+              <span class="pill">{{ card.correct_count }}/{{ card.answer_count }} aciertos</span>
+            </div>
+            <a class="cta" href="{% url 'academy-lesson' lesson_id=card.lesson.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir lección</a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No hay lecciones asignadas todavía.</div>
+        {% endif %}
+
+        <div class="section-title">Recomendadas</div>
+        {% if academy_recommended %}
+        <div class="grid">
+          {% for lesson in academy_recommended %}
+          <div class="card">
+            <h2>{{ lesson.title }}</h2>
+            {% if lesson.summary %}
+            <p>{{ lesson.summary }}</p>
+            {% endif %}
+            <div class="meta">
+              <span class="pill">Nuevo</span>
+              <span class="pill">{{ lesson.get_min_category_display }} → {{ lesson.get_max_category_display }}</span>
+            </div>
+            <a class="cta" href="{% url 'academy-lesson' lesson_id=lesson.id %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Abrir lección</a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No hay recomendaciones para esta categoría todavía.</div>
+        {% endif %}
+      </div>
+    </div>
+  </body>
+</html>
+

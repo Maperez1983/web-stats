@@ -2,6 +2,7 @@ from django.urls import path
 
 from . import views
 from . import kit2d_views
+from . import academy_views
 from . import pwa as pwa_views
 
 urlpatterns = [
@@ -34,6 +35,11 @@ urlpatterns = [
     path('api/workspace/preferences/set/', views.workspace_preference_set_api, name='workspace-pref-set'),
     path('api/kits/2d/generate/', kit2d_views.kit2d_generate_api, name='kit2d-generate-api'),
     path('tools/kit2d/', kit2d_views.kit2d_generator_page, name='kit2d-generator'),
+    path('academia/', academy_views.academy_home_page, name='academy-home'),
+    path('academia/leccion/<int:lesson_id>/', academy_views.academy_lesson_page, name='academy-lesson'),
+    path('api/academy/today/', academy_views.academy_today_api, name='academy-today-api'),
+    path('api/academy/answer/', academy_views.academy_answer_api, name='academy-answer-api'),
+    path('api/academy/complete/', academy_views.academy_complete_api, name='academy-complete-api'),
     path('api/workspace/sync/', views.workspace_sync_competition_api, name='workspace-sync-competition'),
     path('team/<int:team_id>/cover/', views.team_cover_image_file, name='team-cover-image-file'),
     path('platform/', views.platform_overview_page, name='platform-overview'),

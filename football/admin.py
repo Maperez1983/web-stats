@@ -131,3 +131,42 @@ class AiTrainerDictionaryEntryAdmin(admin.ModelAdmin):
     list_display = ('updated_at', 'team', 'workspace', 'section', 'entry_key', 'label', 'created_by')
     list_filter = ('team', 'section')
     search_fields = ('entry_key', 'label', 'keywords', 'coaching_points')
+
+
+@admin.register(models.AcademyMediaAsset)
+class AcademyMediaAssetAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'kind', 'title', 'is_active')
+    list_filter = ('kind', 'is_active')
+    search_fields = ('title', 'source_url')
+
+
+class AcademyLessonStepInline(admin.TabularInline):
+    model = models.AcademyLessonStep
+    extra = 0
+    fields = ('order', 'step_type', 'title', 'media', 'is_required')
+    autocomplete_fields = ('media',)
+    ordering = ('order', 'id')
+
+
+@admin.register(models.AcademyLesson)
+class AcademyLessonAdmin(admin.ModelAdmin):
+    list_display = ('updated_at', 'title', 'min_category', 'max_category', 'is_published')
+    list_filter = ('is_published', 'min_category', 'max_category')
+    search_fields = ('title', 'summary', 'created_by')
+    inlines = (AcademyLessonStepInline,)
+
+
+@admin.register(models.AcademyAssignment)
+class AcademyAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'workspace', 'team', 'lesson', 'is_required', 'is_active', 'due_at')
+    list_filter = ('is_active', 'is_required')
+    search_fields = ('workspace__name', 'team__name', 'lesson__title')
+    autocomplete_fields = ('workspace', 'team', 'lesson', 'created_by')
+
+
+@admin.register(models.AcademyProgress)
+class AcademyProgressAdmin(admin.ModelAdmin):
+    list_display = ('updated_at', 'workspace', 'team', 'user', 'lesson', 'status', 'correct_count', 'answer_count')
+    list_filter = ('status',)
+    search_fields = ('workspace__name', 'user__username', 'lesson__title')
+    autocomplete_fields = ('workspace', 'team', 'user', 'lesson', 'assignment')

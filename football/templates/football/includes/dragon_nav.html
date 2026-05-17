@@ -215,6 +215,9 @@
       {% if workspace_module_access.analysis|default:True %}
       <a href="{% url 'analysis' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Análisis</a>
       {% endif %}
+      {% if workspace_module_access.academy|default:False %}
+      <a href="{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Academia</a>
+      {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
       <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">KPIs avanzados</a>
       <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dashboard KPIs</a>
@@ -320,6 +323,9 @@
   {"label":"11 inicial","url":"{% url 'initial-eleven' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"11 inicial lineup titulares"},
   {"label":"Registro acciones","url":"{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"acciones registro en vivo"},
   {"label":"Entrenos","url":"{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"entrenos sesiones microciclos"},
+  {% if workspace_module_access.academy|default:False %}
+  {"label":"Academia","url":"{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"academia lecciones guia interactiva quiz"},
+  {% endif %}
   {"label":"Agenda semanal","url":"{% url 'team-agenda' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"agenda semanal calendario entrenos partidos"},
   {"label":"Táctica","url":"{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"tactica táctica pizarra playbook clips"},
   {"label":"Crear tarea (editor)","url":"{% url 'sessions-task-create' %}{% if active_team %}?team={{ active_team.id }}{% endif %}","keywords":"crear tarea pizarra editor"},

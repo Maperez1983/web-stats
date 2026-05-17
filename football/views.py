@@ -5715,6 +5715,8 @@ def _workspace_default_modules(kind):
         'convocation': True,
         'match_actions': True,
         'sessions': True,
+        # Academia (guías interactivas). Por defecto lo dejamos apagado para no afectar a clubs existentes.
+        'academy': False,
         'analysis': True,
         'abp_board': True,
         'tactics': True,
@@ -5738,6 +5740,7 @@ def _workspace_access_module_catalog(kind):
         {'key': 'convocation', 'label': 'Convocatoria'},
         {'key': 'match_actions', 'label': 'Acciones'},
         {'key': 'sessions', 'label': 'Sesiones'},
+        {'key': 'academy', 'label': 'Academia'},
         {'key': 'analysis', 'label': 'Análisis'},
         {'key': 'abp_board', 'label': 'ABP'},
         {'key': 'tactics', 'label': 'Táctica'},
@@ -6825,6 +6828,25 @@ def _workspace_club_module_catalog():
                     'label': 'ABP',
                     'description': 'Pizarra y biblioteca específica de acciones a balón parado.',
                     'route_keys': ['sessions', 'abp_board'],
+                },
+            ],
+        },
+        {
+            'key': 'academy',
+            'label': 'Academia',
+            'description': 'Guías interactivas para jugadores: vídeo, recreaciones 2D/3D, quizzes y retos de campo.',
+            'deliverables': [
+                {
+                    'key': 'lessons',
+                    'label': 'Lecciones',
+                    'description': 'Contenido por categorías (Baby→Senior) y por rol/posición.',
+                    'route_keys': ['academy'],
+                },
+                {
+                    'key': 'progress',
+                    'label': 'Progreso',
+                    'description': 'Asignación de lecciones y seguimiento de completado.',
+                    'route_keys': ['academy'],
                 },
             ],
         },

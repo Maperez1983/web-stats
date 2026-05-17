@@ -2752,6 +2752,223 @@ class AssistantKnowledgeDocument(models.Model):
         return hashlib.sha256(data or b'').hexdigest()
 
 
+class AcademyMediaAsset(models.Model):
+    """
+    Activo multimedia para Academia (vídeo genérico, imagen, etc.).
+
+    Puede ser:
+    - archivo subido (MEDIA: S3 si USE_S3_MEDIA=true)
+    - URL externa (YouTube/Vimeo/CDN)
+    """
+
+    KIND_VIDEO = 'video'
+    KIND_IMAGE = 'image'
+    KIND_CHOICES = [
+        (KIND_VIDEO, 'Vídeo'),
+        (KIND_IMAGE, 'Imagen'),
+    ]
+
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES, default=KIND_VIDEO)
+    title = models.CharField(max_length=180, blank=True)
+    file = models.FileField(upload_to='academy/assets/', null=True, blank=True)
+    source_url = models.URLField(max_length=600, blank=True, help_text='URL externa (YouTube/Vimeo/CDN) si aplica.')
+    mime_type = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        label = self.title or (self.source_url[:60] if self.source_url else '') or f'Asset {self.id}'
+        return f'Academy · {label}'
+
+
+class AcademyLesson(models.Model):
+    """
+    Lección interactiva para jugadores (Baby→Senior), reusable entre clubes.
+    """
+
+    CATEGORY_BABY = 'baby'
+    CATEGORY_PREBENJAMIN = 'prebenjamin'
+    CATEGORY_BENJAMIN = 'benjamin'
+    CATEGORY_ALEVIN = 'alevin'
+    CATEGORY_INFANTIL = 'infantil'
+    CATEGORY_CADETE = 'cadete'
+    CATEGORY_JUVENIL = 'juvenil'
+    CATEGORY_SENIOR = 'senior'
+    CATEGORY_CHOICES = [
+        (CATEGORY_BABY, 'Baby'),
+        (CATEGORY_PREBENJAMIN, 'Prebenjamín'),
+        (CATEGORY_BENJAMIN, 'Benjamín'),
+        (CATEGORY_ALEVIN, 'Alevín'),
+        (CATEGORY_INFANTIL, 'Infantil'),
+        (CATEGORY_CADETE, 'Cadete'),
+        (CATEGORY_JUVENIL, 'Juvenil'),
+        (CATEGORY_SENIOR, 'Senior'),
+    ]
+
+    key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text='Identificador estable (auto).')
+    title = models.CharField(max_length=220)
+    summary = models.TextField(blank=True)
+    min_category = models.CharField(max_length=24, choices=CATEGORY_CHOICES, default=CATEGORY_BABY)
+    max_category = models.CharField(max_length=24, choices=CATEGORY_CHOICES, default=CATEGORY_SENIOR)
+    tags = models.JSONField(default=list, blank=True)
+    is_published = models.BooleanField(default=False, db_index=True)
+    created_by = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        indexes = [
+            models.Index(fields=['is_published', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f'Academy · {self.title}'
+
+
+class AcademyLessonStep(models.Model):
+    """
+    Paso dentro de una lección (texto, vídeo, quiz, replay 2D/3D, reto de campo).
+    """
+
+    TYPE_TEXT = 'text'
+    TYPE_VIDEO = 'video'
+    TYPE_QUIZ = 'quiz'
+    TYPE_REPLAY_2D = 'replay2d'
+    TYPE_REPLAY_3D = 'replay3d'
+    TYPE_TASK = 'task'
+    TYPE_CHOICES = [
+        (TYPE_TEXT, 'Texto'),
+        (TYPE_VIDEO, 'Vídeo'),
+        (TYPE_QUIZ, 'Quiz'),
+        (TYPE_REPLAY_2D, 'Replay 2D'),
+        (TYPE_REPLAY_3D, 'Replay 3D'),
+        (TYPE_TASK, 'Reto de campo'),
+    ]
+
+    lesson = models.ForeignKey(AcademyLesson, on_delete=models.CASCADE, related_name='steps')
+    order = models.PositiveIntegerField(default=0)
+    step_type = models.CharField(max_length=16, choices=TYPE_CHOICES, default=TYPE_TEXT)
+    title = models.CharField(max_length=220, blank=True)
+    body = models.TextField(blank=True)
+    media = models.ForeignKey(AcademyMediaAsset, on_delete=models.SET_NULL, null=True, blank=True, related_name='steps')
+    payload = models.JSONField(default=dict, blank=True, help_text='Datos extra (p.ej. JSON replay2d, config 3D, etc.).')
+    is_required = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['lesson_id', 'order', 'id']
+        indexes = [
+            models.Index(fields=['lesson', 'order']),
+        ]
+
+    def __str__(self):
+        base = self.title or self.get_step_type_display()
+        return f'{self.lesson.title} · {base}'
+
+
+class AcademyQuizQuestion(models.Model):
+    step = models.ForeignKey(AcademyLessonStep, on_delete=models.CASCADE, related_name='quiz_questions')
+    prompt = models.CharField(max_length=320)
+    explanation = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['step_id', 'order', 'id']
+        indexes = [
+            models.Index(fields=['step', 'order']),
+        ]
+
+    def __str__(self):
+        return f'Quiz · {self.prompt[:60]}'
+
+
+class AcademyQuizOption(models.Model):
+    question = models.ForeignKey(AcademyQuizQuestion, on_delete=models.CASCADE, related_name='options')
+    label = models.CharField(max_length=240)
+    is_correct = models.BooleanField(default=False)
+    feedback = models.CharField(max_length=320, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['question_id', 'order', 'id']
+        indexes = [
+            models.Index(fields=['question', 'order']),
+        ]
+
+    def __str__(self):
+        return self.label
+
+
+class AcademyAssignment(models.Model):
+    """
+    Asigna una lección a un equipo (categoría) dentro de un workspace.
+    """
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='academy_assignments')
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='academy_assignments')
+    lesson = models.ForeignKey(AcademyLesson, on_delete=models.CASCADE, related_name='assignments')
+    title_override = models.CharField(max_length=220, blank=True)
+    is_required = models.BooleanField(default=True)
+    due_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='academy_assignments_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['workspace', 'is_active', '-created_at']),
+        ]
+
+    def __str__(self):
+        team_label = self.team.display_name if self.team else 'Todos los equipos'
+        return f'{self.workspace.name} · {team_label} · {self.lesson.title}'
+
+
+class AcademyProgress(models.Model):
+    """
+    Progreso por jugador en una lección (dentro de un workspace/club).
+    """
+
+    STATUS_NOT_STARTED = 'not_started'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CHOICES = [
+        (STATUS_NOT_STARTED, 'No iniciado'),
+        (STATUS_IN_PROGRESS, 'En progreso'),
+        (STATUS_COMPLETED, 'Completado'),
+    ]
+
+    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, related_name='academy_progress_rows')
+    team = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name='academy_progress_rows')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='academy_progress_rows')
+    lesson = models.ForeignKey(AcademyLesson, on_delete=models.CASCADE, related_name='progress_rows')
+    assignment = models.ForeignKey(AcademyAssignment, on_delete=models.SET_NULL, null=True, blank=True, related_name='progress_rows')
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_NOT_STARTED, db_index=True)
+    answers = models.JSONField(default=dict, blank=True, help_text='Registro simple de respuestas: {question_id: option_id}')
+    answer_count = models.PositiveIntegerField(default=0)
+    correct_count = models.PositiveIntegerField(default=0)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+        constraints = [
+            models.UniqueConstraint(fields=['workspace', 'user', 'lesson'], name='uniq_academy_progress_workspace_user_lesson'),
+        ]
+        indexes = [
+            models.Index(fields=['workspace', 'user', 'status']),
+            models.Index(fields=['workspace', 'lesson', 'status']),
+        ]
+
+    def __str__(self):
+        return f'{self.workspace.name} · {self.user.username} · {self.lesson.title}'
+
+
 class SystemSetting(models.Model):
     """
     Ajustes globales del sistema (uso interno).

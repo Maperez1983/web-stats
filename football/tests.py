@@ -8392,6 +8392,75 @@ class Kit2DGeneratorEndpointTests(TestCase):
         self.assertIn(resp.status_code, (302, 401, 403))
 
 
+class AcademyEndpointTests(TestCase):
+    def setUp(self):
+        self.team = Team.objects.create(
+            name='Equipo Academia',
+            slug='equipo-academia',
+            short_name='Academia',
+            category='Prebenjamín',
+        )
+        self.team2 = Team.objects.create(
+            name='Equipo Academia 2',
+            slug='equipo-academia-2',
+            short_name='Academia 2',
+            category='Prebenjamín',
+        )
+        self.user = get_user_model().objects.create_user(
+            username='player-academy',
+            email='player-academy@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_PLAYER)
+        self.workspace_enabled = Workspace.objects.create(
+            name='Club Academia On',
+            slug='club-academia-on',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team,
+            enabled_modules={'academy': True},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace_enabled, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace_enabled, team=self.team, is_default=True)
+
+        self.workspace_disabled = Workspace.objects.create(
+            name='Club Academia Off',
+            slug='club-academia-off',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=self.team2,
+            enabled_modules={'academy': False},
+        )
+        WorkspaceMembership.objects.create(workspace=self.workspace_disabled, user=self.user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=self.workspace_disabled, team=self.team2, is_default=True)
+
+    def test_academy_today_requires_login(self):
+        resp = self.client.get('/api/academy/today/')
+        self.assertIn(resp.status_code, (302, 401, 403))
+
+    def test_academy_today_forbidden_when_disabled(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(f'/api/academy/today/?workspace={self.workspace_disabled.id}&team={self.team2.id}')
+        self.assertEqual(resp.status_code, 403)
+        payload = resp.json()
+        self.assertFalse(payload.get('ok'))
+
+    def test_academy_home_ok_when_enabled(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(f'/academia/?workspace={self.workspace_enabled.id}&team={self.team.id}')
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode('utf-8', errors='ignore')
+        self.assertIn('Academia', html)
+
+    def test_academy_today_ok_when_enabled(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(f'/api/academy/today/?workspace={self.workspace_enabled.id}&team={self.team.id}')
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertIn('items', payload)
+
+
 class TeamCoverGuardrailTests(TestCase):
     @override_settings(MEDIA_URL='/media-test/')
     def test_cover_image_is_ignored_in_multi_team_when_missing_updated_at(self):
