@@ -223,6 +223,32 @@
         flex-direction: column;
         min-height: 0;
       }
+      /* Táctica: pantalla completa (sin scroll del documento, todo en una vista). */
+      body.tactics-mode.tactics-fullscreen {
+        overflow: hidden;
+      }
+      body.tactics-mode.tactics-fullscreen .page {
+        max-width: none;
+        height: 100dvh;
+        padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+      }
+      body.tactics-mode.tactics-fullscreen .dragon-nav {
+        display: none !important;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar {
+        margin-bottom: 0.65rem;
+        align-items: center;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar > div:first-child {
+        display: none;
+      }
+      body.tactics-mode.tactics-fullscreen .topbar .actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      body.tactics-mode.tactics-fullscreen .builder {
+        min-height: 0;
+      }
       body.tactics-mode .pitch-layout {
         flex: 1 1 auto;
         min-height: 0;
@@ -2088,6 +2114,9 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
+      body.tactics-mode.tactics-fullscreen .pitch-side {
+        max-height: calc(100dvh - 130px);
       }
       /* Evita scroll lateral “fantasma” en el panel (iPad/Safari y sliders anchos). */
       body.tactics-mode .pitch-side .resource-details,
@@ -4366,6 +4395,9 @@
                     </div>
                   </details>
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
+                  {% if tactics_mode %}
+                  <button type="button" class="surface-trigger" id="task-tactics-fullscreen" title="Pantalla completa" aria-label="Pantalla completa">Pantalla completa</button>
+                  {% endif %}
 	                </div>
 	              </div>
 
@@ -5541,10 +5573,11 @@
 		                </div>
 		              </div>
 
+		              {% if not tactics_mode %}
 		              <div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;">
-	                <div class="player-bank-head">
-	                  <h3 style="margin:0;">Plantilla disponible</h3>
-	                  <div class="player-bank-tools">
+		                <div class="player-bank-head">
+		                  <h3 style="margin:0;">Plantilla disponible</h3>
+		                  <div class="player-bank-tools">
 	                    <label class="chip-toggle" title="Oculta jugadores ya colocados en la pizarra (vuelven a aparecer al borrarlos).">
 	                      <input type="checkbox" id="task-hide-used-players" checked />
 	                      Ocultar usados
@@ -5584,17 +5617,18 @@
 	                  </div>
                 <div class="player-bank" id="task-player-bank"></div>
                 <div class="section" id="task-opponent-bank-section" hidden style="margin-top:0.9rem;">
-                  <div class="player-bank-head">
-                    <h3 style="margin:0;">Plantilla rival</h3>
-                    <div class="meta" style="opacity:0.9;">Arrastra al campo o pulsa para activar inserción.</div>
-                  </div>
-                  <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
-                </div>
-              </div>
-              </div>
-              </div>
-            </div>
-          </section>
+	                  <div class="player-bank-head">
+	                    <h3 style="margin:0;">Plantilla rival</h3>
+	                    <div class="meta" style="opacity:0.9;">Arrastra al campo o pulsa para activar inserción.</div>
+	                  </div>
+	                  <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
+	                </div>
+	              </div>
+		              {% endif %}
+	              </div>
+	              </div>
+	            </div>
+	          </section>
 
           <button type="button" class="focus-exit" id="task-focus-exit" aria-label="Salir de presentación">Salir</button>
 

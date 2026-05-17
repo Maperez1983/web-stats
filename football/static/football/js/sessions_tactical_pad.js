@@ -902,7 +902,7 @@
 				    const simExportAllBtn = document.getElementById('task-sim-export-all');
 				    const simRecordBtn = document.getElementById('task-sim-record');
 				    const simRecordFormatSelect = document.getElementById('task-sim-record-format');
-				    const simRecordTitleInput = document.getElementById('task-sim-record-title');
+			    const simRecordTitleInput = document.getElementById('task-sim-record-title');
 				    const simView3dBtn = document.getElementById('task-sim-view-3d');
 				    const simVideoStudioBtn = document.getElementById('task-sim-video-studio');
 				    const simClipSaveBtn = document.getElementById('task-sim-clip-save');
@@ -938,6 +938,7 @@
 				    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
 				    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
 				    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
+				    const tacticsFullscreenBtn = document.getElementById('task-tactics-fullscreen');
 				    // Táctica simple: ocultamos controles de tamaño/rotación/patrones que no aportan en pizarra rápida.
 				    try {
 				      if (isTacticsMode) {
@@ -949,6 +950,86 @@
 				        try { tokenNameTagActions && (tokenNameTagActions.hidden = true); } catch (e) { /* ignore */ }
 				        try { zoneStyleActions && (zoneStyleActions.hidden = true); } catch (e) { /* ignore */ }
 				      }
+				    } catch (e) { /* ignore */ }
+
+				    // Táctica: modo pantalla completa (native fullscreen si está disponible).
+				    const TACTICS_FULLSCREEN_KEY = 'webstats:tpad:tactics-fullscreen-v1';
+				    const getFullscreenElement = () => (
+				      document.fullscreenElement
+				      || document.webkitFullscreenElement
+				      || document.mozFullScreenElement
+				      || document.msFullscreenElement
+				      || null
+				    );
+				    const requestFullscreen = async (el) => {
+				      if (!el) return false;
+				      try {
+				        if (el.requestFullscreen) { await el.requestFullscreen(); return true; }
+				        if (el.webkitRequestFullscreen) { await el.webkitRequestFullscreen(); return true; }
+				        if (el.mozRequestFullScreen) { await el.mozRequestFullScreen(); return true; }
+				        if (el.msRequestFullscreen) { await el.msRequestFullscreen(); return true; }
+				      } catch (e) { /* ignore */ }
+				      return false;
+				    };
+				    const exitFullscreen = async () => {
+				      try {
+				        if (document.exitFullscreen) { await document.exitFullscreen(); return true; }
+				        if (document.webkitExitFullscreen) { await document.webkitExitFullscreen(); return true; }
+				        if (document.mozCancelFullScreen) { await document.mozCancelFullScreen(); return true; }
+				        if (document.msExitFullscreen) { await document.msExitFullscreen(); return true; }
+				      } catch (e) { /* ignore */ }
+				      return false;
+				    };
+				    const canNativeFullscreen = () => {
+				      try {
+				        const el = document.documentElement;
+				        return !!(el && (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen));
+				      } catch (e) {
+				        return false;
+				      }
+				    };
+				    let tacticsFullscreenWanted = false;
+				    const syncTacticsFullscreenUi = () => {
+				      if (!isTacticsMode || !tacticsFullscreenBtn) return;
+				      const nativeOn = !!getFullscreenElement();
+				      const on = !!(tacticsFullscreenWanted || nativeOn);
+				      document.body.classList.toggle('tactics-fullscreen', on);
+				      try {
+				        tacticsFullscreenBtn.textContent = on ? 'Salir' : 'Pantalla completa';
+				        tacticsFullscreenBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+				      } catch (e) { /* ignore */ }
+				      // Recalcula el fit del campo al cambiar viewport.
+				      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+				      try { window.requestAnimationFrame(() => { try { applyStageFitConstraint(); } catch (err) { /* ignore */ } }); } catch (e) { /* ignore */ }
+				    };
+				    const setTacticsFullscreenWanted = async (wanted, { persist = true } = {}) => {
+				      if (!isTacticsMode) return;
+				      tacticsFullscreenWanted = !!wanted;
+				      if (persist) {
+				        try { window.localStorage.setItem(TACTICS_FULLSCREEN_KEY, tacticsFullscreenWanted ? '1' : '0'); } catch (e) { /* ignore */ }
+				      }
+				      // Preferimos fullscreen nativo cuando existe, pero no lo forzamos si falla.
+				      if (tacticsFullscreenWanted && canNativeFullscreen() && !getFullscreenElement()) {
+				        await requestFullscreen(document.documentElement);
+				      } else if (!tacticsFullscreenWanted && getFullscreenElement()) {
+				        await exitFullscreen();
+				      }
+				      syncTacticsFullscreenUi();
+				    };
+				    try {
+				      if (isTacticsMode) {
+				        const stored = safeText(window.localStorage.getItem(TACTICS_FULLSCREEN_KEY));
+				        tacticsFullscreenWanted = stored === '1';
+				        syncTacticsFullscreenUi();
+				      }
+				    } catch (e) { /* ignore */ }
+				    tacticsFullscreenBtn?.addEventListener('click', async (ev) => {
+				      ev.preventDefault();
+				      await setTacticsFullscreenWanted(!tacticsFullscreenWanted);
+				    });
+				    try {
+				      document.addEventListener('fullscreenchange', syncTacticsFullscreenUi);
+				      document.addEventListener('webkitfullscreenchange', syncTacticsFullscreenUi);
 				    } catch (e) { /* ignore */ }
 
 				    // iPad/Safari (WebKit): `position: fixed` dentro de un contenedor con `overflow:auto`
