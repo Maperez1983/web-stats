@@ -196,6 +196,60 @@
         margin: 0 auto;
         padding: 1.15rem;
       }
+      /* Táctica: layout de 1 sola vista (sin scroll de página).
+         Permitimos scroll interno solo en paneles que lo necesitan (Recursos/Playbook). */
+      body.tactics-mode {
+        overflow: hidden;
+      }
+      body.tactics-mode .page {
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      body.tactics-mode .builder {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      body.tactics-mode .builder > section.panel {
+        height: 100%;
+      }
+      body.tactics-mode .builder > section.panel > .panel-body {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      body.tactics-mode .pitch-layout {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      body.tactics-mode .pitch-main {
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      body.tactics-mode .pitch-viewport {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      body.tactics-mode .pitch-stage {
+        max-height: 100%;
+        max-width: 100%;
+      }
+      /* Ajuste fino: limita el tamaño del campo para que no obligue a scroll,
+         preservando la proporción tanto en horizontal como en vertical. */
+      body.tactics-mode .pitch-stage:not(.is-portrait) {
+        max-height: calc(100dvh - 260px);
+        max-width: calc((100dvh - 260px) * 1054 / 684);
+      }
+      body.tactics-mode .pitch-stage.is-portrait {
+        max-height: calc(100dvh - 260px);
+        max-width: calc((100dvh - 260px) * 684 / 1054);
+      }
       .simple-hint {
         margin: 0.65rem 0 0;
         padding: 0.7rem 0.85rem;
@@ -435,6 +489,16 @@
         border-color: rgba(251, 191, 36, 0.42);
         color: rgba(254, 243, 199, 0.98);
         font-weight: 650;
+      }
+      /* En Táctica, el hint no debe "empujar" el campo ni crear scroll: se muestra como toast flotante. */
+      body.tactics-mode #tpad-hint {
+        position: fixed;
+        left: calc(14px + env(safe-area-inset-left));
+        right: calc(14px + env(safe-area-inset-right));
+        top: calc(72px + env(safe-area-inset-top));
+        z-index: 1600;
+        margin: 0;
+        max-width: 1480px;
       }
       .builder {
         display: grid;
@@ -1887,11 +1951,13 @@
 		        gap: 1rem;
 		        align-items: start;
 		      }
+      /* Táctica: evita scroll y evita que Recursos "tapen" el campo.
+         En vez de apilar (campo arriba + recursos abajo), mantenemos un split:
+         campo a la izquierda y Recursos a la derecha, con scroll interno solo en Recursos. */
       body.tactics-mode .pitch-layout {
-        grid-template-columns: 1fr;
-        grid-template-areas:
-          "main"
-          "side";
+        grid-template-columns: minmax(0, 1fr) var(--tactics-library-width, 360px);
+        grid-template-areas: "main side";
+        gap: 0.75rem;
       }
       .pitch-main,
       .pitch-side {
@@ -1910,23 +1976,26 @@
         padding-right: 2px;
       }
       body.tactics-mode .pitch-side {
-        position: fixed;
-        left: calc(14px + env(safe-area-inset-left));
-        right: calc(14px + env(safe-area-inset-right));
-        bottom: calc(14px + env(safe-area-inset-bottom));
-        top: auto;
-        max-height: min(520px, calc(100vh - 160px));
-        overflow: auto;
-        padding: 0.75rem;
+        position: sticky;
+        top: 0.75rem;
+        align-self: start;
+        max-height: calc(100dvh - 210px);
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-right: 2px;
         border: 1px solid rgba(255,255,255,0.12);
         border-radius: 18px;
-        background: rgba(8, 18, 30, 0.96);
-        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
-        z-index: 1450;
-        display: none;
+        background: rgba(8, 18, 30, 0.72);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
       }
-      body.tactics-mode.tactics-tools-open .pitch-side {
-        display: block;
+      /* En tácticas, el botón “Recursos” colapsa/expande el panel; no lo ocultamos completo. */
+      body.tactics-mode.tactics-tools-open .pitch-side { }
+
+      /* Cuando el usuario colapsa la biblioteca, el panel lateral se convierte en rail estrecho. */
+      body.tactics-mode.library-collapsed .pitch-layout {
+        grid-template-columns: minmax(0, 1fr) var(--library-width, 76px);
       }
 		      @media (max-width: 1160px) {
 		        .pitch-layout {
@@ -1976,16 +2045,16 @@
          Cambiamos a campo arriba + recursos abajo con scroll interno. */
       @media (orientation: portrait) {
         /* iPad portrait: bottom sheet de Recursos (evita scroll largo y recortes). */
-        body.ui-tablet .pitch-layout {
+        body.ui-tablet:not(.tactics-mode) .pitch-layout {
           grid-template-columns: 1fr;
           grid-template-areas: "main";
         }
         /* El campo en portrait: que siempre quepa sin empujar UI. */
-        body.ui-tablet .pitch-stage {
+        body.ui-tablet:not(.tactics-mode) .pitch-stage {
           max-height: calc(100dvh - 420px);
         }
         /* Panel de Recursos como bottom sheet; se abre cuando NO está colapsado. */
-        body.ui-tablet .pitch-side {
+        body.ui-tablet:not(.tactics-mode) .pitch-side {
           position: fixed;
           left: calc(12px + env(safe-area-inset-left));
           right: calc(12px + env(safe-area-inset-right));
@@ -2002,21 +2071,21 @@
           box-shadow: 0 18px 52px rgba(2, 6, 23, 0.45);
           display: none;
         }
-        body.ui-tablet:not(.library-collapsed) .pitch-side {
+        body.ui-tablet:not(.tactics-mode):not(.library-collapsed) .pitch-side {
           display: block;
         }
-        body.ui-tablet .pitch-side .resource-details {
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-details {
           display: grid;
           grid-template-rows: auto auto auto 1fr;
           gap: 0;
           height: 100%;
         }
-        body.ui-tablet .pitch-side .library-head,
-        body.ui-tablet .pitch-side .library-filter,
-        body.ui-tablet .pitch-side .resource-tabs {
+        body.ui-tablet:not(.tactics-mode) .pitch-side .library-head,
+        body.ui-tablet:not(.tactics-mode) .pitch-side .library-filter,
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-tabs {
           background: transparent;
         }
-        body.ui-tablet .pitch-side .resource-panel.is-visible {
+        body.ui-tablet:not(.tactics-mode) .pitch-side .resource-panel.is-visible {
           overflow-y: auto;
           overflow-x: hidden;
           padding-bottom: 12px;

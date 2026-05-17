@@ -20568,8 +20568,9 @@
 	            };
 			            const syncRosterPlacement = () => {
 			              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
-			              const wantsTools = isTacticsModeUi && document.body.classList.contains('tactics-tools-open');
-			              const wantInSlot = (wantsTools || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
+			              // En modo Táctica la Plantilla siempre debe vivir dentro de Recursos (pestaña “Plantilla”),
+			              // para que el campo quepa en una sola vista sin scroll.
+			              const wantInSlot = (isTacticsModeUi || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
 			              try {
 			                if (wantInSlot) {
 			                  rosterSlot.hidden = false;
