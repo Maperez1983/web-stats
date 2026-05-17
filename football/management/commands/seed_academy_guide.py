@@ -300,6 +300,196 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         SeedLesson(
+            title="Defensa · Marcaje en zona (principios y roles)",
+            summary="Guía práctica para defender en zona: referencias, comunicación, y cómo evitar los errores típicos.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["defensa", "zona", "marcaje", "principios"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Qué significa “defender en zona” (sin humo)",
+                    "body": (
+                        "Zona NO es “cada uno se queda quieto en su sitio”. Zona es:\n"
+                        "- protejo un ESPACIO prioritario,\n"
+                        "- con una REFERENCIA (balón/rival/portería),\n"
+                        "- y ENTREGO/MODIFICO mi marca cuando el balón cambia (cadena).\n\n"
+                        "Objetivo: proteger el centro y el remate limpio."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "3 reglas operativas (fáciles de repetir)",
+                    "body": (
+                        "1) Centro primero: tu cuerpo orienta a proteger interior.\n"
+                        "2) Distancias: si el balón va a banda, el bloque BASCULA y se compacta.\n"
+                        "3) Balón–hombre–portería: escaneo constante (no mirar solo al balón).\n\n"
+                        "Palabras clave: “DENTRO”, “JUNTOS”, “A LA ESPALDA”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Roles (muy prácticos)",
+                    "body": (
+                        "- 1er defensor (salta): orienta y frena.\n"
+                        "- 2º defensor (cobertura): distancia + ángulo para tapar pase interior.\n"
+                        "- 3º defensor (equilibrio): protege espalda/cambio de orientación.\n\n"
+                        "Sin 2º y 3º defensor, el 1º defensor NO puede “morder”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Errores típicos (y la corrección concreta)",
+                    "body": (
+                        "Error: todos saltan al balón → Corrección: “solo 1 salta, 2 cubren”.\n"
+                        "Error: bloque partido (mucho espacio entre líneas) → “si no acompaña, temporiza”.\n"
+                        "Error: miran balón y pierden al hombre en espalda → “balón-hombre-portería”.\n"
+                        "Error: basculación lenta → “primer paso rápido, luego ajustar”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: basculación + cobertura",
+                    "body": "Úsalo como escena tipo: balón en banda, 1º defensor orienta, 2º cubre dentro, 3º equilibra.",
+                    "payload": {"hint": "Dibuja 3 líneas (defensa/medio/ataque) y muestra 2 basculaciones: a derecha y a izquierda."},
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_QUIZ,
+                    "title": "Mini-quiz (zona)",
+                    "questions": [
+                        {
+                            "prompt": "En defensa en zona, ¿qué priorizas cuando el balón entra a banda?",
+                            "explanation": "La trampa es correr “a lo loco”; buscamos proteger dentro y llegar juntos.",
+                            "options": [
+                                {"label": "Bascular y proteger el pase interior", "correct": True, "feedback": "Sí: llegar juntos y tapar dentro."},
+                                {"label": "Perseguir marcas sin mirar el balón", "correct": False, "feedback": "Sin referencias se abren huecos."},
+                                {"label": "Quedarse en la posición inicial", "correct": False, "feedback": "Zona requiere ajuste constante."},
+                            ],
+                        }
+                    ],
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Defensa · Presión orientada (guiar a banda)",
+            summary="Cómo orientar una presión: triggers, ángulos de carrera y apoyos para robar sin romper el equipo.",
+            min_category=AcademyLesson.CATEGORY_ALEVIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["defensa", "presion", "orientacion", "triggers"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Objetivo real de la presión",
+                    "body": (
+                        "Presionar no es correr. Es:\n"
+                        "- forzar al rival a una ZONA “pobre” (banda/atrás),\n"
+                        "- con la LÍNEA preparada (cobertura),\n"
+                        "- para ROBO o ERROR.\n\n"
+                        "Si no hay cobertura, presionar = regalar la espalda."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Triggers (cuándo saltar)",
+                    "body": (
+                        "- Control orientado malo / balón “se va” del pie.\n"
+                        "- Pase lento o flotado.\n"
+                        "- Receptor de espaldas.\n"
+                        "- Línea de pase interior cerrada.\n\n"
+                        "Regla: si llegas tarde → temporiza y espera trigger."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Ángulo del 1er defensor (la clave)",
+                    "body": (
+                        "Carrera curva, cuerpo de lado: tapas pase interior y “invitas” a banda.\n"
+                        "Distancia: lo bastante cerca para molestar, lo bastante lejos para no ser superado.\n\n"
+                        "Frase de coaching: “CIERRA DENTRO, LLEVA FUERA”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "2º y 3º defensor (sin esto no hay presión)",
+                    "body": (
+                        "2º defensor: achica y salta si el rival entra por dentro.\n"
+                        "3º defensor: equilibra (cambio de orientación + espalda).\n\n"
+                        "Regla de oro: el 1º defensor manda el camino, los demás cierran puertas."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: presión a banda",
+                    "body": "Escena tipo: balón al lateral rival, salto del extremo, 2º defensor tapa dentro, lateral listo para interceptar.",
+                    "payload": {"hint": "Representa el “triángulo” de presión: 1º orienta, 2º cubre, 3º equilibra."},
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_QUIZ,
+                    "title": "Mini-quiz (presión)",
+                    "questions": [
+                        {
+                            "prompt": "Si el 1º defensor presiona pero su línea NO acompaña, ¿qué hace?",
+                            "explanation": "La presión sin bloque es un 1v1 perdido.",
+                            "options": [
+                                {"label": "Temporiza y orienta sin lanzarse", "correct": True, "feedback": "Correcto: guiar y esperar apoyo."},
+                                {"label": "Se tira igual para robar", "correct": False, "feedback": "Normalmente te superan y rompes equipo."},
+                                {"label": "Se para y deja jugar", "correct": False, "feedback": "Puedes temporizar y orientar, no regalar."},
+                            ],
+                        }
+                    ],
+                },
+            ],
+        ),
+        SeedLesson(
+            title="ABP · Córner en contra (zona + referencias)",
+            summary="Guía práctica para defender córners en zona: asignación, bloqueos, segundas jugadas y salidas.",
+            min_category=AcademyLesson.CATEGORY_INFANTIL,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["abp", "defensa", "corner", "zona"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Principio: proteger zona de remate",
+                    "body": (
+                        "En córner en contra, lo más peligroso es el remate limpio (primer contacto).\n"
+                        "La zona se organiza para:\n"
+                        "- ganar primer contacto,\n"
+                        "- controlar el rechace,\n"
+                        "- y salir (2º balón).\n\n"
+                        "Regla: 1 contacto gana el córner; el 2º contacto gana el partido."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Asignación mínima (modelo simple)",
+                    "body": (
+                        "- 1 en primer palo (zona)\n"
+                        "- 1 en zona central (zona)\n"
+                        "- 1 en zona segundo palo (zona)\n"
+                        "- 2–3 marcas al hombre (mejores rematadores)\n"
+                        "- 1/2 fuera para salida (y vigilar rechace)\n\n"
+                        "Ajusta según edad y altura; lo importante es que TODOS sepan su rol."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Errores típicos",
+                    "body": (
+                        "Error: todos miran balón → pierden bloqueos y pantalla.\n"
+                        "Error: nadie ataca el balón → remate fácil.\n"
+                        "Error: despeje “al centro” → segunda jugada rival.\n\n"
+                        "Correcciones: “ataca balón”, “cuerpo entre rival y zona”, “despeja a banda”."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_REPLAY_2D,
+                    "title": "Pizarra 2D: córner en contra",
+                    "body": "Dibuja zonas (1º, centro, 2º palo) y 2 marcas al hombre. Marca a quién sale al rechace.",
+                    "payload": {"hint": "Incluye 2 variantes: cerrado y abierto. Señala quién ataca balón en cada una."},
+                },
+            ],
+        ),
+        SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
             min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
