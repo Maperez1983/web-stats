@@ -110,6 +110,126 @@ def _mk_seed_pack() -> list[SeedLesson]:
             ],
         ),
         SeedLesson(
+            title="Play–Practice–Play · Sesión realista (game-based)",
+            summary="Estructura simple para enseñar jugando: jugar → entrenar → volver a jugar (sin matar el ritmo).",
+            min_category=AcademyLesson.CATEGORY_BABY,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["metodologia", "sesion", "gamebased", "transferencia"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "La idea",
+                    "body": (
+                        "En fútbol base, lo que más “pega” es lo que se practica *en contexto*.\n\n"
+                        "Modelo simple:\n"
+                        "1) PLAY: juego libre/condicionado (detecta el problema)\n"
+                        "2) PRACTICE: tarea con 1–2 constraints (provoca la solución)\n"
+                        "3) PLAY: vuelves a juego para ver *transferencia* (¿aparece sin recordarlo?).\n\n"
+                        "Regla: si la tarea no se parece al partido, la transferencia se desploma."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Tiempos por categoría (orientativo)",
+                    "body": (
+                        "Baby/Preben: PLAY casi todo (mini-juegos), PRACTICE muy corto.\n"
+                        "Benja/Alevín: PLAY 2 bloques + PRACTICE con reto claro.\n"
+                        "Infantil+: PLAY con condiciones tácticas + PRACTICE más específica.\n\n"
+                        "Señal de alarma: paradas largas y colas → baja la calidad de decisión."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TASK,
+                    "title": "Reto de campo (hoy)",
+                    "body": (
+                        "Elige un tema (p.ej. “salir de presión”) y diseña:\n"
+                        "- PLAY: 4v4/5v5 con regla de salida (2 pases en zona propia).\n"
+                        "- PRACTICE: añade 1 comodín interior (superioridad) y puntúa giro.\n"
+                        "- PLAY: quita el comodín y comprueba si aparece el giro/tercer hombre."
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Jugador completo · Las 4 esquinas (técnica, táctica, física, socio-emocional)",
+            summary="Cómo planificar para desarrollar al jugador sin obsesionarse con una sola cosa.",
+            min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["metodologia", "desarrollo", "holistico", "4_esquinas"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Qué es (en 30 segundos)",
+                    "body": (
+                        "Un jugador no “mejora” solo por tocar balón: también influye su confianza, su comprensión del juego, "
+                        "su forma física *adecuada a la edad* y su entorno.\n\n"
+                        "Usa 4 lentes para analizar un problema:\n"
+                        "- Técnica: ¿puede ejecutar?\n"
+                        "- Táctica: ¿entiende cuándo/por qué?\n"
+                        "- Física: ¿llega a tiempo / se mueve bien?\n"
+                        "- Socio-emocional: ¿se atreve / coopera / gestiona error?\n\n"
+                        "Regla: si fallan 2 lentes a la vez, la corrección solo técnica no funciona."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "Plantilla rápida (IDP semanal)",
+                    "body": (
+                        "Para cada jugador, elige SOLO 1 foco por semana:\n"
+                        "- 1 comportamiento observable (p.ej. “mira antes de recibir”).\n"
+                        "- 1 constraint que lo provoque (punto extra / regla simple).\n"
+                        "- 1 frase de feedback (máx. 8 palabras).\n\n"
+                        "En cantera: la consistencia gana a la sofisticación."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_QUIZ,
+                    "title": "Mini-quiz (4 esquinas)",
+                    "questions": [
+                        {
+                            "prompt": "Si un jugador “no pasa” cuando debe, ¿qué es lo primero que miras?",
+                            "explanation": "La decisión suele tener varias causas; buscamos el cuello de botella.",
+                            "options": [
+                                {"label": "Si ha visto opciones (escaneo) y está orientado", "correct": True, "feedback": "Bien: percepción + orientación antes que ejecución."},
+                                {"label": "Si su pase es técnicamente perfecto", "correct": False, "feedback": "Importa, pero sin información previa no decide."},
+                                {"label": "Si corre mucho", "correct": False, "feedback": "La intensidad ayuda, pero no sustituye la lectura."},
+                            ],
+                        }
+                    ],
+                },
+            ],
+        ),
+        SeedLesson(
+            title="Clima de aprendizaje · Seguridad, diversión y exigencia",
+            summary="Cómo crear un entorno que mejora el rendimiento: normas, refuerzo, error y roles del entrenador.",
+            min_category=AcademyLesson.CATEGORY_BABY,
+            max_category=AcademyLesson.CATEGORY_SENIOR,
+            tags=["entorno", "motivacion", "valores", "comunicacion"],
+            steps=[
+                {
+                    "type": AcademyLessonStep.TYPE_TEXT,
+                    "title": "3 reglas que no fallan",
+                    "body": (
+                        "1) El error es *información* (no juicio).\n"
+                        "2) Elogia el comportamiento que quieres repetir (no solo el resultado).\n"
+                        "3) Claridad: 1 norma por tarea y un porqué.\n\n"
+                        "Indicador: si los jugadores dejan de intentar, has matado el aprendizaje."
+                    ),
+                },
+                {
+                    "type": AcademyLessonStep.TYPE_TASK,
+                    "title": "Reto de campo (hoy)",
+                    "body": (
+                        "Elige una conducta a reforzar (p.ej. “apoyo tras pase”) y usa este patrón:\n"
+                        "- Señal: “¡apoyo!”\n"
+                        "- Refuerzo inmediato: “¡bien, ya tienes 2 opciones!”\n"
+                        "- Pregunta: “¿qué viste antes de pasar?”\n\n"
+                        "Mide: ¿suben las repeticiones útiles sin parar el juego?"
+                    ),
+                },
+            ],
+        ),
+        SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
             min_category=AcademyLesson.CATEGORY_PREBENJAMIN,
