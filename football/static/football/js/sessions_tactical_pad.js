@@ -19494,12 +19494,19 @@
               // TÁCTICA: barra rápida (local/rival/porteros + recursos mínimos + formaciones + export)
               // Objetivo: flujo "montar táctica en 30s" sin depender del panel lateral.
               const tacticsQuickbar = document.getElementById('tactics-quickbar');
+              const tacticsModeToggle = document.getElementById('tactics-mode-toggle');
+              const tacticsModeStaticBtn = document.getElementById('tactics-mode-static');
+              const tacticsModeInteractiveBtn = document.getElementById('tactics-mode-interactive');
+              const tacticsInteractiveMenu = document.getElementById('tactics-interactive-menu');
+              const tacticsBallFollowInput = document.getElementById('tactics-interactive-ball-follow');
+              const tacticsRouteSummary = document.getElementById('tactics-route-summary');
               const tacticsFormationMenu = document.getElementById('tactics-formation-menu');
               const tacticsFormationClear = document.getElementById('tactics-formation-clear');
               const tacticsFormationNumbers = document.getElementById('tactics-formation-numbers');
               const tacticsExportPngBtn = document.getElementById('tactics-export-png');
               const tacticsExportPdfBtn = document.getElementById('tactics-export-pdf');
               const tacticsQuickRecentsEl = document.getElementById('tactics-quick-recents');
+              const TACTICS_INTERACTIVE_KEY = 'webstats:tpad:tactics-interactive-v1';
               const QUICK_RECENTS_KEY = 'webstats:tpad:tactics-quick-recents-v1';
               const QUICK_FAVS_KEY = 'webstats:tpad:tactics-quick-favs-v1';
 
@@ -19605,6 +19612,263 @@
                   return;
                 }
                 activateFactory(simpleFactory(kind), RESOURCE_LABELS[kind] || kind, kind);
+              };
+
+              // ----------------------------
+              // TÁCTICA INTERACTIVA (opcional)
+              // ----------------------------
+              let tacticsInteractiveEnabled = false;
+              let interactiveRouteMode = false;
+              let interactiveRouteFrom = null; // { obj, start:{x,y} }
+
+              const isTokenLike = (obj) => {
+                const kind = safeText(obj?.data?.kind);
+                return kind === 'token' || kind === 'ball';
+              };
+              const getUidForObj = (obj) => safeText(obj?.data?.layer_uid) || safeText(obj?.data?.playerId) || '';
+              const ensureInteractiveRoutes = (obj) => {
+                if (!obj) return [];
+                obj.data = obj.data || {};
+                const existing = obj.data.interactive_routes;
+                if (Array.isArray(existing)) return existing;
+                obj.data.interactive_routes = [];
+                return obj.data.interactive_routes;
+              };
+              const countInteractiveRoutes = () => {
+                let count = 0;
+                (canvas.getObjects() || []).forEach((o) => {
+                  if (!o || !isTokenLike(o)) return;
+                  const routes = Array.isArray(o?.data?.interactive_routes) ? o.data.interactive_routes : [];
+                  count += routes.length;
+                });
+                return count;
+              };
+              const syncRouteSummary = () => {
+                if (!tacticsRouteSummary) return;
+                const n = countInteractiveRoutes();
+                tacticsRouteSummary.textContent = `Rutas: ${n}`;
+              };
+
+              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {
+                tacticsInteractiveEnabled = !!enabled;
+                document.body.classList.toggle('tactics-interactive', tacticsInteractiveEnabled);
+                try {
+                  tacticsModeStaticBtn?.classList.toggle('is-active', !tacticsInteractiveEnabled);
+                  tacticsModeInteractiveBtn?.classList.toggle('is-active', tacticsInteractiveEnabled);
+                  tacticsModeStaticBtn?.setAttribute('aria-selected', tacticsInteractiveEnabled ? 'false' : 'true');
+                  tacticsModeInteractiveBtn?.setAttribute('aria-selected', tacticsInteractiveEnabled ? 'true' : 'false');
+                } catch (e) { /* ignore */ }
+                if (!tacticsInteractiveEnabled) {
+                  interactiveRouteMode = false;
+                  interactiveRouteFrom = null;
+                  highlightTacticsQuickTool(''); // limpia chip activo
+                }
+                if (persist) {
+                  try { window.localStorage.setItem(TACTICS_INTERACTIVE_KEY, tacticsInteractiveEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
+                }
+                syncRouteSummary();
+              };
+              try {
+                const stored = safeText(window.localStorage.getItem(TACTICS_INTERACTIVE_KEY));
+                setTacticsInteractiveEnabled(stored === '1', { persist: false });
+              } catch (e) {
+                setTacticsInteractiveEnabled(false, { persist: false });
+              }
+              tacticsModeStaticBtn?.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                setTacticsInteractiveEnabled(false);
+              });
+              tacticsModeInteractiveBtn?.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                setTacticsInteractiveEnabled(true);
+              });
+
+              const setInteractiveRouteMode = (on) => {
+                interactiveRouteMode = !!on;
+                interactiveRouteFrom = null;
+                if (interactiveRouteMode) {
+                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
+                  highlightTacticsQuickTool('route_move');
+                } else {
+                  setStatus('Modo selección activo.');
+                  highlightTacticsQuickTool('');
+                }
+              };
+
+              const buildRouteArrow = (fromPt, toPt, meta = {}) => {
+                // Flecha visual (no obligatoria) para indicar la ruta.
+                try {
+                  const stroke = 'rgba(250, 204, 21, 0.95)'; // amarillo
+                  const strokeWidth = 4;
+                  const arrow = buildSmartArrowGroup(fromPt, toPt, { stroke, strokeWidth });
+                  arrow.data = arrow.data || {};
+                  arrow.data.kind = 'route_arrow';
+                  arrow.data.route_for_uid = safeText(meta.for_uid);
+                  arrow.data.route_index = Number(meta.index) || 0;
+                  try { arrow.set({ opacity: 0.92 }); } catch (e) { /* ignore */ }
+                  try {
+                    if ('strokeDashArray' in arrow) arrow.set({ strokeDashArray: [10, 8] });
+                  } catch (e) { /* ignore */ }
+                  return arrow;
+                } catch (e) {
+                  return null;
+                }
+              };
+
+              const addInteractiveRoute = (obj, fromPt, toPt) => {
+                if (!obj) return false;
+                if (isSimulating) {
+                  setStatus('Sal del simulador para crear rutas.', true);
+                  return false;
+                }
+                const uid = getUidForObj(obj);
+                if (!uid) {
+                  setStatus('No se pudo asignar la ruta (sin UID).', true);
+                  return false;
+                }
+                const routes = ensureInteractiveRoutes(obj);
+                const next = {
+                  v: 1,
+                  t: Date.now(),
+                  to: { x: Number(toPt.x) || 0, y: Number(toPt.y) || 0 },
+                };
+                routes.push(next);
+                const arrow = buildRouteArrow(fromPt, toPt, { for_uid: uid, index: routes.length - 1 });
+                if (arrow) {
+                  normalizeEditableObject(arrow);
+                  try { canvas.add(arrow); } catch (e) { /* ignore */ }
+                  try { canvas.sendToBack(arrow); } catch (e) { /* ignore */ }
+                }
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                try { pushHistory(); } catch (e) { /* ignore */ }
+                try { syncInspector(); } catch (e) { /* ignore */ }
+                syncRouteSummary();
+                scheduleDraftSave('canvas');
+                return true;
+              };
+
+              const clearInteractiveRoutes = () => {
+                if (isSimulating) return;
+                (canvas.getObjects() || []).forEach((o) => {
+                  if (!o) return;
+                  if (o?.data?.kind === 'route_arrow') {
+                    try { canvas.remove(o); } catch (e) { /* ignore */ }
+                  } else if (isTokenLike(o) && o.data && Array.isArray(o.data.interactive_routes)) {
+                    o.data.interactive_routes = [];
+                  }
+                });
+                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+                try { pushHistory(); } catch (e) { /* ignore */ }
+                syncRouteSummary();
+                scheduleDraftSave('canvas');
+                setStatus('Rutas borradas.');
+              };
+
+              const distance = (a, b) => Math.hypot((Number(a.x) || 0) - (Number(b.x) || 0), (Number(a.y) || 0) - (Number(b.y) || 0));
+
+              const generateSimulationFromRoutes = (mode) => {
+                if (isSimulating) {
+                  setStatus('Sal del simulador para generar una simulación.', true);
+                  return;
+                }
+                const items = [];
+                const all = canvas.getObjects() || [];
+                all.forEach((o) => {
+                  if (!o || !isTokenLike(o)) return;
+                  const routes = Array.isArray(o?.data?.interactive_routes) ? o.data.interactive_routes : [];
+                  if (!routes.length) return;
+                  const uid = getUidForObj(o);
+                  if (!uid) return;
+                  routes.forEach((r, idx) => {
+                    const to = r?.to || {};
+                    items.push({ uid, obj: o, idx, to: { x: Number(to.x) || 0, y: Number(to.y) || 0 }, t: Number(r.t) || 0 });
+                  });
+                });
+                if (!items.length) {
+                  setStatus('No hay rutas para generar la simulación.', true);
+                  return;
+                }
+                // Orden por creación.
+                items.sort((a, b) => (a.t - b.t) || (a.idx - b.idx));
+
+                const ballFollow = tacticsBallFollowInput ? !!tacticsBallFollowInput.checked : true;
+                const ballObj = findBallObject ? findBallObject() : null;
+                // Si hay balón y no tiene rutas propias, lo movemos siguiendo al jugador más cercano al inicio.
+                const ballHasRoutes = ballObj && Array.isArray(ballObj?.data?.interactive_routes) && ballObj.data.interactive_routes.length > 0;
+                const ballStart = ballObj ? { x: Number(ballObj.left) || 0, y: Number(ballObj.top) || 0 } : null;
+                const pickBallTarget = () => {
+                  if (!ballObj || !ballStart) return null;
+                  const candidates = items.filter((it) => it.obj && safeText(it.obj?.data?.kind) === 'token');
+                  if (!candidates.length) return null;
+                  let best = candidates[0];
+                  let bestD = distance(ballStart, { x: Number(best.obj.left) || 0, y: Number(best.obj.top) || 0 });
+                  candidates.forEach((c) => {
+                    const d = distance(ballStart, { x: Number(c.obj.left) || 0, y: Number(c.obj.top) || 0 });
+                    if (d < bestD) { best = c; bestD = d; }
+                  });
+                  return best;
+                };
+
+                // Helper: aplica posiciones (sin animación real; genera pasos).
+                const snapshot = serializeState();
+                const cloneState = (st) => JSON.parse(JSON.stringify(st || { version: '5.3.0', objects: [] }));
+                const moveUidInState = (st, uid, to) => {
+                  const objs = Array.isArray(st.objects) ? st.objects : [];
+                  objs.forEach((o) => {
+                    if (safeText(o?.data?.layer_uid) !== uid) return;
+                    o.left = Number(to.x) || o.left;
+                    o.top = Number(to.y) || o.top;
+                  });
+                };
+                const moveBallInState = (st, to) => {
+                  const objs = Array.isArray(st.objects) ? st.objects : [];
+                  objs.forEach((o) => {
+                    if (safeText(o?.data?.kind) !== 'ball') return;
+                    o.left = Number(to.x) || o.left;
+                    o.top = Number(to.y) || o.top;
+                  });
+                };
+
+                const steps = [];
+                // Paso 0: estado actual.
+                steps.push({ title: 'Inicio', duration: 3, canvas_state: sanitizeLoadedState(snapshot) });
+
+                if (mode === 'seq') {
+                  const base = cloneState(steps[0].canvas_state);
+                  items.forEach((it, i) => {
+                    const next = cloneState(base);
+                    moveUidInState(next, it.uid, it.to);
+                    // Ball follow: sigue al movimiento actual (si procede).
+                    if (ballObj && ballFollow && !ballHasRoutes) {
+                      moveBallInState(next, it.to);
+                    }
+                    steps.push({ title: `Paso ${i + 1}`, duration: 3, canvas_state: sanitizeLoadedState(next) });
+                    // Acumula cambios
+                    base.objects = next.objects;
+                  });
+                } else {
+                  const next = cloneState(steps[0].canvas_state);
+                  items.forEach((it) => moveUidInState(next, it.uid, it.to));
+                  if (ballObj && ballFollow && !ballHasRoutes) {
+                    const target = pickBallTarget();
+                    if (target) moveBallInState(next, target.to);
+                  }
+                  steps.push({ title: 'Desarrollo', duration: 3, canvas_state: sanitizeLoadedState(next) });
+                }
+
+                // Escribe la simulación (reutiliza el motor existente).
+                simulationSavedSteps = steps.map((s) => ({ title: s.title, duration: s.duration, canvas_state: s.canvas_state, canvas_width: 0, canvas_height: 0, moves: [], routes: {} }));
+                simulationSavedUpdatedAt = Date.now();
+                try {
+                  if (canUseStorage) {
+                    window.localStorage.setItem(simStorageKey, JSON.stringify({ v: 1, updated_at: new Date().toISOString(), steps: simulationSavedSteps }));
+                  }
+                } catch (e) { /* ignore */ }
+                try { dockSimPopoverIfNeeded(); } catch (e) { /* ignore */ }
+                try { setTacticsPanelOpen(true); } catch (e) { /* ignore */ }
+                try { if (simPopover) simPopover.hidden = false; } catch (e) { /* ignore */ }
+                try { renderSimulationSteps(); } catch (e) { /* ignore */ }
+                setStatus(mode === 'seq' ? 'Simulación generada (secuencia).' : 'Simulación generada (a la vez).');
               };
 
               const clearTokensBySide = (side) => {
@@ -19751,7 +20015,30 @@
                   if (btn) {
                     event.preventDefault();
                     const kind = safeText(btn.dataset.tacticsTool);
+                    if (kind === 'route_move') {
+                      if (!tacticsInteractiveEnabled) {
+                        setStatus('Activa “Interactiva” para usar rutas.', true);
+                        return;
+                      }
+                      setInteractiveRouteMode(!interactiveRouteMode);
+                      return;
+                    }
                     if (kind) activateAddKind(kind, { fromQuickbar: true });
+                    return;
+                  }
+                  const genBtn = event.target.closest('[data-tactics-generate]');
+                  if (genBtn) {
+                    event.preventDefault();
+                    if (!tacticsInteractiveEnabled) return;
+                    const mode = safeText(genBtn.getAttribute('data-tactics-generate'));
+                    generateSimulationFromRoutes(mode === 'seq' ? 'seq' : 'simul');
+                    try { if (tacticsInteractiveMenu) tacticsInteractiveMenu.open = false; } catch (e) { /* ignore */ }
+                    return;
+                  }
+                  const clearBtn = event.target.closest('[data-tactics-clear-routes]');
+                  if (clearBtn) {
+                    event.preventDefault();
+                    clearInteractiveRoutes();
                     return;
                   }
                   const formationBtn = event.target.closest('[data-tactics-formation]');
@@ -19763,6 +20050,32 @@
                   }
                 });
               }
+
+              // Captura gesto de ruta (click/touch) en modo interactivo.
+              // Lo hacemos sobre el canvas: down (elige ficha) + up (destino) => guarda ruta.
+              try {
+                canvas.on('mouse:down', (opt) => {
+                  if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
+                  if (pendingFactory) return; // si está en modo insertar, no interferir
+                  const target = opt?.target;
+                  if (!target || !isTokenLike(target)) return;
+                  const p = canvas.getPointer(opt.e);
+                  interactiveRouteFrom = { obj: target, start: { x: Number(target.left) || Number(p.x) || 0, y: Number(target.top) || Number(p.y) || 0 } };
+                  try { opt.e?.preventDefault?.(); } catch (e) { /* ignore */ }
+                });
+                canvas.on('mouse:up', (opt) => {
+                  if (!tacticsInteractiveEnabled || !interactiveRouteMode) return;
+                  if (!interactiveRouteFrom || !interactiveRouteFrom.obj) return;
+                  const p = canvas.getPointer(opt.e);
+                  const from = interactiveRouteFrom.start || { x: Number(interactiveRouteFrom.obj.left) || 0, y: Number(interactiveRouteFrom.obj.top) || 0 };
+                  const to = { x: Number(p.x) || 0, y: Number(p.y) || 0 };
+                  addInteractiveRoute(interactiveRouteFrom.obj, from, to);
+                  interactiveRouteFrom = null;
+                  // Si no mantiene Shift, desactiva el modo ruta (evita confusiones).
+                  const keep = !!(opt?.e && opt.e.shiftKey);
+                  if (!keep) setInteractiveRouteMode(false);
+                });
+              } catch (e) { /* ignore */ }
               if (tacticsQuickRecentsEl) {
                 tacticsQuickRecentsEl.addEventListener('click', (event) => {
                   const favBtn = event.target.closest('[data-tactics-fav-toggle]');

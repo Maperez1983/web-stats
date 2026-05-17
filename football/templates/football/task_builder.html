@@ -638,6 +638,34 @@
         align-items: center;
         margin-left: auto;
       }
+      body.tactics-mode .tactics-mode-toggle {
+        display: inline-flex;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.05);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      body.tactics-mode .tactics-mode-toggle button {
+        border: 0;
+        background: transparent;
+        color: rgba(226,232,240,0.9);
+        padding: 0.62rem 0.85rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.76rem;
+        cursor: pointer;
+      }
+      body.tactics-mode .tactics-mode-toggle button.is-active {
+        background: rgba(34, 211, 238, 0.14);
+        color: rgba(224, 242, 254, 0.98);
+      }
+      body.tactics-mode .tactics-quickbar [data-tactics-only="interactive"] {
+        display: none;
+      }
+      body.tactics-mode.tactics-interactive .tactics-quickbar [data-tactics-only="interactive"] {
+        display: inline-flex;
+      }
       body.tactics-mode .tactics-quickbar .tactics-chip {
         border-radius: 999px;
         padding: 0.6rem 0.8rem;
@@ -4140,6 +4168,10 @@
                   <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
                   <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
                   <div class="tactics-quickbar" id="tactics-quickbar" aria-label="Barra rápida de táctica">
+                    <div class="tactics-mode-toggle" id="tactics-mode-toggle" role="tablist" aria-label="Modo de pizarra">
+                      <button type="button" class="is-active" id="tactics-mode-static" data-tactics-board="static" role="tab" aria-selected="true">Estática</button>
+                      <button type="button" id="tactics-mode-interactive" data-tactics-board="interactive" role="tab" aria-selected="false">Interactiva</button>
+                    </div>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="player_local" id="tactics-tool-local" title="Insertar ficha local" aria-label="Insertar ficha local">
                       <span class="dot" aria-hidden="true"></span>Local
                     </button>
@@ -4155,6 +4187,30 @@
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="ball" id="tactics-tool-ball" title="Insertar balón" aria-label="Insertar balón">⚽</button>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="arrow_solid" id="tactics-tool-arrow" title="Insertar flecha" aria-label="Insertar flecha">➡︎</button>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="cone" id="tactics-tool-cone" title="Insertar cono" aria-label="Insertar cono">Cono</button>
+                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
+                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
+                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
+                        <span>Recrear</span>
+                        <span class="current">Auto</span>
+                      </summary>
+                      <div class="tactics-menu-body" role="dialog" aria-label="Táctica interactiva">
+                        <div class="row">
+                          <span class="meta">Generar simulación desde rutas:</span>
+                          <button type="button" class="button" data-tactics-generate="simul">A la vez</button>
+                          <button type="button" class="button" data-tactics-generate="seq">Secuencia</button>
+                        </div>
+                        <div class="row">
+                          <label class="chip-toggle" style="margin:0;">
+                            <input type="checkbox" id="tactics-interactive-ball-follow" checked />
+                            Balón sigue a jugador
+                          </label>
+                          <button type="button" class="button" data-tactics-clear-routes="1">Borrar rutas</button>
+                        </div>
+                        <div class="row">
+                          <span class="meta" id="tactics-route-summary">Rutas: 0</span>
+                        </div>
+                      </div>
+                    </details>
 
                     <details class="tactics-menu" id="tactics-formation-menu">
                       <summary class="surface-trigger" aria-label="Formaciones y autocolocado">
