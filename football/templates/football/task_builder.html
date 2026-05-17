@@ -225,7 +225,11 @@
       }
       /* Táctica: pantalla completa (sin scroll del documento, todo en una vista). */
       body.tactics-mode.tactics-fullscreen {
-        overflow: hidden;
+        /* Importante: no bloqueamos el scroll global. Aunque el objetivo sea “1 vista”,
+           necesitamos permitir desplazamiento si el navegador/zoom provoca overflow,
+           o si el usuario usa trackpad/rueda para navegar (especialmente en desktop). */
+        overflow-y: auto;
+        overflow-x: hidden;
       }
       body.tactics-mode.tactics-fullscreen .page {
         max-width: none;
