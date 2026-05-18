@@ -171,12 +171,11 @@
                   <input id="id_season_end_date" type="date" name="season_end_date" value="{% now 'Y-m-d' %}" />
                 </div>
                 <div>
-                  <label for="id_report_team_id">Equipo para informes</label>
-                  <select id="id_report_team_id" name="report_team_id">
-                    {% for t in teams %}
-                      <option value="{{ t.id }}" {% if active_team and t.id == active_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
-                    {% endfor %}
-                  </select>
+                  <label>Equipo para informes</label>
+                  <div class="alert" style="margin:0;">
+                    Solo se generarán informes del equipo activo:
+                    <strong>{{ active_team.display_name|default:active_team.name }}</strong>
+                  </div>
                 </div>
               </div>
               <div class="actions">
@@ -203,19 +202,9 @@
                 Temporada: <strong>(sin cerrar)</strong>
               {% endif %}
             </div>
-            <form method="post" style="margin:0;min-width:280px;">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="reports_set_team" />
-              <label for="id_report_team_pick" style="margin:0 0 0.25rem;">Equipo</label>
-              <div style="display:flex; gap:0.5rem; align-items:center;">
-                <select id="id_report_team_pick" name="report_team_id">
-                  {% for t in teams %}
-                    <option value="{{ t.id }}" {% if report_team and t.id == report_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
-                  {% endfor %}
-                </select>
-                <button class="btn btn-ghost" type="submit">Cargar</button>
-              </div>
-            </form>
+            <div class="subtitle" style="margin:0;">
+              Equipo activo: <strong>{{ report_team.display_name|default:report_team.name }}</strong>
+            </div>
           </div>
 
           {% if current_player %}
@@ -269,12 +258,11 @@
                 <input id="id_new_season_start_date" type="date" name="season_start_date" value="{{ season_form.start_date|default:'' }}" required />
               </div>
               <div style="grid-column: 1 / -1;">
-                <label for="id_inherit_team_id">Heredar plantilla (pendiente de confirmar)</label>
-                <select id="id_inherit_team_id" name="inherit_team_id">
-                  {% for t in teams %}
-                    <option value="{{ t.id }}" {% if active_team and t.id == active_team.id %}selected{% endif %}>{{ t.display_name|default:t.name }}</option>
-                  {% endfor %}
-                </select>
+                <label>Heredar plantilla (pendiente de confirmar)</label>
+                <div class="alert" style="margin:0;">
+                  Se heredará la plantilla del equipo activo:
+                  <strong>{{ active_team.display_name|default:active_team.name }}</strong>
+                </div>
               </div>
             </div>
 
@@ -326,4 +314,3 @@
     </div>
   </body>
 </html>
-
