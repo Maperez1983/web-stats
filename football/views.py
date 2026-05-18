@@ -28516,17 +28516,18 @@ def coach_cards_page(request):
         {
             'key': 'match',
             'title': 'Partido',
-            'description': 'Zona operativa de convocatoria, 11 inicial, registro en vivo y revisión de partido para el staff.',
-            'link': 'convocation',
+            'description': 'Partido actual (flujo matchday) + edición anual de partidos de temporada.',
+            'link': 'match-hub',
             'member_name': ' · '.join(
                 list(members_by_role.get(AppUserRole.ROLE_COACH) or [])
                 + list(members_by_role.get(AppUserRole.ROLE_ANALYST) or [])
                 or ['Sin asignar']
             ),
             'items': [
+                {'label': 'Partido actual (hub)', 'link': 'match-hub'},
                 {'label': 'Convocatoria', 'link': 'convocation'},
                 {'label': '11 inicial', 'link': 'initial-eleven'},
-                {'label': 'Partidos (calendario)', 'link': 'coach-matches'},
+                {'label': 'Edición anual (partidos)', 'link': 'coach-matches'},
                 {'label': 'Torneos', 'link': 'coach-tournaments'},
                 {'label': 'Rival (convocatoria)', 'link': 'coach-rival'},
                 {'label': 'Registro de acciones', 'link': 'match-action-page'},
