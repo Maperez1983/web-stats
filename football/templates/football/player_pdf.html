@@ -297,6 +297,11 @@
                         <div class="mini-note">
                           Estadísticas destacadas expresadas en porcentajes/escala 0–100. Goles y asistencias se muestran en valores absolutos.
                         </div>
+                        <div class="muted" style="margin-top:8px;font-size:11px;">
+                          Participación (min): <strong>{{ stats.participation_pct|default:0 }}%</strong>
+                          · Participación (PJ): <strong>{{ stats.participation_matches_pct|default:0 }}%</strong>
+                          · Titularidad: <strong>{{ stats.starter_pct|default:0 }}%</strong>
+                        </div>
                       </div>
                       <div class="split-col right">
                         <div class="radar-wrap">

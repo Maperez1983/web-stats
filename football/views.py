@@ -55872,6 +55872,8 @@ def player_detail_page(request, player_id):
         competition_total_rounds = _to_int_value(stats_source.get('competition_total_rounds')) or get_competition_total_rounds(primary_team)
         # La participación real debe basarse en minutos y partidos del equipo (se calcula en compute_player_dashboard).
         participation_pct = float(stats_source.get('participation_pct') or 0)
+        participation_matches_pct = float(stats_source.get('participation_matches_pct') or 0)
+        starter_pct = float(stats_source.get('starter_pct') or 0)
         suplente = max(pj - pt, 0)
         goals_per_match = round((goals / pj), 2) if pj else 0
         match_minutes = _regulation_minutes_for_team(primary_team)
@@ -55927,17 +55929,16 @@ def player_detail_page(request, player_id):
             match_regulation_minutes = 90
 
         influence_help = (
-            'Influencia (0–100): acciones decisivas por partido normalizadas por minutos reglamentarios '
-            f'({int(match_regulation_minutes)}\') y comparadas con el máximo del equipo.\n'
-            'Fórmula: decisivas = éxitos + (goles×6) + (asistencias×4) + (pases clave×2); '
-            'decisivas/partido = decisivas/minutos×minutos_reglamentarios; '
-            'influencia = decisivas/partido ÷ max_equipo × 100 (capado 0–100).'
+            'Influencia (0–100): acciones decisivas por 90 (normalizadas por minutos reglamentarios) '
+            'comparadas con un valor alto del equipo (p90), para evitar distorsión por pocos minutos.\n'
+            'Decisivas = (goles×10) + (asistencias×7) + (pases clave×3) + (tiros a puerta×2).\n'
+            'Influencia = decisivas/90 ÷ norm_equipo × 100 (capado 0–100).'
         )
         importance_help = (
-            'Importancia (0–100): mezcla de disponibilidad y volumen de éxito.\n'
-            'Disponibilidad = minutos ÷ minutos posibles × 100 (capado 0–100).\n'
-            'Volumen éxito = éxitos ÷ máximo_éxitos_equipo × 100 (capado 0–100).\n'
-            'Importancia = (disponibilidad×0.6) + (volumen×0.4) (capado 0–100).'
+            'Importancia (0–100): cuánto cuenta el jugador en el equipo hasta la fecha.\n'
+            'Disponibilidad = minutos ÷ minutos posibles ya jugados × 100.\n'
+            'Rendimiento = 0.6×(percentil volumen decisivo/90) + 0.4×(percentil % éxito).\n'
+            'Importancia = 0.7×disponibilidad + 0.3×rendimiento.'
         )
         general_kpis = [
             {'label': 'Partidos', 'value': pj, 'pct': 100 if pj else 0},
@@ -55948,6 +55949,8 @@ def player_detail_page(request, player_id):
             {'label': 'Asistencias', 'value': assists, 'pct': round((assists / pj) * 100, 1) if pj else 0},
             {'label': 'Media goles/partido', 'value': goals_per_match, 'pct': round(min(goals_per_match * 100, 100), 1)},
             {'label': '% participación', 'value': participation_pct, 'pct': participation_pct},
+            {'label': '% participación (PJ)', 'value': participation_matches_pct, 'pct': participation_matches_pct},
+            {'label': '% titularidad', 'value': starter_pct, 'pct': starter_pct},
             {'label': 'Importancia', 'value': importance_score, 'pct': importance_score, 'help': importance_help},
             {'label': 'Influencia', 'value': influence_score, 'pct': influence_score, 'help': influence_help},
             {'label': 'Amarillas', 'value': yellow_cards, 'pct': round(min(yellow_cards * 15, 100), 1)},

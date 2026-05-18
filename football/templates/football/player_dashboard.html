@@ -398,6 +398,8 @@
                 <option value="match_success_rate">Orden: % Éxito (partido)</option>
               {% else %}
                 <option value="participation_pct">Orden: Participación %</option>
+                <option value="participation_matches_pct">Orden: Participación PJ %</option>
+                <option value="starter_pct">Orden: Titularidad %</option>
                 <option value="minutes">Orden: Minutos</option>
                 <option value="goals">Orden: Goles</option>
                 <option value="assists">Orden: Asistencias</option>
@@ -439,6 +441,8 @@
               data-assists="{{ player.assists|default:0 }}"
               data-success-rate="{{ player.success_rate|default:0 }}"
               data-participation-pct="{{ player.participation_pct|default:0 }}"
+              data-participation-matches-pct="{{ player.participation_matches_pct|default:0 }}"
+              data-starter-pct="{{ player.starter_pct|default:0 }}"
               data-match-actions="{{ player.match_actions|default:0 }}"
               data-match-goals="{{ player.match_goals|default:0 }}"
               data-match-assists="{{ player.match_assists|default:0 }}"
@@ -482,6 +486,8 @@
                     {% else %}
                       <span class="mini-kpi">PJ <strong>{{ player.pj|default:0 }}</strong></span>
                       <span class="mini-kpi">Min <strong>{{ player.minutes|default:0 }}</strong></span>
+                      <span class="mini-kpi">PJ% <strong>{{ player.participation_matches_pct|default:0 }}%</strong></span>
+                      <span class="mini-kpi">Tit% <strong>{{ player.starter_pct|default:0 }}%</strong></span>
                       <span class="mini-kpi">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
                       <span class="mini-kpi">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
                       <span class="mini-kpi">🟨 <strong>{{ player.yellow_cards|default:0 }}</strong></span>
@@ -673,6 +679,8 @@
                 case 'assists': return 'assists';
                 case 'success_rate': return 'successRate';
                 case 'participation_pct': return 'participationPct';
+                case 'participation_matches_pct': return 'participationMatchesPct';
+                case 'starter_pct': return 'starterPct';
                 case 'match_actions': return 'matchActions';
                 case 'match_goals': return 'matchGoals';
                 case 'match_assists': return 'matchAssists';
