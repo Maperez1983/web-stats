@@ -13032,11 +13032,8 @@ def club_season_wizard(request):
                     workspace.save(update_fields=['active_season', 'updated_at'])
 
                 # Preparar listado de jugadores para informes.
-                report_team_id = _parse_int(request.POST.get('report_team_id')) or _parse_int(getattr(active_team, 'id', None))
-                if report_team_id and int(report_team_id) in teams_by_id:
-                    report_team_id = int(report_team_id)
-                else:
-                    report_team_id = int(getattr(active_team, 'id', 0) or 0)
+                # Requisito producto: solo del equipo que se está gestionando (equipo activo).
+                report_team_id = int(getattr(active_team, 'id', 0) or 0)
                 player_ids = list(
                     Player.objects
                     .filter(team_id=report_team_id)
@@ -13054,9 +13051,10 @@ def club_season_wizard(request):
                 return redirect(f"{reverse('club-season-wizard')}?step=reports")
 
             if action == 'reports_set_team':
-                report_team_id = _parse_int(request.POST.get('report_team_id')) or 0
-                if not report_team_id or int(report_team_id) not in teams_by_id:
-                    raise ValueError('Equipo no válido.')
+                # Por diseño: siempre el equipo activo (evita confusiones en multicategoría).
+                report_team_id = int(getattr(active_team, 'id', 0) or 0)
+                if not report_team_id:
+                    raise ValueError('No hay equipo activo para generar informes.')
                 player_ids = list(
                     Player.objects
                     .filter(team_id=int(report_team_id))
@@ -13106,11 +13104,8 @@ def club_season_wizard(request):
                 workspace.save(update_fields=['active_season', 'updated_at'])
 
                 # Hereda plantilla como pendiente de confirmar (solo jugadores del equipo seleccionado).
-                inherit_team_id = _parse_int(request.POST.get('inherit_team_id')) or _parse_int(getattr(active_team, 'id', None))
-                if inherit_team_id and int(inherit_team_id) in teams_by_id:
-                    inherit_team_id = int(inherit_team_id)
-                else:
-                    inherit_team_id = int(getattr(active_team, 'id', 0) or 0)
+                # Requisito producto: solo del equipo que se está gestionando (equipo activo).
+                inherit_team_id = int(getattr(active_team, 'id', 0) or 0)
                 player_ids = list(
                     Player.objects
                     .filter(team_id=inherit_team_id)
@@ -13182,7 +13177,7 @@ def club_season_wizard(request):
     player_idx = 0
     current_player = None
     try:
-        report_team_id = _parse_int((state or {}).get('report_team_id')) or _parse_int(getattr(active_team, 'id', None))
+        report_team_id = int(getattr(active_team, 'id', 0) or 0)
         if report_team_id and int(report_team_id) in teams_by_id:
             report_team = teams_by_id[int(report_team_id)]
         player_ids = [int(pid) for pid in ((state or {}).get('player_ids') or []) if _parse_int(pid)]
@@ -20245,24 +20240,23 @@ def bulk_add_match_actions(request):
     if not result:
         return JsonResponse({'error': 'Falta resultado.'}, status=400)
 
-    # Convocatoria del partido (aunque no sea "current").
-    convocation_record = _get_convocation_record_for_match(primary_team, match)
-    if not convocation_record:
-        convocation_record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
-    if not convocation_record:
-        convocation_record = _ensure_matchday_convocation_record(primary_team, match=match)
-    if not convocation_record:
-        return JsonResponse({'error': 'No hay convocatoria para este partido.'}, status=400)
-
     action_type_key = action_type.lower()
     player_id = _parse_int(payload.get('player_id') or request.POST.get('player_id'))
     player = None
     if not _is_team_only_action(action_type_key):
         if not player_id:
             return JsonResponse({'error': 'Selecciona un jugador.'}, status=400)
-        player = convocation_record.players.filter(id=player_id).first()
+        # Recuperación de partidos: no obligamos a tener convocatoria cerrada.
+        # Si existe convocatoria para ese match, validamos contra ella; si no, permitimos cualquier jugador del equipo.
+        convocation_record = _get_convocation_record_for_match(primary_team, match)
+        if not convocation_record:
+            convocation_record = get_current_convocation_record(primary_team, match=match, fallback_to_latest=False)
+        if convocation_record:
+            player = convocation_record.players.filter(id=player_id).first()
         if not player:
-            return JsonResponse({'error': 'Jugador fuera de convocatoria para este partido.'}, status=400)
+            player = Player.objects.filter(team=primary_team, id=player_id).first()
+        if not player:
+            return JsonResponse({'error': 'Jugador no válido.'}, status=400)
 
     tercio = zone_to_tercio(zone) if zone else ''
     half = _half_minutes_for_team(primary_team)
