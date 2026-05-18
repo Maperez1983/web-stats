@@ -2280,18 +2280,32 @@
           btn.disabled = true;
           setOpBadge({ show: true, ok: false, text: 'Actualizando…' });
           try {
-            const resp = await fetch(buildDashboardRefreshUrl(), {
+            const doFetch = async () => fetch(buildDashboardRefreshUrl(), {
               method: 'POST',
               credentials: 'same-origin',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
               body: '',
             });
+            const shouldRetryStatus = (status) => status === 502 || status === 503 || status === 504;
+            let resp = await doFetch();
+            if (resp && !resp.ok && shouldRetryStatus(resp.status)) {
+              await new Promise((r) => window.setTimeout(r, 650));
+              resp = await doFetch();
+            }
+            if (resp && !resp.ok && shouldRetryStatus(resp.status)) {
+              await new Promise((r) => window.setTimeout(r, 1100));
+              resp = await doFetch();
+            }
             if (!resp.ok) {
               const ctype = String(resp.headers.get('content-type') || '');
               let detail = '';
-              if (ctype.includes('application/json')) {
+              if (shouldRetryStatus(resp.status)) {
+                detail = 'Gateway temporal (Render reiniciando/desplegando). Reintenta en 10–20s.';
+              } else if (ctype.includes('application/json')) {
                 const data = await resp.json().catch(() => ({}));
                 detail = String(data?.message || data?.error || '').trim();
+              } else if (ctype.includes('text/html')) {
+                detail = 'El servidor devolvió HTML (gateway/proxy). Reintenta y revisa logs si persiste.';
               } else {
                 detail = String(await resp.text().catch(() => '') || '').trim();
               }
