@@ -806,6 +806,161 @@ def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
             measure=["Duelos ganados (%).", "Segundas jugadas ganadas tras duelo."],
         ),
     ]
+
+
+def _mk_game_encyclopedia_patterns_vs_blocks() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: patrones contra bloque alto/medio/bajo.
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Patrones · Atacar bloque alto (salida + lado débil)",
+            summary="Superar presión alta: hombre libre, tercer hombre y cambio rápido al lado débil.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["patrones", "ataque", "bloque_alto", "salida"],
+            objective="Salir de la presión sin regalar pérdidas y atacar con ventaja el lado débil.",
+            rules=[
+                "Primero seguridad: 1 salida clara + 1 plan B.",
+                "Crea hombre libre: portero/pivote como 3er hombre.",
+                "Si atraes presión a un lado: cambio rápido al lado débil.",
+            ],
+            triggers=[
+                "Rival salta a central → activa portero como apoyo.",
+                "Rival cierra interior → salida a banda y cambio.",
+                "Rival persigue marca → usar tercer hombre.",
+            ],
+            checklist=["¿Dónde está el hombre libre?", "¿Mi receptor está perfilado?", "¿Tengo preparada la caída si voy directo?"],
+            errors=["Jugar interior a un compañero de espaldas presionado → “PERFIL O NO”.", "Conducir sin fijar → “FIJA Y SUELTA”."],
+            scene_hint="Escena: rival presiona 3‑1. Variante A: central→portero→pivote. Variante B: salida a lateral y cambio al lado débil.",
+            measure=["Pérdidas en salida (bajan).", "Progresiones tras superar 1ª línea (suben)."],
+        ),
+        _mk_guide(
+            title="Patrones · Atacar bloque medio (entre líneas + 3er hombre)",
+            summary="Fijar fuera para encontrar dentro y acelerar solo cuando hay giro/ventaja.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["patrones", "ataque", "bloque_medio", "entre_lineas"],
+            objective="Encontrar recepciones entre líneas y acelerar solo cuando hay ventaja.",
+            rules=[
+                "Atrae a banda para abrir carril interior.",
+                "Entre líneas: recibir perfilado o jugar a 3er hombre.",
+                "Si no hay giro: pausa, reinicia y vuelve a fijar.",
+            ],
+            triggers=["Interior libre entre líneas → buscarlo.", "Mediocentro rival salta → atacar su espalda.", "Rival bascula tarde → cambio."],
+            checklist=["¿Tengo dentro?", "¿Mi receptor puede girar?", "¿Qué hago si me saltan?"],
+            errors=["Forzar pase interior sin ventaja → “PRIMERO FIJA”.", "Girar siempre aunque pierdas → “DEPENDE DEL ESPACIO”."],
+            scene_hint="Escena: balón en banda, interior entre líneas. Variante: pase al interior y descarga a 3er hombre que rompe.",
+            measure=["Recepciones entre líneas con giro.", "Pases clave/tiros tras recibir entre líneas."],
+        ),
+        _mk_guide(
+            title="Patrones · Atacar bloque bajo (centros, raso atrás y paciencia)",
+            summary="Mover al rival, llegar a línea de fondo y finalizar con intención.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["patrones", "ataque", "bloque_bajo", "centros", "area"],
+            objective="Crear remates de calidad sin desesperarse (evitar tiros sin ventaja).",
+            rules=[
+                "Mueve al bloque: lado fuerte → lado débil.",
+                "Llega a zona de centro: raso atrás es oro.",
+                "Área: 2 llegadas + 1 rechace (siempre).",
+            ],
+            triggers=["Si el rival hunde: atacar raso atrás.", "Si hay 1v1 con espacio: línea de fondo.", "Si zona 14 libre: pase atrás."],
+            checklist=["¿He movido al bloque antes de centrar?", "¿Quién 1º palo y penalti?", "¿Quién al rechace?"],
+            errors=["Centro sin llegadas → “PRIMERO LLEGA, LUEGO CENTRA”.", "Tiro sin ángulo → “PACIENCIA”."],
+            scene_hint="Escena: centro raso atrás. Marca 1º palo, penalti, raso atrás y rechace.",
+            measure=["Centros útiles (tiro/ocasión).", "Tiros lejanos sin ventaja (bajan)."],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_area_and_crossing_advanced() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: área y centros (avanzado).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Área · Centros: raso atrás (regla de oro)",
+            summary="Carreras, zonas y sincronización para rematar raso atrás.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["area", "centros", "ataque", "finalizacion"],
+            objective="Generar remate limpio con carreras coordinadas y rechace asegurado.",
+            rules=["Una carrera fija 1º palo.", "Una carrera llega a penalti.", "Una carrera llega al raso atrás + 1 al rechace."],
+            roles=["1º palo: fija/arrastre.", "Penalti: remate.", "Raso atrás: pase/tiro.", "Rechace: 2ª jugada."],
+            checklist=["¿Hay 2 llegadas mínimas?", "¿Alguien al raso atrás?", "¿Quién rechace?"],
+            errors=["Todos al 1º palo → “ZONAS DISTINTAS”.", "Nadie al raso atrás → “RASO ATRÁS”."],
+            scene_hint="Escena: línea de fondo. Marca 4 roles: 1º palo, penalti, raso atrás, rechace.",
+            measure=["Tiros tras centro raso atrás.", "Goles/ocasiones de segunda jugada."],
+        ),
+        _mk_guide(
+            title="Área · Centros: 2º palo (castigar lado débil)",
+            summary="Ocupación del lado débil y timing del centro tenso al 2º palo.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["area", "centros", "lado_debil"],
+            objective="Aprovechar el lado débil del rival (bascula tarde) para rematar.",
+            rules=["2º palo ocupado ANTES del centro.", "Centro tenso (no globo fácil).", "Rechace siempre."],
+            checklist=["¿Está ocupado el 2º palo?", "¿Centro con tensión?", "¿Quién rechace?"],
+            errors=["Llegar tarde al 2º palo → “PREPARA ANTES”.", "Centro flojo → “TENSO”."],
+            scene_hint="Escena: ataque por banda; lado débil llega al 2º palo. Marca llegada + centro tenso.",
+            measure=["Remates en 2º palo.", "Segundas jugadas tras centro."],
+        ),
+        _mk_guide(
+            title="Área · Finalización: de primeras (primer toque)",
+            summary="Preparación, perfil y atacar el balón para rematar de primeras.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["finalizacion", "area", "tiro", "primer_toque"],
+            objective="Aumentar remates de calidad y reducir controles innecesarios en área.",
+            rules=["Micro‑pasos antes del pase/centro.", "Cuerpo listo para contacto.", "Atacar balón (no esperar)."],
+            checklist=["¿Estoy en equilibrio?", "¿Veo balón/portería?", "¿Ataco o espero?"],
+            errors=["Llegar parado → “LLEGA EN CARRERA”.", "Esperar el balón → “ATACA”."],
+            scene_hint="Escena: pase atrás a penalti. Marca llegada en carrera y remate de primeras.",
+            measure=["Tiros de primeras (suben).", "Controles en área (bajan)."],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_rules_applied() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: reglamento aplicado.
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Reglamento aplicado · Fuera de juego (ataque y defensa)",
+            summary="Temporizar desmarques y coordinar línea defensiva con presión.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["reglamento", "fuera_de_juego", "defensa", "ataque"],
+            objective="Evitar offsides tontos y, en defensa, proteger espalda con coordinación.",
+            rules=["Ataque: desmarque cuando el pasador está listo.", "Ataque: curva + mirar línea si se puede.", "Defensa: subir solo con presión al balón."],
+            checklist=["¿El pasador está listo?", "¿Gano ventaja o solo corro?", "En defensa: ¿hay presión al balón?"],
+            errors=["Desmarque temprano → “ESPERA LA SEÑAL”.", "Línea sin presión → “NO SUBAS SIN PRESIÓN”."],
+            scene_hint="Escena: pase filtrado (desmarque tarde vs temprano). En defensa: línea sube con presión vs temporiza sin presión.",
+            measure=["Fueras de juego cometidos (bajan).", "Balones a la espalda concedidos (bajan)."],
+        ),
+        _mk_guide(
+            title="Reglamento aplicado · Ventaja y faltas tácticas (criterio)",
+            summary="Cuándo parar una contra y cuándo temporizar para reducir tarjetas tontas.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["reglamento", "faltas", "tarjetas", "transicion"],
+            objective="Gestionar transiciones: evitar contras claras y reducir tarjetas innecesarias.",
+            rules=[
+                "Si el rival corre a portería con ventaja y no hay cobertura: falta táctica inteligente.",
+                "Si hay cobertura/rest defense: temporiza y orienta (no falta tonta).",
+                "Evita faltas cerca del área: riesgo doble.",
+            ],
+            checklist=["¿Hay cobertura detrás?", "¿Es contra clara o la puedo temporizar?", "¿Dónde hago la falta (zona segura)?"],
+            errors=["Falta por frustración → “DECIDE, NO REACCIONES”.", "Tarjeta por llegar tarde → “POSICIÓN ANTES”."],
+            scene_hint="Escena: pérdida en medio campo. Variante A: sin cobertura → falta táctica. Variante B: con cobertura → temporizar y replegar.",
+            measure=["Tarjetas innecesarias (bajan).", "Contraataques concedidos (bajan)."],
+        ),
+    ]
 def _mk_seed_pack() -> list[SeedLesson]:
     """
     Pack inicial (MVP) de una guía “top” reutilizable para todos los entrenadores.
@@ -1703,6 +1858,9 @@ def _mk_seed_pack() -> list[SeedLesson]:
         *_mk_game_encyclopedia_formats(),
         *_mk_game_encyclopedia_units(),
         *_mk_game_encyclopedia_tech_in_context(),
+        *_mk_game_encyclopedia_patterns_vs_blocks(),
+        *_mk_game_encyclopedia_area_and_crossing_advanced(),
+        *_mk_game_encyclopedia_rules_applied(),
         SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
