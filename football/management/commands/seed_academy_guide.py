@@ -258,6 +258,172 @@ def _seed_lesson_has_resources_step(item: SeedLesson) -> bool:
     return False
 
 
+def _seed_lesson_has_quick_card_step(item: SeedLesson) -> bool:
+    for step in item.steps or []:
+        title = str(step.get("title") or "").strip().lower()
+        payload = step.get("payload") if isinstance(step.get("payload"), dict) else {}
+        if payload.get("seed_quick_card") is True:
+            return True
+        if title.startswith("tarjeta rápida") or title.startswith("tarjeta rapida"):
+            return True
+    return False
+
+
+def _extract_first_text_step(item: SeedLesson, *, title_prefix: str) -> str:
+    prefix = str(title_prefix or "").strip().lower()
+    for step in item.steps or []:
+        if str(step.get("type") or "").strip() != AcademyLessonStep.TYPE_TEXT:
+            continue
+        title = str(step.get("title") or "").strip().lower()
+        if title.startswith(prefix):
+            body = str(step.get("body") or "").strip()
+            return body
+    return ""
+
+
+def _mk_quick_card_body(item: SeedLesson) -> str:
+    objetivo = _extract_first_text_step(item, title_prefix="objetivo") or ""
+    reglas = _extract_first_text_step(item, title_prefix="3 reglas") or ""
+    if not objetivo:
+        objetivo = f"Objetivo: {str(item.title or '').strip()}"
+
+    if not reglas.strip():
+        first_text = ""
+        for step in item.steps or []:
+            if str(step.get("type") or "").strip() == AcademyLessonStep.TYPE_TEXT:
+                first_text = str(step.get("body") or "").strip()
+                if first_text:
+                    break
+        if first_text:
+            candidates = []
+            for line in first_text.splitlines():
+                s = line.strip()
+                if not s:
+                    continue
+                if s.startswith("-"):
+                    candidates.append(s)
+                    continue
+                prefix = s[:4]
+                if any(ch.isdigit() for ch in prefix) and (")" in prefix or "." in prefix):
+                    candidates.append(s)
+            if candidates:
+                reglas = "\n".join(candidates[:3])
+
+    # Heurísticas ligeras para cues por tema (sin duplicar demasiado contenido).
+    tags = {str(t or "").strip().lower() for t in (item.tags or []) if str(t or "").strip()}
+    title = str(item.title or "").lower()
+    merged = set(tags)
+    if "presion" in title or "presión" in title:
+        merged.add("presion")
+    if "lado débil" in title or "lado debil" in title:
+        merged.add("lado_debil")
+    if "tercer" in title or "3er" in title:
+        merged.add("tercer_hombre")
+    if "transición" in title or "transicion" in title:
+        merged.add("transicion")
+    if "abp" in title or "corner" in title or "saque de esquina" in title:
+        merged.add("abp")
+    if "portero" in title or "gk" in title or "goalkeeper" in title:
+        merged.add("porteros")
+    if "centro" in title or "área" in title or "area" in title:
+        merged.add("area")
+
+    if not reglas.strip():
+        if "abp" in merged:
+            reglas = "- Roles claros (mínimo 5).\n- Centro tenso a zona.\n- 2ª jugada (rechace) + 1 seguridad."
+        elif "transicion" in merged or "rest_defense" in merged:
+            reglas = "- 3 pasos agresivos tras pérdida.\n- Decide: presiono 5s o repliego.\n- Tras robo: 1er pase seguro + amenaza."
+        elif "presion" in merged:
+            reglas = "- En diagonal (tapo interior).\n- Si no hay cobertura, temporizo.\n- Bloque acompaña (juntos)."
+        elif "tercer_hombre" in merged:
+            reglas = "- Perfil antes de recibir.\n- Apoyo a 1–2 toques.\n- 3er hombre ataca espacio."
+        elif "lado_debil" in merged:
+            reglas = "- Fija lado fuerte antes.\n- Lado débil alto y abierto.\n- Cambio tenso y a tiempo."
+        elif "area" in merged:
+            reglas = "- 2 llegadas (1º palo + penalti/raso atrás).\n- Siempre 1 al rechazo.\n- Ataca balón (no esperes)."
+        elif "porteros" in merged:
+            reglas = "- Primero ángulo.\n- Luego equilibrio.\n- Último paso antes del tiro."
+
+    cues = []
+    if "presion" in merged:
+        cues.extend(["Diagonal", "Llega frenado", "Tapa interior"])
+    if "tercer_hombre" in merged:
+        cues.extend(["Perfil", "Apoyo", "3er hombre"])
+    if "lado_debil" in merged:
+        cues.extend(["Prepara lado débil", "Cambio tenso", "Llega al área"])
+    if "transicion" in merged or "rest_defense" in merged:
+        cues.extend(["3 pasos", "5 segundos", "Seguridad"])
+    if "abp" in merged:
+        cues.extend(["Roles claros", "Centro tenso", "Rechace"])
+    if "porteros" in merged:
+        cues.extend(["Ángulo", "Equilibrio", "Timing"])
+    if "area" in merged:
+        cues.extend(["1º palo", "Penalti", "Rechace"])
+    if not cues:
+        cues = ["Mira antes", "Perfil", "Juega fácil"]
+
+    # Dedupe cues preservando orden.
+    seen = set()
+    cues_out = []
+    for c in cues:
+        k = c.strip().lower()
+        if not k or k in seen:
+            continue
+        seen.add(k)
+        cues_out.append(c.strip())
+        if len(cues_out) >= 6:
+            break
+
+    cues_block = "- " + "\n- ".join(cues_out)
+    reglas_block = reglas.strip() if reglas.strip() else "—"
+
+    return (
+        f"{objetivo.strip()}\n\n"
+        "3 reglas (recuerda):\n"
+        f"{reglas_block}\n\n"
+        "Cues (palabras del entrenador):\n"
+        f"{cues_block}\n\n"
+        "Mini-check (10s):\n"
+        "- ¿Tengo ancho/dentro/espalda?\n"
+        "- ¿Hay cobertura si me superan?\n"
+        "- ¿Quién rechace/seguridad?"
+    ).strip()[:2200]
+
+
+def _seed_lesson_with_quick_card_step(item: SeedLesson) -> SeedLesson:
+    if _seed_lesson_has_quick_card_step(item):
+        return item
+
+    steps = list(item.steps or [])
+
+    # Insertar antes de Recursos si existe; si no, al final.
+    insert_at = len(steps)
+    for i, step in enumerate(steps):
+        title = str(step.get("title") or "").strip().lower()
+        payload = step.get("payload") if isinstance(step.get("payload"), dict) else {}
+        if payload.get("seed_resources") is True or title.startswith("recursos"):
+            insert_at = i
+            break
+
+    steps.insert(
+        insert_at,
+        {
+            "type": AcademyLessonStep.TYPE_TEXT,
+            "title": "Tarjeta rápida (banquillo/campo)",
+            "body": _mk_quick_card_body(item),
+            "payload": {"seed_quick_card": True},
+        },
+    )
+    return SeedLesson(
+        title=item.title,
+        summary=item.summary,
+        min_category=item.min_category,
+        max_category=item.max_category,
+        tags=item.tags,
+        steps=steps,
+    )
+
+
 def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str]]:
     """
     Recursos públicos para profundizar (mezcla: oficial + análisis + vídeos).
@@ -3178,6 +3344,7 @@ class Command(BaseCommand):
         if full:
             pack = pack + _mk_category_curriculum()
         pack = [_seed_lesson_with_default_visual_step(x) for x in pack]
+        pack = [_seed_lesson_with_quick_card_step(x) for x in pack]
         pack = [_seed_lesson_with_default_resources_step(x) for x in pack]
         seed_tag = "seed_v1"
 
