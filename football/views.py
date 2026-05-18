@@ -56934,6 +56934,80 @@ def match_editor_page(request, match_id):
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
 
+            if form_action == 'events_bulk_add':
+                action_type = str(request.POST.get('event_type') or '').strip()
+                result = str(request.POST.get('result') or '').strip()
+                zone = str(request.POST.get('zone') or '').strip()
+                player_id = _parse_int(request.POST.get('player_id'))
+                quantity = _parse_int(request.POST.get('quantity')) or 1
+                minute_seed = _parse_int(request.POST.get('minute'))
+                if quantity < 1:
+                    quantity = 1
+                if quantity > 500:
+                    quantity = 500
+                if not action_type:
+                    raise ValueError('La acción es obligatoria.')
+                if not result:
+                    raise ValueError('El resultado es obligatorio.')
+                player_obj = player_by_id.get(int(player_id)) if player_id else None
+                half = _half_minutes_for_team(primary_team)
+                base_minute = 1
+                if minute_seed is not None:
+                    base_minute = max(0, min(120, minute_seed))
+                else:
+                    try:
+                        last_min = (
+                            MatchEvent.objects.filter(match=match, player=player_obj if player_obj else None)
+                            .exclude(minute__isnull=True)
+                            .order_by('-minute')
+                            .values_list('minute', flat=True)
+                            .first()
+                        )
+                        if isinstance(last_min, int):
+                            base_minute = max(0, min(120, last_min))
+                    except Exception:
+                        base_minute = 1
+                tercio = zone_to_tercio(zone) if zone else ''
+                events = []
+                for idx in range(int(quantity)):
+                    minute_value = min(120, max(0, base_minute + (idx % 5)))
+                    period_value = 1 if minute_value <= half else 2
+                    events.append(
+                        MatchEvent(
+                            match=match,
+                            player=player_obj,
+                            minute=minute_value,
+                            period=period_value,
+                            event_type=action_type,
+                            result=result,
+                            zone=zone,
+                            tercio=tercio,
+                            observation='Carga manual (volumen)',
+                            system='touch-field-final',
+                            source_file='manual-bulk',
+                            raw_data={'editor': 'match-editor', 'bulk': True, 'bulk_quantity': int(quantity)},
+                        )
+                    )
+                MatchEvent.objects.bulk_create(events, batch_size=250)
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
+            if form_action == 'events_delete_all':
+                scope = str(request.POST.get('scope') or 'all').strip().lower()
+                confirm = str(request.POST.get('confirm') or '').strip().upper()
+                if confirm != 'BORRAR':
+                    raise ValueError('Escribe BORRAR para confirmar.')
+                qs = (
+                    MatchEvent.objects
+                    .filter(match=match)
+                    .filter(Q(player__team=primary_team) | Q(player__isnull=True))
+                )
+                if scope == 'manual':
+                    qs = qs.filter(source_file__in=['manual-bulk', 'admin-manual'])
+                deleted_count, _ = qs.delete()
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
             if form_action == 'event_add':
                 action_type = str(request.POST.get('event_type') or '').strip()
                 if not action_type:

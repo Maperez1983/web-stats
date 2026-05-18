@@ -206,7 +206,73 @@
       </section>
 
       <section class="panel">
-        <h2 style="margin:0 0 0.6rem;">Añadir acción</h2>
+        <h2 style="margin:0 0 0.6rem;">Edición manual · acciones</h2>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; margin-bottom:0.85rem;">
+          <div style="color:#94a3b8; font-weight:750; max-width: 780px;">
+            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
+            Si algo se guardó mal, usa <strong>Borrar todo</strong> (con confirmación).
+          </div>
+          <form method="post" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="events_delete_all" />
+            <div>
+              <label>Scope</label>
+              <select name="scope">
+                <option value="all">Todo (equipo)</option>
+                <option value="manual">Solo manual</option>
+              </select>
+            </div>
+            <div style="min-width:180px;">
+              <label>Confirmación</label>
+              <input name="confirm" placeholder="Escribe BORRAR" />
+            </div>
+            <button class="btn danger" type="submit" onclick="return confirm('¿Seguro? Esto borra acciones del partido para este equipo.')">Borrar todo</button>
+          </form>
+        </div>
+
+        <h3 style="margin:0 0 0.55rem;font-size:1rem;">Añadir por volumen</h3>
+        <form method="post" class="row-form" style="margin-bottom:0.9rem;">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="events_bulk_add" />
+          <div>
+            <label>Min (opcional)</label>
+            <input name="minute" type="number" min="0" max="120" placeholder="0" />
+          </div>
+          <div>
+            <label>Cant.</label>
+            <input name="quantity" type="number" min="1" max="500" value="1" required />
+          </div>
+          <div>
+            <label>Jugador</label>
+            <select name="player_id" required>
+              <option value="">Selecciona</option>
+              {% for p in players %}
+                <option value="{{ p.id }}">#{{ p.number|default:"--" }} {{ p.name|upper }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Acción</label>
+            <input name="event_type" placeholder="Ej. Pérdida no forzada" required />
+          </div>
+          <div>
+            <label>Resultado</label>
+            <input name="result" placeholder="OK / Mal / Ganado..." required />
+          </div>
+          <div>
+            <label>Zona</label>
+            <input name="zone" placeholder="Ej. Medio Centro" />
+          </div>
+          <div>
+            <label>Observación</label>
+            <input value="Carga manual (volumen)" disabled />
+          </div>
+          <div class="row-actions" style="padding-top:1.45rem;">
+            <button class="btn primary" type="submit">Añadir N</button>
+          </div>
+        </form>
+
+        <h3 style="margin:0 0 0.55rem;font-size:1rem;">Añadir una acción</h3>
         <form method="post" class="row-form" style="margin-bottom:0.85rem;">
           {% csrf_token %}
           <div>
