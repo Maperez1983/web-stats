@@ -30090,6 +30090,49 @@ def coach_matches_page(request):
     except Exception:
         season = None
 
+    # Persistencia de filtros/orden del listado de partidos (por usuario y equipo).
+    # Objetivo: al volver a Coach > Partidos, mantener el último estado incluso cambiando de dispositivo.
+    workspace = _get_active_workspace(request)
+    saved_filters = {}
+    try:
+        if workspace and request.user and request.user.is_authenticated:
+            pref_key = _workspace_pref_key(f'coach_matches_filters:v1:u{int(request.user.id)}:t{int(primary_team.id)}')
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key=pref_key).first()
+            if pref and isinstance(pref.value, dict):
+                saved_filters = dict(pref.value)
+        elif hasattr(request, 'session'):
+            raw = request.session.get(f'coach_matches_filters:v1:t{int(primary_team.id)}')
+            if isinstance(raw, dict):
+                saved_filters = dict(raw)
+    except Exception:
+        saved_filters = {}
+
+    def _effective_query_param(key: str) -> str:
+        if key in request.GET:
+            return str(request.GET.get(key) or '')
+        if isinstance(saved_filters, dict) and key in saved_filters:
+            return str(saved_filters.get(key) or '')
+        return ''
+
+    if request.method == 'GET':
+        persist_keys = ('q', 'context', 'reg', 'dup', 'sort', 'dir')
+        has_any_persist_key = any(k in request.GET for k in persist_keys)
+        if (not has_any_persist_key) and isinstance(saved_filters, dict) and saved_filters:
+            payload = {}
+            for k in persist_keys:
+                v = saved_filters.get(k)
+                if v is None:
+                    continue
+                payload[k] = str(v)
+            team_param = request.GET.get('team') or request.GET.get('team_id')
+            if team_param:
+                payload['team'] = str(team_param)
+            try:
+                qs = urlencode(payload)
+                return redirect(f'{request.path}?{qs}' if qs else request.path)
+            except Exception:
+                pass
+
     if request.method == 'POST':
         action = str(request.POST.get('form_action') or '').strip()
         if action == 'delete':
@@ -30158,14 +30201,36 @@ def coach_matches_page(request):
                 pass
             return redirect(reverse('coach-matches'))
 
-    q = str(request.GET.get('q') or '').strip()
-    context_filter = str(request.GET.get('context') or '').strip().lower()
-    dup_only = str(request.GET.get('dup') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
-    registered_only = str(request.GET.get('reg') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
-    sort_key = str(request.GET.get('sort') or '').strip().lower()
-    sort_dir = str(request.GET.get('dir') or '').strip().lower()
+    q = str(_effective_query_param('q') or '').strip()
+    context_filter = str(_effective_query_param('context') or '').strip().lower()
+    dup_only = str(_effective_query_param('dup') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+    registered_only = str(_effective_query_param('reg') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+    sort_key = str(_effective_query_param('sort') or '').strip().lower()
+    sort_dir = str(_effective_query_param('dir') or '').strip().lower()
     if sort_dir not in {'asc', 'desc'}:
         sort_dir = 'desc'
+
+    # Si el usuario interactúa (GET explícito), persistimos el estado.
+    if request.method == 'GET':
+        try:
+            persist_keys = ('q', 'context', 'reg', 'dup', 'sort', 'dir')
+            has_any_persist_key = any(k in request.GET for k in persist_keys)
+            if has_any_persist_key:
+                payload = {
+                    'q': q,
+                    'context': context_filter,
+                    'reg': '1' if registered_only else '',
+                    'dup': '1' if dup_only else '',
+                    'sort': sort_key,
+                    'dir': sort_dir,
+                }
+                if workspace and request.user and request.user.is_authenticated:
+                    pref_key = _workspace_pref_key(f'coach_matches_filters:v1:u{int(request.user.id)}:t{int(primary_team.id)}')
+                    WorkspacePreference.objects.update_or_create(workspace=workspace, key=pref_key, defaults={'value': payload})
+                elif hasattr(request, 'session'):
+                    request.session[f'coach_matches_filters:v1:t{int(primary_team.id)}'] = payload
+        except Exception:
+            pass
 
     qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
     if season:
