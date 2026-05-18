@@ -1496,7 +1496,8 @@
       const demoMode = {% if demo_mode %}true{% else %}false{% endif %};
       const setupMode = {% if setup_mode %}true{% else %}false{% endif %};
       const heroElement = document.getElementById('team-hero');
-      const managedHeroImages = JSON.parse(document.getElementById('hero-images-json')?.textContent || '[]');
+      const heroImagesEl = document.getElementById('hero-images-json');
+      const managedHeroImages = JSON.parse((heroImagesEl && heroImagesEl.textContent) ? heroImagesEl.textContent : '[]');
       const activeWorkspaceId = String('{{ active_workspace.id|default:"" }}').trim();
       const activeTeamId = String('{{ active_team.id|default:"" }}').trim();
       const urlParams = new URLSearchParams(window.location.search || '');
@@ -1561,16 +1562,16 @@
       function setText(id, value) {
         const el = document.getElementById(id);
         if (!el) return;
-        el.textContent = String(value ?? '').trim();
+        el.textContent = String(value === undefined || value === null ? '' : value).trim();
       }
 
       function escapeHtml(value) {
-        return String(value ?? '')
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;')
-          .replaceAll('\"', '&quot;')
-          .replaceAll("'", '&#39;');
+        return String(value === undefined || value === null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\"/g, '&quot;')
+          .replace(/'/g, '&#39;');
       }
 
       const dashLastOkKey = 'sj_dash_last_ok';
@@ -1595,7 +1596,7 @@
         try {
           const resp = await fetch('/api/build/', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } });
           const data = await resp.json().catch(() => ({}));
-          const id = String(data?.build?.id || '').trim();
+          const id = String((data && data.build && data.build.id) ? data.build.id : '').trim();
           if (id) setOpBadge({ show: true, ok: true, text: `Build: ${id.slice(0, 12)}` });
           else setOpBadge({ show: true, ok: false, text: 'Build: (sin id)' });
         } catch (e) {
@@ -1725,16 +1726,18 @@
         const theme = stored === 'light' ? 'light' : 'dark';
         document.documentElement.dataset.theme = theme;
         if (btn) btn.textContent = theme === 'light' ? 'Claro' : 'Oscuro';
-        btn?.addEventListener('click', () => {
-          const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-          document.documentElement.dataset.theme = next;
-          window.localStorage.setItem('sj_theme', next);
-          btn.textContent = next === 'light' ? 'Claro' : 'Oscuro';
-        });
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+            document.documentElement.dataset.theme = next;
+            window.localStorage.setItem('sj_theme', next);
+            btn.textContent = next === 'light' ? 'Claro' : 'Oscuro';
+          });
+        }
       }
 
       function normalizeKey(value) {
-        const raw = String(value ?? '').trim().toLowerCase();
+        const raw = String(value === undefined || value === null ? '' : value).trim().toLowerCase();
         if (!raw) return '';
         return raw
           .normalize('NFKD')
@@ -1795,7 +1798,7 @@
       }
 
       function renderHero(payload, standingInfo) {
-        const team = payload?.team || {};
+        const team = (payload && payload.team) ? payload.team : {};
         const teamName = String(team.name || 'Equipo').trim() || 'Equipo';
         const corporate = String(team.corporate_line || team.group || '').trim();
         setText('hero-team-name', teamName);
@@ -1819,7 +1822,7 @@
         if (season) chips.push(season);
         if (group && !chips.includes(group)) chips.push(group);
         if (category) chips.push(category);
-        const row = standingInfo?.row;
+        const row = (standingInfo && standingInfo.row) ? standingInfo.row : null;
         const pos = getRowField(row, ['pos', 'position', '#'], '');
         const posLabel = String(pos || '').trim();
         if (posLabel) chips.push(`Puesto ${posLabel}`);
@@ -1830,7 +1833,7 @@
         }
 
         const heroCta = document.getElementById('hero-cta');
-        const activeMatch = payload?.active_match;
+        const activeMatch = (payload && payload.active_match) ? payload.active_match : null;
         if (heroCta && activeMatch && String(activeMatch.url || '').trim()) {
           heroCta.href = String(activeMatch.url).trim();
           heroCta.textContent = 'Abrir partido';
@@ -1841,8 +1844,8 @@
       }
 
 	      function renderKPIs(standingInfo) {
-	        const row = standingInfo?.row;
-	        const idx = clampNumber(standingInfo?.idx, -1);
+	        const row = (standingInfo && standingInfo.row) ? standingInfo.row : null;
+	        const idx = clampNumber((standingInfo && typeof standingInfo.idx !== 'undefined') ? standingInfo.idx : -1, -1);
 	        const position = getRowField(row, ['pos', 'position', '#'], idx >= 0 ? idx + 1 : '—');
 	        const points = getRowField(row, ['pts', 'points', 'PTS'], '—');
 	        const played = getRowField(row, ['pj', 'played', 'PJ'], '—');
@@ -1858,9 +1861,9 @@
       function renderStandings(payload, standingInfo) {
         const tbody = document.getElementById('standings-body');
         if (!tbody) return;
-        const standings = Array.isArray(payload?.standings) ? payload.standings : [];
+        const standings = (payload && Array.isArray(payload.standings)) ? payload.standings : [];
         const limit = Math.max(12, Math.min(standings.length, 18));
-        const key = standingInfo?.key || '';
+        const key = String((standingInfo && standingInfo.key) ? standingInfo.key : '').trim();
         tbody.innerHTML = standings.slice(0, limit).map((row, i) => {
 	          const name = String(getRowField(row, ['team', 'full_name', 'name'], '')).trim() || 'Equipo';
 	          const pos = getRowField(row, ['pos', 'position', '#'], i + 1);
@@ -1880,7 +1883,7 @@
             </tr>
           `;
         }).join('');
-        const meta = payload?.standings_meta || {};
+        const meta = (payload && payload.standings_meta) ? payload.standings_meta : {};
         const provider = String(meta.provider || '').trim();
         const updated = String(meta.last_updated || '').trim();
         const group = String(meta.group || '').trim();
@@ -1894,8 +1897,8 @@
       }
 
       function renderNextMatch(payload, standings) {
-        const match = payload?.next_match;
-        const teamName = String(payload?.team?.name || '').trim();
+        const match = (payload && payload.next_match) ? payload.next_match : null;
+        const teamName = String((payload && payload.team && payload.team.name) ? payload.team.name : '').trim();
         const opponentNode = document.getElementById('next-opponent');
         const roundNode = document.getElementById('next-round');
         const crestNode = document.getElementById('next-opponent-crest');
@@ -1928,7 +1931,7 @@
         if (ctaNode) ctaNode.href = matchUrl || '{% url "match-hub" %}';
 
         const opponentStanding = findStandingRow(standings, opponentName);
-        const opponentPosRaw = getRowField(opponentStanding?.row, ['pos', 'position', '#'], '');
+        const opponentPosRaw = getRowField((opponentStanding && opponentStanding.row) ? opponentStanding.row : null, ['pos', 'position', '#'], '');
         const opponentPos = String(opponentPosRaw || '').trim();
 
         const rows = [];
@@ -1966,7 +1969,7 @@
       }
 
       function renderRecentForm(payload) {
-        const form = payload?.recent_form;
+        const form = (payload && payload.recent_form) ? payload.recent_form : null;
         const badgesEl = document.getElementById('form-badges');
         const svgEl = document.getElementById('form-sparkline');
         if (!badgesEl || !svgEl) return;
@@ -1984,7 +1987,9 @@
           const pts = outcome === 'W' ? 3 : outcome === 'D' ? 1 : 0;
           cum += pts;
           pointsSeries.push(cum);
-          const title = `${row.date_label || ''} · ${row.opponent || ''} · ${row.gf ?? ''}-${row.ga ?? ''}`.trim();
+          const gf = (row && (row.gf === 0 || row.gf)) ? row.gf : '';
+          const ga = (row && (row.ga === 0 || row.ga)) ? row.ga : '';
+          const title = `${row.date_label || ''} · ${row.opponent || ''} · ${gf}-${ga}`.trim();
           return `<span class="badge ${cls}" title="${escapeHtml(title)}">${escapeHtml(outcome || '·')}</span>`;
         }).join('');
         renderSparkline(svgEl, pointsSeries.length ? pointsSeries : [0, 0]);
@@ -1996,7 +2001,7 @@
       }
 
       function renderBriefing(payload) {
-        const brief = payload?.weekly_staff_brief;
+        const brief = (payload && payload.weekly_staff_brief) ? payload.weekly_staff_brief : null;
         const headlineEl = document.getElementById('briefing-headline');
         const alertsEl = document.getElementById('briefing-alerts');
         const prioEl = document.getElementById('briefing-priorities');
@@ -2015,8 +2020,8 @@
       }
 
       function renderTraining(payload) {
-        const next = payload?.next_session;
-        const summary = payload?.training_summary || {};
+        const next = (payload && payload.next_session) ? payload.next_session : null;
+        const summary = (payload && payload.training_summary) ? payload.training_summary : {};
         const wrap = document.getElementById('training-next');
         if (!wrap) return;
         const seasonLabel = String(summary.season_label || '').trim();
@@ -2076,16 +2081,16 @@
       }
 
       function renderAgenda(payload) {
-        const daysRaw = Array.isArray(payload?.weekly_agenda) ? payload.weekly_agenda : [];
+        const daysRaw = (payload && Array.isArray(payload.weekly_agenda)) ? payload.weekly_agenda : [];
         const wrap = document.getElementById('weekly-agenda');
         if (!wrap) return;
-        const days = daysRaw.filter((d) => Array.isArray(d?.items) && d.items.length).slice(0, 4);
+        const days = daysRaw.filter((d) => d && Array.isArray(d.items) && d.items.length).slice(0, 4);
         if (!days.length) {
           wrap.innerHTML = '<div class="agenda-day"><div class="agenda-day-title">Sin agenda</div></div>';
           return;
         }
         wrap.innerHTML = days.map((day) => {
-          const items = Array.isArray(day?.items) ? day.items : [];
+          const items = (day && Array.isArray(day.items)) ? day.items : [];
           const itemsHtml = items.slice(0, 2).map((it) => {
             const kind = String(it.kind || '').trim();
             const icon = kind === 'match' ? 'PM' : 'TR';
@@ -2130,7 +2135,7 @@
       }
 
       function renderAvailability(payload) {
-        const detail = payload?.availability_detail || {};
+        const detail = (payload && payload.availability_detail) ? payload.availability_detail : {};
         const injured = Array.isArray(detail.injured) ? detail.injured : [];
         const sanctioned = Array.isArray(detail.sanctioned) ? detail.sanctioned : [];
         const eleven = Array.isArray(detail.probable_eleven) ? detail.probable_eleven : [];
@@ -2230,8 +2235,8 @@
           setNetBadge({ offline: false, cached: dashLastSource === 'cache' });
 
           renderSetupBanner(payload);
-          const teamName = String(payload?.team?.name || '').trim();
-          const standings = Array.isArray(payload?.standings) ? payload.standings : [];
+          const teamName = String((payload && payload.team && payload.team.name) ? payload.team.name : '').trim();
+          const standings = (payload && Array.isArray(payload.standings)) ? payload.standings : [];
           const standingInfo = findStandingRow(standings, teamName);
           renderHero(payload, standingInfo);
           renderKPIs(standingInfo);
@@ -2245,7 +2250,7 @@
 
           if (loading) loading.hidden = true;
         } catch (err) {
-          const msg = String(err?.message || '').toLowerCase();
+          const msg = String(err && err.message ? err.message : '').toLowerCase();
           const reportedOffline = (typeof navigator !== 'undefined' && navigator && navigator.onLine === false);
           // Si hay HTTP error (500/403/etc) NO es "offline".
           const isHttpError = msg.startsWith('dash_http_');
@@ -2275,9 +2280,9 @@
             loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';
           }
           try {
-            const heroLine = document.getElementById('hero-line');
+              const heroLine = document.getElementById('hero-line');
             if (heroLine) {
-              const short = String(err?.message || 'Error').replace(/\s+/g, ' ').slice(0, 90);
+              const short = String(err && err.message ? err.message : 'Error').replace(/\s+/g, ' ').slice(0, 90);
               heroLine.textContent = `No se pudo cargar · ${short}`;
             }
           } catch (e) {}
@@ -2315,7 +2320,7 @@
                 detail = 'Gateway temporal (Render reiniciando/desplegando). Reintenta en 10–20s.';
               } else if (ctype.includes('application/json')) {
                 const data = await resp.json().catch(() => ({}));
-                detail = String(data?.message || data?.error || '').trim();
+                detail = String((data && (data.message || data.error)) ? (data.message || data.error) : '').trim();
               } else if (ctype.includes('text/html')) {
                 detail = 'El servidor devolvió HTML (gateway/proxy). Reintenta y revisa logs si persiste.';
               } else {
@@ -2325,13 +2330,13 @@
               throw new Error(`dash_http_${resp.status}${cleaned ? `: ${cleaned}` : ''}`);
             }
             const data = await resp.json().catch(() => ({}));
-            const msg = String(data?.message || '').trim();
-            const updated = String(data?.standings_last_updated || '').trim();
+            const msg = String((data && data.message) ? data.message : '').trim();
+            const updated = String((data && data.standings_last_updated) ? data.standings_last_updated : '').trim();
             const label = [msg, updated ? `(${updated.replace('T', ' ').slice(0, 19)})` : ''].filter(Boolean).join(' ');
             setOpBadge({ show: true, ok: true, text: label || 'Actualizado.' });
           } catch (err) {
             console.warn(err);
-            setOpBadge({ show: true, ok: false, text: `Error: ${String(err?.message || err || 'fallo').slice(0, 140)}` });
+            setOpBadge({ show: true, ok: false, text: `Error: ${String(err && err.message ? err.message : (err || 'fallo')).slice(0, 140)}` });
           }
           await renderDashboard({ fresh: true });
           btn.disabled = false;
