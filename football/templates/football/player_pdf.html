@@ -214,6 +214,21 @@
         font-size: 9.6px;
       }
       .muted { color: {{ pdf_palette.muted|default:"#51606f" }}; }
+
+      .charts-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
+      .charts-cell { display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; }
+      .charts-cell:last-child { padding-right: 0; }
+      .chart-card { border: 1px solid #d5dde7; border-radius: 14px; background: #ffffff; padding: 10px; break-inside: avoid; page-break-inside: avoid; }
+      .chart-title { font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 900; color: {{ pdf_palette.muted|default:"#51606f" }}; }
+      .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
+      .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
+      .spark-wrap { height: 70px; position: relative; }
+      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 10px; transform: translateX(-50%); }
+      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
+      .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
+      .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
+      .spark-label { margin-top: 4px; font-size: 9px; color: {{ pdf_palette.muted|default:"#51606f" }}; }
+      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(2,6,23,0.88); }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
@@ -539,6 +554,63 @@
       </div>
       <div class="pad">
         <div class="section-title">Partidos</div>
+        {% if matchday_minutes_chart or matchday_ga_chart %}
+          <div class="charts-row">
+            <div class="charts-cell">
+              <div class="chart-card">
+                <div class="chart-title">Minutos por jornada</div>
+                {% if matchday_minutes_chart %}
+                  <table class="spark-table">
+                    <tr>
+                      {% for item in matchday_minutes_chart %}
+                        <td>
+                          <div class="spark-wrap">
+                            <div class="spark-stack">
+                              <div class="spark-bar goal" style="height: {{ item.bar_px }}px;"></div>
+                            </div>
+                          </div>
+                          <div class="spark-label">{{ item.label }}</div>
+                          <div class="spark-value">{{ item.minutes }}'</div>
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  </table>
+                {% else %}
+                  <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
+                {% endif %}
+              </div>
+            </div>
+            <div class="charts-cell">
+              <div class="chart-card">
+                <div class="chart-title">Goles + asistencias por jornada</div>
+                {% if matchday_ga_chart %}
+                  <table class="spark-table">
+                    <tr>
+                      {% for item in matchday_ga_chart %}
+                        <td>
+                          <div class="spark-wrap">
+                            <div class="spark-stack">
+                              {% if item.goals_px %}
+                                <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
+                              {% endif %}
+                              {% if item.assists_px %}
+                                <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
+                              {% endif %}
+                            </div>
+                          </div>
+                          <div class="spark-label">{{ item.label }}</div>
+                          <div class="spark-value">{{ item.goals }}⚽ {{ item.assists }}🎯</div>
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  </table>
+                {% else %}
+                  <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
 	        <table class="table">
 	          <thead>
 	            <tr>

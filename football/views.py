@@ -56707,6 +56707,7 @@ def player_pdf(request, player_id):
         )
 
         manual_by_match_id = {}
+        minutes_mode_match_ids = set()
         try:
             manual_rows = (
                 PlayerStatistic.objects
@@ -56726,6 +56727,20 @@ def player_pdf(request, player_id):
                 manual_by_match_id.setdefault(int(mid), {})[name] = _parse_int(row.get('value'))
         except Exception:
             manual_by_match_id = {}
+        try:
+            minutes_mode_match_ids = set(
+                PlayerStatistic.objects
+                .filter(
+                    player__team=primary_team,
+                    match_id__in=[int(m.id) for m in calendar_matches if getattr(m, 'id', None)],
+                    context='manual-match',
+                    name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
+                )
+                .values_list('match_id', flat=True)
+                .distinct()
+            )
+        except Exception:
+            minutes_mode_match_ids = set()
 
         by_id = {}
         for entry in raw_matches:
@@ -56768,6 +56783,8 @@ def player_pdf(request, player_id):
                 'away_score': m.away_score,
                 'result': str(getattr(m, 'result', '') or '').strip(),
                 'played': bool(base_played),
+                # Minutos por defecto: si el partido está en "modo ficha", Auto => 0' (no jugó).
+                'minutes': 0 if int(mid) in minutes_mode_match_ids else None,
                 'goals': 0,
                 'assists': 0,
                 'actions': 0,
@@ -56779,6 +56796,8 @@ def player_pdf(request, player_id):
                 # Conserva valores del dashboard (si existen).
                 for k in (
                     'played',
+                    'minutes',
+                    'minutes_auto',
                     'goals',
                     'assists',
                     'actions',
@@ -56800,7 +56819,16 @@ def player_pdf(request, player_id):
                 minutes_val = _parse_int(manual.get('manual_minutes'))
                 goals_val = _parse_int(manual.get('manual_goals'))
                 assists_val = _parse_int(manual.get('manual_assists'))
-                if minutes_val is not None and minutes_val > 0:
+                if int(mid) in minutes_mode_match_ids:
+                    if minutes_val is None:
+                        base['minutes'] = 0
+                        base['minutes_auto'] = True
+                    else:
+                        base['minutes'] = max(0, min(int(minutes_val), 240))
+                        base['minutes_auto'] = False
+                    if int(base.get('minutes') or 0) > 0:
+                        base['played'] = True
+                elif minutes_val is not None and minutes_val > 0:
                     base['played'] = True
                     base['minutes'] = int(minutes_val)
                 if goals_val is not None and goals_val >= 0:
@@ -56872,6 +56900,59 @@ def player_pdf(request, player_id):
     if upcoming_matches:
         future = [m for m in upcoming_matches if m.get('date_obj') and m.get('date_obj') >= today]
         next_scheduled_match = future[0] if future else upcoming_matches[0]
+
+    # Gráficas por jornadas (minutos y G/A).
+    matchday_minutes_chart = []
+    matchday_ga_chart = []
+    try:
+        regulation = _parse_int(detail.get('match_regulation_minutes')) if isinstance(detail, dict) else None
+        regulation = int(regulation) if regulation else 90
+        chart_max_px = 64
+
+        def _chart_sort_key(item):
+            return (
+                extract_round_number(item.get('round')) is None,
+                extract_round_number(item.get('round')) or 9999,
+                item.get('date_obj') is None,
+                item.get('date_obj') or date.min,
+            )
+
+        chart_matches = sorted([m for m in played_matches if isinstance(m, dict)], key=_chart_sort_key)
+        # Evitar PDFs con cientos de barras: nos quedamos con las últimas 20 jornadas.
+        if len(chart_matches) > 20:
+            chart_matches = chart_matches[-20:]
+
+        max_minutes = max((int(m.get('minutes') or 0) for m in chart_matches), default=0)
+        minutes_scale = max(1, int(max(regulation, max_minutes)))
+        max_ga = max((int(m.get('goals') or 0) + int(m.get('assists') or 0) for m in chart_matches), default=0)
+        ga_scale = max(1, int(max_ga))
+
+        for m in chart_matches:
+            minutes_val = max(0, int(m.get('minutes') or 0))
+            goals_val = max(0, int(m.get('goals') or 0))
+            assists_val = max(0, int(m.get('assists') or 0))
+            label = str(m.get('round') or '').strip() or '—'
+            matchday_minutes_chart.append(
+                {
+                    'label': label,
+                    'minutes': minutes_val,
+                    'bar_px': int(round((minutes_val / minutes_scale) * chart_max_px)) if minutes_scale else 0,
+                }
+            )
+            total_ga = goals_val + assists_val
+            matchday_ga_chart.append(
+                {
+                    'label': label,
+                    'goals': goals_val,
+                    'assists': assists_val,
+                    'total': total_ga,
+                    'goals_px': int(round((goals_val / ga_scale) * chart_max_px)) if ga_scale else 0,
+                    'assists_px': int(round((assists_val / ga_scale) * chart_max_px)) if ga_scale else 0,
+                }
+            )
+    except Exception:
+        matchday_minutes_chart = []
+        matchday_ga_chart = []
 
     def _clamp_pct(value):
         try:
@@ -57159,6 +57240,8 @@ def player_pdf(request, player_id):
             'upcoming_matches': upcoming_matches,
             'latest_played_match': latest_played_match,
             'next_scheduled_match': next_scheduled_match,
+            'matchday_minutes_chart': matchday_minutes_chart,
+            'matchday_ga_chart': matchday_ga_chart,
             'player_photo_src': player_photo_src,
             'player_photo_is_real': bool(player_photo_is_real),
             'player_initials': player_initials or '??',
@@ -60698,12 +60781,17 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             ).values('player_id', 'match_id', 'name', 'value')
         )
         manual_by_player_match = {}
+        # "Modo ficha de partido": si un partido tiene ALGÚN override manual (min/g/a) guardado,
+        # interpretamos que la ficha de partido está siendo usada y que "Auto" (sin fila)
+        # significa que el jugador NO jugó.
+        minutes_mode_match_ids = set()
         for row in manual_match_rows:
             pid = _parse_int(row.get('player_id'))
             mid = _canonical_match_id(_parse_int(row.get('match_id')))
             name = str(row.get('name') or '').strip()
             if not pid or not mid or not name:
                 continue
+            minutes_mode_match_ids.add(int(mid))
             manual_by_player_match.setdefault(int(pid), {}).setdefault(int(mid), {})[name] = row.get('value')
 
         for pid, match_map in manual_by_player_match.items():
@@ -60760,6 +60848,61 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     )
             except Exception:
                 pass
+
+        # En "modo ficha de minutos", la fuente de verdad de minutos/PJ es la ficha:
+        # - Si el jugador está en Auto (sin manual_minutes) => minutos 0 y NO jugó.
+        # - Recalculamos PJ/minutos desde la tabla por partido para evitar 100% participación erróneo.
+        if minutes_mode_match_ids:
+            for pid, stats in player_stats.items():
+                if not stats or stats.get('totals_locked'):
+                    continue
+                matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
+                if not matches_dict:
+                    continue
+                player_manual_map = manual_by_player_match.get(int(pid), {}) if isinstance(manual_by_player_match, dict) else {}
+                # Fuerza minutos/played para partidos en minutes_mode.
+                for mid, entry in matches_dict.items():
+                    if not isinstance(entry, dict):
+                        continue
+                    try:
+                        mid_int = int(mid)
+                    except Exception:
+                        continue
+                    if mid_int not in minutes_mode_match_ids:
+                        continue
+                    values = player_manual_map.get(mid_int, {}) if isinstance(player_manual_map, dict) else {}
+                    manual_minutes_raw = values.get('manual_minutes') if isinstance(values, dict) else None
+                    if manual_minutes_raw is None:
+                        entry['minutes'] = 0
+                        entry['minutes_auto'] = True
+                    else:
+                        parsed_minutes = _parse_int(manual_minutes_raw)
+                        parsed_minutes = 0 if parsed_minutes is None else int(parsed_minutes)
+                        entry['minutes'] = max(0, min(int(parsed_minutes), 240))
+                        entry['minutes_auto'] = False
+                    goals_val = _parse_int(entry.get('goals')) or 0
+                    assists_val = _parse_int(entry.get('assists')) or 0
+                    entry['played'] = bool(int(entry.get('minutes') or 0) > 0 or goals_val > 0 or assists_val > 0)
+
+                # Recalcular minutos + PJ usando la tabla por partido (con minutes_mode aplicado).
+                try:
+                    played_entries = [
+                        m
+                        for m in matches_dict.values()
+                        if isinstance(m, dict) and m.get('played')
+                    ]
+                    stats['pj'] = int(len(played_entries))
+                    stats['minutes'] = int(
+                        sum(max(0, _parse_int(m.get('minutes')) or 0) for m in played_entries)
+                    )
+                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
+                    # PT: si no tenemos dato fiable, al menos que no supere PJ.
+                    try:
+                        stats['pt'] = min(int(stats.get('pt', 0) or 0), int(stats.get('pj', 0) or 0))
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
     except Exception:
         pass
 
