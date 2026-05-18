@@ -13091,6 +13091,14 @@ def club_season_wizard(request):
                 if not start_date:
                     raise ValueError('Fecha de inicio obligatoria.')
 
+                reconvert_team = str(request.POST.get('reconvert_team') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+                team_name_new = _sanitize_task_text((request.POST.get('team_name_new') or '').strip(), multiline=False, max_len=150)
+                team_category_new = _sanitize_task_text((request.POST.get('team_category_new') or '').strip(), multiline=False, max_len=24)
+                team_game_format_new = str(request.POST.get('team_game_format_new') or '').strip().lower()
+                if team_game_format_new and team_game_format_new not in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11}:
+                    team_game_format_new = ''
+                reset_competition_context = str(request.POST.get('reset_competition_context') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
+
                 # Cierra cualquier temporada "activa" residual (robustez).
                 WorkspaceSeason.objects.filter(workspace=workspace, is_active=True).update(is_active=False)
 
@@ -13102,6 +13110,68 @@ def club_season_wizard(request):
                 )
                 workspace.active_season = new_season
                 workspace.save(update_fields=['active_season', 'updated_at'])
+
+                # Reconversión del equipo activo (sin crear Team nuevo): subir de categoría, renombrar, etc.
+                # Nota: afecta a cómo se muestra el equipo en navegación; el histórico del club se mantiene por WorkspaceSeason.
+                try:
+                    if reconvert_team and active_team:
+                        update_fields = []
+                        if team_name_new and team_name_new != str(getattr(active_team, 'name', '') or '').strip():
+                            active_team.name = team_name_new
+                            active_team.short_name = team_name_new[:60]
+                            update_fields.extend(['name', 'short_name'])
+                        if team_category_new and team_category_new != str(getattr(active_team, 'category', '') or '').strip():
+                            active_team.category = team_category_new
+                            update_fields.append('category')
+                        if team_game_format_new and team_game_format_new != str(getattr(active_team, 'game_format', '') or '').strip():
+                            active_team.game_format = team_game_format_new
+                            update_fields.append('game_format')
+                        if update_fields:
+                            active_team.save(update_fields=sorted(set(update_fields)))
+
+                        # Si el equipo cambia de categoría/competición, conviene resetear claves externas para reconfigurar.
+                        if reset_competition_context:
+                            try:
+                                context = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=active_team).first()
+                            except Exception:
+                                context = None
+                            if context:
+                                context.group = None
+                                context.season = None
+                                context.external_competition_key = ''
+                                context.external_group_key = ''
+                                context.external_team_key = ''
+                                if team_name_new:
+                                    context.external_team_name = team_name_new
+                                context.external_source_url = ''
+                                context.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
+                                context.sync_error = ''
+                                context.save(update_fields=[
+                                    'group',
+                                    'season',
+                                    'external_competition_key',
+                                    'external_group_key',
+                                    'external_team_key',
+                                    'external_team_name',
+                                    'external_source_url',
+                                    'sync_status',
+                                    'sync_error',
+                                    'updated_at',
+                                ])
+                        else:
+                            # Mantener claves, pero si renombramos, al menos ajustar el nombre externo para búsquedas.
+                            if team_name_new:
+                                try:
+                                    context = WorkspaceCompetitionContext.objects.filter(workspace=workspace, team=active_team).first()
+                                except Exception:
+                                    context = None
+                                if context and str(getattr(context, 'external_team_name', '') or '').strip() != team_name_new:
+                                    context.external_team_name = team_name_new
+                                    context.sync_status = WorkspaceCompetitionContext.STATUS_PENDING
+                                    context.sync_error = ''
+                                    context.save(update_fields=['external_team_name', 'sync_status', 'sync_error', 'updated_at'])
+                except Exception:
+                    pass
 
                 # Hereda plantilla como pendiente de confirmar (solo jugadores del equipo seleccionado).
                 # Requisito producto: solo del equipo que se está gestionando (equipo activo).
@@ -57122,6 +57192,12 @@ def match_editor_page(request, match_id):
         .select_related('player')
         .order_by('minute', 'id')
     )
+    action_catalog = load_match_actions()
+    result_options = load_match_results()
+    try:
+        zone_options = [z.get('label') for z in (FIELD_ZONES or []) if isinstance(z, dict) and z.get('label')]
+    except Exception:
+        zone_options = []
     return render(
         request,
         'football/match_editor.html',
@@ -57134,6 +57210,9 @@ def match_editor_page(request, match_id):
             'score_against': score_against if score_against is not None else '',
             'players': players,
             'events': events,
+            'action_catalog': action_catalog,
+            'result_options': result_options,
+            'zone_options': zone_options,
             'available_videos': available_videos,
             'video_links': video_links,
             'message': message,

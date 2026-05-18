@@ -267,6 +267,41 @@
             </div>
 
             <div class="alert" style="margin-top:0.9rem;">
+              <strong>Subida de categoría (opcional):</strong> si el mismo equipo “sube” (ej. Prebenjamín → Benjamín) puedes
+              <em>renombrar</em> y ajustar categoría/formato sin crear un equipo nuevo.
+            </div>
+            <div class="grid" style="margin-top:0.75rem;">
+              <div style="grid-column: 1 / -1;">
+                <label style="text-transform:none;letter-spacing:0;font-size:0.9rem;color:rgba(226,232,240,0.86);">
+                  <input type="checkbox" name="reconvert_team" value="1" />
+                  Reconverter el equipo activo al iniciar la nueva temporada
+                </label>
+              </div>
+              <div>
+                <label for="id_team_name_new">Nuevo nombre (opcional)</label>
+                <input id="id_team_name_new" type="text" name="team_name_new" placeholder="Benagalbón Benjamín" />
+              </div>
+              <div>
+                <label for="id_team_category_new">Nueva categoría (opcional)</label>
+                <input id="id_team_category_new" type="text" name="team_category_new" placeholder="Benjamín" />
+              </div>
+              <div>
+                <label for="id_team_game_format_new">Formato de juego</label>
+                <select id="id_team_game_format_new" name="team_game_format_new">
+                  <option value="">(sin cambios)</option>
+                  <option value="f7">Fútbol 7</option>
+                  <option value="f11">Fútbol 11</option>
+                </select>
+              </div>
+              <div>
+                <label style="text-transform:none;letter-spacing:0;font-size:0.9rem;color:rgba(226,232,240,0.86);">
+                  <input type="checkbox" name="reset_competition_context" value="1" />
+                  Resetear datos de competición (group/team id) para reconfigurar la nueva categoría
+                </label>
+              </div>
+            </div>
+
+            <div class="alert" style="margin-top:0.9rem;">
               <strong>Fases (opcionales):</strong> si no rellenas fechas, puedes configurarlas más tarde.
             </div>
             <div class="grid" style="margin-top:0.75rem;">
