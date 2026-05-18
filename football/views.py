@@ -60901,12 +60901,47 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             if not stats or stats.get('totals_locked'):
                 continue
             matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
-            if not matches_dict:
-                continue
+            if matches_dict is None:
+                stats['matches'] = {}
+                matches_dict = stats['matches']
             for mid, values in (match_map or {}).items():
                 entry = matches_dict.get(int(mid))
                 if not isinstance(entry, dict):
-                    continue
+                    match_obj = canonical_match_obj_by_id.get(int(mid)) if canonical_match_obj_by_id else None
+                    conv_seed = convocation_seed_by_match_id.get(int(mid)) if convocation_seed_by_match_id else None
+                    conv_round = str(getattr(conv_seed, 'round', '') or '').strip() if conv_seed else ''
+                    conv_date = getattr(conv_seed, 'match_date', None) if conv_seed else None
+                    conv_opponent = str(getattr(conv_seed, 'opponent_name', '') or '').strip() if conv_seed else ''
+                    opponent_from_match = ''
+                    try:
+                        if match_obj and match_obj.home_team_id == primary_team.id and match_obj.away_team:
+                            opponent_from_match = match_obj.away_team.display_name or match_obj.away_team.name or ''
+                        elif match_obj and match_obj.away_team_id == primary_team.id and match_obj.home_team:
+                            opponent_from_match = match_obj.home_team.display_name or match_obj.home_team.name or ''
+                    except Exception:
+                        opponent_from_match = ''
+                    entry = {
+                        'match_id': int(mid),
+                        'round': (match_obj.round if match_obj else '') or conv_round or 'Partido sin jornada',
+                        'date': (
+                            match_obj.date.isoformat()
+                            if match_obj and match_obj.date
+                            else (conv_date.isoformat() if conv_date else None)
+                        ),
+                        'home': bool(match_obj and match_obj.home_team_id == primary_team.id),
+                        'opponent': (opponent_from_match or conv_opponent or 'Rival desconocido'),
+                        'home_score': (match_obj.home_score if match_obj else None),
+                        'away_score': (match_obj.away_score if match_obj else None),
+                        'result': ((match_obj.result or '').strip() if match_obj else ''),
+                        'played': False,
+                        'minutes': 0,
+                        'goals': 0,
+                        'assists': 0,
+                        'actions': 0,
+                        'successes': 0,
+                        'success_rate': 0,
+                    }
+                    matches_dict[int(mid)] = entry
 
                 # Minutos (override -> ajusta total por delta)
                 if 'manual_minutes' in values and values.get('manual_minutes') is not None:
@@ -60933,6 +60968,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     if assists_val is not None:
                         entry['assists'] = max(0, int(assists_val))
                         entry['played'] = True if (entry.get('played') or int(entry.get('minutes', 0) or 0) > 0 or int(assists_val) > 0) else entry.get('played')
+
+                # Si hay override manual del partido, el jugador tiene una fila por partido aunque no haya acciones.
+                if entry.get('played'):
+                    stats['has_events'] = True
 
             # Recalcular totales de goles/asistencias desde la tabla por partido.
             try:
