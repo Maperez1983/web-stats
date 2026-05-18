@@ -539,60 +539,63 @@
       </div>
       <div class="pad">
         <div class="section-title">Partidos</div>
-        <table class="table">
-          <thead>
-            <tr>
-              <th style="width: 90px;">Jornada</th>
-              <th>Rival</th>
-              <th style="width: 90px;">Fecha</th>
-              <th style="width: 90px;">Resultado</th>
-              <th style="width: 52px;">G</th>
-              <th style="width: 52px;">A</th>
-              <th style="width: 80px;">% Éxito</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% if latest_played_match %}
-              <tr class="group-row"><td colspan="7">Último partido</td></tr>
-              <tr>
-                <td>{{ latest_played_match.round }}</td>
-                <td>{{ latest_played_match.opponent }}</td>
-                <td class="muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                <td>
-                  {% if latest_played_match.home_score != None and latest_played_match.away_score != None %}
-                    {% if latest_played_match.home %}{{ latest_played_match.home_score }}{% else %}{{ latest_played_match.away_score }}{% endif %}-{% if latest_played_match.home %}{{ latest_played_match.away_score }}{% else %}{{ latest_played_match.home_score }}{% endif %}
-                  {% elif latest_played_match.result %}
-                    {{ latest_played_match.result }}
-                  {% else %}—{% endif %}
-                </td>
-                <td>{{ latest_played_match.goals|default:0 }}</td>
-                <td>{{ latest_played_match.assists|default:0 }}</td>
-                <td>{{ latest_played_match.success_rate|default:0 }}%</td>
-              </tr>
-            {% endif %}
+	        <table class="table">
+	          <thead>
+	            <tr>
+	              <th style="width: 90px;">Jornada</th>
+	              <th>Rival</th>
+	              <th style="width: 90px;">Fecha</th>
+	              <th style="width: 90px;">Resultado</th>
+	              <th style="width: 68px;">🕒</th>
+	              <th style="width: 52px;">⚽</th>
+	              <th style="width: 52px;">🎯</th>
+	              <th style="width: 80px;">% Éxito</th>
+	            </tr>
+	          </thead>
+	          <tbody>
+	            {% if latest_played_match %}
+	              <tr class="group-row"><td colspan="8">Último partido</td></tr>
+	              <tr>
+	                <td>{{ latest_played_match.round }}</td>
+	                <td>{{ latest_played_match.opponent }}</td>
+	                <td class="muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                <td>
+	                  {% if latest_played_match.home_score != None and latest_played_match.away_score != None %}
+	                    {% if latest_played_match.home %}{{ latest_played_match.home_score }}{% else %}{{ latest_played_match.away_score }}{% endif %}-{% if latest_played_match.home %}{{ latest_played_match.away_score }}{% else %}{{ latest_played_match.home_score }}{% endif %}
+	                  {% elif latest_played_match.result %}
+	                    {{ latest_played_match.result }}
+	                  {% else %}—{% endif %}
+	                </td>
+	                <td>{% if latest_played_match.minutes != None %}{{ latest_played_match.minutes }}'{% else %}—{% endif %}</td>
+	                <td>{{ latest_played_match.goals|default:0 }}</td>
+	                <td>{{ latest_played_match.assists|default:0 }}</td>
+	                <td>{{ latest_played_match.success_rate|default:0 }}%</td>
+	              </tr>
+	            {% endif %}
 
-            {% if played_matches|length > 1 %}
-              <tr class="group-row"><td colspan="7">Partidos anteriores</td></tr>
-              {% for match in played_matches|slice:"1:12" %}
-                <tr>
-                  <td>{{ match.round }}</td>
-                  <td>{{ match.opponent }}</td>
-                  <td class="muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                  <td>
-                    {% if match.home_score != None and match.away_score != None %}
-                      {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
-                    {% elif match.result %}
-                      {{ match.result }}
-                    {% else %}—{% endif %}
-                  </td>
-                  <td>{{ match.goals|default:0 }}</td>
-                  <td>{{ match.assists|default:0 }}</td>
-                  <td>{{ match.success_rate|default:0 }}%</td>
-                </tr>
-              {% endfor %}
-            {% endif %}
-          </tbody>
-        </table>
+	            {% if played_matches|length > 1 %}
+	              <tr class="group-row"><td colspan="8">Partidos anteriores</td></tr>
+	              {% for match in played_matches|slice:"1:12" %}
+	                <tr>
+	                  <td>{{ match.round }}</td>
+	                  <td>{{ match.opponent }}</td>
+	                  <td class="muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                  <td>
+	                    {% if match.home_score != None and match.away_score != None %}
+	                      {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
+	                    {% elif match.result %}
+	                      {{ match.result }}
+	                    {% else %}—{% endif %}
+	                  </td>
+	                  <td>{% if match.minutes != None %}{{ match.minutes }}'{% else %}—{% endif %}</td>
+	                  <td>{{ match.goals|default:0 }}</td>
+	                  <td>{{ match.assists|default:0 }}</td>
+	                  <td>{{ match.success_rate|default:0 }}%</td>
+	                </tr>
+	              {% endfor %}
+	            {% endif %}
+	          </tbody>
+	        </table>
 
         <div class="foot">
           <div class="brandline">

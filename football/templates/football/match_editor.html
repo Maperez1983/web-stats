@@ -203,13 +203,69 @@
         {% else %}
           <p style="margin:0.8rem 0 0;color:#94a3b8;font-weight:700;">No hay vídeos vinculados a este partido.</p>
         {% endif %}
-      </section>
+	      </section>
 
-      <section class="panel">
-        <h2 style="margin:0 0 0.6rem;">Edición manual · acciones</h2>
-        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; margin-bottom:0.85rem;">
-          <div style="color:#94a3b8; font-weight:750; max-width: 780px;">
-            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
+	      <section class="panel">
+	        <h2 style="margin:0 0 0.35rem;">Minutos / goles / asistencias (manual)</h2>
+	        <p style="margin:0 0 0.85rem;color:#94a3b8;font-weight:750;max-width: 920px;">
+	          Para categorías con <strong>cambios ilimitados</strong>, este selector fija los minutos jugados por partido (y opcionalmente goles/asistencias)
+	          aunque no se registren acciones. Se usa en informes y % de participación.
+	        </p>
+	        <form method="post">
+	          {% csrf_token %}
+	          <input type="hidden" name="form_action" value="manual_player_stats_save" />
+	          <div style="overflow:auto;">
+	            <table>
+	              <thead>
+	                <tr>
+	                  <th style="width: 300px;">Jugador</th>
+	                  <th style="width: 140px;">Minutos</th>
+	                  <th style="width: 110px;">Goles</th>
+	                  <th style="width: 110px;">Asist</th>
+	                </tr>
+	              </thead>
+	              <tbody>
+	                {% for row in manual_player_stats_rows %}
+	                  {% with p=row.player %}
+	                  <tr>
+	                    <td>
+	                      <strong>#{{ p.number|default:"--" }} · {{ p.name }}</strong>
+	                      <small>{{ p.position|default:"" }}</small>
+	                    </td>
+	                    <td>
+	                      <select name="minutes_{{ p.id }}">
+	                        <option value="" {% if row.minutes == None %}selected{% endif %}>Auto</option>
+	                        {% for m in minute_options %}
+	                          <option value="{{ m }}" {% if row.minutes != None and row.minutes == m %}selected{% endif %}>{{ m }}'</option>
+	                        {% endfor %}
+	                      </select>
+	                    </td>
+	                    <td>
+	                      <input type="number" min="0" max="20" name="goals_{{ p.id }}" value="{% if row.goals != None %}{{ row.goals }}{% endif %}" placeholder="—" />
+	                    </td>
+	                    <td>
+	                      <input type="number" min="0" max="20" name="assists_{{ p.id }}" value="{% if row.assists != None %}{{ row.assists }}{% endif %}" placeholder="—" />
+	                    </td>
+	                  </tr>
+	                  {% endwith %}
+	                {% endfor %}
+	              </tbody>
+	            </table>
+	          </div>
+	          <div style="display:flex;justify-content:flex-end;margin-top:0.75rem;">
+	            <button class="btn primary" type="submit">Guardar</button>
+	          </div>
+	          <p style="margin:0.65rem 0 0;color:#94a3b8;font-weight:700;">
+	            Consejo: si solo quieres forzar minutos, deja goles/asistencias en blanco.
+	          </p>
+	        </form>
+	      </section>
+
+	      <section class="panel">
+	        <h2 style="margin:0 0 0.6rem;">Edición manual · acciones</h2>
+	        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; margin-bottom:0.85rem;">
+	          <div style="color:#94a3b8; font-weight:750; max-width: 780px;">
+	            Para recuperar partidos: usa <strong>Volumen</strong> (ej: “MARTÍNEZ · Pérdida no forzada · Mal · ×6”).
             Si algo se guardó mal, usa <strong>Borrar todo</strong> (con confirmación).
           </div>
           <form method="post" style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">

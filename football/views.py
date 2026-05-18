@@ -56567,6 +56567,143 @@ def player_pdf(request, player_id):
     today = timezone.localdate()
     raw_matches = list(detail.get('matches') or []) if isinstance(detail, dict) else []
 
+    # Importante: para el informe de fin de temporada queremos mostrar TODOS los partidos del equipo
+    # en el periodo (aunque no haya acciones registradas). El dashboard por jugador solo incluye partidos
+    # con actividad o marcados como "played". Aquí completamos con el calendario del equipo.
+    try:
+        calendar_qs = Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        try:
+            season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
+            if season_obj:
+                calendar_qs = calendar_qs.filter(season=season_obj)
+        except Exception:
+            pass
+        if tournament_filter:
+            calendar_qs = calendar_qs.filter(tournament_name=str(tournament_filter or '').strip())
+        if date_start:
+            calendar_qs = calendar_qs.filter(date__gte=date_start)
+        if date_end:
+            calendar_qs = calendar_qs.filter(date__lte=date_end)
+        calendar_matches = list(
+            calendar_qs.select_related('home_team', 'away_team').order_by('-date', '-id')[:80]
+        )
+
+        manual_by_match_id = {}
+        try:
+            manual_rows = (
+                PlayerStatistic.objects
+                .filter(
+                    player=player,
+                    match_id__in=[int(m.id) for m in calendar_matches if getattr(m, 'id', None)],
+                    context='manual-match',
+                    name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
+                )
+                .values('match_id', 'name', 'value')
+            )
+            for row in manual_rows:
+                mid = _parse_int(row.get('match_id'))
+                name = str(row.get('name') or '').strip()
+                if not mid or not name:
+                    continue
+                manual_by_match_id.setdefault(int(mid), {})[name] = _parse_int(row.get('value'))
+        except Exception:
+            manual_by_match_id = {}
+
+        by_id = {}
+        for entry in raw_matches:
+            if not isinstance(entry, dict):
+                continue
+            mid = _parse_int(entry.get('match_id'))
+            if mid:
+                by_id[int(mid)] = entry
+
+        merged = []
+        seen = set()
+        for m in calendar_matches:
+            try:
+                mid = int(m.id)
+            except Exception:
+                continue
+            seen.add(mid)
+            is_home = bool(getattr(m, 'home_team_id', None) == primary_team.id)
+            opponent_name = ''
+            try:
+                opponent_team = m.away_team if is_home else m.home_team
+                opponent_name = str(getattr(opponent_team, 'name', '') or '').strip()
+            except Exception:
+                opponent_name = ''
+            if not opponent_name:
+                opponent_name = 'Rival'
+
+            base_played = bool(
+                (m.home_score is not None and m.away_score is not None)
+                or str(getattr(m, 'result', '') or '').strip()
+                or (getattr(m, 'date', None) and getattr(m, 'date', None) <= today)
+            )
+            base = {
+                'match_id': mid,
+                'round': str(getattr(m, 'round', '') or '').strip(),
+                'date': m.date.isoformat() if getattr(m, 'date', None) else None,
+                'home': is_home,
+                'opponent': opponent_name,
+                'home_score': m.home_score,
+                'away_score': m.away_score,
+                'result': str(getattr(m, 'result', '') or '').strip(),
+                'played': bool(base_played),
+                'goals': 0,
+                'assists': 0,
+                'actions': 0,
+                'successes': 0,
+                'success_rate': 0,
+            }
+            existing = by_id.get(mid)
+            if isinstance(existing, dict):
+                # Conserva valores del dashboard (si existen).
+                for k in (
+                    'played',
+                    'goals',
+                    'assists',
+                    'actions',
+                    'successes',
+                    'success_rate',
+                    'home_score',
+                    'away_score',
+                    'result',
+                ):
+                    if existing.get(k) is not None and existing.get(k) != '':
+                        base[k] = existing.get(k)
+                for k in ('round', 'date', 'opponent', 'home'):
+                    if not base.get(k) and existing.get(k) is not None and existing.get(k) != '':
+                        base[k] = existing.get(k)
+
+            # Stats manuales por partido (minutos/goles/asistencias) cuando no hay acciones registradas.
+            manual = manual_by_match_id.get(int(mid), {}) if isinstance(manual_by_match_id, dict) else {}
+            if isinstance(manual, dict) and manual:
+                minutes_val = _parse_int(manual.get('manual_minutes'))
+                goals_val = _parse_int(manual.get('manual_goals'))
+                assists_val = _parse_int(manual.get('manual_assists'))
+                if minutes_val is not None and minutes_val > 0:
+                    base['played'] = True
+                    base['minutes'] = int(minutes_val)
+                if goals_val is not None and goals_val >= 0:
+                    base['goals'] = int(goals_val)
+                if assists_val is not None and assists_val >= 0:
+                    base['assists'] = int(assists_val)
+            merged.append(base)
+
+        # Si el dashboard trae partidos que no están en el calendario (pizarras/tests), no los perdemos.
+        for entry in raw_matches:
+            if not isinstance(entry, dict):
+                continue
+            mid = _parse_int(entry.get('match_id'))
+            if mid and int(mid) in seen:
+                continue
+            merged.append(entry)
+
+        raw_matches = merged
+    except Exception:
+        pass
+
     def _parse_iso_date(value):
         if not value:
             return None
@@ -57149,6 +57286,74 @@ def match_editor_page(request, match_id):
     if request.method == 'POST':
         form_action = str(request.POST.get('form_action') or '').strip()
         try:
+            if form_action == 'manual_player_stats_save':
+                # Guardado rápido por jugador (minutos/goles/asistencias) para partidos con cambios ilimitados.
+                season = getattr(match, 'season', None)
+                if not season:
+                    raise ValueError('Partido sin temporada asociada.')
+
+                stat_names = ('manual_minutes', 'manual_goals', 'manual_assists')
+
+                def _maybe_int(raw):
+                    parsed = _parse_int(raw)
+                    if parsed is None:
+                        return None
+                    return max(0, int(parsed))
+
+                updates = []
+                deletes = []
+                for player in players:
+                    pid = int(player.id)
+                    minutes_val = _maybe_int(request.POST.get(f'minutes_{pid}'))
+                    goals_val = _maybe_int(request.POST.get(f'goals_{pid}'))
+                    assists_val = _maybe_int(request.POST.get(f'assists_{pid}'))
+                    values = {
+                        'manual_minutes': minutes_val,
+                        'manual_goals': goals_val,
+                        'manual_assists': assists_val,
+                    }
+                    for stat_name, stat_value in values.items():
+                        qs = PlayerStatistic.objects.filter(
+                            player=player,
+                            season=season,
+                            match=match,
+                            name=stat_name,
+                            context='manual-match',
+                        )
+                        existing = qs.order_by('-id').first()
+                        if stat_value is None:
+                            if existing:
+                                deletes.append(existing.id)
+                            continue
+                        if existing:
+                            if float(existing.value or 0) != float(stat_value):
+                                existing.value = float(stat_value)
+                                updates.append(existing)
+                        else:
+                            updates.append(
+                                PlayerStatistic(
+                                    player=player,
+                                    season=season,
+                                    match=match,
+                                    name=stat_name,
+                                    context='manual-match',
+                                    value=float(stat_value),
+                                    source=None,
+                                )
+                            )
+
+                with transaction.atomic():
+                    if deletes:
+                        PlayerStatistic.objects.filter(id__in=list(dict.fromkeys(deletes))).delete()
+                    to_create = [obj for obj in updates if getattr(obj, 'id', None) is None]
+                    to_update = [obj for obj in updates if getattr(obj, 'id', None)]
+                    if to_create:
+                        PlayerStatistic.objects.bulk_create(to_create, batch_size=250)
+                    if to_update:
+                        PlayerStatistic.objects.bulk_update(to_update, fields=['value'], batch_size=250)
+                _invalidate_team_dashboard_caches(primary_team)
+                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
+
             if form_action == 'video_link_save':
                 video_id = _parse_int(request.POST.get('video_id'))
                 if not video_id:
@@ -57444,6 +57649,42 @@ def match_editor_page(request, match_id):
         zone_options = [z.get('label') for z in (FIELD_ZONES or []) if isinstance(z, dict) and z.get('label')]
     except Exception:
         zone_options = []
+
+    manual_player_stats = {}
+    try:
+        manual_rows = (
+            PlayerStatistic.objects
+            .filter(
+                player__team=primary_team,
+                match=match,
+                context='manual-match',
+                name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
+            )
+            .values('player_id', 'name', 'value')
+        )
+        for row in manual_rows:
+            pid = _parse_int(row.get('player_id'))
+            name = str(row.get('name') or '').strip()
+            if not pid or not name:
+                continue
+            manual_player_stats.setdefault(int(pid), {})[name] = _parse_int(row.get('value'))
+    except Exception:
+        manual_player_stats = {}
+
+    manual_player_stats_rows = []
+    try:
+        for p in players:
+            row = manual_player_stats.get(int(p.id), {}) if isinstance(manual_player_stats, dict) else {}
+            manual_player_stats_rows.append(
+                {
+                    'player': p,
+                    'minutes': _parse_int((row or {}).get('manual_minutes')),
+                    'goals': _parse_int((row or {}).get('manual_goals')),
+                    'assists': _parse_int((row or {}).get('manual_assists')),
+                }
+            )
+    except Exception:
+        manual_player_stats_rows = [{'player': p, 'minutes': None, 'goals': None, 'assists': None} for p in players]
     return render(
         request,
         'football/match_editor.html',
@@ -57461,6 +57702,8 @@ def match_editor_page(request, match_id):
             'zone_options': zone_options,
             'available_videos': available_videos,
             'video_links': video_links,
+            'manual_player_stats_rows': manual_player_stats_rows,
+            'minute_options': list(range(0, 121, 5)),
             'message': message,
             'error': error,
         },
@@ -59845,17 +60088,23 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             {
                 'match_id': int(match_key),
                 'round': (match_obj.round if match_obj else '') or conv_round or 'Partido sin jornada',
-                'date': (match_obj.date.isoformat() if match_obj and match_obj.date else (conv_date.isoformat() if conv_date else None)),
+                'date': (
+                    match_obj.date.isoformat()
+                    if match_obj and match_obj.date
+                    else (conv_date.isoformat() if conv_date else None)
+                ),
                 'home': bool(match_obj and match_obj.home_team_id == primary_team.id),
                 'opponent': (opponent_from_match or conv_opponent or 'Rival desconocido'),
                 'home_score': (match_obj.home_score if match_obj else None),
                 'away_score': (match_obj.away_score if match_obj else None),
                 'result': ((match_obj.result or '').strip() if match_obj else ''),
                 'played': False,
+                'minutes': 0,
                 'goals': 0,
                 'assists': 0,
                 'actions': 0,
                 'successes': 0,
+                'success_rate': 0,
             },
         )
         match_entry['played'] = True
@@ -60044,7 +60293,13 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                         match_stats_entry['played'] = True
                 except Exception:
                     pass
-                stats['minutes'] += max(0, exit_minute - entry_minute)
+                computed_minutes = max(0, exit_minute - entry_minute)
+                stats['minutes'] += computed_minutes
+                try:
+                    if match_stats_entry is not None:
+                        match_stats_entry['minutes'] = int(computed_minutes)
+                except Exception:
+                    pass
                 stats['pj'] += 1 if played_match else 0
                 if is_starter:
                     stats['pt'] += 1
@@ -60228,6 +60483,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 'away_score': None,
                 'result': '',
                 'played': True,
+                'minutes': 0,
                 'goals': 0,
                 'assists': 0,
                 'actions': 0,
@@ -60238,7 +60494,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
 
     lineup_matches = {
         match.id: match
-        for match in Match.objects.filter(id__in=list(lineup_by_match.keys())).select_related('home_team', 'away_team')
+        for match in Match.objects.filter(id__in=list(lineup_by_match.keys()))
+        .select_related('home_team', 'away_team')
     }
     for match_id, lineup_seed in lineup_by_match.items():
         starters = {
@@ -60270,7 +60527,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             if stats.get('totals_locked'):
                 processed_lineup_matches[player_id].add(match_id)
                 continue
-            if match:
+            if match and isinstance(stats.get('matches'), dict):
                 stats['matches'].setdefault(
                     match_id,
                     {
@@ -60289,6 +60546,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                         'away_score': match.away_score,
                         'result': (match.result or '').strip(),
                         'played': False,
+                        'minutes': 0,
                         'goals': 0,
                         'assists': 0,
                         'actions': 0,
@@ -60301,14 +60559,91 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     match_entry = stats['matches'].get(match_id) if isinstance(stats.get('matches'), dict) else None
                     if match_entry is not None:
                         match_entry['played'] = True
+                        match_entry['minutes'] = int(match_end or 0)
                 except Exception:
                     pass
                 stats['pt'] += 1
                 stats['pj'] += 1
-                stats['minutes'] += match_end
+                stats['minutes'] += int(match_end or 0)
                 stats['pc'] = max(stats.get('pc', 0), stats['pj'])
                 stats['has_events'] = True
             processed_lineup_matches[player_id].add(match_id)
+
+    # Overrides manuales por partido (minutos/goles/asistencias). Importante en cantera/cambios ilimitados.
+    try:
+        manual_match_rows = (
+            PlayerStatistic.objects.filter(
+                player__team=primary_team,
+                match__isnull=False,
+                context='manual-match',
+                name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
+            ).values('player_id', 'match_id', 'name', 'value')
+        )
+        manual_by_player_match = {}
+        for row in manual_match_rows:
+            pid = _parse_int(row.get('player_id'))
+            mid = _canonical_match_id(_parse_int(row.get('match_id')))
+            name = str(row.get('name') or '').strip()
+            if not pid or not mid or not name:
+                continue
+            manual_by_player_match.setdefault(int(pid), {}).setdefault(int(mid), {})[name] = row.get('value')
+
+        for pid, match_map in manual_by_player_match.items():
+            stats = player_stats.get(int(pid))
+            if not stats or stats.get('totals_locked'):
+                continue
+            matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
+            if not matches_dict:
+                continue
+            for mid, values in (match_map or {}).items():
+                entry = matches_dict.get(int(mid))
+                if not isinstance(entry, dict):
+                    continue
+
+                # Minutos (override -> ajusta total por delta)
+                if 'manual_minutes' in values and values.get('manual_minutes') is not None:
+                    new_minutes = _parse_int(values.get('manual_minutes'))
+                    if new_minutes is not None:
+                        new_minutes = max(0, min(int(new_minutes), 240))
+                        prev_minutes = _parse_int(entry.get('minutes')) or 0
+                        entry['minutes'] = int(new_minutes)
+                        try:
+                            stats['minutes'] = int(stats.get('minutes', 0) or 0) + (int(new_minutes) - int(prev_minutes))
+                        except Exception:
+                            pass
+                        if int(new_minutes) > 0:
+                            entry['played'] = True
+
+                if 'manual_goals' in values and values.get('manual_goals') is not None:
+                    goals_val = _parse_int(values.get('manual_goals'))
+                    if goals_val is not None:
+                        entry['goals'] = max(0, int(goals_val))
+                        entry['played'] = True if (entry.get('played') or int(entry.get('minutes', 0) or 0) > 0 or int(goals_val) > 0) else entry.get('played')
+
+                if 'manual_assists' in values and values.get('manual_assists') is not None:
+                    assists_val = _parse_int(values.get('manual_assists'))
+                    if assists_val is not None:
+                        entry['assists'] = max(0, int(assists_val))
+                        entry['played'] = True if (entry.get('played') or int(entry.get('minutes', 0) or 0) > 0 or int(assists_val) > 0) else entry.get('played')
+
+            # Recalcular totales de goles/asistencias desde la tabla por partido.
+            try:
+                if not stats.get('goals_locked'):
+                    stats['goals'] = sum(
+                        max(0, _parse_int(m.get('goals')) or 0)
+                        for m in matches_dict.values()
+                        if isinstance(m, dict) and m.get('played')
+                    )
+                if not stats.get('assists_locked'):
+                    stats['assists'] = sum(
+                        max(0, _parse_int(m.get('assists')) or 0)
+                        for m in matches_dict.values()
+                        if isinstance(m, dict) and m.get('played')
+                    )
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     result = []
     today = timezone.localdate()
