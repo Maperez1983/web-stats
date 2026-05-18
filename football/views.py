@@ -18034,9 +18034,31 @@ def player_dashboard_page(request):
         tournament_name=tournament_filter,
         request=request,
     )
+    # Rendimiento: el dropdown de partidos no debe arrastrar el coste completo de `_team_match_queryset()`
+    # (que añade IDs por eventos/convocatorias/stats y puede disparar queries). Aquí usamos el filtro directo
+    # home/away del equipo, suficiente para navegación. Si faltase un partido concreto, se puede abrir por URL.
     match_qs = (
-        _team_match_queryset(primary_team)
+        Match.objects
+        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
         .select_related('home_team', 'away_team')
+        .only(
+            'id',
+            'date',
+            'round',
+            'context',
+            'tournament_name',
+            'home_team_id',
+            'away_team_id',
+            'home_score',
+            'away_score',
+            'result',
+            'home_team__id',
+            'home_team__name',
+            'home_team__short_name',
+            'away_team__id',
+            'away_team__name',
+            'away_team__short_name',
+        )
         .order_by('-date', '-id')
     )
     if scope != 'all':
@@ -18047,7 +18069,12 @@ def player_dashboard_page(request):
             match_qs = match_qs.filter(context=scope)
     if scope == Match.CONTEXT_TOURNAMENT and tournament_filter:
         match_qs = match_qs.filter(tournament_name=tournament_filter)
-    team_matches = list(match_qs)
+    try:
+        match_options_limit = int(os.getenv('PLAYER_DASHBOARD_MATCH_OPTIONS_LIMIT', '140') or 140)
+    except Exception:
+        match_options_limit = 140
+    match_options_limit = max(30, min(match_options_limit, 400))
+    team_matches = list(match_qs[:match_options_limit])
     match_options = []
     for match in team_matches:
         opponent = (
@@ -30135,6 +30162,10 @@ def coach_matches_page(request):
     context_filter = str(request.GET.get('context') or '').strip().lower()
     dup_only = str(request.GET.get('dup') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
     registered_only = str(request.GET.get('reg') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+    sort_key = str(request.GET.get('sort') or '').strip().lower()
+    sort_dir = str(request.GET.get('dir') or '').strip().lower()
+    if sort_dir not in {'asc', 'desc'}:
+        sort_dir = 'desc'
 
     qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
     if season:
@@ -30240,6 +30271,70 @@ def coach_matches_page(request):
     if registered_only:
         rows = [r for r in rows if r.get('is_registered')]
 
+    # Ordenación por columnas (controlada desde UI por query params).
+    try:
+        reverse = sort_dir == 'desc'
+
+        def _k_id(r):
+            return int(r.get('id') or 0)
+
+        def _k_date(r):
+            d = r.get('date')
+            return (d is None, d or date.min, _k_id(r))
+
+        def _k_round(r):
+            raw_round = str(r.get('round') or '').strip()
+            num = extract_round_number(raw_round)
+            return (num is None, num or 9999, raw_round.lower(), _k_id(r))
+
+        def _k_text(v):
+            try:
+                return normalize_label(str(v or ''))
+            except Exception:
+                return str(v or '').strip().lower()
+
+        def _k_context(r):
+            return (_k_text(r.get('context')), _k_id(r))
+
+        def _k_score(r):
+            return (_k_text(r.get('score')), _k_id(r))
+
+        def _k_int(field):
+            return lambda r: (int(r.get(field) or 0), _k_id(r))
+
+        def _k_status(r):
+            # Duplicados primero, luego registrados.
+            return (1 if r.get('is_duplicate') else 0, 1 if r.get('is_registered') else 0, _k_id(r))
+
+        key_map = {
+            'id': _k_id,
+            'date': _k_date,
+            'fecha': _k_date,
+            'opponent': lambda r: (_k_text(r.get('opponent')), _k_id(r)),
+            'rival': lambda r: (_k_text(r.get('opponent')), _k_id(r)),
+            'round': _k_round,
+            'jornada': _k_round,
+            'context': _k_context,
+            'contexto': _k_context,
+            'score': _k_score,
+            'marcador': _k_score,
+            'acc': _k_int('actions'),
+            'acciones': _k_int('actions'),
+            'stats': _k_int('manual_stats'),
+            'video': _k_int('videos'),
+            'vídeo': _k_int('videos'),
+            'status': _k_status,
+            'estado': _k_status,
+        }
+
+        if sort_key in key_map:
+            rows.sort(key=key_map[sort_key], reverse=reverse)
+        else:
+            # Default parecido al QS: fecha desc y después id desc.
+            rows.sort(key=_k_date, reverse=True)
+    except Exception:
+        pass
+
     context_options = [
         {'key': '', 'label': 'Todos'},
         {'key': Match.CONTEXT_LEAGUE, 'label': 'Liga'},
@@ -30258,6 +30353,8 @@ def coach_matches_page(request):
             'registered_only': registered_only,
             'context_filter': context_filter,
             'context_options': context_options,
+            'sort_key': sort_key,
+            'sort_dir': sort_dir,
         },
     )
 
