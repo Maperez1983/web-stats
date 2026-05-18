@@ -60,6 +60,13 @@
               {% endfor %}
             </select>
           </div>
+          <div style="min-width: 220px;">
+            <label>Registro</label>
+            <select name="reg">
+              <option value="" {% if not registered_only %}selected{% endif %}>Mostrar todo</option>
+              <option value="1" {% if registered_only %}selected{% endif %}>Solo registrados (acciones/stats/vídeo)</option>
+            </select>
+          </div>
           <div style="min-width: 190px;">
             <label>Duplicados</label>
             <select name="dup">
@@ -85,6 +92,9 @@
                 <th style="width: 120px;">Jornada</th>
                 <th style="width: 110px;">Contexto</th>
                 <th style="width: 110px;">Marcador</th>
+                <th style="width: 90px;">Acc</th>
+                <th style="width: 90px;">Stats</th>
+                <th style="width: 90px;">Vídeo</th>
                 <th style="width: 110px;">Estado</th>
                 <th style="width: 220px;"></th>
               </tr>
@@ -101,9 +111,14 @@
                 <td>{{ r.round|default:"-" }}</td>
                 <td>{{ r.context|default:"league" }}</td>
                 <td>{{ r.score|default:"" }}</td>
+                <td><span class="chip">{{ r.actions|default:0 }}</span></td>
+                <td><span class="chip">{{ r.manual_stats|default:0 }}</span></td>
+                <td><span class="chip">{{ r.videos|default:0 }}</span></td>
                 <td>
                   {% if r.is_duplicate %}
                     <span class="chip dup">Duplicado ×{{ r.dup_count }}</span>
+                  {% elif r.is_registered %}
+                    <span class="chip">Registrado</span>
                   {% else %}
                     <span class="chip">OK</span>
                   {% endif %}
@@ -117,13 +132,13 @@
                       <input type="hidden" name="form_action" value="delete" />
                       <input type="hidden" name="match_id" value="{{ r.id }}" />
                       <input name="confirm" placeholder="BORRAR" style="width:110px;padding:0.45rem 0.6rem;border-radius:12px;" />
-                      <button class="btn danger" type="submit" onclick="return confirm('¿Eliminar partido #{{ r.id }}? Se borrarán también sus acciones.');">Eliminar</button>
+                      <button class="btn danger" type="submit" title="Eliminar partido" onclick="return confirm('¿Eliminar partido #{{ r.id }}? Se borrarán también sus acciones y stats asociados.');">🗑️</button>
                     </form>
                   </div>
                 </td>
               </tr>
               {% empty %}
-              <tr><td colspan="8" style="color:#94a3b8;">No hay partidos con estos filtros.</td></tr>
+              <tr><td colspan="11" style="color:#94a3b8;">No hay partidos con estos filtros.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -132,4 +147,3 @@
     </main>
   </body>
 </html>
-

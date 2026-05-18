@@ -30033,10 +30033,54 @@ def coach_matches_page(request):
             match = _team_match_queryset(primary_team).filter(id=int(match_id)).first()
             if not match:
                 raise Http404('Partido no encontrado')
-            match.delete()
+            # Borrado profundo: elimina también stats manuales / comunicaciones / convocatorias vinculadas
+            # para que no queden restos en KPIs o pantallas.
+            deleted_summary = {
+                'events': 0,
+                'player_stats': 0,
+                'convocations': 0,
+                'rival_convocations': 0,
+                'communications': 0,
+            }
+            try:
+                with transaction.atomic():
+                    try:
+                        deleted_summary['events'] = int(MatchEvent.objects.filter(match=match).count() or 0)
+                    except Exception:
+                        deleted_summary['events'] = 0
+                    try:
+                        ps_qs = PlayerStatistic.objects.filter(match=match)
+                        deleted_summary['player_stats'] = int(ps_qs.count() or 0)
+                        ps_qs.delete()
+                    except Exception:
+                        deleted_summary['player_stats'] = 0
+                    try:
+                        conv_qs = ConvocationRecord.objects.filter(team=primary_team, match=match)
+                        deleted_summary['convocations'] = int(conv_qs.count() or 0)
+                        conv_qs.delete()
+                    except Exception:
+                        deleted_summary['convocations'] = 0
+                    try:
+                        rival_conv_qs = RivalConvocationRecord.objects.filter(team=primary_team, match=match)
+                        deleted_summary['rival_convocations'] = int(rival_conv_qs.count() or 0)
+                        rival_conv_qs.delete()
+                    except Exception:
+                        deleted_summary['rival_convocations'] = 0
+                    try:
+                        comm_qs = PlayerCommunication.objects.filter(match=match, player__team=primary_team)
+                        deleted_summary['communications'] = int(comm_qs.count() or 0)
+                        comm_qs.delete()
+                    except Exception:
+                        deleted_summary['communications'] = 0
+                    match.delete()
+            except Exception:
+                match.delete()
             _invalidate_team_dashboard_caches(primary_team)
             try:
-                messages.success(request, f'Partido #{match_id} eliminado.')
+                messages.success(
+                    request,
+                    f"Partido #{match_id} eliminado (acciones: {deleted_summary['events']}, stats: {deleted_summary['player_stats']}).",
+                )
             except Exception:
                 pass
             return redirect(reverse('coach-matches'))
@@ -30044,6 +30088,7 @@ def coach_matches_page(request):
     q = str(request.GET.get('q') or '').strip()
     context_filter = str(request.GET.get('context') or '').strip().lower()
     dup_only = str(request.GET.get('dup') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+    registered_only = str(request.GET.get('reg') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
 
     qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
     if season:
@@ -30061,6 +30106,56 @@ def coach_matches_page(request):
         )
 
     raw = list(qs[:260])
+    raw_ids = [int(m.id) for m in raw if getattr(m, 'id', None)]
+    action_counts = {}
+    manual_stat_counts = {}
+    video_counts = {}
+    try:
+        if raw_ids:
+            action_counts = {
+                int(row['match_id']): int(row['c'] or 0)
+                for row in (
+                    MatchEvent.objects
+                    .filter(match_id__in=raw_ids, player__team=primary_team)
+                    .values('match_id')
+                    .annotate(c=Count('id'))
+                )
+                if row.get('match_id')
+            }
+    except Exception:
+        action_counts = {}
+    try:
+        if raw_ids:
+            manual_stat_counts = {
+                int(row['match_id']): int(row['c'] or 0)
+                for row in (
+                    PlayerStatistic.objects
+                    .filter(
+                        match_id__in=raw_ids,
+                        player__team=primary_team,
+                        context='manual-match',
+                    )
+                    .values('match_id')
+                    .annotate(c=Count('id'))
+                )
+                if row.get('match_id')
+            }
+    except Exception:
+        manual_stat_counts = {}
+    try:
+        if raw_ids:
+            video_counts = {
+                int(row['match_id']): int(row['c'] or 0)
+                for row in (
+                    MatchVideoLink.objects
+                    .filter(match_id__in=raw_ids, team=primary_team)
+                    .values('match_id')
+                    .annotate(c=Count('id'))
+                )
+                if row.get('match_id')
+            }
+    except Exception:
+        video_counts = {}
     rows = []
     dup_counts = Counter()
     for m in raw:
@@ -30085,13 +30180,19 @@ def coach_matches_page(request):
                     else (str(getattr(m, 'result', '') or '').strip() or '')
                 ),
                 'key': key,
+                'actions': int(action_counts.get(int(m.id), 0) or 0),
+                'manual_stats': int(manual_stat_counts.get(int(m.id), 0) or 0),
+                'videos': int(video_counts.get(int(m.id), 0) or 0),
             }
         )
     for row in rows:
         row['dup_count'] = int(dup_counts.get(row['key'], 0) or 0)
         row['is_duplicate'] = bool(row['dup_count'] > 1)
+        row['is_registered'] = bool(int(row.get('actions') or 0) > 0 or int(row.get('manual_stats') or 0) > 0 or int(row.get('videos') or 0) > 0)
     if dup_only:
         rows = [r for r in rows if r.get('is_duplicate')]
+    if registered_only:
+        rows = [r for r in rows if r.get('is_registered')]
 
     context_options = [
         {'key': '', 'label': 'Todos'},
@@ -30108,6 +30209,7 @@ def coach_matches_page(request):
             'rows': rows,
             'q': q,
             'dup_only': dup_only,
+            'registered_only': registered_only,
             'context_filter': context_filter,
             'context_options': context_options,
         },
