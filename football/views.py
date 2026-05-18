@@ -1510,7 +1510,9 @@ DASHBOARD_CACHE_SECONDS = int(os.getenv('DASHBOARD_CACHE_SECONDS', '600'))
 PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
 # Importante (Render multi-worker): si el backend de cache es local-memoria, los invalidates no se comparten
 # entre workers. Mantener una TTL corta evita que el usuario vea estadísticas “antiguas” tras registrar un partido.
-PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '60'))
+# Aun así, 60s provoca recálculos muy frecuentes (coste alto). Usamos 5 min por defecto y
+# desactivamos caché solo cuando hay acciones live recientes (`touch-field`).
+PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '300'))
 PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
 PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
