@@ -5,11 +5,13 @@
     <meta charset="UTF-8" />
     <title>Segunda Jugada · 2J Club</title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {# Font self-hosted (offline-safe). #}
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&display=swap"
-      rel="stylesheet"
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="{% static 'football/fonts/ibm-plex-sans-latin.woff2' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"
+      crossorigin
     />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
