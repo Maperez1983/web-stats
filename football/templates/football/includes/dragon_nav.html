@@ -145,6 +145,9 @@
   {% if workspace_module_access.tactics|default:True %}
   <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
+  {% if can_access_staff|default:False %}
+  <a href="{% url 'coach-cards' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Coach</a>
+  {% endif %}
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
   {% endif %}
@@ -180,6 +183,10 @@
       {% endif %}
       {% if workspace_module_access.match_actions|default:True %}
       <a href="{% url 'match-action-page' %}{% if active_match_id or active_team %}?{% if active_match_id %}match_id={{ active_match_id }}{% endif %}{% if active_team %}{% if active_match_id %}&{% endif %}team={{ active_team.id }}{% endif %}{% endif %}">Registro de acciones</a>
+      {% if can_access_staff|default:False %}
+      <a href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">🗓️ Partidos (listado)</a>
+      <a href="{% url 'coach-matches' %}?reg=1{% if active_team %}&team={{ active_team.id }}{% endif %}">🗑️ Partidos registrados</a>
+      {% endif %}
       {% endif %}
 	      {% if workspace_module_access.match_actions|default:True %}
 	      <a href="{% url 'match-report-pdf' %}{% if active_match_id %}?match_id={{ active_match_id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}" target="_blank" rel="noreferrer">Ficha final (PDF)</a>
