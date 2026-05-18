@@ -2323,6 +2323,11 @@ class PlayerSeasonReport(models.Model):
     coach_comments = models.TextField(blank=True)
     is_final = models.BooleanField(default=False)
     ring_kpis = models.JSONField(default=list, blank=True, help_text='Listado (max 4) de KPIs en anillos (0-100).')
+    manual_overrides = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Overrides manuales (stats/partidos) para el PDF cuando faltan datos o hay inconsistencias.',
+    )
 
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_player_season_reports')
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_player_season_reports')

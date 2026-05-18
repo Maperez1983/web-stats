@@ -56196,6 +56196,43 @@ def player_season_report_edit_page(request, player_id):
         {'key': 'shot_accuracy', 'label': 'Tiro a puerta (%)'},
     ]
 
+    def _clean_nullable_int(value, *, min_value=None, max_value=None):
+        try:
+            raw = str(value or '').strip()
+        except Exception:
+            raw = ''
+        if not raw:
+            return None
+        try:
+            num = int(float(raw))
+        except Exception:
+            return None
+        if min_value is not None and num < min_value:
+            num = int(min_value)
+        if max_value is not None and num > max_value:
+            num = int(max_value)
+        return num
+
+    def _clean_nullable_float(value, *, min_value=None, max_value=None, ndigits=2):
+        try:
+            raw = str(value or '').strip()
+        except Exception:
+            raw = ''
+        if not raw:
+            return None
+        try:
+            num = float(raw)
+        except Exception:
+            return None
+        if min_value is not None and num < float(min_value):
+            num = float(min_value)
+        if max_value is not None and num > float(max_value):
+            num = float(max_value)
+        try:
+            return round(float(num), int(ndigits))
+        except Exception:
+            return float(num)
+
     if request.method == 'POST':
         payload = request.POST
         if report is None:
@@ -56226,6 +56263,28 @@ def player_season_report_edit_page(request, player_id):
         if len(chosen_ring) > 4:
             chosen_ring = chosen_ring[:4]
         report.ring_kpis = chosen_ring
+
+        # Overrides manuales (stats agregadas). Si se dejan en blanco, se eliminan.
+        manual = report.manual_overrides if isinstance(getattr(report, 'manual_overrides', None), dict) else {}
+        manual = dict(manual or {})
+
+        def _set_or_del(key, value):
+            if value is None:
+                manual.pop(key, None)
+            else:
+                manual[key] = value
+
+        _set_or_del('pj', _clean_nullable_int(payload.get('manual_pj'), min_value=0, max_value=999))
+        _set_or_del('minutes', _clean_nullable_int(payload.get('manual_minutes'), min_value=0, max_value=200_000))
+        _set_or_del('goals', _clean_nullable_int(payload.get('manual_goals'), min_value=0, max_value=999))
+        _set_or_del('assists', _clean_nullable_int(payload.get('manual_assists'), min_value=0, max_value=999))
+
+        _set_or_del('participation_pct', _clean_nullable_float(payload.get('manual_participation_pct'), min_value=0, max_value=100, ndigits=1))
+        _set_or_del('success_rate', _clean_nullable_float(payload.get('manual_success_rate'), min_value=0, max_value=100, ndigits=1))
+        _set_or_del('importance_score', _clean_nullable_float(payload.get('manual_importance_score'), min_value=0, max_value=100, ndigits=1))
+        _set_or_del('influence_score', _clean_nullable_float(payload.get('manual_influence_score'), min_value=0, max_value=100, ndigits=1))
+
+        report.manual_overrides = manual
         report.updated_by = request.user if isinstance(request.user, User) else None
         report.save()
         try:
@@ -56264,6 +56323,7 @@ def player_season_report_edit_page(request, player_id):
             'tournament_filter': tournament_filter,
             'report': report,
             'available_ring_kpis': available_ring_kpis,
+            'manual_overrides': report.manual_overrides if report and isinstance(getattr(report, 'manual_overrides', None), dict) else {},
             'pdf_url': pdf_url,
             'preview_url': preview_url,
             'back_url': back_url,
@@ -56318,6 +56378,11 @@ def player_pdf(request, player_id):
     detail = next((p for p in matches if p.get('player_id') == player_id), None)
     if not detail:
         raise Http404('Sin datos para generar el PDF')
+    # Copia: podremos aplicar overrides manuales sin mutar la caché del dashboard.
+    try:
+        detail = dict(detail)
+    except Exception:
+        pass
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
@@ -56588,6 +56653,29 @@ def player_pdf(request, player_id):
         )
     except Exception:
         staff_report = None
+
+    # Overrides manuales (si existen) para corregir el PDF cuando faltan datos.
+    try:
+        manual = staff_report.manual_overrides if staff_report and isinstance(getattr(staff_report, 'manual_overrides', None), dict) else {}
+    except Exception:
+        manual = {}
+    if isinstance(manual, dict) and manual:
+        mapping = {
+            'pj': 'pj',
+            'minutes': 'minutes',
+            'goals': 'goals',
+            'assists': 'assists',
+            'participation_pct': 'participation_pct',
+            'success_rate': 'success_rate',
+            'importance_score': 'importance_score',
+            'influence_score': 'influence_score',
+        }
+        for src, dest in mapping.items():
+            if src in manual and manual.get(src) is not None:
+                try:
+                    detail[dest] = manual.get(src)
+                except Exception:
+                    pass
 
     def _ring_kpi_value(key: str):
         if not isinstance(detail, dict):
