@@ -28524,6 +28524,7 @@ def coach_cards_page(request):
             'items': [
                 {'label': 'Convocatoria', 'link': 'convocation'},
                 {'label': '11 inicial', 'link': 'initial-eleven'},
+                {'label': 'Partidos (calendario)', 'link': 'coach-matches'},
                 {'label': 'Torneos', 'link': 'coach-tournaments'},
                 {'label': 'Rival (convocatoria)', 'link': 'coach-rival'},
                 {'label': 'Registro de acciones', 'link': 'match-action-page'},
@@ -29992,6 +29993,123 @@ def coach_tournaments_page(request):
             'tournament_filter': tournament_filter,
             'tournament_rows': tournament_rows,
             'selected_matches': selected_matches,
+        },
+    )
+
+
+@login_required
+def coach_matches_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='partidos')
+    if forbidden:
+        return forbidden
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede gestionar partidos.', status=403)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    season = None
+    try:
+        season = primary_team.group.season if primary_team.group else None
+    except Exception:
+        season = None
+
+    if request.method == 'POST':
+        action = str(request.POST.get('form_action') or '').strip()
+        if action == 'delete':
+            match_id = _parse_int(request.POST.get('match_id'))
+            confirm = str(request.POST.get('confirm') or '').strip().upper()
+            if confirm != 'BORRAR':
+                try:
+                    messages.error(request, 'Escribe BORRAR para confirmar.')
+                except Exception:
+                    pass
+                return redirect(reverse('coach-matches'))
+            if not match_id:
+                raise Http404('Partido no válido')
+            match = _team_match_queryset(primary_team).filter(id=int(match_id)).first()
+            if not match:
+                raise Http404('Partido no encontrado')
+            match.delete()
+            _invalidate_team_dashboard_caches(primary_team)
+            try:
+                messages.success(request, f'Partido #{match_id} eliminado.')
+            except Exception:
+                pass
+            return redirect(reverse('coach-matches'))
+
+    q = str(request.GET.get('q') or '').strip()
+    context_filter = str(request.GET.get('context') or '').strip().lower()
+    dup_only = str(request.GET.get('dup') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+
+    qs = _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
+    if season:
+        qs = qs.filter(season=season)
+    if context_filter and context_filter in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+        qs = qs.filter(context=context_filter)
+    if q:
+        qs = qs.filter(
+            Q(round__icontains=q)
+            | Q(location__icontains=q)
+            | Q(home_team__name__icontains=q)
+            | Q(away_team__name__icontains=q)
+            | Q(result__icontains=q)
+            | Q(tournament_name__icontains=q)
+        )
+
+    raw = list(qs[:260])
+    rows = []
+    dup_counts = Counter()
+    for m in raw:
+        is_home = bool(m.home_team_id == primary_team.id)
+        opponent = m.away_team if is_home else m.home_team
+        opponent_name = str(getattr(opponent, 'display_name', '') or getattr(opponent, 'name', '') or '').strip() or 'Rival'
+        key = f"{m.date.isoformat() if m.date else 'no-date'}|{normalize_label(opponent_name)}|{str(m.context or '').strip()}|{normalize_label(str(m.tournament_name or '').strip())}"
+        dup_counts[key] += 1
+        rows.append(
+            {
+                'id': int(m.id),
+                'date': getattr(m, 'date', None),
+                'round': str(getattr(m, 'round', '') or '').strip(),
+                'context': str(getattr(m, 'context', '') or Match.CONTEXT_LEAGUE),
+                'tournament_name': str(getattr(m, 'tournament_name', '') or '').strip(),
+                'tournament_stage': str(getattr(m, 'tournament_stage', '') or '').strip(),
+                'opponent': opponent_name,
+                'is_home': is_home,
+                'score': (
+                    f"{m.home_score}-{m.away_score}"
+                    if (m.home_score is not None and m.away_score is not None)
+                    else (str(getattr(m, 'result', '') or '').strip() or '')
+                ),
+                'key': key,
+            }
+        )
+    for row in rows:
+        row['dup_count'] = int(dup_counts.get(row['key'], 0) or 0)
+        row['is_duplicate'] = bool(row['dup_count'] > 1)
+    if dup_only:
+        rows = [r for r in rows if r.get('is_duplicate')]
+
+    context_options = [
+        {'key': '', 'label': 'Todos'},
+        {'key': Match.CONTEXT_LEAGUE, 'label': 'Liga'},
+        {'key': Match.CONTEXT_TOURNAMENT, 'label': 'Torneo'},
+        {'key': Match.CONTEXT_FRIENDLY, 'label': 'Amistoso'},
+    ]
+    return render(
+        request,
+        'football/coach_matches.html',
+        {
+            'team_name': primary_team.display_name,
+            'season_label': season_display_name(season),
+            'rows': rows,
+            'q': q,
+            'dup_only': dup_only,
+            'context_filter': context_filter,
+            'context_options': context_options,
         },
     )
 
