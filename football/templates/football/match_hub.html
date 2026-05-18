@@ -182,7 +182,10 @@
         background: rgba(7, 16, 30, 0.92);
         box-shadow: 0 40px 120px rgba(0, 0, 0, 0.65);
         padding: 1rem;
+        box-sizing: border-box;
+        max-width: 100%;
       }
+      .modal * { box-sizing: border-box; }
       .modal h3 {
         margin: 0;
         font-size: 0.9rem;
@@ -197,6 +200,7 @@
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.75rem;
+        width: 100%;
       }
       @media (max-width: 680px) {
         .form-grid { grid-template-columns: 1fr; }
@@ -210,6 +214,7 @@
         margin-bottom: 0.3rem;
         font-weight: 800;
       }
+      .field { min-width: 0; }
       .field input,
       .field select {
         width: 100%;
@@ -418,14 +423,21 @@
       <div class="modal" role="dialog" aria-modal="true" aria-label="Crear partido">
         <h3>Nuevo partido</h3>
         <p>Crea un partido de Liga, Torneo o Amistoso y empieza el flujo (convocatoria → 11 → acciones → PDFs).</p>
-        <form method="post" action="{% url 'match-hub-create' %}">
-          {% csrf_token %}
-          <input type="hidden" name="team" value="{{ primary_team_id }}" />
-          <div class="form-grid">
-            <div class="field" style="grid-column:1/-1;">
-              <label for="opponentInput">Rival</label>
-              <input id="opponentInput" name="opponent" required placeholder="Ej. TORREMOYA" />
-            </div>
+	        <form method="post" action="{% url 'match-hub-create' %}">
+	          {% csrf_token %}
+	          <input type="hidden" name="team" value="{{ primary_team_id }}" />
+	          <div class="form-grid">
+	            <div class="field" style="grid-column:1/-1;">
+	              <label for="opponentInput">Rival</label>
+	              <select id="opponentSelect" name="opponent_team_id">
+	                <option value="">Selecciona rival…</option>
+	                {% for opt in opponent_options %}
+	                  <option value="{{ opt.id }}">{{ opt.label }}</option>
+	                {% endfor %}
+	              </select>
+	              <div style="height:0.45rem;"></div>
+	              <input id="opponentInput" name="opponent" required placeholder="Ej. TORREMOYA" />
+	            </div>
             <div class="field">
               <label for="contextSelect">Competición</label>
               <select id="contextSelect" name="context">
@@ -477,36 +489,48 @@
       (function() {
         const btn = document.getElementById('createMatchBtn');
         const modal = document.getElementById('createMatchModal');
-        const cancel = document.getElementById('createMatchCancel');
-        const contextSelect = document.getElementById('contextSelect');
-        const tournamentName = document.getElementById('tournamentName');
-        const tournamentStage = document.getElementById('tournamentStage');
-        if (!btn || !modal || !cancel || !contextSelect) return;
+	        const cancel = document.getElementById('createMatchCancel');
+	        const contextSelect = document.getElementById('contextSelect');
+	        const opponentSelect = document.getElementById('opponentSelect');
+	        const tournamentName = document.getElementById('tournamentName');
+	        const tournamentStage = document.getElementById('tournamentStage');
+	        if (!btn || !modal || !cancel || !contextSelect) return;
         const setTournament = () => {
           const isTournament = (String(contextSelect.value || '').toLowerCase() === 'tournament');
           modal.querySelectorAll('[data-tournament-only]').forEach((el) => {
             el.style.display = isTournament ? 'block' : 'none';
           });
         };
-        const open = () => {
-          setTournament();
-          modal.classList.add('is-open');
-          modal.setAttribute('aria-hidden', 'false');
-          setTimeout(() => {
-            const input = document.getElementById('opponentInput');
-            if (input) input.focus();
-          }, 50);
-        };
+	        const open = () => {
+	          setTournament();
+	          modal.classList.add('is-open');
+	          modal.setAttribute('aria-hidden', 'false');
+	          setTimeout(() => {
+	            const input = document.getElementById('opponentInput');
+	            if (input) input.focus();
+	          }, 50);
+	        };
         const close = () => {
           modal.classList.remove('is-open');
           modal.setAttribute('aria-hidden', 'true');
         };
-        btn.addEventListener('click', open);
-        cancel.addEventListener('click', close);
-        contextSelect.addEventListener('change', setTournament);
-        modal.addEventListener('click', (event) => {
-          if (event.target === modal) close();
-        });
+	        btn.addEventListener('click', open);
+	        cancel.addEventListener('click', close);
+	        contextSelect.addEventListener('change', setTournament);
+	        const syncOpponentFromSelect = () => {
+	          try {
+	            if (!opponentSelect) return;
+	            const value = String(opponentSelect.value || '').trim();
+	            if (!value) return;
+	            const opt = opponentSelect.options[opponentSelect.selectedIndex];
+	            const input = document.getElementById('opponentInput');
+	            if (input && opt) input.value = (opt.textContent || '').trim();
+	          } catch (e) {}
+	        };
+	        if (opponentSelect) opponentSelect.addEventListener('change', syncOpponentFromSelect);
+	        modal.addEventListener('click', (event) => {
+	          if (event.target === modal) close();
+	        });
         document.addEventListener('keydown', (event) => {
           if (event.key === 'Escape') close();
         });

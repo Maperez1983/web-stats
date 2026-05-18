@@ -53,6 +53,7 @@
           </p>
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;">
+          <a class="btn" href="{% url 'coach-matches' %}{% if primary_team_id %}?team={{ primary_team_id }}{% endif %}">← Volver a partidos</a>
           <a class="btn" href="{% url 'match-stats' match_id=match.id %}?team={{ primary_team_id }}">Ver stats</a>
           <a class="btn" href="{% url 'match-action-page' %}?match_id={{ match.id }}&stage=close&team={{ primary_team_id }}">Registro acciones</a>
         </div>

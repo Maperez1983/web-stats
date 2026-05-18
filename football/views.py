@@ -61650,6 +61650,34 @@ def match_hub_page(request):
     can_create_match = bool(_can_edit_match_actions(request.user))
     can_finalize_match = bool(_can_edit_match_actions(request.user))
     hub_message = str(request.GET.get('msg') or '').strip()
+
+    opponent_options = []
+    try:
+        group_id = int(getattr(primary_team, 'group_id', 0) or 0)
+        team_ids = []
+        if group_id:
+            try:
+                team_ids = list(
+                    TeamStanding.objects.filter(group_id=group_id)
+                    .order_by('position')
+                    .values_list('team_id', flat=True)
+                )
+            except Exception:
+                team_ids = []
+        qs = Team.objects.none()
+        if team_ids:
+            qs = Team.objects.filter(id__in=list(dict.fromkeys([int(tid) for tid in team_ids if tid])))
+        elif group_id:
+            qs = Team.objects.filter(group_id=group_id)
+        teams = list(qs.order_by('name', 'id')[:300])
+        teams = [t for t in teams if int(getattr(t, 'id', 0) or 0) and int(t.id) != int(primary_team.id)]
+        for t in teams:
+            label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
+            if not label:
+                label = f'Equipo #{int(t.id)}'
+            opponent_options.append({'id': int(t.id), 'label': label})
+    except Exception:
+        opponent_options = []
     return render(
         request,
         'football/match_hub.html',
@@ -61675,6 +61703,7 @@ def match_hub_page(request):
             'pdf_smoke_detail': pdf_smoke_detail,
             'can_create_match': can_create_match,
             'hub_message': hub_message,
+            'opponent_options': opponent_options,
         },
     )
 
@@ -61748,8 +61777,15 @@ def match_hub_create_match(request):
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse('Equipo no configurado.', status=400)
+    opponent_team_id = _parse_int(request.POST.get('opponent_team_id'))
     opponent_name = str(request.POST.get('opponent') or '').strip()
-    if not opponent_name:
+    rival_team = None
+    if opponent_team_id:
+        try:
+            rival_team = Team.objects.filter(id=int(opponent_team_id)).first()
+        except Exception:
+            rival_team = None
+    if not rival_team and not opponent_name:
         return HttpResponse('El rival es obligatorio.', status=400)
     round_value = str(request.POST.get('round') or '').strip()
     location_value = str(request.POST.get('location') or '').strip()
@@ -61779,7 +61815,8 @@ def match_hub_create_match(request):
         except ValueError:
             match_time = None
 
-    rival_team = Team.objects.filter(name__iexact=opponent_name).first()
+    if not rival_team:
+        rival_team = Team.objects.filter(name__iexact=opponent_name).first()
     if not rival_team:
         rival_team = Team.objects.create(
             slug=_unique_team_slug(opponent_name),
