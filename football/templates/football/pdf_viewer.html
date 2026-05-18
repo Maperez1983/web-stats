@@ -87,6 +87,7 @@
 	        const frame = document.getElementById('pdf-frame');
 	        const errorBox = document.getElementById('pdf-error');
 	        const errorDetail = document.getElementById('pdf-error-detail');
+	        const downloadLink = document.querySelector('a[download][href]');
 	        if (!pdfUrl || !frame || !errorBox || !errorDetail) return;
 
 	        const buildDebugUrl = () => {
@@ -103,8 +104,34 @@
 	          try { errorDetail.textContent = (detail || '').trim(); } catch (e) {}
 	        };
 
+	        const openBlobInFrame = (blob) => {
+	          try {
+	            const blobUrl = URL.createObjectURL(blob);
+	            frame.setAttribute('src', blobUrl);
+	            if (downloadLink) {
+	              try { downloadLink.setAttribute('href', blobUrl); } catch (e) {}
+	            }
+	          } catch (e) {
+	            // ignore
+	          }
+	        };
+
+	        // En iOS/WKWebView el PDF directo en iframe suele fallar. Mejor: descargar bytes y renderizar como blob.
+	        const tryFetchPdfAsBlob = async () => {
+	          try {
+	            const resp = await fetch(pdfUrl, { method: 'GET', credentials: 'same-origin' });
+	            const ct = (resp.headers.get('content-type') || '').toLowerCase();
+	            if (!resp.ok || !ct.includes('application/pdf')) return false;
+	            const blob = await resp.blob();
+	            if (!blob) return false;
+	            openBlobInFrame(blob);
+	            return true;
+	          } catch (e) {
+	            return false;
+	          }
+	        };
+
 	        // Validación ligera: si el endpoint no devuelve PDF, mostramos diagnóstico inline.
-	        // (En iOS webviews el iframe no muestra errores y queda “en blanco”.)
 	        const checkPdf = async () => {
 	          let headOk = false;
 	          try {
@@ -128,7 +155,14 @@
 	        };
 
 	        // Espera breve para permitir que el PDF se genere en back (Render/Weasy).
-	        window.setTimeout(() => { try { checkPdf(); } catch (e) {} }, 900);
+	        window.setTimeout(() => {
+	          (async () => {
+	            try {
+	              const ok = await tryFetchPdfAsBlob();
+	              if (!ok) await checkPdf();
+	            } catch (e) {}
+	          })();
+	        }, 650);
 	      })();
 	    </script>
 	  </body>
