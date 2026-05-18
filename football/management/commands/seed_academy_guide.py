@@ -2309,6 +2309,111 @@ def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
     ]
 
 
+def _mk_game_encyclopedia_weakside_and_in_game_coaching() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: lado débil (preparación/ataque) + coaching en partido (ajustes rápidos).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Ataque · Preparar el lado débil (antes del cambio)",
+            summary="El cambio de orientación funciona si el lado débil está ‘listo’: altura, amplitud y timing.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["ataque", "lado_debil", "cambio_orientacion", "ocupacion"],
+            objective="Atacar el lado débil con ventaja (tiempo/espacio), no solo ‘pasar al otro lado’.",
+            rules=[
+                "Antes del cambio: fija 2–3 pases en lado fuerte (atrae).",
+                "Lado débil: 1 ancho (línea) + 1 interior + 1 profundidad (no todos a la misma altura).",
+                "Cambio tenso y a tiempo: si llega tarde, el rival bascula y ya no hay ventaja.",
+            ],
+            roles=[
+                "Lado fuerte: atraer y asegurar (no perder).",
+                "Lado débil: amplitud lista + interior perfilado + amenaza de espalda.",
+                "Seguridad: 1–2 por detrás por si se pierde en el cambio.",
+            ],
+            checklist=["¿El lado débil está colocado?", "¿He fijado antes?", "¿El cambio llega con tensión y a tiempo?"],
+            errors=[
+                "Cambiar sin fijar → “FIJA Y LUEGO CAMBIA”.",
+                "Lado débil ‘apagado’ (todos por dentro) → “UNO ABIERTO SIEMPRE”.",
+                "Cambio flojo → “TENSO”.",
+            ],
+            scene_hint="Escena: ataque por derecha, 3 pases para atraer y cambio rápido a izquierda. Marca altura del extremo y llegada del interior al área.",
+            measure=["Cambios de orientación con progresión (suben).", "Pérdidas en el pase de cambio (bajan)."],
+        ),
+        _mk_guide(
+            title="Ataque · Overload-to-isolate (sobrecargar para aislar 1v1)",
+            summary="Saturar el lado fuerte para ‘liberar’ al extremo del lado débil en 1v1 con espacio.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["ataque", "lado_fuerte", "lado_debil", "1v1", "decision"],
+            objective="Crear un 1v1 de calidad (con espacio) y una llegada al área coordinada.",
+            rules=[
+                "Sobrecarga: 3–4 jugadores cerca para atraer (sin perder estructura).",
+                "Aislamiento: extremo lado débil alto y abierto (no viene al balón).",
+                "Tras el cambio: 1 conduce para fijar y 2 atacan área (primer palo + penalti/raso atrás).",
+            ],
+            triggers=["Si el rival bascula demasiado al balón → cambio inmediato.", "Si el lateral rival queda 1v1 → ataca."],
+            checklist=["¿Extremo aislado y con espacio?", "¿Llegadas al área preparadas?", "¿Quién asegura la pérdida?"],
+            errors=["Extremo se mete dentro y pierde espacio → “ABRE PARA ATACAR”.", "Cambio y nadie llega → “PRIMERO LLEGA”.",],
+            scene_hint="Escena: sobrecarga 4v3 en derecha, cambio a extremo izquierdo aislado, conducción y centro raso atrás con 2 llegadas + rechazo.",
+            measure=["1v1 generados en lado débil.", "Centros útiles/ocasiones tras aislamiento."],
+        ),
+        _mk_guide(
+            title="Defensa · Vigilar el lado débil (no ‘morir’ en el cambio)",
+            summary="Regla práctica: el lado débil no defiende con la mirada; defiende con posición y comunicación.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["defensa", "lado_debil", "vigilancia", "basculacion"],
+            objective="Evitar cambios de orientación con ventaja y centros con tiempo.",
+            rules=[
+                "En lado débil: 1 vigila (altura media) y 1 protege espalda (más bajo).",
+                "Si el balón está ‘sin presión’, no subimos línea: temporizamos.",
+                "Comunicación: ‘solo’, ‘gira’, ‘cambio’ (3 palabras).",
+            ],
+            checklist=["¿El rival está ‘solo’ en lado débil?", "¿Hay presión al balón?", "¿Estoy a distancia de correr hacia mi portería?"],
+            errors=["Todos mirando el balón → “UNO VIGILA”.", "Línea sube sin presión → “TEMPORIZA”.",],
+            scene_hint="Escena: rival cambia de banda. Marca al vigilante del lado débil y al lateral que protege la espalda, ajustando altura.",
+            measure=["Cambios del rival que acaban en centro (bajan).", "Centros concedidos con tiempo (bajan)."],
+        ),
+        _mk_guide(
+            title="Coaching en partido · Ajustes rápidos (3 palancas)",
+            summary="Guía de banquillo para ajustar sin ‘romper’ al equipo: altura, orientación y roles.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["coaching", "partido", "ajustes", "plan"],
+            objective="Corregir un problema recurrente en 60–90 segundos sin saturar al jugador.",
+            rules=[
+                "Altura: sube/baja 5–10m (bloque).",
+                "Orientación: forzar a banda o proteger dentro (decisión).",
+                "Roles: cambia 1 rol (quién fija/quién llega/quién asegura).",
+            ],
+            triggers=["Te superan por dentro → protege interior y orienta fuera.", "Te ganan espalda → baja 5–10m o aumenta presión al balón.", "No generas ocasiones → prepara lado débil y llegadas."],
+            checklist=["¿Cuál es el problema 1 (no 3)?", "¿Qué cambio mínimo lo toca?", "¿Quién lo ejecuta?"],
+            errors=["Cambiar 5 cosas → “UNA PALANCA”.", "Mensaje largo → “1 FRASE + 1 CUE”.",],
+            scene_hint="Escena: pizarra de banquillo con 3 palancas (altura/orientación/roles) y 1 ajuste aplicado.",
+            measure=["Acciones del ajuste (ej.: presiones orientadas) suben.", "Concesiones del problema (ej.: pases interiores) bajan."],
+        ),
+        _mk_guide(
+            title="Coaching en partido · Descanso: 3 mensajes (qué, cómo, por qué)",
+            summary="Plantilla de 90 segundos para el descanso: concreto, accionable y medible.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["coaching", "descanso", "comunicacion"],
+            objective="Salir del descanso con 1–2 ideas claras y un plan observable (no motivación vacía).",
+            rules=[
+                "1) Qué pasa (hecho): 1 frase.",
+                "2) Cómo lo arreglamos (acción): 1 regla + 1 trigger.",
+                "3) Por qué (beneficio): 1 frase corta.",
+            ],
+            checklist=["¿He dicho 1 cosa clave?", "¿Está claro el trigger?", "¿Podemos medirlo en 5 minutos?"],
+            errors=["Hablar de todo → “SOLO 1–2 IDEAS”.", "Sin acción → “REGLA + TRIGGER”.",],
+            scene_hint="Escena: descanso con pizarra simple: problema (hecho) + regla + trigger + beneficio.",
+            measure=["Acciones objetivo en los primeros 5’ (suben).", "Errores repetidos (bajan)."],
+        ),
+    ]
+
+
 def _mk_category_curriculum() -> list[SeedLesson]:
     """
     Currículo completo por categoría (Baby→Senior).
