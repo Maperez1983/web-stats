@@ -35,14 +35,176 @@ def _seed_lesson_has_visual_step(item: SeedLesson) -> bool:
     return False
 
 
-def _seed_lesson_with_default_visual_step(item: SeedLesson) -> SeedLesson:
+def _mk_visual_templates() -> list[dict]:
     """
-    Asegura que todas las lecciones seed tengan un ejemplo visual (pizarra 2D).
-    No toca las que ya incluyen replay2d.
+    Plantillas de escenas 2D (texto) reutilizables. Se asignan por tags/título.
+    Nota: esto NO genera una pizarra automáticamente; da un guion para montarla rápido.
     """
-    if _seed_lesson_has_visual_step(item):
-        return item
+    return [
+        {
+            "key": "third_man",
+            "match_any": {"tercer_hombre", "3er_hombre", "salida_presion", "progresion"},
+            "title": "3er hombre (progresión estable)",
+            "hint": (
+                "Escena tipo (3 pasos):\n"
+                "1) Central → pivote (recibe de espaldas) · marca perfil.\n"
+                "2) Pivote devuelve de cara al central (1 toque).\n"
+                "3) Central filtra al interior (3er hombre) que rompe entre líneas.\n\n"
+                "Detalles: distancia apoyo (5–8m), pase tenso, 3er hombre orientado a jugar hacia delante.\n"
+                "Variante: si el pivote está tapado → pared con lateral y 3er hombre por fuera."
+            ),
+        },
+        {
+            "key": "press_orient",
+            "match_any": {"presion", "orientar", "cierre_interior", "bloque_alto"},
+            "title": "Presión orientada (cuerpo + sombra)",
+            "hint": (
+                "Escena tipo (banda): receptor en banda con apoyo interior.\n"
+                "- 1º defensor entra en DIAGONAL y tapa el pase interior con el cuerpo.\n"
+                "- 2º defensor cierra la línea interior (cobertura) a distancia útil.\n"
+                "- 3º defensor vigila espalda/cambio.\n\n"
+                "Variante A: control largo → robo. Variante B: control bueno → temporiza y bloque acompaña."
+            ),
+        },
+        {
+            "key": "basculacion",
+            "match_any": {"basculacion", "compacto", "lado_debil", "cambio_orientacion"},
+            "title": "Basculación + vigilancia lado débil",
+            "hint": (
+                "Escena tipo (circulación rival de banda a banda):\n"
+                "- Lado fuerte: bloque junto y cierre interior.\n"
+                "- Lado débil: 1 vigilante (altura media) + 1 protege espalda (más bajo).\n"
+                "- Marca distancia entre líneas (10–15m) y bloque (25–35m).\n\n"
+                "Variante: si NO hay presión al balón → temporiza (no subas)."
+            ),
+        },
+        {
+            "key": "weakside_attack",
+            "match_any": {"lado_debil", "overload", "isolate", "1v1"},
+            "title": "Overload-to-isolate (lado débil)",
+            "hint": (
+                "Escena tipo (sobrecarga derecha → aislamiento izquierda):\n"
+                "1) 3–4 jugadores en lado fuerte para atraer.\n"
+                "2) Extremo lado débil: ALTO y ABIERTO (aislado).\n"
+                "3) Cambio tenso al extremo: conduce para fijar → centro raso atrás.\n"
+                "4) Llegadas: 1º palo + penalti/raso atrás + rechazo.\n\n"
+                "Variante: si el 1v1 no sale → descarga y nuevo cambio (paciencia)."
+            ),
+        },
+        {
+            "key": "rest_defense",
+            "match_any": {"rest_defense", "equilibrio", "transicion"},
+            "title": "Rest defense (seguridad al atacar)",
+            "hint": (
+                "Escena tipo (ataque por banda):\n"
+                "- Marca 2–3 jugadores por detrás del balón (seguridad).\n"
+                "- Cobertura diagonal: si lateral sube, alguien cubre su espalda.\n"
+                "- Lado débil cierra para interceptar el cambio.\n\n"
+                "Variante: pérdida en banda → 5s de contra-presión o repliegue (según distancia)."
+            ),
+        },
+        {
+            "key": "zone14",
+            "match_any": {"zona14", "entre_lineas", "juego_interior"},
+            "title": "Zona 14 (pase atrás + decisión)",
+            "hint": (
+                "Escena tipo: balón en banda → pase atrás a frontal (zona 14).\n"
+                "- Interior recibe de cara (perfilado) y elige: tiro / pase filtrado / centro raso atrás.\n"
+                "- Si recibe presionado: descarga (1 toque) y 3er hombre rompe.\n\n"
+                "Variante: central rival salta → desmarque del 9 a espalda."
+            ),
+        },
+        {
+            "key": "cross_defense_roles",
+            "match_any": {"centros", "area", "defensa_area"},
+            "title": "Defensa de centros (roles por zonas)",
+            "hint": (
+                "Escena tipo: centro desde banda.\n"
+                "- Asigna 4 zonas: 1º palo · penalti · 2º palo · rechazo.\n"
+                "- Marca quién ataca balón y quién asegura 2ª jugada.\n\n"
+                "Variante: centro al 2º palo → llegada lado débil (defensa ajusta con vigilancia)."
+            ),
+        },
+        {
+            "key": "five_seconds",
+            "match_any": {"5s", "5_segundos", "perdida", "recuperacion"},
+            "title": "Transición 5 segundos (pérdida/recuperación)",
+            "hint": (
+                "Escena tipo: pérdida en carril central.\n"
+                "- 1 presiona balón (3 pasos agresivos).\n"
+                "- 2 corta pase interior.\n"
+                "- 3 equilibra/cubre espalda.\n\n"
+                "Variante: si la pérdida es lejos → repliegue + temporiza; si es cerca → contra-presión."
+            ),
+        },
+        {
+            "key": "set_piece_corner",
+            "match_any": {"abp", "corner", "corners"},
+            "title": "Corner MVP (1 remate + 2ª jugada)",
+            "hint": (
+                "Escena tipo (corner):\n"
+                "- Roles mínimos: 1 saque · 1 primer palo · 1 segundo palo · 1 rechazo · 1 seguridad.\n"
+                "- Centro tenso a zona definida.\n\n"
+                "Variante: si despejan → segunda jugada (rechazo) y re-centro rápido."
+            ),
+        },
+    ]
 
+
+def _visual_hint_for_seed_lesson(item: SeedLesson) -> str:
+    title = str(item.title or "").lower()
+    tags = {str(t or "").strip().lower() for t in (item.tags or []) if str(t or "").strip()}
+
+    # Heurística rápida por palabras clave en título.
+    keyword_tags = set()
+    for word, tag in [
+        ("tercer", "tercer_hombre"),
+        ("3er", "tercer_hombre"),
+        ("presión", "presion"),
+        ("presion", "presion"),
+        ("bascul", "basculacion"),
+        ("lado débil", "lado_debil"),
+        ("lado debil", "lado_debil"),
+        ("zona 14", "zona14"),
+        ("entre líneas", "entre_lineas"),
+        ("entre lineas", "entre_lineas"),
+        ("corner", "corner"),
+        ("saque de esquina", "corner"),
+        ("centro", "centros"),
+        ("área", "area"),
+        ("area", "area"),
+        ("transición", "transicion"),
+        ("transicion", "transicion"),
+        ("5 segundos", "5_segundos"),
+        ("5s", "5_segundos"),
+    ]:
+        if word in title:
+            keyword_tags.add(tag)
+
+    merged = set(tags) | keyword_tags
+    templates = _mk_visual_templates()
+
+    def score(tpl: dict) -> int:
+        match_any = {str(x).lower() for x in (tpl.get("match_any") or set())}
+        return len(merged & match_any)
+
+    best = None
+    best_score = 0
+    for tpl in templates:
+        s = score(tpl)
+        if s > best_score:
+            best = tpl
+            best_score = s
+
+    if best and best_score > 0:
+        base = str(best.get("hint") or "").strip()
+        # Remate estándar para que todas las escenas tengan consistencia.
+        return (
+            f"Plantilla: {best.get('title')}\n\n{base}\n\n"
+            "Checklist visual: ¿ancho/dentro/espalda? ¿cobertura si me superan? ¿quién rechace/seguridad?"
+        )[:600]
+
+    # Fallback (mejor que el genérico anterior, pero sin plantilla).
     clean_tags = [str(t or "").strip() for t in (item.tags or []) if str(t or "").strip()]
     tags_hint = (", ".join(clean_tags[:6]) if clean_tags else "").strip()
     hint = (
@@ -53,6 +215,18 @@ def _seed_lesson_with_default_visual_step(item: SeedLesson) -> SeedLesson:
     )
     if tags_hint:
         hint += f"\nTags: {tags_hint}"
+    return hint[:600]
+
+
+def _seed_lesson_with_default_visual_step(item: SeedLesson) -> SeedLesson:
+    """
+    Asegura que todas las lecciones seed tengan un ejemplo visual (pizarra 2D).
+    No toca las que ya incluyen replay2d.
+    """
+    if _seed_lesson_has_visual_step(item):
+        return item
+
+    hint = _visual_hint_for_seed_lesson(item)
 
     steps = list(item.steps or [])
     steps.append(
