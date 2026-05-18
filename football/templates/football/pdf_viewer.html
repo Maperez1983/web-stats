@@ -8,45 +8,63 @@
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
-    <style>
-      body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
-      .page { max-width: 1080px; margin: 0 auto; padding: 1rem 1rem 2rem; }
-      .head { display:flex; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; align-items:center; }
-      .head h1 { margin:0; letter-spacing:0.08em; font-size:0.95rem; text-transform:uppercase; }
-      .meta { color: rgba(226, 232, 240, 0.72); font-weight: 800; }
-      .card { margin-top: 0.9rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
-      .btn { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.7rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
-      .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
-      .btn.ghost { background: transparent; }
-      iframe { width: 100%; height: 74vh; border: 1px solid rgba(148,163,184,0.18); border-radius: 18px; background: rgba(0,0,0,0.22); }
-      @media (max-width: 900px) { iframe { height: 78vh; } }
-    </style>
-  </head>
-  <body class="prod-commercial">
-    <main class="page">
+	    <style>
+	      body { margin: 0; background: linear-gradient(180deg, #020417 0%, #050b1c 100%); color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; }
+	      .page { max-width: 1080px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+	      .head { display:flex; justify-content:space-between; gap:0.8rem; flex-wrap:wrap; align-items:center; }
+	      .head h1 { margin:0; letter-spacing:0.08em; font-size:0.95rem; text-transform:uppercase; }
+	      .meta { color: rgba(226, 232, 240, 0.72); font-weight: 800; }
+	      .card { margin-top: 0.9rem; background: rgba(12, 20, 34, 0.92); border: 1px solid rgba(145, 161, 185, 0.18); border-radius: 22px; box-shadow: 0 22px 52px rgba(0,0,0,0.28); padding: 0.9rem; }
+	      .btn { border-radius: 999px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); color:#f3f7ff; padding:0.7rem 0.95rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; font-size:0.72rem; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:0.4rem; }
+	      .btn.primary { background: linear-gradient(135deg, #22d3ee, #67e8f9); border:none; color:#03253c; }
+	      .btn.ghost { background: transparent; }
+	      iframe { width: 100%; height: 74vh; border: 1px solid rgba(148,163,184,0.18); border-radius: 18px; background: rgba(0,0,0,0.22); }
+	      @media (max-width: 900px) { iframe { height: 78vh; } }
+	      .error {
+	        margin-top: 0.75rem;
+	        border: 1px solid rgba(248, 113, 113, 0.28);
+	        background: rgba(127, 29, 29, 0.22);
+	        border-radius: 16px;
+	        padding: 0.75rem 0.85rem;
+	        display: none;
+	      }
+	      .error h2 { margin: 0; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; }
+	      .error pre { margin: 0.55rem 0 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; color: rgba(255,255,255,0.92); }
+	    </style>
+	  </head>
+	  <body class="prod-commercial">
+	    <main class="page">
       <div class="head">
         <div style="display:flex; flex-direction:column; gap:0.15rem;">
           <h1>{{ title|default:"PDF" }}</h1>
           <div class="meta">2J · Visor PDF</div>
-        </div>
-        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
-          <a class="btn ghost" href="{{ back_url|default:'/' }}">Volver</a>
-          <a class="btn primary" href="{{ pdf_url }}" target="_blank" rel="noopener" data-no-pdf-viewer="1">Abrir</a>
-          <a class="btn" href="{{ pdf_url }}" download data-no-pdf-viewer="1">Descargar</a>
-        </div>
-      </div>
+	        </div>
+	        <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+	          <a class="btn ghost" href="{{ back_url|default:'/' }}">Volver</a>
+	          <a class="btn primary" href="{{ pdf_url }}" target="_blank" rel="noopener" data-no-pdf-viewer="1">Abrir</a>
+	          <a class="btn" href="{{ pdf_url }}" download data-no-pdf-viewer="1">Descargar</a>
+	          <a class="btn" href="{{ pdf_url }}{% if '?' in pdf_url %}&{% else %}?{% endif %}debug=1" target="_blank" rel="noopener" data-no-pdf-viewer="1">Diagnóstico</a>
+	        </div>
+	      </div>
 
-      <section class="card">
-        <iframe src="{{ pdf_url }}" title="{{ title|default:'PDF' }}"></iframe>
-        <div class="meta" style="margin-top:0.65rem;">
-          Si el PDF tarda, espera unos segundos. Si no carga, usa “Abrir” o “Descargar”.
-        </div>
-      </section>
-    </main>
-    <script>
-      (() => {
-        const backLink = document.querySelector('a[href][class*="ghost"]');
-        if (!backLink) return;
+	      <section class="card">
+	        <iframe id="pdf-frame" src="{{ pdf_url }}" title="{{ title|default:'PDF' }}"></iframe>
+	        <div id="pdf-error" class="error" role="status" aria-live="polite">
+	          <h2>No se pudo cargar el PDF</h2>
+	          <div class="meta" style="margin-top:0.35rem;">
+	            Pulsa “Diagnóstico” para ver el error exacto del servidor (o abre/descarga desde los botones).
+	          </div>
+	          <pre id="pdf-error-detail"></pre>
+	        </div>
+	        <div class="meta" style="margin-top:0.65rem;">
+	          Si el PDF tarda, espera unos segundos. Si no carga, usa “Abrir” o “Descargar”.
+	        </div>
+	      </section>
+	    </main>
+	    <script>
+	      (() => {
+	        const backLink = document.querySelector('a[href][class*="ghost"]');
+	        if (!backLink) return;
         backLink.addEventListener('click', (event) => {
           // En webviews puede venir sin historial; priorizamos back_url.
           const href = backLink.getAttribute('href') || '';
@@ -60,8 +78,58 @@
             }
           } catch (e) {}
           try { window.location.href = href; } catch (e) {}
-        });
-      })();
-    </script>
-  </body>
-</html>
+	        });
+	      })();
+	    </script>
+	    <script>
+	      (() => {
+	        const pdfUrl = "{{ pdf_url|escapejs }}";
+	        const frame = document.getElementById('pdf-frame');
+	        const errorBox = document.getElementById('pdf-error');
+	        const errorDetail = document.getElementById('pdf-error-detail');
+	        if (!pdfUrl || !frame || !errorBox || !errorDetail) return;
+
+	        const buildDebugUrl = () => {
+	          try {
+	            const hasQuery = pdfUrl.includes('?');
+	            return pdfUrl + (hasQuery ? '&' : '?') + 'debug=1';
+	          } catch (e) {
+	            return pdfUrl;
+	          }
+	        };
+
+	        const showError = (detail) => {
+	          try { errorBox.style.display = 'block'; } catch (e) {}
+	          try { errorDetail.textContent = (detail || '').trim(); } catch (e) {}
+	        };
+
+	        // Validación ligera: si el endpoint no devuelve PDF, mostramos diagnóstico inline.
+	        // (En iOS webviews el iframe no muestra errores y queda “en blanco”.)
+	        const checkPdf = async () => {
+	          let headOk = false;
+	          try {
+	            const resp = await fetch(pdfUrl, { method: 'HEAD', credentials: 'same-origin' });
+	            const ct = (resp.headers.get('content-type') || '').toLowerCase();
+	            headOk = resp.ok && ct.includes('application/pdf');
+	            if (headOk) return;
+	          } catch (e) {}
+
+	          try {
+	            const debugUrl = buildDebugUrl();
+	            const resp = await fetch(debugUrl, { method: 'GET', credentials: 'same-origin' });
+	            const ct = (resp.headers.get('content-type') || '').toLowerCase();
+	            if (ct.includes('application/pdf')) return;
+	            const text = await resp.text();
+	            const statusLine = resp.status ? `HTTP ${resp.status}` : 'HTTP error';
+	            showError(`${statusLine}\n\n${text}`);
+	          } catch (e) {
+	            showError('No se pudo obtener el diagnóstico del servidor.');
+	          }
+	        };
+
+	        // Espera breve para permitir que el PDF se genere en back (Render/Weasy).
+	        window.setTimeout(() => { try { checkPdf(); } catch (e) {} }, 900);
+	      })();
+	    </script>
+	  </body>
+	</html>
