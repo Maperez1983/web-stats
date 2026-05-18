@@ -2274,6 +2274,13 @@
             loading.hidden = false;
             loading.textContent = 'No se pudo cargar el dashboard. Prueba a refrescar.';
           }
+          try {
+            const heroLine = document.getElementById('hero-line');
+            if (heroLine) {
+              const short = String(err?.message || 'Error').replace(/\s+/g, ' ').slice(0, 90);
+              heroLine.textContent = `No se pudo cargar · ${short}`;
+            }
+          } catch (e) {}
           console.error(err);
         }
       }
