@@ -98,6 +98,13 @@
       .broadcast-mini { margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.45rem; }
       .mini-pill { display:inline-flex; align-items:center; gap: 0.4rem; padding: 0.36rem 0.6rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 900; color: rgba(226,232,240,0.95); }
       .mini-pill strong { font-weight: 950; }
+      details { margin-top: 0.85rem; }
+      details summary { cursor: pointer; font-weight: 900; color: rgba(226,232,240,0.92); }
+      details table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.86rem; }
+      details th, details td { border-bottom: 1px solid rgba(148,163,184,0.14); padding: 0.4rem 0.45rem; vertical-align: top; }
+      details th { color: rgba(148,163,184,0.9); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+      .cell-muted { color: rgba(148,163,184,0.82); }
+      .nowrap { white-space: nowrap; }
       .head {
         display: flex;
         align-items: center;
@@ -543,25 +550,47 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Jornada</th>
+                      <th class="nowrap">Jor</th>
                       <th>Rival</th>
-                      <th>Acc</th>
-                      <th>Éx</th>
+                      <th class="nowrap">Fecha</th>
+                      <th class="nowrap">Res</th>
+                      <th class="nowrap">Min</th>
+                      <th class="nowrap">⚽</th>
+                      <th class="nowrap">🅰️</th>
+                      <th class="nowrap">Acc</th>
+                      <th class="nowrap">Éx</th>
+                      <th class="nowrap">% Éx</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for match in player.matches %}
                       <tr>
-                        <td>
+                        <td class="nowrap">
                           {{ match.round }}
                           {% if match.home %}<span class="chip">Local</span>{% else %}<span class="chip">Visit</span>{% endif %}
                         </td>
                         <td>{{ match.opponent }}</td>
-                        <td>{{ match.actions }}</td>
-                        <td>{{ match.successes }}</td>
+                        <td class="cell-muted nowrap">{{ match.date|default:"—" }}</td>
+                        <td class="nowrap">
+                          {% if match.home_score != None and match.away_score != None %}
+                            {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
+                          {% elif match.result %}
+                            {{ match.result }}
+                          {% else %}—{% endif %}
+                        </td>
+                        <td class="nowrap">
+                          {% if match.minutes_auto %}<span class="cell-muted">Auto</span>
+                          {% elif match.minutes != None %}{{ match.minutes }}'
+                          {% else %}<span class="cell-muted">—</span>{% endif %}
+                        </td>
+                        <td class="nowrap">{{ match.goals|default:0 }}</td>
+                        <td class="nowrap">{{ match.assists|default:0 }}</td>
+                        <td class="nowrap">{{ match.actions|default:0 }}</td>
+                        <td class="nowrap">{{ match.successes|default:0 }}</td>
+                        <td class="nowrap">{{ match.success_rate|default:0 }}%</td>
                       </tr>
                     {% empty %}
-                      <tr><td colspan="4">Sin registros por partidos.</td></tr>
+                      <tr><td colspan="10">Sin registros por partidos.</td></tr>
                     {% endfor %}
                   </tbody>
                 </table>
