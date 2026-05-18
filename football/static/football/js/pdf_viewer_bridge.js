@@ -35,6 +35,13 @@
     if (!href || href.startsWith('#') || href.startsWith('javascript:')) return false;
     if (url.origin !== window.location.origin) return false;
     if (safeText(url.pathname).startsWith('/pdf/viewer/')) return false;
+    // Vista previa HTML: no debe abrir el visor PDF (evita 502 si el motor PDF falla).
+    try {
+      const fmt = safeText(url.searchParams.get('format')).toLowerCase();
+      if (fmt === 'html' || fmt === 'htm') return false;
+    } catch (e) {
+      // ignore
+    }
     // Si está marcado explícitamente (para endpoints que no contienen /pdf/).
     if (a.hasAttribute('data-pdf-viewer')) return true;
     // Heurística: endpoints “pdf-like”.
