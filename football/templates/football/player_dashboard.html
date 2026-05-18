@@ -80,6 +80,24 @@
         text-decoration: none;
         display: block;
       }
+      /* Broadcast cards (alineadas con Coach → Plantilla → Estadísticas) */
+      .broadcast-card { padding: 1.05rem; }
+      .broadcast-head { display:flex; justify-content:space-between; align-items:flex-start; gap: 0.9rem; }
+      .broadcast-head-left { display:flex; align-items:center; gap: 0.8rem; min-width: 0; }
+      .broadcast-head-right { display:flex; align-items:center; justify-content:flex-end; gap: 0.45rem; flex-wrap: wrap; }
+      .avatar-wrap { width: 86px; height: 86px; border-radius: 18px; overflow:hidden; background: rgba(2,6,23,0.65); border: 1px solid rgba(148,163,184,0.22); position: relative; flex: 0 0 auto; }
+      .avatar-wrap img { width: 100%; height: 100%; object-fit: cover; display:block; }
+      .dorsal-badge { position:absolute; right: 8px; bottom: 8px; min-width: 32px; height: 28px; padding: 0 8px; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-weight: 900; color: rgba(255,255,255,0.96); background: rgba(2,6,23,0.8); border: 1px solid rgba(250,204,21,0.55); }
+      .broadcast-name { margin:0; font-size: 1.25rem; font-weight: 950; letter-spacing: 0.01em; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; max-width: 16ch; }
+      .broadcast-sub { margin-top: 0.25rem; color: rgba(148,163,184,0.92); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; }
+      .broadcast-pill { border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); padding: 0.35rem 0.6rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.82rem; }
+      .broadcast-bars { margin-top: 0.75rem; display: grid; gap: 0.55rem; }
+      .bar-row { border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.35); padding: 0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap: 0.7rem; }
+      .bar-row span { color: rgba(148,163,184,0.92); font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.78rem; }
+      .bar-row strong { font-size: 1.35rem; font-weight: 950; }
+      .broadcast-mini { margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.45rem; }
+      .mini-pill { display:inline-flex; align-items:center; gap: 0.4rem; padding: 0.36rem 0.6rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 900; color: rgba(226,232,240,0.95); }
+      .mini-pill strong { font-weight: 950; }
       .head {
         display: flex;
         align-items: center;
@@ -433,7 +451,7 @@
       <div class="grid" id="playersGrid">
 	        {% for player in player_stats %}
 	          <article
-              class="card"
+              class="card broadcast-card"
               data-player-name="{{ player.name|lower }}"
               data-player="{{ player.player_id }}"
               data-minutes="{{ player.minutes|default:0 }}"
@@ -448,110 +466,107 @@
               data-match-assists="{{ player.match_assists|default:0 }}"
               data-match-success-rate="{{ player.match_success_rate|default:0 }}"
             >
-	            <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}">
-              <div class="head">
-                <div class="head-main">
-                  {% if player.photo_url %}
-                  <img class="avatar" src="{{ player.photo_url }}" alt="{{ player.name }}" loading="lazy" />
+              <a class="card-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% if stats_scope %}&scope={{ stats_scope }}{% endif %}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% elif stats_scope %}?scope={{ stats_scope }}{% if stats_scope == 'tournament' and tournament_filter %}&tournament={{ tournament_filter|urlencode }}{% endif %}{% endif %}">
+                <div class="broadcast-head">
+                  <div class="broadcast-head-left">
+                    <div class="avatar-wrap" aria-hidden="true">
+                      <img class="avatar" src="{% if player.photo_url %}{{ player.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ player.name }}" loading="lazy" />
+                      {% if player.number %}<span class="dorsal-badge">{{ player.number }}</span>{% endif %}
+                    </div>
+                    <div>
+                      <h2 class="broadcast-name">{{ player.name }}</h2>
+                      <div class="broadcast-sub">{{ player.profile_label|default:"-" }}</div>
+                    </div>
+                  </div>
+                  <div class="broadcast-head-right">
+                    <div class="broadcast-pill">INF {{ player.influence_score|default:0|floatformat:0 }}</div>
+                    <div class="broadcast-pill">IMP {{ player.importance_score|default:0|floatformat:0 }}</div>
+                    <span class="status-icons">
+                      {% if player.has_active_injury %}
+                        <span class="status-icon injury" title="Lesión activa">✚</span>
+                      {% endif %}
+                      {% if player.is_sanctioned %}
+                        <span class="status-icon sanction" title="Sancionado">🟥</span>
+                      {% endif %}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="broadcast-bars" aria-label="KPIs broadcast">
+                  <div class="bar-row"><span>INF</span><strong>{{ player.influence_score|default:0|floatformat:0 }}</strong></div>
+                  <div class="bar-row"><span>IMP</span><strong>{{ player.importance_score|default:0|floatformat:0 }}</strong></div>
+                  <div class="bar-row"><span>% PART.</span><strong>{{ player.participation_pct|default:0|floatformat:0 }}</strong></div>
+                  <div class="bar-row"><span>% DISP.</span><strong>{{ player.availability_pct|default:0|floatformat:0 }}</strong></div>
+                </div>
+
+                <div class="broadcast-mini">
+                  {% if selected_match %}
+                    <span class="mini-pill">PJ <strong>{{ player.pj|default:0 }}</strong></span>
+                    <span class="mini-pill">Min <strong>{{ player.minutes|default:0 }}</strong></span>
+                    <span class="mini-pill">⚽ <strong>{{ player.match_goals|default:0 }}</strong></span>
+                    <span class="mini-pill">🅰️ <strong>{{ player.match_assists|default:0 }}</strong></span>
+                    <span class="mini-pill">Acc <strong>{{ player.match_actions|default:0 }}</strong></span>
                   {% else %}
-                  <img class="avatar fallback" src="{% static 'football/images/player-avatar.svg' %}" alt="{{ player.name }}" loading="lazy" />
+                    <span class="mini-pill">PJ <strong>{{ player.pj|default:0 }}</strong></span>
+                    <span class="mini-pill">Min <strong>{{ player.minutes|default:0 }}</strong></span>
+                    <span class="mini-pill">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
+                    <span class="mini-pill">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
+                    <span class="mini-pill">🟨 <strong>{{ player.yellow_cards|default:0 }}</strong></span>
+                    <span class="mini-pill">🟥 <strong>{{ player.red_cards|default:0 }}</strong></span>
                   {% endif %}
-                  <h2>{{ player.name }}</h2>
-                  <span class="status-icons">
-                    {% if player.has_active_injury %}
-                      <span class="status-icon injury" title="Lesión activa">✚</span>
-                    {% endif %}
-                    {% if player.is_sanctioned %}
-                      <span class="status-icon sanction" title="Sancionado">🟥</span>
-                    {% endif %}
-	                  </span>
-	                </div>
-                  <div class="head-right">
-                    <svg class="participation-ring" viewBox="0 0 36 36" data-pct="{{ player.participation_pct|default:0 }}" title="Participación: {{ player.participation_pct|default:0 }}%">
-                      <circle class="ring-bg" cx="18" cy="18" r="15.5"></circle>
-                      <circle class="ring-fg" cx="18" cy="18" r="15.5"></circle>
-                      <text class="ring-text" x="18" y="18">0%</text>
-                    </svg>
-                    {% if player.number %}<span class="badge">#{{ player.number }}</span>{% endif %}
-                  </div>
-	              </div>
-              <div class="subline">{{ player.profile_label }}</div>
+                  <span class="mini-pill">% {{ player.success_rate|default:0|floatformat:1 }}</span>
+                  {% if player.actions_per90 %}<span class="mini-pill">A/90 {{ player.actions_per90|default:0|floatformat:1 }}</span>{% endif %}
+                </div>
 
-                  <div class="mini-kpis" aria-label="KPIs clave">
-                    {% if selected_match %}
-                      <span class="mini-kpi">⚽ <strong>{{ player.match_goals|default:0 }}</strong></span>
-                      <span class="mini-kpi">🅰️ <strong>{{ player.match_assists|default:0 }}</strong></span>
-                      <span class="mini-kpi">Acc <strong>{{ player.match_actions|default:0 }}</strong></span>
-                      <span class="mini-kpi">% Éx. <strong>{{ player.match_success_rate|default:0 }}%</strong></span>
-                    {% else %}
-                      <span class="mini-kpi">PJ <strong>{{ player.pj|default:0 }}</strong></span>
-                      <span class="mini-kpi">Min <strong>{{ player.minutes|default:0 }}</strong></span>
-                      <span class="mini-kpi">PJ% <strong>{{ player.participation_matches_pct|default:0 }}%</strong></span>
-                      <span class="mini-kpi">Tit% <strong>{{ player.starter_pct|default:0 }}%</strong></span>
-                      <span class="mini-kpi">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
-                      <span class="mini-kpi">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
-                      <span class="mini-kpi">🟨 <strong>{{ player.yellow_cards|default:0 }}</strong></span>
-                      <span class="mini-kpi">🟥 <strong>{{ player.red_cards|default:0 }}</strong></span>
-                    {% endif %}
-                  </div>
+                <div class="mini-radar-wrap" aria-hidden="true">
+                  <svg
+                    class="mini-radar"
+                    viewBox="0 0 100 100"
+                    data-a90="{{ player.radar_pcts.a90|default:0 }}"
+                    data-sr="{{ player.radar_pcts.sr|default:0 }}"
+                    data-part="{{ player.radar_pcts.part|default:0 }}"
+                    data-inf="{{ player.radar_pcts.inf|default:0 }}"
+                    data-imp="{{ player.radar_pcts.imp|default:0 }}"
+                  ></svg>
+                </div>
+              </a>
 
-		              <div class="mini-radar-wrap" aria-hidden="true">
-		                <svg
-		                  class="mini-radar"
-		                  viewBox="0 0 100 100"
-		                  data-a90="{{ player.radar_pcts.a90|default:0 }}"
-		                  data-sr="{{ player.radar_pcts.sr|default:0 }}"
-		                  data-part="{{ player.radar_pcts.part|default:0 }}"
-		                  data-inf="{{ player.radar_pcts.inf|default:0 }}"
-		                  data-imp="{{ player.radar_pcts.imp|default:0 }}"
-		                ></svg>
-		              </div>
+              {% if can_preview_player_view %}
+              <div class="card-actions">
+                <a class="primary-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha staff</a>
+                <a class="preview-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}&preview=player{% else %}?preview=player{% endif %}">Vista jugador</a>
+              </div>
+              {% endif %}
 
-                  {% if player.smart_kpis %}
-		              <div class="kpi-row">
-		                {% for kpi in player.smart_kpis|slice:":3" %}
-		                  <span class="kpi-pill">{{ kpi.label }}: <strong>{{ kpi.value }}</strong></span>
-		                {% endfor %}
-		              </div>
-                  {% endif %}
-            </a>
-
-	            {% if can_preview_player_view %}
-	            <div class="card-actions">
-	              <a class="primary-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}{% endif %}">Ficha staff</a>
-	              <a class="preview-link" href="{% url 'player-detail' player.player_id %}{% if active_workspace and active_workspace.id %}?workspace={{ active_workspace.id }}{% if active_team %}&team={{ active_team.id }}{% endif %}&preview=player{% else %}?preview=player{% endif %}">Vista jugador</a>
-	            </div>
-	            {% endif %}
-
-            <details>
-              <summary>Ver jornadas</summary>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Jornada</th>
-                    <th>Rival</th>
-                    <th>Acc</th>
-                    <th>Éx</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for match in player.matches %}
+              <details>
+                <summary>Ver jornadas</summary>
+                <table>
+                  <thead>
                     <tr>
-                      <td>
-                        {{ match.round }}
-                        {% if match.home %}<span class="chip">Local</span>{% else %}<span class="chip">Visit</span>{% endif %}
-                      </td>
-                      <td>{{ match.opponent }}</td>
-                      <td>{{ match.actions }}</td>
-                      <td>{{ match.successes }}</td>
+                      <th>Jornada</th>
+                      <th>Rival</th>
+                      <th>Acc</th>
+                      <th>Éx</th>
                     </tr>
-                  {% empty %}
-                    <tr><td colspan="4">Sin registros por partidos.</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </details>
-          </article>
+                  </thead>
+                  <tbody>
+                    {% for match in player.matches %}
+                      <tr>
+                        <td>
+                          {{ match.round }}
+                          {% if match.home %}<span class="chip">Local</span>{% else %}<span class="chip">Visit</span>{% endif %}
+                        </td>
+                        <td>{{ match.opponent }}</td>
+                        <td>{{ match.actions }}</td>
+                        <td>{{ match.successes }}</td>
+                      </tr>
+                    {% empty %}
+                      <tr><td colspan="4">Sin registros por partidos.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </details>
+            </article>
         {% endfor %}
 
         {% if not player_stats %}
