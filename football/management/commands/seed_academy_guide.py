@@ -639,6 +639,173 @@ def _mk_game_encyclopedia_formats() -> list[SeedLesson]:
         ),
     ]
 
+
+def _mk_game_encyclopedia_units() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: guías por líneas/unidades (defensa, medio, ataque).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Unidad · Línea defensiva (altura, coberturas y fuera de juego práctico)",
+            summary="Guía práctica para la línea: cuándo subir, cuándo hundir y cómo coordinar coberturas sin regalar la espalda.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["unidad", "defensa", "linea_defensiva", "coberturas"],
+            objective="Defender como unidad: compactar, proteger la espalda y evitar remates limpios.",
+            rules=[
+                "La línea se mueve junta (sube/baja a la vez).",
+                "Si el balón está bajo presión: la línea puede subir; si no hay presión: temporiza y protege espalda.",
+                "Cobertura: si un central salta, el otro cubre y el lateral ajusta dentro.",
+            ],
+            triggers=[
+                "Pase atrás o control malo del rival → subir y achicar.",
+                "Balón conducido sin oposición → no subir; temporizar.",
+                "Amenaza a la espalda (desmarque) → orientar cuerpo y correr.",
+            ],
+            checklist=[
+                "¿Hay presión al balón?",
+                "¿Estamos alineados (no escalonados sin sentido)?",
+                "¿Quién cubre la espalda si alguien salta?",
+            ],
+            errors=[
+                "Uno sube y otro baja → “JUNTOS”.",
+                "Lateral se queda abierto y rompe línea → “CIERRA Y ALINEA”.",
+                "Central salta sin cobertura → “SI SALTAS, ALGUIEN CUBRE”.",
+            ],
+            scene_hint="Escena: rival en zona media. Variante A: hay presión → línea sube. Variante B: no hay presión → línea temporiza. Muestra salto de central y cobertura del otro + ajuste de lateral.",
+            measure=["Balones a la espalda concedidos (bajan).", "Fuera de juego forzados (suben si procede).", "Remates limpios concedidos (bajan)."],
+        ),
+        _mk_guide(
+            title="Unidad · Línea media (cerrar dentro y ayudar a la presión)",
+            summary="Guía práctica del mediocampo: proteger carril central, orientar presión y ser salida tras robo.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["unidad", "medio", "equilibrio", "presion"],
+            objective="Ser el equilibrio: negar pases entre líneas y conectar con el ataque tras recuperación.",
+            rules=[
+                "Dentro primero: el pase entre líneas es prioridad defensiva.",
+                "Si el balón va a banda: bascular y cerrar interior (no correr por correr).",
+                "Tras robo: primer pase seguro + amenaza (uno corre, uno apoya).",
+            ],
+            triggers=["Receptor de espaldas → salto con cobertura.", "Pase interior tapado → orientar al rival a banda.", "Recuperación con rival desordenado → acelerar."],
+            checklist=["¿Está cerrado el pase interior?", "¿Tengo cobertura detrás?", "Tras robo: ¿primer pase seguro?"],
+            errors=["Ir todos al balón → “UNO PRESIONA, OTRO CIERRA”.", "Recuperar y regalarla → “PRIMER PASE SEGURO”."],
+            scene_hint="Escena: rival intenta jugar a mediapunta. Mediocentro cierra línea de pase y el interior salta al receptor de espaldas. Tras robo: pase seguro y desmarque de ruptura.",
+            measure=["Pases interiores del rival interceptados.", "Recuperaciones en zona media.", "Progresiones tras recuperación (suben)."],
+        ),
+        _mk_guide(
+            title="Unidad · Línea ofensiva (fijar, atacar área y primer defensor)",
+            summary="Guía práctica del ataque: roles en área, fijación, desmarques y presión inicial.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["unidad", "ataque", "area", "presion"],
+            objective="Generar peligro constante y ayudar a recuperar rápido tras pérdida.",
+            rules=[
+                "Siempre hay 1 que fija (al central) y 1 que ataca espacio.",
+                "En centros: primer palo + punto penalti + raso atrás (al menos 2 llegadas).",
+                "Sin balón: orientar la presión para que el rival no juegue dentro.",
+            ],
+            triggers=["Centro lateral → carreras coordinadas.", "Pase atrás rival → presión orientada.", "Pérdida cerca → 3 pasos de contra‑presión."],
+            checklist=["¿Quién fija? ¿Quién ataca espacio?", "¿Quién llega al área? ¿Quién al rechace?", "¿Estamos cerrando el pase interior en presión?"],
+            errors=["Todos corren al mismo sitio → “ZONAS DISTINTAS”.", "Nadie al raso atrás → “ALGUIEN ATRÁS”.", "Presión recta → “CARRERA CURVA”."],
+            scene_hint="Escena: centro desde banda. Muestra 3 llegadas (1º palo, penalti, raso atrás) y 1 rechace. En defensa: presión del 9 orientando a banda y extremos saltando.",
+            measure=["Tiros generados por centros.", "Recuperaciones altas tras presión.", "Segundas jugadas ganadas en ataque."],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_tech_in_context() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: técnica en contexto (decisión + ejecución).
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Técnica · Perfil corporal (recibir para jugar)",
+            summary="Guía práctica: cómo perfilarse para ver el campo y jugar hacia delante.",
+            min_category=L.CATEGORY_PREBENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "perfil", "recepcion", "decision"],
+            objective="Recibir viendo el mayor número de opciones y reducir pérdidas por presión.",
+            rules=["Mira antes (escaneo).", "Cuerpo de lado: una cadera al balón, otra al campo.", "Primer toque hacia ventaja (no al rival)."],
+            triggers=["Si hay espacio → primer toque hacia delante.", "Si hay presión → primer toque de protección + apoyo."],
+            checklist=["¿He mirado antes?", "¿Estoy de lado?", "¿Mi primer toque me saca de la presión?"],
+            errors=["Recibir cuadrado → “DE LADO”.", "Primer toque al rival → “TOQUE A VENTAJA”."],
+            scene_hint="Escena: pase al mediocentro. Variante A: perfilado y gira. Variante B: de espaldas, descarga y 3er hombre.",
+            measure=["Pérdidas por mala recepción (bajan).", "Pases progresivos tras recepción (suben)."],
+        ),
+        _mk_guide(
+            title="Técnica · Control orientado (salir del foco)",
+            summary="Guía práctica para controlar orientado: cuándo sí, cuándo no, y hacia dónde.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "control_orientado", "salida_presion"],
+            objective="Ganar tiempo/espacio con el primer toque sin perder la pelota.",
+            rules=["Control hacia espacio libre (no hacia presión).", "Si no hay espacio: controla para proteger y jugar de cara.", "El control orientado debe conectar con el siguiente pase/acción."],
+            triggers=["Rival lejos → control orientado para progresar.", "Rival cerca → control de seguridad y descarga."],
+            checklist=["¿Dónde está la presión?", "¿Tengo salida tras el control?", "¿Estoy equilibrado para el segundo toque?"],
+            errors=["Control largo sin ventaja → “CORTO Y SEGURO”.", "Control hacia banda cerrada → “SAL DEL FOCO”."],
+            scene_hint="Escena: recepción en banda. Mostrar control orientado hacia dentro si está libre, o hacia atrás si hay trampa.",
+            measure=["Controles que terminan en progresión.", "Pérdidas tras control (bajan)."],
+        ),
+        _mk_guide(
+            title="Técnica · Pase (peso, superficie y intención)",
+            summary="Guía práctica para pasar mejor: qué pase, cuándo y con qué peso.",
+            min_category=L.CATEGORY_PREBENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "pase", "intencion"],
+            objective="Mantener ventaja: pases que el compañero pueda jugar, no solo recibir.",
+            rules=["Pase al pie si quieres continuidad; pase al espacio si quieres acelerar.", "Peso del pase = tiempo del receptor.", "Si el pase no mejora, mejor asegurar y recolocar."],
+            triggers=["Hombre libre de cara → pase rápido y fuerte.", "Receptor de espaldas → pase seguro + apoyo cercano."],
+            checklist=["¿Mi pase mejora la situación?", "¿El receptor puede jugar de primeras?", "¿Hay riesgo de interceptación?"],
+            errors=["Pase flojo → “DA TIEMPO AL RIVAL”.", "Pase sin mirar → “MIRA ANTES”."],
+            scene_hint="Escena: pared y 3er hombre. Mostrar diferencia de peso: pase tenso vs flojo y su efecto.",
+            measure=["% pases OK (sube).", "Intercepciones del rival por pases flojos (bajan)."],
+        ),
+        _mk_guide(
+            title="Técnica · Regate/1v1 (aislar y atacar ventaja)",
+            summary="Guía práctica para regatear en el momento correcto: aislar, cambio ritmo y salida.",
+            min_category=L.CATEGORY_PREBENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "regate", "1v1"],
+            objective="Ganar metros o crear superioridad sin regalar pérdidas.",
+            rules=["Regatea cuando hay espacio o 1v1 aislado.", "Primer movimiento: amenaza (cambio ritmo).", "Tras superar: cabeza arriba y decisión (pase/tiro/centro)."],
+            triggers=["Si llega 2º defensor → descarga.", "Si el defensor está desequilibrado → atacar."],
+            checklist=["¿Tengo espacio?", "¿Estoy aislado 1v1?", "¿Qué hago si lo supero?"],
+            errors=["Regate rodeado → “AISLA ANTES”.", "Superar y seguir conduciendo sin mirar → “CABEZA ARRIBA”."],
+            scene_hint="Escena: extremo aislado vs extremo con 2 ayudas rivales. Mostrar decisión: regate vs descarga.",
+            measure=["Regates exitosos en ventaja.", "Pérdidas por regate sin ventaja (bajan)."],
+        ),
+        _mk_guide(
+            title="Técnica · Tiro/remate (selección + ejecución)",
+            summary="Guía práctica para finalizar: cuándo tirar, dónde y cómo atacar el balón.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "tiro", "remate", "finalizacion"],
+            objective="Aumentar tiros de calidad (no tiros por tirar) y atacar el área con intención.",
+            rules=["Tira si hay equilibrio y ángulo; si no, mejora y vuelve a tirar.", "En centros: atacar balón (no esperar).", "Tras tiro: 1 al rechace."],
+            triggers=["Portero tapado → tiro fuerte a zona.", "Defensor cerca → tiro rápido (de primeras) o pase."],
+            checklist=["¿Estoy equilibrado?", "¿Hay bloqueo/portero tapado?", "¿Quién va al rechace?"],
+            errors=["Tirar sin equilibrio → “ASEGURA Y LUEGO”.", "Nadie al rechace → “RECHACE”."],
+            scene_hint="Escena: centro raso atrás y remate. Mostrar llegada al área y jugador de rechace.",
+            measure=["Tiros totales y a puerta.", "Goles/ocasiones tras rechace."],
+        ),
+        _mk_guide(
+            title="Técnica · Duelos (cuerpo, tiempo y segunda jugada)",
+            summary="Guía práctica para ganar duelos: posición, timing y qué pasa después.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["tecnica", "duelos", "segunda_jugada"],
+            objective="Ganar el duelo o, como mínimo, que la caída sea nuestra.",
+            rules=["Primero posición (entre rival y balón).", "Luego timing (salto/entrada en el momento).", "Después: segunda jugada (caída) preparada."],
+            triggers=["Balón dividido → entrar fuerte y seguro.", "Sin ventaja → temporiza y espera apoyo."],
+            checklist=["¿Estoy entre rival y balón?", "¿Tengo apoyo para la caída?", "¿Si no gano, dónde cae?"],
+            errors=["Ir tarde → “POSICIÓN ANTES”.", "Ganar duelo y desconectar → “CAÍDA”."],
+            scene_hint="Escena: duelo aéreo con caída. Marca 1 que salta y 1 que recoge la segunda jugada.",
+            measure=["Duelos ganados (%).", "Segundas jugadas ganadas tras duelo."],
+        ),
+    ]
 def _mk_seed_pack() -> list[SeedLesson]:
     """
     Pack inicial (MVP) de una guía “top” reutilizable para todos los entrenadores.
@@ -1534,6 +1701,8 @@ def _mk_seed_pack() -> list[SeedLesson]:
         *_mk_game_encyclopedia_set_pieces_extra(),
         *_mk_game_encyclopedia_positions(),
         *_mk_game_encyclopedia_formats(),
+        *_mk_game_encyclopedia_units(),
+        *_mk_game_encyclopedia_tech_in_context(),
         SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
