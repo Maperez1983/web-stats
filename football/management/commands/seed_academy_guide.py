@@ -28,6 +28,51 @@ class SeedLesson:
     steps: list[dict]
 
 
+def _seed_lesson_has_visual_step(item: SeedLesson) -> bool:
+    for step in item.steps or []:
+        if str(step.get("type") or "").strip() == AcademyLessonStep.TYPE_REPLAY_2D:
+            return True
+    return False
+
+
+def _seed_lesson_with_default_visual_step(item: SeedLesson) -> SeedLesson:
+    """
+    Asegura que todas las lecciones seed tengan un ejemplo visual (pizarra 2D).
+    No toca las que ya incluyen replay2d.
+    """
+    if _seed_lesson_has_visual_step(item):
+        return item
+
+    clean_tags = [str(t or "").strip() for t in (item.tags or []) if str(t or "").strip()]
+    tags_hint = (", ".join(clean_tags[:6]) if clean_tags else "").strip()
+    hint = (
+        f"Objetivo visual: representar '{item.title}'.\n"
+        "1) Marca el balón y 3 referencias (carril/espacio/altura).\n"
+        "2) Dibuja 2–3 movimientos con flechas (apoyo/ruptura/cobertura).\n"
+        "3) Añade 1 variante: ¿qué cambia si el rival cierra dentro o bascula tarde?\n"
+    )
+    if tags_hint:
+        hint += f"\nTags: {tags_hint}"
+
+    steps = list(item.steps or [])
+    steps.append(
+        {
+            "type": AcademyLessonStep.TYPE_REPLAY_2D,
+            "title": "Pizarra 2D (ejemplo visual)",
+            "body": "Crea una escena rápida (15–30s) y guárdala como referencia para el campo.",
+            "payload": {"hint": hint[:600]},
+        }
+    )
+    return SeedLesson(
+        title=item.title,
+        summary=item.summary,
+        min_category=item.min_category,
+        max_category=item.max_category,
+        tags=item.tags,
+        steps=steps,
+    )
+
+
 def _mk_guide(
     *,
     title: str,
@@ -2789,6 +2834,7 @@ class Command(BaseCommand):
         pack = _mk_seed_pack()
         if full:
             pack = pack + _mk_category_curriculum()
+        pack = [_seed_lesson_with_default_visual_step(x) for x in pack]
         seed_tag = "seed_v1"
 
         try:
