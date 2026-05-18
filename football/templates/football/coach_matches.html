@@ -87,16 +87,16 @@
           <table>
             <thead>
               <tr>
-                <th style="width: 78px;">ID</th>
-                <th style="width: 110px;">Fecha</th>
-                <th>Rival</th>
-                <th style="width: 120px;">Jornada</th>
-                <th style="width: 110px;">Contexto</th>
-                <th style="width: 110px;">Marcador</th>
-                <th style="width: 90px;">Acc</th>
-                <th style="width: 90px;">Stats</th>
-                <th style="width: 90px;">Vídeo</th>
-                <th style="width: 110px;">Estado</th>
+                <th style="width: 78px;" class="sortable" data-sort="id">ID</th>
+                <th style="width: 110px;" class="sortable" data-sort="date">Fecha</th>
+                <th class="sortable" data-sort="opponent">Rival</th>
+                <th style="width: 120px;" class="sortable" data-sort="round">Jornada</th>
+                <th style="width: 110px;" class="sortable" data-sort="context">Contexto</th>
+                <th style="width: 110px;" class="sortable" data-sort="score">Marcador</th>
+                <th style="width: 90px;" class="sortable" data-sort="acc">Acc</th>
+                <th style="width: 90px;" class="sortable" data-sort="stats">Stats</th>
+                <th style="width: 90px;" class="sortable" data-sort="video">Vídeo</th>
+                <th style="width: 110px;" class="sortable" data-sort="status">Estado</th>
                 <th style="width: 220px;"></th>
               </tr>
             </thead>
@@ -146,5 +146,33 @@
         </div>
       </section>
     </main>
+    <script>
+      (() => {
+        const ths = Array.from(document.querySelectorAll('th.sortable[data-sort]'));
+        if (!ths.length) return;
+        const currentSort = "{{ sort_key|default:'' }}";
+        const currentDir = "{{ sort_dir|default:'desc' }}";
+        const mkArrow = (dir) => dir === 'asc' ? ' ▲' : ' ▼';
+        ths.forEach((th) => {
+          const key = th.dataset.sort || '';
+          th.style.cursor = 'pointer';
+          th.title = 'Ordenar';
+          if (key && currentSort && key === currentSort) {
+            th.textContent = `${th.textContent}${mkArrow(currentDir)}`;
+          }
+          th.addEventListener('click', () => {
+            try {
+              const url = new URL(window.location.href);
+              const prevKey = url.searchParams.get('sort') || '';
+              const prevDir = (url.searchParams.get('dir') || 'desc').toLowerCase();
+              const nextDir = (prevKey === key && prevDir === 'desc') ? 'asc' : 'desc';
+              url.searchParams.set('sort', key);
+              url.searchParams.set('dir', nextDir);
+              window.location.href = url.toString();
+            } catch (e) {}
+          });
+        });
+      })();
+    </script>
   </body>
 </html>
