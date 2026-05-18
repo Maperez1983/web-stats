@@ -442,6 +442,9 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
         [
             ("FIFA Training Centre · Inicio", "https://www.fifatrainingcentre.com/"),
             ("FIFA Training Centre (FIFA) · Overview", "https://inside.fifa.com/technical/fifa-training-centre"),
+            ("UEFA · Coaching & desarrollo (inicio)", "https://www.uefa.com/development/"),
+            ("UEFA · The Technician (archivo)", "https://www.uefa.com/development/coaches/the-technician-magazine/"),
+            ("The FA Boot Room · Recursos (inicio)", "https://www.thefa.com/bootroom/resources"),
         ]
     )
 
@@ -454,7 +457,6 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
                 ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
                 ("UEFA · Setting the press (performance insights)", "https://www.uefa.com/uefachampionsleague/news/028a-1a1bf5c2d303-4a5106d81f09-1000--champions-league-performance-insights-setting-the-press/"),
                 ("UEFA · Video: pressing trap (Europa League)", "https://www.uefa.com/uefaeuropaleague/video/028d-1adb46cedb92-ddb6c06004ab-1000--tactical-analysis-leverkusen-set-pressing-trap/"),
-                ("UEFA The Technician (PDF) · Blueprint: defending", "https://editorial.uefa.com/resources/02a4-204ab0f96567-7ac0a406fd94-1000/uefa_the-technician_march-2026.pdf"),
                 ("The FA · Defendiendo zonas centrales (Boot Room)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-defending-central-areas"),
                 ("The FA · Pressing: delaying, denying (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-pressing-delaying-denying"),
                 ("The FA · When and how to press (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-when-and-how-to-press"),
@@ -535,7 +537,15 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     query = " ".join([x for x in q_bits if x]).strip()
     if query:
         yt_q = query.replace(" ", "+")
-        resources.append(("YouTube · búsqueda del tema", f"https://www.youtube.com/results?search_query={yt_q}"))
+        resources.extend(
+            [
+                ("YouTube · búsqueda del tema", f"https://www.youtube.com/results?search_query={yt_q}"),
+                ("Google · búsqueda del tema", f"https://www.google.com/search?q={yt_q}"),
+                ("Google · FIFA Training Centre (site)", f"https://www.google.com/search?q=site%3Afifatrainingcentre.com+{yt_q}"),
+                ("Google · The FA Boot Room (site)", f"https://www.google.com/search?q=site%3Athefa.com%2Fbootroom+{yt_q}"),
+                ("Google · UEFA (site)", f"https://www.google.com/search?q=site%3Auefa.com+{yt_q}"),
+            ]
+        )
 
     # Fallback mínimo (si nada encaja, pero siempre damos 1 puerta de entrada).
     if not resources:
