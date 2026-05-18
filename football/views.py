@@ -1350,9 +1350,11 @@ def kpi_audit(request):
         matches_payload = row.get('matches') or []
         matches_count = len(matches_payload) if isinstance(matches_payload, list) else 0
         key_passes_completed = int(row.get('key_passes_completed') or 0)
-        max_decisive_actions_per90 = float(row.get('max_decisive_actions_per90') or 0)
+        influence_norm_value = float(row.get('influence_norm_value') or 0)
         successes_per90 = float(row.get('successes_per90') or 0)
         decisive_actions_per90 = float(row.get('decisive_actions_per90') or 0)
+        volume_pct = float(row.get('volume_pct') or 0)
+        quality_pct = float(row.get('quality_pct') or 0)
         totals_locked = bool(row.get('totals_locked'))
 
         issues = []
@@ -1395,18 +1397,15 @@ def kpi_audit(request):
 
         expected_influence = calculate_influence_score(
             minutes=minutes,
-            successes=successes,
             goals=goals,
             assists=assists,
             key_passes_completed=key_passes_completed,
-            max_decisive_actions_per90=max_decisive_actions_per90,
+            shots_on_target=int(row.get('shots', {}).get('on_target', 0) if isinstance(row.get('shots'), dict) else 0),
+            normalization_value=influence_norm_value,
             normalization_minutes=match_minutes or 90,
         )
-        expected_successes_per90 = float(expected_influence.get('successes_per90') or 0)
         expected_decisive_actions_per90 = float(expected_influence.get('decisive_actions_per90') or 0)
         expected_influence_score = float(expected_influence.get('influence_score') or 0)
-        if abs(expected_successes_per90 - successes_per90) > 0.011:
-            issues.append('SUCCESS_PER90_MISMATCH')
         if abs(expected_decisive_actions_per90 - decisive_actions_per90) > 0.011:
             issues.append('DECISIVE_PER90_MISMATCH')
         if abs(expected_influence_score - influence) > 0.11:
@@ -1444,7 +1443,9 @@ def kpi_audit(request):
                 'successes_per90': successes_per90,
                 'decisive_actions_per90': decisive_actions_per90,
                 'max_successes': int(row.get('max_successes') or 0),
-                'max_decisive_actions_per90': float(row.get('max_decisive_actions_per90') or 0),
+                'influence_norm_value': influence_norm_value,
+                'volume_pct': volume_pct,
+                'quality_pct': quality_pct,
                 'totals_locked': bool(row.get('totals_locked')),
                 'assists_locked': bool(row.get('assists_locked')),
                 'issues': issues,
@@ -60267,10 +60268,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         except Exception:
             team_played_matches = 0
     max_successes = max((int(stats.get('successes', 0) or 0) for stats in player_stats.values()), default=0)
-    # Max del equipo para normalizar "Influencia".
-    # Ojo: si incluimos jugadores con minutos residuales (ej. 3' + 1 acción decisiva),
-    # el máximo se dispara y aplana la influencia del resto. Por eso aplicamos un umbral
-    # mínimo de minutos cuando ya hay suficientes partidos jugados.
+    # Normalización del equipo para "Influencia".
+    # Evitamos usar el máximo absoluto porque se distorsiona con minutos residuales.
+    # Usamos percentil alto (p90) y aplicamos umbral mínimo de minutos según partidos jugados.
     try:
         min_minutes_for_influence_norm = 1
         if team_played_matches >= 3:
@@ -60282,34 +60282,66 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     except Exception:
         min_minutes_for_influence_norm = 1
 
-    candidates_for_influence = []
-    for stats in player_stats.values():
+    def _pctl(values, pct):
+        try:
+            vals = [float(v) for v in (values or []) if v is not None]
+        except Exception:
+            vals = []
+        if not vals:
+            return 0.0
+        vals.sort()
+        try:
+            p = max(0.0, min(float(pct or 0.0), 1.0))
+        except Exception:
+            p = 0.9
+        # "Nearest-rank" (simple y estable).
+        idx = int(math.ceil(p * len(vals))) - 1
+        idx = max(0, min(idx, len(vals) - 1))
+        try:
+            return float(vals[idx] or 0.0)
+        except Exception:
+            return 0.0
+
+    decisive_per90_by_player = {}
+    successes_per90_by_player = {}
+    decisive_population = []
+    success_rate_population = []
+    for pid, stats in (player_stats or {}).items():
         minutes_value = int(stats.get('minutes', 0) or 0)
         if minutes_value <= 0:
+            decisive_per90_by_player[int(pid)] = 0.0
+            successes_per90_by_player[int(pid)] = 0.0
             continue
+        goals_value = int(stats.get('goals', 0) or 0)
+        assists_value = int(stats.get('assists', 0) or 0)
+        key_passes_value = int(stats.get('key_passes_completed', 0) or 0)
+        shots_on_target_value = int(stats.get('shots_on_target', 0) or 0)
         successes_value = int(stats.get('successes', 0) or 0)
-        decisive_actions = (
-            successes_value
-            + (int(stats.get('goals', 0) or 0) * 6)
-            + (int(stats.get('assists', 0) or 0) * 4)
-            + (int(stats.get('key_passes_completed', 0) or 0) * 2)
-        )
-        candidates_for_influence.append((minutes_value, decisive_actions))
 
-    max_decisive_actions_per90 = 0.0
-    for minutes_value, decisive_actions in candidates_for_influence:
-        if minutes_value < min_minutes_for_influence_norm:
-            continue
-        max_decisive_actions_per90 = max(
-            max_decisive_actions_per90,
-            round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
-        )
-    if max_decisive_actions_per90 <= 0 and candidates_for_influence:
-        for minutes_value, decisive_actions in candidates_for_influence:
-            max_decisive_actions_per90 = max(
-                max_decisive_actions_per90,
-                round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
-            )
+        decisive_actions = (goals_value * 10) + (assists_value * 7) + (key_passes_value * 3) + (shots_on_target_value * 2)
+        decisive_per90 = round((decisive_actions / minutes_value) * match_regulation_minutes, 2) if minutes_value else 0.0
+        decisive_per90_by_player[int(pid)] = float(decisive_per90)
+
+        successes_per90 = round((successes_value / minutes_value) * match_regulation_minutes, 2) if minutes_value else 0.0
+        successes_per90_by_player[int(pid)] = float(successes_per90)
+
+        if minutes_value >= min_minutes_for_influence_norm:
+            decisive_population.append(float(decisive_per90))
+        # Para percentiles de calidad, evitamos jugadores sin volumen mínimo de acciones.
+        if int(stats.get('total_actions', 0) or 0) >= 10:
+            try:
+                sr = round((int(successes_value or 0) / int(stats.get('total_actions', 0) or 0)) * 100, 1) if int(stats.get('total_actions', 0) or 0) else 0.0
+            except Exception:
+                sr = 0.0
+            success_rate_population.append(float(sr or 0))
+
+    influence_norm_value = _pctl(decisive_population, 0.9) or 0.0
+    if influence_norm_value <= 0 and decisive_population:
+        influence_norm_value = max(decisive_population)
+
+    # Percentiles para importancia (volumen decisivo + calidad).
+    volume_population = [v for v in decisive_population if v is not None]
+    quality_population = [v for v in success_rate_population if v is not None]
     for stats in player_stats.values():
         matches = sorted(
             stats['matches'].values(),
@@ -60345,8 +60377,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             # Debug/inspección: inputs base para validar KPIs en producción.
             'match_regulation_minutes': match_regulation_minutes,
             'total_possible_minutes': total_possible_minutes,
+            'possible_minutes_to_date': int(team_played_matches or 0) * int(match_regulation_minutes or 0),
             'max_successes': max_successes,
-            'max_decisive_actions_per90': max_decisive_actions_per90,
+            'influence_norm_value': influence_norm_value,
             'age': stats.get('age') or (roster_entry.get('age') if roster_entry else None),
             'success_rate': round(
                 (stats['successes'] / stats['total_actions']) * 100, 1
@@ -60447,27 +60480,46 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             )
         else:
             merged['participation_pct'] = 0
-        importance = calculate_importance_score(
-            minutes=merged.get('minutes', 0),
-            total_possible_minutes=total_possible_minutes,
-            successes=merged.get('successes', 0),
-            max_successes=max_successes,
-        )
-        merged['availability_pct'] = importance['availability_pct']
-        merged['success_volume_pct'] = importance['success_volume_pct']
-        merged['importance_score'] = importance['importance_score']
+        # Participación (extra): por partidos y por titularidades.
+        if team_played_matches > 0:
+            merged['participation_matches_pct'] = round(min((int(stats.get('pj') or 0) / int(team_played_matches)) * 100, 100), 1)
+            starters_count = len(starter_match_ids_by_player.get(int(stats.get('player_id') or 0), set()) or set())
+            merged['starter_pct'] = round(min((int(starters_count) / int(team_played_matches)) * 100, 100), 1)
+        else:
+            merged['participation_matches_pct'] = 0
+            merged['starter_pct'] = 0
+
+        # Influencia (decisivo) + métricas auxiliares.
+        pid = int(stats.get('player_id') or 0)
+        merged['decisive_actions_per90'] = float(decisive_per90_by_player.get(pid, 0.0) or 0.0)
+        merged['successes_per90'] = float(successes_per90_by_player.get(pid, 0.0) or 0.0)
         influence = calculate_influence_score(
             minutes=merged.get('minutes', 0),
-            successes=merged.get('successes', 0),
             goals=merged.get('goals', 0),
             assists=merged.get('assists', 0),
             key_passes_completed=merged.get('key_passes_completed', 0),
-            max_decisive_actions_per90=max_decisive_actions_per90,
+            shots_on_target=int((merged.get('shots') or {}).get('on_target') or 0) if isinstance(merged.get('shots'), dict) else int(stats.get('shots_on_target', 0) or 0),
+            normalization_value=influence_norm_value,
             normalization_minutes=match_regulation_minutes,
         )
-        merged['successes_per90'] = influence['successes_per90']
-        merged['decisive_actions_per90'] = influence['decisive_actions_per90']
         merged['influence_score'] = influence['influence_score']
+
+        # Importancia (hasta la fecha): disponibilidad + (volumen decisivo + calidad).
+        volume_pct = _percentile_rank(merged.get('decisive_actions_per90') or 0, volume_population)
+        quality_pct = _percentile_rank(merged.get('success_rate') or 0, quality_population)
+        merged['volume_pct'] = volume_pct
+        merged['quality_pct'] = quality_pct
+        importance = calculate_importance_score(
+            minutes=merged.get('minutes', 0),
+            possible_minutes_to_date=int(team_played_matches or 0) * int(match_regulation_minutes or 0),
+            volume_pct=volume_pct,
+            quality_pct=quality_pct,
+        )
+        merged['availability_pct'] = importance.get('availability_pct', 0)
+        merged['success_volume_pct'] = importance.get('success_volume_pct', 0)
+        merged['success_quality_pct'] = importance.get('success_quality_pct', 0)
+        merged['performance_pct'] = importance.get('performance_pct', 0)
+        merged['importance_score'] = importance.get('importance_score', 0)
         profile, profile_label, smart_kpis = build_smart_kpis(stats)
         merged['profile'] = profile
         merged['profile_label'] = profile_label
