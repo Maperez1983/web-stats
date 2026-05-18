@@ -100,7 +100,7 @@
               <span class="muted" style="font-weight:700;">· {{ step.get_step_type_display }}</span>
             </h2>
             {% if step.body %}
-            <p>{{ step.body|linebreaksbr }}</p>
+            <p>{{ step.body|urlize|linebreaksbr }}</p>
             {% endif %}
 
             {% if step.media %}
@@ -240,4 +240,3 @@
     </script>
   </body>
 </html>
-

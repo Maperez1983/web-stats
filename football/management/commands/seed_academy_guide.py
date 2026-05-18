@@ -247,6 +247,117 @@ def _seed_lesson_with_default_visual_step(item: SeedLesson) -> SeedLesson:
     )
 
 
+def _seed_lesson_has_resources_step(item: SeedLesson) -> bool:
+    for step in item.steps or []:
+        title = str(step.get("title") or "").strip().lower()
+        payload = step.get("payload") if isinstance(step.get("payload"), dict) else {}
+        if payload.get("seed_resources") is True:
+            return True
+        if title.startswith("recursos"):
+            return True
+    return False
+
+
+def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str]]:
+    """
+    Recursos públicos para profundizar (preferimos fuentes oficiales como FIFA Training Centre).
+    """
+    title = str(item.title or "").lower()
+    tags = {str(t or "").strip().lower() for t in (item.tags or []) if str(t or "").strip()}
+
+    def has(*needles: str) -> bool:
+        return any(n in title for n in needles) or any(n in tags for n in needles)
+
+    resources: list[tuple[str, str]] = []
+
+    # Defensa / presión / bloque.
+    if has("presion", "orientar", "bloque_alto", "bloque_medio", "bloque_bajo", "defensa", "basculacion", "lado_debil", "zona"):
+        resources.extend(
+            [
+                ("FIFA Training Centre · Principios defensivos (Michael Johnson)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php"),
+                ("PDF FIFA · Principios defensivos (sesión)", "https://www.fifatrainingcentre.com/media/native/test/FIFA_Session_Plan_Johnson_Defense_ESP.pdf"),
+                ("FIFA Training Centre · Defensa en bloque medio (Saïd Chiba)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/chiba_said-defensa-en-bloque-medio.php"),
+            ]
+        )
+
+    # Línea defensiva / basculación (4 atrás).
+    if has("linea", "basculacion", "centros", "area", "defensa_area", "defensa_de_cuatro"):
+        resources.append(
+            ("FIFA Training Centre · Fundamentos defensa de cuatro (Jens Lehmann)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/defensa-de-cuatro.php")
+        )
+
+    # Transiciones.
+    if has("transicion", "perdida", "recuperacion", "rest_defense", "5s", "5_segundos"):
+        resources.extend(
+            [
+                ("PDF FIFA · Transiciones (sesión)", "https://www.fifatrainingcentre.com/media/native/test/FIFA_Session_Plan_Boothroyd2_ESP.pdf"),
+                ("FIFA Training Centre · Manejo de las transiciones (análisis)", "https://www.fifatrainingcentre.com/es/the-game/tournaments/fbswc/2025/managing-transitions.php"),
+            ]
+        )
+
+    # Construcción y progresión (salida).
+    if has("salida", "build", "build-up", "progresion", "tercer_hombre", "3er_hombre", "juego_posicional", "ocupacion", "carriles"):
+        resources.append(
+            (
+                "FIFA Training Centre · 8v8: elaborar por el centro (bajo presión)",
+                "https://www.fifatrainingcentre.com/es/practice/talent-coach-programme/build-and-progress/8v8-team-game-building-up-through-middle-areas.php",
+            )
+        )
+
+    # Juego interior / zona 14.
+    if has("zona14", "entre_lineas", "juego_interior"):
+        resources.append(
+            (
+                "FIFA Training Centre · Principios defensivos (aplicables a proteger zona 14)",
+                "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php",
+            )
+        )
+
+    # Fallback mínimo (si nada encaja, pero siempre damos 1 puerta de entrada).
+    if not resources:
+        resources.append(
+            ("FIFA Training Centre · Principios defensivos (entrada recomendada)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php")
+        )
+
+    # Dedupe preservando orden.
+    seen = set()
+    out: list[tuple[str, str]] = []
+    for label, url in resources:
+        key = (str(label).strip(), str(url).strip())
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((key[0], key[1]))
+        if len(out) >= 4:
+            break
+    return out
+
+
+def _seed_lesson_with_default_resources_step(item: SeedLesson) -> SeedLesson:
+    if _seed_lesson_has_resources_step(item):
+        return item
+
+    links = _external_resources_for_seed_lesson(item)
+    body = "\n".join([f"- {label}: {url}" for label, url in links]).strip() or "—"
+    steps = list(item.steps or [])
+    steps.append(
+        {
+            "type": AcademyLessonStep.TYPE_TEXT,
+            "title": "Recursos (para profundizar)",
+            "body": body,
+            "payload": {"seed_resources": True},
+        }
+    )
+    return SeedLesson(
+        title=item.title,
+        summary=item.summary,
+        min_category=item.min_category,
+        max_category=item.max_category,
+        tags=item.tags,
+        steps=steps,
+    )
+
+
 def _mk_guide(
     *,
     title: str,
@@ -3009,6 +3120,7 @@ class Command(BaseCommand):
         if full:
             pack = pack + _mk_category_curriculum()
         pack = [_seed_lesson_with_default_visual_step(x) for x in pack]
+        pack = [_seed_lesson_with_default_resources_step(x) for x in pack]
         seed_tag = "seed_v1"
 
         try:
