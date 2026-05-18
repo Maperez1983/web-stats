@@ -30276,7 +30276,7 @@ def coach_matches_page(request):
 
     # Ordenación por columnas (controlada desde UI por query params).
     try:
-        reverse = sort_dir == 'desc'
+        sort_reverse = sort_dir == 'desc'
 
         def _k_id(r):
             return int(r.get('id') or 0)
@@ -30331,7 +30331,7 @@ def coach_matches_page(request):
         }
 
         if sort_key in key_map:
-            rows.sort(key=key_map[sort_key], reverse=reverse)
+            rows.sort(key=key_map[sort_key], reverse=sort_reverse)
         else:
             # Default parecido al QS: fecha desc y después id desc.
             rows.sort(key=_k_date, reverse=True)
