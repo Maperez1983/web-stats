@@ -56641,6 +56641,155 @@ def player_pdf(request, player_id):
         {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
         for k in ring_keys
     ]
+
+    report_start = date_start
+    report_end = date_end or timezone.localdate()
+    try:
+        season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
+        season_start = getattr(season_obj, 'start_date', None)
+        season_end = getattr(season_obj, 'end_date', None)
+        if report_start is None and season_start:
+            report_start = season_start
+        if date_end is None and season_end:
+            report_end = min(report_end, season_end)
+    except Exception:
+        pass
+
+    injury_rows = []
+    try:
+        injuries_qs = PlayerInjuryRecord.objects.filter(player=player)
+        if report_end:
+            injuries_qs = injuries_qs.filter(injury_date__lte=report_end)
+        if report_start:
+            injuries_qs = injuries_qs.filter(
+                Q(return_date__gte=report_start)
+                | Q(return_date__isnull=True)
+                | Q(estimated_return_date__gte=report_start)
+                | Q(estimated_return_date__isnull=True)
+            )
+        for rec in injuries_qs.order_by('-injury_date', '-id')[:25]:
+            start = getattr(rec, 'injury_date', None)
+            end = getattr(rec, 'return_date', None) or getattr(rec, 'return_to_train_on', None)
+            end_is_estimate = False
+            is_ongoing = False
+            if not end:
+                estimated = getattr(rec, 'estimated_return_date', None)
+                if estimated:
+                    end = estimated
+                    end_is_estimate = True
+                else:
+                    end = report_end
+                    is_ongoing = True
+
+            if report_start and end and end < report_start:
+                continue
+
+            days_out = 0
+            if start and end:
+                try:
+                    delta_days = (end - start).days
+                    days_out = max(0, int(delta_days)) + 1
+                except Exception:
+                    days_out = 0
+
+            label = ''
+            try:
+                if getattr(rec, 'catalog_entry', None):
+                    label = str(rec.catalog_entry.name or '').strip()
+            except Exception:
+                label = ''
+            if not label:
+                label = str(getattr(rec, 'injury', '') or '').strip()
+            if not label:
+                label = 'Lesión'
+
+            detail_parts = []
+            for raw in (getattr(rec, 'injury_zone', ''), getattr(rec, 'injury_type', ''), getattr(rec, 'injury_side', '')):
+                val = str(raw or '').strip()
+                if val:
+                    detail_parts.append(val)
+
+            injury_rows.append(
+                {
+                    'label': label,
+                    'detail': ' · '.join(detail_parts),
+                    'start': start,
+                    'end': end,
+                    'end_is_estimate': bool(end_is_estimate),
+                    'is_ongoing': bool(is_ongoing),
+                    'days_out': days_out,
+                }
+            )
+    except Exception:
+        injury_rows = []
+
+    attendance_summary = {
+        'total_sessions': 0,
+        'marked_total': 0,
+        'pending_total': 0,
+        'completed_total': 0,
+        'completion_pct': 0.0,
+        'status_counts': {},
+    }
+    try:
+        sessions_qs = TrainingSession.objects.filter(microcycle__team=primary_team).exclude(status=TrainingSession.STATUS_CANCELED)
+        if report_start:
+            sessions_qs = sessions_qs.filter(session_date__gte=report_start)
+        if report_end:
+            sessions_qs = sessions_qs.filter(session_date__lte=report_end)
+        total_sessions = sessions_qs.count()
+
+        marks_qs = TrainingSessionAttendance.objects.filter(player=player, session__microcycle__team=primary_team).exclude(
+            session__status=TrainingSession.STATUS_CANCELED
+        )
+        if report_start:
+            marks_qs = marks_qs.filter(session__session_date__gte=report_start)
+        if report_end:
+            marks_qs = marks_qs.filter(session__session_date__lte=report_end)
+
+        status_rows = list(marks_qs.values('status').annotate(c=Count('id')))
+        status_counts = {str(r.get('status') or '').strip(): int(r.get('c') or 0) for r in status_rows if r.get('status')}
+        marked_total = sum(status_counts.values())
+        completed_total = int(status_counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0)) + int(
+            status_counts.get(TrainingSessionAttendance.STATUS_LATE, 0)
+        )
+        pending_total = max(0, int(total_sessions) - int(marked_total))
+        completion_pct = round((completed_total / total_sessions) * 100.0, 1) if total_sessions else 0.0
+        attendance_summary = {
+            'total_sessions': int(total_sessions),
+            'marked_total': int(marked_total),
+            'pending_total': int(pending_total),
+            'completed_total': int(completed_total),
+            'completion_pct': float(completion_pct),
+            'status_counts': status_counts,
+        }
+    except Exception:
+        pass
+
+    fine_rows = []
+    fine_summary = {'count': 0, 'total_amount': 0}
+    try:
+        fines_qs = PlayerFine.objects.filter(player=player)
+        if report_start:
+            fines_qs = fines_qs.filter(created_at__date__gte=report_start)
+        if report_end:
+            fines_qs = fines_qs.filter(created_at__date__lte=report_end)
+        fine_summary = {
+            'count': int(fines_qs.count()),
+            'total_amount': int(fines_qs.aggregate(total=Sum('amount')).get('total') or 0),
+        }
+        for fine in fines_qs.order_by('-created_at', '-id')[:30]:
+            fine_rows.append(
+                {
+                    'created_at': getattr(fine, 'created_at', None),
+                    'reason': getattr(fine, 'get_reason_display', lambda: '')() if fine else '',
+                    'amount': getattr(fine, 'amount', 0) or 0,
+                    'note': str(getattr(fine, 'note', '') or '').strip(),
+                }
+            )
+    except Exception:
+        fine_rows = []
+        fine_summary = {'count': 0, 'total_amount': 0}
     html = render_to_string(
         'football/player_pdf.html',
         {
@@ -56670,6 +56819,12 @@ def player_pdf(request, player_id):
             'license_exists': license_exists,
             'crest_src': crest_src,
             'brand_mark_src': brand_mark_data_uri or request.build_absolute_uri(static('football/images/2j-mark.svg')),
+            'report_start': report_start,
+            'report_end': report_end,
+            'injury_rows': injury_rows,
+            'attendance_summary': attendance_summary,
+            'fine_rows': fine_rows,
+            'fine_summary': fine_summary,
         },
         request=request,
     )

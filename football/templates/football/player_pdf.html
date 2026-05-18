@@ -398,13 +398,129 @@
           <div class="fine">{{ player.name }}</div>
         </div>
       </div>
-    </section>
+	    </section>
 
-    <section class="sheet">
-      <div class="brand">
-        <div class="brand-logo">
-          <img src="{{ brand_mark_src }}" alt="2J" />
-          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+	    <section class="sheet">
+	      <div class="brand">
+	        <div class="brand-logo">
+	          <img src="{{ brand_mark_src }}" alt="2J" />
+	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+	        </div>
+	        <div class="brand-copy">
+	          <h1>Disponibilidad · {{ player.name }}</h1>
+	          <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+	        </div>
+	        <div class="brand-meta">
+	          <div>Periodo:</div>
+	          <div><strong>{% if report_start %}{{ report_start|date:"d/m/Y" }}{% else %}—{% endif %} → {% if report_end %}{{ report_end|date:"d/m/Y" }}{% else %}—{% endif %}</strong></div>
+	        </div>
+	      </div>
+
+	      <div class="pad">
+	        <div class="grid">
+	          <div class="grid-row">
+	            <div class="col left">
+	              <div class="card">
+	                <div class="section-title">Lesiones</div>
+	                <table class="table">
+	                  <thead>
+	                    <tr>
+	                      <th>Lesión</th>
+	                      <th style="width: 86px;">Inicio</th>
+	                      <th style="width: 86px;">Fin</th>
+	                      <th style="width: 56px;">Días</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody>
+	                    {% if injury_rows %}
+	                      {% for row in injury_rows|slice:"0:12" %}
+	                        <tr>
+	                          <td>
+	                            <strong>{{ row.label }}</strong>
+	                            {% if row.detail %}<div class="muted" style="font-size:9.8px;margin-top:2px;">{{ row.detail }}</div>{% endif %}
+	                            {% if row.is_ongoing %}<div class="muted" style="font-size:9.8px;margin-top:2px;">En curso</div>{% elif row.end_is_estimate %}<div class="muted" style="font-size:9.8px;margin-top:2px;">Alta estimada</div>{% endif %}
+	                          </td>
+	                          <td class="muted">{% if row.start %}{{ row.start|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                          <td class="muted">{% if row.end %}{{ row.end|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                          <td><strong>{{ row.days_out|default:0 }}</strong></td>
+	                        </tr>
+	                      {% endfor %}
+	                    {% else %}
+	                      <tr><td colspan="4" class="muted">Sin lesiones registradas en el periodo.</td></tr>
+	                    {% endif %}
+	                  </tbody>
+	                </table>
+	                <div class="mini-note">Días de baja aproximados (según fecha de lesión y alta/estimación registrada).</div>
+	              </div>
+	            </div>
+	            <div class="col right">
+	              <div class="card">
+	                <div class="section-title">Entrenamientos</div>
+	                <table class="table">
+	                  <thead>
+	                    <tr>
+	                      <th>Indicador</th>
+	                      <th style="width: 84px;">Valor</th>
+	                    </tr>
+	                  </thead>
+	                  <tbody>
+	                    <tr><td>Total sesiones</td><td><strong>{{ attendance_summary.total_sessions|default:0 }}</strong></td></tr>
+	                    <tr><td>Completadas</td><td><strong>{{ attendance_summary.completed_total|default:0 }}</strong></td></tr>
+	                    <tr><td>% completadas</td><td><strong>{{ attendance_summary.completion_pct|default:0 }}%</strong></td></tr>
+	                    <tr><td>Marcadas</td><td>{{ attendance_summary.marked_total|default:0 }}</td></tr>
+	                    <tr><td>Pendientes</td><td>{{ attendance_summary.pending_total|default:0 }}</td></tr>
+	                  </tbody>
+	                </table>
+	                <div class="mini-note">
+	                  Presente: {{ attendance_summary.status_counts.present|default:0 }} · Tarde: {{ attendance_summary.status_counts.late|default:0 }} · Ausente: {{ attendance_summary.status_counts.absent|default:0 }} · Lesión: {{ attendance_summary.status_counts.injured|default:0 }} · Justif.: {{ attendance_summary.status_counts.excused|default:0 }}
+	                </div>
+	              </div>
+
+	              <div class="card" style="margin-top:10px;">
+	                <div class="section-title">Multas</div>
+	                {% if fine_summary.count %}
+	                  <div class="mini-note">Total: {{ fine_summary.count }} · {{ fine_summary.total_amount }}€</div>
+	                  <table class="table">
+	                    <thead>
+	                      <tr>
+	                        <th style="width: 86px;">Fecha</th>
+	                        <th>Motivo</th>
+	                        <th style="width: 54px;">€</th>
+	                      </tr>
+	                    </thead>
+	                    <tbody>
+	                      {% for fine in fine_rows|slice:"0:10" %}
+	                        <tr>
+	                          <td class="muted">{% if fine.created_at %}{{ fine.created_at|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+	                          <td>{{ fine.reason }}</td>
+	                          <td><strong>{{ fine.amount|default:0 }}</strong></td>
+	                        </tr>
+	                      {% endfor %}
+	                    </tbody>
+	                  </table>
+	                {% else %}
+	                  <div class="muted" style="margin-top:10px;">Sin multas registradas en el periodo.</div>
+	                {% endif %}
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+
+	        <div class="foot">
+	          <div class="brandline">
+	            <img src="{{ brand_mark_src }}" alt="2J" />
+	            <div class="fine">Disponibilidad · Lesiones, entrenamientos y disciplina</div>
+	          </div>
+	          <div class="fine">{{ player.name }}</div>
+	        </div>
+	      </div>
+	    </section>
+
+	    <section class="sheet">
+	      <div class="brand">
+	        <div class="brand-logo">
+	          <img src="{{ brand_mark_src }}" alt="2J" />
+	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
         </div>
         <div class="brand-copy">
           <h1>Detalle por partido · {{ player.name }}</h1>
