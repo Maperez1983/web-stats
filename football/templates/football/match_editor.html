@@ -65,15 +65,22 @@
         <h2 style="margin:0 0 0.6rem;">Datos del partido</h2>
         <form method="post">
           {% csrf_token %}
-          <input type="hidden" name="form_action" value="match_save" />
-          <div class="grid">
-            <div style="grid-column: span 2;">
-              <label>Rival</label>
-              <input name="opponent" value="{{ opponent_name }}" placeholder="Ej. NERJA" required />
-            </div>
-            <div style="grid-column: span 1;">
-              <label>Jornada</label>
-              <input name="round" value="{{ match.round|default:'' }}" placeholder="Jornada 2" />
+	          <input type="hidden" name="form_action" value="match_save" />
+	          <div class="grid">
+	            <div style="grid-column: span 2;">
+	              <label>Rival</label>
+	              <select name="opponent_team_id" id="opponent_team_id">
+	                <option value="">Selecciona rival…</option>
+	                {% for opt in opponent_options %}
+	                  <option value="{{ opt.id }}" {% if opt.id == opponent_team_id %}selected{% endif %}>{{ opt.label }}</option>
+	                {% endfor %}
+	              </select>
+	              <small>Si no aparece en el desplegable, escribe el nombre manualmente.</small>
+	              <input name="opponent" id="opponent_input" value="{{ opponent_name }}" placeholder="Ej. NERJA" />
+	            </div>
+	            <div style="grid-column: span 1;">
+	              <label>Jornada</label>
+	              <input name="round" value="{{ match.round|default:'' }}" placeholder="Jornada 2" />
             </div>
             <div style="grid-column: span 1;">
               <label>Fecha</label>
@@ -451,5 +458,19 @@
         </table>
       </section>
     </main>
+    <script>
+      (() => {
+        const select = document.getElementById('opponent_team_id');
+        const input = document.getElementById('opponent_input');
+        if (!select || !input) return;
+        const sync = () => {
+          const opt = select.options[select.selectedIndex];
+          if (select.value && opt) input.value = (opt.textContent || '').trim();
+        };
+        select.addEventListener('change', sync);
+        // Inicializa si ya viene seleccionado.
+        if (select.value && (!input.value || input.value === 'Rival')) sync();
+      })();
+    </script>
   </body>
 </html>

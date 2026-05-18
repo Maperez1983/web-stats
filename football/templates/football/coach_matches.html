@@ -114,14 +114,14 @@
                 <td>
                   <strong>{{ r.opponent }}</strong>
                   {% if r.tournament_name %}<small>Torneo: {{ r.tournament_name }}{% if r.tournament_stage %} · {{ r.tournament_stage }}{% endif %}</small>{% endif %}
-                </td>
-                <td>{{ r.round|default:"-" }}</td>
-                <td>{{ r.context|default:"league" }}</td>
-                <td>{{ r.score|default:"" }}</td>
-                <td><span class="chip">{{ r.actions|default:0 }}</span></td>
-                <td><span class="chip">{{ r.manual_stats|default:0 }}</span></td>
-                <td><span class="chip">{{ r.videos|default:0 }}</span></td>
-                <td>
+	                </td>
+	                <td>{{ r.round|default:"-" }}</td>
+	                <td>{{ r.context_label|default:"Liga" }}</td>
+	                <td>{{ r.score|default:"" }}</td>
+	                <td><span class="chip">{{ r.actions|default:0 }}</span></td>
+	                <td><span class="chip">{{ r.manual_stats|default:0 }}</span></td>
+	                <td><span class="chip">{{ r.videos|default:0 }}</span></td>
+	                <td>
                   {% if r.is_duplicate %}
                     <span class="chip dup">Duplicado ×{{ r.dup_count }}</span>
                   {% elif r.is_registered %}

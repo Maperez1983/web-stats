@@ -30235,6 +30235,7 @@ def coach_matches_page(request):
         video_counts = {}
     rows = []
     dup_counts = Counter()
+    context_label_by_key = {k: v for (k, v) in (getattr(Match, 'CONTEXT_CHOICES', []) or []) if k and v}
     for m in raw:
         is_home = bool(m.home_team_id == primary_team.id)
         opponent = m.away_team if is_home else m.home_team
@@ -30247,6 +30248,8 @@ def coach_matches_page(request):
                 'date': getattr(m, 'date', None),
                 'round': str(getattr(m, 'round', '') or '').strip(),
                 'context': str(getattr(m, 'context', '') or Match.CONTEXT_LEAGUE),
+                'context_label': str(context_label_by_key.get(str(getattr(m, 'context', '') or Match.CONTEXT_LEAGUE), '') or '').strip()
+                or str(context_label_by_key.get(Match.CONTEXT_LEAGUE, 'Liga')),
                 'tournament_name': str(getattr(m, 'tournament_name', '') or '').strip(),
                 'tournament_stage': str(getattr(m, 'tournament_stage', '') or '').strip(),
                 'opponent': opponent_name,
@@ -57846,6 +57849,7 @@ def match_editor_page(request, match_id):
 
             if form_action == 'match_save':
                 opponent = str(request.POST.get('opponent') or '').strip()
+                opponent_team_id = _parse_int(request.POST.get('opponent_team_id'))
                 round_value = str(request.POST.get('round') or '').strip()
                 location_value = str(request.POST.get('location') or '').strip()
                 context_value = str(request.POST.get('context') or match.context or Match.CONTEXT_LEAGUE).strip().lower()
@@ -57876,6 +57880,7 @@ def match_editor_page(request, match_id):
                     primary_team,
                     {
                         'opponent': opponent,
+                        'opponent_team_id': opponent_team_id,
                         'round': round_value,
                         'location': location_value,
                         'context': context_value,
@@ -58078,6 +58083,7 @@ def match_editor_page(request, match_id):
 
     opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
     opponent_name = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+    opponent_team_id_selected = int(getattr(opponent_team, 'id', 0) or 0) if opponent_team else 0
     is_home = match.home_team_id == primary_team.id
     score_for = match.home_score if is_home else match.away_score
     score_against = match.away_score if is_home else match.home_score
@@ -58131,6 +58137,44 @@ def match_editor_page(request, match_id):
             )
     except Exception:
         manual_player_stats_rows = [{'player': p, 'minutes': None, 'goals': None, 'assists': None} for p in players]
+
+    # Opciones de rival para desplegable (evita duplicados y normaliza nombre).
+    opponent_options = []
+    try:
+        candidate_group = match.group or primary_team.group
+        candidate_group_id = int(getattr(candidate_group, 'id', 0) or 0) if candidate_group else 0
+        team_ids = []
+        if candidate_group_id:
+            try:
+                team_ids = list(
+                    TeamStanding.objects.filter(group_id=candidate_group_id)
+                    .order_by('position')
+                    .values_list('team_id', flat=True)
+                )
+            except Exception:
+                team_ids = []
+        qs = Team.objects.none()
+        if team_ids:
+            qs = Team.objects.filter(id__in=list(dict.fromkeys([int(tid) for tid in team_ids if tid])))
+        elif candidate_group_id:
+            qs = Team.objects.filter(group_id=candidate_group_id)
+        else:
+            qs = Team.objects.filter(group=primary_team.group) if primary_team.group_id else Team.objects.none()
+        teams = list(qs.order_by('name', 'id')[:300])
+        # Excluye el equipo propio.
+        teams = [t for t in teams if int(getattr(t, 'id', 0) or 0) and int(t.id) != int(primary_team.id)]
+        for t in teams:
+            label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
+            if not label:
+                label = f'Equipo #{int(t.id)}'
+            opponent_options.append({'id': int(t.id), 'label': label})
+        # Asegura que el rival actual siempre aparece, aunque no esté en el grupo (torneos / amistosos).
+        if opponent_team and int(opponent_team.id) != int(primary_team.id):
+            if not any(int(opt.get('id') or 0) == int(opponent_team.id) for opt in opponent_options):
+                label = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'short_name', '') or getattr(opponent_team, 'name', '') or '').strip() or f'Equipo #{int(opponent_team.id)}'
+                opponent_options.insert(0, {'id': int(opponent_team.id), 'label': label})
+    except Exception:
+        opponent_options = []
     return render(
         request,
         'football/match_editor.html',
@@ -58139,6 +58183,8 @@ def match_editor_page(request, match_id):
             'primary_team_id': int(primary_team.id),
             'match': match,
             'opponent_name': opponent_name,
+            'opponent_team_id': opponent_team_id_selected,
+            'opponent_options': opponent_options,
             'score_for': score_for if score_for is not None else '',
             'score_against': score_against if score_against is not None else '',
             'players': players,
@@ -59157,6 +59203,7 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     location_value = (match_info_payload.get('location') or '').strip()
     datetime_value = (match_info_payload.get('datetime') or '').strip()
     opponent_name = (match_info_payload.get('opponent') or '').strip()
+    opponent_team_id_raw = match_info_payload.get('opponent_team_id')
     context_value = (match_info_payload.get('context') or '').strip().lower()
     tournament_name_value = (match_info_payload.get('tournament_name') or '').strip()
     tournament_stage_value = (match_info_payload.get('tournament_stage') or '').strip()
@@ -59200,7 +59247,44 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
         match.date = parsed_date
         changed_fields.append('date')
 
-    if opponent_name and normalize_label(opponent_name) != normalize_label(primary_team.name):
+    def _parse_optional_positive_int(value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value if value > 0 else None
+        raw = str(value).strip()
+        if not raw:
+            return None
+        try:
+            parsed = int(raw)
+        except (TypeError, ValueError):
+            return None
+        return parsed if parsed > 0 else None
+
+    rival_team = None
+    opponent_team_id = _parse_optional_positive_int(opponent_team_id_raw)
+    if opponent_team_id:
+        try:
+            rival_team = Team.objects.filter(id=int(opponent_team_id)).first()
+        except Exception:
+            rival_team = None
+
+    if rival_team and normalize_label(rival_team.name) != normalize_label(primary_team.name):
+        if match.home_team_id == primary_team.id:
+            if match.away_team_id != rival_team.id:
+                match.away_team = rival_team
+                changed_fields.append('away_team')
+        elif match.away_team_id == primary_team.id:
+            if match.home_team_id != rival_team.id:
+                match.home_team = rival_team
+                changed_fields.append('home_team')
+        else:
+            match.home_team = primary_team
+            match.away_team = rival_team
+            changed_fields.extend(['home_team', 'away_team'])
+    elif opponent_name and normalize_label(opponent_name) != normalize_label(primary_team.name):
         rival_team = Team.objects.filter(name__iexact=opponent_name).first()
         if not rival_team:
             rival_team = Team.objects.create(
