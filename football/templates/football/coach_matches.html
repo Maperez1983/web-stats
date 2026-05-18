@@ -42,6 +42,7 @@
         </div>
         <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end;">
           <a class="btn" href="{% url 'coach-cards' %}?area=match">Volver</a>
+          <a class="btn primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}&open_create=1{% else %}?open_create=1{% endif %}">Nuevo partido</a>
           <a class="btn primary" href="{% url 'match-hub' %}">Ir a Partido</a>
         </div>
       </header>

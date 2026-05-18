@@ -529,5 +529,20 @@
       })();
     </script>
     {% endif %}
+
+    <script>
+      // Si venimos desde Coach → Partidos (edición anual), abrimos el modal de "Nuevo partido"
+      // automáticamente para no obligar al usuario a buscar el botón.
+      (() => {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const shouldOpen = params.get('open_create');
+          if (!shouldOpen || shouldOpen === '0' || shouldOpen === 'false' || shouldOpen === 'no') return;
+          const btn = document.getElementById('createMatchBtn');
+          if (!btn) return;
+          window.requestAnimationFrame(() => btn.click());
+        } catch (e) {}
+      })();
+    </script>
   </body>
 </html>
