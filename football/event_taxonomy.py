@@ -488,73 +488,57 @@ def shots_needed_per_goal(shots, goals):
     return round(shots_value / goals_value, 2)
 
 
-def calculate_importance_score(
-    minutes,
-    possible_minutes_to_date,
-    volume_pct,
-    quality_pct,
-):
-    """
-    Importancia (0-100) orientada a staff.
-
-    - availability_pct: uso/disponibilidad hasta la fecha (minutos / minutos posibles ya jugados).
-    - performance_pct: mezcla de volumen decisivo (p.ej. acciones decisivas/90) y calidad (acierto).
-
-    No usamos el calendario completo porque aplana el inicio de temporada.
-    """
+def calculate_importance_score(minutes, total_possible_minutes, successes, max_successes):
     minute_value = max(0, int(minutes or 0))
-    possible_minutes = max(0, int(possible_minutes_to_date or 0))
-    volume_value = max(0, float(volume_pct or 0))
-    quality_value = max(0, float(quality_pct or 0))
+    possible_minutes = max(0, int(total_possible_minutes or 0))
+    successes_value = max(0, int(successes or 0))
+    max_success_value = max(0, int(max_successes or 0))
 
     availability_pct = round((minute_value / possible_minutes) * 100, 1) if possible_minutes else 0
     availability_pct = max(0, min(availability_pct, 100))
-    volume_value = max(0, min(volume_value, 100))
-    quality_value = max(0, min(quality_value, 100))
-    performance_pct = round((volume_value * 0.6) + (quality_value * 0.4), 1)
-    performance_pct = max(0, min(performance_pct, 100))
-    importance_score = round((availability_pct * 0.7) + (performance_pct * 0.3), 1)
+    success_volume_pct = round((successes_value / max_success_value) * 100, 1) if max_success_value else 0
+    success_volume_pct = max(0, min(success_volume_pct, 100))
+    importance_score = round((availability_pct * 0.6) + (success_volume_pct * 0.4), 1)
     importance_score = max(0, min(importance_score, 100))
     return {
         'availability_pct': availability_pct,
-        'success_volume_pct': round(volume_value, 1),
-        'success_quality_pct': round(quality_value, 1),
-        'performance_pct': performance_pct,
+        'success_volume_pct': success_volume_pct,
         'importance_score': importance_score,
     }
 
 
 def calculate_influence_score(
     minutes,
+    successes,
     goals,
     assists,
     key_passes_completed,
-    shots_on_target,
-    normalization_value,
+    max_decisive_actions_per90,
     normalization_minutes=90,
 ):
     minute_value = max(0, int(minutes or 0))
+    successes_value = max(0, int(successes or 0))
     goals_value = max(0, int(goals or 0))
     assists_value = max(0, int(assists or 0))
     key_passes_value = max(0, int(key_passes_completed or 0))
-    shots_on_target_value = max(0, int(shots_on_target or 0))
-    normalization_value = max(0, float(normalization_value or 0))
+    max_decisive_actions_per90_value = max(0, float(max_decisive_actions_per90 or 0))
 
     try:
         norm_minutes = max(1, int(normalization_minutes or 90))
     except Exception:
         norm_minutes = 90
 
-    # Influencia = acciones verdaderamente decisivas (no "volumen de acciones correctas").
-    decisive_actions = (goals_value * 10) + (assists_value * 7) + (key_passes_value * 3) + (shots_on_target_value * 2)
+    successes_per90 = round((successes_value / minute_value) * norm_minutes, 2) if minute_value else 0
+    decisive_actions = successes_value + (goals_value * 6) + (assists_value * 4) + (key_passes_value * 2)
     decisive_actions_per90 = round((decisive_actions / minute_value) * norm_minutes, 2) if minute_value else 0
     influence_pct = (
-        round((decisive_actions_per90 / normalization_value) * 100, 1)
-        if normalization_value
+        round((decisive_actions_per90 / max_decisive_actions_per90_value) * 100, 1)
+        if max_decisive_actions_per90_value
         else 0
     )
     influence_pct = max(0, min(influence_pct, 100))
     return {
+        'successes_per90': successes_per90,
         'decisive_actions_per90': decisive_actions_per90,
         'influence_score': influence_pct,
     }

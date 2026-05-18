@@ -4934,44 +4934,44 @@ class EventTaxonomyKpiTests(TestCase):
         self.assertEqual(shots_needed_per_goal(9, 3), 3.0)
         self.assertIsNone(shots_needed_per_goal(5, 0))
 
-    def test_importance_score_combines_availability_volume_and_quality(self):
+    def test_importance_score_combines_availability_and_success_volume(self):
         payload = calculate_importance_score(
             minutes=900,
-            possible_minutes_to_date=1800,
-            volume_pct=80,
-            quality_pct=60,
+            total_possible_minutes=1800,
+            successes=80,
+            max_successes=100,
         )
 
         self.assertEqual(payload['availability_pct'], 50.0)
         self.assertEqual(payload['success_volume_pct'], 80.0)
-        self.assertEqual(payload['success_quality_pct'], 60.0)
-        self.assertEqual(payload['performance_pct'], 72.0)
-        self.assertEqual(payload['importance_score'], 56.6)
+        self.assertEqual(payload['importance_score'], 62.0)
 
-    def test_influence_score_rewards_decisive_actions_per90(self):
+    def test_influence_score_rewards_successes_in_fewer_minutes(self):
         payload = calculate_influence_score(
             minutes=450,
-            goals=1,
-            assists=1,
-            key_passes_completed=2,
-            shots_on_target=3,
-            normalization_value=5.8,
+            successes=40,
+            goals=0,
+            assists=0,
+            key_passes_completed=0,
+            max_decisive_actions_per90=8,
         )
 
-        self.assertEqual(payload['decisive_actions_per90'], 5.8)
+        self.assertEqual(payload['successes_per90'], 8.0)
+        self.assertEqual(payload['decisive_actions_per90'], 8.0)
         self.assertEqual(payload['influence_score'], 100.0)
 
-    def test_influence_score_clamps_above_100(self):
+    def test_influence_score_weights_goals_assists_and_key_passes(self):
         payload = calculate_influence_score(
             minutes=450,
-            goals=1,
-            assists=1,
-            key_passes_completed=2,
-            shots_on_target=3,
-            normalization_value=2.9,
+            successes=20,
+            goals=4,
+            assists=3,
+            key_passes_completed=6,
+            max_decisive_actions_per90=12,
         )
 
-        self.assertEqual(payload['decisive_actions_per90'], 5.8)
+        self.assertEqual(payload['successes_per90'], 4.0)
+        self.assertEqual(payload['decisive_actions_per90'], 13.6)
         self.assertEqual(payload['influence_score'], 100.0)
 
     def test_build_smart_kpis_prioritizes_assists_when_present(self):
