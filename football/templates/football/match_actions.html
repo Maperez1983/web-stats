@@ -4059,6 +4059,11 @@
           <form id="manual-bulk-form" style="display:grid; gap:0.7rem; padding: 0.25rem 0 0.25rem;">
             {% csrf_token %}
             <input type="hidden" name="match_id" value="{{ selected_match_id|default:'' }}" />
+            <datalist id="manual-bulk-action-catalog">
+              {% for action in action_catalog %}
+                <option value="{{ action|escape }}"></option>
+              {% endfor %}
+            </datalist>
             <label style="display:grid; gap:0.35rem;">
               <span>Jugador</span>
               <select name="player_id" required>
@@ -4070,7 +4075,7 @@
             </label>
             <label style="display:grid; gap:0.35rem;">
               <span>Acción</span>
-              <input type="text" name="action_type" placeholder="Ej: Pérdida, Pase, Duelo…" required />
+              <input type="text" name="action_type" list="manual-bulk-action-catalog" placeholder="Ej: Pérdida, Pase, Duelo…" required />
               <small style="opacity:0.75;">Puedes escribirla tal cual. (Si quieres, luego lo mejoramos con selector.)</small>
             </label>
             <label style="display:grid; gap:0.35rem;">

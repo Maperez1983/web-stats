@@ -231,6 +231,23 @@
         </div>
 
         <h3 style="margin:0 0 0.55rem;font-size:1rem;">Añadir por volumen</h3>
+        <datalist id="editor-action-catalog">
+          {% for action in action_catalog %}
+            <option value="{{ action|escape }}"></option>
+          {% endfor %}
+        </datalist>
+        <datalist id="editor-result-catalog">
+          {% for result in result_options %}
+            <option value="{{ result|escape }}"></option>
+          {% endfor %}
+          <option value="OK"></option>
+          <option value="Mal"></option>
+        </datalist>
+        <datalist id="editor-zone-catalog">
+          {% for zone in zone_options %}
+            <option value="{{ zone|escape }}"></option>
+          {% endfor %}
+        </datalist>
         <form method="post" class="row-form" style="margin-bottom:0.9rem;">
           {% csrf_token %}
           <input type="hidden" name="form_action" value="events_bulk_add" />
@@ -253,15 +270,15 @@
           </div>
           <div>
             <label>Acción</label>
-            <input name="event_type" placeholder="Ej. Pérdida no forzada" required />
+            <input name="event_type" list="editor-action-catalog" placeholder="Ej. Pérdida no forzada" required />
           </div>
           <div>
             <label>Resultado</label>
-            <input name="result" placeholder="OK / Mal / Ganado..." required />
+            <input name="result" list="editor-result-catalog" placeholder="OK / Mal / Ganado..." required />
           </div>
           <div>
             <label>Zona</label>
-            <input name="zone" placeholder="Ej. Medio Centro" />
+            <input name="zone" list="editor-zone-catalog" placeholder="Ej. Medio Centro" />
           </div>
           <div>
             <label>Observación</label>
@@ -294,15 +311,15 @@
           </div>
           <div>
             <label>Acción</label>
-            <input name="event_type" placeholder="Ej. GOL / ASISTENCIA / PASE" required />
+            <input name="event_type" list="editor-action-catalog" placeholder="Ej. GOL / ASISTENCIA / PASE" required />
           </div>
           <div>
             <label>Resultado</label>
-            <input name="result" placeholder="OK / FALLA / ..." />
+            <input name="result" list="editor-result-catalog" placeholder="OK / FALLA / ..." />
           </div>
           <div>
             <label>Zona</label>
-            <input name="zone" placeholder="Ej. Área, Banda..." />
+            <input name="zone" list="editor-zone-catalog" placeholder="Ej. Área, Banda..." />
           </div>
           <div>
             <label>Observación</label>
