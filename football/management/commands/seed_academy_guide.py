@@ -260,7 +260,8 @@ def _seed_lesson_has_resources_step(item: SeedLesson) -> bool:
 
 def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str]]:
     """
-    Recursos públicos para profundizar (preferimos fuentes oficiales como FIFA Training Centre).
+    Recursos públicos para profundizar (mezcla: oficial + análisis + vídeos).
+    Nota: evitamos enlaces dudosos (piratería, agregadores raros, etc.) y priorizamos fuentes de referencia.
     """
     title = str(item.title or "").lower()
     tags = {str(t or "").strip().lower() for t in (item.tags or []) if str(t or "").strip()}
@@ -269,6 +270,14 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
         return any(n in title for n in needles) or any(n in tags for n in needles)
 
     resources: list[tuple[str, str]] = []
+
+    # Puertas de entrada (siempre útiles, aunque luego se filtren por dedupe/cap).
+    resources.extend(
+        [
+            ("FIFA Training Centre · Inicio", "https://www.fifatrainingcentre.com/"),
+            ("FIFA Training Centre (FIFA) · Overview", "https://inside.fifa.com/technical/fifa-training-centre"),
+        ]
+    )
 
     # Defensa / presión / bloque.
     if has("presion", "orientar", "bloque_alto", "bloque_medio", "bloque_bajo", "defensa", "basculacion", "lado_debil", "zona", "compacto"):
@@ -279,7 +288,10 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
                 ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
                 ("UEFA · Setting the press (performance insights)", "https://www.uefa.com/uefachampionsleague/news/028a-1a1bf5c2d303-4a5106d81f09-1000--champions-league-performance-insights-setting-the-press/"),
                 ("UEFA · Video: pressing trap (Europa League)", "https://www.uefa.com/uefaeuropaleague/video/028d-1adb46cedb92-ddb6c06004ab-1000--tactical-analysis-leverkusen-set-pressing-trap/"),
+                ("UEFA The Technician (PDF) · Blueprint: defending", "https://editorial.uefa.com/resources/02a4-204ab0f96567-7ac0a406fd94-1000/uefa_the-technician_march-2026.pdf"),
                 ("The FA · Defendiendo zonas centrales (Boot Room)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-defending-central-areas"),
+                ("The FA · Pressing: delaying, denying (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-pressing-delaying-denying"),
+                ("The FA · When and how to press (sesión)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-when-and-how-to-press"),
                 ("RFEF · Contenido técnico entrenadores (tareas reales)", "https://rfef.es/index.php/es/noticias/contenido-tecnico-para-entrenadores-hoy-entrenamos-con-marcelino-garcia-toral"),
             ]
         )
@@ -296,16 +308,20 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
             [
                 ("FIFA Training Centre · Transiciones (Boothroyd 2)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php"),
                 ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
+                ("The FA · Out of possession: pressing (overview)", "https://www.thefa.com/bootroom/resources/england-dna/how-we-play/out-of-possession"),
             ]
         )
 
     # Construcción y progresión (salida).
     if has("salida", "build", "build-up", "progresion", "tercer_hombre", "3er_hombre", "juego_posicional", "ocupacion", "carriles"):
-        resources.append(
-            (
-                "FIFA Training Centre · 8v8: elaborar por el centro (bajo presión)",
-                "https://www.fifatrainingcentre.com/es/practice/talent-coach-programme/build-and-progress/8v8-team-game-building-up-through-middle-areas.php",
-            )
+        resources.extend(
+            [
+                (
+                    "FIFA Training Centre · 8v8: elaborar por el centro (bajo presión)",
+                    "https://www.fifatrainingcentre.com/es/practice/talent-coach-programme/build-and-progress/8v8-team-game-building-up-through-middle-areas.php",
+                ),
+                ("Spielverlagerung · Pressing traps (análisis)", "https://spielverlagerung.com/2020/04/08/pressing-traps-available-in-a-3-4-3/"),
+            ]
         )
 
     # Juego interior / zona 14.
@@ -316,6 +332,44 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
                 "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php",
             )
         )
+
+    # ABP / set pieces.
+    if has("abp", "corner", "corners", "saque_porteria", "saque_banda", "faltas"):
+        resources.extend(
+            [
+                ("FIFA Training Centre · Set plays (análisis y rutinas)", "https://www.fifatrainingcentre.com/en/game/game-analysis/set-plays/set-play-routines/set-play-routines-home.php"),
+                ("FIFA Training Centre · Sesión: set pieces (France U17)", "https://www.fifatrainingcentre.com/en/practice/elite-sessions/youth-national-teams/france-u17-men/wednesday-session-set-pieces.php"),
+            ]
+        )
+
+    # Porteros.
+    if has("porteros", "portero", "gk", "goalkeeper", "1v1"):
+        resources.extend(
+            [
+                ("FIFA · Nuevas sesiones de porteros (ES)", "https://inside.fifa.com/es/news/tres-nuevas-sesiones-para-guardametas-disponibles-centro-entrenamiento-fifa"),
+                ("FIFA Training Centre · Sesión porteros (Schalke)", "https://www.fifatrainingcentre.com/en/practice/elite-sessions/clubs-and-academies/german-academies/individual-goalkeeper-training-for-counter-attacking-from-a-corner.php"),
+                ("UEFA · Goalkeeper Coaching (PDF)", "https://editorial.uefa.com/resources/0285-190a81f7e091-323e8bfbc968-1000/uefa_goalkeeper_coaching_en.pdf"),
+            ]
+        )
+
+    # Metodología (PPP / constraints / didáctica).
+    if has("metodologia", "didactica", "ppp", "constraints", "constraints-led", "no_lineal", "nonlinear"):
+        resources.extend(
+            [
+                ("The FA · Cómo usar constraints en tu sesión", "https://www.thefa.com/bootroom/resources/coaching/how-to-use-constraints-in-your-coaching-session"),
+                ("US Soccer · PPP Methodology (PDF)", "https://www.nmysa.net/wp-content/uploads/sites/206/2023/08/Play-Practice-Play-Methodology1.pdf"),
+                ("US Soccer · Coaches session plans (resource hub)", "https://www.ussoccer.com/soccer-forward/resource-hub/coaches-session-plans"),
+                ("CONMEBOL · Manual orientador (ES, PDF)", "https://www.conmebol.com/wp-content/uploads/documents/manual-orientador-esp.pdf"),
+            ]
+        )
+
+    # Siempre: búsqueda guiada (para "todo lo que salga" sin llenar de spam).
+    q_bits = [str(item.title or "").strip()]
+    q_bits.extend([t for t in (item.tags or [])[:4] if str(t or "").strip()])
+    query = " ".join([x for x in q_bits if x]).strip()
+    if query:
+        yt_q = query.replace(" ", "+")
+        resources.append(("YouTube · búsqueda del tema", f"https://www.youtube.com/results?search_query={yt_q}"))
 
     # Fallback mínimo (si nada encaja, pero siempre damos 1 puerta de entrada).
     if not resources:
@@ -332,7 +386,7 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
             continue
         seen.add(key)
         out.append((key[0], key[1]))
-        if len(out) >= 6:
+        if len(out) >= 10:
             break
     return out
 
