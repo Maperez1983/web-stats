@@ -271,12 +271,16 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     resources: list[tuple[str, str]] = []
 
     # Defensa / presión / bloque.
-    if has("presion", "orientar", "bloque_alto", "bloque_medio", "bloque_bajo", "defensa", "basculacion", "lado_debil", "zona"):
+    if has("presion", "orientar", "bloque_alto", "bloque_medio", "bloque_bajo", "defensa", "basculacion", "lado_debil", "zona", "compacto"):
         resources.extend(
             [
                 ("FIFA Training Centre · Principios defensivos (Michael Johnson)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/johnson-principios-defensivos.php"),
-                ("PDF FIFA · Principios defensivos (sesión)", "https://www.fifatrainingcentre.com/media/native/test/FIFA_Session_Plan_Johnson_Defense_ESP.pdf"),
-                ("FIFA Training Centre · Defensa en bloque medio (Saïd Chiba)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/out-of-possession/chiba_said-defensa-en-bloque-medio.php"),
+                ("FIFA Training Centre · Transiciones (Boothroyd 2)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php"),
+                ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
+                ("UEFA · Setting the press (performance insights)", "https://www.uefa.com/uefachampionsleague/news/028a-1a1bf5c2d303-4a5106d81f09-1000--champions-league-performance-insights-setting-the-press/"),
+                ("UEFA · Video: pressing trap (Europa League)", "https://www.uefa.com/uefaeuropaleague/video/028d-1adb46cedb92-ddb6c06004ab-1000--tactical-analysis-leverkusen-set-pressing-trap/"),
+                ("The FA · Defendiendo zonas centrales (Boot Room)", "https://www.thefa.com/bootroom/resources/coaching/out-of-possession-defending-central-areas"),
+                ("RFEF · Contenido técnico entrenadores (tareas reales)", "https://rfef.es/index.php/es/noticias/contenido-tecnico-para-entrenadores-hoy-entrenamos-con-marcelino-garcia-toral"),
             ]
         )
 
@@ -290,8 +294,8 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
     if has("transicion", "perdida", "recuperacion", "rest_defense", "5s", "5_segundos"):
         resources.extend(
             [
-                ("PDF FIFA · Transiciones (sesión)", "https://www.fifatrainingcentre.com/media/native/test/FIFA_Session_Plan_Boothroyd2_ESP.pdf"),
-                ("FIFA Training Centre · Manejo de las transiciones (análisis)", "https://www.fifatrainingcentre.com/es/the-game/tournaments/fbswc/2025/managing-transitions.php"),
+                ("FIFA Training Centre · Transiciones (Boothroyd 2)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transiciones.php"),
+                ("FIFA Training Centre · Transición ofensiva (Jennings)", "https://www.fifatrainingcentre.com/es/practice/elite-sessions/transition-to-attacking/transicion-ofensiva-jennings.php"),
             ]
         )
 
@@ -328,7 +332,7 @@ def _external_resources_for_seed_lesson(item: SeedLesson) -> list[tuple[str, str
             continue
         seen.add(key)
         out.append((key[0], key[1]))
-        if len(out) >= 4:
+        if len(out) >= 6:
             break
     return out
 
