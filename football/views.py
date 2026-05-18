@@ -1525,6 +1525,49 @@ UNIVERSO_EXTERNAL_IMAGES_ENABLED = str(
     os.getenv('UNIVERSO_EXTERNAL_IMAGES_ENABLED', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
 
+
+def _schedule_preferente_roster_refresh(primary_team, *, force: bool = False):
+    """
+    Evita que una petición web quede bloqueada por un fetch lento a La Preferente.
+
+    - Si la caché está reciente, `refresh_primary_roster_cache()` retorna rápido.
+    - Si está caducada, lanzamos un hilo en background para refrescar sin penalizar UX.
+    """
+    if not primary_team:
+        return
+
+    try:
+        # Doble guard: el refresh solo aplica cuando hay URL configurada.
+        if not str(getattr(primary_team, 'preferente_url', '') or '').strip():
+            return
+    except Exception:
+        return
+
+    lock_key = f'football:preferente_roster_refresh:lock:{int(primary_team.id)}'
+    try:
+        if cache.get(lock_key):
+            return
+        cache.set(lock_key, 1, 60 * 10)
+    except Exception:
+        pass
+
+    def _run():
+        try:
+            refresh_primary_roster_cache(primary_team, force=bool(force))
+        except Exception:
+            pass
+        try:
+            cache.delete(lock_key)
+        except Exception:
+            pass
+
+    try:
+        t = threading.Thread(target=_run, name=f'preferente-roster-refresh:{int(primary_team.id)}', daemon=True)
+        t.start()
+    except Exception:
+        # Fallback: si no podemos crear thread, no hacemos nada (mejor UX que bloquear).
+        return
+
 TASK_MATERIAL_LIBRARY = [
     {'label': 'CONO', 'title': 'Cono alto', 'kind': 'cone', 'category': 'delimitacion', 'icon': '△'},
     {'label': 'SETA', 'title': 'Seta baja', 'kind': 'marker', 'category': 'delimitacion', 'icon': '◉'},
@@ -11450,7 +11493,7 @@ def dashboard_data(request):
     ).strip().lower() in {'1', 'true', 'yes', 'on'}
     if refresh_roster_on_load:
         try:
-            refresh_primary_roster_cache(primary_team, force=False)
+            _schedule_preferente_roster_refresh(primary_team, force=False)
         except Exception:
             pass
 
@@ -17978,7 +18021,7 @@ def player_dashboard_page(request):
         refresh_roster_on_load = str(refresh_roster_override).strip().lower() in {'1', 'true', 'yes', 'on'}
     if refresh_roster_on_load:
         try:
-            refresh_primary_roster_cache(primary_team, force=False)
+            _schedule_preferente_roster_refresh(primary_team, force=False)
         except Exception:
             pass
     scope = _get_stats_scope_for_request(request, primary_team)
