@@ -59713,17 +59713,23 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)
-    # Evita KPIs desactualizados: si el equipo tiene acciones pendientes (`touch-field`) en el partido activo,
+    # Evita KPIs desactualizados: si el equipo tiene acciones *recientes* pendientes (`touch-field`),
     # no usamos caché para que PJ/minutos y contadores reflejen lo recién registrado.
+    #
+    # Importante: `get_active_match()` devuelve el "próximo partido" por calendario, no el partido
+    # que se estaba registrando en vivo. Usamos `get_latest_live_match()` + ventana temporal.
     if can_use_cache:
         try:
-            active_match_probe = get_active_match(primary_team)
-            if active_match_probe and MatchEvent.objects.filter(
-                match=active_match_probe,
-                source_file='registro-acciones',
-                system='touch-field',
-            ).exists():
-                can_use_cache = False
+            live_match = get_latest_live_match(primary_team)
+            if live_match:
+                recent_cutoff = timezone.now() - timedelta(minutes=6)
+                if MatchEvent.objects.filter(
+                    match=live_match,
+                    source_file='registro-acciones',
+                    system='touch-field',
+                    created_at__gte=recent_cutoff,
+                ).exists():
+                    can_use_cache = False
         except Exception:
             pass
     if can_use_cache:
