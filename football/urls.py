@@ -24,6 +24,8 @@ urlpatterns = [
     path('api/match/video-links/', views.match_video_links_api, name='match-video-links-api'),
     path('api/match/video/marker/', views.match_video_marker_api, name='match-video-marker-api'),
     path('api/build/', views.public_build_info, name='public-build-info'),
+    # Alias corto para debug/healthchecks en producción (p.ej. /build).
+    path('build/', views.public_build_info, name='public-build-info-short'),
     path('api/search/', views.search_api, name='search-api'),
     path('api/rivals/roster/', views.rival_roster_api, name='rival-roster-api'),
     path('billing/', views.billing_page, name='billing'),
