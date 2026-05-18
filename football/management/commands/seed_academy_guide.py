@@ -1861,6 +1861,7 @@ def _mk_seed_pack() -> list[SeedLesson]:
         *_mk_game_encyclopedia_patterns_vs_blocks(),
         *_mk_game_encyclopedia_area_and_crossing_advanced(),
         *_mk_game_encyclopedia_rules_applied(),
+        *_mk_game_encyclopedia_inner_game_and_gameplans(),
         SeedLesson(
             title="Diseño de tareas · Caja de herramientas (constraints)",
             summary="Cómo modificar una tarea sin rehacerla: espacio, tiempo, normas, puntuación y superioridades.",
@@ -2139,6 +2140,171 @@ def _mk_seed_pack() -> list[SeedLesson]:
                     "body": "Juego 1v1/2v2: 1 punto si haces un cambio de dirección antes de marcar.",
                 },
             ],
+        ),
+    ]
+
+
+def _mk_game_encyclopedia_inner_game_and_gameplans() -> list[SeedLesson]:
+    """
+    Enciclopedia del juego: juego interior (zona 14/entre líneas) + planes de partido (A/B/C) y scouting rápido.
+    """
+    L = AcademyLesson
+    return [
+        _mk_guide(
+            title="Juego interior · Zona 14: recibir, girar y decidir",
+            summary="Guía práctica para usar la zona 14 (frontal del área): cuándo recibir, cuándo soltar y cuándo finalizar.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["juego_interior", "zona14", "ataque", "entre_lineas", "decision"],
+            objective="Crear ventaja en la frontal: pase clave/tiro/centro sin perder balones tontos.",
+            rules=[
+                "Zona 14 solo si hay ventaja: perfilado o apoyo cerca.",
+                "Si recibes de cara y puedes girar: acelerar (pase/tiro).",
+                "Si recibes presionado: 3er hombre (descarga y ruptura).",
+            ],
+            triggers=[
+                "Mediocentro rival salta → atacar su espalda (entre líneas).",
+                "Central rival sale de línea → filtrar al 9/ruptura.",
+                "Rival hunde demasiado → pase atrás a zona 14 (tiro/pase).",
+            ],
+            checklist=[
+                "¿Puedo girar?",
+                "¿Tengo 1 apoyo a 1 toque?",
+                "¿Qué opción es de más probabilidad: tiro, pase, centro raso atrás?",
+            ],
+            errors=[
+                "Recibir de espaldas sin apoyo → “ENTRA SOLO CON APOYO”.",
+                "Forzar pase imposible → “FIJA Y SUELTA”.",
+                "Tiro sin equilibrio → “ASEGURA Y LUEGO”.",
+            ],
+            scene_hint="Escena: balón en banda → pase atrás a zona 14. Variante A: interior gira y filtra. Variante B: interior presionado descarga a pivote y 3er hombre rompe al área.",
+            measure=[
+                "Pases clave/asistencias desde zona 14.",
+                "Tiros a puerta generados tras pase atrás.",
+                "Pérdidas en zona central (bajan).",
+            ],
+        ),
+        _mk_guide(
+            title="Juego interior · Entre líneas (cómo aparecer sin estorbar)",
+            summary="Guía práctica para ofrecerse entre líneas: orientación, distancia a rivales y conexión con el siguiente pase.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["juego_interior", "entre_lineas", "ataque", "perfil"],
+            objective="Recibir entre líneas con ventaja (de cara o perfilado) para acelerar la jugada.",
+            rules=[
+                "No te escondas detrás del rival: muévete a su espalda y a su lado ciego.",
+                "Distancia: ni pegado al 6 rival ni demasiado lejos (línea de pase clara).",
+                "Tras recibir: 1 acción (giro/descarga) y vuelve a moverte.",
+            ],
+            triggers=[
+                "Si el rival bascula a banda → aparece en half‑space interior.",
+                "Si el pivote rival mira balón → muévete a su espalda.",
+            ],
+            checklist=["¿Estoy en lado ciego?", "¿Puedo jugar a 1 toque si me presionan?", "¿Qué hago tras recibir?"],
+            errors=["Quedarse quieto entre líneas → “APARECE Y DESAPARECE”.", "Recibir sin perfil → “PERFIL O APOYO”."],
+            scene_hint="Escena: 7v7/11v11. Interior se mueve al lado ciego del pivote rival para recibir. Tras recibir, descarga y ataca espacio.",
+            measure=["Recepciones entre líneas con progresión.", "Pérdidas por recibir de espaldas presionado (bajan)."],
+        ),
+        _mk_guide(
+            title="Patrones · Atacar por fuera (overlap/underlap + centro útil)",
+            summary="Guía práctica para progresar por banda: crear 2v1, llegar a línea de fondo y centrar con intención.",
+            min_category=L.CATEGORY_BENJAMIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["patrones", "ataque", "banda", "overlap", "underlap", "centros"],
+            objective="Progresar por banda sin perder el balón: ventaja → línea de fondo → centro útil.",
+            rules=[
+                "Crea 2v1: extremo fija, lateral aparece (overlap) o interior rompe (underlap).",
+                "Centro con intención: raso atrás / 2º palo según llegadas.",
+                "Rest defense: 2–3 por detrás para evitar contra.",
+            ],
+            triggers=["Si el lateral rival salta al extremo → overlap.", "Si el lateral rival se queda → underlap interior.", "Si llega 2º defensor → descarga y cambio."],
+            checklist=["¿Tengo 2v1 real?", "¿Quién llega al área?", "¿Quién se queda de seguridad?"],
+            errors=["Centrar sin llegadas → “PRIMERO LLEGA”.", "Overlaps sin fijar → “FIJA ANTES”.", "Pérdida arriba sin seguridad → “REST DEFENSE”."],
+            scene_hint="Escena: banda derecha. Variante A: overlap del lateral y centro raso atrás. Variante B: underlap del interior y pase a zona 14.",
+            measure=["Centros útiles (tiro/ocasión).", "Pérdidas en banda (bajan).", "Contraataques tras pérdida en banda (bajan)."],
+        ),
+        _mk_guide(
+            title="Patrones · Atacar por dentro (tercer hombre + ruptura)",
+            summary="Guía práctica para progresar por dentro: paredes, tercer hombre y atacar la espalda del medio.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["patrones", "ataque", "interior", "tercer_hombre", "ruptura"],
+            objective="Romper líneas por dentro sin regalar pérdidas: apoyo + 3er hombre + ruptura.",
+            rules=[
+                "Si el receptor está de espaldas: descarga y 3er hombre.",
+                "El 3er hombre ataca espacio (no se queda al pie).",
+                "Si no hay ventaja: reinicia y vuelve a fijar.",
+            ],
+            triggers=["Rival salta al pivote → interior rompe a su espalda.", "Central rival sale a cortar → pase a la espalda (9 o extremo)."],
+            checklist=["¿Quién es el 3er hombre?", "¿Hay espacio a la espalda del medio?", "¿Tengo seguridad si pierdo?"],
+            errors=["Forzar giro de espaldas → “3ER HOMBRE”.", "Jugar dentro sin apoyos → “APOYO CERCA”."],
+            scene_hint="Escena: central→pivote (de espaldas)→descarga→interior rompe. Marca el timing de la ruptura.",
+            measure=["Progresiones por carril central.", "Pases clave/tiros tras 3er hombre.", "Pérdidas en carril central (bajan)."],
+        ),
+        _mk_guide(
+            title="Defensa · Negar juego interior (cierre de líneas y sombras)",
+            summary="Guía práctica para evitar pases entre líneas: posiciones, sombras de pase y basculación.",
+            min_category=L.CATEGORY_ALEVIN,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["defensa", "juego_interior", "entre_lineas", "bloque"],
+            objective="Que el rival juegue fuera y de cara; negar recepciones cómodas entre líneas.",
+            rules=[
+                "Dentro primero: el pase entre líneas es prioridad.",
+                "Sombras de pase: cuerpo orientado para tapar al mediapunta/pivote rival.",
+                "Si el balón va a banda: bascula y compacta, sin abrir interior.",
+            ],
+            roles=["Pivote: pantalla al 10.", "Interiores: saltan con cobertura.", "Defensas: protegen espalda y zona caliente."],
+            checklist=["¿Está tapado el 10 rival?", "¿Bloque compacto (distancias cortas)?", "¿Quién cubre si salto?"],
+            errors=["Perseguir balón y abrir interior → “DENTRO CERRADO”.", "Saltar sin cobertura → “TEMPORIZA”."],
+            scene_hint="Escena: rival intenta jugar al 10. Pivote tapa línea, interior salta al receptor de espaldas y central protege espalda.",
+            measure=["Pases entre líneas rivales completados (bajan).", "Intercepciones en carril central (suben)."],
+        ),
+        _mk_guide(
+            title="Plan de partido · A/B/C (en 10 minutos)",
+            summary="Guía práctica para preparar partido: plan base, ajustes por triggers y mensajes por líneas.",
+            min_category=L.CATEGORY_CADETE,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["partido", "plan", "ajustes", "scouting"],
+            objective="Llegar al partido con claridad: 3 reglas y 2 ajustes, no 30 ideas.",
+            rules=[
+                "Plan A: tu modelo (3 reglas).",
+                "Plan B: ajuste si el rival hace X (1–2 cambios).",
+                "Plan C: escenario de partido (ganando/perdiendo) con 1 ajuste claro.",
+            ],
+            checklist=[
+                "¿Cómo atacamos su bloque principal?",
+                "¿Cómo defendemos su salida?",
+                "¿Qué hacemos tras pérdida (contra‑presión o repliegue)?",
+                "ABP: 1 corner a favor + 1 corner en contra (roles).",
+            ],
+            errors=[
+                "Demasiadas ideas → “3 REGLAS, 2 AJUSTES”.",
+                "Cambiar modelo cada 5' → “SOLO SI EL TRIGGER APARECE”.",
+            ],
+            scene_hint="Escena: plantilla de pizarra. Dibuja Plan A (modelo), Plan B (un trigger) y Plan C (ganando/perdiendo).",
+            measure=["Acciones clave del plan (ej.: robos altos si presionas).", "ABP: segundas jugadas ganadas."],
+        ),
+        _mk_guide(
+            title="Scouting rápido · 6 preguntas que valen oro",
+            summary="Plantilla de análisis rival para fútbol base/semipro: rápido, accionable y sin humo.",
+            min_category=L.CATEGORY_INFANTIL,
+            max_category=L.CATEGORY_SENIOR,
+            tags=["scouting", "partido", "analisis"],
+            objective="Detectar 2 debilidades y 2 fortalezas del rival y convertirlo en un plan operativo.",
+            rules=[
+                "1) ¿Cómo salen? (corto/directo) 2) ¿Dónde pierden? 3) ¿Dónde atacan?",
+                "4) ¿Qué bloque usan? 5) ¿Qué jugador marca diferencias? 6) ¿Cómo defienden ABP?",
+                "Convierte cada respuesta en 1 regla de plan (máx. 6).",
+            ],
+            checklist=[
+                "Salida rival: ¿a quién presiono y cómo oriento?",
+                "Bloque rival: ¿por fuera o por dentro?",
+                "Transición: ¿dónde hacen daño?",
+                "ABP: ¿zona o al hombre? ¿quién remata?",
+            ],
+            errors=["Scouting de “opiniones” → “HECHOS Y CONSECUENCIAS”.", "Plan sin traducción al campo → “1 REGLA POR IDEA”."],
+            scene_hint="Escena: hoja simple con 6 preguntas y debajo ‘Reglas del plan’.",
+            measure=["Cumplimiento del plan (acciones objetivo).", "Errores repetidos del rival forzados."],
         ),
     ]
 
