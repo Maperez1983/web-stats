@@ -1311,20 +1311,20 @@
         </div>
       </header>
 
-      <nav class="tabs" aria-label="Áreas">
-        <a class="tab active" href="{% url 'dashboard-home' %}">Portada</a>
-        <a class="tab" href="{% url 'match-hub' %}">Partido</a>
-        <a class="tab" href="{% url 'sessions' %}">Entrenamiento</a>
-        <a class="tab" href="{% url 'team-agenda' %}">Agenda</a>
-        <a class="tab" href="{% url 'coach-roster' %}">Jugadores</a>
-        <a class="tab" href="{% url 'analysis' %}">Análisis</a>
-        <a class="tab" href="{% url 'coach-tactics' %}">Táctica</a>
-        {% if can_access_staff %}
-        <a class="tab" href="{% url 'coach-cards' %}">Coach</a>
-        {% endif %}
-        <a class="tab" href="{% url 'kpi-dashboard' %}">KPIs</a>
-        {% if can_access_platform %}
-          <a class="tab" href="{% url 'platform-overview' %}">Ajustes</a>
+	      <nav class="tabs" aria-label="Áreas">
+	        <a class="tab active" href="{% url 'dashboard-home' %}">Portada</a>
+	        {% if can_access_staff %}
+	        <a class="tab" href="{% url 'coach-cards' %}">Entrenador</a>
+	        {% endif %}
+	        <a class="tab" href="{% url 'sessions' %}">Entrenamiento</a>
+	        <a class="tab" href="{% url 'match-hub' %}">Partido</a>
+	        <a class="tab" href="{% url 'coach-roster' %}">Jugador</a>
+	        <a class="tab" href="{% url 'team-agenda' %}">Agenda</a>
+	        <a class="tab" href="{% url 'analysis' %}">Análisis</a>
+	        <a class="tab" href="{% url 'coach-tactics' %}">Táctica</a>
+	        <a class="tab" href="{% url 'kpi-dashboard' %}">KPIs</a>
+	        {% if can_access_platform %}
+	          <a class="tab" href="{% url 'platform-overview' %}">Ajustes</a>
         {% elif can_manage_workspace %}
           <a class="tab" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configuración</a>
         {% else %}

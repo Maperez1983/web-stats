@@ -136,20 +136,28 @@
     hidden
   >← Volver</button>
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
-  {% if workspace_module_access.dashboard|default:True %}
-  <a href="{% if cdurl %}{{ cdurl }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
+  {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
+  {% if can_access_staff|default:False %}
+  <a href="{% url 'coach-cards' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
-  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenos</a>
-  {% endif %}
-  {% if workspace_module_access.tactics|default:True %}
-  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
-  {% endif %}
-  {% if can_access_staff|default:False %}
-  <a href="{% url 'coach-cards' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Coach</a>
+  <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenamiento</a>
   {% endif %}
   {% if workspace_module_access.convocation|default:True %}
   <a href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}is-active{% endif %}" {% if 'registro-acciones' in nav_path or 'convocatoria' in nav_path or '11-inicial' in nav_path or nav_path|slice:":9" == '/partido/' or nav_path|slice:":7" == '/match/' or nav_path|slice:":12" == '/incidencias/' %}aria-current="page"{% endif %}>Partido</a>
+  {% endif %}
+  {% if workspace_module_access.players|default:True %}
+    {% if can_manage_workspace or is_admin_user %}
+    <a href="{% url 'coach-roster' %}?tab=stats{% if active_team %}&team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}is-active{% endif %}" {% if nav_url_name == 'coach-roster' or 'coach/plantilla' in nav_path %}aria-current="page"{% endif %}>Jugador</a>
+    {% else %}
+    <a href="{% url 'player-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'player-dashboard' %}is-active{% endif %}" {% if nav_url_name == 'player-dashboard' %}aria-current="page"{% endif %}>Jugador</a>
+    {% endif %}
+  {% endif %}
+  {% if workspace_module_access.dashboard|default:True %}
+  <a href="{% if cdurl %}{{ cdurl }}{% else %}{% url 'dashboard-home' %}{% endif %}{% if active_team %}{% if cdurl and '?' in cdurl %}&{% else %}?{% endif %}team={{ active_team.id }}{% endif %}" class="{% if nav_url_name == 'dashboard-home' or nav_path == '/' %}is-active{% endif %}" {% if nav_url_name == 'dashboard-home' or nav_path == '/' %}aria-current="page"{% endif %}>Portada</a>
+  {% endif %}
+  {% if workspace_module_access.tactics|default:True %}
+  <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Táctica</a>
   {% endif %}
   {# Buscador se mantiene dentro del Menú (y atajo Ctrl/Cmd+K). Evitamos saturar la barra superior. #}
   <details class="nav-more {% if nav_url_name != 'dashboard-home' and nav_path != '/' and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path and not 'registro-acciones' in nav_path and not 'convocatoria' in nav_path and not '11-inicial' in nav_path and nav_path|slice:":9" != '/partido/' and nav_path|slice:":7" != '/match/' and nav_path|slice:":12" != '/incidencias/' %}is-active{% endif %}">

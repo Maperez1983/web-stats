@@ -21,8 +21,6 @@ urlpatterns = [
     path('buscar/', views.search_page, name='search-page'),
     path('calendario/club.ics', views.team_calendar_ics, name='team-calendar-ics'),
     path('api/session/keepalive/', views.session_keepalive, name='session-keepalive'),
-    path('api/match/video-links/', views.match_video_links_api, name='match-video-links-api'),
-    path('api/match/video/marker/', views.match_video_marker_api, name='match-video-marker-api'),
     path('api/build/', views.public_build_info, name='public-build-info'),
     # Alias corto para debug/healthchecks en producción (p.ej. /build).
     path('build/', views.public_build_info, name='public-build-info-short'),

@@ -227,8 +227,8 @@
       .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
-      .spark-label { margin-top: 4px; font-size: 9px; color: {{ pdf_palette.muted|default:"#51606f" }}; }
-      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(2,6,23,0.88); }
+      .spark-label { margin-top: 4px; font-size: 9px; color: {{ pdf_palette.muted|default:"#51606f" }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(2,6,23,0.88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
@@ -641,7 +641,7 @@
 	                <td>{% if latest_played_match.minutes != None %}{{ latest_played_match.minutes }}'{% else %}—{% endif %}</td>
 	                <td>{{ latest_played_match.goals|default:0 }}</td>
 	                <td>{{ latest_played_match.assists|default:0 }}</td>
-	                <td>{{ latest_played_match.success_rate|default:0 }}%</td>
+	                  <td>{% if latest_played_match.actions|default:0 > 0 %}{{ latest_played_match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
 	              </tr>
 	            {% endif %}
 
@@ -662,7 +662,7 @@
 	                  <td>{% if match.minutes != None %}{{ match.minutes }}'{% else %}—{% endif %}</td>
 	                  <td>{{ match.goals|default:0 }}</td>
 	                  <td>{{ match.assists|default:0 }}</td>
-	                  <td>{{ match.success_rate|default:0 }}%</td>
+		                  <td>{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
 	                </tr>
 	              {% endfor %}
 	            {% endif %}
