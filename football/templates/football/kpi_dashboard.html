@@ -44,6 +44,7 @@
           <div class="meta">{% if team %}{{ team.display_name|default:team.name }}{% endif %} · Indicadores por rol</div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
+          <a class="button ghost" href="{% url 'coach-matches' %}{% if team %}?team={{ team.id }}{% endif %}">Partidos</a>
           <button type="button" class="button ghost" id="dash-toggle-settings">Ajustes</button>
           <a class="button ghost" href="{% url 'kpi-explorer' %}{% if team %}?team={{ team.id }}{% endif %}">Configurar indicadores</a>
           <a class="button ghost" href="{% url 'reports-hub' %}{% if team %}?team={{ team.id }}{% endif %}">Informes</a>
