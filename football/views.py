@@ -42,7 +42,7 @@ from django.core.files.storage import FileSystemStorage, default_storage, storag
 from django.db import connections
 from django.db import IntegrityError
 from django.db import transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum
 from django.db.utils import OperationalError, ProgrammingError
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.shortcuts import render, redirect
@@ -56746,6 +56746,18 @@ def player_pdf(request, player_id):
                 calendar_qs = calendar_qs.filter(season=season_obj)
         except Exception:
             pass
+        # Respeta el scope del PDF (Liga/Torneo/Amistoso/Todas) para no mezclar partidos y, sobre todo,
+        # para evitar que partidos "placeholder" (pizarra/tests) sin fecha expulsen partidos reales
+        # por el `limit` del calendario.
+        try:
+            scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower()
+        except Exception:
+            scope_value = Match.CONTEXT_LEAGUE
+        if scope_value != 'all':
+            if scope_value == Match.CONTEXT_LEAGUE:
+                calendar_qs = calendar_qs.filter(Q(context=Match.CONTEXT_LEAGUE) | Q(context=''))
+            else:
+                calendar_qs = calendar_qs.filter(context=scope_value)
         if tournament_filter:
             calendar_qs = calendar_qs.filter(tournament_name=str(tournament_filter or '').strip())
         if date_start:
@@ -56753,7 +56765,10 @@ def player_pdf(request, player_id):
         if date_end:
             calendar_qs = calendar_qs.filter(date__lte=date_end)
         calendar_matches = list(
-            calendar_qs.select_related('home_team', 'away_team').order_by('-date', '-id')[:80]
+            calendar_qs.select_related('home_team', 'away_team')
+            # `nulls_last=True` evita que partidos sin fecha (placeholder) se pongan arriba y "se coman"
+            # el límite del calendario, dejando fuera partidos reales de la temporada.
+            .order_by(F('date').desc(nulls_last=True), '-id')[:260]
         )
 
         manual_by_match_id = {}
