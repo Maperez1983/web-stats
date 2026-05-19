@@ -6636,9 +6636,15 @@
 
             // En Táctica, la pizarra es el producto: cargamos el editor inmediatamente para evitar
             // que el usuario vea un campo oscuro (placeholder) varios segundos.
+            // En algunos navegadores (Safari) o tras un deploy, el primer tick puede ocurrir antes de que
+            // la UI esté "estable" (fuentes/CSS) y el lazy-load falla silenciosamente. Reintentamos.
             try {
               const isTacticsModeNow = String(form.dataset.tacticsMode || '').trim() === '1';
-              if (isTacticsModeNow) ensureEditorStack();
+              if (isTacticsModeNow) {
+                ensureEditorStack();
+                window.setTimeout(() => { try { ensureEditorStack(); } catch (e) { /* ignore */ } }, 650);
+                window.setTimeout(() => { try { ensureEditorStack(); } catch (e) { /* ignore */ } }, 2200);
+              }
             } catch (e) { /* ignore */ }
 
 		        // 3D de pizarra (usa Three.js dentro del editor TPad).
