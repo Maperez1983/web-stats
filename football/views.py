@@ -60995,7 +60995,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
         )
         if season_obj:
-            manual_match_qs = manual_match_qs.filter(season=season_obj)
+            # Robustez: en algunos flujos legacy el `season` del PlayerStatistic puede quedar desincronizado.
+            # El Match es la fuente de verdad de temporada.
+            manual_match_qs = manual_match_qs.filter(match__season=season_obj)
         manual_match_rows = manual_match_qs.values('player_id', 'match_id', 'name', 'value')
         manual_by_player_match = {}
         # "Modo ficha de partido": si un partido tiene ALGÚN override manual (min/g/a) guardado,
