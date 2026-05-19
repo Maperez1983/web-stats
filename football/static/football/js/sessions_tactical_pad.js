@@ -21116,7 +21116,7 @@
 			      event.preventDefault();
 			      void exportSimulationPresentationPack();
 			    });
-				    simClipSaveBtn?.addEventListener('click', (event) => {
+				    simClipSaveBtn?.addEventListener('click', async (event) => {
 				      event.preventDefault();
 				      if (!isSimulating) return;
 				      if (!Array.isArray(simulationSteps) || !simulationSteps.length) {
