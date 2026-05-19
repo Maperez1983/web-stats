@@ -60742,19 +60742,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         PlayerStatistic.objects
         .filter(player__team=primary_team, match__isnull=False)
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
-        .values(
-            'player_id',
-            'match_id',
-            'match__round',
-            'match__date',
-            'match__home_team_id',
-            'match__away_team_id',
-            'match__home_team__name',
-            'match__away_team__name',
-            'match__home_score',
-            'match__away_score',
-            'match__result',
-        )
+        .values('player_id', 'match_id', 'match__round', 'match__date', 'match__home_team_id', 'match__away_team_id', 'match__home_team__name', 'match__away_team__name')
         .distinct()
     )
     for row in player_stat_matches:
@@ -60808,20 +60796,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 ),
                 'home': is_home,
                 'opponent': opponent,
-                'home_score': (
-                    getattr(match_obj, 'home_score', None)
-                    if match_obj
-                    else row.get('match__home_score')
-                ),
-                'away_score': (
-                    getattr(match_obj, 'away_score', None)
-                    if match_obj
-                    else row.get('match__away_score')
-                ),
-                'result': (
-                    (str(getattr(match_obj, 'result', '') or '').strip() if match_obj else '')
-                    or str(row.get('match__result') or '').strip()
-                ),
+                'home_score': None,
+                'away_score': None,
+                'result': '',
                 'played': True,
                 'minutes': 0,
                 'goals': 0,
