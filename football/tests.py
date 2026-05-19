@@ -4352,6 +4352,155 @@ class ManualStatsTests(TestCase):
         self.assertEqual(int(rows.first().value), 810)
 
 
+class ManualMatchFixtureCanonicalizationTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        user_model = get_user_model()
+        self.user = user_model.objects.create_user(
+            username='fixtureadmin',
+            email='fixtureadmin@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_ADMIN)
+        competition = Competition.objects.create(name='Liga Fixture', slug='liga-fixture', region='Andalucia')
+        self.season = Season.objects.create(competition=competition, name='2025/2026', is_current=True)
+        self.group = Group.objects.create(season=self.season, name='Grupo Fixture', slug='grupo-fixture')
+        self.team = Team.objects.create(name='Benagalbon', slug='benagalbon-fixture', group=self.group, is_primary=True)
+        self.rival = Team.objects.create(name='C.D. Rival', slug='cd-rival-fixture', group=self.group, is_primary=False)
+        self.player = Player.objects.create(team=self.team, name='Jugador Fixture', number=9)
+
+    def test_manual_match_stats_and_result_survive_duplicate_match_ids(self):
+        fixture_date = date(2026, 1, 12)
+        placeholder = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='Jornada 1',
+            context=Match.CONTEXT_LEAGUE,
+            date=fixture_date,
+            home_team=self.team,
+            away_team=None,
+        )
+        record = ConvocationRecord.objects.create(
+            team=self.team,
+            match=placeholder,
+            round='Jornada 1',
+            match_date=fixture_date,
+            opponent_name=self.rival.name,
+            lineup_data={'starters': [{'id': self.player.id}], 'bench': []},
+            is_current=False,
+        )
+        record.players.set([self.player])
+
+        real_match = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='Jornada 1',
+            context=Match.CONTEXT_LEAGUE,
+            date=fixture_date,
+            home_team=self.team,
+            away_team=self.rival,
+            home_score=2,
+            away_score=0,
+            result='2-0',
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=real_match,
+            name='manual_minutes',
+            context='manual-match',
+            value=90,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=real_match,
+            name='manual_goals',
+            context='manual-match',
+            value=1,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=real_match,
+            name='manual_assists',
+            context='manual-match',
+            value=1,
+        )
+
+        rows = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next((r for r in rows if r.get('player_id') == self.player.id), None)
+        self.assertIsNotNone(detail)
+        self.assertEqual(int(detail.get('pj') or 0), 1)
+        self.assertEqual(int(detail.get('minutes') or 0), 90)
+        self.assertEqual(int(detail.get('goals') or 0), 1)
+        self.assertEqual(int(detail.get('assists') or 0), 1)
+
+        matches = detail.get('matches') or []
+        self.assertEqual(len([m for m in matches if m.get('played')]), 1)
+        played = next(m for m in matches if m.get('played'))
+        self.assertEqual(int(played.get('match_id') or 0), int(real_match.id))
+        self.assertEqual(int(played.get('minutes') or 0), 90)
+        self.assertEqual(int(played.get('goals') or 0), 1)
+        self.assertEqual(int(played.get('assists') or 0), 1)
+        self.assertEqual(played.get('result'), '2-0')
+
+    def test_manual_match_stats_show_without_events_or_convocation(self):
+        fixture_date = date(2026, 2, 10)
+        match = Match.objects.create(
+            season=self.season,
+            group=self.group,
+            round='Jornada 2',
+            context=Match.CONTEXT_LEAGUE,
+            date=fixture_date,
+            home_team=self.team,
+            away_team=self.rival,
+            home_score=1,
+            away_score=0,
+            result='1-0',
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=match,
+            name='manual_minutes',
+            context='manual-match',
+            value=60,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=match,
+            name='manual_goals',
+            context='manual-match',
+            value=1,
+        )
+        PlayerStatistic.objects.create(
+            player=self.player,
+            season=self.season,
+            match=match,
+            name='manual_assists',
+            context='manual-match',
+            value=0,
+        )
+
+        rows = compute_player_dashboard(self.team, force_refresh=True)
+        detail = next((r for r in rows if r.get('player_id') == self.player.id), None)
+        self.assertIsNotNone(detail)
+        self.assertEqual(int(detail.get('pj') or 0), 1)
+        self.assertEqual(int(detail.get('minutes') or 0), 60)
+        self.assertEqual(int(detail.get('goals') or 0), 1)
+        self.assertEqual(int(detail.get('assists') or 0), 0)
+
+        matches = detail.get('matches') or []
+        played = next(m for m in matches if m.get('played'))
+        self.assertEqual(int(played.get('match_id') or 0), int(match.id))
+        self.assertEqual(int(played.get('minutes') or 0), 60)
+        self.assertEqual(int(played.get('goals') or 0), 1)
+        self.assertEqual(int(played.get('assists') or 0), 0)
+        self.assertEqual(played.get('result'), '1-0')
+
+
 class RosterLookupTests(TestCase):
     def test_find_roster_entry_tolerates_malformed_cache(self):
         self.assertIsNone(find_roster_entry('Jugador', None))

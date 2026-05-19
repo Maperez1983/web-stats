@@ -3068,6 +3068,10 @@
  	    let playbackTimer = null;
  	    let playbackRestoreState = null;
  			    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
+			    // Preset de superficie del campo (fuente de verdad).
+			    // Evita depender solo de `presetSelect.value`: durante prompts/modales o ciertos resizes puede quedar vacío
+			    // y provocar un fallback a `full_pitch` inesperado (parece que "cambia la superficie" al guardar un clip).
+			    let pitchPreset = safeText(presetSelect?.value, 'full_pitch') || 'full_pitch';
 				    const GRASS_STYLE_LABEL = {
 				      classic: 'Césped',
 				      broadcast: 'Broadcast',
@@ -12973,12 +12977,12 @@
 		      try {
 		        window.requestAnimationFrame(() => {
 		          try { fitCanvas(true); } catch (error) { /* ignore */ }
-			          try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (error) { /* ignore */ }
+			          try { applyPitchSurface(pitchPreset || (presetSelect.value || 'full_pitch'), pitchOrientation, pitchGrassStyle); } catch (error) { /* ignore */ }
 		          try { canvas.calcOffset(); } catch (error) { /* ignore */ }
 		        });
 		      } catch (error) {
 		        try { fitCanvas(true); } catch (e) { /* ignore */ }
-			        try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+			        try { applyPitchSurface(pitchPreset || (presetSelect.value || 'full_pitch'), pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
 		      }
 		    };
@@ -13452,9 +13456,10 @@
 	      svgSurface.innerHTML = '';
 	    };
 
-    const setPreset = (presetValue) => {
-      const preset = safeText(presetValue, 'full_pitch');
-      presetSelect.value = preset;
+	    const setPreset = (presetValue) => {
+	      const preset = safeText(presetValue, 'full_pitch');
+	      pitchPreset = preset;
+	      presetSelect.value = preset;
       if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
       presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
       if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
@@ -21614,7 +21619,7 @@
 	        width: Math.round(canvas.getWidth() || 0),
 	        height: Math.round(canvas.getHeight() || 0),
 	        canvas_state: serializeCanvasOnly(),
-	        preset: presetSelect.value || 'full_pitch',
+		        preset: pitchPreset || (presetSelect.value || 'full_pitch'),
 	        orientation: pitchOrientation,
 	        zoom: pitchZoom,
 	      };
