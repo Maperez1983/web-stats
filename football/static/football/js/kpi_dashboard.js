@@ -49,6 +49,10 @@
   })();
 
   const init = async () => {
+    const grid = document.getElementById('dash-grid');
+    const settings = document.getElementById('dash-settings');
+    const toggleSettingsBtn = document.getElementById('dash-toggle-settings');
+
     const roleSelect = document.getElementById('dash-role');
     const presetSelect = document.getElementById('dash-preset');
     const saveDefaultBtn = document.getElementById('dash-save-default');
@@ -71,6 +75,13 @@
       if (!statusEl) return;
       statusEl.textContent = safeText(text, '');
       statusEl.style.color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+    };
+
+    const showSettings = (show) => {
+      const want = Boolean(show);
+      if (settings) settings.hidden = !want;
+      if (grid) grid.classList.toggle('show-settings', want);
+      if (toggleSettingsBtn) toggleSettingsBtn.classList.toggle('primary', want);
     };
 
     const matchItems = Array.isArray(jsonFromScript('dash-match-items')) ? jsonFromScript('dash-match-items') : [];
@@ -209,12 +220,26 @@
     await loadRoleDefaults();
     applyDefaultForRole();
 
+    // Dashboard "real": por defecto enseñamos los indicadores y ocultamos ajustes.
+    // Si no hay presets, mostramos ajustes para guiar al staff.
+    showSettings(!presets.length);
+    toggleSettingsBtn?.addEventListener('click', () => {
+      const next = settings ? Boolean(settings.hidden) : true;
+      showSettings(next);
+    });
+
     roleSelect?.addEventListener('change', applyDefaultForRole);
     saveDefaultBtn?.addEventListener('click', saveDefaultForRole);
     scopeSelect?.addEventListener('change', setScopeUi);
     runBtn?.addEventListener('click', run);
 
-    try { if (presets.length) run(); } catch (e) { /* ignore */ }
+    try {
+      if (presets.length) {
+        run();
+      } else {
+        setStatus('Crea un preset en “KPIs avanzados”.', true);
+      }
+    } catch (e) { /* ignore */ }
   };
 
   if (document.readyState === 'loading') {
@@ -223,4 +248,3 @@
     init().catch(() => {});
   }
 })();
-
