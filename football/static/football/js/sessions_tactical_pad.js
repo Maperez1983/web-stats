@@ -9363,6 +9363,12 @@
 				    // activar la lógica de reescalado del canvas y "desordenar" la pizarra o cambiar la superficie.
 				    // Durante guardados que usan prompts, ignoramos resizes temporalmente.
 				    let __ignoreResizeUntilMs = 0;
+				    const __blockResizesFor = (ms) => {
+				      try {
+				        const until = Date.now() + clamp(Number(ms) || 0, 0, 120_000);
+				        __ignoreResizeUntilMs = Math.max(__ignoreResizeUntilMs || 0, until);
+				      } catch (e) { /* ignore */ }
+				    };
 				    const __withBlockingPrompt = (fn) => {
 				      try { __ignoreResizeUntilMs = Date.now() + 1200; } catch (e) { /* ignore */ }
 				      return fn();
@@ -9437,7 +9443,8 @@
 
 				      const cleanUp = () => {
 				        try { backdrop.remove(); } catch (e) { /* ignore */ }
-				        try { __ignoreResizeUntilMs = Math.max(prevIgnore || 0, Date.now() + 1200); } catch (e) { /* ignore */ }
+				        // Deja un margen tras cerrar (teclado, focus, relayout).
+				        try { __ignoreResizeUntilMs = Math.max(prevIgnore || 0, Date.now() + 2500); } catch (e) { /* ignore */ }
 				      };
 
 				      const finish = (ok) => {
@@ -10051,6 +10058,8 @@
 				        } catch (e) { /* ignore */ }
 				        tags = next;
 				      }
+				      // Guardar (network + render de Playbook) puede disparar layouts/resize en algunos navegadores.
+				      __blockResizesFor(8000);
 
 				      const { w, h } = worldSize();
 				      ensureLayerUidsOnCanvas();
@@ -10087,6 +10096,8 @@
 				        setStatus(canUpdateActive ? 'Táctica actualizada en Playbook.' : 'Táctica guardada en Playbook (equipo).');
 				      } catch (e) {
 				        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
+				      } finally {
+				        __blockResizesFor(2500);
 				      }
 				    };
 
@@ -21116,7 +21127,7 @@
 			      event.preventDefault();
 			      void exportSimulationPresentationPack();
 			    });
-				    simClipSaveBtn?.addEventListener('click', async (event) => {
+					    simClipSaveBtn?.addEventListener('click', async (event) => {
 				      event.preventDefault();
 				      if (!isSimulating) return;
 				      if (!Array.isArray(simulationSteps) || !simulationSteps.length) {
@@ -21141,8 +21152,8 @@
 				        const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
 				        return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				      })();
-				      if (!canUpdateActive) {
-				        const modal = await __openMetaModal({
+					      if (!canUpdateActive) {
+					        const modal = await __openMetaModal({
 				          heading: 'Guardar clip',
 				          nameLabel: 'Nombre del clip',
 				          folderLabel: 'Carpeta (opcional)',
@@ -21158,37 +21169,42 @@
 				        if (!name) return;
 				        folder = safeText(modal.folder).slice(0, 80);
 				        const tagsRaw = safeText(modal.tagsRaw).slice(0, 200);
-				        tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-				      }
-				      let steps = [];
-				      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
-				      const dest = safeText(simClipDestSelect?.value, 'local');
-				      if (dest !== 'local') {
-				        const scope = dest === 'system' ? 'system' : 'team';
-				        (async () => {
-				          try {
-				            const payload = { scope, name: name.slice(0, 160), folder, tags, steps };
+					        tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+					      }
+					      // Guardar clip puede refrescar Playbook y re-renderizar paneles: protege contra resizes.
+					      __blockResizesFor(8000);
+					      let steps = [];
+					      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+					      const dest = safeText(simClipDestSelect?.value, 'local');
+					      if (dest !== 'local') {
+					        const scope = dest === 'system' ? 'system' : 'team';
+					        (async () => {
+					          __blockResizesFor(8000);
+					          try {
+					            const payload = { scope, name: name.slice(0, 160), folder, tags, steps };
 				            if (canUpdateActive) {
 				              payload.id = Number(playbookActiveClip?.id) || 0;
 				              payload.scope = safeText(playbookActiveClip?.scope || scope);
 				            }
 				            const res = await savePlaybookClip(payload);
 				            if (res?.canceled) return;
-				            await fetchPlaybookClips({ force: true, silent: true });
+					            await fetchPlaybookClips({ force: true, silent: true });
 				            try {
 				              if (canUpdateActive && playbookActiveClip?.id) {
 				                const refreshed = (playbookClips || []).find((c) => Number(c?.id) === Number(playbookActiveClip.id));
 				                if (refreshed) playbookActiveClip = refreshed;
 				              }
 				            } catch (e) { /* ignore */ }
-				            renderClipsLibrary();
-				            setStatus(canUpdateActive ? 'Clip actualizado en Playbook.' : `Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
-				          } catch (e) {
-				            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
-				          }
-				        })();
-				        return;
-				      }
+					            renderClipsLibrary();
+					            setStatus(canUpdateActive ? 'Clip actualizado en Playbook.' : `Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
+					          } catch (e) {
+					            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
+					          } finally {
+					            __blockResizesFor(2500);
+					          }
+					        })();
+					        return;
+					      }
 				      let pro = null;
 				      try {
 				        const hasTracks = simulationProTracks && typeof simulationProTracks === 'object' && Object.keys(simulationProTracks).length >= 1;
@@ -21206,9 +21222,10 @@
 				      const prev = readClipsLibrary();
 				      const next = [clip, ...prev].slice(0, 40);
 				      writeClipsLibrary(next);
-			      renderClipsLibrary();
-			      setStatus('Clip guardado (local).');
-			    });
+				      renderClipsLibrary();
+				      setStatus('Clip guardado (local).');
+				      __blockResizesFor(2500);
+				    });
 				    simClipImportBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      if (!isSimulating) return;
@@ -21804,6 +21821,9 @@
 		      try {
 		        // Ver nota en Playbook: `prompt()` puede provocar resizes espurios que reescalan el canvas.
 		        if (__ignoreResizeUntilMs && Date.now() < __ignoreResizeUntilMs) return;
+		        // En simulación, un resize que reescale el canvas puede desordenar el escenario y cambiar la superficie percibida.
+		        // Preferimos no reescalar automáticamente; si el usuario redimensiona la ventana, puede recargar o salir de simulación.
+		        if (typeof isSimulating !== 'undefined' && isSimulating) return;
 		      } catch (e) { /* ignore */ }
 		      window.clearTimeout(resizeTimer);
 		      window.clearTimeout(resizeFinalizeTimer);
