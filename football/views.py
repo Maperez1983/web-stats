@@ -11152,6 +11152,13 @@ def dashboard_data(request):
         # Safari/iOS puede cachear respuestas GET de JSON aunque cambie el contenido; la caché real
         # la gestionamos en servidor (Django cache) y/o en el Service Worker.
         response['Cache-Control'] = 'no-store'
+        # Debug deploy/version: permite confirmar desde DevTools qué build está sirviendo la API.
+        try:
+            build_id = str(os.getenv('RENDER_GIT_COMMIT') or os.getenv('GIT_COMMIT') or '').strip()
+            if build_id:
+                response['X-Webstats-Build'] = build_id
+        except Exception:
+            pass
         return response
 
     # Fail-open global: en producción, cualquier excepción aquí rompe la home con 500 (DASH_HTTP_500).
