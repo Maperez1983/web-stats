@@ -303,7 +303,7 @@
         output.innerHTML = rows.map((r) => {
           const label = safeText(r?.label, '—');
           const value = safeText(r?.value, '0');
-          return `<article class="kpi"><div class="k">${escHtml(label)}</div><div class="v">${escHtml(value)}</div></article>`;
+          return `<div class="performance-block"><span class="label">${escHtml(label)}</span><span class="value">${escHtml(value)}</span></div>`;
         }).join('') || '<div class="meta">—</div>';
         setStatus('Listo.');
       } catch (e) {

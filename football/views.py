@@ -57267,14 +57267,14 @@ def player_pdf(request, player_id):
             ring_keys = [str(k or '').strip() for k in staff_report.ring_kpis if str(k or '').strip()]
     except Exception:
         ring_keys = []
-	    if not ring_keys:
-	        # Default (estilo “KPI de rendimiento”): ratios clave de juego.
-	        ring_keys = ['success_rate', 'duel_rate', 'pass_accuracy', 'shot_accuracy']
-	    ring_keys = [k for k in ring_keys if k in ring_defs][:4]
-	    visual_kpis = [
-	        {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
-	        for k in ring_keys
-	    ]
+    if not ring_keys:
+        # Default (estilo “KPI de rendimiento”): ratios clave de juego.
+        ring_keys = ['success_rate', 'duel_rate', 'pass_accuracy', 'shot_accuracy']
+    ring_keys = [k for k in ring_keys if k in ring_defs][:4]
+    visual_kpis = [
+        {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
+        for k in ring_keys
+    ]
 
     report_start = date_start
     report_end = date_end or timezone.localdate()

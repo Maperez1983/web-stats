@@ -66,5 +66,9 @@ def healthz(request):
         checks["media_root"] = "unknown"
 
     payload["checks"] = checks
-    return JsonResponse(payload, status=200 if payload.get("ok") else 503)
-
+    # Render usa este endpoint como healthcheck. Si devolvemos 503 por un problema temporal de DB
+    # (migraciones en curso, mantenimiento, lock), Render puede marcar el servicio como "unhealthy"
+    # y devolver 502 a todo el tráfico aunque el proceso esté vivo.
+    #
+    # Política: siempre 200 (liveness). `ok=false` + `checks` señalan degradación.
+    return JsonResponse(payload, status=200)
