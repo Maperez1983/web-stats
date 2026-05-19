@@ -62364,9 +62364,13 @@ def tactical_playbook_clips_api(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        # Compat: durante la transición del módulo Táctica, el Playbook también se usa dentro de Sesiones.
+        # Permitimos acceso si *cualquiera* de los dos módulos está activo.
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
     scope = str(request.GET.get('scope') or 'team').strip().lower()
     include_system = str(request.GET.get('include_system') or '').strip() in ('1', 'true', 'yes')
     q = str(request.GET.get('q') or '').strip()
@@ -62529,9 +62533,11 @@ def tactical_playbook_clip_save_api(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
 
     data = None
     try:
@@ -62721,9 +62727,11 @@ def tactical_playbook_clip_save_api(request):
 def tactical_playbook_clip_delete_api(request):
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
 
     clip_id = 0
     scope = 'team'
@@ -62797,9 +62805,11 @@ def tactical_playbook_clip_delete_api(request):
 def tactical_playbook_clip_favorite_api(request):
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -62841,9 +62851,11 @@ def tactical_playbook_clip_share_create(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return JsonResponse({'error': 'El módulo sesiones no está disponible.'}, status=403)
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return JsonResponse({'error': 'El módulo táctica/sesiones no está disponible.'}, status=403)
     validity_days = _parse_int(request.POST.get('valid_days')) or 14
     validity_days = max(1, min(validity_days, 60))
     password = (request.POST.get('password') or '').strip()
@@ -62999,9 +63011,11 @@ def tactical_playbook_clip_clone_api(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
     try:
         if request.content_type and 'application/json' in (request.content_type or '').lower():
             data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -63083,9 +63097,11 @@ def tactical_playbook_teams_api(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
     workspace = _get_active_workspace(request)
     links = _workspace_team_links_for_user(workspace, request.user) if workspace else []
     items = []
@@ -63104,9 +63120,11 @@ def tactical_playbook_versions_api(request):
     """
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
     if forbidden:
-        return forbidden
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
     version_group = str(request.GET.get('version_group') or '').strip()
     if not version_group:
         return JsonResponse({'ok': False, 'error': 'version_group requerido.'}, status=400)

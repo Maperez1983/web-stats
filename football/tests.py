@@ -500,6 +500,18 @@ class TacticsLandingModalFallbackTests(TestCase):
         self.assertContains(response, '__webstatsTaskLandingGo')
         self.assertContains(response, 'onclick="return window.__webstatsTaskLandingGo')
 
+    def test_playbook_endpoints_work_when_sessions_disabled_but_tactics_enabled(self):
+        # Caso real: club puede desactivar "Sesiones" pero mantener "Táctica".
+        self.workspace.enabled_modules = {'sessions': False, 'tactics': True}
+        self.workspace.save(update_fields=['enabled_modules'])
+        self.client.force_login(self.user)
+        url = f"{reverse('tactical-playbook-clips-api')}?workspace={self.workspace.id}&team={self.team.id}"
+        response = self.client.get(url, secure=True)
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        self.assertIn('items', payload)
+
 
 class KPIExplorerWorkspacePresetsTests(TestCase):
     def setUp(self):

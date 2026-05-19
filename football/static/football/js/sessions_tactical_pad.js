@@ -9374,8 +9374,15 @@
 				      } catch (e) { /* ignore */ }
 				    };
 				    const __withBlockingPrompt = (fn) => {
-				      try { __ignoreResizeUntilMs = Date.now() + 1200; } catch (e) { /* ignore */ }
-				      return fn();
+				      // `prompt()` bloquea el hilo; algunos navegadores disparan `resize` tanto al abrirlo como al cerrarlo.
+				      // Para cubrir el cierre aunque el usuario tarde, ampliamos la ventana mientras el prompt está abierto
+				      // y, al volver, la recortamos a un margen corto.
+				      const prevIgnore = __ignoreResizeUntilMs || 0;
+				      try { __ignoreResizeUntilMs = Math.max(prevIgnore, Date.now() + (10 * 60 * 1000)); } catch (e) { /* ignore */ }
+				      let out = null;
+				      try { out = fn(); } catch (e) { out = null; }
+				      try { __ignoreResizeUntilMs = Math.max(prevIgnore, Date.now() + 2500); } catch (e) { /* ignore */ }
+				      return out;
 				    };
 				    const __safePrompt = (message, defaultValue) => __withBlockingPrompt(() => window.prompt(message, defaultValue));
 				    const __safeConfirm = (message) => {
