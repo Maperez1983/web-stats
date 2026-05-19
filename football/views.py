@@ -57927,6 +57927,35 @@ def match_editor_page(request, match_id):
             if not any(int(opt.get('id') or 0) == int(opponent_team.id) for opt in opponent_options):
                 label = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'short_name', '') or getattr(opponent_team, 'name', '') or '').strip() or f'Equipo #{int(opponent_team.id)}'
                 opponent_options.insert(0, {'id': int(opponent_team.id), 'label': label})
+
+        # Fallback: si el grupo no está poblado (o rivales antiguos no tienen group),
+        # sugiere los equipos que ya aparecen en el calendario de esta temporada.
+        if not opponent_options:
+            season_obj = None
+            try:
+                season_obj = getattr(match, 'season', None) or getattr(getattr(primary_team, 'group', None), 'season', None)
+            except Exception:
+                season_obj = None
+            try:
+                match_qs = Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                if season_obj:
+                    match_qs = match_qs.filter(season=season_obj)
+                pair_ids = list(match_qs.values_list('home_team_id', 'away_team_id').distinct()[:600])
+                seen_ids = set()
+                for hid, aid in pair_ids:
+                    if hid:
+                        seen_ids.add(int(hid))
+                    if aid:
+                        seen_ids.add(int(aid))
+                seen_ids.discard(int(primary_team.id))
+                if seen_ids:
+                    for t in Team.objects.filter(id__in=list(seen_ids)).order_by('name', 'id')[:300]:
+                        label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
+                        if not label:
+                            label = f'Equipo #{int(t.id)}'
+                        opponent_options.append({'id': int(t.id), 'label': label})
+            except Exception:
+                pass
     except Exception:
         opponent_options = []
     return render(
@@ -60742,7 +60771,19 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         PlayerStatistic.objects
         .filter(player__team=primary_team, match__isnull=False)
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
-        .values('player_id', 'match_id', 'match__round', 'match__date', 'match__home_team_id', 'match__away_team_id', 'match__home_team__name', 'match__away_team__name')
+        .values(
+            'player_id',
+            'match_id',
+            'match__round',
+            'match__date',
+            'match__home_team_id',
+            'match__away_team_id',
+            'match__home_team__name',
+            'match__away_team__name',
+            'match__home_score',
+            'match__away_score',
+            'match__result',
+        )
         .distinct()
     )
     for row in player_stat_matches:
@@ -60796,9 +60837,20 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 ),
                 'home': is_home,
                 'opponent': opponent,
-                'home_score': None,
-                'away_score': None,
-                'result': '',
+                'home_score': (
+                    getattr(match_obj, 'home_score', None)
+                    if match_obj
+                    else row.get('match__home_score')
+                ),
+                'away_score': (
+                    getattr(match_obj, 'away_score', None)
+                    if match_obj
+                    else row.get('match__away_score')
+                ),
+                'result': (
+                    (str(getattr(match_obj, 'result', '') or '').strip() if match_obj else '')
+                    or str(row.get('match__result') or '').strip()
+                ),
                 'played': True,
                 'minutes': 0,
                 'goals': 0,
@@ -61457,6 +61509,35 @@ def match_hub_page(request):
             if not label:
                 label = f'Equipo #{int(t.id)}'
             opponent_options.append({'id': int(t.id), 'label': label})
+
+        # Fallback: si no hay standings/teams en el grupo (o rivales creados fuera del grupo),
+        # sugiere al menos los equipos que ya aparecen en el calendario de esta temporada.
+        if not opponent_options:
+            season_obj = None
+            try:
+                season_obj = getattr(getattr(primary_team, 'group', None), 'season', None)
+            except Exception:
+                season_obj = None
+            try:
+                match_qs = Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+                if season_obj:
+                    match_qs = match_qs.filter(season=season_obj)
+                pair_ids = list(match_qs.values_list('home_team_id', 'away_team_id').distinct()[:600])
+                seen_ids = set()
+                for hid, aid in pair_ids:
+                    if hid:
+                        seen_ids.add(int(hid))
+                    if aid:
+                        seen_ids.add(int(aid))
+                seen_ids.discard(int(primary_team.id))
+                if seen_ids:
+                    for t in Team.objects.filter(id__in=list(seen_ids)).order_by('name', 'id')[:300]:
+                        label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
+                        if not label:
+                            label = f'Equipo #{int(t.id)}'
+                        opponent_options.append({'id': int(t.id), 'label': label})
+            except Exception:
+                pass
     except Exception:
         opponent_options = []
     return render(
