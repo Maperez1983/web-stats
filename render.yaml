@@ -12,7 +12,13 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: GUNICORN_TIMEOUT
-        value: "60"
+        value: "120"
+      - key: GUNICORN_WORKERS
+        value: "2"
+      - key: GUNICORN_KEEPALIVE
+        value: "5"
+      - key: GUNICORN_GRACEFUL_TIMEOUT
+        value: "30"
       # Arranque rápido: `collectstatic` ya se hace en build (`build.sh`).
       - key: RUN_COLLECTSTATIC
         value: "false"

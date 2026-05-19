@@ -6,7 +6,10 @@ set -euo pipefail
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
 : "${MIGRATE_FAIL_OPEN:=}"
-: "${GUNICORN_TIMEOUT:=30}"
+: "${GUNICORN_TIMEOUT:=120}"
+: "${GUNICORN_WORKERS:=2}"
+: "${GUNICORN_KEEPALIVE:=5}"
+: "${GUNICORN_GRACEFUL_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
 : "${DJANGO_RUN_ASGI:=false}"
@@ -84,13 +87,23 @@ _start_server() {
     gunicorn webstats.asgi:application \
       -k uvicorn.workers.UvicornWorker \
       --bind "0.0.0.0:${PORT}" \
-      --timeout "${GUNICORN_TIMEOUT}" &
+      --timeout "${GUNICORN_TIMEOUT}" \
+      --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+      --keep-alive "${GUNICORN_KEEPALIVE}" \
+      --workers "${GUNICORN_WORKERS}" \
+      --access-logfile - \
+      --error-logfile - &
   else
     echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
     gunicorn webstats.wsgi:application \
       -k sync \
       --bind "0.0.0.0:${PORT}" \
-      --timeout "${GUNICORN_TIMEOUT}" &
+      --timeout "${GUNICORN_TIMEOUT}" \
+      --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+      --keep-alive "${GUNICORN_KEEPALIVE}" \
+      --workers "${GUNICORN_WORKERS}" \
+      --access-logfile - \
+      --error-logfile - &
   fi
   echo $!
 }

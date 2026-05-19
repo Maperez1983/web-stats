@@ -28541,6 +28541,33 @@ def coach_role_trainer_page(request):
     primary_team = _get_primary_team_for_request(request)
     stats_scope = _get_stats_scope_for_request(request, primary_team)
     tournament_filter = _get_tournament_filter_for_request(request, primary_team, scope=stats_scope)
+
+    # UX/Rendimiento: el default de scope es "Liga". Si el equipo no tiene acciones con
+    # `match.context="league"`, el dashboard queda vacío aunque existan datos (torneos/amistosos).
+    # Si el usuario NO ha elegido explícitamente un scope (ni query ni sesión), hacemos fallback a "Globales".
+    if primary_team and stats_scope == Match.CONTEXT_LEAGUE and request and hasattr(request, 'session'):
+        try:
+            scope_from_query = str(request.GET.get('scope') or '').strip().lower()
+        except Exception:
+            scope_from_query = ''
+        mapping = request.session.get(STATS_SCOPE_SESSION_KEY)
+        if not isinstance(mapping, dict):
+            mapping = {}
+        team_key = str(int(getattr(primary_team, 'id', 0) or 0))
+        has_stored = bool(mapping.get(team_key) or mapping.get('_default'))
+        if not scope_from_query and not has_stored:
+            try:
+                unscoped_qs = confirmed_events_queryset().filter(player__team=primary_team)
+                has_any = unscoped_qs.exists()
+                has_league = unscoped_qs.filter(match__context=Match.CONTEXT_LEAGUE).exists()
+            except Exception:
+                has_any = False
+                has_league = True
+            if has_any and not has_league:
+                stats_scope = 'all'
+                tournament_filter = ''
+                mapping[team_key] = 'all'
+                request.session[STATS_SCOPE_SESSION_KEY] = mapping
     standing = None
     if primary_team and primary_team.group and primary_team.group.season:
         standing = TeamStanding.objects.filter(
@@ -28552,7 +28579,19 @@ def coach_role_trainer_page(request):
     base_events_qs = (
         confirmed_events_queryset()
         .filter(player__team=primary_team)
-        .select_related('player', 'match', 'match__home_team', 'match__away_team')
+        # Rendimiento: para métricas solo necesitamos los campos del evento; evitar JOINs grandes.
+        .only(
+            'id',
+            'match_id',
+            'player_id',
+            'minute',
+            'event_type',
+            'result',
+            'observation',
+            'zone',
+            'tercio',
+            'source_file',
+        )
         .order_by('match_id', 'minute', 'id')
         if primary_team
         else confirmed_events_queryset().none()
