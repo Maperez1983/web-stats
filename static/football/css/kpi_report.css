@@ -1,0 +1,156 @@
+/* KPI Report Module
+   Estilo tipo “informe/PDF” reutilizable en:
+   - Cards del dashboard de jugadores
+   - Dashboard entrenador (KPIs)
+   - (Opcional) módulos de rendimiento
+   Nota: en PDF (WeasyPrint) evitamos conic-gradient; ahí se renderiza con SVG. */
+
+:root {
+  --kpi-paper: rgba(241, 245, 249, 0.98);
+  --kpi-paper-2: rgba(226, 232, 240, 0.96);
+  --kpi-ink: var(--prod-text, #0f172a);
+  --kpi-muted: var(--prod-muted, rgba(15, 23, 42, 0.64));
+  --kpi-border: var(--prod-line, rgba(15, 23, 42, 0.14));
+  --kpi-accent: var(--prod-secondary, #f4b400);
+  --kpi-primary: var(--prod-primary, #2f7d32);
+  --kpi-surface: rgba(255, 255, 255, 0.78);
+}
+
+/* Container */
+.performance-overview {
+  border-radius: 1rem;
+  border: 1px solid rgba(244, 180, 0, 0.22);
+  background: linear-gradient(160deg, var(--kpi-paper), var(--kpi-paper-2));
+  padding: 1.1rem;
+  color: var(--kpi-ink);
+}
+
+.performance-overview.is-compact {
+  padding: 0.85rem;
+}
+
+.performance-overview h3 {
+  margin: 0;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--kpi-primary);
+  font-weight: 950;
+}
+
+.performance-overview.is-compact h3 {
+  font-size: 0.86rem;
+}
+
+/* Rings */
+.kpi-ring { text-align: center; }
+
+.kpi-ring-chart {
+  --pct: 0;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, rgba(248, 250, 252, 0.98) 68%, transparent 70% 100%),
+    conic-gradient(var(--kpi-accent) calc(var(--pct) * 1%), rgba(209, 213, 219, 1) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.performance-overview.is-compact .kpi-ring-chart {
+  width: 78px;
+  height: 78px;
+}
+
+.kpi-ring-value {
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--kpi-ink);
+}
+
+.performance-overview.is-compact .kpi-ring-value {
+  font-size: 1.25rem;
+}
+
+.kpi-ring-label {
+  margin-top: 0.35rem;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--kpi-ink) 72%, transparent);
+}
+
+.performance-rings {
+  margin-top: 0.95rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.performance-overview.is-compact .performance-rings {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+@media (max-width: 520px) {
+  .performance-overview.is-compact .performance-rings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Blocks */
+.performance-blocks {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
+}
+
+.performance-overview.is-compact .performance-blocks {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 780px) {
+  .performance-overview.is-compact .performance-blocks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.performance-block {
+  border-radius: 0.85rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  background: var(--kpi-surface);
+  text-align: center;
+}
+
+.performance-overview.is-compact .performance-block {
+  padding: 0.55rem 0.6rem;
+}
+
+.performance-block .label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--kpi-ink) 72%, transparent);
+  font-weight: 900;
+}
+
+.performance-overview.is-compact .performance-block .label {
+  font-size: 0.65rem;
+}
+
+.performance-block .value {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--kpi-ink);
+}
+
+.performance-overview.is-compact .performance-block .value {
+  font-size: 1.05rem;
+}
+

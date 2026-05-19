@@ -500,43 +500,58 @@
                   </div>
                 </div>
 
-                <div class="broadcast-bars" aria-label="KPIs broadcast">
-                  <div class="bar-row"><span>INF</span><strong>{{ player.influence_score|default:0|floatformat:0 }}</strong></div>
-                  <div class="bar-row"><span>IMP</span><strong>{{ player.importance_score|default:0|floatformat:0 }}</strong></div>
-                  <div class="bar-row"><span>% PART.</span><strong>{{ player.participation_pct|default:0|floatformat:0 }}</strong></div>
-                  <div class="bar-row"><span>% DISP.</span><strong>{{ player.availability_pct|default:0|floatformat:0 }}</strong></div>
-                </div>
+	                <div class="broadcast-mini" style="margin-top:0.65rem;">
+	                  <span class="mini-pill">PJ <strong>{{ player.pj|default:0 }}</strong></span>
+	                  <span class="mini-pill">Min <strong>{{ player.minutes|default:0 }}</strong></span>
+	                  {% if selected_match %}
+	                    <span class="mini-pill">⚽ <strong>{{ player.match_goals|default:0 }}</strong></span>
+	                    <span class="mini-pill">🅰️ <strong>{{ player.match_assists|default:0 }}</strong></span>
+	                  {% else %}
+	                    <span class="mini-pill">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
+	                    <span class="mini-pill">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
+	                  {% endif %}
+	                  <span class="mini-pill">% Éx <strong>{{ player.success_rate|default:0|floatformat:1 }}</strong></span>
+	                </div>
 
-                <div class="broadcast-mini">
-                  {% if selected_match %}
-                    <span class="mini-pill">PJ <strong>{{ player.pj|default:0 }}</strong></span>
-                    <span class="mini-pill">Min <strong>{{ player.minutes|default:0 }}</strong></span>
-                    <span class="mini-pill">⚽ <strong>{{ player.match_goals|default:0 }}</strong></span>
-                    <span class="mini-pill">🅰️ <strong>{{ player.match_assists|default:0 }}</strong></span>
-                    <span class="mini-pill">Acc <strong>{{ player.match_actions|default:0 }}</strong></span>
-                  {% else %}
-                    <span class="mini-pill">PJ <strong>{{ player.pj|default:0 }}</strong></span>
-                    <span class="mini-pill">Min <strong>{{ player.minutes|default:0 }}</strong></span>
-                    <span class="mini-pill">⚽ <strong>{{ player.goals|default:0 }}</strong></span>
-                    <span class="mini-pill">🅰️ <strong>{{ player.assists|default:0 }}</strong></span>
-                    <span class="mini-pill">🟨 <strong>{{ player.yellow_cards|default:0 }}</strong></span>
-                    <span class="mini-pill">🟥 <strong>{{ player.red_cards|default:0 }}</strong></span>
-                  {% endif %}
-                  <span class="mini-pill">% {{ player.success_rate|default:0|floatformat:1 }}</span>
-                  {% if player.actions_per90 %}<span class="mini-pill">A/90 {{ player.actions_per90|default:0|floatformat:1 }}</span>{% endif %}
-                </div>
-
-                <div class="mini-radar-wrap" aria-hidden="true">
-                  <svg
-                    class="mini-radar"
-                    viewBox="0 0 100 100"
-                    data-a90="{{ player.radar_pcts.a90|default:0 }}"
-                    data-sr="{{ player.radar_pcts.sr|default:0 }}"
-                    data-part="{{ player.radar_pcts.part|default:0 }}"
-                    data-inf="{{ player.radar_pcts.inf|default:0 }}"
-                    data-imp="{{ player.radar_pcts.imp|default:0 }}"
-                  ></svg>
-                </div>
+	                <div class="performance-overview is-compact" style="margin-top:0.75rem;">
+	                  <h3>KPI de rendimiento</h3>
+	                  <div class="performance-rings">
+	                    <article class="kpi-ring">
+	                      <div class="kpi-ring-chart" style="--pct: {{ player.success_rate|default:0 }};">
+	                        <span class="kpi-ring-value">{{ player.success_rate|default:0|floatformat:-1 }}%</span>
+	                      </div>
+	                      <div class="kpi-ring-label">Tasa de éxito</div>
+	                    </article>
+	                    <article class="kpi-ring">
+	                      <div class="kpi-ring-chart" style="--pct: {{ player.duel_rate|default:0 }};">
+	                        <span class="kpi-ring-value">{{ player.duel_rate|default:0|floatformat:-1 }}%</span>
+	                      </div>
+	                      <div class="kpi-ring-label">Duelos ganados</div>
+	                    </article>
+	                    <article class="kpi-ring">
+	                      <div class="kpi-ring-chart" style="--pct: {{ player.passes_accuracy|default:player.passes.accuracy|default:0 }};">
+	                        <span class="kpi-ring-value">{{ player.passes_accuracy|default:player.passes.accuracy|default:0|floatformat:-1 }}%</span>
+	                      </div>
+	                      <div class="kpi-ring-label">Precisión de pase</div>
+	                    </article>
+	                    <article class="kpi-ring">
+	                      <div class="kpi-ring-chart" style="--pct: {{ player.shots_accuracy|default:player.shots.accuracy|default:0 }};">
+	                        <span class="kpi-ring-value">{{ player.shots_accuracy|default:player.shots.accuracy|default:0|floatformat:-1 }}%</span>
+	                      </div>
+	                      <div class="kpi-ring-label">Tiro a puerta</div>
+	                    </article>
+	                  </div>
+	                  <div class="performance-blocks">
+	                    <div class="performance-block"><span class="label">Acciones</span><span class="value">{{ player.total_actions|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ player.duel_summary.won|default:0 }}/{{ player.duel_summary.total|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Duelos aéreos</span><span class="value">{{ player.aerial_duel_summary.won|default:0 }}/{{ player.aerial_duel_summary.total|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Pases</span><span class="value">{{ player.passes.completed|default:player.passes_completed|default:0 }}/{{ player.passes.attempts|default:player.pass_attempts|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ player.shots.on_target|default:player.shots_on_target|default:0 }}/{{ player.shots.attempts|default:player.shot_attempts|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{% if player.shots.per_goal != None %}{{ player.shots.per_goal|floatformat:2 }}{% elif player.shots_per_goal != None %}{{ player.shots_per_goal|floatformat:2 }}{% else %}—{% endif %}</span></div>
+	                    <div class="performance-block"><span class="label">Goles</span><span class="value">{{ player.goals|default:0 }}</span></div>
+	                    <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ player.assists|default:0 }}</span></div>
+	                  </div>
+	                </div>
               </a>
 
               {% if can_preview_player_view %}

@@ -11206,36 +11206,52 @@ def dashboard_data(request):
     try:
         return _dashboard_data_impl(request, _json=_json)
     except Exception:
-        logger.exception('dashboard_data: unhandled exception (fail-open)')
+        # Fail-open ultra defensivo: NO llamar a funciones que puedan depender de DB/storage/cache.
+        # Si este bloque lanza excepción, volveríamos a 500.
+        try:
+            logger.exception('dashboard_data: unhandled exception (fail-open)')
+        except Exception:
+            pass
+        primary_team_id = 0
+        primary_team_slug = ''
+        primary_team_name = 'Equipo'
         try:
             primary_team = _get_primary_team_for_request(request)
+            if primary_team:
+                primary_team_id = int(getattr(primary_team, 'id', 0) or 0)
+                primary_team_slug = str(getattr(primary_team, 'slug', '') or '').strip()
+                primary_team_name = str(getattr(primary_team, 'name', '') or '').strip() or primary_team_name
         except Exception:
-            primary_team = None
-        return _json(
-            {
-                'team': {
-                    'id': int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0,
-                    'slug': str(getattr(primary_team, 'slug', '') or '').strip() if primary_team else '',
-                    'name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else 'Equipo',
-                    'group': '',
-                    'competition': '',
-                    'season': '',
-                    'corporate_line': '',
-                    'crest_url': resolve_team_crest_url(request, primary_team, sync=False) if primary_team else '',
+            pass
+        try:
+            return _json(
+                {
+                    'team': {
+                        'id': primary_team_id,
+                        'slug': primary_team_slug,
+                        'name': primary_team_name,
+                        'group': '',
+                        'competition': '',
+                        'season': '',
+                        'corporate_line': '',
+                        'crest_url': '',
+                    },
+                    'standings': [],
+                    'next_match': None,
+                    'standings_meta': {'provider': '', 'last_updated': '', 'group': '', 'season': ''},
+                    'team_metrics': {},
+                    'player_metrics': [],
+                    'player_cards': [],
+                    'player_cards_scope': {'type': 'fallback', 'label': 'Dashboard · fallback'},
+                    'setup_required': True,
+                    'setup_message_title': 'Dashboard no disponible',
+                    'setup_message_body': 'El servidor devolvió un error al calcular la portada. Reintenta en unos segundos.',
                 },
-                'standings': [],
-                'next_match': None,
-                'standings_meta': {'provider': '', 'last_updated': '', 'group': '', 'season': ''},
-                'team_metrics': {},
-                'player_metrics': [],
-                'player_cards': [],
-                'player_cards_scope': {'type': 'fallback', 'label': 'Dashboard · fallback'},
-                'setup_required': True,
-                'setup_message_title': 'Dashboard no disponible',
-                'setup_message_body': 'El servidor devolvió un error al calcular la portada. Reintenta en unos segundos.',
-            },
-            status=200,
-        )
+                status=200,
+            )
+        except Exception:
+            # Último recurso si hasta `_json` falla.
+            return HttpResponse('dashboard fail-open', status=200)
 
 
 def _dashboard_data_impl(request, *, _json):
