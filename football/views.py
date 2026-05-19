@@ -23419,41 +23419,15 @@ def kpi_explorer_page(request):
 
 @login_required
 def kpi_dashboard_page(request):
-    if not _can_edit_match_actions(request.user):
-        return HttpResponse('Solo el cuerpo técnico puede acceder a KPIs.', status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
-    if forbidden:
-        return forbidden
-    active_workspace = _get_active_workspace(request)
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return HttpResponse('Equipo principal no configurado.', status=400)
-    matches = list(
-        _team_match_queryset(primary_team)
-        .select_related('home_team', 'away_team')
-        .order_by('-date', '-id')[:60]
-    )
-    roster = list(Player.objects.filter(team=primary_team).order_by('name')[:120])
-    match_items = []
-    for m in matches:
-        opp = m.away_team if m.home_team_id == primary_team.id else m.home_team
-        opp_name = str(getattr(opp, 'display_name', '') or getattr(opp, 'name', '') or '').strip() or 'Rival'
-        label = f"{m.date.strftime('%d/%m/%Y') if m.date else '—'} · vs {opp_name}"
-        if m.round:
-            label = f"{m.round} · {label}"
-        match_items.append({'id': int(m.id), 'label': label, 'context': str(getattr(m, 'context', '') or '').strip()})
-    player_items = [{'id': int(p.id), 'label': f"{p.name}{f' · #{p.number}' if p.number else ''}".strip()} for p in roster]
-    return render(
-        request,
-        'football/kpi_dashboard.html',
-        {
-            'team': primary_team,
-            'active_team': primary_team,
-            'active_workspace': active_workspace,
-            'match_items': match_items,
-            'player_items': player_items,
-        },
-    )
+    # El "dashboard del entrenador" real vive en `coach_role_trainer_page` (Generales + Jugador + Partido).
+    # Esta ruta quedó como experimento de KPIs por presets. Para evitar confusión (y pantallas vacías
+    # tipo "Crea un preset…"), redirigimos al dashboard del equipo.
+    try:
+        qs = str(getattr(request, 'META', {}).get('QUERY_STRING') or '').strip()
+    except Exception:
+        qs = ''
+    target = reverse('coach-role-trainer')
+    return redirect(f'{target}?{qs}' if qs else target)
 
 
 @login_required
@@ -60951,6 +60925,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             stats = player_stats.get(player_id)
             if not stats:
                 continue
+            # Si el jugador tiene overrides manuales "base" (pj/minutos) no sumamos minutos inferidos
+            # desde 11 inicial aquí, pero sí queremos permitir que la ficha manual por partido
+            # (manual-match) recalcule totales más abajo.
             if stats.get('totals_locked'):
                 processed_lineup_matches[player_id].add(match_id)
                 continue
@@ -61025,7 +61002,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
 
         for pid, match_map in manual_by_player_match.items():
             stats = player_stats.get(int(pid))
-            if not stats or stats.get('totals_locked'):
+            # Importante: `totals_locked` bloquea sumar eventos sobre un override "base" (pj/minutos),
+            # pero NO debe bloquear la ficha por partido (manual-match), que es más granular y debe
+            # prevalecer para cards e informes.
+            if not stats:
                 continue
             matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
             if matches_dict is None:
@@ -61122,7 +61102,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         # - Recalculamos PJ/minutos desde la tabla por partido para evitar 100% participación erróneo.
         if minutes_mode_match_ids:
             for pid, stats in player_stats.items():
-                if not stats or stats.get('totals_locked'):
+                # Aunque haya override "base" (totals_locked), si existe ficha por partido (manual-match)
+                # debemos recalcular PJ/minutos desde esa tabla para que cards/PDFs reflejen el año real.
+                if not stats:
                     continue
                 matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
                 if not matches_dict:
