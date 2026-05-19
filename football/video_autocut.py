@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -56,7 +57,7 @@ def _get_duration_seconds(video_path: str) -> float:
                 'default=noprint_wrappers=1:nokey=1',
                 str(video_path),
             ]
-            out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL).decode('utf-8', errors='ignore').strip()
+            out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=6).decode('utf-8', errors='ignore').strip()
             val = float(out or 0.0)
             if math.isfinite(val) and val > 0:
                 return float(val)
@@ -106,6 +107,8 @@ def extract_audio_dbfs_series(
         'error',
         '-i',
         str(video_path),
+        # Si solo necesitamos los primeros X segundos, pedimos a FFmpeg que corte (evita CPU extra).
+        *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
         '-vn',
         '-ac',
         '1',
@@ -119,8 +122,12 @@ def extract_audio_dbfs_series(
     out: list[tuple[float, float]] = []
     buf = b''
     idx = 0
+    started = time.monotonic()
     try:
         while proc.stdout:
+            # Guardrail: evita bucles infinitos si FFmpeg se queda colgado (archivos corruptos).
+            if time.monotonic() - started > 90:
+                break
             chunk = proc.stdout.read(64 * 1024)
             if not chunk:
                 break
@@ -175,6 +182,7 @@ def extract_motion_series(
             'nokey',
             '-i',
             str(video_path),
+            *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
             '-an',
             '-sn',
             '-vf',
@@ -189,8 +197,11 @@ def extract_motion_series(
         out: list[tuple[float, float]] = []
         prev = None
         idx = 0
+        started = time.monotonic()
         try:
             while proc.stdout:
+                if time.monotonic() - started > 120:
+                    break
                 buf = proc.stdout.read(frame_size)
                 if not buf or len(buf) < frame_size:
                     break
@@ -286,6 +297,7 @@ def extract_field_context_series(
         'error',
         '-i',
         str(video_path),
+        *(['-t', str(float(max_seconds) + 0.5)] if max_seconds is not None else []),
         '-an',
         '-sn',
         '-vf',
@@ -300,8 +312,11 @@ def extract_field_context_series(
     out: list[tuple[float, float, float]] = []
     prev_gray = None
     idx = 0
+    started = time.monotonic()
     try:
         while proc.stdout:
+            if time.monotonic() - started > 120:
+                break
             buf = proc.stdout.read(frame_size)
             if not buf or len(buf) < frame_size:
                 break

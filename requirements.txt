@@ -12,8 +12,10 @@ pytesseract==0.3.13
 openpyxl==3.1.5
 python-pptx==0.6.23
 requests==2.31.0
-yt-dlp
-beautifulsoup4==4.13.0
+# Pin para builds reproducibles (Render) y evitar cambios inesperados.
+yt-dlp==2026.3.17
+# 4.13.0 estaba "yanked" en PyPI (pin erróneo de Python mínimo); usar una versión válida y actual.
+beautifulsoup4==4.14.3
 weasyprint==57.0
 # Billing (Stripe)
 stripe==9.7.0
