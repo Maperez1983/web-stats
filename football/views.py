@@ -151,7 +151,6 @@ from football.models import (
     HomeCarouselImage,
     AnalystVideoFolder,
     RivalVideo,
-    MatchVideoLink,
     VideoTelestrationProject,
     VideoTimelineEvent,
     VideoClip,
@@ -11491,9 +11490,15 @@ def dashboard_data(request):
     refresh_roster_on_load = str(
         os.getenv('PREFERENTE_ROSTER_REFRESH_ON_LOAD', '0')
     ).strip().lower() in {'1', 'true', 'yes', 'on'}
+    selected_match_id = _parse_int(request.GET.get('match'))
     if refresh_roster_on_load:
         try:
-            _schedule_preferente_roster_refresh(primary_team, force=False)
+            # Si el usuario filtra por partido, prioriza refresco inmediato para que el dashboard muestre rival/acciones
+            # sin depender de hilos en background (más predecible en tests y en una UX de "filtro" explícito).
+            if selected_match_id:
+                refresh_primary_roster_cache(primary_team, force=False)
+            else:
+                _schedule_preferente_roster_refresh(primary_team, force=False)
         except Exception:
             pass
 
@@ -18019,9 +18024,14 @@ def player_dashboard_page(request):
         refresh_roster_on_load = refresh_roster_default
     else:
         refresh_roster_on_load = str(refresh_roster_override).strip().lower() in {'1', 'true', 'yes', 'on'}
+    selected_match_id = _parse_int(request.GET.get('match'))
     if refresh_roster_on_load:
         try:
-            _schedule_preferente_roster_refresh(primary_team, force=False)
+            # Si el usuario filtra por partido, prioriza refresco inmediato para que el dashboard sea consistente.
+            if selected_match_id:
+                refresh_primary_roster_cache(primary_team, force=False)
+            else:
+                _schedule_preferente_roster_refresh(primary_team, force=False)
         except Exception:
             pass
     scope = _get_stats_scope_for_request(request, primary_team)
@@ -18089,7 +18099,6 @@ def player_dashboard_page(request):
             label_parts.append(match.date.strftime('%d/%m/%Y'))
         match_options.append({'id': match.id, 'label': ' · '.join(label_parts)})
 
-    selected_match_id = _parse_int(request.GET.get('match'))
     selected_match = None
     selected_match_total_actions = 0
     if selected_match_id:
@@ -19862,266 +19871,6 @@ def match_action_page(request):
     )
 
 
-def _parse_video_timecode_to_ms(raw_value: str) -> int:
-    raw = str(raw_value or '').strip()
-    if not raw:
-        return 0
-    if raw.isdigit():
-        return max(0, int(raw))
-    raw = raw.replace(',', '.')
-    parts = raw.split(':')
-    try:
-        if len(parts) == 1:
-            return max(0, int(float(parts[0]) * 1000))
-        if len(parts) == 2:
-            mm = int(parts[0])
-            ss = float(parts[1])
-            return max(0, int((mm * 60.0 + ss) * 1000))
-        if len(parts) >= 3:
-            hh = int(parts[-3])
-            mm = int(parts[-2])
-            ss = float(parts[-1])
-            return max(0, int((hh * 3600.0 + mm * 60.0 + ss) * 1000))
-    except Exception:
-        return 0
-    return 0
-
-
-def _match_action_elapsed_ms(team, *, minute=None, period=None) -> int:
-    half_minutes = _half_minutes_for_team(team)
-    m = _parse_int(minute)
-    p = _parse_int(period)
-    if m is None:
-        m = 0
-    if p is None or p <= 1:
-        return max(0, int(m) * 60_000)
-    if int(m) <= int(half_minutes) + 3:
-        return max(0, int(((p - 1) * half_minutes + int(m)) * 60_000))
-    return max(0, int(m) * 60_000)
-
-
-def _guess_video_timeline_kind(action_type: str, result: str, observation: str) -> str:
-    if is_goal_event(action_type, result, observation):
-        return VideoTimelineEvent.KIND_GOAL
-    if is_shot_attempt_event(action_type, result, observation):
-        return VideoTimelineEvent.KIND_SHOT
-    if contains_keyword(action_type, {'abp', 'corner', 'córner', 'falta', 'saque', 'penalti', 'penalty'}):
-        return VideoTimelineEvent.KIND_SET_PIECE
-    if contains_keyword(action_type, {'pérdida', 'perdida', 'turnover'}):
-        return VideoTimelineEvent.KIND_TURNOVER
-    if contains_keyword(action_type, {'presión', 'presion', 'press'}):
-        return VideoTimelineEvent.KIND_PRESS
-    return VideoTimelineEvent.KIND_TAG
-
-
-@login_required
-def match_video_links_api(request):
-    if not _can_edit_match_actions(request.user):
-        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede acceder.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
-    if forbidden:
-        return JsonResponse({'ok': False, 'error': 'El registro de acciones no está activo.'}, status=403)
-    primary_team = _get_primary_team_for_request(request)
-    match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
-    if not match:
-        return JsonResponse({'ok': True, 'match_id': None, 'links': []})
-    links = list(
-        MatchVideoLink.objects
-        .filter(team=primary_team, match=match)
-        .select_related('video')
-        .order_by('-is_active', '-updated_at', '-id')[:8]
-    )
-    items = []
-    for l in links:
-        video = getattr(l, 'video', None)
-        if not video or not getattr(video, 'video', None):
-            continue
-        items.append(
-            {
-                'id': int(l.id),
-                'video_id': int(video.id),
-                'title': str(getattr(video, 'title', '') or '').strip() or f'Vídeo {video.id}',
-                'video_url': video.video.url,
-                'kickoff_video_ms': int(getattr(l, 'kickoff_video_ms', 0) or 0),
-                'is_active': bool(getattr(l, 'is_active', False)),
-                'auto_markers': bool(getattr(l, 'auto_markers', False)),
-                'auto_clips': bool(getattr(l, 'auto_clips', False)),
-                'clip_pre_ms': int(getattr(l, 'clip_pre_ms', 0) or 0),
-                'clip_post_ms': int(getattr(l, 'clip_post_ms', 0) or 0),
-            }
-        )
-    return JsonResponse({'ok': True, 'match_id': int(match.id), 'links': items})
-
-
-@csrf_exempt
-@login_required
-@require_POST
-def match_video_marker_api(request):
-    if not _can_edit_match_actions(request.user):
-        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede editar.'}, status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
-    if forbidden:
-        return JsonResponse({'ok': False, 'error': 'El módulo análisis no está activo.'}, status=403)
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
-    match = get_requested_match(request, primary_team) or get_latest_live_match(primary_team) or get_active_match(primary_team)
-    if not match:
-        return JsonResponse({'ok': False, 'error': 'No hay partido.'}, status=400)
-    label = _sanitize_task_text(str(request.POST.get('label') or '').strip(), multiline=False, max_len=160)
-    kind = str(request.POST.get('kind') or '').strip().lower()
-    make_clip = str(request.POST.get('make_clip') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    minute = _parse_int(request.POST.get('minute'))
-    period = _parse_int(request.POST.get('period'))
-
-    # Link activo preferente.
-    link = (
-        MatchVideoLink.objects
-        .filter(team=primary_team, match=match, is_active=True)
-        .select_related('video')
-        .order_by('-updated_at', '-id')
-        .first()
-    )
-    if not link or not getattr(link, 'video', None):
-        return JsonResponse({'ok': False, 'error': 'No hay vídeo vinculado al partido.'}, status=400)
-
-    elapsed_ms = _match_action_elapsed_ms(primary_team, minute=minute, period=period)
-    time_ms = max(0, int(getattr(link, 'kickoff_video_ms', 0) or 0) + int(elapsed_ms or 0))
-    if kind not in {VideoTimelineEvent.KIND_TAG, VideoTimelineEvent.KIND_NOTE, VideoTimelineEvent.KIND_GOAL, VideoTimelineEvent.KIND_SHOT, VideoTimelineEvent.KIND_PRESS, VideoTimelineEvent.KIND_TURNOVER, VideoTimelineEvent.KIND_SET_PIECE}:
-        kind = VideoTimelineEvent.KIND_TAG
-    if not label:
-        label = f"{int(minute) if minute is not None else ''}' · Marca".strip(" '·")
-        label = label or 'Marca'
-
-    marker = VideoTimelineEvent.objects.create(
-        team=primary_team,
-        video=link.video,
-        time_ms=time_ms,
-        kind=kind,
-        label=label,
-        color='',
-        payload={'source': 'match_actions_marker', 'match_id': int(match.id), 'link_id': int(link.id)},
-        created_by=request.user.get_username(),
-    )
-    out = {
-        'ok': True,
-        'match_id': int(match.id),
-        'link_id': int(link.id),
-        'video_id': int(link.video_id),
-        'kickoff_video_ms': int(getattr(link, 'kickoff_video_ms', 0) or 0),
-        'elapsed_ms': int(elapsed_ms or 0),
-        'time_ms': int(time_ms),
-        'marker_id': int(marker.id),
-    }
-    if make_clip:
-        pre_ms = int(getattr(link, 'clip_pre_ms', 0) or 0)
-        post_ms = int(getattr(link, 'clip_post_ms', 0) or 0)
-        in_ms = max(0, time_ms - max(0, pre_ms or 6000))
-        out_ms = max(in_ms + 250, time_ms + max(0, post_ms or 6000))
-        clip = VideoClip.objects.create(
-            team=primary_team,
-            video=link.video,
-            title=label[:180],
-            collection=f'Match {int(match.id)}',
-            in_ms=in_ms,
-            out_ms=out_ms,
-            tags=[kind, 'manual', 'match_actions'],
-            notes='',
-            created_by=request.user.get_username(),
-        )
-        out['clip_id'] = int(clip.id)
-    return JsonResponse(out)
-
-
-def _maybe_create_video_marker_for_match_action(primary_team, *, match, event, action_type: str, result: str, zone: str, observation: str) -> dict:
-    if not primary_team or not match or not event:
-        return {}
-    links = list(
-        MatchVideoLink.objects
-        .filter(team=primary_team, match=match, is_active=True)
-        .select_related('video')
-        .order_by('-updated_at', '-id')[:3]
-    )
-    if not links:
-        return {}
-    link = next((l for l in links if getattr(l, 'auto_markers', False) or getattr(l, 'auto_clips', False)), None)
-    if not link or not getattr(link, 'video', None):
-        return {}
-
-    minute = getattr(event, 'minute', None)
-    period = getattr(event, 'period', None)
-    elapsed_ms = _match_action_elapsed_ms(primary_team, minute=minute, period=period)
-    time_ms = max(0, int(getattr(link, 'kickoff_video_ms', 0) or 0) + int(elapsed_ms or 0))
-
-    player = getattr(event, 'player', None)
-    player_label = (player.name if player else 'EQUIPO').strip()[:60]
-    minute_label = f"{int(minute)}'" if minute is not None else "Ahora'"
-    label_chunks = [minute_label, player_label, str(action_type or '').strip()]
-    if str(result or '').strip():
-        label_chunks.append(str(result).strip())
-    if str(zone or '').strip():
-        label_chunks.append(str(zone).strip())
-    label = ' · '.join([c for c in label_chunks if c]).strip()[:160]
-
-    kind = _guess_video_timeline_kind(action_type or '', result or '', observation or '')
-    color = {
-        VideoTimelineEvent.KIND_GOAL: '#22c55e',
-        VideoTimelineEvent.KIND_SHOT: '#38bdf8',
-        VideoTimelineEvent.KIND_SET_PIECE: '#f59e0b',
-        VideoTimelineEvent.KIND_TURNOVER: '#ef4444',
-        VideoTimelineEvent.KIND_PRESS: '#a78bfa',
-    }.get(kind, '#94a3b8')
-
-    created_by = ''
-    try:
-        created_by = str((getattr(event, 'raw_data', {}) or {}).get('created_by') or '').strip()
-    except Exception:
-        created_by = ''
-
-    out = {'video_id': int(getattr(link, 'video_id', 0) or 0), 'time_ms': int(time_ms), 'kickoff_video_ms': int(getattr(link, 'kickoff_video_ms', 0) or 0)}
-    try:
-        out['elapsed_ms'] = int(elapsed_ms or 0)
-    except Exception:
-        out['elapsed_ms'] = 0
-
-    if getattr(link, 'auto_markers', False):
-        marker = VideoTimelineEvent.objects.create(
-            team=primary_team,
-            video=link.video,
-            time_ms=time_ms,
-            kind=kind,
-            label=label,
-            color=color,
-            payload={
-                'source': 'match_actions',
-                'match_id': int(getattr(match, 'id', 0) or 0),
-                'match_event_id': int(getattr(event, 'id', 0) or 0),
-                'link_id': int(getattr(link, 'id', 0) or 0),
-            },
-            created_by=created_by,
-        )
-        out['marker_id'] = int(marker.id)
-
-    if getattr(link, 'auto_clips', False):
-        pre_ms = int(getattr(link, 'clip_pre_ms', 0) or 0)
-        post_ms = int(getattr(link, 'clip_post_ms', 0) or 0)
-        in_ms = max(0, time_ms - max(0, pre_ms))
-        out_ms = max(in_ms + 250, time_ms + max(0, post_ms))
-        clip = VideoClip.objects.create(
-            team=primary_team,
-            video=link.video,
-            title=label[:180],
-            collection=f'Match {int(getattr(match, "id", 0) or 0)}',
-            in_ms=in_ms,
-            out_ms=out_ms,
-            tags=[kind, 'auto', 'match_actions'],
-            notes=str(observation or '').strip()[:800],
-            created_by=created_by,
-        )
-        out['clip_id'] = int(clip.id)
-    return out
-
-
 @authenticated_write
 @require_POST
 def register_match_action(request):
@@ -20308,17 +20057,8 @@ def register_match_action(request):
         system='touch-field',
         raw_data=raw_data,
     )
-    try:
-        video_link = _maybe_create_video_marker_for_match_action(primary_team, match=match, event=event, action_type=action_type, result=result, zone=zone, observation=observation)
-    except Exception:
-        # No bloquear el registro en vivo por fallos del módulo vídeo.
-        video_link = {}
     _invalidate_team_dashboard_caches(primary_team)
     payload = _serialize_match_event(event, duplicate=False)
-    if isinstance(video_link, dict) and video_link:
-        payload['video_link'] = video_link
-        if video_link.get('clip_id'):
-            payload['video_clip_id'] = int(video_link['clip_id'])
     if wants_html:
         try:
             messages.success(request, 'Acción guardada.')
@@ -30251,7 +29991,6 @@ def coach_matches_page(request):
     raw_ids = [int(m.id) for m in raw if getattr(m, 'id', None)]
     action_counts = {}
     manual_stat_counts = {}
-    video_counts = {}
     try:
         if raw_ids:
             action_counts = {
@@ -30284,20 +30023,7 @@ def coach_matches_page(request):
             }
     except Exception:
         manual_stat_counts = {}
-    try:
-        if raw_ids:
-            video_counts = {
-                int(row['match_id']): int(row['c'] or 0)
-                for row in (
-                    MatchVideoLink.objects
-                    .filter(match_id__in=raw_ids, team=primary_team)
-                    .values('match_id')
-                    .annotate(c=Count('id'))
-                )
-                if row.get('match_id')
-            }
-    except Exception:
-        video_counts = {}
+    video_counts = {}
     rows = []
     dup_counts = Counter()
     context_label_by_key = {k: v for (k, v) in (getattr(Match, 'CONTEXT_CHOICES', []) or []) if k and v}
@@ -57231,9 +56957,9 @@ def player_pdf(request, player_id):
             )
 
         chart_matches = sorted([m for m in played_matches if isinstance(m, dict)], key=_chart_sort_key)
-        # Evitar PDFs con cientos de barras: nos quedamos con las últimas 20 jornadas.
-        if len(chart_matches) > 20:
-            chart_matches = chart_matches[-20:]
+        # Evitar PDFs ilegibles: nos quedamos con las últimas 12 jornadas/partidos.
+        if len(chart_matches) > 12:
+            chart_matches = chart_matches[-12:]
 
         max_minutes = max((int(m.get('minutes') or 0) for m in chart_matches), default=0)
         minutes_scale = max(1, int(max(regulation, max_minutes)))
@@ -57244,7 +56970,15 @@ def player_pdf(request, player_id):
             minutes_val = max(0, int(m.get('minutes') or 0))
             goals_val = max(0, int(m.get('goals') or 0))
             assists_val = max(0, int(m.get('assists') or 0))
-            label = str(m.get('round') or '').strip() or '—'
+            raw_round = str(m.get('round') or '').strip()
+            # Etiqueta compacta para PDF (evita solapes). Si es una jornada numerada, mostramos solo el número.
+            round_num = extract_round_number(raw_round)
+            if round_num is not None:
+                label = str(round_num)
+            else:
+                label = raw_round or '—'
+                if len(label) > 10:
+                    label = label[:10].rstrip()
             matchday_minutes_chart.append(
                 {
                     'label': label,
@@ -57787,13 +57521,6 @@ def match_editor_page(request, match_id):
 
     players = list(Player.objects.filter(team=primary_team).order_by('number', 'name'))
     player_by_id = {int(p.id): p for p in players if getattr(p, 'id', None)}
-    available_videos = list(RivalVideo.objects.filter(team=primary_team).order_by('-created_at', '-id')[:80])
-    video_links = list(
-        MatchVideoLink.objects
-        .filter(team=primary_team, match=match)
-        .select_related('video')
-        .order_by('-updated_at', '-id')[:20]
-    )
 
     message = ''
     error = ''
@@ -57865,50 +57592,6 @@ def match_editor_page(request, match_id):
                         PlayerStatistic.objects.bulk_create(to_create, batch_size=250)
                     if to_update:
                         PlayerStatistic.objects.bulk_update(to_update, fields=['value'], batch_size=250)
-                _invalidate_team_dashboard_caches(primary_team)
-                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
-
-            if form_action == 'video_link_save':
-                video_id = _parse_int(request.POST.get('video_id'))
-                if not video_id:
-                    raise ValueError('Selecciona un vídeo.')
-                video_obj = RivalVideo.objects.filter(team=primary_team, id=int(video_id)).first()
-                if not video_obj:
-                    raise ValueError('Vídeo no válido para este equipo.')
-                kickoff_tc = str(request.POST.get('kickoff_timecode') or '').strip()
-                kickoff_ms = _parse_video_timecode_to_ms(kickoff_tc)
-                is_active = bool(request.POST.get('is_active'))
-                auto_markers = bool(request.POST.get('auto_markers'))
-                auto_clips = bool(request.POST.get('auto_clips'))
-                clip_pre_ms = _parse_int(request.POST.get('clip_pre_ms')) or 6000
-                clip_post_ms = _parse_int(request.POST.get('clip_post_ms')) or 6000
-                clip_pre_ms = max(0, min(int(clip_pre_ms), 60_000))
-                clip_post_ms = max(0, min(int(clip_post_ms), 60_000))
-                MatchVideoLink.objects.update_or_create(
-                    team=primary_team,
-                    match=match,
-                    video=video_obj,
-                    defaults={
-                        'kickoff_video_ms': max(0, int(kickoff_ms)),
-                        'is_active': bool(is_active),
-                        'auto_markers': bool(auto_markers),
-                        'auto_clips': bool(auto_clips),
-                        'clip_pre_ms': int(clip_pre_ms),
-                        'clip_post_ms': int(clip_post_ms),
-                        'created_by': request.user.get_username() if request.user.is_authenticated else '',
-                    },
-                )
-                _invalidate_team_dashboard_caches(primary_team)
-                return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
-
-            if form_action == 'video_link_delete':
-                link_id = _parse_int(request.POST.get('link_id'))
-                if not link_id:
-                    raise ValueError('Link no válido.')
-                link = MatchVideoLink.objects.filter(id=int(link_id), team=primary_team, match=match).first()
-                if not link:
-                    raise ValueError('Link no encontrado.')
-                link.delete()
                 _invalidate_team_dashboard_caches(primary_team)
                 return redirect(reverse('match-editor', args=[int(match.id)]) + f'?team={int(primary_team.id)}')
 
@@ -58257,8 +57940,6 @@ def match_editor_page(request, match_id):
             'action_catalog': action_catalog,
             'result_options': result_options,
             'zone_options': zone_options,
-            'available_videos': available_videos,
-            'video_links': video_links,
             'manual_player_stats_rows': manual_player_stats_rows,
             'minute_options': list(range(0, 121, 5)),
             'message': message,

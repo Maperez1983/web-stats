@@ -1774,40 +1774,6 @@ class RivalVideo(models.Model):
         team_label = self.rival_team.name if self.rival_team else 'Rival'
         return f'{team_label} · {self.title}'
 
-
-class MatchVideoLink(models.Model):
-    """
-    Vincula un partido con un vídeo para poder generar marcadores/recortes automáticamente
-    desde el registro de acciones.
-    """
-
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='match_video_links')
-    match = models.ForeignKey('Match', on_delete=models.CASCADE, related_name='video_links')
-    video = models.ForeignKey(RivalVideo, on_delete=models.CASCADE, related_name='match_links')
-
-    kickoff_video_ms = models.PositiveIntegerField(default=0, help_text='Momento (ms) del vídeo donde empieza el partido.')
-    is_active = models.BooleanField(default=True)
-    auto_markers = models.BooleanField(default=True, help_text='Crear marcador al registrar una acción.')
-    auto_clips = models.BooleanField(default=False, help_text='Crear clip IN/OUT al registrar una acción.')
-    clip_pre_ms = models.PositiveIntegerField(default=6000)
-    clip_post_ms = models.PositiveIntegerField(default=6000)
-
-    created_by = models.CharField(max_length=80, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-updated_at', '-id']
-        unique_together = ('team', 'match', 'video')
-        indexes = [
-            models.Index(fields=['team', 'match', 'is_active']),
-            models.Index(fields=['video', 'is_active']),
-        ]
-
-    def __str__(self):
-        return f'#{self.match_id} -> video#{self.video_id}'
-
-
 class VideoTelestrationProject(models.Model):
     """
     Proyecto de telestración (anotaciones) sobre un vídeo.

@@ -61,8 +61,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     removeLiveEvent,
     onFieldTap,
     onSummaryChange,
-    analysisVideoClipUrlTemplate,
-    lastVideoClipBtn,
   } = options || {};
 
   const matchFinalizeButtons = (() => {
@@ -173,14 +171,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     const mid = String(currentMatchId || '').trim();
     return mid ? `webstats:live:state:v1:${mid}` : '';
   })();
-  const lastClipKey = (() => {
-    const mid = String(currentMatchId || '').trim();
-    return mid ? `webstats:live:last_clip:v1:${mid}` : '';
-  })();
-  const lastVideoTimeKey = (() => {
-    const mid = String(currentMatchId || '').trim();
-    return mid ? `webstats:live:last_video_time:v1:${mid}` : '';
-  })();
   const recentActionsKey = 'webstats:live:recent_actions:v1';
   const proAutoSendStorageKey = 'webstats:match_actions:pro_autosend:v1';
   const safeParseJson = (raw, fallback) => {
@@ -224,69 +214,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     return true;
   };
 
-  const buildClipUrl = (clipId) => {
-    const id = Number(clipId) || 0;
-    if (!id || !analysisVideoClipUrlTemplate) return '';
-    const tpl = String(analysisVideoClipUrlTemplate || '').trim();
-    // reverse('analysis-video-clip-view', 0) => ".../clip/0/"
-    if (tpl.includes('/0/')) return tpl.replace('/0/', `/${id}/`);
-    return tpl.replace(/\/\d+\/?$/, `/${id}/`);
-  };
-
-  const setLastClipUi = ({ clipId, label = '' } = {}) => {
-    if (!lastVideoClipBtn) return;
-    const url = buildClipUrl(clipId);
-    if (!url) {
-      lastVideoClipBtn.hidden = true;
-      return;
-    }
-    lastVideoClipBtn.hidden = false;
-    lastVideoClipBtn.setAttribute('href', url);
-    lastVideoClipBtn.setAttribute('target', '_blank');
-    lastVideoClipBtn.setAttribute('rel', 'noopener');
-    const clean = String(label || '').trim();
-    if (clean) lastVideoClipBtn.setAttribute('title', clean);
-  };
-
-  const persistLastClip = ({ clipId, label = '' } = {}) => {
-    if (!canUseStorage || !lastClipKey) return;
-    const id = Number(clipId) || 0;
-    if (!id) return;
-    try {
-      window.localStorage.setItem(lastClipKey, JSON.stringify({ clip_id: id, label: String(label || '').slice(0, 220), at: Date.now() }));
-    } catch (e) {}
-  };
-
-  const persistLastVideoTime = ({ timeMs = 0, videoId = 0, elapsedMs = 0, kickoffVideoMs = 0 } = {}) => {
-    if (!canUseStorage || !lastVideoTimeKey) return;
-    const t = Number(timeMs) || 0;
-    if (!t) return;
-    try {
-      window.localStorage.setItem(
-        lastVideoTimeKey,
-        JSON.stringify({
-          time_ms: t,
-          video_id: Number(videoId) || 0,
-          elapsed_ms: Number(elapsedMs) || 0,
-          kickoff_video_ms: Number(kickoffVideoMs) || 0,
-          at: Date.now(),
-        })
-      );
-    } catch (e) {}
-  };
-
-  const restoreLastClip = () => {
-    if (!canUseStorage || !lastClipKey) return;
-    try {
-      const raw = window.localStorage.getItem(lastClipKey) || '';
-      const parsed = safeParseJson(raw, null);
-      if (!parsed || typeof parsed !== 'object') return;
-      const id = Number(parsed.clip_id) || 0;
-      const label = String(parsed.label || '').trim();
-      if (!id) return;
-      setLastClipUi({ clipId: id, label });
-    } catch (e) {}
-  };
+  // (Vídeo vinculado / últimos clips eliminado)
   const readOfflineQueue = () => {
     if (!canUseStorage) return [];
     try {
@@ -358,7 +286,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       offlineQueueSyncBtn.hidden = count <= 0;
     }
   };
-  restoreLastClip();
   const makeOfflineId = () => `${OFFLINE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   const isOfflineId = (value) => String(value || '').startsWith(OFFLINE_ID_PREFIX);
   const makeClientEventUid = () => {
@@ -1257,7 +1184,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     applyQuickButton(btn);
   });
 
-  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, video_link = null, system = '' }) => {
+  const appendHistoryEntry = ({ minute, player, action, zone, result, event_id, pending = false, system = '' }) => {
     if (!historyList) return false;
     if (event_id && historyList.querySelector(`[data-event-id="${event_id}"]`)) return false;
     const item = document.createElement('article');
@@ -1268,12 +1195,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     if (player?.id) {
       item.dataset.playerId = String(player.id);
     }
-    const vlink = (video_link && typeof video_link === 'object') ? video_link : null;
-    const vTimeMs = vlink ? (Number(vlink.time_ms) || 0) : 0;
-    const vElapsedMs = vlink ? (Number(vlink.elapsed_ms) || 0) : 0;
-    const vKickoffMs = vlink ? (Number(vlink.kickoff_video_ms) || 0) : 0;
-    const vVideoId = vlink ? (Number(vlink.video_id) || 0) : 0;
-    const vClipId = vlink ? (Number(vlink.clip_id) || 0) : 0;
     const numericMinute = Number(minute);
     const minuteLabel = Number.isFinite(numericMinute) ? `${numericMinute}'` : "Ahora'";
     const playerNumber = player?.number || '--';
@@ -1284,18 +1205,10 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       <strong>#${playerNumber} ${playerName}</strong>
       <p class="hist-text">${action} · ${zone || '-'} · ${result || ''}</p>
       <div class="history-actions">
-        ${vTimeMs ? `<button type="button" class="history-replay" aria-label="Replay vídeo" data-vtime="${vTimeMs}" data-velapsed="${vElapsedMs}" data-vkickoff="${vKickoffMs}" data-vid="${vVideoId}" data-vclip="${vClipId}">🎬</button>` : ''}
         ${(sys === 'touch-field-final') ? '' : '<button type="button" class="history-delete" aria-label="Eliminar acción">🗑</button>'}
       </div>
     `;
     if (event_id) item.dataset.eventId = event_id;
-    if (vTimeMs) {
-      item.dataset.videoTimeMs = String(vTimeMs);
-      item.dataset.videoElapsedMs = String(vElapsedMs || 0);
-      item.dataset.videoKickoffMs = String(vKickoffMs || 0);
-      item.dataset.videoId = String(vVideoId || 0);
-      item.dataset.videoClipId = String(vClipId || 0);
-    }
     historyList.prepend(item);
     if (historyList.children.length > 24) historyList.removeChild(historyList.lastChild);
     registerLiveEvent({ id: event_id, action, zone, result, minute: numericMinute });
@@ -1336,19 +1249,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
   };
 
   historyList.addEventListener('click', async (event) => {
-    const replayBtn = closestSafe(event.target, '.history-replay');
-    if (replayBtn) {
-      event.preventDefault();
-      const timeMs = Number(replayBtn.getAttribute('data-vtime')) || 0;
-      const elapsedMs = Number(replayBtn.getAttribute('data-velapsed')) || 0;
-      const kickoffMs = Number(replayBtn.getAttribute('data-vkickoff')) || 0;
-      const videoId = Number(replayBtn.getAttribute('data-vid')) || 0;
-      const clipId = Number(replayBtn.getAttribute('data-vclip')) || 0;
-      try {
-        document.dispatchEvent(new CustomEvent('webstats:match-video:seek', { detail: { time_ms: timeMs, elapsed_ms: elapsedMs, kickoff_video_ms: kickoffMs, video_id: videoId, clip_id: clipId } }));
-      } catch (e) {}
-      return;
-    }
     const button = closestSafe(event.target, '.history-delete');
     if (!button) return;
     const article = button.closest('[data-event-id]');
@@ -1868,7 +1768,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         zone: data.zone,
         result: data.result,
         event_id: data.id,
-        video_link: data.video_link || null,
       });
       if (!inserted) return data;
 
@@ -1890,22 +1789,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       quickButtons.forEach((btn) => btn.classList.remove('quake-action-active'));
       resetPopupForm({ preserveFields });
       emitSummaryChange();
-      try {
-        const clipId = data?.video_clip_id || data?.video_link?.clip_id;
-        if (clipId) {
-          const label = `${data.minute || getCurrentMatchMinute()}' · ${data.action || ''}`.trim();
-          setLastClipUi({ clipId, label });
-          persistLastClip({ clipId, label });
-        }
-        const timeMs = data?.video_link?.time_ms;
-        const videoId = data?.video_link?.video_id;
-        const elapsedMs = data?.video_link?.elapsed_ms;
-        const kickoffVideoMs = data?.video_link?.kickoff_video_ms;
-        if (timeMs) persistLastVideoTime({ timeMs, videoId, elapsedMs, kickoffVideoMs });
-      } catch (e) {}
-      try {
-        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone, video_link: data.video_link || null } }));
-      } catch (e) {}
       showPageStatus(
         `${source === 'pro_autosend' ? 'Auto-enviar:' : ''} Acción registrada${data.duplicate ? ' (duplicado detectado)' : ''}.`.trim(),
         data.duplicate ? 'warning' : 'success',
@@ -2157,7 +2040,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
           zone: ev.zone,
           result: ev.result,
           event_id: String(ev.id || ''),
-          video_link: ev.video_link || null,
         });
         if (!inserted) return;
         const derivedDropKey = classifyCounterDropKey({ action: ev.action, result: ev.result });
@@ -2223,7 +2105,6 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
         zone: data.zone,
         result: data.result,
         event_id: data.id,
-        video_link: data.video_link || null,
       });
       if (!inserted) return data;
       incrementQuickCounter(dropKey);
@@ -2231,7 +2112,7 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
       if (!isTeamOnly && player?.id) selectPlayer(player.id);
       emitSummaryChange();
       try {
-        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone, video_link: data.video_link || null } }));
+        document.dispatchEvent(new CustomEvent('webstats:match-actions:recorded', { detail: { id: data.id, action: data.action, result: data.result, zone: data.zone } }));
       } catch (e) {}
       return data;
     } catch (err) {
