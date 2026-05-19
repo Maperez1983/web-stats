@@ -54,12 +54,23 @@
   --prod-slate: #a7b6cf;
 }
 
-/* Light theme (optional): activado con <html data-theme="light">. */
+/* Light theme (default): activado con <html data-theme="light">.
+   Objetivo: look tipo informe/PDF (superficies claras + texto oscuro). */
 :root[data-theme="light"] {
-  /* Fondo claro, UI oscura: mantiene la identidad (paneles/texto) y solo aclara el lienzo. */
-  color-scheme: dark;
+  color-scheme: light;
   --prod-bg: #f4f7fb;
-  --prod-bg-soft: #edf2f8;
+  --prod-bg-soft: #eef2f7;
+  --prod-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  --prod-panel-flat: rgba(255, 255, 255, 0.94);
+  --prod-line: rgba(15, 23, 42, 0.14);
+  --prod-line-strong: rgba(244, 180, 0, 0.28);
+  --prod-text: #0f172a;
+  --prod-muted: rgba(15, 23, 42, 0.64);
+  --prod-muted-soft: rgba(15, 23, 42, 0.78);
+  --prod-shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.14);
+  --prod-shadow-md: 0 16px 36px rgba(15, 23, 42, 0.12);
+  --prod-midnight: #0f172a;
+  --prod-slate: rgba(15, 23, 42, 0.64);
 }
 
 /* High contrast: maximiza legibilidad (iPad exterior / baja visión). */
