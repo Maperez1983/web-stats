@@ -4,11 +4,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Dashboard · 2J</title>
-    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-    {% include 'football/pwa_head.html' %}
-    <style>
+	    <title>Dashboard · 2J</title>
+	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    <link rel="stylesheet" href="{% static 'football/css/kpi_report.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+	    {% include 'football/pwa_head.html' %}
+	    <style>
       .page { max-width: 1320px; margin: 0 auto; padding: 1.1rem; }
       .head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom: 0.9rem; }
       .head h1 { margin:0; font-size:1.05rem; letter-spacing:0.08em; text-transform:uppercase; }

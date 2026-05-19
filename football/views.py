@@ -11154,6 +11154,45 @@ def dashboard_data(request):
         response['Cache-Control'] = 'no-store'
         return response
 
+    # Fail-open global: en producción, cualquier excepción aquí rompe la home con 500 (DASH_HTTP_500).
+    # Preferimos devolver payload mínimo (200) para que la UI cargue y muestre mensaje de setup.
+    try:
+        return _dashboard_data_impl(request, _json=_json)
+    except Exception:
+        logger.exception('dashboard_data: unhandled exception (fail-open)')
+        try:
+            primary_team = _get_primary_team_for_request(request)
+        except Exception:
+            primary_team = None
+        return _json(
+            {
+                'team': {
+                    'id': int(getattr(primary_team, 'id', 0) or 0) if primary_team else 0,
+                    'slug': str(getattr(primary_team, 'slug', '') or '').strip() if primary_team else '',
+                    'name': str(getattr(primary_team, 'name', '') or '').strip() if primary_team else 'Equipo',
+                    'group': '',
+                    'competition': '',
+                    'season': '',
+                    'corporate_line': '',
+                    'crest_url': resolve_team_crest_url(request, primary_team, sync=False) if primary_team else '',
+                },
+                'standings': [],
+                'next_match': None,
+                'standings_meta': {'provider': '', 'last_updated': '', 'group': '', 'season': ''},
+                'team_metrics': {},
+                'player_metrics': [],
+                'player_cards': [],
+                'player_cards_scope': {'type': 'fallback', 'label': 'Dashboard · fallback'},
+                'setup_required': True,
+                'setup_message_title': 'Dashboard no disponible',
+                'setup_message_body': 'El servidor devolvió un error al calcular la portada. Reintenta en unos segundos.',
+            },
+            status=200,
+        )
+
+
+def _dashboard_data_impl(request, *, _json):
+    """Implementación real de `dashboard_data` (separada para fail-open global)."""
     forbidden = _forbid_if_workspace_module_disabled(request, 'dashboard', label='dashboard')
     if forbidden:
         return forbidden
