@@ -6459,12 +6459,29 @@
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
-		    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-		    <script>
-		      // Rendimiento: cargamos Fabric + editor (TPad) + 3D SOLO cuando hace falta.
-		      (function () {
-		        const form = document.getElementById('task-builder-form');
-		        if (!form) return;
+			    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+			    {% if tactics_mode %}
+			    {# En modo Táctica el editor es el producto: cargamos Fabric+TPad de forma directa (sin lazy-load)
+			       para evitar quedarse con el campo “vacío” si el loader falla o si el navegador bloquea eventos. #}
+			    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+			    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+			    <script>
+			      (function () {
+			        const boot = () => {
+			          try { window.initSessionsTacticalPad && window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
+			        };
+			        // `defer` ejecuta antes de DOMContentLoaded, pero en Safari a veces el orden es sensible.
+			        try { window.setTimeout(boot, 0); } catch (e) { /* ignore */ }
+			        try { window.addEventListener('DOMContentLoaded', boot, { once: true }); } catch (e) { /* ignore */ }
+			        try { window.addEventListener('load', boot, { once: true }); } catch (e) { /* ignore */ }
+			      })();
+			    </script>
+			    {% endif %}
+			    <script>
+			      // Rendimiento: cargamos Fabric + editor (TPad) + 3D SOLO cuando hace falta.
+			      (function () {
+			        const form = document.getElementById('task-builder-form');
+			        if (!form) return;
 		        const fabricSrc = String(form.dataset.fabricSrc || '').trim();
 		        const tpadSrc = String(form.dataset.tpadSrc || '').trim();
 		        const threeSrc = String(form.dataset.threeSrc || '').trim();
