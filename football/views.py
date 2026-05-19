@@ -11406,7 +11406,11 @@ def dashboard_data(request):
     force_fresh = str(request.GET.get('fresh') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     cache_key = _dashboard_cache_key(primary_team.id)
     if not force_fresh:
-        cached_payload = cache.get(cache_key)
+        cached_payload = None
+        try:
+            cached_payload = cache.get(cache_key)
+        except Exception:
+            cached_payload = None
         if isinstance(cached_payload, dict):
             # Autorreparación: si en caché se guardó un próximo rival nulo (p.ej. porque todavía no
             # existía el match en BD o falló una extracción externa), intentamos reconstruirlo sin
@@ -11946,7 +11950,10 @@ def dashboard_data(request):
         payload['weekly_agenda'] = _build_weekly_agenda_payload(primary_team, reference_date=today)
     except Exception:
         pass
-    cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
+    try:
+        cache.set(cache_key, payload, DASHBOARD_CACHE_SECONDS)
+    except Exception:
+        pass
     response = _json(payload)
     if force_fresh:
         response['Cache-Control'] = 'no-store'
