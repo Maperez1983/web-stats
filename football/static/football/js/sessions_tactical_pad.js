@@ -9347,6 +9347,8 @@
 				    const playbookVersionsUrl = safeText(playbookVersionsUrlInput?.value);
 				    const playbookShareUrl = safeText(playbookShareUrlInput?.value);
 				    let playbookClips = [];
+				    // Clip actualmente cargado desde Playbook (para permitir "guardar cambios" sin volver a pedir nombre/carpeta).
+				    let playbookActiveClip = null;
 				    let playbookLoading = false;
 				    let playbookLoadedAt = 0;
 				    let playbookTeams = [];
@@ -9873,16 +9875,40 @@
 				        setStatus('Playbook no disponible.', true);
 				        return;
 				      }
+				      // Si hay un clip de Playbook cargado que es claramente una "táctica estática" (1 paso),
+				      // actualízalo en sitio sin pedir nombre/carpeta de nuevo.
+				      const canUpdateActive = (() => {
+				        try {
+				          const steps = playbookActiveClip?.steps;
+				          if (!Array.isArray(steps) || steps.length !== 1) return false;
+				          const id = Number(playbookActiveClip?.id) || 0;
+				          if (!id) return false;
+				          return true;
+				        } catch (e) {
+				          return false;
+				        }
+				      })();
 				      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Táctica');
-				      const name = safeText(window.prompt('Nombre de la táctica', defaultName)).slice(0, 160);
+				      const name = canUpdateActive
+				        ? safeText(playbookActiveClip?.name, defaultName).slice(0, 160)
+				        : safeText(window.prompt('Nombre de la táctica', defaultName)).slice(0, 160);
 				      if (!name) return;
-				      const folder = safeText(window.prompt('Carpeta (opcional)', 'Tácticas')).slice(0, 80);
-				      const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
-				      let tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-				      try {
-				        const hasTag = tags.some((t) => safeText(t).toLowerCase() === 'tactica');
-				        if (!hasTag) tags = ['tactica', ...tags].slice(0, 12);
-				      } catch (e) { /* ignore */ }
+				      const folder = canUpdateActive
+				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
+				        : safeText(window.prompt('Carpeta (opcional)', 'Tácticas')).slice(0, 80);
+				      const tags = (() => {
+				        if (canUpdateActive) {
+				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
+				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				        }
+				        const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+				        let next = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				        try {
+				          const hasTag = next.some((t) => safeText(t).toLowerCase() === 'tactica');
+				          if (!hasTag) next = ['tactica', ...next].slice(0, 12);
+				        } catch (e) { /* ignore */ }
+				        return next;
+				      })();
 
 				      const { w, h } = worldSize();
 				      ensureLayerUidsOnCanvas();
@@ -9900,11 +9926,23 @@
 				        },
 				      ];
 				      try {
-				        const res = await savePlaybookClip({ scope: 'team', name, folder, tags, steps });
+				        const payload = { scope: 'team', name, folder, tags, steps };
+				        if (canUpdateActive) {
+				          payload.id = Number(playbookActiveClip?.id) || 0;
+				          payload.scope = safeText(playbookActiveClip?.scope || 'team');
+				        }
+				        const res = await savePlaybookClip(payload);
 				        if (res?.canceled) return;
 				        await fetchPlaybookClips({ force: true, silent: true });
+				        // Refresca la referencia local al clip activo (nombre/carpeta/tags pueden haber cambiado).
+				        try {
+				          if (canUpdateActive && playbookActiveClip?.id) {
+				            const refreshed = (playbookClips || []).find((c) => Number(c?.id) === Number(playbookActiveClip.id));
+				            if (refreshed) playbookActiveClip = refreshed;
+				          }
+				        } catch (e) { /* ignore */ }
 				        renderClipsLibrary();
-				        setStatus('Táctica guardada en Playbook (equipo).');
+				        setStatus(canUpdateActive ? 'Táctica actualizada en Playbook.' : 'Táctica guardada en Playbook (equipo).');
 				      } catch (e) {
 				        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
 				      }
@@ -10322,17 +10360,18 @@
 				        });
 				      });
 
-				      Array.from(simClipsList.querySelectorAll('[data-playbook-load]')).forEach((btn) => {
-				        btn.addEventListener('click', () => {
-				          const id = Number(btn.getAttribute('data-playbook-load') || 0);
-				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
-				          const steps = Array.isArray(clip?.steps) ? clip.steps : [];
-				          if (!steps.length) return;
-				          if (simulationPlaying) stopSimulationPlayback();
-				          try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
-				          simulationSavedUpdatedAt = Date.now();
-				          try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
-				          simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				    Array.from(simClipsList.querySelectorAll('[data-playbook-load]')).forEach((btn) => {
+				      btn.addEventListener('click', () => {
+				        const id = Number(btn.getAttribute('data-playbook-load') || 0);
+				        const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				        const steps = Array.isArray(clip?.steps) ? clip.steps : [];
+				        if (!steps.length) return;
+				        playbookActiveClip = clip || null;
+				        if (simulationPlaying) stopSimulationPlayback();
+				        try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+				        simulationSavedUpdatedAt = Date.now();
+				        try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
 				          renderSimulationSteps();
 				          void selectSimulationStep(simulationActiveIndex);
 				          syncSimUi();
@@ -20934,35 +20973,63 @@
 			      event.preventDefault();
 			      void exportSimulationPresentationPack();
 			    });
-			    simClipSaveBtn?.addEventListener('click', (event) => {
-			      event.preventDefault();
-			      if (!isSimulating) return;
-			      if (!Array.isArray(simulationSteps) || !simulationSteps.length) {
-			        setStatus('No hay pasos para guardar. Captura al menos 1 paso.', true);
-			        return;
-			      }
-			      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Clip');
-			      const name = safeText(window.prompt('Nombre del clip', defaultName));
-			      if (!name) return;
-			      const folder = safeText(window.prompt('Carpeta (opcional)', '')).slice(0, 80);
-			      const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
-			      const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-			      let steps = [];
-			      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
-			      const dest = safeText(simClipDestSelect?.value, 'local');
+				    simClipSaveBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (!isSimulating) return;
+				      if (!Array.isArray(simulationSteps) || !simulationSteps.length) {
+				        setStatus('No hay pasos para guardar. Captura al menos 1 paso.', true);
+				        return;
+				      }
+				      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Clip');
+				      // Si el usuario cargó un clip del Playbook y está simulando, permitir actualizarlo sin pedir nombre/carpeta.
+				      const canUpdateActive = (() => {
+				        try {
+				          const id = Number(playbookActiveClip?.id) || 0;
+				          if (!id) return false;
+				          const activeSteps = playbookActiveClip?.steps;
+				          if (!Array.isArray(activeSteps) || !activeSteps.length) return false;
+				          // Debe ser el mismo número de pasos para considerarlo "edición" (evita sobrescribir sin querer).
+				          return Number(activeSteps.length) === Number(simulationSteps.length);
+				        } catch (e) { return false; }
+				      })();
+				      const name = canUpdateActive ? safeText(playbookActiveClip?.name, defaultName) : safeText(window.prompt('Nombre del clip', defaultName));
+				      if (!name) return;
+				      const folder = canUpdateActive ? safeText(playbookActiveClip?.folder, '').slice(0, 80) : safeText(window.prompt('Carpeta (opcional)', '')).slice(0, 80);
+				      const tags = (() => {
+				        if (canUpdateActive) {
+				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
+				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				        }
+				        const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+				        return tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				      })();
+				      let steps = [];
+				      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+				      const dest = safeText(simClipDestSelect?.value, 'local');
 				      if (dest !== 'local') {
 				        const scope = dest === 'system' ? 'system' : 'team';
 				        (async () => {
-			          try {
-			            const res = await savePlaybookClip({ scope, name: name.slice(0, 160), folder, tags, steps });
-			            if (res?.canceled) return;
-			            await fetchPlaybookClips({ force: true, silent: true });
-			            renderClipsLibrary();
-			            setStatus(`Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
-			          } catch (e) {
-			            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
-			          }
-			        })();
+				          try {
+				            const payload = { scope, name: name.slice(0, 160), folder, tags, steps };
+				            if (canUpdateActive) {
+				              payload.id = Number(playbookActiveClip?.id) || 0;
+				              payload.scope = safeText(playbookActiveClip?.scope || scope);
+				            }
+				            const res = await savePlaybookClip(payload);
+				            if (res?.canceled) return;
+				            await fetchPlaybookClips({ force: true, silent: true });
+				            try {
+				              if (canUpdateActive && playbookActiveClip?.id) {
+				                const refreshed = (playbookClips || []).find((c) => Number(c?.id) === Number(playbookActiveClip.id));
+				                if (refreshed) playbookActiveClip = refreshed;
+				              }
+				            } catch (e) { /* ignore */ }
+				            renderClipsLibrary();
+				            setStatus(canUpdateActive ? 'Clip actualizado en Playbook.' : `Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
+				          } catch (e) {
+				            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
+				          }
+				        })();
 				        return;
 				      }
 				      let pro = null;
