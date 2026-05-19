@@ -351,6 +351,12 @@
     const ok = window.confirm('¿Resetear caché offline (PWA) y recargar?');
     if (!ok) return;
     try { btn.disabled = true; btn.textContent = 'Reseteando…'; } catch (e) {}
+    // Tema/densidad: si el usuario activó "Claro/HC" en algún momento puede dejar la app ilegible
+    // en páginas con estilos dark-first. Al resetear, volvemos a default (oscuro).
+    try { window.localStorage && window.localStorage.removeItem('2j_theme'); } catch (e) {}
+    try { window.localStorage && window.localStorage.removeItem('2j_density'); } catch (e) {}
+    try { document.documentElement && document.documentElement.removeAttribute('data-theme'); } catch (e) {}
+    try { document.documentElement && document.documentElement.removeAttribute('data-density'); } catch (e) {}
     clearLocalLineupDrafts();
     await clearCaches();
     await unregisterServiceWorkers();

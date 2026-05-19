@@ -6759,7 +6759,11 @@
 
 		        // Heurística: si el usuario está realmente en el editor (no solo leyendo),
 		        // precargamos en idle para que el primer toque sea instantáneo.
-		        const scheduleIdle = (fn, timeoutMs = 1600) => {
+		        //
+		        // Safari/WebKit: hemos visto `ReferenceError: Can't find variable: scheduleIdle` en producción
+		        // (probablemente por alcance entre scripts inline). Evitamos ese identificador y usamos un helper
+		        // global ultra-defensivo.
+		        const __webstatsScheduleIdleLocal = (fn, timeoutMs = 1600) => {
 		          try {
 		            if (typeof window.requestIdleCallback === 'function') {
 		              return window.requestIdleCallback(fn, { timeout: timeoutMs });
@@ -6767,7 +6771,10 @@
 		          } catch (e) { /* ignore */ }
 		          return window.setTimeout(fn, 120);
 		        };
-		        scheduleIdle(() => {
+		        try {
+		          if (typeof window.__webstatsScheduleIdle !== 'function') window.__webstatsScheduleIdle = __webstatsScheduleIdleLocal;
+		        } catch (e) { /* ignore */ }
+		        (window.__webstatsScheduleIdle || __webstatsScheduleIdleLocal)(() => {
 		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
 		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
               const isTacticsMode = String(form.dataset.tacticsMode || '').trim() === '1';

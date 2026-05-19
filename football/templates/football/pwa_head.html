@@ -35,8 +35,9 @@
       var key = "2j_theme";
       var stored = "";
       try { stored = (window.localStorage && window.localStorage.getItem(key)) || ""; } catch (e) {}
-      var mode = (stored || "{{ brand_theme.ui|default:'light' }}").toString().trim().toLowerCase();
-      if (!mode) mode = "light";
+      // Default producto: oscuro. Evita contrastes malos en páginas que aún tienen estilos "dark-first".
+      var mode = (stored || "{{ brand_theme.ui|default:'dark' }}").toString().trim().toLowerCase();
+      if (!mode) mode = "dark";
       if (mode !== "light" && mode !== "hc" && mode !== "dark") mode = "dark";
       if (mode === "dark") {
         document.documentElement.removeAttribute("data-theme");

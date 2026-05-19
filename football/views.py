@@ -19894,9 +19894,28 @@ def match_action_page(request):
                     'field_location': field_map.get(team.slug, ''),
                 }
             )
-    match_selector_options = list(
-        _team_match_queryset(primary_team).order_by('-date', '-id')
-    )
+    # Rendimiento: el selector de partidos no necesita toda la carga/annotate de `_team_match_queryset()`.
+    # Solo usamos id + fecha + home/away para el dropdown.
+    try:
+        from django.db.models import Q  # noqa: WPS433 (local import)
+
+        match_selector_options = list(
+            Match.objects.filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+            .select_related('home_team', 'away_team')
+            .only(
+                'id',
+                'date',
+                'home_team__id',
+                'home_team__name',
+                'home_team__short_name',
+                'away_team__id',
+                'away_team__name',
+                'away_team__short_name',
+            )
+            .order_by('-date', '-id')[:80]
+        )
+    except Exception:
+        match_selector_options = list(_team_match_queryset(primary_team).order_by('-date', '-id')[:80])
     selected_match_id = active_match.id if active_match else None
 
     rival_lineup_payload = {}
@@ -20066,6 +20085,81 @@ def match_action_page(request):
             'edit_match_url': edit_match_url,
         },
     )
+
+
+@login_required
+def match_video_links_api(request):
+    """
+    API mínima para que el registro de acciones pueda enlazar vídeos/recortes.
+
+    Nota: en esta versión devolvemos una lista vacía (no hay modelo persistente de enlaces por partido
+    en el core). El objetivo principal es evitar `NoReverseMatch` en plantilla y permitir evolucionar
+    la integración sin romper la página.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede acceder.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo match_actions no está activo.'}, status=403)
+    if request.method != 'GET':
+        return JsonResponse({'ok': False, 'error': 'Método no soportado.'}, status=405)
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    match_id = _parse_int(request.GET.get('match_id')) or 0
+    if match_id:
+        try:
+            from django.db.models import Q  # noqa: WPS433 (local import)
+
+            exists = Match.objects.filter(id=int(match_id)).filter(Q(home_team=primary_team) | Q(away_team=primary_team)).exists()
+        except Exception:
+            exists = False
+        if not exists:
+            return JsonResponse({'ok': False, 'error': 'Partido no encontrado.'}, status=404)
+
+    return JsonResponse({'ok': True, 'match_id': int(match_id) if match_id else None, 'links': []})
+
+
+@csrf_exempt
+@login_required
+def match_video_marker_api(request):
+    """
+    API mínima (placeholder) para marcar un instante del vídeo desde registro de acciones.
+
+    Actualmente no persistimos marcadores por partido en el core, pero el frontend referencia
+    este endpoint. Se devuelve `ok=true` para no romper la UX.
+    """
+    if not _can_edit_match_actions(request.user):
+        return JsonResponse({'ok': False, 'error': 'Solo el cuerpo técnico puede acceder.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
+    if forbidden:
+        return JsonResponse({'ok': False, 'error': 'El módulo match_actions no está activo.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'Método no soportado.'}, status=405)
+
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+
+    try:
+        payload = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        payload = {}
+    match_id = _parse_int(payload.get('match_id')) or 0
+    if match_id:
+        try:
+            from django.db.models import Q  # noqa: WPS433 (local import)
+
+            exists = Match.objects.filter(id=int(match_id)).filter(Q(home_team=primary_team) | Q(away_team=primary_team)).exists()
+        except Exception:
+            exists = False
+        if not exists:
+            return JsonResponse({'ok': False, 'error': 'Partido no encontrado.'}, status=404)
+
+    # No-op: devolver OK permite a UI avanzar aunque todavía no haya persistencia.
+    return JsonResponse({'ok': True})
 
 
 @authenticated_write
@@ -58262,6 +58356,7 @@ def _build_player_match_stats_payload(primary_team, player, match):
             stats['yellow_cards'] += 1
         if is_red_card_event(event.event_type, event.result, event.zone):
             stats['red_cards'] += 1
+
         duel_event = classify_duel_event(event.event_type, event.result, event.observation, event.zone)
         if duel_event.get('is_duel'):
             stats['duels_total'] += 1
@@ -58271,22 +58366,27 @@ def _build_player_match_stats_payload(primary_team, player, match):
                 stats['aerial_duels_total'] += 1
                 if duel_event.get('won'):
                     stats['aerial_duels_won'] += 1
+
         zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
-            stats['zone_counts'][zone_label] += 1
+            stats['zone_counts'][zone_label] = int(stats['zone_counts'].get(zone_label, 0) or 0) + 1
+
         tercio_raw = (event.tercio or '').strip()
         if tercio_raw:
             mapped = map_tercio(tercio_raw)
             if mapped:
-                stats['tercio_counts'][mapped] += 1
-                stats['tercio_totals'][mapped] += 1
+                stats['tercio_counts'][mapped] = int(stats['tercio_counts'].get(mapped, 0) or 0) + 1
+                stats['tercio_totals'][mapped] = int(stats['tercio_totals'].get(mapped, 0) or 0) + 1
+
         shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
         if shot_event:
             stats['shot_attempts'] += 1
             if is_shot_on_target_event(event.event_type, event.result, event.observation):
                 stats['shots_on_target'] += 1
+
         if is_goalkeeper_save_event(event.event_type, event.result, event.observation):
             stats['goalkeeper_saves'] += 1
+
         is_pass_event = (
             contains_keyword(event.event_type, PASS_KEYWORDS)
             or contains_keyword(event.observation, PASS_KEYWORDS)
@@ -60631,16 +60731,16 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     stats['aerial_duels_won'] += 1
         zone_label = _resolve_zone_label(event, match_zone_profiles, player_zone_profiles)
         if zone_label:
-            stats['zone_counts'][zone_label] += 1
+            stats['zone_counts'][zone_label] = int(stats['zone_counts'].get(zone_label, 0) or 0) + 1
         tercio = (event.tercio or '').strip()
         if tercio:
             mapped = map_tercio(tercio)
             if mapped:
-                stats['tercio_counts'][mapped] += 1
-                stats['tercio_totals'][mapped] += 1
+                stats['tercio_counts'][mapped] = int(stats['tercio_counts'].get(mapped, 0) or 0) + 1
+                stats['tercio_totals'][mapped] = int(stats['tercio_totals'].get(mapped, 0) or 0) + 1
         position_label = categorize_position(player.position, event.zone)
         if position_label:
-            stats['position_counts'][position_label] += 1
+            stats['position_counts'][position_label] = int(stats['position_counts'].get(position_label, 0) or 0) + 1
         shot_event = is_shot_attempt_event(event.event_type, event.result, event.observation)
         if shot_event:
             stats['shot_attempts'] += 1
