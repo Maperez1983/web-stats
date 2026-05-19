@@ -18302,101 +18302,101 @@ def player_dashboard_page(request):
         match_lookup = {match.id: match for match in team_matches}
         selected_match_obj = match_lookup.get(selected_match_id)
         if selected_match_obj:
-	            opponent = (
-	                selected_match_obj.away_team.display_name
-	                if selected_match_obj.home_team == primary_team and selected_match_obj.away_team
-	                else selected_match_obj.home_team.display_name
-	                if selected_match_obj.away_team == primary_team and selected_match_obj.home_team
-	                else 'Rival desconocido'
-	            )
-	            selected_match = {
-	                'id': selected_match_obj.id,
-	                'round': selected_match_obj.round or f'Partido {selected_match_obj.id}',
-	                'opponent': opponent,
-	                'date': selected_match_obj.date.strftime('%d/%m/%Y') if selected_match_obj.date else '',
-	                'home': selected_match_obj.home_team == primary_team,
-	            }
-	            # Si existen Matches duplicados (mismo fixture con IDs distintos), `compute_player_dashboard()`
-	            # colapsa internamente los eventos a un "Match canónico". En ese caso, el match_id del
-	            # desplegable puede no coincidir con el match_id del resumen del jugador, y el UI mostraba 0.
-	            # Usamos una firma de fixture (contexto + torneo + fecha + jornada + rival) como fallback.
-	            def _fixture_sig_from_match(match_obj):
-	                if not match_obj:
-	                    return None
-	                try:
-	                    ctx = str(getattr(match_obj, 'context', '') or '').strip().lower()
-	                except Exception:
-	                    ctx = ''
-	                if not ctx:
-	                    ctx = Match.CONTEXT_LEAGUE
-	                if ctx not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
-	                    ctx = Match.CONTEXT_LEAGUE
-	                try:
-	                    day = match_obj.date.isoformat() if getattr(match_obj, 'date', None) else ''
-	                except Exception:
-	                    day = ''
-	                try:
-	                    round_label = str(getattr(match_obj, 'round', '') or '').strip()
-	                except Exception:
-	                    round_label = ''
-	                round_num = extract_round_number(round_label) if round_label else None
-	                round_sig = str(round_num) if round_num is not None else normalize_label(round_label)
-	                opp_sig = normalize_label(opponent or '')
-	                tour_sig = normalize_label(getattr(match_obj, 'tournament_name', '') or '') if ctx == Match.CONTEXT_TOURNAMENT else ''
-	                return (ctx, tour_sig, day, round_sig, opp_sig)
+            opponent = (
+                selected_match_obj.away_team.display_name
+                if selected_match_obj.home_team == primary_team and selected_match_obj.away_team
+                else selected_match_obj.home_team.display_name
+                if selected_match_obj.away_team == primary_team and selected_match_obj.home_team
+                else 'Rival desconocido'
+            )
+            selected_match = {
+                'id': selected_match_obj.id,
+                'round': selected_match_obj.round or f'Partido {selected_match_obj.id}',
+                'opponent': opponent,
+                'date': selected_match_obj.date.strftime('%d/%m/%Y') if selected_match_obj.date else '',
+                'home': selected_match_obj.home_team == primary_team,
+            }
+            # Si existen Matches duplicados (mismo fixture con IDs distintos), `compute_player_dashboard()`
+            # colapsa internamente los eventos a un "Match canónico". En ese caso, el match_id del
+            # desplegable puede no coincidir con el match_id del resumen del jugador, y el UI mostraba 0.
+            # Usamos una firma de fixture (contexto + torneo + fecha + jornada + rival) como fallback.
+            def _fixture_sig_from_match(match_obj):
+                if not match_obj:
+                    return None
+                try:
+                    ctx = str(getattr(match_obj, 'context', '') or '').strip().lower()
+                except Exception:
+                    ctx = ''
+                if not ctx:
+                    ctx = Match.CONTEXT_LEAGUE
+                if ctx not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}:
+                    ctx = Match.CONTEXT_LEAGUE
+                try:
+                    day = match_obj.date.isoformat() if getattr(match_obj, 'date', None) else ''
+                except Exception:
+                    day = ''
+                try:
+                    round_label = str(getattr(match_obj, 'round', '') or '').strip()
+                except Exception:
+                    round_label = ''
+                round_num = extract_round_number(round_label) if round_label else None
+                round_sig = str(round_num) if round_num is not None else normalize_label(round_label)
+                opp_sig = normalize_label(opponent or '')
+                tour_sig = normalize_label(getattr(match_obj, 'tournament_name', '') or '') if ctx == Match.CONTEXT_TOURNAMENT else ''
+                return (ctx, tour_sig, day, round_sig, opp_sig)
 
-	            selected_sig = _fixture_sig_from_match(selected_match_obj)
+            selected_sig = _fixture_sig_from_match(selected_match_obj)
 
-	            def _fixture_sig_from_entry(entry):
-	                if not isinstance(entry, dict):
-	                    return None
-	                ctx = scope or Match.CONTEXT_LEAGUE
-	                if ctx not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-	                    ctx = Match.CONTEXT_LEAGUE
-	                try:
-	                    day = str(entry.get('date') or '').strip()
-	                except Exception:
-	                    day = ''
-	                try:
-	                    round_label = str(entry.get('round') or '').strip()
-	                except Exception:
-	                    round_label = ''
-	                round_num = extract_round_number(round_label) if round_label else None
-	                round_sig = str(round_num) if round_num is not None else normalize_label(round_label)
-	                try:
-	                    opp_sig = normalize_label(str(entry.get('opponent') or '').strip())
-	                except Exception:
-	                    opp_sig = ''
-	                tour_sig = normalize_label(tournament_filter or '') if ctx == Match.CONTEXT_TOURNAMENT else ''
-	                return (ctx, tour_sig, day, round_sig, opp_sig)
+            def _fixture_sig_from_entry(entry):
+                if not isinstance(entry, dict):
+                    return None
+                ctx = scope or Match.CONTEXT_LEAGUE
+                if ctx not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
+                    ctx = Match.CONTEXT_LEAGUE
+                try:
+                    day = str(entry.get('date') or '').strip()
+                except Exception:
+                    day = ''
+                try:
+                    round_label = str(entry.get('round') or '').strip()
+                except Exception:
+                    round_label = ''
+                round_num = extract_round_number(round_label) if round_label else None
+                round_sig = str(round_num) if round_num is not None else normalize_label(round_label)
+                try:
+                    opp_sig = normalize_label(str(entry.get('opponent') or '').strip())
+                except Exception:
+                    opp_sig = ''
+                tour_sig = normalize_label(tournament_filter or '') if ctx == Match.CONTEXT_TOURNAMENT else ''
+                return (ctx, tour_sig, day, round_sig, opp_sig)
 
-	            def _find_player_match_entry(player_row):
-	                if not isinstance(player_row, dict):
-	                    return None
-	                matches_list = player_row.get('matches', [])
-	                if not isinstance(matches_list, list):
-	                    return None
-	                direct = next(
-	                    (item for item in matches_list if int(item.get('match_id') or 0) == selected_match_obj.id),
-	                    None,
-	                )
-	                if direct:
-	                    return direct
-	                if not selected_sig:
-	                    return None
-	                for item in matches_list:
-	                    if _fixture_sig_from_entry(item) == selected_sig:
-	                        return item
-	                return None
+            def _find_player_match_entry(player_row):
+                if not isinstance(player_row, dict):
+                    return None
+                matches_list = player_row.get('matches', [])
+                if not isinstance(matches_list, list):
+                    return None
+                direct = next(
+                    (item for item in matches_list if int(item.get('match_id') or 0) == selected_match_obj.id),
+                    None,
+                )
+                if direct:
+                    return direct
+                if not selected_sig:
+                    return None
+                for item in matches_list:
+                    if _fixture_sig_from_entry(item) == selected_sig:
+                        return item
+                return None
 
-	            for player in player_stats:
-	                match_entry = _find_player_match_entry(player)
-	                actions = int(match_entry.get('actions', 0) or 0) if match_entry else 0
-	                successes = int(match_entry.get('successes', 0) or 0) if match_entry else 0
-	                player['match_actions'] = actions
-	                player['match_successes'] = successes
-	                player['match_success_rate'] = round((successes / actions) * 100, 1) if actions else 0
-	                selected_match_total_actions += actions
+            for player in player_stats:
+                match_entry = _find_player_match_entry(player)
+                actions = int(match_entry.get('actions', 0) or 0) if match_entry else 0
+                successes = int(match_entry.get('successes', 0) or 0) if match_entry else 0
+                player['match_actions'] = actions
+                player['match_successes'] = successes
+                player['match_success_rate'] = round((successes / actions) * 100, 1) if actions else 0
+                selected_match_total_actions += actions
 
     # Percentiles (Pxx) para mini-radar de lista (comparativa dentro del equipo / filtro actual)
     if player_stats:
@@ -28819,7 +28819,7 @@ def coach_role_trainer_page(request):
                     passes_completed += 1
             zone_label = _resolve_zone_label(event, team_match_zone_profiles, team_player_zone_profiles)
             if zone_label:
-                zone_counts_local[zone_label] += 1
+                zone_counts_local[zone_label] = int(zone_counts_local.get(zone_label, 0) or 0) + 1
         return {
             'total_actions': total,
             'success_rate': round((successes_local / total) * 100, 1) if total else 0.0,
