@@ -235,7 +235,7 @@
       <a href="{% url 'academy-home' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Academia</a>
       {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
-      <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">KPIs avanzados</a>
+      <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Configurar indicadores</a>
       <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dashboard</a>
       {% endif %}
       {% if workspace_module_access.tactics|default:True %}
