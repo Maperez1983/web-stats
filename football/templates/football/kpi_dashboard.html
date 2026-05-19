@@ -4,7 +4,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <title>Dashboard KPIs · 2J</title>
+    <title>Dashboard · 2J</title>
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
@@ -39,11 +39,11 @@
     <main class="page">
       <div class="head">
         <div>
-          <h1>Dashboard KPIs</h1>
-          <div class="meta">{% if team %}{{ team.display_name|default:team.name }}{% endif %} · KPIs por rol</div>
+          <h1>Dashboard</h1>
+          <div class="meta">{% if team %}{{ team.display_name|default:team.name }}{% endif %} · Indicadores por rol</div>
         </div>
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap;">
-          <a class="button ghost" href="{% url 'kpi-explorer' %}{% if team %}?team={{ team.id }}{% endif %}">Configurar KPIs</a>
+          <a class="button ghost" href="{% url 'kpi-explorer' %}{% if team %}?team={{ team.id }}{% endif %}">Configurar indicadores</a>
           <a class="button ghost" href="{% url 'reports-hub' %}{% if team %}?team={{ team.id }}{% endif %}">Informes</a>
         </div>
       </div>
@@ -106,7 +106,7 @@
         </section>
 
         <aside class="card">
-          <div class="hint">KPIs</div>
+          <div class="hint">Indicadores</div>
           <div class="kpi-grid" id="dash-output"></div>
         </aside>
       </div>
@@ -120,4 +120,3 @@
     <script src="{% static 'football/js/kpi_dashboard.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>
 </html>
-

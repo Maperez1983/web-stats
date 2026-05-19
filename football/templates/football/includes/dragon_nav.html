@@ -138,7 +138,7 @@
   {% with nav_path=request.path|default:'' nav_url_name=request.resolver_match.url_name|default:'' cdurl=club_dashboard_url|default:'' %}
   {# Orden tabs (staff): Entrenador → Entrenamiento → Partido → Jugador #}
   {% if can_access_staff|default:False %}
-  <a href="{% url 'coach-cards' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
+  <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}is-active{% endif %}" {% if 'coach/' in nav_path and not 'coach/sesiones' in nav_path and not 'coach/tactica' in nav_path %}aria-current="page"{% endif %}>Entrenador</a>
   {% endif %}
   {% if workspace_module_access.sessions|default:True %}
   <a href="{% url 'sessions' %}{% if active_team %}?team={{ active_team.id }}{% endif %}" class="{% if 'coach/sesiones' in nav_path %}is-active{% endif %}" {% if 'coach/sesiones' in nav_path %}aria-current="page"{% endif %}>Entrenamiento</a>
@@ -236,7 +236,7 @@
       {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
       <a href="{% url 'kpi-explorer' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">KPIs avanzados</a>
-      <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dashboard KPIs</a>
+      <a href="{% url 'kpi-dashboard' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Dashboard</a>
       {% endif %}
       {% if workspace_module_access.tactics|default:True %}
       <a href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Táctica</a>
