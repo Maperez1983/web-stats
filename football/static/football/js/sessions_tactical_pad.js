@@ -3141,11 +3141,15 @@
 		    let animPathOverlay = null;
 		    let animPathTargetUid = '';
 		    let animPathTargetSnapshot = null;
-	    const useViewportMapping = (() => {
-	      const flag = safeText(urlParams?.get('tpad_vpt'));
-	      if (flag === '0') return false;
-	      return true;
-	    })();
+		    const useViewportMapping = (() => {
+		      // En modo Táctica, el reescalado "legacy" (sin viewportTransform) es demasiado frágil:
+		      // cualquier resize puede desordenar la pizarra y dar la sensación de que cambia la superficie.
+		      // Forzamos viewport mapping siempre en Tácticas.
+		      try { if (isTacticsMode) return true; } catch (e) { /* ignore */ }
+		      const flag = safeText(urlParams?.get('tpad_vpt'));
+		      if (flag === '0') return false;
+		      return true;
+		    })();
 
 	    let worldWidth = parseIntSafe(widthInput?.value) || 0;
 	    let worldHeight = parseIntSafe(heightInput?.value) || 0;
