@@ -9359,6 +9359,14 @@
 				    let playbookTeamsLoadedAt = 0;
 				    const playbookFilters = { q: '', folder: '', tag: '', favorites: false, latest: true, version_group: '' };
 				    let playbookFilterTimer = null;
+				    // Algunos navegadores disparan `resize` al mostrar `prompt()` (y al cerrarlo), lo que puede
+				    // activar la lógica de reescalado del canvas y "desordenar" la pizarra o cambiar la superficie.
+				    // Durante guardados que usan prompts, ignoramos resizes temporalmente.
+				    let __ignoreResizeUntilMs = 0;
+				    const __withBlockingPrompt = (fn) => {
+				      try { __ignoreResizeUntilMs = Date.now() + 1200; } catch (e) { /* ignore */ }
+				      return fn();
+				    };
 
 				    const playbookFolderSuggestionsText = (limit = 18) => {
 				      try {
@@ -9905,17 +9913,17 @@
 				      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Táctica');
 				      const name = canUpdateActive
 				        ? safeText(playbookActiveClip?.name, defaultName).slice(0, 160)
-				        : safeText(window.prompt('Nombre de la táctica', defaultName)).slice(0, 160);
+				        : safeText(__withBlockingPrompt(() => window.prompt('Nombre de la táctica', defaultName))).slice(0, 160);
 				      if (!name) return;
 				      const folder = canUpdateActive
 				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
-				        : safeText(window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, 'Tácticas')).slice(0, 80);
+				        : safeText(__withBlockingPrompt(() => window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, 'Tácticas'))).slice(0, 80);
 				      const tags = (() => {
 				        if (canUpdateActive) {
 				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
 				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				        }
-				        const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+				        const tagsRaw = safeText(__withBlockingPrompt(() => window.prompt('Tags (coma separada)', ''))).slice(0, 200);
 				        let next = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				        try {
 				          const hasTag = next.some((t) => safeText(t).toLowerCase() === 'tactica');
@@ -21007,17 +21015,19 @@
 				          return Number(activeSteps.length) === Number(simulationSteps.length);
 				        } catch (e) { return false; }
 				      })();
-				      const name = canUpdateActive ? safeText(playbookActiveClip?.name, defaultName) : safeText(window.prompt('Nombre del clip', defaultName));
+				      const name = canUpdateActive
+				        ? safeText(playbookActiveClip?.name, defaultName)
+				        : safeText(__withBlockingPrompt(() => window.prompt('Nombre del clip', defaultName)));
 				      if (!name) return;
 				      const folder = canUpdateActive
 				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
-				        : safeText(window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, '')).slice(0, 80);
+				        : safeText(__withBlockingPrompt(() => window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, ''))).slice(0, 80);
 				      const tags = (() => {
 				        if (canUpdateActive) {
 				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
 				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				        }
-				        const tagsRaw = safeText(window.prompt('Tags (coma separada)', '')).slice(0, 200);
+				        const tagsRaw = safeText(__withBlockingPrompt(() => window.prompt('Tags (coma separada)', ''))).slice(0, 200);
 				        return tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				      })();
 				      let steps = [];
@@ -21661,11 +21671,15 @@
 		      try { syncZoomUi(); } catch (e) { /* ignore */ }
 		    };
 		    const scheduleResize = () => {
-	      window.clearTimeout(resizeTimer);
-	      window.clearTimeout(resizeFinalizeTimer);
-	      captureResizeBaseline();
-		      resizeTimer = window.setTimeout(() => {
-		        applyResizeFromBaseline();
+		      try {
+		        // Ver nota en Playbook: `prompt()` puede provocar resizes espurios que reescalan el canvas.
+		        if (__ignoreResizeUntilMs && Date.now() < __ignoreResizeUntilMs) return;
+		      } catch (e) { /* ignore */ }
+		      window.clearTimeout(resizeTimer);
+		      window.clearTimeout(resizeFinalizeTimer);
+		      captureResizeBaseline();
+			      resizeTimer = window.setTimeout(() => {
+			        applyResizeFromBaseline();
 		        renderSurfaceThumbs();
 		      }, 200);
 	      // Si durante la rotación/resize hay varios eventos, cerramos la sesión cuando se estabilice.
