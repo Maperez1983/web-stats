@@ -59944,6 +59944,19 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         candidate_ids |= {int(mid) for mid in (allowed_match_ids or set()) if mid}
         candidate_ids |= {int(mid) for mid in (convocation_seed_by_match_id or {}).keys() if mid}
         candidate_ids |= {int(mid) for mid in (lineup_by_match or {}).keys() if mid}
+        # Importante: incluir partidos que solo tienen "ficha manual" (minutos/goles/asistencias),
+        # porque si no, el colapsado de duplicados no los ve y luego los overrides no se reflejan
+        # en la ficha del jugador / cards / PDF.
+        try:
+            manual_ids = (
+                PlayerStatistic.objects
+                .filter(player__team=primary_team, match__isnull=False, context='manual-match')
+                .values_list('match_id', flat=True)
+                .distinct()
+            )
+            candidate_ids |= {int(mid) for mid in manual_ids if mid}
+        except Exception:
+            pass
         if candidate_ids:
             match_rows = list(
                 Match.objects.filter(id__in=list(candidate_ids)).select_related('home_team', 'away_team', 'season')
@@ -59951,6 +59964,20 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             match_by_id = {int(match.id): match for match in match_rows if match and getattr(match, 'id', None)}
             fallback_group_id = int(getattr(primary_team, 'group_id', 0) or 0)
             fallback_season_id = int(getattr(getattr(getattr(primary_team, 'group', None), 'season', None), 'id', 0) or 0)
+            manual_signal_match_ids = set()
+            try:
+                manual_signal_match_ids = set(
+                    PlayerStatistic.objects
+                    .filter(
+                        match_id__in=list(candidate_ids),
+                        player__team=primary_team,
+                        context='manual-match',
+                    )
+                    .values_list('match_id', flat=True)
+                    .distinct()
+                )
+            except Exception:
+                manual_signal_match_ids = set()
 
             def _fixture_opponent_signature(match_obj, conv_seed):
                 # Prioridad: el Match (home/away) es la fuente de verdad; la Convocatoria puede tener rival mal guardado.
@@ -60042,6 +60069,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     score += 10
                 if int(mid) in convocation_seed_by_match_id:
                     score += 6
+                if int(mid) in manual_signal_match_ids:
+                    score += 11
                 if match_obj:
                     try:
                         if getattr(match_obj, 'date', None):

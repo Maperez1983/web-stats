@@ -587,7 +587,7 @@
                         <td class="nowrap">{{ match.assists|default:0 }}</td>
                         <td class="nowrap">{{ match.actions|default:0 }}</td>
                         <td class="nowrap">{{ match.successes|default:0 }}</td>
-                        <td class="nowrap">{{ match.success_rate|default:0 }}%</td>
+                        <td class="nowrap">{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}<span class="cell-muted">—</span>{% endif %}</td>
                       </tr>
                     {% empty %}
                       <tr><td colspan="10">Sin registros por partidos.</td></tr>
