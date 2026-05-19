@@ -5,7 +5,11 @@ set -euo pipefail
 : "${RUN_MIGRATIONS:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
-: "${GUNICORN_TIMEOUT:=30}"
+: "${GUNICORN_TIMEOUT:=120}"
+: "${GUNICORN_WORKERS:=2}"
+: "${GUNICORN_THREADS:=2}"
+: "${GUNICORN_KEEPALIVE:=5}"
+: "${GUNICORN_GRACEFUL_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
 
@@ -54,7 +58,15 @@ if [ "${RUN_COLLECTSTATIC}" = "true" ]; then
   python manage.py collectstatic --noinput
 fi
 
-gunicorn webstats.wsgi:application --bind "0.0.0.0:${PORT}" --timeout "${GUNICORN_TIMEOUT}" &
+gunicorn webstats.wsgi:application \
+  --bind "0.0.0.0:${PORT}" \
+  --timeout "${GUNICORN_TIMEOUT}" \
+  --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+  --keep-alive "${GUNICORN_KEEPALIVE}" \
+  --workers "${GUNICORN_WORKERS}" \
+  --threads "${GUNICORN_THREADS}" \
+  --access-logfile - \
+  --error-logfile - &
 server_pid="$!"
 
 # Si alguien insiste en instalar Chromium en runtime, lo hacemos DESPUÉS de abrir el puerto.
