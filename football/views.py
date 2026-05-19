@@ -61082,13 +61082,16 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
 
             # Recalcular totales de goles/asistencias desde la tabla por partido.
             try:
-                if not stats.get('goals_locked'):
+                # En modo ficha (manual-match) la fuente de verdad de G/A es la ficha por partido,
+                # incluso si existen overrides anuales (goals_locked/assists_locked).
+                can_override_ga = bool(minutes_mode_match_ids)
+                if can_override_ga or (not stats.get('goals_locked')):
                     stats['goals'] = sum(
                         max(0, _parse_int(m.get('goals')) or 0)
                         for m in matches_dict.values()
                         if isinstance(m, dict) and m.get('played')
                     )
-                if not stats.get('assists_locked'):
+                if can_override_ga or (not stats.get('assists_locked')):
                     stats['assists'] = sum(
                         max(0, _parse_int(m.get('assists')) or 0)
                         for m in matches_dict.values()
@@ -61145,6 +61148,10 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     stats['minutes'] = int(
                         sum(max(0, _parse_int(m.get('minutes')) or 0) for m in played_entries)
                     )
+                    # En modo ficha, también recalculamos goles/asistencias desde la misma tabla.
+                    # Esto hace que cards/PDF reflejen el año aunque no haya acciones registradas.
+                    stats['goals'] = int(sum(max(0, _parse_int(m.get('goals')) or 0) for m in played_entries))
+                    stats['assists'] = int(sum(max(0, _parse_int(m.get('assists')) or 0) for m in played_entries))
                     stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
                     # PT: si no tenemos dato fiable, al menos que no supere PJ.
                     try:
