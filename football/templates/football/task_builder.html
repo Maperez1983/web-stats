@@ -6756,15 +6756,19 @@
               }
             } catch (e) {}
 
-			        // Tutorial rápido (nuevos usuarios).
-			        try {
-		          const tour = window.WebstatsTour;
-		          const tourId = 'task_builder_v1';
+			        // Contexto de pantalla (necesario en varios bloques del script).
+              // OJO: debe estar en el scope superior; si se declara dentro de un `try {}` luego
+              // los bloques inferiores lanzan `ReferenceError: Can't find variable: isTacticsMode` (Safari).
               const isTacticsMode = {% if tactics_mode %}true{% else %}false{% endif %};
-		          const steps = isTacticsMode ? ([
-		            {
-		              anchor: '.topbar .actions',
-		              title: '1) Acciones rápidas',
+
+				        // Tutorial rápido (nuevos usuarios).
+				        try {
+			          const tour = window.WebstatsTour;
+			          const tourId = 'task_builder_v1';
+			          const steps = isTacticsMode ? ([
+			            {
+			              anchor: '.topbar .actions',
+			              title: '1) Acciones rápidas',
 		              body: 'Arriba tienes lo esencial (Volver, Ayuda y Vista compacta). Aquí no se crean tareas: se trabajan escenas y clips.',
 		            },
 		            {
