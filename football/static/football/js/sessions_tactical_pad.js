@@ -1176,6 +1176,10 @@
 				    // En iPad/Safari lo dejamos abierto por defecto para que se vean sus hijos; si lo
 				    // tratamos como overlay, el backdrop bloquea la UI (parece “difuminado sin opciones”).
 				    const __overlayDetailsIds = ['task-builder-actions-menu', 'pitch-view-menu'];
+				    // Importante: el simulador (`task-sim-popover`) debe permitir interactuar con el campo
+				    // mientras está abierto (mover fichas, dibujar, capturar pasos). Si lo tratamos como
+				    // "overlay", el backdrop tapa el canvas y parece que la pizarra se vuelve transparente
+				    // y "no marca nada".
 				    const __overlayFloatingIds = [
 				      'task-command-menu',
 				      'task-pattern-popover',
@@ -1183,7 +1187,6 @@
 				      'task-overlays-popover',
 				      'task-layers-popover',
 				      'task-scenarios-popover',
-				      'task-sim-popover',
 				    ];
 				    let __backdropRaf = 0;
 				    const __syncBackdropNow = () => {
