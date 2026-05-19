@@ -23353,6 +23353,7 @@ def kpi_explorer_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return forbidden
+    active_workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse('Equipo principal no configurado.', status=400)
@@ -23376,6 +23377,8 @@ def kpi_explorer_page(request):
         'football/kpi_explorer.html',
         {
             'team': primary_team,
+            'active_team': primary_team,
+            'active_workspace': active_workspace,
             'match_items': match_items,
             'player_items': player_items,
             'derived_metrics': _kpi_explorer_derived_metrics(),
@@ -23390,6 +23393,7 @@ def kpi_dashboard_page(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'match_actions', label='registro de acciones')
     if forbidden:
         return forbidden
+    active_workspace = _get_active_workspace(request)
     primary_team = _get_primary_team_for_request(request)
     if not primary_team:
         return HttpResponse('Equipo principal no configurado.', status=400)
@@ -23413,6 +23417,8 @@ def kpi_dashboard_page(request):
         'football/kpi_dashboard.html',
         {
             'team': primary_team,
+            'active_team': primary_team,
+            'active_workspace': active_workspace,
             'match_items': match_items,
             'player_items': player_items,
         },

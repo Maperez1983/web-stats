@@ -67,14 +67,22 @@
     const runBtn = document.getElementById('dash-run');
     const output = document.getElementById('dash-output');
     const statusEl = document.getElementById('dash-status');
+    const statusViewEl = document.getElementById('dash-status-view');
 
     const queryUrl = safeText(document.getElementById('dash-query-url')?.value);
     const csrf = document.querySelector('#dash-csrf input[name="csrfmiddlewaretoken"]')?.value || '';
 
     const setStatus = (text, isError = false) => {
-      if (!statusEl) return;
-      statusEl.textContent = safeText(text, '');
-      statusEl.style.color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+      const value = safeText(text, '');
+      const color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+      if (statusEl) {
+        statusEl.textContent = value;
+        statusEl.style.color = color;
+      }
+      if (statusViewEl) {
+        statusViewEl.textContent = value;
+        statusViewEl.style.color = color;
+      }
     };
 
     const showSettings = (show) => {
@@ -237,7 +245,7 @@
       if (presets.length) {
         run();
       } else {
-        setStatus('Crea un preset en “KPIs avanzados”.', true);
+        setStatus('Crea un preset en “Configurar indicadores”.', true);
       }
     } catch (e) { /* ignore */ }
   };
