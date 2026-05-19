@@ -4,6 +4,8 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+from django.core.cache import cache
+
 
 @lru_cache(maxsize=1)
 def _static_build_id() -> str:
@@ -106,15 +108,33 @@ def brand_theme(request):
     if not workspace:
         return {}
 
-    pref = None
+    cache_ttl_s = 60
     try:
-        pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').first()
+        cache_ttl_s = max(5, int(os.getenv('PERF_CONTEXT_CACHE_SECONDS') or 60))
     except Exception:
+        cache_ttl_s = 60
+
+    team_id = int(getattr(team, 'id', 0) or 0) if team else 0
+    raw = None
+    cache_key = f'ctx:brand_theme:v1:w{int(workspace.id)}:t{team_id}'
+    try:
+        raw = cache.get(cache_key)
+    except Exception:
+        raw = None
+    if raw is None:
         pref = None
-    raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        try:
+            pref = WorkspacePreference.objects.filter(workspace=workspace, key='brand_theme:v1').only('id', 'value').first()
+        except Exception:
+            pref = None
+        raw = pref.value if pref and isinstance(pref.value, dict) else {}
+        try:
+            cache.set(cache_key, raw, cache_ttl_s)
+        except Exception:
+            pass
     default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
     teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
-    team_key = str(getattr(team, 'id', '') or '').strip()
+    team_key = str(team_id or '').strip()
     override = teams.get(team_key) if team_key and isinstance(teams.get(team_key), dict) else {}
 
     def _color(value: str, fallback: str) -> str:
@@ -197,7 +217,7 @@ def workspace_access(request):
             _can_manage_workspace,
             _is_admin_user,
         )
-        from football.models import Workspace  # noqa: WPS433 (lazy import)
+        from football.models import Workspace, WorkspaceMembership  # noqa: WPS433 (lazy import)
     except Exception:
         return {}
 
@@ -267,12 +287,82 @@ def workspace_access(request):
     except Exception:
         team_switcher_enabled = False
 
+    cache_ttl_s = 45
+    try:
+        cache_ttl_s = max(5, int(os.getenv('PERF_CONTEXT_CACHE_SECONDS') or 45))
+    except Exception:
+        cache_ttl_s = 45
+
+    ctx_cache_key = ''
+    if workspace:
+        try:
+            ctx_cache_key = f'ctx:workspace_access:v1:w{int(workspace.id)}:u{int(request.user.id)}'
+        except Exception:
+            ctx_cache_key = ''
+
+    cached_payload = None
+    if ctx_cache_key:
+        try:
+            cached_payload = cache.get(ctx_cache_key)
+        except Exception:
+            cached_payload = None
+    if isinstance(cached_payload, dict) and cached_payload:
+        cached_payload = dict(cached_payload)
+        cached_payload['active_team_current_path'] = request.get_full_path() if request else ''
+        return cached_payload
+
     module_access = {}
     try:
         kind = workspace.kind if workspace else Workspace.KIND_CLUB
         defaults = _workspace_default_modules(kind)
+        enabled_modules = getattr(workspace, 'enabled_modules', None)
+        enabled_modules = enabled_modules if isinstance(enabled_modules, dict) else {}
+
+        membership = None
+        try:
+            membership = (
+                WorkspaceMembership.objects
+                .filter(workspace=workspace, user=request.user)
+                .only('id', 'role', 'module_access')
+                .first()
+            )
+        except Exception:
+            membership = None
+
+        user_is_platform = False
+        user_is_owner = False
+        try:
+            user_is_platform = bool(_can_access_platform(request.user))
+        except Exception:
+            user_is_platform = False
+        try:
+            user_is_owner = bool(int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(request.user, 'id', 0) or 0))
+        except Exception:
+            user_is_owner = False
+
+        member_role = str(getattr(membership, 'role', '') or '').strip()
+        member_module_access = getattr(membership, 'module_access', None)
+        member_module_access = member_module_access if isinstance(member_module_access, dict) else {}
+
+        def _enabled_for_workspace(key: str) -> bool:
+            if key in defaults or str(key).startswith('deliverable__') or str(key).startswith('module__'):
+                if key in enabled_modules:
+                    return bool(enabled_modules.get(key))
+            return bool(defaults.get(key, False))
+
+        def _member_allows(key: str) -> bool:
+            if user_is_platform or user_is_owner:
+                return True
+            if not membership:
+                return False
+            if member_role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN}:
+                return True
+            if not member_module_access:
+                return True
+            return member_module_access.get(key, True) is not False
+
         for key in defaults.keys():
-            module_access[key] = bool(_workspace_has_module_for_user(workspace, key, user=request.user)) if workspace else True
+            module_access[key] = bool(_enabled_for_workspace(key) and _member_allows(key))
     except Exception:
         module_access = {}
 
@@ -306,20 +396,37 @@ def workspace_access(request):
 
     workspace_options = []
     try:
-        candidates = list(_available_workspaces_for_user(request.user).order_by('kind', 'name', 'id')[:12])
-        for ws in candidates:
-            workspace_options.append(
-                {
-                    'id': int(ws.id),
-                    'label': str(getattr(ws, 'name', '') or f'Workspace {ws.id}').strip(),
-                    'kind': str(getattr(ws, 'kind', '') or '').strip(),
-                    'kind_label': str(getattr(ws, 'get_kind_display', lambda: '')() or '').strip(),
-                }
+        ws_cache_key = f'ctx:workspace_options:v1:u{int(request.user.id)}'
+        cached_ws = None
+        try:
+            cached_ws = cache.get(ws_cache_key)
+        except Exception:
+            cached_ws = None
+        if isinstance(cached_ws, list):
+            workspace_options = cached_ws
+        else:
+            candidates = list(
+                _available_workspaces_for_user(request.user)
+                .only('id', 'name', 'kind')
+                .order_by('kind', 'name', 'id')[:12]
             )
+            for ws in candidates:
+                workspace_options.append(
+                    {
+                        'id': int(ws.id),
+                        'label': str(getattr(ws, 'name', '') or f'Workspace {ws.id}').strip(),
+                        'kind': str(getattr(ws, 'kind', '') or '').strip(),
+                        'kind_label': str(getattr(ws, 'get_kind_display', lambda: '')() or '').strip(),
+                    }
+                )
+            try:
+                cache.set(ws_cache_key, workspace_options, cache_ttl_s)
+            except Exception:
+                pass
     except Exception:
         workspace_options = []
 
-    return {
+    payload = {
         'active_workspace': badge,
         'workspace_entry_url': entry_url,
         'club_dashboard_url': club_dashboard_url,
@@ -334,3 +441,11 @@ def workspace_access(request):
         'is_admin_user': is_admin,
         'can_access_staff': can_access_staff,
     }
+    if ctx_cache_key:
+        try:
+            to_cache = dict(payload)
+            to_cache.pop('active_team_current_path', None)
+            cache.set(ctx_cache_key, to_cache, cache_ttl_s)
+        except Exception:
+            pass
+    return payload

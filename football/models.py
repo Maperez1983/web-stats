@@ -758,6 +758,10 @@ class ConvocationRecord(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['team', 'match'], name='conv_team_match_idx'),
+            models.Index(fields=['team', 'is_current', 'created_at'], name='conv_team_curr_idx'),
+        ]
 
     def mark_replaced(self):
         if self.is_current:
@@ -907,6 +911,10 @@ class PlayerStatistic(models.Model):
 
     class Meta:
         unique_together = ('player', 'season', 'match', 'name', 'context')
+        indexes = [
+            models.Index(fields=['context', 'match'], name='pstat_ctx_match_idx'),
+            models.Index(fields=['player', 'match', 'context'], name='pstat_p_m_ctx_idx'),
+        ]
 
     def __str__(self):
         return f'{self.player.name} - {self.name}: {self.value}'
@@ -961,6 +969,10 @@ class MatchEvent(models.Model):
         verbose_name = 'Match Event'
         verbose_name_plural = 'Match Events'
         ordering = ['match', 'minute']
+        indexes = [
+            models.Index(fields=['match', 'player'], name='me_match_player_idx'),
+            models.Index(fields=['match', 'system', 'source_file', 'created_at'], name='me_m_sys_src_ca_idx'),
+        ]
 
     def __str__(self):
         player_label = self.player.name if self.player else 'Jugador desconocido'
