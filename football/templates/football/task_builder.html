@@ -6459,24 +6459,144 @@
 
 		    {{ tactical_player_catalog|json_script:"tpad-players-catalog" }}
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
-			    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-			    {% if tactics_mode %}
+				    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+				    {% if tactics_mode %}
 			    {# En modo Táctica el editor es el producto: cargamos Fabric+TPad de forma directa (sin lazy-load)
 			       para evitar quedarse con el campo “vacío” si el loader falla o si el navegador bloquea eventos. #}
 			    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 			    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-			    <script>
-			      (function () {
-			        const boot = () => {
-			          try { window.initSessionsTacticalPad && window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
-			        };
-			        // `defer` ejecuta antes de DOMContentLoaded, pero en Safari a veces el orden es sensible.
-			        try { window.setTimeout(boot, 0); } catch (e) { /* ignore */ }
-			        try { window.addEventListener('DOMContentLoaded', boot, { once: true }); } catch (e) { /* ignore */ }
-			        try { window.addEventListener('load', boot, { once: true }); } catch (e) { /* ignore */ }
-			      })();
-			    </script>
-			    {% endif %}
+				    <script>
+				      (function () {
+				        const report = (msg) => {
+				          try {
+				            const el = document.getElementById('task-builder-status');
+				            if (el) el.textContent = String(msg || '').trim();
+				          } catch (e) { /* ignore */ }
+				        };
+				        const recordErr = (err, label = 'initSessionsTacticalPad') => {
+				          try {
+				            const info = `${label}: ${String(err && (err.message || err) ? (err.message || err) : err)}`.slice(0, 220);
+				            window.__webstatsTpadLastError = info;
+				            report(`Error pizarra: ${info}`);
+				          } catch (e) { /* ignore */ }
+				        };
+				        const boot = () => {
+				          try {
+				            if (window.initSessionsTacticalPad) {
+				              window.initSessionsTacticalPad();
+				              return;
+				            }
+				          } catch (e) {
+				            recordErr(e);
+				          }
+				          // Si aún no está listo, mostramos estado (útil en Safari cuando los defer tardan).
+				          try { report('Cargando pizarra…'); } catch (e) { /* ignore */ }
+				        };
+				        // `defer` ejecuta antes de DOMContentLoaded, pero en Safari a veces el orden es sensible.
+				        try { window.setTimeout(boot, 0); } catch (e) { /* ignore */ }
+				        try { window.addEventListener('DOMContentLoaded', boot, { once: true }); } catch (e) { /* ignore */ }
+				        try { window.addEventListener('load', boot, { once: true }); } catch (e) { /* ignore */ }
+				        // Captura errores globales para diagnóstico rápido.
+				        try {
+				          window.addEventListener('error', (ev) => {
+				            try {
+				              const msg = String(ev && ev.message ? ev.message : '').trim();
+				              if (msg && (msg.toLowerCase().includes('tactical') || msg.toLowerCase().includes('tpad') || msg.toLowerCase().includes('fabric') || msg.toLowerCase().includes('create-task-canvas'))) {
+				                recordErr(msg, 'window.onerror');
+				              }
+				            } catch (e) { /* ignore */ }
+				          });
+				        } catch (e) { /* ignore */ }
+				      })();
+				    </script>
+				    <script>
+				      (function () {
+				        const btn = document.getElementById('tpad-diag-copy');
+				        if (!btn) return;
+				        const snapRect = (el) => {
+				          try {
+				            if (!el || !el.getBoundingClientRect) return null;
+				            const r = el.getBoundingClientRect();
+				            return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x), y: Math.round(r.y) };
+				          } catch (e) { return null; }
+				        };
+				        const listScripts = (needle) => {
+				          try {
+				            return Array.from(document.scripts || [])
+				              .map((s) => String(s.src || ''))
+				              .filter((src) => src && (!needle || src.includes(needle)));
+				          } catch (e) { return []; }
+				        };
+				        const buildDiag = async () => {
+				          const form = document.getElementById('task-builder-form');
+				          const canvas = document.getElementById('create-task-canvas');
+				          const stage = document.getElementById('task-pitch-stage');
+				          const viewport = document.getElementById('task-pitch-viewport');
+				          const statusEl = document.getElementById('task-builder-status');
+				          const lines = [];
+				          lines.push(`url=${String(location.href || '').slice(0, 240)}`);
+				          lines.push(`ua=${String(navigator.userAgent || '').slice(0, 240)}`);
+				          lines.push(`tactics_mode=1`);
+				          lines.push(`status=${String(statusEl && statusEl.textContent ? statusEl.textContent : '').trim()}`);
+				          lines.push(`fabric=${typeof window.fabric}`);
+				          lines.push(`initSessionsTacticalPad=${typeof window.initSessionsTacticalPad}`);
+				          lines.push(`last_error=${String(window.__webstatsTpadLastError || '').trim()}`);
+				          lines.push(`form.fabricSrc=${form ? String(form.dataset.fabricSrc || '') : ''}`);
+				          lines.push(`form.tpadSrc=${form ? String(form.dataset.tpadSrc || '') : ''}`);
+				          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
+				          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
+				          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
+				          try { lines.push(`canvas.attr=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
+				          try { lines.push(`canvas.prop=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
+				          lines.push(`scripts.fabric=${JSON.stringify(listScripts('fabric'))}`);
+				          lines.push(`scripts.tpad=${JSON.stringify(listScripts('sessions_tactical_pad'))}`);
+				          try {
+				            if (typeof window.__webstatsEnsureEditorStack === 'function') {
+				              const ok = await window.__webstatsEnsureEditorStack();
+				              lines.push(`ensureEditorStack=${ok ? 'ok' : 'fail'}`);
+				            } else {
+				              lines.push(`ensureEditorStack=missing`);
+				            }
+				          } catch (e) {
+				            lines.push(`ensureEditorStack=error:${String(e && (e.message || e) ? (e.message || e) : e).slice(0, 120)}`);
+				          }
+				          return lines.join('\n');
+				        };
+				        const copyText = async (txt) => {
+				          try {
+				            if (navigator.clipboard && navigator.clipboard.writeText) {
+				              await navigator.clipboard.writeText(txt);
+				              return true;
+				            }
+				          } catch (e) {}
+				          try {
+				            const ta = document.createElement('textarea');
+				            ta.value = txt;
+				            ta.style.position = 'fixed';
+				            ta.style.left = '-9999px';
+				            document.body.appendChild(ta);
+				            ta.select();
+				            document.execCommand('copy');
+				            document.body.removeChild(ta);
+				            return true;
+				          } catch (e) { return false; }
+				        };
+				        btn.addEventListener('click', async () => {
+				          try { btn.disabled = true; } catch (e) {}
+				          const txt = await buildDiag();
+				          const ok = await copyText(txt);
+				          try { btn.disabled = false; } catch (e) {}
+				          try {
+				            const statusEl = document.getElementById('task-builder-status');
+				            if (statusEl) statusEl.textContent = ok ? 'Diagnóstico copiado.' : 'No se pudo copiar diagnóstico (pega manualmente desde consola).';
+				          } catch (e) {}
+				          if (!ok) {
+				            try { window.prompt('Copia el diagnóstico:', txt); } catch (e) {}
+				          }
+				        });
+				      })();
+				    </script>
+				    {% endif %}
 			    <script>
 			      // Rendimiento: cargamos Fabric + editor (TPad) + 3D SOLO cuando hace falta.
 			      (function () {
@@ -6570,17 +6690,23 @@
 			        };
 			        const ensureSim3d = () => loadOnce(sim3dSrc, '__webstats_sim3d_promise');
 
-		        const ensureEditorStack = () => {
-		          setStatus('Cargando editor…');
-		          return ensureFabric()
-		            .then(() => ensureTpad())
-		            .then(() => {
-		              try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
-		              setStatus('');
-		              return true;
-		            })
-		            .catch(() => { setStatus('No se pudo cargar el editor.'); return false; });
-		        };
+			        const ensureEditorStack = () => {
+			          setStatus('Cargando editor…');
+			          return ensureFabric()
+			            .then(() => ensureTpad())
+			            .then(() => {
+			              try {
+			                if (window.initSessionsTacticalPad) window.initSessionsTacticalPad();
+			              } catch (e) {
+			                try { window.__webstatsTpadLastError = String(e && (e.message || e) ? (e.message || e) : e).slice(0, 220); } catch (err) { /* ignore */ }
+			                setStatus(`Error pizarra: ${String(window.__webstatsTpadLastError || 'init').slice(0, 180)}`);
+			                return true;
+			              }
+			              setStatus('');
+			              return true;
+			            })
+			            .catch(() => { setStatus('No se pudo cargar el editor.'); return false; });
+			        };
 
 		        const ensure3dStack = () => {
 		          setStatus('Cargando 3D…');
@@ -11102,9 +11228,10 @@
             // Rendimiento (iPad/Safari): diferimos la inicialización pesada para que la página
             // pinte primero y el scroll/inputs respondan desde el inicio.
             //
-            // Importante: debe vivir en el scope exterior (Safari rompe si está dentro de un `try`
-            // y se usa después, provocando `ReferenceError: Can't find variable: scheduleIdle`).
-            const scheduleIdle = (fn, timeoutMs = 1400) => {
+            // Nota: en Safari/WebKit algunos bloques con `const scheduleIdle` han provocado
+            // `ReferenceError: Can't find variable: scheduleIdle` por scoping/concatenación de scripts.
+            // Lo hacemos ultra-defensivo: definimos un helper global (window) y lo usamos por referencia.
+            const __webstatsScheduleIdle = (fn, timeoutMs = 1400) => {
               try {
                 if (typeof window.requestIdleCallback === 'function') {
                   return window.requestIdleCallback(fn, { timeout: timeoutMs });
@@ -11112,6 +11239,9 @@
               } catch (e) { /* ignore */ }
               return window.setTimeout(fn, 120);
             };
+            try {
+              if (typeof window.__webstatsScheduleIdle !== 'function') window.__webstatsScheduleIdle = __webstatsScheduleIdle;
+            } catch (e) { /* ignore */ }
 
             try {
 
@@ -11122,24 +11252,24 @@
 			            }
 		          } catch (e) { /* ignore */ }
 
-		          scheduleIdle(() => {
-		            try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
-		            try {
-		              const statusEl = document.getElementById('task-builder-status');
-		              if (statusEl && String(statusEl.textContent || '').trim() === 'Cargando editor…') statusEl.textContent = '';
-		            } catch (e) { /* ignore */ }
-		          }, 1800);
-	            } catch (e) {
+			          (window.__webstatsScheduleIdle || __webstatsScheduleIdle)(() => {
+			            try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
+			            try {
+			              const statusEl = document.getElementById('task-builder-status');
+			              if (statusEl && String(statusEl.textContent || '').trim() === 'Cargando editor…') statusEl.textContent = '';
+			            } catch (e) { /* ignore */ }
+			          }, 1800);
+		            } catch (e) {
 	              try {
 	                const statusEl = document.getElementById('task-builder-status');
 	                if (statusEl) statusEl.textContent = 'Error al inicializar la pizarra. Se activó modo seguro.';
 	              } catch (err) { /* ignore */ }
 	              try { window.alert('Error al inicializar la pizarra. Envía una captura del mensaje rojo superior para diagnosticar.'); } catch (err) { /* ignore */ }
 	            }
-	            // El recomendador/asistente es pesado: inicializa en idle para no bloquear la pizarra.
-	            try {
-	              scheduleIdle(() => { try { initTaskAssistant(); } catch (e) { /* ignore */ } }, 2400);
-	            } catch (e) { /* ignore */ }
+		            // El recomendador/asistente es pesado: inicializa en idle para no bloquear la pizarra.
+		            try {
+		              (window.__webstatsScheduleIdle || __webstatsScheduleIdle)(() => { try { initTaskAssistant(); } catch (e) { /* ignore */ } }, 2400);
+		            } catch (e) { /* ignore */ }
 
             // Fallback UX (modo táctica): si el JS principal tarda en cargar o falla,
             // al pulsar “Simulador” al menos mostramos el panel del simulador.
