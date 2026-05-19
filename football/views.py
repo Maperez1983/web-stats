@@ -357,6 +357,15 @@ def public_build_info(request):
 
     Útil para depurar caches en Safari/iOS WebView/Service Worker y confirmar el commit en Render.
     """
+    # CORS (Capacitor): en iOS el origen puede ser `capacitor://localhost` si la app carga assets embebidos
+    # y consulta este endpoint remoto. Permitimos CORS porque la respuesta no contiene secretos.
+    if request.method == 'OPTIONS':
+        resp = HttpResponse('', status=204)
+        resp['Access-Control-Allow-Origin'] = '*'
+        resp['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        resp['Access-Control-Allow-Headers'] = '*'
+        resp['Access-Control-Max-Age'] = '600'
+        return resp
     build_id = (
         os.getenv('RENDER_GIT_COMMIT')
         or os.getenv('RENDER_DEPLOY_ID')
@@ -417,8 +426,8 @@ def public_build_info(request):
             asyncio_task = str(asyncio_task)
     except Exception:
         asyncio_task = None
-    return JsonResponse(
-            {
+    resp = JsonResponse(
+        {
             'ok': True,
             'build': {
                 'id': build_id,
@@ -444,6 +453,8 @@ def public_build_info(request):
             },
         }
     )
+    resp['Access-Control-Allow-Origin'] = '*'
+    return resp
 
 
 @login_required
