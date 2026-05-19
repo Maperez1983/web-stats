@@ -5545,13 +5545,18 @@
 		                  </button>
 		                </div>
 		              </div>
-		              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
-			              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
-                    {% if not tactics_mode %}
+			              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
+				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
+                    {% if tactics_mode %}
                     <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
-                      <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
-                      <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
+                      <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
                     </div>
+                    {% endif %}
+	                    {% if not tactics_mode %}
+	                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
+	                      <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>
+	                      <span class="meta" id="task-destination-current" style="opacity:0.9;"></span>
+	                    </div>
                     {% endif %}
 		              <div class="simple-hint" id="task-simple-hint" hidden>
 		                <strong>Guía rápida:</strong>

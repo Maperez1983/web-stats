@@ -791,7 +791,8 @@
 		            const entry = { ...(payload || {}), at: new Date().toISOString() };
 		            window.__WEBSTATS_LAST_TPAD_ERROR = entry;
 		            try { window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(entry)); } catch (e) { /* ignore */ }
-		            const statusEl = document.getElementById('task-builder-status');
+					    const statusEl = document.getElementById('task-builder-status');
+					    const diagCopyBtn = document.getElementById('tpad-diag-copy');
 		            if (statusEl) {
 		              const msg = safeText(entry?.message, 'Error JS');
 		              statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
@@ -1936,11 +1937,87 @@
       });
     }
 
-		    function setStatus(message, isError = false) {
-		      if (!statusEl) return;
-		      statusEl.textContent = message;
-		      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
-		    }
+			    function setStatus(message, isError = false) {
+			      if (!statusEl) return;
+			      statusEl.textContent = message;
+			      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
+			    }
+
+			    const copyTacticsDiagnostics = async () => {
+			      const payload = {};
+			      try { payload.href = String(window.location.href || ''); } catch (e) { /* ignore */ }
+			      try { payload.ua = String(navigator.userAgent || ''); } catch (e) { /* ignore */ }
+			      try { payload.is_tactics_mode = !!isTacticsMode; } catch (e) { /* ignore */ }
+			      try { payload.is_simulating = !!isSimulating; } catch (e) { /* ignore */ }
+			      try { payload.is_submitting = !!isSubmitting; } catch (e) { /* ignore */ }
+			      try {
+			        payload.pitch = {
+			          preset: safeText(pitchPreset || presetSelect?.value || ''),
+			          preset_select: safeText(presetSelect?.value || ''),
+			          orientation: safeText(pitchOrientation || ''),
+			          grass_style: safeText(pitchGrassStyle || ''),
+			          zoom: Number(pitchZoom) || 0,
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        payload.simulation = {
+			          steps: Array.isArray(simulationSteps) ? simulationSteps.length : 0,
+			          active_index: Number(simulationActiveIndex) || 0,
+			          playing: !!simulationPlaying,
+			          pro_enabled: !!simulationProEnabled,
+			          pro_playing: !!simulationProPlaying,
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        payload.playbook = {
+			          loaded: !!(playbookClips && Array.isArray(playbookClips) && playbookClips.length),
+			          clips: Array.isArray(playbookClips) ? playbookClips.length : 0,
+			          active_clip_id: Number(playbookActiveClip?.id) || 0,
+			          active_clip_name: safeText(playbookActiveClip?.name || ''),
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        payload.canvas = {
+			          width: Math.round(canvas?.getWidth?.() || 0),
+			          height: Math.round(canvas?.getHeight?.() || 0),
+			          objects: (canvas?.getObjects?.() || []).filter((o) => o && !o?.data?.base).length,
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        payload.stage = {
+			          aspect_ratio: safeText(stage?.style?.aspectRatio || ''),
+			          rect: (() => {
+			            try {
+			              const r = stage?.getBoundingClientRect?.();
+			              if (!r) return null;
+			              return { w: Math.round(r.width || 0), h: Math.round(r.height || 0), x: Math.round(r.x || 0), y: Math.round(r.y || 0) };
+			            } catch (e) { return null; }
+			          })(),
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        const raw = window.localStorage?.getItem('webstats:tpad:last_error');
+			        payload.last_error = raw ? JSON.parse(raw) : null;
+			      } catch (e) {
+			        try { payload.last_error = window.localStorage?.getItem('webstats:tpad:last_error') || null; } catch (err) { /* ignore */ }
+			      }
+			      try { payload.time = new Date().toISOString(); } catch (e) { /* ignore */ }
+
+			      const text = JSON.stringify(payload, null, 2);
+			      try { window.localStorage?.setItem('webstats:tpad:last_diag', text); } catch (e) { /* ignore */ }
+			      let copied = false;
+			      try {
+			        await navigator.clipboard.writeText(text);
+			        copied = true;
+			      } catch (e) { copied = false; }
+			      if (copied) setStatus('Diagnóstico copiado al portapapeles.');
+			      else setStatus('No se pudo copiar automáticamente. Se mostrará el texto para copiar.', true);
+			      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
+			    };
+			    diagCopyBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      void copyTacticsDiagnostics();
+			    });
 
 			    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {
