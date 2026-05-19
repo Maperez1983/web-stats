@@ -1860,7 +1860,6 @@
       </nav>
       {% endif %}
 
-      {% if role_key != 'trainer' %}
       <section id="coach-modules" class="grid">
         {% for module in modules %}
         <a class="card-link" href="{% url module.link %}">
@@ -1871,7 +1870,6 @@
         </a>
         {% endfor %}
       </section>
-      {% endif %}
     </div>
     {% if role_key == 'trainer' %}
     <script>

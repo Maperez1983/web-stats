@@ -29002,6 +29002,11 @@ def coach_role_trainer_page(request):
     modules = [
         {'title': 'Convocatoria', 'description': 'Define lista oficial y PDF del partido.', 'link': 'convocation'},
         {'title': '11 inicial', 'description': 'Pantalla táctica visual para construir la alineación titular y banquillo.', 'link': 'initial-eleven'},
+        {
+            'title': 'Partidos',
+            'description': 'Listado anual para editar, depurar duplicados y completar datos manuales (minutos, goles, asistencias…).',
+            'link': 'coach-matches',
+        },
         {'title': 'Sesiones', 'description': 'Planificador semanal de sesiones y tareas.', 'link': 'sessions'},
         {'title': 'Multas', 'description': 'Control disciplinario del vestuario.', 'link': 'fines'},
     ]
