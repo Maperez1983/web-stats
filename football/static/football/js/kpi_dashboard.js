@@ -124,6 +124,77 @@
 
     const normalizePresetName = (raw) => safeText(raw, '').replace(/\s+/g, ' ').trim().slice(0, 42);
 
+    const DEFAULT_PRESETS = [
+      {
+        name: 'Resumen equipo',
+        metrics: [
+          { kind: 'derived', key: 'total_actions' },
+          { kind: 'derived', key: 'success_rate' },
+          { kind: 'derived', key: 'goals' },
+          { kind: 'derived', key: 'assists' },
+          { kind: 'derived', key: 'passes_accuracy' },
+          { kind: 'derived', key: 'shots_accuracy' },
+          { kind: 'derived', key: 'duel_rate' },
+          { kind: 'derived', key: 'yellow_cards' },
+        ],
+      },
+      {
+        name: 'Ataque',
+        metrics: [
+          { kind: 'derived', key: 'goals' },
+          { kind: 'derived', key: 'assists' },
+          { kind: 'derived', key: 'shot_attempts' },
+          { kind: 'derived', key: 'shots_on_target' },
+          { kind: 'derived', key: 'shots_accuracy' },
+          { kind: 'derived', key: 'pass_attempts' },
+          { kind: 'derived', key: 'passes_completed' },
+          { kind: 'derived', key: 'passes_accuracy' },
+          { kind: 'derived', key: 'key_passes_completed' },
+        ],
+      },
+      {
+        name: 'Defensa',
+        metrics: [
+          { kind: 'derived', key: 'duels_total' },
+          { kind: 'derived', key: 'duel_rate' },
+          { kind: 'derived', key: 'aerial_duels_total' },
+          { kind: 'derived', key: 'aerial_duel_rate' },
+          { kind: 'derived', key: 'yellow_cards' },
+          { kind: 'derived', key: 'red_cards' },
+          { kind: 'derived', key: 'success_rate' },
+          { kind: 'derived', key: 'total_actions' },
+        ],
+      },
+      {
+        name: 'Portero',
+        metrics: [
+          { kind: 'derived', key: 'goalkeeper_saves' },
+          { kind: 'derived', key: 'shots_on_target' },
+          { kind: 'derived', key: 'goals' },
+        ],
+      },
+    ];
+
+    const seedDefaultPresetsIfMissing = async () => {
+      if (presets.length) return false;
+      const items = DEFAULT_PRESETS
+        .map((p) => ({ name: normalizePresetName(p.name), metrics: Array.isArray(p.metrics) ? p.metrics.slice(0, 80) : [] }))
+        .filter((p) => p.name && p.metrics.length)
+        .slice(0, 20);
+      if (!items.length) return false;
+      try {
+        window.localStorage?.setItem('kpi_explorer:presets', JSON.stringify({ v: 1, items }));
+      } catch (e) { /* ignore */ }
+      if (prefsClient) {
+        try { await prefsClient.set(sharedPresetsKey, { v: 1, items }); } catch (e) { /* ignore */ }
+      }
+      presets = items;
+      if (presetSelect) {
+        presetSelect.innerHTML = presets.map((p) => `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
+      }
+      return true;
+    };
+
     const loadPresets = async () => {
       presets = [];
       if (prefsClient) {
@@ -156,6 +227,23 @@
       if (!prefsClient) return;
       const v = await prefsClient.get(roleDefaultsKey);
       if (v && typeof v === 'object') roleDefaults = v;
+    };
+
+    const ensureRoleDefaults = async () => {
+      const wanted = {
+        coach: 'Resumen equipo',
+        analyst: 'Resumen equipo',
+        fitness: 'Resumen equipo',
+        goalkeeper: 'Portero',
+      };
+      const normalized = {};
+      for (const [k, v] of Object.entries(wanted)) normalized[k] = normalizePresetName(v);
+      const next = { ...(roleDefaults && typeof roleDefaults === 'object' ? roleDefaults : {}), ...normalized };
+      if (!prefsClient) { roleDefaults = next; return; }
+      try {
+        const ok = await prefsClient.set(roleDefaultsKey, next);
+        if (ok) roleDefaults = next;
+      } catch (e) { /* ignore */ }
     };
 
     const applyDefaultForRole = () => {
@@ -225,7 +313,9 @@
     };
 
     await loadPresets();
+    await seedDefaultPresetsIfMissing();
     await loadRoleDefaults();
+    await ensureRoleDefaults();
     applyDefaultForRole();
 
     // Dashboard "real": por defecto enseñamos los indicadores y ocultamos ajustes.

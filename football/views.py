@@ -20,7 +20,7 @@ import threading
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
-from functools import wraps
+from functools import lru_cache, wraps
 from pathlib import Path
 import unicodedata
 import re
@@ -59550,10 +59550,7 @@ def compute_team_metrics_for_match(match, primary_team=None):
 
 def _event_signature(event):
     def canon(value):
-        text = ' '.join(str(value or '').split())
-        text = unicodedata.normalize('NFKD', text)
-        text = ''.join(ch for ch in text if not unicodedata.combining(ch))
-        return text.lower().strip()
+        return _event_signature_canon_text(value)
 
     if _is_manual_event_source(getattr(event, 'source_file', '')):
         return ('manual-event', getattr(event, 'id', None))
@@ -59585,6 +59582,16 @@ def _event_signature(event):
         canon(event.tercio),
         canon(event.observation),
     )
+
+
+@lru_cache(maxsize=8192)
+def _event_signature_canon_text(value):
+    text = ' '.join(str(value or '').split())
+    if not text:
+        return ''
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
+    return text.lower().strip()
 
 
 def _match_action_dedupe_signature(event):
@@ -59996,7 +60003,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     events = (
         stats_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
-        .order_by('player__name', 'match__date')
+        # Rendimiento: ordenar por `player__name`/`match__date` fuerza un sort grande con JOINs
+        # (muy caro en producción). Para KPIs/dedupe/timeline no necesitamos ese orden.
+        .order_by('id')
     )
     inferred_zone_events = _filter_stats_events(events, preferred_sources=preferred_sources)
     match_zone_profiles, player_zone_profiles = _build_zone_inference_profiles(inferred_zone_events)
@@ -60269,7 +60278,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     live_events = (
         live_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
-        .order_by('player__name', 'match__date')
+        # Rendimiento: evita sort por campos de JOIN (player.name / match.date).
+        .order_by('id')
     )
     seen_signatures = set()
     for event in events:

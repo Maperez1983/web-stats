@@ -165,6 +165,74 @@
     };
     let sharedPresets = [];
 
+    const DEFAULT_PRESETS = [
+      {
+        name: 'Resumen equipo',
+        metrics: [
+          { kind: 'derived', key: 'total_actions' },
+          { kind: 'derived', key: 'success_rate' },
+          { kind: 'derived', key: 'goals' },
+          { kind: 'derived', key: 'assists' },
+          { kind: 'derived', key: 'passes_accuracy' },
+          { kind: 'derived', key: 'shots_accuracy' },
+          { kind: 'derived', key: 'duel_rate' },
+          { kind: 'derived', key: 'yellow_cards' },
+        ],
+      },
+      {
+        name: 'Ataque',
+        metrics: [
+          { kind: 'derived', key: 'goals' },
+          { kind: 'derived', key: 'assists' },
+          { kind: 'derived', key: 'shot_attempts' },
+          { kind: 'derived', key: 'shots_on_target' },
+          { kind: 'derived', key: 'shots_accuracy' },
+          { kind: 'derived', key: 'pass_attempts' },
+          { kind: 'derived', key: 'passes_completed' },
+          { kind: 'derived', key: 'passes_accuracy' },
+          { kind: 'derived', key: 'key_passes_completed' },
+        ],
+      },
+      {
+        name: 'Defensa',
+        metrics: [
+          { kind: 'derived', key: 'duels_total' },
+          { kind: 'derived', key: 'duel_rate' },
+          { kind: 'derived', key: 'aerial_duels_total' },
+          { kind: 'derived', key: 'aerial_duel_rate' },
+          { kind: 'derived', key: 'yellow_cards' },
+          { kind: 'derived', key: 'red_cards' },
+          { kind: 'derived', key: 'success_rate' },
+          { kind: 'derived', key: 'total_actions' },
+        ],
+      },
+      {
+        name: 'Portero',
+        metrics: [
+          { kind: 'derived', key: 'goalkeeper_saves' },
+          { kind: 'derived', key: 'shots_on_target' },
+          { kind: 'derived', key: 'goals' },
+        ],
+      },
+    ];
+
+    const seedDefaultPresetsIfMissing = async () => {
+      const local = readLocalPresets();
+      if (local.length) return false;
+      const items = DEFAULT_PRESETS
+        .map((p) => ({ name: normalizePresetName(p.name), metrics: Array.isArray(p.metrics) ? p.metrics.slice(0, 80) : [] }))
+        .filter((p) => p.name && p.metrics.length)
+        .slice(0, 20);
+      if (!items.length) return false;
+      sharedPresets = items;
+      renderPresets();
+      writeLocalPresets(sharedPresets);
+      if (prefsClient) {
+        try { await prefsClient.set(sharedPresetsKey, { v: 1, items: sharedPresets }); } catch (e) { /* ignore */ }
+      }
+      return true;
+    };
+
     const normalize = (s) => safeText(s, '').toLowerCase();
 
     const setScopeUi = () => {
@@ -690,7 +758,7 @@
 
     renderSelected();
     renderAllOptions();
-    loadPresets();
+    loadPresets().then(seedDefaultPresetsIfMissing).catch(() => {});
   };
 
   if (document.readyState === 'loading') {
