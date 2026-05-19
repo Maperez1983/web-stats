@@ -11203,9 +11203,14 @@ def dashboard_data(request):
 
     # Fail-open global: en producción, cualquier excepción aquí rompe la home con 500 (DASH_HTTP_500).
     # Preferimos devolver payload mínimo (200) para que la UI cargue y muestre mensaje de setup.
+    debug_requested = False
+    try:
+        debug_requested = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    except Exception:
+        debug_requested = False
     try:
         return _dashboard_data_impl(request, _json=_json)
-    except Exception:
+    except Exception as exc:
         # Fail-open ultra defensivo: NO llamar a funciones que puedan depender de DB/storage/cache.
         # Si este bloque lanza excepción, volveríamos a 500.
         try:
@@ -11223,32 +11228,38 @@ def dashboard_data(request):
                 primary_team_name = str(getattr(primary_team, 'name', '') or '').strip() or primary_team_name
         except Exception:
             pass
+        body = {
+            'team': {
+                'id': primary_team_id,
+                'slug': primary_team_slug,
+                'name': primary_team_name,
+                'group': '',
+                'competition': '',
+                'season': '',
+                'corporate_line': '',
+                'crest_url': '',
+            },
+            'standings': [],
+            'next_match': None,
+            'standings_meta': {'provider': '', 'last_updated': '', 'group': '', 'season': ''},
+            'team_metrics': {},
+            'player_metrics': [],
+            'player_cards': [],
+            'player_cards_scope': {'type': 'fallback', 'label': 'Dashboard · fallback'},
+            'setup_required': True,
+            'setup_message_title': 'Dashboard no disponible',
+            'setup_message_body': 'El servidor devolvió un error al calcular la portada. Reintenta en unos segundos.',
+        }
+        if debug_requested:
+            try:
+                body['error_debug'] = {
+                    'type': exc.__class__.__name__,
+                    'message': str(exc)[:220],
+                }
+            except Exception:
+                pass
         try:
-            return _json(
-                {
-                    'team': {
-                        'id': primary_team_id,
-                        'slug': primary_team_slug,
-                        'name': primary_team_name,
-                        'group': '',
-                        'competition': '',
-                        'season': '',
-                        'corporate_line': '',
-                        'crest_url': '',
-                    },
-                    'standings': [],
-                    'next_match': None,
-                    'standings_meta': {'provider': '', 'last_updated': '', 'group': '', 'season': ''},
-                    'team_metrics': {},
-                    'player_metrics': [],
-                    'player_cards': [],
-                    'player_cards_scope': {'type': 'fallback', 'label': 'Dashboard · fallback'},
-                    'setup_required': True,
-                    'setup_message_title': 'Dashboard no disponible',
-                    'setup_message_body': 'El servidor devolvió un error al calcular la portada. Reintenta en unos segundos.',
-                },
-                status=200,
-            )
+            return _json(body, status=200)
         except Exception:
             # Último recurso si hasta `_json` falla.
             return HttpResponse('dashboard fail-open', status=200)
