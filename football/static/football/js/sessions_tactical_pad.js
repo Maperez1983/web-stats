@@ -10081,21 +10081,26 @@
 				      // Guardar (network + render de Playbook) puede disparar layouts/resize en algunos navegadores.
 				      __blockResizesFor(8000);
 
-				      const { w, h } = worldSize();
-				      ensureLayerUidsOnCanvas();
-				      const nextState = serializeCanvasOnly();
-				      const steps = [
-				        {
-				          title: 'Táctica',
-				          duration: 6,
-				          canvas_state: nextState,
-				          canvas_width: Math.round(w || 0),
-				          canvas_height: Math.round(h || 0),
-				          moves: [],
-				          routes: {},
-				          ball_follow_uid: '',
-				        },
-				      ];
+					      const { w, h } = worldSize();
+					      ensureLayerUidsOnCanvas();
+					      const pitchMeta = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
+					      const nextState = serializeCanvasOnly();
+					      const steps = [
+					        {
+					          title: 'Táctica',
+					          duration: 6,
+					          canvas_state: nextState,
+					          canvas_width: Math.round(w || 0),
+					          canvas_height: Math.round(h || 0),
+					          moves: [],
+					          routes: {},
+					          ball_follow_uid: '',
+					          preset: safeText(pitchMeta?.preset),
+					          orientation: safeText(pitchMeta?.orientation),
+					          grass_style: safeText(pitchMeta?.grass_style),
+					          zoom: Number.isFinite(Number(pitchMeta?.zoom)) ? Number(pitchMeta.zoom) : undefined,
+					        },
+					      ];
 				      try {
 				        const payload = { scope: 'team', name, folder, tags, steps };
 				        if (canUpdateActive) {
@@ -11302,9 +11307,9 @@
 				      return catmullRom(p0, p1, p2, p3, localT);
 				    };
 				    const sampleRoute = (points, t, spline) => (spline ? sampleRouteSpline(points, t) : sampleRoutePolyline(points, t));
-				    const renderSimulationSteps = () => {
-				      if (!simStepsList) return;
-				      simStepsList.innerHTML = '';
+					    const renderSimulationSteps = () => {
+					      if (!simStepsList) return;
+					      simStepsList.innerHTML = '';
 				      if (!simulationSteps.length) {
 				        simStepsList.innerHTML = '<div class="timeline-empty">Todavía no hay pasos. Pulsa “Capturar paso”.</div>';
 				        if (simStepTitleInput) simStepTitleInput.value = '';
@@ -11333,34 +11338,88 @@
 				        if (simStepTitleInput) simStepTitleInput.value = safeText(active.title, `Paso ${simulationActiveIndex + 1}`);
 				        if (simStepDurationInput) simStepDurationInput.value = String(clamp(Number(active.duration) || 3, 1, 20));
 				      }
-				    };
-				    const seedSimulationStepsFromCurrent = () => {
-				      const { w, h } = worldSize();
-				      ensureLayerUidsOnCanvas();
-				      simulationSteps = [{
-				        title: 'Inicio',
-				        duration: 3,
-				        canvas_state: serializeCanvasOnly(),
-				        canvas_width: Math.round(w || 0),
-				        canvas_height: Math.round(h || 0),
-				        moves: [],
-				        routes: {},
-				        ball_follow_uid: '',
-				      }];
-				      simulationActiveIndex = 0;
-				      renderSimulationSteps();
-				    };
-				    const selectSimulationStep = async (index, options = {}) => {
-				      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
-				      const step = simulationSteps[idx];
-				      if (!step) return;
-				      if (!options.keepPlaying) stopSimulationPlayback();
-				      simulationActiveIndex = idx;
-				      ensureStepRoutes(step);
-				      const sourceWidth = parseIntSafe(step.canvas_width) || 0;
-				      const sourceHeight = parseIntSafe(step.canvas_height) || 0;
-				      if (typeof loadCanvasSnapshotAsync === 'function') {
-				        await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth, sourceHeight });
+					    };
+					    const capturePitchMetaForStep = () => {
+					      const preset = safeText(pitchPreset || presetSelect?.value, 'full_pitch') || 'full_pitch';
+					      const orientation = (pitchOrientation === 'portrait') ? 'portrait' : 'landscape';
+					      const grass_style = safeText(pitchGrassStyle, 'classic').toLowerCase();
+					      const zoom = clamp(Number(pitchZoom) || 1.0, 0.8, 1.6);
+					      return { preset, orientation, grass_style, zoom };
+					    };
+					    const applyPitchMetaFromStep = (step) => {
+					      const meta = step && typeof step === 'object' ? step : null;
+					      if (!meta) return;
+					      const metaPreset = safeText(meta.preset);
+					      const metaOrientationRaw = safeText(meta.orientation);
+					      const metaOrientation = (metaOrientationRaw === 'portrait') ? 'portrait' : ((metaOrientationRaw === 'landscape') ? 'landscape' : '');
+					      const metaGrassRaw = safeText(meta.grass_style || meta.grassStyle).toLowerCase();
+					      const metaGrass = (typeof GRASS_STYLE_ORDER !== 'undefined' && Array.isArray(GRASS_STYLE_ORDER) && GRASS_STYLE_ORDER.includes(metaGrassRaw))
+					        ? metaGrassRaw
+					        : '';
+					      const metaZoom = Number(meta.zoom);
+					      let needsSurface = false;
+					      if (metaGrass && metaGrass !== pitchGrassStyle) {
+					        pitchGrassStyle = metaGrass;
+					        try { syncGrassUi(); } catch (e) { /* ignore */ }
+					        needsSurface = true;
+					      }
+					      if (metaOrientation && metaOrientation !== pitchOrientation) {
+					        pitchOrientation = metaOrientation;
+					        try { syncOrientationUi(); } catch (e) { /* ignore */ }
+					        needsSurface = true;
+					      }
+					      if (metaPreset && metaPreset !== pitchPreset) {
+					        try { setPreset(metaPreset, { silent: true }); } catch (e) { /* ignore */ }
+					        needsSurface = false; // setPreset ya aplica superficie + fit.
+					      } else if (needsSurface) {
+					        try { applyPitchSurface(pitchPreset || (presetSelect?.value || 'full_pitch'), pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+					        try {
+					          window.requestAnimationFrame(() => {
+					            try { fitCanvas(!useViewportMapping); } catch (error) { /* ignore */ }
+					            try { canvas.calcOffset(); } catch (error) { /* ignore */ }
+					            try { canvas.requestRenderAll(); } catch (error) { /* ignore */ }
+					          });
+					        } catch (e) { /* ignore */ }
+					      }
+					      if (Number.isFinite(metaZoom) && metaZoom > 0) {
+					        pitchZoom = clamp(metaZoom, 0.8, 1.6);
+					        zoomTouched = true;
+					        try { syncZoomUi(); } catch (e) { /* ignore */ }
+					      }
+					    };
+					    const seedSimulationStepsFromCurrent = () => {
+					      const { w, h } = worldSize();
+					      ensureLayerUidsOnCanvas();
+					      const pitchMeta = capturePitchMetaForStep();
+					      simulationSteps = [{
+					        title: 'Inicio',
+					        duration: 3,
+					        canvas_state: serializeCanvasOnly(),
+					        canvas_width: Math.round(w || 0),
+					        canvas_height: Math.round(h || 0),
+					        moves: [],
+					        routes: {},
+					        ball_follow_uid: '',
+					        preset: pitchMeta.preset,
+					        orientation: pitchMeta.orientation,
+					        grass_style: pitchMeta.grass_style,
+					        zoom: pitchMeta.zoom,
+					      }];
+					      simulationActiveIndex = 0;
+					      renderSimulationSteps();
+					    };
+					    const selectSimulationStep = async (index, options = {}) => {
+					      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
+					      const step = simulationSteps[idx];
+					      if (!step) return;
+					      if (!options.keepPlaying) stopSimulationPlayback();
+					      simulationActiveIndex = idx;
+					      ensureStepRoutes(step);
+					      try { applyPitchMetaFromStep(step); } catch (e) { /* ignore */ }
+					      const sourceWidth = parseIntSafe(step.canvas_width) || 0;
+					      const sourceHeight = parseIntSafe(step.canvas_height) || 0;
+					      if (typeof loadCanvasSnapshotAsync === 'function') {
+					        await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth, sourceHeight });
 				      } else {
 				        loadCanvasSnapshot(step.canvas_state, null, { sourceWidth, sourceHeight });
 				      }
@@ -11371,14 +11430,16 @@
 				      renderSimRoutesForStep(step);
 				      renderSimulationSteps();
 				    };
-				    const transitionToSimulationStep = async (index, options = {}) => {
-				      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
-				      const step = simulationSteps[idx];
-				      if (!step) return false;
-				      if (!options.keepPlaying) stopSimulationPlayback();
+					    const transitionToSimulationStep = async (index, options = {}) => {
+					      const idx = clamp(Number(index) || 0, 0, Math.max(0, simulationSteps.length - 1));
+					      const step = simulationSteps[idx];
+					      if (!step) return false;
+					      if (!options.keepPlaying) stopSimulationPlayback();
+					      // Asegura que la superficie/encuadre coincidan con el paso destino durante la transición.
+					      try { applyPitchMetaFromStep(step); } catch (e) { /* ignore */ }
 
-				      ensureLayerUidsOnCanvas();
-				      const endState = sanitizeLoadedState(step.canvas_state);
+					      ensureLayerUidsOnCanvas();
+					      const endState = sanitizeLoadedState(step.canvas_state);
 				      const endObjects = Array.isArray(endState.objects) ? endState.objects : [];
 				      const endMap = new Map();
 				      endObjects.forEach((obj) => {
@@ -11500,54 +11561,64 @@
 				        simulationAnimFrame = window.requestAnimationFrame(tick);
 				      });
 				    };
-				    const captureSimulationStep = () => {
-				      if (!isSimulating) return;
-				      stopSimulationPlayback();
-				      const { w, h } = worldSize();
-				      ensureLayerUidsOnCanvas();
-				      const index = simulationSteps.length + 1;
-				      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
-				      const prevState = prev?.canvas_state || null;
-				      const nextState = serializeCanvasOnly();
+					    const captureSimulationStep = () => {
+					      if (!isSimulating) return;
+					      stopSimulationPlayback();
+					      const { w, h } = worldSize();
+					      ensureLayerUidsOnCanvas();
+					      const pitchMeta = capturePitchMetaForStep();
+					      const index = simulationSteps.length + 1;
+					      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
+					      const prevState = prev?.canvas_state || null;
+					      const nextState = serializeCanvasOnly();
 				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
-				      simulationSteps.push({
-				        title: `Paso ${index}`,
-				        duration: 3,
-				        canvas_state: nextState,
-				        canvas_width: Math.round(w || 0),
-				        canvas_height: Math.round(h || 0),
-				        moves,
-				        routes: {},
-				        ball_follow_uid: '',
-				      });
-				      simulationProCaches = new Map();
-				      simulationActiveIndex = simulationSteps.length - 1;
-				      renderSimulationSteps();
+					      simulationSteps.push({
+					        title: `Paso ${index}`,
+					        duration: 3,
+					        canvas_state: nextState,
+					        canvas_width: Math.round(w || 0),
+					        canvas_height: Math.round(h || 0),
+					        moves,
+					        routes: {},
+					        ball_follow_uid: '',
+					        preset: pitchMeta.preset,
+					        orientation: pitchMeta.orientation,
+					        grass_style: pitchMeta.grass_style,
+					        zoom: pitchMeta.zoom,
+					      });
+					      simulationProCaches = new Map();
+					      simulationActiveIndex = simulationSteps.length - 1;
+					      renderSimulationSteps();
 				      setStatus('Paso capturado.');
 				    };
-				    const appendSimulationStepFromCanvas = (meta = {}) => {
-				      if (!isSimulating) return false;
-				      stopSimulationPlayback();
-				      const { w, h } = worldSize();
-				      ensureLayerUidsOnCanvas();
-				      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
-				      const prevState = prev?.canvas_state || null;
-				      const nextState = serializeCanvasOnly();
+					    const appendSimulationStepFromCanvas = (meta = {}) => {
+					      if (!isSimulating) return false;
+					      stopSimulationPlayback();
+					      const { w, h } = worldSize();
+					      ensureLayerUidsOnCanvas();
+					      const pitchMeta = capturePitchMetaForStep();
+					      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
+					      const prevState = prev?.canvas_state || null;
+					      const nextState = serializeCanvasOnly();
 				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
-				      simulationSteps.push({
-				        title: safeText(meta.title, `Paso ${simulationSteps.length + 1}`),
-				        duration: clamp(Number(meta.duration) || 3, 1, 20),
-				        canvas_state: nextState,
-				        canvas_width: Math.round(w || 0),
-				        canvas_height: Math.round(h || 0),
-				        moves,
-				        routes: {},
-				        ball_follow_uid: '',
-				      });
-				      simulationProCaches = new Map();
-				      simulationActiveIndex = simulationSteps.length - 1;
-				      return true;
-				    };
+					      simulationSteps.push({
+					        title: safeText(meta.title, `Paso ${simulationSteps.length + 1}`),
+					        duration: clamp(Number(meta.duration) || 3, 1, 20),
+					        canvas_state: nextState,
+					        canvas_width: Math.round(w || 0),
+					        canvas_height: Math.round(h || 0),
+					        moves,
+					        routes: {},
+					        ball_follow_uid: '',
+					        preset: pitchMeta.preset,
+					        orientation: pitchMeta.orientation,
+					        grass_style: pitchMeta.grass_style,
+					        zoom: pitchMeta.zoom,
+					      });
+					      simulationProCaches = new Map();
+					      simulationActiveIndex = simulationSteps.length - 1;
+					      return true;
+					    };
 				    const normalizeDigits = (value) => safeText(value).replace(/[^\d]/g, '');
 				    const findTokenByDorsal = (dorsal) => {
 				      const needle = normalizeDigits(dorsal);
@@ -13615,14 +13686,14 @@
 	      svgSurface.innerHTML = '';
 	    };
 
-	    const setPreset = (presetValue) => {
-	      const preset = safeText(presetValue, 'full_pitch');
-	      pitchPreset = preset;
-	      presetSelect.value = preset;
-      if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
-      presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
-      if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
-	      applyPitchSurface(preset, pitchOrientation, pitchGrassStyle);
+		    const setPreset = (presetValue, options = {}) => {
+		      const preset = safeText(presetValue, 'full_pitch');
+		      pitchPreset = preset;
+		      presetSelect.value = preset;
+	      if (pitchFormatInput && PITCH_FORMAT_BY_PRESET[preset]) pitchFormatInput.value = PITCH_FORMAT_BY_PRESET[preset];
+	      presetButtons.forEach((button) => button.classList.toggle('is-active', safeText(button.dataset.preset) === preset));
+	      if (surfaceTriggerLabel) surfaceTriggerLabel.textContent = PRESET_LABEL[preset] || 'Campo completo';
+		      applyPitchSurface(preset, pitchOrientation, pitchGrassStyle);
       // Al cambiar de superficie cambia el aspect-ratio del stage. Si no reajustamos el canvas,
       // los punteros quedan desincronizados y “parece” que las chapas no se dibujan (se colocan fuera de vista).
       try {
@@ -13634,10 +13705,12 @@
       } catch (error) {
         try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
         try { canvas.calcOffset(); } catch (e) { /* ignore */ }
-      }
-      refreshLivePreview();
-      setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
-    };
+	      }
+	      refreshLivePreview();
+	      if (!options?.silent) {
+	        setStatus(`Superficie preparada: ${PRESET_LABEL[preset] || 'campo'} en ${ORIENTATION_LABEL[pitchOrientation]}.`);
+	      }
+	    };
 				    const applyPitchOrientation = (nextOrientation, options = {}) => {
 				      const normalized = safeText(nextOrientation, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 				      if (normalized === pitchOrientation && !options.force) return;
