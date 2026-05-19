@@ -9368,6 +9368,116 @@
 				      return fn();
 				    };
 
+				    const __ensureMetaModalStyles = () => {
+				      try {
+				        if (document.getElementById('tpad-meta-modal-style')) return;
+				        const style = document.createElement('style');
+				        style.id = 'tpad-meta-modal-style';
+				        style.textContent = `
+				          .tpad-meta-modal-backdrop{position:fixed;inset:0;z-index:2147483646;background:rgba(2,6,23,0.50);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:grid;place-items:center;padding:16px;}
+				          .tpad-meta-modal{width:min(560px,92vw);border-radius:18px;border:1px solid rgba(255,255,255,0.16);background:rgba(10,22,38,0.92);box-shadow:0 30px 90px rgba(2,6,23,0.60);padding:14px 14px 12px;color:rgba(248,250,252,0.95);font-family:var(--prod-font-ui,"Avenir Next","Inter","Segoe UI",sans-serif);}
+				          .tpad-meta-modal h3{margin:0 0 8px;font-size:0.9rem;letter-spacing:0.12em;text-transform:uppercase;}
+				          .tpad-meta-modal .row{display:grid;gap:8px;margin-top:10px;}
+				          .tpad-meta-modal label{display:grid;gap:6px;font-size:0.72rem;letter-spacing:0.11em;text-transform:uppercase;color:rgba(226,232,240,0.82);font-weight:900;}
+				          .tpad-meta-modal input{width:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.16);background:rgba(255,255,255,0.05);color:rgba(248,250,252,0.95);padding:10px 12px;font-weight:800;}
+				          .tpad-meta-modal .actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px;}
+				          .tpad-meta-modal .btn{appearance:none;cursor:pointer;border-radius:999px;border:1px solid rgba(244,180,0,0.28);background:rgba(15,23,42,0.55);color:rgba(248,250,252,0.95);padding:10px 14px;font-weight:950;letter-spacing:0.10em;text-transform:uppercase;font-size:0.72rem;}
+				          .tpad-meta-modal .btn.primary{background:linear-gradient(135deg, rgba(244,180,0,.22), rgba(47,125,50,.18));border-color:rgba(244,180,0,.45);}
+				          .tpad-meta-modal .hint{opacity:0.86;font-size:0.88rem;letter-spacing:0.01em;text-transform:none;}
+				        `;
+				        document.head.appendChild(style);
+				      } catch (e) { /* ignore */ }
+				    };
+
+				    const __openMetaModal = (options = {}) => new Promise((resolve) => {
+				      __ensureMetaModalStyles();
+				      const heading = safeText(options.heading, 'Guardar');
+				      const nameLabel = safeText(options.nameLabel, 'Nombre');
+				      const folderLabel = safeText(options.folderLabel, 'Carpeta (opcional)');
+				      const tagsLabel = safeText(options.tagsLabel, 'Tags (coma separada)');
+				      const defaultName = safeText(options.defaultName, '');
+				      const defaultFolder = safeText(options.defaultFolder, '');
+				      const defaultTags = safeText(options.defaultTags, '');
+				      const folders = Array.isArray(options.folders) ? options.folders.map((f) => safeText(f).trim()).filter(Boolean).slice(0, 40) : [];
+				      // Bloquea resizes durante el modal (evita reescalados mientras el usuario escribe).
+				      let prevIgnore = 0;
+				      try { prevIgnore = __ignoreResizeUntilMs; __ignoreResizeUntilMs = Date.now() + 60_000; } catch (e) { /* ignore */ }
+
+				      const backdrop = document.createElement('div');
+				      backdrop.className = 'tpad-meta-modal-backdrop';
+				      backdrop.setAttribute('role', 'dialog');
+				      backdrop.setAttribute('aria-modal', 'true');
+
+				      const card = document.createElement('div');
+				      card.className = 'tpad-meta-modal';
+				      card.innerHTML = `
+				        <h3>${escapeHtml(heading)}</h3>
+				        <div class="hint">${escapeHtml(safeText(options.hint, ''))}</div>
+				        <div class="row">
+				          <label>${escapeHtml(nameLabel)}
+				            <input id="tpad-meta-name" type="text" maxlength="160" value="${escapeHtml(defaultName)}" />
+				          </label>
+				          <label>${escapeHtml(folderLabel)}
+				            <input id="tpad-meta-folder" type="text" maxlength="80" value="${escapeHtml(defaultFolder)}" list="tpad-meta-folders" />
+				          </label>
+				          <datalist id="tpad-meta-folders">
+				            ${folders.map((f) => `<option value="${escapeHtml(f)}"></option>`).join('')}
+				          </datalist>
+				          <label>${escapeHtml(tagsLabel)}
+				            <input id="tpad-meta-tags" type="text" maxlength="200" value="${escapeHtml(defaultTags)}" />
+				          </label>
+				        </div>
+				        <div class="actions">
+				          <button type="button" class="btn" id="tpad-meta-cancel">Cancelar</button>
+				          <button type="button" class="btn primary" id="tpad-meta-ok">Guardar</button>
+				        </div>
+				      `;
+				      backdrop.appendChild(card);
+				      document.body.appendChild(backdrop);
+
+				      const cleanUp = () => {
+				        try { backdrop.remove(); } catch (e) { /* ignore */ }
+				        try { __ignoreResizeUntilMs = Math.max(prevIgnore || 0, Date.now() + 1200); } catch (e) { /* ignore */ }
+				      };
+
+				      const finish = (ok) => {
+				        const nameEl = card.querySelector('#tpad-meta-name');
+				        const folderEl = card.querySelector('#tpad-meta-folder');
+				        const tagsEl = card.querySelector('#tpad-meta-tags');
+				        const payload = {
+				          ok: !!ok,
+				          name: safeText(nameEl?.value).slice(0, 160).trim(),
+				          folder: safeText(folderEl?.value).slice(0, 80).trim(),
+				          tagsRaw: safeText(tagsEl?.value).slice(0, 200).trim(),
+				        };
+				        cleanUp();
+				        resolve(payload);
+				      };
+
+				      const onKey = (ev) => {
+				        const key = safeText(ev?.key).toLowerCase();
+				        if (key === 'escape') {
+				          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+				          finish(false);
+				        }
+				        if (key === 'enter') {
+				          // Enter en inputs guarda (salvo que esté en tags con intención de newline, pero aquí no hay textarea).
+				          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+				          finish(true);
+				        }
+				      };
+				      backdrop.addEventListener('keydown', onKey, true);
+				      backdrop.addEventListener('click', (ev) => {
+				        if (ev.target === backdrop) finish(false);
+				      });
+				      card.querySelector('#tpad-meta-cancel')?.addEventListener('click', () => finish(false));
+				      card.querySelector('#tpad-meta-ok')?.addEventListener('click', () => finish(true));
+				      window.setTimeout(() => {
+				        try { card.querySelector('#tpad-meta-name')?.focus?.(); } catch (e) { /* ignore */ }
+				        try { card.querySelector('#tpad-meta-name')?.select?.(); } catch (e) { /* ignore */ }
+				      }, 0);
+				    });
+
 				    const playbookFolderSuggestionsText = (limit = 18) => {
 				      try {
 				        const folders = Array.from(new Set((playbookClips || []).map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, Math.max(1, Number(limit) || 18));
@@ -9911,26 +10021,36 @@
 				        }
 				      })();
 				      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Táctica');
-				      const name = canUpdateActive
-				        ? safeText(playbookActiveClip?.name, defaultName).slice(0, 160)
-				        : safeText(__withBlockingPrompt(() => window.prompt('Nombre de la táctica', defaultName))).slice(0, 160);
-				      if (!name) return;
-				      const folder = canUpdateActive
-				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
-				        : safeText(__withBlockingPrompt(() => window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, 'Tácticas'))).slice(0, 80);
-				      const tags = (() => {
-				        if (canUpdateActive) {
-				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
-				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-				        }
-				        const tagsRaw = safeText(__withBlockingPrompt(() => window.prompt('Tags (coma separada)', ''))).slice(0, 200);
+				      let name = safeText(playbookActiveClip?.name, defaultName).slice(0, 160);
+				      let folder = safeText(playbookActiveClip?.folder, '').slice(0, 80);
+				      let tags = (() => {
+				        const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
+				        return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				      })();
+				      if (!canUpdateActive) {
+				        const modal = await __openMetaModal({
+				          heading: 'Guardar táctica',
+				          nameLabel: 'Nombre de la táctica',
+				          folderLabel: 'Carpeta (opcional)',
+				          tagsLabel: 'Tags (coma separada)',
+				          defaultName,
+				          defaultFolder: 'Tácticas',
+				          defaultTags: '',
+				          folders: Array.from(new Set((playbookClips || []).map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, 24),
+				          hint: 'Se guarda en el Playbook del equipo. No se tocará la superficie ni se reordenará la pizarra.',
+				        });
+				        if (!modal?.ok) return;
+				        name = safeText(modal.name).slice(0, 160);
+				        if (!name) return;
+				        folder = safeText(modal.folder).slice(0, 80);
+				        const tagsRaw = safeText(modal.tagsRaw).slice(0, 200);
 				        let next = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				        try {
 				          const hasTag = next.some((t) => safeText(t).toLowerCase() === 'tactica');
 				          if (!hasTag) next = ['tactica', ...next].slice(0, 12);
 				        } catch (e) { /* ignore */ }
-				        return next;
-				      })();
+				        tags = next;
+				      }
 
 				      const { w, h } = worldSize();
 				      ensureLayerUidsOnCanvas();
@@ -21015,21 +21135,31 @@
 				          return Number(activeSteps.length) === Number(simulationSteps.length);
 				        } catch (e) { return false; }
 				      })();
-				      const name = canUpdateActive
-				        ? safeText(playbookActiveClip?.name, defaultName)
-				        : safeText(__withBlockingPrompt(() => window.prompt('Nombre del clip', defaultName)));
-				      if (!name) return;
-				      const folder = canUpdateActive
-				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
-				        : safeText(__withBlockingPrompt(() => window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, ''))).slice(0, 80);
-				      const tags = (() => {
-				        if (canUpdateActive) {
-				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
-				          return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-				        }
-				        const tagsRaw = safeText(__withBlockingPrompt(() => window.prompt('Tags (coma separada)', ''))).slice(0, 200);
-				        return tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				      let name = safeText(playbookActiveClip?.name, defaultName);
+				      let folder = safeText(playbookActiveClip?.folder, '').slice(0, 80);
+				      let tags = (() => {
+				        const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
+				        return raw.map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				      })();
+				      if (!canUpdateActive) {
+				        const modal = await __openMetaModal({
+				          heading: 'Guardar clip',
+				          nameLabel: 'Nombre del clip',
+				          folderLabel: 'Carpeta (opcional)',
+				          tagsLabel: 'Tags (coma separada)',
+				          defaultName,
+				          defaultFolder: '',
+				          defaultTags: '',
+				          folders: Array.from(new Set((playbookClips || []).map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, 24),
+				          hint: 'Se guarda en el Playbook. El guardado no debería tocar la superficie ni reescalar el canvas.',
+				        });
+				        if (!modal?.ok) return;
+				        name = safeText(modal.name);
+				        if (!name) return;
+				        folder = safeText(modal.folder).slice(0, 80);
+				        const tagsRaw = safeText(modal.tagsRaw).slice(0, 200);
+				        tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				      }
 				      let steps = [];
 				      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
 				      const dest = safeText(simClipDestSelect?.value, 'local');
