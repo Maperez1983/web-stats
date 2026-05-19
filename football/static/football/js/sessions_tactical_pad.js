@@ -773,17 +773,45 @@
     return new XMLSerializer().serializeToString(doc);
   };
 
-	  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
-	    try {
-	    const form = document.getElementById('task-builder-form');
-	    if (!form) return;
+		  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
+		    try {
+		    const form = document.getElementById('task-builder-form');
+		    if (!form) return;
 	    // Evita doble inicialización si el editor se carga por lazy-load y luego por navegación/recarga parcial.
 	    try {
 	      if (form.dataset && form.dataset.webstatsTpadInit === '1') return;
 	      if (form.dataset) form.dataset.webstatsTpadInit = '1';
 	    } catch (e) { /* ignore */ }
-	    // Limpia el marcador del último error para evitar mensajes “fantasma” tras una recarga.
-	    try { window.localStorage.removeItem('webstats:tpad:last_error'); } catch (e) { /* ignore */ }
+		    // Captura errores runtime (no solo los de inicialización) para detectar “botones no funcionan”.
+		    try {
+		      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
+		        window.__WEBSTATS_TPAD_RUNTIME_HOOKED = true;
+		        const report = (payload) => {
+		          try {
+		            const entry = { ...(payload || {}), at: new Date().toISOString() };
+		            window.__WEBSTATS_LAST_TPAD_ERROR = entry;
+		            try { window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(entry)); } catch (e) { /* ignore */ }
+		            const statusEl = document.getElementById('task-builder-status');
+		            if (statusEl) {
+		              const msg = safeText(entry?.message, 'Error JS');
+		              statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
+		              statusEl.style.color = '#fca5a5';
+		            }
+		          } catch (e) { /* ignore */ }
+		        };
+		        window.addEventListener('error', (event) => {
+		          const message = safeText(event?.message || (event?.error && event.error.message) || 'Error JS');
+		          const stack = safeText(event?.error?.stack || '');
+		          report({ message, stack, kind: 'error' });
+		        }, true);
+		        window.addEventListener('unhandledrejection', (event) => {
+		          const reason = event?.reason;
+		          const message = safeText(reason?.message || reason || 'Promise rechazada');
+		          const stack = safeText(reason?.stack || '');
+		          report({ message, stack, kind: 'unhandledrejection' });
+		        }, true);
+		      }
+		    } catch (e) { /* ignore */ }
     const coachDictionaryUrl = String(form?.dataset?.coachDictionaryUrl || '').trim()
       || '/static/football/data/coach_dictionary_es_v1.json';
     let coachDictionary = null;
@@ -1188,28 +1216,41 @@
 				      'task-layers-popover',
 				      'task-scenarios-popover',
 				    ];
-				    let __backdropRaf = 0;
-				    const __syncBackdropNow = () => {
-				      const backdrop = document.getElementById('tpad-overlay-backdrop');
-				      if (!backdrop) return;
-				      let anyOpen = false;
-				      try {
-				        anyOpen = __overlayDetailsIds.some((id) => {
-				          const el = document.getElementById(id);
-				          return !!(el && el.tagName === 'DETAILS' && el.open);
-				        });
-				      } catch (e) { /* ignore */ }
-				      if (!anyOpen) {
-				        try {
-				          anyOpen = __overlayFloatingIds.some((id) => {
-				            const el = document.getElementById(id);
-				            return !!(el && el.hidden === false);
-				          });
-				        } catch (e) { /* ignore */ }
-				      }
-				      backdrop.hidden = !anyOpen;
-				      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
-				    };
+					    let __backdropRaf = 0;
+					    const __syncBackdropNow = () => {
+					      const backdrop = document.getElementById('tpad-overlay-backdrop');
+					      if (!backdrop) return;
+					      const isVisible = (el) => {
+					        if (!el) return false;
+					        try { if (el.hidden) return false; } catch (e) { /* ignore */ }
+					        try {
+					          const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+					          if (style && (style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none')) return false;
+					        } catch (e) { /* ignore */ }
+					        try {
+					          const rect = el.getBoundingClientRect?.();
+					          if (rect && rect.width <= 1 && rect.height <= 1) return false;
+					        } catch (e) { /* ignore */ }
+					        return true;
+					      };
+					      let anyOpen = false;
+					      try {
+					        anyOpen = __overlayDetailsIds.some((id) => {
+					          const el = document.getElementById(id);
+					          return !!(el && el.tagName === 'DETAILS' && el.open);
+					        });
+					      } catch (e) { /* ignore */ }
+					      if (!anyOpen) {
+					        try {
+					          anyOpen = __overlayFloatingIds.some((id) => {
+					            const el = document.getElementById(id);
+					            return !!(el && isVisible(el));
+					          });
+					        } catch (e) { /* ignore */ }
+					      }
+					      backdrop.hidden = !anyOpen;
+					      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
+					    };
 				    const __scheduleBackdropSync = () => {
 				      try { if (__backdropRaf) cancelAnimationFrame(__backdropRaf); } catch (e) { /* ignore */ }
 				      try { __backdropRaf = requestAnimationFrame(() => { __backdropRaf = 0; __syncBackdropNow(); }); } catch (e) { __backdropRaf = 0; }
@@ -8946,6 +8987,14 @@
 				      if (!simPopover) return;
 				      simPopover.hidden = !open;
 				      if (open) syncSimUi();
+				      // Si se cierra el popover, evita que la UI se quede “bloqueada” por un estado de simulación colgado.
+				      // (Safari/WKWebView puede perder un click de “Salir de simulación” si el popover se cierra por outside-click).
+				      if (!open) {
+				        try {
+				          const exitFn = window.__webstats_tpad_exit_sim;
+				          if (isSimulating && typeof exitFn === 'function') exitFn();
+				        } catch (e) { /* ignore */ }
+				      }
 				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 				    };
 
@@ -12384,12 +12433,15 @@
 				      simulationProTracks = {};
 				      simulationProUpdatedAt = 0;
 				      simulationProCaches = new Map();
-				      try { scheduleDraftSave('simulation-exit'); } catch (error) { /* ignore */ }
-				      setStatus('Simulación finalizada. Volviste al editor.');
-				    };
-						    const resetSimulation = () => {
-						      if (!isSimulating) return;
-						      stopSimulationPlayback();
+					      try { scheduleDraftSave('simulation-exit'); } catch (error) { /* ignore */ }
+					      setStatus('Simulación finalizada. Volviste al editor.');
+					    };
+					    // Exponer salida del simulador para cierres “externos” (click fuera / backdrop)
+					    // sin depender del orden de inicialización (evita TDZ).
+					    try { window.__webstats_tpad_exit_sim = exitSimulation; } catch (e) { /* ignore */ }
+							    const resetSimulation = () => {
+							      if (!isSimulating) return;
+							      stopSimulationPlayback();
 						      simRouteAddMode = false;
 						      if (simRouteToggleBtn) {
 						        simRouteToggleBtn.textContent = 'Añadir waypoints';
