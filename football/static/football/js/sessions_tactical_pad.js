@@ -21647,15 +21647,16 @@
 	    };
 	    orientationToggle?.addEventListener('click', togglePitchOrientation);
 	    orientationToggleQuick?.addEventListener('click', togglePitchOrientation);
-		    grassToggle?.addEventListener('click', () => {
-		      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
-		      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
-		      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
-		      syncGrassUi();
-		      try { applyPitchSurface(presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
-		      refreshLivePreview();
-		      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
-		    });
+			    grassToggle?.addEventListener('click', () => {
+			      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
+			      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
+			      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
+			      syncGrassUi();
+			      // Usamos `pitchPreset` como fuente de verdad (evita saltos a full_pitch si el <select> está vacío por DOM/resize).
+			      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+			      refreshLivePreview();
+			      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+			    });
 		    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
 		    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
 		    zoomResetButton?.addEventListener('click', () => {
