@@ -5,6 +5,7 @@ set -euo pipefail
 : "${RUN_MIGRATIONS:=true}"
 : "${MIGRATE_RETRIES:=15}"
 : "${MIGRATE_RETRY_SLEEP_SECONDS:=2}"
+: "${MIGRATE_FAIL_OPEN:=}"
 : "${GUNICORN_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME:=false}"
@@ -35,13 +36,27 @@ elif [ "${_pw_build_flag}" = "true" ] || [ "${_pw_build_flag}" = "1" ] || [ "${_
 fi
 
 if [ "${RUN_MIGRATIONS}" = "true" ]; then
+  _migrate_fail_open="$(echo "${MIGRATE_FAIL_OPEN:-}" | tr '[:upper:]' '[:lower:]' | xargs)"
+  if [ -z "${_migrate_fail_open}" ]; then
+    # En Render priorizamos disponibilidad: si el DB está en mantenimiento o hay un lock temporal,
+    # preferimos arrancar el servidor y mostrar UI parcial antes que devolver 502 por no poder migrar.
+    if [ -n "${RENDER:-}" ] || [ -n "${RENDER_SERVICE_ID:-}" ] || [ -n "${RENDER_GIT_COMMIT:-}" ]; then
+      _migrate_fail_open="true"
+    else
+      _migrate_fail_open="false"
+    fi
+  fi
   attempt=1
   while true; do
     if python manage.py migrate --noinput; then
       break
     fi
     if [ "${attempt}" -ge "${MIGRATE_RETRIES}" ]; then
-      echo "manage.py migrate failed after ${MIGRATE_RETRIES} attempts" >&2
+      if [ "${_migrate_fail_open}" = "true" ] || [ "${_migrate_fail_open}" = "1" ] || [ "${_migrate_fail_open}" = "yes" ] || [ "${_migrate_fail_open}" = "on" ]; then
+        echo "[boot] manage.py migrate failed after ${MIGRATE_RETRIES} attempts; continuing anyway (MIGRATE_FAIL_OPEN=${_migrate_fail_open})." >&2
+        break
+      fi
+      echo "[boot] manage.py migrate failed after ${MIGRATE_RETRIES} attempts" >&2
       exit 1
     fi
     echo "manage.py migrate failed (attempt ${attempt}/${MIGRATE_RETRIES}); retrying in ${MIGRATE_RETRY_SLEEP_SECONDS}s..." >&2

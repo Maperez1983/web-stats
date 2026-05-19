@@ -1514,6 +1514,7 @@ PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
 PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '300'))
 PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
 PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
+PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX = "football:player_photo_path"
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
 PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '900'))
 RFAF_LIVE_FETCH_ON_REQUEST = str(
@@ -3281,6 +3282,14 @@ def save_player_photo(player, uploaded_photo):
             )
         except Exception:
             pass
+        try:
+            cache.set(
+                f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}',
+                str(saved_name or ''),
+                timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS,
+            )
+        except Exception:
+            pass
         return saved_name
     except Exception:
         logger.exception('No se pudo guardar la foto del jugador %s', player.id)
@@ -3301,7 +3310,16 @@ def player_photo_file(request, player_id):
     if isinstance(storage, FileSystemStorage):
         storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
     storage_name = ''
+    try:
+        cached_name = cache.get(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}')
+        cached_name = str(cached_name or '').strip()
+        if cached_name:
+            storage_name = cached_name
+    except Exception:
+        storage_name = ''
     for candidate in _player_photo_storage_candidates(player):
+        if storage_name:
+            break
         try:
             if storage.exists(candidate):
                 storage_name = candidate
@@ -3311,8 +3329,16 @@ def player_photo_file(request, player_id):
     if not storage_name:
         raise Http404('Foto no disponible')
     try:
+        cache.set(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}', str(storage_name), timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS)
+    except Exception:
+        pass
+    try:
         file_field = storage.open(storage_name, 'rb')
     except Exception:
+        try:
+            cache.delete(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}')
+        except Exception:
+            pass
         return HttpResponse('No se pudo abrir la foto del jugador.', status=500)
     extension = Path(storage_name).suffix.lower()
     content_type = {
@@ -4481,7 +4507,16 @@ def resolve_player_photo_url(request, player):
             storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
     except Exception:
         storage = None
+    try:
+        cached_name = cache.get(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}')
+        cached_name = str(cached_name or '').strip()
+        if cached_name:
+            resolved_storage_name = cached_name
+    except Exception:
+        resolved_storage_name = ''
     for storage_name in _player_photo_storage_candidates(player):
+        if resolved_storage_name:
+            break
         try:
             if storage and storage.exists(storage_name):
                 resolved_storage_name = storage_name
@@ -4491,6 +4526,11 @@ def resolve_player_photo_url(request, player):
                 break
         except Exception:
             logger.exception('No se pudo resolver la foto subida del jugador %s', getattr(player, 'id', ''))
+    if resolved_storage_name:
+        try:
+            cache.set(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}', str(resolved_storage_name), timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS)
+        except Exception:
+            pass
     if resolved_storage_name:
         url = reverse('player-photo-file', args=[player.id])
         version = ''
@@ -57227,13 +57267,14 @@ def player_pdf(request, player_id):
             ring_keys = [str(k or '').strip() for k in staff_report.ring_kpis if str(k or '').strip()]
     except Exception:
         ring_keys = []
-    if not ring_keys:
-        ring_keys = ['participation_pct', 'importance_score', 'influence_score', 'success_rate']
-    ring_keys = [k for k in ring_keys if k in ring_defs][:4]
-    visual_kpis = [
-        {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
-        for k in ring_keys
-    ]
+	    if not ring_keys:
+	        # Default (estilo “KPI de rendimiento”): ratios clave de juego.
+	        ring_keys = ['success_rate', 'duel_rate', 'pass_accuracy', 'shot_accuracy']
+	    ring_keys = [k for k in ring_keys if k in ring_defs][:4]
+	    visual_kpis = [
+	        {'label': ring_defs[k][0], 'value': _ring_kpi_value(k), 'unit': ring_defs[k][1]}
+	        for k in ring_keys
+	    ]
 
     report_start = date_start
     report_end = date_end or timezone.localdate()
