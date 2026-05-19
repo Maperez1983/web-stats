@@ -4,6 +4,7 @@ import base64
 import io
 import json
 import zipfile
+import os
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
@@ -36,6 +37,22 @@ def kit2d_generate_api(request):
     upload = request.FILES.get("image") or request.FILES.get("file")
     if not upload:
         return JsonResponse({"ok": False, "error": "Falta el archivo (campo 'image')."}, status=400)
+    # Guardrail de estabilidad: evita que una subida gigantesca (o accidental) tumbe workers por memoria/CPU.
+    # Ajustable por env: KIT2D_MAX_UPLOAD_MB (default: 20).
+    try:
+        max_mb = int(str(os.getenv("KIT2D_MAX_UPLOAD_MB") or "").strip() or 20)
+    except Exception:
+        max_mb = 20
+    max_mb = max(1, min(max_mb, 200))
+    try:
+        size = int(getattr(upload, "size", 0) or 0)
+    except Exception:
+        size = 0
+    if size and size > (max_mb * 1024 * 1024):
+        return JsonResponse(
+            {"ok": False, "error": f"Imagen demasiado grande ({(size / (1024 * 1024)):.1f}MB). Máximo: {max_mb}MB."},
+            status=413,
+        )
     try:
         club_size = int(request.POST.get("club_size") or 96)
     except Exception:

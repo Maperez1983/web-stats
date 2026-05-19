@@ -87,6 +87,8 @@ def _ffmpeg_decode_image(data: bytes):
                 check=True,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                # Guardrail: si ffmpeg se cuelga (ficheros corruptos), no bloqueamos el worker.
+                timeout=12,
             )
         except Exception as exc:
             raise RuntimeError("No se pudo decodificar la imagen (HEIC). Convierte a JPG/PNG e inténtalo de nuevo.") from exc
