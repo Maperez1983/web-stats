@@ -10546,21 +10546,45 @@ def _player_dashboard_cache_key(team_id):
     return f'{PLAYER_DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
 
 
+def _player_dashboard_cache_key_scoped(team_id, season_id=None):
+    """
+    Cache key para `compute_player_dashboard()`.
+
+    Incluimos season_id para evitar mezclar temporadas cuando un equipo reutiliza el mismo `Team.id`
+    (ej. cierre de temporada / nueva temporada con la misma base).
+    """
+    base = _player_dashboard_cache_key(team_id)
+    if season_id:
+        return f'{base}:s{int(season_id)}'
+    return base
+
+
 def _invalidate_team_dashboard_caches(primary_team):
     if not primary_team or not getattr(primary_team, 'id', None):
         return
     # `compute_player_dashboard()` cachea por scope (liga/torneo/amistoso/all) añadiendo sufijo.
     # Si no invalidamos esas claves, las estadísticas del equipo se quedan "pegadas" tras registrar acciones.
-    base_player_key = _player_dashboard_cache_key(primary_team.id)
-    scoped_player_keys = [
-        f'{base_player_key}:{Match.CONTEXT_LEAGUE}',
-        f'{base_player_key}:{Match.CONTEXT_TOURNAMENT}',
-        f'{base_player_key}:{Match.CONTEXT_FRIENDLY}',
-        f'{base_player_key}:all',
-    ]
+    base_player_key_legacy = _player_dashboard_cache_key(primary_team.id)
+    season_id = None
+    try:
+        season_id = int(getattr(getattr(primary_team, 'group', None), 'season_id', 0) or 0) or None
+    except Exception:
+        season_id = None
+    base_player_key = _player_dashboard_cache_key_scoped(primary_team.id, season_id=season_id)
+    scoped_player_keys = []
+    for base in {base_player_key_legacy, base_player_key}:
+        scoped_player_keys.extend(
+            [
+                f'{base}:{Match.CONTEXT_LEAGUE}',
+                f'{base}:{Match.CONTEXT_TOURNAMENT}',
+                f'{base}:{Match.CONTEXT_FRIENDLY}',
+                f'{base}:all',
+            ]
+        )
     cache.delete_many(
         [
             _dashboard_cache_key(primary_team.id),
+            base_player_key_legacy,
             base_player_key,
             *scoped_player_keys,
             _team_metrics_cache_key(primary_team.id),
@@ -59724,7 +59748,13 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     tournament_filter = _normalize_tournament_filter(tournament_name) if scope_value == Match.CONTEXT_TOURNAMENT else ''
     # Cuando filtramos por torneo concreto, evitamos cachear: invalidar por nombre es costoso y
     # preferimos consistencia inmediata al navegar/generar PDFs.
-    cache_key = f'{_player_dashboard_cache_key(primary_team.id)}:{scope_value}'
+    season_id = None
+    try:
+        season_id = int(getattr(getattr(primary_team, 'group', None), 'season_id', 0) or 0) or None
+    except Exception:
+        season_id = None
+    cache_key_base = _player_dashboard_cache_key_scoped(primary_team.id, season_id=season_id)
+    cache_key = f'{cache_key_base}:{scope_value}'
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)
@@ -59780,6 +59810,13 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     player_stats = {}
     competition_total_rounds = get_competition_total_rounds(primary_team)
     match_regulation_minutes = _regulation_minutes_for_team(primary_team)
+    # Scope por temporada: por defecto el dashboard representa la temporada activa del equipo.
+    # Sin este filtro, en DB con varias temporadas el volumen de eventos/stats crece mucho y la página se vuelve lenta.
+    season_obj = None
+    try:
+        season_obj = primary_team.group.season if primary_team.group else None
+    except Exception:
+        season_obj = None
     roster_players = list(Player.objects.filter(team=primary_team))
     player_by_id = {player.id: player for player in roster_players}
     active_injury_ids = get_active_injury_player_ids([player.id for player in roster_players])
@@ -59943,6 +59980,8 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             | ~Q(system='touch-field')
         )
     )
+    if season_obj:
+        stats_events = stats_events.filter(match__season=season_obj)
     if scope_value != 'all':
         if scope_value == Match.CONTEXT_LEAGUE:
             stats_events = stats_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
@@ -60774,9 +60813,11 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
 
     # Ensure imported matches tied to PlayerStatistic are visible in player panels
     # even when no MatchEvent was captured for those fixtures.
+    player_stat_matches_qs = PlayerStatistic.objects.filter(player__team=primary_team, match__isnull=False)
+    if season_obj:
+        player_stat_matches_qs = player_stat_matches_qs.filter(season=season_obj)
     player_stat_matches = (
-        PlayerStatistic.objects
-        .filter(player__team=primary_team, match__isnull=False)
+        player_stat_matches_qs
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
         .values(
             'player_id',
@@ -60947,14 +60988,15 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
 
     # Overrides manuales por partido (minutos/goles/asistencias). Importante en cantera/cambios ilimitados.
     try:
-        manual_match_rows = (
-            PlayerStatistic.objects.filter(
-                player__team=primary_team,
-                match__isnull=False,
-                context='manual-match',
-                name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
-            ).values('player_id', 'match_id', 'name', 'value')
+        manual_match_qs = PlayerStatistic.objects.filter(
+            player__team=primary_team,
+            match__isnull=False,
+            context='manual-match',
+            name__in=['manual_minutes', 'manual_goals', 'manual_assists'],
         )
+        if season_obj:
+            manual_match_qs = manual_match_qs.filter(season=season_obj)
+        manual_match_rows = manual_match_qs.values('player_id', 'match_id', 'name', 'value')
         manual_by_player_match = {}
         # "Modo ficha de partido": si un partido tiene ALGÚN override manual (min/g/a) guardado,
         # interpretamos que la ficha de partido está siendo usada y que "Auto" (sin fila)
