@@ -562,7 +562,7 @@
                 {% if matchday_minutes_chart %}
                   <table class="spark-table">
                     <tr>
-                      {% for item in matchday_minutes_chart %}
+                    {% for item in matchday_minutes_chart|slice:"-12:" %}
                         <td>
                           <div class="spark-wrap">
                             <div class="spark-stack">
@@ -586,7 +586,7 @@
                 {% if matchday_ga_chart %}
                   <table class="spark-table">
                     <tr>
-                      {% for item in matchday_ga_chart %}
+                    {% for item in matchday_ga_chart|slice:"-12:" %}
                         <td>
                           <div class="spark-wrap">
                             <div class="spark-stack">
