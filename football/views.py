@@ -11536,9 +11536,24 @@ def dashboard_data(request):
         'yes',
         'on',
     }
-    competition_payload = _competition_payload_for_team(workspace, primary_team, allow_auto_sync=dashboard_allow_auto_sync)
-    context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace else None
-    provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    competition_payload = {'standings': [], 'next_match': {}}
+    context = None
+    provider_key = ''
+    try:
+        competition_payload = _competition_payload_for_team(
+            workspace,
+            primary_team,
+            allow_auto_sync=dashboard_allow_auto_sync,
+        ) or {'standings': [], 'next_match': {}}
+        context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team) if workspace else None
+        provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
+    except Exception:
+        # Fail-open: en producción (Render) hemos visto casos donde el contexto competitivo/snapshot
+        # puede lanzar (datos incompletos, migraciones, locks). No devolvemos 500 para no romper la home.
+        logger.exception('dashboard_data: fallo al cargar contexto competitivo (workspace/team)')
+        competition_payload = {'standings': [], 'next_match': {}}
+        context = None
+        provider_key = ''
     # Debug opcional (solo admin): ayuda a detectar mezclas de contexto (Senior vs Prebenjamín).
     debug_payload = None
     try:
@@ -11556,14 +11571,29 @@ def dashboard_data(request):
     except Exception:
         debug_payload = None
     standings_group = _latest_standings_group_for_team(primary_team) or primary_team.group
-    standings_last_updated = _team_standings_last_updated(standings_group)
-    standings = _enrich_standings_rows_with_crests(competition_payload.get('standings') or [])
-    next_match = _enrich_next_match_payload_with_crests(competition_payload.get('next_match') or {}, standings) or {}
+    try:
+        standings_last_updated = _team_standings_last_updated(standings_group)
+    except Exception:
+        standings_last_updated = ''
+    try:
+        standings = _enrich_standings_rows_with_crests((competition_payload or {}).get('standings') or [])
+    except Exception:
+        logger.exception('dashboard_data: no se pudo enriquecer standings')
+        standings = []
+    try:
+        next_match = _enrich_next_match_payload_with_crests((competition_payload or {}).get('next_match') or {}, standings) or {}
+    except Exception:
+        logger.exception('dashboard_data: no se pudo enriquecer next_match')
+        next_match = {}
     if not next_match:
-        next_match = _enrich_next_match_payload_with_crests(
-            load_preferred_next_match_payload(primary_team=primary_team) or get_next_match(primary_team, group, allow_external_fetch=False),
-            standings,
-        )
+        try:
+            next_match = _enrich_next_match_payload_with_crests(
+                load_preferred_next_match_payload(primary_team=primary_team)
+                or get_next_match(primary_team, group, allow_external_fetch=False),
+                standings,
+            )
+        except Exception:
+            next_match = {}
     # Si detectamos un próximo partido fiable, lo persistimos como Match para que nunca dependa de
     # ficheros locales ni de providers externos (Render / múltiples instancias).
     if _next_match_payload_is_reliable(next_match):
@@ -11607,9 +11637,21 @@ def dashboard_data(request):
     # Evitar mostrar el "último partido" como si fuera el próximo rival.
     if not _next_match_payload_is_reliable(next_match):
         next_match = None
-    team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
-    player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
-    player_cards = compute_player_cards(primary_team)
+    try:
+        team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
+    except Exception:
+        logger.exception('dashboard_data: compute_team_metrics falló')
+        team_metrics = {'total_events': 0, 'top_event_types': [], 'top_results': []}
+    try:
+        player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
+    except Exception:
+        logger.exception('dashboard_data: compute_player_metrics falló')
+        player_metrics = []
+    try:
+        player_cards = compute_player_cards(primary_team)
+    except Exception:
+        logger.exception('dashboard_data: compute_player_cards falló')
+        player_cards = []
     player_cards_scope = {'type': 'global', 'label': 'Jugador · datos La Preferente'}
     competition_name = ''
     season_name = ''
