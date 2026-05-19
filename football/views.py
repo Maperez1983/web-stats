@@ -10220,6 +10220,58 @@ def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_ite
         except Exception:
             teams_by_code = {}
 
+    # Rendimiento: resuelve equipos por nombre/slug en memoria (grupo actual) y carga snapshots en bulk.
+    team_lookup_by_key = {}
+    try:
+        candidate_qs = Team.objects.all()
+        if getattr(primary_team, 'group_id', None):
+            candidate_qs = candidate_qs.filter(group_id=primary_team.group_id)
+        elif code_rows:
+            candidate_qs = candidate_qs.filter(external_id__in=code_rows)
+        candidate_teams = list(candidate_qs.only('id', 'name', 'short_name', 'slug', 'crest_url', 'external_id', 'group_id'))
+        for t in candidate_teams:
+            keys = {
+                _normalize_team_lookup_key(getattr(t, 'external_id', '') or ''),
+                _normalize_team_lookup_key(getattr(t, 'name', '') or ''),
+                _normalize_team_lookup_key(getattr(t, 'short_name', '') or ''),
+                _normalize_team_lookup_key(getattr(t, 'slug', '') or ''),
+            }
+            for k in {k for k in keys if k}:
+                team_lookup_by_key.setdefault(k, t)
+    except Exception:
+        team_lookup_by_key = {}
+
+    snapshots_by_team_id = {}
+    try:
+        candidate_team_ids = {
+            int(getattr(t, 'id', 0) or 0)
+            for t in teams_by_code.values()
+            if getattr(t, 'id', None)
+        }
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            full_name = str(row.get('full_name') or row.get('team') or '').strip()
+            if not full_name:
+                continue
+            key = _normalize_team_lookup_key(full_name)
+            t = team_lookup_by_key.get(key) or team_lookup_by_key.get(_normalize_team_lookup_key(slugify(full_name)))
+            if t and getattr(t, 'id', None):
+                candidate_team_ids.add(int(t.id))
+        candidate_team_ids = {tid for tid in candidate_team_ids if tid > 0}
+        if candidate_team_ids:
+            snapshot_rows = list(
+                TeamRosterSnapshot.objects
+                .filter(team_id__in=candidate_team_ids)
+                .order_by('team_id', '-updated_at', '-id')
+            )
+            for snap in snapshot_rows:
+                tid = int(getattr(snap, 'team_id', 0) or 0)
+                if tid and tid not in snapshots_by_team_id:
+                    snapshots_by_team_id[tid] = snap
+    except Exception:
+        snapshots_by_team_id = {}
+
     items = []
     for row in rows:
         if not isinstance(row, dict):
@@ -10232,25 +10284,12 @@ def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_ite
         team_code = str(row.get('team_code') or '').strip()
         team_obj = teams_by_code.get(team_code) if team_code else None
         if not team_obj:
-            try:
-                team_obj = Team.objects.filter(
-                    Q(name__iexact=full_name)
-                    | Q(short_name__iexact=full_name)
-                    | Q(slug__iexact=slugify(full_name))
-                ).first()
-            except Exception:
-                team_obj = None
-        snapshot = None
-        if team_obj:
-            try:
-                snapshot = (
-                    TeamRosterSnapshot.objects
-                    .filter(team=team_obj)
-                    .order_by('-updated_at', '-id')
-                    .first()
-                )
-            except Exception:
-                snapshot = None
+            key = _normalize_team_lookup_key(full_name)
+            team_obj = (
+                team_lookup_by_key.get(key)
+                or team_lookup_by_key.get(_normalize_team_lookup_key(slugify(full_name)))
+            )
+        snapshot = snapshots_by_team_id.get(int(getattr(team_obj, 'id', 0) or 0)) if team_obj else None
         snap_payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
         snap_count = len(snap_payload) if snap_payload else 0
         snap_ok = bool(snapshot and snapshot.updated_at and snapshot.updated_at >= threshold and snap_count > 0 and not (snapshot.error or '').strip())

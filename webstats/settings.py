@@ -232,6 +232,13 @@ if not DEBUG:
             MIDDLEWARE.insert(1, 'django.middleware.gzip.GZipMiddleware')
     except Exception:
         pass
+    # Observabilidad mínima en producción: log de requests muy lentas sin necesidad de tocar env vars.
+    # Solo se activa para umbrales altos para evitar ruido.
+    try:
+        if not str(os.getenv('PERF_SLOW_REQUEST_MS') or '').strip():
+            os.environ.setdefault('PERF_SLOW_REQUEST_MS', '2500')
+    except Exception:
+        pass
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 X_FRAME_OPTIONS = 'DENY'
@@ -595,10 +602,17 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'console_perf': {
+            'level': 'WARNING',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'django': {'handlers': ['file'], 'level': 'ERROR', 'propagate': True},
         'django.request': {'handlers': ['file'], 'level': 'ERROR', 'propagate': True},
+        # Performance diagnostics (SlowRequestLoggingMiddleware / ServerTimingMiddleware)
+        'webstats.perf': {'handlers': ['console_perf'], 'level': 'WARNING', 'propagate': False},
     },
 }
 
