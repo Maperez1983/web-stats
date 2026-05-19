@@ -1218,9 +1218,9 @@
 				      'task-scenarios-popover',
 				    ];
 					    let __backdropRaf = 0;
-					    const __syncBackdropNow = () => {
-					      const backdrop = document.getElementById('tpad-overlay-backdrop');
-					      if (!backdrop) return;
+						    const __syncBackdropNow = () => {
+						      const backdrop = document.getElementById('tpad-overlay-backdrop');
+						      if (!backdrop) return;
 					      const isVisible = (el) => {
 					        if (!el) return false;
 					        try { if (el.hidden) return false; } catch (e) { /* ignore */ }
@@ -1241,17 +1241,21 @@
 					          return !!(el && el.tagName === 'DETAILS' && el.open);
 					        });
 					      } catch (e) { /* ignore */ }
-					      if (!anyOpen) {
-					        try {
-					          anyOpen = __overlayFloatingIds.some((id) => {
-					            const el = document.getElementById(id);
-					            return !!(el && isVisible(el));
-					          });
-					        } catch (e) { /* ignore */ }
-					      }
-					      backdrop.hidden = !anyOpen;
-					      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
-					    };
+						      if (!anyOpen) {
+						        try {
+						          anyOpen = __overlayFloatingIds.some((id) => {
+						            const el = document.getElementById(id);
+						            return !!(el && isVisible(el));
+						          });
+						        } catch (e) { /* ignore */ }
+						      }
+						      backdrop.hidden = !anyOpen;
+						      // Failsafe: si por CSS/stacking context el atributo [hidden] no oculta del todo,
+						      // evitamos que el backdrop “coma” clics cuando no hay overlays abiertos.
+						      try { backdrop.style.pointerEvents = anyOpen ? 'auto' : 'none'; } catch (e) { /* ignore */ }
+						      try { backdrop.style.opacity = anyOpen ? '' : '0'; } catch (e) { /* ignore */ }
+						      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
+						    };
 				    const __scheduleBackdropSync = () => {
 				      try { if (__backdropRaf) cancelAnimationFrame(__backdropRaf); } catch (e) { /* ignore */ }
 				      try { __backdropRaf = requestAnimationFrame(() => { __backdropRaf = 0; __syncBackdropNow(); }); } catch (e) { __backdropRaf = 0; }
@@ -10154,17 +10158,20 @@
 				      return data;
 				    };
 
-				    const saveCurrentTacticSnapshotToPlaybook = async () => {
-				      if (!isTacticsMode) return;
-				      if (!playbookSaveUrl) {
-				        setStatus('Playbook no disponible.', true);
-				        return;
-				      }
-				      // Si hay un clip de Playbook cargado que es claramente una "táctica estática" (1 paso),
-				      // actualízalo en sitio sin pedir nombre/carpeta de nuevo.
-				      const canUpdateActive = (() => {
-				        try {
-				          const steps = playbookActiveClip?.steps;
+					    const saveCurrentTacticSnapshotToPlaybook = async () => {
+					      if (!isTacticsMode) return;
+					      if (!playbookSaveUrl) {
+					        setStatus('Playbook no disponible.', true);
+					        return;
+					      }
+					      // Guardar puede disparar resizes/estados transitorios del DOM; capturamos la meta del campo
+					      // para restaurarla al final y evitar la sensación de que “cambia la superficie”.
+					      const metaBefore = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
+					      // Si hay un clip de Playbook cargado que es claramente una "táctica estática" (1 paso),
+					      // actualízalo en sitio sin pedir nombre/carpeta de nuevo.
+					      const canUpdateActive = (() => {
+					        try {
+					          const steps = playbookActiveClip?.steps;
 				          if (!Array.isArray(steps) || steps.length !== 1) return false;
 				          const id = Number(playbookActiveClip?.id) || 0;
 				          if (!id) return false;
@@ -10245,12 +10252,13 @@
 				        } catch (e) { /* ignore */ }
 				        renderClipsLibrary();
 				        setStatus(canUpdateActive ? 'Táctica actualizada en Playbook.' : 'Táctica guardada en Playbook (equipo).');
-				      } catch (e) {
-				        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
-				      } finally {
-				        __blockResizesFor(2500);
-				      }
-				    };
+					      } catch (e) {
+					        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
+					      } finally {
+					        __blockResizesFor(2500);
+					        try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
+					      }
+					    };
 
 				    const openSimulatorForClipSave = () => {
 				      if (!isTacticsMode) return;
@@ -21392,13 +21400,14 @@
 				        folder = safeText(modal.folder).slice(0, 80);
 				        const tagsRaw = safeText(modal.tagsRaw).slice(0, 200);
 					        tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
-					      }
-					      // Guardar clip puede refrescar Playbook y re-renderizar paneles: protege contra resizes.
-					      __blockResizesFor(8000);
-					      let steps = [];
-					      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
-					      const dest = safeText(simClipDestSelect?.value, 'local');
-					      if (dest !== 'local') {
+						      }
+						      // Guardar clip puede refrescar Playbook y re-renderizar paneles: protege contra resizes.
+						      __blockResizesFor(8000);
+						      const metaBefore = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
+						      let steps = [];
+						      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+						      const dest = safeText(simClipDestSelect?.value, 'local');
+						      if (dest !== 'local') {
 					        const scope = dest === 'system' ? 'system' : 'team';
 					        (async () => {
 					          __blockResizesFor(8000);
@@ -21419,14 +21428,15 @@
 				            } catch (e) { /* ignore */ }
 					            renderClipsLibrary();
 					            setStatus(canUpdateActive ? 'Clip actualizado en Playbook.' : `Clip guardado en Playbook (${scope === 'system' ? 'sistema' : 'equipo'}).`);
-					          } catch (e) {
-					            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
-					          } finally {
-					            __blockResizesFor(2500);
-					          }
-					        })();
-					        return;
-					      }
+						          } catch (e) {
+						            setStatus(e?.message || 'No se pudo guardar en Playbook.', true);
+						          } finally {
+						            __blockResizesFor(2500);
+						            try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
+						          }
+						        })();
+						        return;
+						      }
 				      let pro = null;
 				      try {
 				        const hasTracks = simulationProTracks && typeof simulationProTracks === 'object' && Object.keys(simulationProTracks).length >= 1;
@@ -21443,11 +21453,12 @@
 				      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps, pro };
 				      const prev = readClipsLibrary();
 				      const next = [clip, ...prev].slice(0, 40);
-				      writeClipsLibrary(next);
-				      renderClipsLibrary();
-				      setStatus('Clip guardado (local).');
-				      __blockResizesFor(2500);
-				    });
+						      writeClipsLibrary(next);
+						      renderClipsLibrary();
+						      setStatus('Clip guardado (local).');
+						      __blockResizesFor(2500);
+						      try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
+					    });
 				    simClipImportBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      if (!isSimulating) return;
