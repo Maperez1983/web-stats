@@ -9356,6 +9356,16 @@
 				    const playbookFilters = { q: '', folder: '', tag: '', favorites: false, latest: true, version_group: '' };
 				    let playbookFilterTimer = null;
 
+				    const playbookFolderSuggestionsText = (limit = 18) => {
+				      try {
+				        const folders = Array.from(new Set((playbookClips || []).map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, Math.max(1, Number(limit) || 18));
+				        if (!folders.length) return '';
+				        return `\\n\\nCarpetas existentes:\\n${folders.map((f) => `- ${f}`).join('\\n')}`;
+				      } catch (e) {
+				        return '';
+				      }
+				    };
+
 					    const TACTICAL_TEMPLATES = [
 					      // ABP (acciones a balón parado)
 					      {
@@ -9895,7 +9905,7 @@
 				      if (!name) return;
 				      const folder = canUpdateActive
 				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
-				        : safeText(window.prompt('Carpeta (opcional)', 'Tácticas')).slice(0, 80);
+				        : safeText(window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, 'Tácticas')).slice(0, 80);
 				      const tags = (() => {
 				        if (canUpdateActive) {
 				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
@@ -20994,7 +21004,9 @@
 				      })();
 				      const name = canUpdateActive ? safeText(playbookActiveClip?.name, defaultName) : safeText(window.prompt('Nombre del clip', defaultName));
 				      if (!name) return;
-				      const folder = canUpdateActive ? safeText(playbookActiveClip?.folder, '').slice(0, 80) : safeText(window.prompt('Carpeta (opcional)', '')).slice(0, 80);
+				      const folder = canUpdateActive
+				        ? safeText(playbookActiveClip?.folder, '').slice(0, 80)
+				        : safeText(window.prompt(`Carpeta (opcional)${playbookFolderSuggestionsText()}`, '')).slice(0, 80);
 				      const tags = (() => {
 				        if (canUpdateActive) {
 				          const raw = Array.isArray(playbookActiveClip?.tags) ? playbookActiveClip.tags : [];
