@@ -1477,6 +1477,12 @@
       <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador">
         <button class="workspace-tab is-active" type="button" data-tab-target="summary">Generales</button>
         <button class="workspace-tab" type="button" data-tab-target="player">Individuales</button>
+        <a
+          class="workspace-tab"
+          role="tab"
+          href="{% url 'coach-matches' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
+          title="Editar partidos, borrar duplicados y completar datos manuales"
+        >Partidos</a>
       </div>
 
       <section class="workspace-panel is-active" data-tab-panel="summary">
