@@ -4713,7 +4713,7 @@
 
 		      let count = clamp(Number.parseInt(String(options?.count ?? ''), 10) || 0, 0, 25);
 		      if (!count) {
-		        const countRaw = window.prompt('¿Cuántas copias quieres añadir?', '4');
+		        const countRaw = __safePrompt('¿Cuántas copias quieres añadir?', '4');
 		        if (countRaw === null) return;
 		        count = clamp(Number.parseInt(String(countRaw), 10) || 0, 1, 25);
 		      }
@@ -4724,7 +4724,7 @@
 
 		      let spacing = clamp(Number.parseInt(String(options?.spacing ?? ''), 10) || 0, 0, 400);
 		      if (!spacing) {
-		        const spacingRaw = window.prompt('Separación (px) entre copias:', String(defaultSpacing));
+		        const spacingRaw = __safePrompt('Separación (px) entre copias:', String(defaultSpacing));
 		        if (spacingRaw === null) return;
 		        spacing = clamp(Number.parseInt(String(spacingRaw), 10) || 0, 8, 400);
 		      }
@@ -7652,7 +7652,7 @@
 						          temp = rect;
 						          c.add(rect);
 						        } else if (tool === 'text') {
-						          const text = window.prompt('Texto:', ''); // eslint-disable-line no-alert
+						          const text = __safePrompt('Texto:', ''); // eslint-disable-line no-alert
 						          if (text == null) { start = null; return; }
 						          const txt = new window.fabric.Textbox(safeText(text), { left: start.x, top: start.y, originX: 'left', originY: 'top', fill: strokeColor(), fontSize: 34, fontWeight: 900 });
 						          txt.data = { kind: 'video-text', vs_layer_id: layerId, vs_base_opacity: 1 };
@@ -7833,7 +7833,7 @@
 					        void loadVideoStudioHistory(videoStudioHistoryIndex - 1);
 					      });
 					      videoClearDrawBtn?.addEventListener('click', () => {
-					        const ok = window.confirm('¿Limpiar todos los dibujos?'); // eslint-disable-line no-alert
+					        const ok = __safeConfirm('¿Limpiar todos los dibujos?'); // eslint-disable-line no-alert
 					        if (!ok) return;
 					        clearVideoStudioCanvas();
 					      });
@@ -7845,11 +7845,11 @@
 						        const fmt = safeText(videoExportFormatSelect.value, 'auto');
 						        const picked = pickVideoStudioMime(fmt);
 						        if (fmt === 'mp4' && !picked) {
-						          window.alert('MP4 no está disponible en este navegador. Se exportará en WebM si es posible.'); // eslint-disable-line no-alert
+						          __safeAlert('MP4 no está disponible en este navegador. Se exportará en WebM si es posible.'); // eslint-disable-line no-alert
 						        }
 						      });
 					      videoClearBtn?.addEventListener('click', () => {
-					        const ok = window.confirm('¿Quitar el vídeo? (Los keyframes se mantienen.)'); // eslint-disable-line no-alert
+					        const ok = __safeConfirm('¿Quitar el vídeo? (Los keyframes se mantienen.)'); // eslint-disable-line no-alert
 					        if (!ok) return;
 					        revokeVideoStudioUrl();
 					        if (videoStudioPlayer) {
@@ -7926,7 +7926,7 @@
 						        if (!videoStudioPlayer || !videoStudioCanvas) return;
 						        const objs = gatherActiveVideoStudioObjects();
 						        if (!objs.length) {
-						          window.alert('Selecciona un objeto/dibujo primero.'); // eslint-disable-line no-alert
+						          __safeAlert('Selecciona un objeto/dibujo primero.'); // eslint-disable-line no-alert
 						          return;
 						        }
 						        const now = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
@@ -8015,7 +8015,7 @@
 						      videoLayerDeleteBtn?.addEventListener('click', () => {
 						        const layer = activeVideoLayer();
 						        if (!layer || !videoStudioCanvas) return;
-						        const ok = window.confirm('¿Borrar la capa y sus elementos?'); // eslint-disable-line no-alert
+						        const ok = __safeConfirm('¿Borrar la capa y sus elementos?'); // eslint-disable-line no-alert
 						        if (!ok) return;
 						        const id = safeText(layer.id);
 						        // Elimina objetos ligados a la capa.
@@ -8120,7 +8120,7 @@
 						        try { json = videoStudioCanvas.toDatalessJSON(['data']); } catch (e) { json = null; }
 					        if (!json) return;
 					        const t = Math.max(0, Number(videoStudioPlayer.currentTime) || 0);
-					        const title = window.prompt('Nombre (opcional):', ''); // eslint-disable-line no-alert
+					        const title = __safePrompt('Nombre (opcional):', ''); // eslint-disable-line no-alert
 					        const kf = {
 					          id: `kf_${Date.now()}_${Math.random().toString(16).slice(2)}`,
 					          t,
@@ -8136,7 +8136,7 @@
 					      });
 
 					      videoKeyframeDeleteAllBtn?.addEventListener('click', () => {
-					        const ok = window.confirm('¿Borrar TODOS los keyframes guardados?'); // eslint-disable-line no-alert
+					        const ok = __safeConfirm('¿Borrar TODOS los keyframes guardados?'); // eslint-disable-line no-alert
 					        if (!ok) return;
 					        videoStudioKeyframes = [];
 					        videoStudioActiveKeyframe = -1;
@@ -8169,7 +8169,7 @@
 					          return;
 					        }
 					        if (target?.hasAttribute?.('data-video-kf-del')) {
-					          const ok = window.confirm('¿Borrar este keyframe?'); // eslint-disable-line no-alert
+					          const ok = __safeConfirm('¿Borrar este keyframe?'); // eslint-disable-line no-alert
 					          if (!ok) return;
 					          videoStudioKeyframes.splice(idx, 1);
 					          videoStudioKeyframes.sort((a, b) => (a.t - b.t));
@@ -8472,7 +8472,7 @@
 						        if (!(dur > 0)) return;
 						        const times = collectVideoStudioSlideTimes();
 						        if (!times.length) {
-						          window.alert('No hay tiempos para slides. Crea keyframes o capas.'); // eslint-disable-line no-alert
+						          __safeAlert('No hay tiempos para slides. Crea keyframes o capas.'); // eslint-disable-line no-alert
 						          return;
 						        }
 						        const prevPaused = !!videoStudioPlayer.paused;
@@ -8512,7 +8512,7 @@
 						        }
 						        const w = window.open('', '_blank');
 						        if (!w) {
-						          window.alert('Tu navegador ha bloqueado la ventana. Permite popups para imprimir el PDF.'); // eslint-disable-line no-alert
+						          __safeAlert('Tu navegador ha bloqueado la ventana. Permite popups para imprimir el PDF.'); // eslint-disable-line no-alert
 						          return;
 						        }
 						        w.document.open();
@@ -8527,7 +8527,7 @@
 						        if (!videoStudioPlayer || !videoStudioCanvas) return;
 						        if (videoStudioExporting) return;
 						        if (!canRecordVideoStudio()) {
-						          window.alert('Tu navegador no soporta exportación de vídeo aquí.'); // eslint-disable-line no-alert
+						          __safeAlert('Tu navegador no soporta exportación de vídeo aquí.'); // eslint-disable-line no-alert
 					          return;
 					        }
 					        const dur = Number(videoStudioPlayer.duration) || 0;
@@ -9137,13 +9137,13 @@
 				    const startSimRecording = async () => {
 				      if (!isSimulating) return;
 				      if (!canRecord2d()) {
-				        window.alert('Tu navegador no soporta grabación aquí. Prueba en Chrome/desktop.');
+				        __safeAlert('Tu navegador no soporta grabación aquí. Prueba en Chrome/desktop.');
 				        return;
 				      }
 				      if (!simRecordBtn) return;
 				      const base = canvas?.lowerCanvasEl;
 					      if (!base) {
-					        window.alert('No se pudo iniciar la grabación.');
+					        __safeAlert('No se pudo iniciar la grabación.');
 					        return;
 					      }
 					      const sourceW = Math.max(1, Math.round(base.width || canvas.getWidth() || 1280));
@@ -9177,7 +9177,7 @@
 				      simRecordCanvas.height = h;
 				      simRecordCtx = simRecordCanvas.getContext('2d');
 				      if (!simRecordCtx) {
-				        window.alert('No se pudo iniciar la grabación.');
+				        __safeAlert('No se pudo iniciar la grabación.');
 				        simRecordCanvas = null;
 				        return;
 				      }
@@ -9190,7 +9190,7 @@
 				        simRecordStream = null;
 				      }
 				      if (!simRecordStream) {
-				        window.alert('No se pudo iniciar la captura de vídeo.');
+				        __safeAlert('No se pudo iniciar la captura de vídeo.');
 				        simRecordCanvas = null;
 				        simRecordCtx = null;
 				        simRecordBgImg = null;
@@ -9220,7 +9220,7 @@
 				        simRecordMedia = null;
 				      }
 				      if (!simRecordMedia) {
-				        window.alert('No se pudo crear el grabador de vídeo.');
+				        __safeAlert('No se pudo crear el grabador de vídeo.');
 				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
 				        simRecordStream = null;
 				        simRecordCanvas = null;
@@ -9251,7 +9251,7 @@
 
 						        if (analysisBoardVideoUploadUrl) {
 						          if (ext !== 'mp4') {
-						            window.alert('Tu navegador no puede grabar en MP4 (H.264). Para incrustar en PPTX usa Safari/Chrome que exporte MP4.');
+						            __safeAlert('Tu navegador no puede grabar en MP4 (H.264). Para incrustar en PPTX usa Safari/Chrome que exporte MP4.');
 						            simDownloadBlob(blob, `${title}-2d.${ext}`);
 						            cleanup();
 						            return;
@@ -9263,13 +9263,13 @@
 						            const res = await fetch(analysisBoardVideoUploadUrl, { method: 'POST', body: fd, headers: csrf ? { 'X-CSRFToken': csrf } : undefined, credentials: 'same-origin' });
 						            const data = res.ok ? await res.json().catch(() => null) : null;
 						            if (!res.ok || !data?.ok) {
-						              window.alert(String(data?.error || 'No se pudo subir el vídeo de la pizarra.'));
+						              __safeAlert(String(data?.error || 'No se pudo subir el vídeo de la pizarra.'));
 						              simDownloadBlob(blob, `${title}-2d.${ext}`);
 						            } else {
-						              window.alert('Vídeo de la pizarra guardado en el informe.');
+						              __safeAlert('Vídeo de la pizarra guardado en el informe.');
 						            }
 						          } catch (e) {
-						            window.alert('No se pudo subir el vídeo de la pizarra.');
+						            __safeAlert('No se pudo subir el vídeo de la pizarra.');
 						            simDownloadBlob(blob, `${title}-2d.${ext}`);
 						          }
 						          cleanup();
@@ -9326,7 +9326,7 @@
 					      };
 
 					      try { simRecordMedia.start(250); } catch (e) {
-					        window.alert('No se pudo iniciar la grabación.');
+					        __safeAlert('No se pudo iniciar la grabación.');
 				        try { simRecordStream?.getTracks?.().forEach((t) => t.stop()); } catch (err) { /* ignore */ }
 				        simRecordStream = null;
 				        simRecordMedia = null;
@@ -9376,6 +9376,15 @@
 				    const __withBlockingPrompt = (fn) => {
 				      try { __ignoreResizeUntilMs = Date.now() + 1200; } catch (e) { /* ignore */ }
 				      return fn();
+				    };
+				    const __safePrompt = (message, defaultValue) => __withBlockingPrompt(() => window.prompt(message, defaultValue));
+				    const __safeConfirm = (message) => {
+				      __blockResizesFor(2500);
+				      return window.confirm(message);
+				    };
+				    const __safeAlert = (message) => {
+				      __blockResizesFor(2500);
+				      try { window.alert(message); } catch (e) { /* ignore */ }
 				    };
 
 				    const __ensureMetaModalStyles = () => {
@@ -10002,9 +10011,9 @@
 				      });
 				      const data = await resp.json().catch(() => ({}));
 				      if (resp.status === 409 && safeText(data?.error) === 'exists') {
-				        const okOverwrite = window.confirm('Ya existe un clip con ese nombre en el Playbook. ¿Sobrescribir?');
+				        const okOverwrite = __safeConfirm('Ya existe un clip con ese nombre en el Playbook. ¿Sobrescribir?');
 				        if (okOverwrite) return await savePlaybookClip({ ...(payload || {}), overwrite: 1 });
-				        const okVersion = window.confirm('¿Guardar como nueva versión (v2/v3) sin sobrescribir?');
+				        const okVersion = __safeConfirm('¿Guardar como nueva versión (v2/v3) sin sobrescribir?');
 				        if (!okVersion) return { ok: false, canceled: true };
 				        return await savePlaybookClip({ ...(payload || {}), new_version: 1 });
 				      }
@@ -10178,9 +10187,9 @@
 				      });
 				      const data = await resp.json().catch(() => ({}));
 				      if (resp.status === 409 && safeText(data?.error) === 'exists') {
-				        const okOverwrite = window.confirm('Ya existe un clip con ese nombre en el equipo destino. ¿Sobrescribir?');
+				        const okOverwrite = __safeConfirm('Ya existe un clip con ese nombre en el equipo destino. ¿Sobrescribir?');
 				        if (okOverwrite) return await clonePlaybookClip(id, toTeamId, { overwrite: 1 });
-				        const okVersion = window.confirm('¿Clonar como nueva versión (v2/v3) sin sobrescribir?');
+				        const okVersion = __safeConfirm('¿Clonar como nueva versión (v2/v3) sin sobrescribir?');
 				        if (!okVersion) return { ok: false, canceled: true };
 				        return await clonePlaybookClip(id, toTeamId, { new_version: 1 });
 				      }
@@ -10453,7 +10462,7 @@
 				        if (!tpl) return;
 				        try {
 				          await applyTacticalTemplate(tpl, { durationSec: 6 });
-				          const name = safeText(window.prompt('Nombre del clip', safeText(tpl.title, 'Plantilla')));
+				          const name = safeText(__safePrompt('Nombre del clip', safeText(tpl.title, 'Plantilla')));
 				          if (!name) return;
 				          const payloadSteps = Array.isArray(simulationSteps) ? simulationSteps.slice() : [];
 				          if (!payloadSteps.length) {
@@ -10499,7 +10508,7 @@
 				        btn.addEventListener('click', () => {
 				          const idx = clamp(Number(btn.getAttribute('data-clip-delete') || 0), 0, Math.max(0, clips.length - 1));
 				          const name = safeText(clips[idx]?.name);
-				          const ok = window.confirm(`¿Borrar el clip “${name || 'sin nombre'}”?`);
+				          const ok = __safeConfirm(`¿Borrar el clip “${name || 'sin nombre'}”?`);
 				          if (!ok) return;
 				          const next = clips.slice();
 				          next.splice(idx, 1);
@@ -10541,7 +10550,7 @@
 				          const scope = safeText(btn.getAttribute('data-playbook-scope') || 'team');
 				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
 				          const name = safeText(clip?.name);
-				          const ok = window.confirm(`¿Borrar el clip del Playbook “${name || id}”?`);
+				          const ok = __safeConfirm(`¿Borrar el clip del Playbook “${name || id}”?`);
 				          if (!ok) return;
 				          try {
 				            await deletePlaybookClip(id, scope);
@@ -10586,7 +10595,7 @@
 				            const res = await createPlaybookShareLink(id);
 				            const url = safeText(res?.url);
 				            try { await navigator.clipboard?.writeText(url); } catch (e) { /* ignore */ }
-				            window.prompt('Enlace de solo lectura (copiado si es posible):', url);
+				            __safePrompt('Enlace de solo lectura (copiado si es posible):', url);
 				          } catch (e) {
 				            setStatus(e?.message || 'No se pudo crear enlace.', true);
 				          }
@@ -10600,7 +10609,7 @@
 				            const teams = await fetchPlaybookTeams({ force: false, silent: true });
 				            const list = (teams || []).map((t) => `${Number(t?.id) || ''}: ${safeText(t?.name)}`).filter(Boolean).join('\\n');
 				            const defId = Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
-				            const raw = window.prompt(`Clonar a equipo (id):\\n${list}`, defId ? String(defId) : '');
+				            const raw = __safePrompt(`Clonar a equipo (id):\\n${list}`, defId ? String(defId) : '');
 				            const toId = Number(raw || 0);
 				            if (!toId) return;
 				            const res = await clonePlaybookClip(id, toId, {});
@@ -10616,8 +10625,8 @@
 				          const id = Number(btn.getAttribute('data-playbook-edit') || 0);
 				          const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
 				          if (!clip) return;
-				          const folder = safeText(window.prompt('Carpeta (opcional)', safeText(clip?.folder))).slice(0, 80);
-				          const tagsRaw = safeText(window.prompt('Tags (coma separada)', (Array.isArray(clip?.tags) ? clip.tags.join(', ') : ''))).slice(0, 160);
+				          const folder = safeText(__safePrompt('Carpeta (opcional)', safeText(clip?.folder))).slice(0, 80);
+				          const tagsRaw = safeText(__safePrompt('Tags (coma separada)', (Array.isArray(clip?.tags) ? clip.tags.join(', ') : ''))).slice(0, 160);
 				          const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
 				          try {
 				            await savePlaybookClip({ scope: safeText(clip?.scope || 'team'), id, name: safeText(clip?.name).slice(0, 160), folder, tags, steps: clip?.steps || [] });
@@ -12688,7 +12697,7 @@
 
 			    simProKfClearBtn?.addEventListener('click', () => {
 			      if (!isSimulating || !simulationProEnabled) return;
-			      const ok = window.confirm('¿Borrar TODOS los keyframes (Timeline Pro)?');
+			      const ok = __safeConfirm('¿Borrar TODOS los keyframes (Timeline Pro)?');
 			      if (!ok) return;
 			      simulationProTracks = {};
 			      persistSimulationProToStorage();
@@ -12924,7 +12933,7 @@
 		        if (!obj) return;
 		        obj.data = obj.data || {};
 		        const current = safeText(obj.data.layer_name) || objectLabel(obj);
-		        const next = window.prompt('Nombre de capa:', current);
+		        const next = __safePrompt('Nombre de capa:', current);
 		        if (next === null) return;
 		        const cleaned = safeText(next).slice(0, 60);
 		        if (!cleaned) {
@@ -19113,7 +19122,7 @@
       }
       const willReplace = !!timeline.length;
       if (willReplace) {
-        const ok = window.confirm('Esto reemplazará los escenarios actuales. ¿Continuar?');
+        const ok = __safeConfirm('Esto reemplazará los escenarios actuales. ¿Continuar?');
         if (!ok) return;
       }
       persistActiveStepSnapshot();
@@ -21041,7 +21050,7 @@
 		      exportInFlight = true;
 			      stopSimulationPlayback();
 			      try {
-			        const password = window.prompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
+			        const password = __safePrompt('Contraseña (opcional, deja vacío si no quieres):', '') || '';
 			        const taskId = parseIntSafe(form?.dataset?.taskId) || 0;
 			        const scopeKey = safeText(form?.dataset?.scopeKey);
 			        const taskKind = scopeKey === 'task_studio' ? 'task_studio' : 'session';
@@ -21071,7 +21080,7 @@
 		        const data = await resp.json().catch(() => ({}));
 		        if (!resp.ok || !data?.url) throw new Error(data?.error || 'No se pudo crear el enlace.');
 		        try { await navigator.clipboard?.writeText(data.url); } catch (e) { /* ignore */ }
-		        window.prompt('Enlace público (copiado si el navegador lo permite):', data.url);
+			        __safePrompt('Enlace público (copiado si el navegador lo permite):', data.url);
 		        setStatus('Enlace de simulación generado.');
 		      } catch (error) {
 		        setStatus(error?.message || 'Error al crear enlace.', true);
@@ -21089,7 +21098,7 @@
 			      if (simulationPlaying) stopSimulationPlayback();
 			      const willReplace = !!timeline.length;
 			      if (willReplace) {
-			        const ok = window.confirm('Ya hay escenarios (multipizarra). ¿Quieres reemplazarlos por los pasos del simulador?');
+			        const ok = __safeConfirm('Ya hay escenarios (multipizarra). ¿Quieres reemplazarlos por los pasos del simulador?');
 			        if (!ok) return;
 			      }
 			      let stepsCopy = [];
@@ -21858,7 +21867,7 @@
 		      if (isSimulating) {
 		        event.preventDefault();
 		        setStatus('Modo simulación: sal del simulador para guardar la tarea.', true);
-		        try { window.alert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.'); } catch (error) { /* ignore */ }
+		        __safeAlert('Estás en modo simulación. Sal del simulador para poder guardar la tarea.');
 		        return;
 		      }
 				      event.preventDefault();
@@ -21897,7 +21906,7 @@
 			          if (!reachable) {
 			            try { persistDraftNow('submit-offline'); } catch (error) { /* ignore */ }
 			            setStatus('Sin conexión: borrador local guardado. Conecta y vuelve a guardar.', true);
-			            try { window.alert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.'); } catch (error) { /* ignore */ }
+			            __safeAlert('Sin conexión: se guardó un borrador local. Conecta a internet y vuelve a pulsar Guardar.');
 			            return;
 			          }
 			        }
@@ -21908,7 +21917,7 @@
 	          // Importante: NO forzamos navegación al login aquí porque en WKWebView pueden darse
 	          // falsos negativos (cookies no enviadas en fetch aunque el POST sí funcione).
 	          // Dejamos que el submit continúe; si realmente caducó, el servidor redirigirá.
-	          try { window.alert('No se pudo verificar la sesión. Se guardó un borrador local; si aparece login, vuelve y reintenta.'); } catch (error) { /* ignore */ }
+	          __safeAlert('No se pudo verificar la sesión. Se guardó un borrador local; si aparece login, vuelve y reintenta.');
 	        }
 	      }
 		      isSubmitting = true;
