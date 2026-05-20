@@ -1582,12 +1582,20 @@
 	        }
 	        setPresetActive(activePreset);
 
-	        const render = () => {
-	          const axes = buildAxes(activePreset);
-
-	          const cx = 180;
-	          const cy = 180;
-	          const R = 120;
+		        const render = () => {
+		          const axes = buildAxes(activePreset);
+              const isLightTheme = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'light';
+              const gridStroke = isLightTheme ? 'rgba(15,23,42,0.14)' : 'rgba(226,232,240,0.16)';
+              const axisStroke = isLightTheme ? 'rgba(15,23,42,0.14)' : 'rgba(226,232,240,0.18)';
+              const labelFill = isLightTheme ? 'rgba(15,23,42,0.78)' : 'rgba(226,232,240,0.86)';
+              const labelHalo = isLightTheme ? '' : 'rgba(2,6,23,0.75)';
+              const labelHaloWidth = isLightTheme ? '0' : '3.25';
+              const polygonStroke = isLightTheme ? 'rgba(15,23,42,0.22)' : 'rgba(226,232,240,0.22)';
+              const dotStroke = isLightTheme ? 'rgba(15,23,42,0.18)' : 'rgba(2,6,23,0.65)';
+	
+		          const cx = 180;
+		          const cy = 180;
+		          const R = 120;
 	          const labelR = 142;
 	        const rings = [0.25, 0.5, 0.75, 1];
 	        const angleFor = (i, n) => (-Math.PI / 2) + (i * 2 * Math.PI / n);
@@ -1597,17 +1605,17 @@
 	          clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
 
 	        // Grid rings
-	          rings.forEach((t) => {
-	          const rr = R * t;
-	          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+		          rings.forEach((t) => {
+		          const rr = R * t;
+		          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 	          c.setAttribute('cx', String(cx));
-	          c.setAttribute('cy', String(cy));
-	          c.setAttribute('r', String(rr));
-	          c.setAttribute('fill', 'none');
-	          c.setAttribute('stroke', 'rgba(15,23,42,0.14)');
-	          c.setAttribute('stroke-width', '1');
-	          gridG.appendChild(c);
-	        });
+		          c.setAttribute('cy', String(cy));
+		          c.setAttribute('r', String(rr));
+		          c.setAttribute('fill', 'none');
+		          c.setAttribute('stroke', gridStroke);
+		          c.setAttribute('stroke-width', '1');
+		          gridG.appendChild(c);
+		        });
 
 	        // Axis lines + labels
 	          axes.forEach((axis, i) => {
@@ -1617,19 +1625,25 @@
 	          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
 	          line.setAttribute('x1', String(p0.x));
 	          line.setAttribute('y1', String(p0.y));
-	          line.setAttribute('x2', String(p1.x));
-	          line.setAttribute('y2', String(p1.y));
-	          line.setAttribute('stroke', 'rgba(15,23,42,0.14)');
-	          line.setAttribute('stroke-width', '1');
-	          gridG.appendChild(line);
+		          line.setAttribute('x2', String(p1.x));
+		          line.setAttribute('y2', String(p1.y));
+		          line.setAttribute('stroke', axisStroke);
+		          line.setAttribute('stroke-width', '1');
+		          gridG.appendChild(line);
 
 	          const pl = point(a, labelR);
-	          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-	          text.setAttribute('x', String(pl.x));
-	          text.setAttribute('y', String(pl.y));
-	          text.setAttribute('fill', 'rgba(15,23,42,0.78)');
-	          text.setAttribute('font-size', '11');
-	          text.setAttribute('font-weight', '900');
+		          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+		          text.setAttribute('x', String(pl.x));
+		          text.setAttribute('y', String(pl.y));
+		          text.setAttribute('fill', labelFill);
+              if (labelHalo) {
+                text.setAttribute('stroke', labelHalo);
+                text.setAttribute('stroke-width', labelHaloWidth);
+                text.setAttribute('paint-order', 'stroke');
+                text.setAttribute('stroke-linejoin', 'round');
+              }
+		          text.setAttribute('font-size', '11');
+		          text.setAttribute('font-weight', '900');
 	          text.setAttribute('text-anchor', pl.x < cx - 10 ? 'end' : (pl.x > cx + 10 ? 'start' : 'middle'));
 	          text.setAttribute('dominant-baseline', pl.y < cy ? 'auto' : 'hanging');
 	          text.textContent = axis.key;
@@ -1642,24 +1656,24 @@
 	          const r = R * (clamp(num(axis.value), 0, 100) / 100);
 	          return point(a, r);
 	        });
-	        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-	        const d = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
-	        path.setAttribute('d', d);
-	        path.setAttribute('fill', 'url(#radarFill)');
-	        path.setAttribute('stroke', 'rgba(15,23,42,0.22)');
-	        path.setAttribute('stroke-width', '1.5');
-	        dataG.appendChild(path);
+		        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		        const d = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+		        path.setAttribute('d', d);
+		        path.setAttribute('fill', 'url(#radarFill)');
+		        path.setAttribute('stroke', polygonStroke);
+		        path.setAttribute('stroke-width', '1.5');
+		        dataG.appendChild(path);
 
 	          pts.forEach((p) => {
 	          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
 	          dot.setAttribute('cx', String(p.x));
-	          dot.setAttribute('cy', String(p.y));
-	          dot.setAttribute('r', '3.6');
-	          dot.setAttribute('fill', 'rgba(244,180,0,0.92)');
-	          dot.setAttribute('stroke', 'rgba(15,23,42,0.18)');
-	          dot.setAttribute('stroke-width', '1');
-	          dataG.appendChild(dot);
-	        });
+		          dot.setAttribute('cy', String(p.y));
+		          dot.setAttribute('r', '3.6');
+		          dot.setAttribute('fill', 'rgba(244,180,0,0.92)');
+		          dot.setAttribute('stroke', dotStroke);
+		          dot.setAttribute('stroke-width', '1');
+		          dataG.appendChild(dot);
+		        });
 
 	        // Legend list
 	          axes.forEach((axis) => {
