@@ -1074,29 +1074,23 @@
 	              {% endif %}
 	            </div>
 
-	            <div
-	              class="performance-radar"
-	              id="player-performance-radar"
-	              data-profile="{{ stats.profile|default:''|escapejs }}"
-	              data-pct-success="{{ player_percentiles.success_rate|default:0 }}"
-	              data-pct-duel="{{ player_percentiles.duel_rate|default:0 }}"
-	              data-pct-pass="{{ player_percentiles.passes_accuracy|default:0 }}"
-	              data-pct-shot="{{ player_percentiles.shots_accuracy|default:0 }}"
-	              data-pct-aerial="{{ player_percentiles.aerial_rate|default:0 }}"
-	              data-pct-impact="{{ player_percentiles.decisive_actions_per90|default:0 }}"
-	              data-pct-volume="{{ player_percentiles.total_actions|default:0 }}"
-	              data-success="{{ stats.success_rate|default:0 }}"
-	              data-duel="{{ stats.duel_rate|default:0 }}"
-	              data-pass="{{ stats.passes.accuracy|default:0 }}"
-	              data-shot="{{ stats.shots.accuracy|default:0 }}"
-	              data-aerial-won="{{ stats.aerial_duel_summary.won|default:0 }}"
-	              data-aerial-total="{{ stats.aerial_duel_summary.total|default:0 }}"
-	              data-actions="{{ stats.total_actions|default:0 }}"
-	              data-pj="{{ stats.pj|default:0 }}"
-	              data-goals="{{ stats.goals|default:0 }}"
-	              data-assists="{{ stats.assists|default:0 }}"
-	              data-saves="{{ stats.goalkeeper_saves|default:0 }}"
-	            >
+		            <div
+		              class="performance-radar"
+		              id="player-performance-radar"
+		              data-pct-commitment="{{ player_percentiles.commitment|default:0 }}"
+		              data-pct-effort="{{ player_percentiles.actions_per90|default:0 }}"
+		              data-pct-quality="{{ player_percentiles.success_rate|default:0 }}"
+		              data-pct-importance="{{ player_percentiles.importance_score|default:0 }}"
+		              data-pct-influence="{{ player_percentiles.influence_score|default:0 }}"
+		              data-participation="{{ stats.participation_matches_pct|default:stats.participation_pct }}"
+		              data-availability="{{ stats.availability_pct|default:0 }}"
+		              data-actions-per90="{{ stats.actions_per90|default:0 }}"
+		              data-total-actions="{{ stats.total_actions|default:0 }}"
+		              data-minutes="{{ stats.minutes|default:0 }}"
+		              data-success="{{ stats.success_rate|default:0 }}"
+		              data-importance="{{ stats.importance_score|default:0 }}"
+		              data-influence="{{ stats.influence_score|default:0 }}"
+		            >
 	              <div class="radar-grid">
 	                <div class="radar-figure" aria-label="Gráfico de araña (radar) de rendimiento">
 	                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" focusable="false">
@@ -1111,17 +1105,11 @@
 	                    <g id="radar-labels"></g>
 	                  </svg>
 	                </div>
-	                <div class="radar-legend">
-	                  <h4>Radar (normalizado)</h4>
-	                  <p>Escala 0–100. Mezcla porcentajes + volumen/impacto por partido para lectura rápida del staff.</p>
-	                  <div class="radar-preset" id="radar-preset">
-	                    <button type="button" data-preset="auto" class="is-active">Auto</button>
-	                    <button type="button" data-preset="ofensivo">Ofensivo</button>
-	                    <button type="button" data-preset="constructor">Constructor</button>
-	                    <button type="button" data-preset="defensivo">Defensivo</button>
-	                  </div>
-	                  <ul class="radar-axes" id="radar-axes-list"></ul>
-	                  <div class="radar-trends" id="radar-trends">
+		                <div class="radar-legend">
+		                  <h4>Radar (normalizado)</h4>
+		                  <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Compromiso, Esfuerzo, Calidad, Importancia e Influencia.</p>
+		                  <ul class="radar-axes" id="radar-axes-list"></ul>
+		                  <div class="radar-trends" id="radar-trends">
 	                    <div class="trend-card">
 	                      <strong>Acciones (últimos 6)</strong>
 	                      <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia acciones" role="img">
@@ -1491,99 +1479,34 @@
 	        const fmt = (n, suffix = '') => `${Math.round(n)}${suffix}`;
 	        const fmtPct = (n) => `${Math.round(n)}%`;
 
-	        const profile = String(root.dataset.profile || '').trim().toLowerCase();
-	        const pctSuccess = clamp(num(root.dataset.pctSuccess), 0, 100);
-	        const pctDuel = clamp(num(root.dataset.pctDuel), 0, 100);
-	        const pctPass = clamp(num(root.dataset.pctPass), 0, 100);
-	        const pctShot = clamp(num(root.dataset.pctShot), 0, 100);
-	        const pctAerial = clamp(num(root.dataset.pctAerial), 0, 100);
-	        const pctImpact = clamp(num(root.dataset.pctImpact), 0, 100);
-	        const pctVolume = clamp(num(root.dataset.pctVolume), 0, 100);
-	        const successRate = clamp(num(root.dataset.success), 0, 100);
-	        const duelRate = clamp(num(root.dataset.duel), 0, 100);
-	        const passAcc = clamp(num(root.dataset.pass), 0, 100);
-	        const shotAcc = clamp(num(root.dataset.shot), 0, 100);
-	        const aerialRate = clamp(pct(num(root.dataset.aerialWon), num(root.dataset.aerialTotal)), 0, 100);
+		        const pctCommitment = clamp(num(root.dataset.pctCommitment), 0, 100);
+		        const pctEffort = clamp(num(root.dataset.pctEffort), 0, 100);
+		        const pctQuality = clamp(num(root.dataset.pctQuality), 0, 100);
+		        const pctImportance = clamp(num(root.dataset.pctImportance), 0, 100);
+		        const pctInfluence = clamp(num(root.dataset.pctInfluence), 0, 100);
 
-	        const actions = Math.max(0, num(root.dataset.actions));
-	        const pj = Math.max(0, num(root.dataset.pj));
-	        const actionsPerMatch = pj > 0 ? (actions / pj) : actions;
-	        // Heurística: 60 acciones/partido ≈ 100 (ajustable sin romper datos históricos).
-	        const volumeScore = clamp((actionsPerMatch / 60) * 100, 0, 100);
+		        const participation = clamp(num(root.dataset.participation), 0, 100);
+		        const availability = clamp(num(root.dataset.availability), 0, 100);
+		        let actionsPer90 = Math.max(0, num(root.dataset.actionsPer90));
+		        if (!actionsPer90) {
+		          const totalActions = Math.max(0, num(root.dataset.totalActions));
+		          const minutes = Math.max(0, num(root.dataset.minutes));
+		          actionsPer90 = minutes > 0 ? Math.round(((totalActions / minutes) * 90) * 10) / 10 : 0;
+		        }
+		        const successRate = clamp(num(root.dataset.success), 0, 100);
+		        const importanceScore = clamp(num(root.dataset.importance), 0, 100);
+		        const influenceScore = clamp(num(root.dataset.influence), 0, 100);
 
-	        const goals = Math.max(0, num(root.dataset.goals));
-	        const assists = Math.max(0, num(root.dataset.assists));
-	        const contribPerMatch = pj > 0 ? ((goals + assists) / pj) : 0;
-	        // Heurística: 1 G+A por partido ≈ 100.
-	        const impactScore = clamp(contribPerMatch * 100, 0, 100);
+		        const mk = (key, value, display, pctRank) => ({ key, value, display, pctRank: clamp(num(pctRank), 0, 100) });
+		        const axes = [
+		          mk('Compromiso', pctCommitment, `PART ${Math.round(participation)}% · DISP ${Math.round(availability)}%`, pctCommitment),
+		          mk('Esfuerzo', pctEffort, `${Math.round(actionsPer90 * 10) / 10} A/90`, pctEffort),
+		          mk('Calidad', pctQuality, fmtPct(successRate), pctQuality),
+		          mk('Importancia', pctImportance, fmt(importanceScore), pctImportance),
+		          mk('Influencia', pctInfluence, fmt(influenceScore), pctInfluence),
+		        ];
 
-	        const saves = Math.max(0, num(root.dataset.saves));
-	        const savesPerMatch = pj > 0 ? (saves / pj) : saves;
-	        // Heurística: 8 paradas/partido ≈ 100.
-	        const savesScore = clamp((savesPerMatch / 8) * 100, 0, 100);
-
-	        const mk = (key, value, display, pctRank) => ({ key, value, display, pctRank: clamp(num(pctRank), 0, 100) });
-	        const axisValues = {
-	          exito: mk('Éxito', successRate, fmtPct(successRate), pctSuccess),
-	          duelos: mk('Duelos', duelRate, fmtPct(duelRate), pctDuel),
-	          aereo: mk('Aéreo', aerialRate, fmtPct(aerialRate), pctAerial),
-	          pase: mk('Pase', passAcc, fmtPct(passAcc), pctPass),
-	          tiro: mk('Tiro', shotAcc, fmtPct(shotAcc), pctShot),
-	          impacto: mk('Impacto', impactScore, pj ? `${Math.round((contribPerMatch) * 100) / 100} G+A/PJ` : `${goals + assists}`, pctImpact),
-	          volumen: mk('Volumen', volumeScore, pj ? `${Math.round(actionsPerMatch)}/PJ` : `${Math.round(actions)}`, pctVolume),
-	          paradas: mk('Paradas', savesScore, pj ? `${Math.round(savesPerMatch * 10) / 10}/PJ` : `${Math.round(saves)}`, pctImpact),
-	        };
-
-	        const buildAxes = (presetKey) => {
-	          const preset = String(presetKey || 'auto').trim().toLowerCase();
-	          if (profile === 'goalkeeper') {
-	            return [axisValues.exito, axisValues.paradas, axisValues.pase, axisValues.duelos, axisValues.aereo, axisValues.volumen];
-	          }
-	          if (preset === 'ofensivo') return [axisValues.impacto, axisValues.tiro, axisValues.exito, axisValues.pase, axisValues.duelos, axisValues.aereo];
-	          if (preset === 'constructor') return [axisValues.pase, axisValues.exito, axisValues.volumen, axisValues.duelos, axisValues.impacto, axisValues.tiro];
-	          if (preset === 'defensivo') return [axisValues.duelos, axisValues.aereo, axisValues.exito, axisValues.volumen, axisValues.pase, axisValues.impacto];
-	          // auto
-	          return [axisValues.exito, axisValues.duelos, axisValues.aereo, axisValues.pase, axisValues.tiro, axisValues.impacto];
-	        };
-
-	        const renderPresetButtons = () => {
-	          const wrap = document.getElementById('radar-preset');
-	          if (!wrap) return;
-	          if (profile === 'goalkeeper') {
-	            wrap.style.display = 'none';
-	          } else {
-	            wrap.style.display = '';
-	          }
-	        };
-	        renderPresetButtons();
-
-	        const keyStorage = 'player_radar_preset:v1';
-	        let activePreset = 'auto';
-	        try {
-	          const stored = window.localStorage.getItem(keyStorage);
-	          if (stored) activePreset = stored;
-	        } catch (e) {}
-	        const presetWrap = document.getElementById('radar-preset');
-	        const setPresetActive = (preset) => {
-	          activePreset = String(preset || 'auto').trim().toLowerCase();
-	          try { window.localStorage.setItem(keyStorage, activePreset); } catch (e) {}
-	          if (presetWrap) {
-	            Array.from(presetWrap.querySelectorAll('button[data-preset]')).forEach((b) => b.classList.toggle('is-active', b.getAttribute('data-preset') === activePreset));
-	          }
-	        };
-	        if (presetWrap) {
-	          presetWrap.addEventListener('click', (e) => {
-	            const btn = e.target && e.target.closest ? e.target.closest('button[data-preset]') : null;
-	            if (!btn) return;
-	            e.preventDefault();
-	            setPresetActive(btn.getAttribute('data-preset'));
-	            render();
-	          });
-	        }
-	        setPresetActive(activePreset);
-
-		        const render = () => {
-		          const axes = buildAxes(activePreset);
+			        const render = () => {
               const isLightTheme = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'light';
               const gridStroke = isLightTheme ? 'rgba(15,23,42,0.14)' : 'rgba(226,232,240,0.16)';
               const axisStroke = isLightTheme ? 'rgba(15,23,42,0.14)' : 'rgba(226,232,240,0.18)';
