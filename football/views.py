@@ -26436,6 +26436,22 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         pdf_text_heavy = False
         pdf_text_superheavy = False
         # En modo compacto respetamos la heurística anterior.
+    pdf_tokens = _build_task_pdf_tokens(request, tactical_layout)
+    if not pdf_tokens and task:
+        # Fallback: si no hay tokens legacy pero existe estado de pizarra (canvas_state),
+        # reconstruimos una vista mínima para que el PDF no quede vacío.
+        try:
+            canvas_state, canvas_width, canvas_height = _extract_canvas_state_for_preview(task)
+            if isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and canvas_state.get('objects'):
+                pdf_tokens = _build_task_pdf_tokens_from_canvas_state(
+                    request,
+                    canvas_state,
+                    canvas_width=canvas_width or 1280,
+                    canvas_height=canvas_height or 720,
+                )
+        except Exception:
+            pdf_tokens = []
+
     return {
         **_build_pdf_nav_urls(request),
         'team_name': team.name,
@@ -26454,7 +26470,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
         'regression_rich_html': rich_regression,
         'success_criteria_rich_html': rich_success,
         'organization_rich_html': rich_organization,
-        'tokens': _build_task_pdf_tokens(request, tactical_layout),
+        'tokens': pdf_tokens,
         'task_meta': meta,
         'task_drills': task_drills,
         'task_drills_count': len(task_drills),
