@@ -537,147 +537,133 @@
 	      </div>
 	    </section>
 
-	    <section class="sheet">
-	      <div class="brand">
-	        <div class="brand-logo">
-	          <img src="{{ brand_mark_src }}" alt="2J" />
-	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
-        </div>
-        <div class="brand-copy">
-          <h1>Detalle por partido · {{ player.name }}</h1>
-          <p>{{ primary_team.display_name }} · {{ season_label }}</p>
-        </div>
-        <div class="brand-meta">
-          <div>Goles: <strong>{{ stats.goals|default:0 }}</strong></div>
-          <div>Asist: <strong>{{ stats.assists|default:0 }}</strong></div>
-        </div>
-      </div>
-      <div class="pad">
-        <div class="section-title">Partidos</div>
-        {% if matchday_minutes_chart or matchday_ga_chart %}
-          <div class="charts-row">
-            <div class="charts-cell">
-              <div class="chart-card">
-                <div class="chart-title">Minutos por jornada</div>
-                {% if matchday_minutes_chart %}
-                  <table class="spark-table">
-                    <tr>
-                    {% for item in matchday_minutes_chart|slice:"-12:" %}
-                        <td>
-                          <div class="spark-wrap">
-                            <div class="spark-stack">
-                              <div class="spark-bar goal" style="height: {{ item.bar_px }}px;"></div>
-                            </div>
-                          </div>
-                          <div class="spark-label">{{ item.label }}</div>
-                          <div class="spark-value">{{ item.minutes }}'</div>
-                        </td>
-                      {% endfor %}
-                    </tr>
-                  </table>
-                {% else %}
-                  <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
-                {% endif %}
-              </div>
+		    {% for page in matches_for_report_pages %}
+        <section class="sheet">
+          <div class="brand">
+            <div class="brand-logo">
+              <img src="{{ brand_mark_src }}" alt="2J" />
+              <img class="crest" src="{{ crest_src }}" alt="Escudo" />
             </div>
-            <div class="charts-cell">
-              <div class="chart-card">
-                <div class="chart-title">Goles + asistencias por jornada</div>
-                {% if matchday_ga_chart %}
-                  <table class="spark-table">
-                    <tr>
-                    {% for item in matchday_ga_chart|slice:"-12:" %}
-                        <td>
-                          <div class="spark-wrap">
-                            <div class="spark-stack">
-                              {% if item.goals_px %}
-                                <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
-                              {% endif %}
-                              {% if item.assists_px %}
-                                <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
-                              {% endif %}
-                            </div>
-                          </div>
-                          <div class="spark-label">{{ item.label }}</div>
-                          <div class="spark-value">{{ item.goals }}⚽ {{ item.assists }}🎯</div>
-                        </td>
-                      {% endfor %}
-                    </tr>
-                  </table>
-                {% else %}
-                  <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
-                {% endif %}
-              </div>
+            <div class="brand-copy">
+              <h1>Detalle por partido · {{ player.name }}</h1>
+              <p>{{ primary_team.display_name }} · {{ season_label }}</p>
+            </div>
+            <div class="brand-meta">
+              <div>Goles: <strong>{{ season_overview.goals|default:0 }}</strong></div>
+              <div>Asist: <strong>{{ season_overview.assists|default:0 }}</strong></div>
             </div>
           </div>
-        {% endif %}
-	        <table class="table">
-	          <thead>
-	            <tr>
-	              <th style="width: 90px;">Jornada</th>
-	              <th>Rival</th>
-	              <th style="width: 90px;">Fecha</th>
-	              <th style="width: 90px;">Resultado</th>
-	              <th style="width: 68px;">🕒</th>
-	              <th style="width: 52px;">⚽</th>
-	              <th style="width: 52px;">🎯</th>
-	              <th style="width: 80px;">% Éxito</th>
-	            </tr>
-	          </thead>
-	          <tbody>
-	            {% if latest_played_match %}
-	              <tr class="group-row"><td colspan="8">Último partido</td></tr>
-	              <tr>
-	                <td>{{ latest_played_match.round }}</td>
-	                <td>{{ latest_played_match.opponent }}</td>
-	                <td class="muted">{% if latest_played_match.date_obj %}{{ latest_played_match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-	                <td>
-	                  {% if latest_played_match.home_score != None and latest_played_match.away_score != None %}
-	                    {% if latest_played_match.home %}{{ latest_played_match.home_score }}{% else %}{{ latest_played_match.away_score }}{% endif %}-{% if latest_played_match.home %}{{ latest_played_match.away_score }}{% else %}{{ latest_played_match.home_score }}{% endif %}
-	                  {% elif latest_played_match.result %}
-	                    {{ latest_played_match.result }}
-	                  {% else %}—{% endif %}
-	                </td>
-	                <td>{% if latest_played_match.minutes != None %}{{ latest_played_match.minutes }}'{% else %}—{% endif %}</td>
-	                <td>{{ latest_played_match.goals|default:0 }}</td>
-	                <td>{{ latest_played_match.assists|default:0 }}</td>
-	                  <td>{% if latest_played_match.actions|default:0 > 0 %}{{ latest_played_match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
-	              </tr>
-	            {% endif %}
 
-	            {% if played_matches|length > 1 %}
-	              <tr class="group-row"><td colspan="8">Partidos anteriores</td></tr>
-	              {% for match in played_matches|slice:"1:12" %}
-	                <tr>
-	                  <td>{{ match.round }}</td>
-	                  <td>{{ match.opponent }}</td>
-	                  <td class="muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-	                  <td>
-	                    {% if match.home_score != None and match.away_score != None %}
-	                      {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
-	                    {% elif match.result %}
-	                      {{ match.result }}
-	                    {% else %}—{% endif %}
-	                  </td>
-	                  <td>{% if match.minutes != None %}{{ match.minutes }}'{% else %}—{% endif %}</td>
-	                  <td>{{ match.goals|default:0 }}</td>
-	                  <td>{{ match.assists|default:0 }}</td>
-		                  <td>{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
-	                </tr>
-	              {% endfor %}
-	            {% endif %}
-	          </tbody>
-	        </table>
+          <div class="pad">
+            <div class="section-title">Partidos{% if matches_for_report_pages|length > 1 %} · Página {{ forloop.counter }}/{{ matches_for_report_pages|length }}{% endif %}</div>
 
-        <div class="foot">
-          <div class="brandline">
-            <img src="{{ brand_mark_src }}" alt="2J" />
-            <div class="fine">Generado desde 2J · {{ season_label }}</div>
+            {% if forloop.first and (matchday_minutes_chart_rows or matchday_ga_chart_rows) %}
+              <div class="charts-row">
+                <div class="charts-cell">
+                  <div class="chart-card">
+                    <div class="chart-title">Minutos por jornada</div>
+                    {% if matchday_minutes_chart_rows %}
+                      {% for row in matchday_minutes_chart_rows %}
+                        <table class="spark-table">
+                          <tr>
+                          {% for item in row %}
+                              <td>
+                                <div class="spark-wrap">
+                                  <div class="spark-stack">
+                                    <div class="spark-bar goal" style="height: {{ item.bar_px }}px;"></div>
+                                  </div>
+                                </div>
+                                <div class="spark-label">{{ item.label }}</div>
+                                <div class="spark-value">{{ item.minutes }}'</div>
+                              </td>
+                            {% endfor %}
+                          </tr>
+                        </table>
+                      {% endfor %}
+                    {% else %}
+                      <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="charts-cell">
+                  <div class="chart-card">
+                    <div class="chart-title">Goles + asistencias por jornada</div>
+                    {% if matchday_ga_chart_rows %}
+                      {% for row in matchday_ga_chart_rows %}
+                        <table class="spark-table">
+                          <tr>
+                          {% for item in row %}
+                              <td>
+                                <div class="spark-wrap">
+                                  <div class="spark-stack">
+                                    {% if item.goals_px %}
+                                      <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
+                                    {% endif %}
+                                    {% if item.assists_px %}
+                                      <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
+                                    {% endif %}
+                                  </div>
+                                </div>
+                                <div class="spark-label">{{ item.label }}</div>
+                                <div class="spark-value">{{ item.goals }}⚽ {{ item.assists }}🎯</div>
+                              </td>
+                            {% endfor %}
+                          </tr>
+                        </table>
+                      {% endfor %}
+                    {% else %}
+                      <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            {% endif %}
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 90px;">Jornada</th>
+                  <th>Rival</th>
+                  <th style="width: 90px;">Fecha</th>
+                  <th style="width: 90px;">Resultado</th>
+                  <th style="width: 68px;">🕒</th>
+                  <th style="width: 52px;">⚽</th>
+                  <th style="width: 52px;">🎯</th>
+                  <th style="width: 80px;">% Éxito</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for match in page %}
+                  <tr>
+                    <td>{{ match.round|default:"—" }}</td>
+                    <td>{{ match.opponent|default:"—" }}</td>
+                    <td class="muted">{% if match.date_obj %}{{ match.date_obj|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                    <td>
+                      {% if match.home_score != None and match.away_score != None %}
+                        {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
+                      {% elif match.result %}
+                        {{ match.result }}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td>{% if match.minutes != None %}{{ match.minutes }}'{% else %}—{% endif %}</td>
+                    <td>{{ match.goals|default:0 }}</td>
+                    <td>{{ match.assists|default:0 }}</td>
+                    <td>{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}—{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
+            <div class="foot">
+              <div class="brandline">
+                <img src="{{ brand_mark_src }}" alt="2J" />
+                <div class="fine">Generado desde 2J · {{ season_label }}</div>
+              </div>
+              <div class="fine">Uso interno / entrega jugador</div>
+            </div>
           </div>
-          <div class="fine">Uso interno / entrega jugador</div>
-        </div>
-      </div>
-    </section>
+        </section>
+      {% endfor %}
 
     <section class="sheet">
       <div class="brand">

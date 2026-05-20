@@ -1531,6 +1531,8 @@ PLAYER_DASHBOARD_BYPASS_CACHE_ON_LIVE = str(
 PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
 PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
 PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX = "football:player_photo_path"
+PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL = "__none__"
+PLAYER_PHOTO_MISS_CACHE_SECONDS = int(os.getenv("PLAYER_PHOTO_MISS_CACHE_SECONDS", "3600"))
 TEAM_METRICS_CACHE_SECONDS = int(os.getenv('TEAM_METRICS_CACHE_SECONDS', '900'))
 PLAYER_METRICS_CACHE_SECONDS = int(os.getenv('PLAYER_METRICS_CACHE_SECONDS', '900'))
 RFAF_LIVE_FETCH_ON_REQUEST = str(
@@ -3329,7 +3331,7 @@ def player_photo_file(request, player_id):
     try:
         cached_name = cache.get(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}')
         cached_name = str(cached_name or '').strip()
-        if cached_name:
+        if cached_name and cached_name != PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL:
             storage_name = cached_name
     except Exception:
         storage_name = ''
@@ -4516,6 +4518,7 @@ def pdf_graphic_asset_delete_api(request):
 
 def resolve_player_photo_url(request, player):
     resolved_storage_name = ''
+    had_probe_error = False
     storage = None
     try:
         storage = storages['default']
@@ -4526,10 +4529,29 @@ def resolve_player_photo_url(request, player):
     try:
         cached_name = cache.get(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}')
         cached_name = str(cached_name or '').strip()
-        if cached_name:
+        if cached_name == PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL:
+            # Cacheamos el "miss" para evitar `storage.exists()` (muy caro en storages remotos).
+            # Importante: si `photo_updated_at` existe, ignoramos el sentinel (puede ser stale en caches por worker).
+            try:
+                if not getattr(player, "photo_updated_at", None):
+                    resolved_storage_name = PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL
+            except Exception:
+                resolved_storage_name = PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL
+        elif cached_name:
             resolved_storage_name = cached_name
     except Exception:
         resolved_storage_name = ''
+    # Si nunca se ha subido una foto, evitamos probes a storage (S3/GCS) por defecto.
+    try:
+        if not resolved_storage_name and not getattr(player, "photo_updated_at", None):
+            resolved_storage_name = PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL
+            cache.set(
+                f"{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}",
+                PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL,
+                timeout=PLAYER_PHOTO_MISS_CACHE_SECONDS,
+            )
+    except Exception:
+        pass
     for storage_name in _player_photo_storage_candidates(player):
         if resolved_storage_name:
             break
@@ -4541,12 +4563,33 @@ def resolve_player_photo_url(request, player):
                 resolved_storage_name = storage_name
                 break
         except Exception:
+            had_probe_error = True
             logger.exception('No se pudo resolver la foto subida del jugador %s', getattr(player, 'id', ''))
-    if resolved_storage_name:
+    if not resolved_storage_name and not had_probe_error:
+        try:
+            cache.set(
+                f"{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}",
+                PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL,
+                timeout=PLAYER_PHOTO_MISS_CACHE_SECONDS,
+            )
+        except Exception:
+            pass
+    if resolved_storage_name and resolved_storage_name != PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL:
         try:
             cache.set(f'{PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX}:{player.id}', str(resolved_storage_name), timeout=PLAYER_PHOTO_VERSION_CACHE_SECONDS)
         except Exception:
             pass
+    if resolved_storage_name == PLAYER_PHOTO_PATH_CACHE_MISS_SENTINEL:
+        static_path = resolve_player_photo_static_path(player)
+        if not static_path:
+            return ''
+        if request is None:
+            return static(static_path)
+        try:
+            return request.build_absolute_uri(static(static_path))
+        except Exception:
+            return static(static_path)
+
     if resolved_storage_name:
         url = reverse('player-photo-file', args=[player.id])
         version = ''
@@ -28433,6 +28476,29 @@ def session_task_pdf(request, task_id):
     # Si el usuario quiere el PDF largo (varias páginas), puede pedir `one_page=0`.
     one_page_raw = str(request.GET.get('one_page') or request.GET.get('onepage') or '')
     one_page = one_page_raw.strip().lower() not in {'0', 'false', 'no', 'off'}
+
+    # Garantiza que el PDF incluya representación aunque no haya preview persistida todavía.
+    # Nota: WeasyPrint no hereda cookies/sesión del usuario, así que no podemos depender de
+    # URLs protegidas para cargar la imagen durante el render.
+    preview_url = ''
+    try:
+        if not getattr(task, 'task_preview_image', None):
+            # 1) Intenta render server-side (si hay pizarra guardada)
+            try:
+                _maybe_render_task_preview_server_side(task, force=True)
+                task.refresh_from_db(fields=['task_preview_image'])
+            except Exception:
+                pass
+        if getattr(task, 'task_preview_image', None):
+            preview_url = _file_field_as_data_url(task.task_preview_image)
+        if not preview_url:
+            # 2) Fallback: preview embebida legacy en tactical_layout
+            embedded = _embedded_preview_bytes_from_task(task)
+            if embedded:
+                raw, mime = embedded
+                preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=2200, max_height=1500, quality=78)
+    except Exception:
+        preview_url = ''
     context = _build_task_pdf_context(
         request,
         team=team,
@@ -28441,10 +28507,7 @@ def session_task_pdf(request, task_id):
         task=task,
         tactical_layout=task.tactical_layout if isinstance(task.tactical_layout, dict) else {},
         pdf_style=pdf_style,
-        # Importante: WeasyPrint no hereda cookies/sesión del usuario, así que si usamos una URL protegida
-        # (`session-task-preview-file`) la imagen puede no cargarse. Empaquetamos el binario como data URL
-        # para garantizar que el PDF siempre incluya la vista gráfica con la máxima calidad disponible.
-        preview_url=_file_field_as_data_url(task.task_preview_image) if task.task_preview_image else '',
+        preview_url=preview_url,
         one_page=one_page,
     )
     html = render_to_string('football/session_task_pdf.html', context)
