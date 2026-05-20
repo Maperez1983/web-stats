@@ -773,15 +773,17 @@
     return new XMLSerializer().serializeToString(doc);
   };
 
-		  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
+			  window.initSessionsTacticalPad = function initSessionsTacticalPad() {
+			    try {
+			    const form = document.getElementById('task-builder-form');
+			    if (!form) return;
+		    // Evita doble inicialización, pero PERMITE reintentos si la primera inicialización falló
+		    // (p.ej. Safari/iPad con scripts defer que tardan o DOM aún incompleto).
 		    try {
-		    const form = document.getElementById('task-builder-form');
-		    if (!form) return;
-	    // Evita doble inicialización si el editor se carga por lazy-load y luego por navegación/recarga parcial.
-	    try {
-	      if (form.dataset && form.dataset.webstatsTpadInit === '1') return;
-	      if (form.dataset) form.dataset.webstatsTpadInit = '1';
-	    } catch (e) { /* ignore */ }
+		      if (form.dataset && form.dataset.webstatsTpadReady === '1') return;
+		      if (form.dataset && form.dataset.webstatsTpadInit === '1') return; // init en curso
+		      if (form.dataset) form.dataset.webstatsTpadInit = '1';
+		    } catch (e) { /* ignore */ }
 		    // Captura errores runtime (no solo los de inicialización) para detectar “botones no funcionan”.
 		    try {
 		      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
@@ -22187,6 +22189,12 @@
 		        try { if (child.strokeWidth !== undefined) child.strokeUniform = true; } catch (e) { /* ignore */ }
 		      });
 		    });
+        // Marca "ready" SOLO si no hemos explotado.
+        try {
+          if (form && form.dataset) form.dataset.webstatsTpadReady = '1';
+          if (form && form.dataset) delete form.dataset.webstatsTpadInit;
+          window.__WEBSTATS_TPAD_READY = true;
+        } catch (e) { /* ignore */ }
     } catch (err) {
       try {
         const message = (err && typeof err === 'object' && 'message' in err) ? String(err.message || '') : String(err || '');
@@ -22201,6 +22209,10 @@
           statusEl.textContent = `Error al inicializar la pizarra (${shortMsg}). Se activó modo seguro.`;
           statusEl.style.color = '#fca5a5';
         }
+      } catch (e) { /* ignore */ }
+      // Permite reintentar init (la primera pudo fallar por timing/carga de assets).
+      try {
+        if (form && form.dataset) delete form.dataset.webstatsTpadInit;
       } catch (e) { /* ignore */ }
       // No re-lanzar: evita quedar bloqueado en modo seguro global.
     }
