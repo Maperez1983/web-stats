@@ -1744,7 +1744,7 @@
             name: row?.name,
             number: row?.number,
             photo_url: row?.photo_url,
-            actions: row?.actions,
+            actions: (row?.actions != null ? row.actions : row?.total_actions),
             success_rate: row?.success_rate,
             training_minutes: extra ? extra.minutes : null,
             training_sessions: extra ? extra.sessions : null,

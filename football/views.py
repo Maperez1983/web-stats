@@ -59890,7 +59890,11 @@ def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
         .order_by('match_id', 'minute', 'id')
     )
     if scope_value != 'all':
-        events_qs = events_qs.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            # Compat: partidos legacy pueden venir con `context=''` y se consideran Liga.
+            events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            events_qs = events_qs.filter(match__context=scope_value)
     events = _filter_stats_events(
         events_qs,
         preferred_sources=preferred_sources,
@@ -60048,7 +60052,11 @@ def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
         .order_by('match_id', 'minute', 'id')
     )
     if scope_value != 'all':
-        events_qs = events_qs.filter(match__context=scope_value)
+        if scope_value == Match.CONTEXT_LEAGUE:
+            # Compat: partidos legacy pueden venir con `context=''` y se consideran Liga.
+            events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
+        else:
+            events_qs = events_qs.filter(match__context=scope_value)
     events = _filter_stats_events(
         events_qs,
         preferred_sources=preferred_sources,
@@ -60104,6 +60112,9 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
                 'goal_contrib': goals + assists,
                 'yellow_cards': int(row.get('yellow_cards', 0) or 0),
                 'red_cards': int(row.get('red_cards', 0) or 0),
+                # Compat frontend (dashboard.html): históricamente se consumía `actions` y no `total_actions`.
+                # Mantener ambos evita que las cards muestren "—" tras cambios de backend.
+                'actions': total_actions,
                 'total_actions': total_actions,
                 'actions_per90': actions_per90,
                 'successes': int(row.get('successes', 0) or 0),
