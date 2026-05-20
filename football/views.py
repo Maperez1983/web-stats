@@ -56760,6 +56760,12 @@ def player_season_report_edit_page(request, player_id):
             raw = ''
         if not raw:
             return None
+        raw = raw.replace(' ', '').replace('%', '')
+        # Formato ES: "1.234,5" -> "1234.5"
+        if ',' in raw and '.' in raw:
+            raw = raw.replace('.', '').replace(',', '.')
+        else:
+            raw = raw.replace(',', '.')
         try:
             num = int(float(raw))
         except Exception:
@@ -56777,6 +56783,12 @@ def player_season_report_edit_page(request, player_id):
             raw = ''
         if not raw:
             return None
+        raw = raw.replace(' ', '').replace('%', '')
+        # Formato ES: "57,6" -> "57.6" / "1.234,5" -> "1234.5"
+        if ',' in raw and '.' in raw:
+            raw = raw.replace('.', '').replace(',', '.')
+        else:
+            raw = raw.replace(',', '.')
         try:
             num = float(raw)
         except Exception:
