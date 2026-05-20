@@ -785,23 +785,25 @@
 		      if (form.dataset) form.dataset.webstatsTpadInit = '1';
 		    } catch (e) { /* ignore */ }
 		    // Captura errores runtime (no solo los de inicialización) para detectar “botones no funcionan”.
-		    try {
-		      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
-		        window.__WEBSTATS_TPAD_RUNTIME_HOOKED = true;
-		        const report = (payload) => {
-		          try {
-		            const entry = { ...(payload || {}), at: new Date().toISOString() };
-		            window.__WEBSTATS_LAST_TPAD_ERROR = entry;
-		            try { window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(entry)); } catch (e) { /* ignore */ }
-					    const statusEl = document.getElementById('task-builder-status');
-					    const diagCopyBtn = document.getElementById('tpad-diag-copy');
-		            if (statusEl) {
-		              const msg = safeText(entry?.message, 'Error JS');
-		              statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
-		              statusEl.style.color = '#fca5a5';
-		            }
-		          } catch (e) { /* ignore */ }
-		        };
+			    // Elementos UI (pueden no existir en algunas vistas embebidas).
+			    const diagCopyBtn = document.getElementById('tpad-diag-copy');
+
+			    try {
+			      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
+			        window.__WEBSTATS_TPAD_RUNTIME_HOOKED = true;
+			        const report = (payload) => {
+			          try {
+			            const entry = { ...(payload || {}), at: new Date().toISOString() };
+			            window.__WEBSTATS_LAST_TPAD_ERROR = entry;
+			            try { window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(entry)); } catch (e) { /* ignore */ }
+						    const statusEl = document.getElementById('task-builder-status');
+			            if (statusEl) {
+			              const msg = safeText(entry?.message, 'Error JS');
+			              statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
+			              statusEl.style.color = '#fca5a5';
+			            }
+			          } catch (e) { /* ignore */ }
+			        };
 		        window.addEventListener('error', (event) => {
 		          const message = safeText(event?.message || (event?.error && event.error.message) || 'Error JS');
 		          const stack = safeText(event?.error?.stack || '');
