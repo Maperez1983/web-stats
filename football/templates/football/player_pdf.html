@@ -250,7 +250,7 @@
           <img class="crest" src="{{ crest_src }}" alt="Escudo" />
         </div>
         <div class="brand-copy">
-          <h1>Informe de temporada · {{ player.name }}</h1>
+          <h1>Informe de temporada · {% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h1>
           <p>{{ primary_team.display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
         </div>
         <div class="brand-meta">
@@ -264,31 +264,40 @@
           <div class="grid-row">
             <div class="col left">
               <div class="card">
-                <h2 class="player-name">{{ player.name }}</h2>
-                <div class="player-sub">
-                  <span class="pill">#{{ player.number|default:"--" }}</span>
-                  {% with dom=stats.dominant_position|default:"" staff=player.position|default:"" %}
-                    <span class="pill light">{% if dom %}{{ dom }}{% elif staff %}{{ staff }}{% else %}Sin posición{% endif %}</span>
-                    {% if dom and staff and dom != staff %}
-                      <span class="pill light">Staff: {{ staff }}</span>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="pill light">Licencia: {% if license_exists %}OK{% else %}—{% endif %}</span>
-                </div>
+	                <h2 class="player-name">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h2>
+	                <div class="player-sub">
+	                  <span class="pill">#{{ player.number|default:"--" }}</span>
+	                  <span class="pill light">Posición: {% if player.position %}{{ player.position }}{% elif stats.dominant_position %}{{ stats.dominant_position }}{% else %}—{% endif %}</span>
+	                  {% if player.nickname %}<span class="pill light">Apodo: {{ player.nickname }}</span>{% endif %}
+	                  {% if player.birth_date %}<span class="pill light">Nacimiento: {{ player.birth_date|date:"d/m/Y" }}{% if stats.age %} ({{ stats.age }}){% endif %}</span>{% endif %}
+	                  {% if player.name and player.full_name and player.name != player.full_name %}<span class="pill light">Nombre: {{ player.name }}</span>{% endif %}
+	                  {% if player.height_cm %}<span class="pill light">Altura: {{ player.height_cm }} cm</span>{% endif %}
+	                  {% if player.weight_kg %}<span class="pill light">Peso: {{ player.weight_kg|floatformat:0 }} kg</span>{% endif %}
+	                  <span class="pill light">Licencia: {% if license_exists %}OK{% else %}—{% endif %}</span>
+	                </div>
 
-                <div class="kpi-grid">
-                  {% for item in general_kpis %}
-                    {% if item.label == "PJ" or item.label == "Min" or item.label == "Goles" or item.label == "Asist" %}
-                      <div class="kpi">
-                        <div class="k">{{ item.label }}</div>
-                        <div class="v">{{ item.value }}</div>
-                      </div>
-                    {% endif %}
-                  {% endfor %}
-                </div>
+                  <div style="margin-top:12px;">
+                    <div class="section-title">Estadísticas temporada</div>
+                    <div class="kpi-grid" style="grid-template-columns: repeat(6, minmax(0, 1fr));">
+                      <div class="kpi slim"><div class="k">Partidos</div><div class="v">{{ season_overview.pj|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">Titular</div><div class="v">{{ season_overview.pt|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">Suplente</div><div class="v">{{ season_overview.suplente|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">Minutos</div><div class="v">{{ season_overview.minutes|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">Goles</div><div class="v">{{ season_overview.goals|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">Asist.</div><div class="v">{{ season_overview.assists|default:0 }}</div></div>
+                    </div>
+                    <div class="kpi-grid" style="grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top:10px;">
+                      <div class="kpi slim"><div class="k">Goles/partido</div><div class="v">{{ season_overview.goals_per_match|default:0 }}</div></div>
+                      <div class="kpi slim"><div class="k">% participación</div><div class="v">{{ season_overview.participation_pct|default:0|floatformat:-1 }}%</div></div>
+                      <div class="kpi slim"><div class="k">% participación (PJ)</div><div class="v">{{ season_overview.participation_matches_pct|default:0|floatformat:-1 }}%</div></div>
+                      <div class="kpi slim"><div class="k">% titularidad</div><div class="v">{{ season_overview.starter_pct|default:0|floatformat:-1 }}%</div></div>
+                      <div class="kpi slim"><div class="k">Importancia</div><div class="v">{{ season_overview.importance_score|default:0|floatformat:-1 }}</div></div>
+                      <div class="kpi slim"><div class="k">Influencia</div><div class="v">{{ season_overview.influence_score|default:0|floatformat:-1 }}</div></div>
+                    </div>
+                  </div>
 
                 <div style="margin-top:12px;">
-	                  <div class="section-title">KPI de rendimiento</div>
+		                  <div class="section-title">Rendimiento, KPI y mapa de calor</div>
 
                   <div class="split">
                     <div class="split-row">
@@ -354,12 +363,12 @@
                             </div>
                             <div class="radar-legend">
                               <h3>Radar (araña)</h3>
-                              <p>Escala 0–100 combinando % + volumen/impacto por partido.</p>
+                              <p>Compromiso (participación + entrenos), Impacto (G+A/PJ) y Calidad (éxito ponderado por volumen + G/A).</p>
                               <ul class="radar-axes">
                                 {% for axis in radar_data.axes %}
                                   <li>
                                     <span class="radar-axis-label">{{ axis.key }}</span>
-                                    <span class="radar-axis-value">{{ axis.display }} · P{{ axis.pct_rank }}</span>
+                                    <span class="radar-axis-value">{{ axis.display }}</span>
                                   </li>
                                 {% endfor %}
                               </ul>
