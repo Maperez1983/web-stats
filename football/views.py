@@ -1523,6 +1523,11 @@ PLAYER_DASHBOARD_CACHE_KEY_PREFIX = "football:player_dashboard"
 # Aun así, 60s provoca recálculos muy frecuentes (coste alto). Usamos 5 min por defecto y
 # desactivamos caché solo cuando hay acciones live recientes (`touch-field`).
 PLAYER_DASHBOARD_CACHE_SECONDS = int(os.getenv('PLAYER_DASHBOARD_CACHE_SECONDS', '300'))
+# Opcional (costoso): durante un partido con eventos `touch-field`, fuerza recomputar el dashboard para ver
+# contadores "en vivo" en Jugadores. Por defecto está desactivado para mantener la UI fluida.
+PLAYER_DASHBOARD_BYPASS_CACHE_ON_LIVE = str(
+    os.getenv('PLAYER_DASHBOARD_BYPASS_CACHE_ON_LIVE', '0') or '0'
+).strip().lower() in {'1', 'true', 'yes', 'on'}
 PLAYER_PHOTO_VERSION_CACHE_KEY_PREFIX = "football:player_photo_version"
 PLAYER_PHOTO_VERSION_CACHE_SECONDS = int(os.getenv('PLAYER_PHOTO_VERSION_CACHE_SECONDS', '86400'))
 PLAYER_PHOTO_PATH_CACHE_KEY_PREFIX = "football:player_photo_path"
@@ -5106,7 +5111,18 @@ def _paywall_response(request, *, workspace=None):
 
 
 def _get_active_workspace(request):
+    # Perf: cache por request para evitar queries repetidas en la misma petición.
+    try:
+        if request is not None and hasattr(request, "_cached_active_workspace"):
+            return getattr(request, "_cached_active_workspace")
+    except Exception:
+        pass
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
+        try:
+            if request is not None:
+                setattr(request, "_cached_active_workspace", None)
+        except Exception:
+            pass
         return None
     available_qs = _available_workspaces_for_user(request.user)
     # Importante en app/webview: algunos formularios POST no conservan la querystring.
@@ -5118,6 +5134,10 @@ def _get_active_workspace(request):
         workspace = available_qs.filter(id=workspace_id).first()
         if workspace:
             request.session['active_workspace_id'] = workspace.id
+            try:
+                setattr(request, "_cached_active_workspace", workspace)
+            except Exception:
+                pass
             return workspace
         request.session.pop('active_workspace_id', None)
     if _can_access_platform(request.user):
@@ -5138,6 +5158,10 @@ def _get_active_workspace(request):
                 )
                 if preferred:
                     request.session['active_workspace_id'] = preferred.id
+                    try:
+                        setattr(request, "_cached_active_workspace", preferred)
+                    except Exception:
+                        pass
                     return preferred
             except Exception:
                 pass
@@ -5154,6 +5178,10 @@ def _get_active_workspace(request):
             if len(club_ws) == 1:
                 workspace = club_ws[0]
                 request.session['active_workspace_id'] = workspace.id
+                try:
+                    setattr(request, "_cached_active_workspace", workspace)
+                except Exception:
+                    pass
                 return workspace
         except Exception:
             pass
@@ -5170,9 +5198,17 @@ def _get_active_workspace(request):
                 if len(club_ws) == 1:
                     workspace = club_ws[0]
                     request.session['active_workspace_id'] = workspace.id
+                    try:
+                        setattr(request, "_cached_active_workspace", workspace)
+                    except Exception:
+                        pass
                     return workspace
             except Exception:
                 pass
+        try:
+            setattr(request, "_cached_active_workspace", None)
+        except Exception:
+            pass
         return None
 
     # Producto comercial: nunca auto-asignar un club a un usuario sin haberlo creado/seleccionado.
@@ -5195,6 +5231,10 @@ def _get_active_workspace(request):
     fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
+        try:
+            setattr(request, "_cached_active_workspace", fallback_workspace)
+        except Exception:
+            pass
         return fallback_workspace
     # Producto comercial: no auto-crear membresía ni asignar un club "por defecto".
     if _single_club_fallback_enabled():
@@ -5212,7 +5252,15 @@ def _get_active_workspace(request):
                 except Exception:
                     pass
                 request.session['active_workspace_id'] = workspace.id
+                try:
+                    setattr(request, "_cached_active_workspace", workspace)
+                except Exception:
+                    pass
                 return workspace
+    try:
+        setattr(request, "_cached_active_workspace", None)
+    except Exception:
+        pass
     return None
 
 
@@ -5286,6 +5334,12 @@ def _get_active_team_for_request(request):
     - Si el workspace tiene varias categorías (WorkspaceTeam), se puede cambiar el equipo activo
       en sesión sin afectar al equipo "principal" del cliente.
     """
+    # Perf: esta función se usa en cascada desde muchas vistas/helpers. Cacheamos por request.
+    try:
+        if request is not None and hasattr(request, "_cached_active_team"):
+            return getattr(request, "_cached_active_team")
+    except Exception:
+        pass
     workspace = _get_active_workspace(request)
 
     # UX (web/app): si ya hay un Team fijado en sesión y no hay workspace club activo,
@@ -5298,6 +5352,10 @@ def _get_active_team_for_request(request):
         if remembered_team_id:
             remembered_team = Team.objects.filter(id=int(remembered_team_id)).first()
             if remembered_team and _user_can_access_team(request, remembered_team):
+                try:
+                    setattr(request, "_cached_active_team", remembered_team)
+                except Exception:
+                    pass
                 return remembered_team
 
     if workspace and workspace.kind == Workspace.KIND_CLUB:
@@ -5334,7 +5392,12 @@ def _get_active_team_for_request(request):
                     request.session['active_team_by_workspace'] = mapping
                 except Exception:
                     pass
-            return team_lookup[int(desired_team_id)]
+            team = team_lookup[int(desired_team_id)]
+            try:
+                setattr(request, "_cached_active_team", team)
+            except Exception:
+                pass
+            return team
 
         # Fallback: default por usuario (si hay acceso marcado como default).
         try:
@@ -5346,22 +5409,41 @@ def _get_active_team_for_request(request):
                     .first()
                 )
                 if preferred_team_id and int(preferred_team_id) in team_lookup:
-                    return team_lookup[int(preferred_team_id)]
+                    team = team_lookup[int(preferred_team_id)]
+                    try:
+                        setattr(request, "_cached_active_team", team)
+                    except Exception:
+                        pass
+                    return team
         except Exception:
             pass
 
         # Fallback: default del workspace, si existe.
         default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
         if default_link and getattr(default_link, 'team', None):
-            return default_link.team
+            team = default_link.team
+            try:
+                setattr(request, "_cached_active_team", team)
+            except Exception:
+                pass
+            return team
 
         # Fallback: primary_team legacy.
         if getattr(workspace, 'primary_team_id', None):
-            return workspace.primary_team
+            team = workspace.primary_team
+            try:
+                setattr(request, "_cached_active_team", team)
+            except Exception:
+                pass
+            return team
 
         # Fallback: primer vínculo si existe.
         first_link = links[0].team if links else None
         if first_link:
+            try:
+                setattr(request, "_cached_active_team", first_link)
+            except Exception:
+                pass
             return first_link
 
         # Workspace club sin equipo configurado: NO caer al "equipo primario global" porque
@@ -5381,6 +5463,10 @@ def _get_active_team_for_request(request):
             try:
                 if hasattr(request, 'session'):
                     request.session['active_team_id'] = int(explicit_team.id)
+            except Exception:
+                pass
+            try:
+                setattr(request, "_cached_active_team", explicit_team)
             except Exception:
                 pass
             return explicit_team
@@ -5423,6 +5509,10 @@ def _get_active_team_for_request(request):
         if remembered_team_id and int(remembered_team_id) in team_ids:
             team = Team.objects.filter(id=int(remembered_team_id)).first()
             if team:
+                try:
+                    setattr(request, "_cached_active_team", team)
+                except Exception:
+                    pass
                 return team
         if len(team_ids) == 1:
             team = Team.objects.filter(id=next(iter(team_ids))).first()
@@ -5430,6 +5520,10 @@ def _get_active_team_for_request(request):
                 try:
                     if hasattr(request, 'session'):
                         request.session['active_team_id'] = int(team.id)
+                except Exception:
+                    pass
+                try:
+                    setattr(request, "_cached_active_team", team)
                 except Exception:
                     pass
             return team
@@ -5450,15 +5544,29 @@ def _get_active_team_for_request(request):
                             request.session['active_team_id'] = int(team.id)
                     except Exception:
                         pass
+                    try:
+                        setattr(request, "_cached_active_team", team)
+                    except Exception:
+                        pass
                     return team
 
         # Producto comercial: si no hay workspace activo, NO devolvemos el equipo global para roles técnicos
         # porque en multicliente eso mezclará datos entre clubes.
         # En modo legacy/monoclub (ALLOW_SINGLE_CLUB_FALLBACK o tests) sí caemos al Team.is_primary.
         if _single_club_fallback_enabled():
-            return Team.objects.filter(is_primary=True).first()
+            team = Team.objects.filter(is_primary=True).first()
+            try:
+                setattr(request, "_cached_active_team", team)
+            except Exception:
+                pass
+            return team
         return None
-    return Team.objects.filter(is_primary=True).first() if _single_club_fallback_enabled() else None
+    team = Team.objects.filter(is_primary=True).first() if _single_club_fallback_enabled() else None
+    try:
+        setattr(request, "_cached_active_team", team)
+    except Exception:
+        pass
+    return team
 
 
 def _get_primary_team_for_request(request):
@@ -60183,7 +60291,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     #
     # Importante: `get_active_match()` devuelve el "próximo partido" por calendario, no el partido
     # que se estaba registrando en vivo. Usamos `get_latest_live_match()` + ventana temporal.
-    if can_use_cache:
+    if can_use_cache and PLAYER_DASHBOARD_BYPASS_CACHE_ON_LIVE:
         try:
             live_match = get_latest_live_match(primary_team)
             if live_match:
@@ -61415,7 +61523,6 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
     # Overrides manuales por partido (minutos/goles/asistencias). Importante en cantera/cambios ilimitados.
     # Nota: estas overrides (manual-match) deben prevalecer solo para el jugador que las tenga.
     manual_by_player_match = {}
-    minutes_mode_match_ids = set()
     try:
         manual_match_qs = PlayerStatistic.objects.filter(
             player__team=primary_team,
@@ -61428,16 +61535,12 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             # El Match es la fuente de verdad de temporada.
             manual_match_qs = manual_match_qs.filter(match__season=season_obj)
         manual_match_rows = manual_match_qs.values('player_id', 'match_id', 'name', 'value')
-        # "Modo ficha de partido": si un partido tiene ALGÚN override manual (min/g/a) guardado,
-        # interpretamos que la ficha de partido está siendo usada y que "Auto" (sin fila)
-        # significa que el jugador NO jugó.
         for row in manual_match_rows:
             pid = _parse_int(row.get('player_id'))
             mid = _canonical_match_id(_parse_int(row.get('match_id')))
             name = str(row.get('name') or '').strip()
             if not pid or not mid or not name:
                 continue
-            minutes_mode_match_ids.add(int(mid))
             manual_by_player_match.setdefault(int(pid), {}).setdefault(int(mid), {})[name] = row.get('value')
 
         for pid, match_map in manual_by_player_match.items():
@@ -61490,17 +61593,13 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                     }
                     matches_dict[int(mid)] = entry
 
-                # Minutos (override -> ajusta total por delta)
+                # Minutos (override por partido)
                 if 'manual_minutes' in values and values.get('manual_minutes') is not None:
                     new_minutes = _parse_int(values.get('manual_minutes'))
                     if new_minutes is not None:
                         new_minutes = max(0, min(int(new_minutes), 240))
-                        prev_minutes = _parse_int(entry.get('minutes')) or 0
                         entry['minutes'] = int(new_minutes)
-                        try:
-                            stats['minutes'] = int(stats.get('minutes', 0) or 0) + (int(new_minutes) - int(prev_minutes))
-                        except Exception:
-                            pass
+                        entry['minutes_auto'] = False
                         if int(new_minutes) > 0:
                             entry['played'] = True
 
@@ -61520,86 +61619,34 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 if entry.get('played'):
                     stats['has_events'] = True
 
-            # Recalcular totales de goles/asistencias desde la tabla por partido.
+            # Recalcular totales desde la tabla por partido para este jugador.
             try:
-                # En modo ficha (manual-match) la fuente de verdad de G/A es la ficha por partido,
-                # incluso si existen overrides anuales (goals_locked/assists_locked).
-                can_override_ga = bool(minutes_mode_match_ids)
-                if can_override_ga or (not stats.get('goals_locked')):
-                    stats['goals'] = sum(
-                        max(0, _parse_int(m.get('goals')) or 0)
-                        for m in matches_dict.values()
-                        if isinstance(m, dict) and m.get('played')
+                played_entries = [
+                    m
+                    for m in (matches_dict or {}).values()
+                    if isinstance(m, dict) and m.get('played')
+                ]
+                stats['pj'] = int(len(played_entries))
+                stats['minutes'] = int(
+                    sum(max(0, _parse_int(m.get('minutes')) or 0) for m in played_entries)
+                )
+                # Goles/asistencias: si hay overrides por partido, la tabla por partido es la fuente de verdad.
+                # Respetamos locks anuales cuando existan.
+                if not stats.get('goals_locked'):
+                    stats['goals'] = int(
+                        sum(max(0, _parse_int(m.get('goals')) or 0) for m in played_entries)
                     )
-                if can_override_ga or (not stats.get('assists_locked')):
-                    stats['assists'] = sum(
-                        max(0, _parse_int(m.get('assists')) or 0)
-                        for m in matches_dict.values()
-                        if isinstance(m, dict) and m.get('played')
+                if not stats.get('assists_locked'):
+                    stats['assists'] = int(
+                        sum(max(0, _parse_int(m.get('assists')) or 0) for m in played_entries)
                     )
-            except Exception:
-                pass
-
-        # En "modo ficha de minutos", la fuente de verdad de minutos/PJ es la ficha:
-        # - Si el jugador está en Auto (sin manual_minutes) => minutos 0 y NO jugó.
-        # - Recalculamos PJ/minutos desde la tabla por partido para evitar 100% participación erróneo.
-        if minutes_mode_match_ids:
-            for pid, stats in player_stats.items():
-                # Aunque haya override "base" (totals_locked), si existe ficha por partido (manual-match)
-                # debemos recalcular PJ/minutos desde esa tabla para que cards/PDFs reflejen el año real.
-                if not stats:
-                    continue
-                matches_dict = stats.get('matches') if isinstance(stats.get('matches'), dict) else None
-                if not matches_dict:
-                    continue
-                player_manual_map = manual_by_player_match.get(int(pid), {}) if isinstance(manual_by_player_match, dict) else {}
-                # Fuerza minutos/played para partidos en minutes_mode.
-                for mid, entry in matches_dict.items():
-                    if not isinstance(entry, dict):
-                        continue
-                    try:
-                        mid_int = int(mid)
-                    except Exception:
-                        continue
-                    if mid_int not in minutes_mode_match_ids:
-                        continue
-                    values = player_manual_map.get(mid_int, {}) if isinstance(player_manual_map, dict) else {}
-                    manual_minutes_raw = values.get('manual_minutes') if isinstance(values, dict) else None
-                    if manual_minutes_raw is None:
-                        entry['minutes'] = 0
-                        entry['minutes_auto'] = True
-                    else:
-                        parsed_minutes = _parse_int(manual_minutes_raw)
-                        parsed_minutes = 0 if parsed_minutes is None else int(parsed_minutes)
-                        entry['minutes'] = max(0, min(int(parsed_minutes), 240))
-                        entry['minutes_auto'] = False
-                    goals_val = _parse_int(entry.get('goals')) or 0
-                    assists_val = _parse_int(entry.get('assists')) or 0
-                    entry['played'] = bool(int(entry.get('minutes') or 0) > 0 or goals_val > 0 or assists_val > 0)
-
-                # Recalcular minutos + PJ usando la tabla por partido (con minutes_mode aplicado).
+                stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
                 try:
-                    played_entries = [
-                        m
-                        for m in matches_dict.values()
-                        if isinstance(m, dict) and m.get('played')
-                    ]
-                    stats['pj'] = int(len(played_entries))
-                    stats['minutes'] = int(
-                        sum(max(0, _parse_int(m.get('minutes')) or 0) for m in played_entries)
-                    )
-                    # En modo ficha, también recalculamos goles/asistencias desde la misma tabla.
-                    # Esto hace que cards/PDF reflejen el año aunque no haya acciones registradas.
-                    stats['goals'] = int(sum(max(0, _parse_int(m.get('goals')) or 0) for m in played_entries))
-                    stats['assists'] = int(sum(max(0, _parse_int(m.get('assists')) or 0) for m in played_entries))
-                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
-                    # PT: si no tenemos dato fiable, al menos que no supere PJ.
-                    try:
-                        stats['pt'] = min(int(stats.get('pt', 0) or 0), int(stats.get('pj', 0) or 0))
-                    except Exception:
-                        pass
+                    stats['pt'] = min(int(stats.get('pt', 0) or 0), int(stats.get('pj', 0) or 0))
                 except Exception:
                     pass
+            except Exception:
+                pass
     except Exception:
         pass
 

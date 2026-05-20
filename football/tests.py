@@ -181,6 +181,44 @@ class PendingCardsRivalReportTests(TestCase):
         self.assertIsNone(card)
 
 
+class ManualOverridesAndKpiConsistencyTests(TestCase):
+    def test_manual_base_overrides_survive_manual_match_for_other_player(self):
+        competition = Competition.objects.create(name='Comp', slug='comp', level=1, region='test')
+        season = Season.objects.create(
+            competition=competition,
+            name='2025/2026',
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 6, 30),
+            is_current=True,
+        )
+        group = Group.objects.create(season=season, name='Grupo', slug='grupo')
+        team = Team.objects.create(name='Equipo', slug='equipo', group=group, is_primary=True)
+        opponent = Team.objects.create(name='Rival', slug='rival', group=group, is_primary=False)
+        player_a = Player.objects.create(team=team, name='Jugador A')
+        player_b = Player.objects.create(team=team, name='Jugador B')
+        match = Match.objects.create(
+            season=season,
+            group=group,
+            round='J1',
+            context=Match.CONTEXT_LEAGUE,
+            date=date(2026, 1, 1),
+            home_team=team,
+            away_team=opponent,
+        )
+
+        PlayerStatistic.objects.create(player=player_a, season=season, match=None, context='manual-base', name='manual_pj', value=31)
+        PlayerStatistic.objects.create(player=player_a, season=season, match=None, context='manual-base', name='manual_pt', value=29)
+        PlayerStatistic.objects.create(player=player_a, season=season, match=None, context='manual-base', name='manual_minutes', value=2465)
+        PlayerStatistic.objects.create(player=player_b, season=season, match=match, context='manual-match', name='manual_minutes', value=45)
+
+        rows = compute_player_dashboard(team, force_refresh=True, scope=Match.CONTEXT_LEAGUE)
+        row_a = next((row for row in rows if int(row.get('player_id') or 0) == player_a.id), None)
+        self.assertIsNotNone(row_a)
+        self.assertEqual(int(row_a.get('pj') or 0), 31)
+        self.assertEqual(int(row_a.get('pt') or 0), 29)
+        self.assertEqual(int(row_a.get('minutes') or 0), 2465)
+
+
 class AnalysisVideoReportPdfExportTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(username='staff', password='pass-1234')
