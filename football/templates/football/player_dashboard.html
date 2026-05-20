@@ -562,6 +562,20 @@
 	                  <span class="mini-pill">% Éx <strong>{{ player.success_rate|default:0|floatformat:1 }}</strong></span>
 	                </div>
 
+	                <div class="mini-radar-wrap" title="Radar comparativo (percentiles dentro del equipo)">
+	                  <svg
+	                    class="mini-radar"
+	                    viewBox="0 0 100 100"
+	                    role="img"
+	                    aria-label="Radar de percentiles: acciones/90, éxito, participación, influencia e importancia"
+	                    data-a90="{{ player.radar_pcts.a90|default:0 }}"
+	                    data-sr="{{ player.radar_pcts.sr|default:0 }}"
+	                    data-part="{{ player.radar_pcts.part|default:0 }}"
+	                    data-inf="{{ player.radar_pcts.inf|default:0 }}"
+	                    data-imp="{{ player.radar_pcts.imp|default:0 }}"
+	                  ></svg>
+	                </div>
+
 	                <div class="broadcast-kpis" aria-label="KPIs rápidos">
 	                  <div class="broadcast-kpi is-accent"><span class="k">% Éxito</span><span class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</span></div>
 	                  <div class="broadcast-kpi"><span class="k">% Duelos</span><span class="v">{{ player.duel_rate|default:0|floatformat:-1 }}%</span></div>
