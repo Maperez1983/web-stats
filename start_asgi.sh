@@ -8,6 +8,7 @@ set -euo pipefail
 : "${MIGRATE_FAIL_OPEN:=}"
 : "${GUNICORN_TIMEOUT:=120}"
 : "${GUNICORN_WORKERS:=2}"
+: "${GUNICORN_THREADS:=4}"
 : "${GUNICORN_KEEPALIVE:=5}"
 : "${GUNICORN_GRACEFUL_TIMEOUT:=30}"
 : "${INSTALL_PLAYWRIGHT_BROWSERS:=false}"
@@ -82,6 +83,11 @@ fi
 # Motivo: gran parte del stack es sync y, bajo ASGI, cualquier fuga de sync en un hilo con event-loop
 # puede provocar `SynchronousOnlyOperation` (p.ej. al guardar sesiones).
 _start_server() {
+  _threads="${GUNICORN_THREADS:-1}"
+  if [ -z "${_threads}" ]; then _threads="1"; fi
+  if ! [[ "${_threads}" =~ ^[0-9]+$ ]]; then _threads="1"; fi
+  if [ "${_threads}" -lt 1 ]; then _threads="1"; fi
+
   if [ "${_run_asgi}" = "true" ]; then
     echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting ASGI (UvicornWorker)" >&2
     gunicorn webstats.asgi:application \
@@ -94,7 +100,20 @@ _start_server() {
       --access-logfile - \
       --error-logfile - &
   else
-    echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI" >&2
+    if [ "${_threads}" -gt 1 ]; then
+      echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI (gthread ${GUNICORN_WORKERS}x${_threads})" >&2
+      gunicorn webstats.wsgi:application \
+        -k gthread \
+        --threads "${_threads}" \
+        --bind "0.0.0.0:${PORT}" \
+        --timeout "${GUNICORN_TIMEOUT}" \
+        --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+        --keep-alive "${GUNICORN_KEEPALIVE}" \
+        --workers "${GUNICORN_WORKERS}" \
+        --access-logfile - \
+        --error-logfile - &
+    else
+      echo "[boot] DJANGO_RUN_ASGI=${DJANGO_RUN_ASGI:-} -> starting WSGI (sync ${GUNICORN_WORKERS})" >&2
     gunicorn webstats.wsgi:application \
       -k sync \
       --bind "0.0.0.0:${PORT}" \
@@ -104,6 +123,7 @@ _start_server() {
       --workers "${GUNICORN_WORKERS}" \
       --access-logfile - \
       --error-logfile - &
+    fi
   fi
   echo $!
 }

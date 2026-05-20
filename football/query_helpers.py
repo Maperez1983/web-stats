@@ -94,13 +94,31 @@ def _team_match_queryset(primary_team):
             # Si el equipo no tiene grupo/competición, no intentamos inferir alias por nombre:
             # es demasiado fácil mezclar categorías/clubes con el mismo nombre (p.ej. "Benagalbón").
             if primary_group_id:
-                for candidate in Team.objects.exclude(id=primary_team.id).only(
-                    'id',
-                    'name',
-                    'category',
-                    'game_format',
-                    'group_id',
-                ):
+                candidate_qs = (
+                    Team.objects
+                    .exclude(id=primary_team.id)
+                    .only('id', 'name', 'category', 'game_format', 'group_id')
+                )
+                # Rendimiento: no iterar por TODOS los equipos del sistema.
+                # En producto multicategoría, el alias solo debe salir del mismo grupo/competición.
+                try:
+                    candidate_qs = candidate_qs.filter(group_id=primary_group_id)
+                except Exception:
+                    candidate_qs = candidate_qs
+                # Filtro suave: si hay categoría definida, prioriza coincidir.
+                if primary_category:
+                    try:
+                        candidate_qs = candidate_qs.filter(Q(category=primary_category) | Q(category='') | Q(category__isnull=True))
+                    except Exception:
+                        candidate_qs = candidate_qs
+                # Filtro suave: si hay formato definido, prioriza coincidir.
+                if primary_game_format:
+                    try:
+                        candidate_qs = candidate_qs.filter(Q(game_format=primary_game_format) | Q(game_format='') | Q(game_format__isnull=True))
+                    except Exception:
+                        candidate_qs = candidate_qs
+
+                for candidate in candidate_qs:
                     candidate_category = (getattr(candidate, 'category', '') or '').strip()
                     if (primary_category or candidate_category) and candidate_category != primary_category:
                         # No mezclar categorías distintas (p.ej. Senior vs Prebenjamín) aunque el

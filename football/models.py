@@ -855,6 +855,11 @@ class Match(models.Model):
 
     class Meta:
         ordering = ['-date', 'round']
+        indexes = [
+            models.Index(fields=['home_team', 'date'], name='match_home_date_idx'),
+            models.Index(fields=['away_team', 'date'], name='match_away_date_idx'),
+            models.Index(fields=['season', 'date'], name='match_season_date_idx'),
+        ]
 
     def __str__(self):
         if self.home_team and self.away_team:
