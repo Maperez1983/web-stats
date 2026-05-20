@@ -57929,7 +57929,24 @@ def player_pdf(request, player_id):
     except Exception:
         output_format = ''
     if output_format == 'html':
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        resp = HttpResponse(html, content_type='text/html; charset=utf-8')
+        # Ayuda a depurar despliegues/cachés: permite ver el build activo también en HTML.
+        try:
+            build_id = (
+                os.getenv('RENDER_GIT_COMMIT')
+                or os.getenv('RENDER_DEPLOY_ID')
+                or os.getenv('SOURCE_VERSION')
+                or os.getenv('GIT_SHA')
+                or ''
+            ).strip()
+            if build_id:
+                resp['X-2J-Build'] = build_id
+        except Exception:
+            pass
+        resp['Cache-Control'] = 'no-store, max-age=0'
+        resp['Pragma'] = 'no-cache'
+        resp['Expires'] = '0'
+        return resp
     filename = slugify(player.name or 'jugador')
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=True, force_pdf=True)
 
