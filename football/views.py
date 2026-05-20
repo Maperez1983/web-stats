@@ -23340,10 +23340,14 @@ def _build_player_percentiles(detail_row, population_rows):
     return out
 
 
-def _build_player_radar_data(detail_row, *, player_percentiles=None):
+def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_pct=None):
     """
     Construye ejes + path SVG del radar (araña) para PDF (sin JS).
-    Replica la heurística usada en `player_detail.html` (preset auto).
+
+    Informe de temporada:
+    - Compromiso: participación + entrenos
+    - Impacto: G+A por partido (0–100)
+    - Calidad: % éxito ponderado por volumen + impacto
     """
     if not isinstance(detail_row, dict):
         detail_row = {}
@@ -23361,32 +23365,27 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None):
         except Exception:
             return lo
 
-    def _aerial_rate():
-        a = detail_row.get('aerial_duel_summary') if isinstance(detail_row.get('aerial_duel_summary'), dict) else {}
-        won = _parse_int(a.get('won')) or 0
-        total = _parse_int(a.get('total')) or 0
-        return (won / total) * 100.0 if total else 0.0
-
-    profile = str(detail_row.get('profile') or '').strip().lower()
     success_rate = _clamp(_num(detail_row.get('success_rate')))
-    duel_rate = _clamp(_num(detail_row.get('duel_rate')))
-    pass_acc = _clamp(_num((detail_row.get('passes') or {}).get('accuracy') if isinstance(detail_row.get('passes'), dict) else 0))
-    shot_acc = _clamp(_num((detail_row.get('shots') or {}).get('accuracy') if isinstance(detail_row.get('shots'), dict) else 0))
-    aerial_rate = _clamp(_aerial_rate())
 
     actions = max(0.0, _num(detail_row.get('total_actions')))
     pj = max(0.0, _num(detail_row.get('pj')))
     actions_per_match = (actions / pj) if pj > 0 else actions
-    volume_score = _clamp((actions_per_match / 60.0) * 100.0)
 
     goals = max(0.0, _num(detail_row.get('goals')))
     assists = max(0.0, _num(detail_row.get('assists')))
     contrib_per_match = ((goals + assists) / pj) if pj > 0 else 0.0
     impact_score = _clamp(contrib_per_match * 100.0)
 
-    saves = max(0.0, _num(detail_row.get('goalkeeper_saves')))
-    saves_per_match = (saves / pj) if pj > 0 else saves
-    saves_score = _clamp((saves_per_match / 8.0) * 100.0)
+    participation_pct = _clamp(_num(detail_row.get('participation_pct')))
+    attendance_value = _clamp(_num(attendance_pct)) if attendance_pct is not None else 0.0
+    if attendance_pct is None:
+        compromiso_score = participation_pct
+    else:
+        compromiso_score = _clamp((participation_pct * 0.6) + (attendance_value * 0.4))
+
+    volume_factor = min(1.0, max(0.0, actions_per_match / 40.0))
+    success_weighted = success_rate * volume_factor
+    quality_score = _clamp((success_weighted * 0.7) + (impact_score * 0.3))
 
     def _fmt_pct(value):
         return f"{int(round(value))}%"
@@ -23399,21 +23398,26 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None):
             'pct_rank': int(_clamp(_num(pct_rank), 0, 100)),
         }
 
-    axis_values = {
-        'exito': _mk('Éxito', success_rate, _fmt_pct(success_rate), pcts.get('success_rate', 0)),
-        'duelos': _mk('Duelos', duel_rate, _fmt_pct(duel_rate), pcts.get('duel_rate', 0)),
-        'aereo': _mk('Aéreo', aerial_rate, _fmt_pct(aerial_rate), pcts.get('aerial_rate', 0)),
-        'pase': _mk('Pase', pass_acc, _fmt_pct(pass_acc), pcts.get('passes_accuracy', 0)),
-        'tiro': _mk('Tiro', shot_acc, _fmt_pct(shot_acc), pcts.get('shots_accuracy', 0)),
-        'impacto': _mk('Impacto', impact_score, f"{contrib_per_match:.2f} G+A/PJ" if pj > 0 else f"{int(goals + assists)}", pcts.get('decisive_actions_per90', 0)),
-        'volumen': _mk('Volumen', volume_score, f"{int(round(actions_per_match))}/PJ" if pj > 0 else f"{int(round(actions))}", pcts.get('total_actions', 0)),
-        'paradas': _mk('Paradas', saves_score, f"{round(saves_per_match, 1)}/PJ" if pj > 0 else f"{int(round(saves))}", pcts.get('decisive_actions_per90', 0)),
-    }
-
-    if profile == 'goalkeeper':
-        axes = [axis_values['exito'], axis_values['paradas'], axis_values['pase'], axis_values['duelos'], axis_values['aereo'], axis_values['volumen']]
-    else:
-        axes = [axis_values['exito'], axis_values['duelos'], axis_values['aereo'], axis_values['pase'], axis_values['tiro'], axis_values['impacto']]
+    axes = [
+        _mk(
+            'Compromiso',
+            compromiso_score,
+            f"{participation_pct:.1f}% part · {attendance_value:.1f}% entrenos" if attendance_pct is not None else f"{participation_pct:.1f}% part",
+            pcts.get('participation_pct', 0),
+        ),
+        _mk(
+            'Impacto',
+            impact_score,
+            f"{contrib_per_match:.2f} G+A/PJ" if pj > 0 else f"{int(goals + assists)}",
+            pcts.get('decisive_actions_per90', 0),
+        ),
+        _mk(
+            'Calidad',
+            quality_score,
+            f"{success_rate:.1f}% éxito · {int(round(actions_per_match))}/PJ",
+            pcts.get('success_rate', 0),
+        ),
+    ]
 
     # SVG path
     try:
@@ -56511,31 +56515,38 @@ def player_detail_page(request, player_id):
                 total = _parse_int(a.get('total')) or 0
                 return (won / total) * 100.0 if total else 0.0
 
+            def _actions_per90(row):
+                try:
+                    if row.get('actions_per90') is not None:
+                        return float(row.get('actions_per90') or 0)
+                except Exception:
+                    pass
+                minutes = _row_num(row, 'minutes') or 0.0
+                total_actions = _row_num(row, 'total_actions') or 0.0
+                return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
+
+            def _commitment(row):
+                part_matches = _row_num(row, 'participation_matches_pct') or 0.0
+                participation = _row_num(row, 'participation_pct') or 0.0
+                availability = _row_num(row, 'availability_pct') or 0.0
+                part = part_matches if part_matches > 0 else participation
+                if part > 0 and availability > 0:
+                    return (part + availability) / 2.0
+                return part if part > 0 else availability
+
             pop = {
+                'commitment': [_commitment(r) for r in all_rows],
+                'actions_per90': [_actions_per90(r) for r in all_rows],
                 'success_rate': [_row_num(r, 'success_rate') for r in all_rows],
-                'duel_rate': [_row_num(r, 'duel_rate') for r in all_rows],
-                'passes_accuracy': [_passes_acc(r) for r in all_rows],
-                'shots_accuracy': [_shots_acc(r) for r in all_rows],
-                'aerial_rate': [_aerial_rate(r) for r in all_rows],
-                'total_actions': [_row_num(r, 'total_actions') for r in all_rows],
-                'decisive_actions_per90': [_row_num(r, 'decisive_actions_per90') for r in all_rows],
-                'successes_per90': [_row_num(r, 'successes_per90') for r in all_rows],
+                'importance_score': [_row_num(r, 'importance_score') for r in all_rows],
+                'influence_score': [_row_num(r, 'influence_score') for r in all_rows],
             }
             player_percentiles = {
-                'success_rate': _percentile_rank(safe_stats.get('success_rate') or 0, pop['success_rate']),
-                'duel_rate': _percentile_rank(safe_stats.get('duel_rate') or 0, pop['duel_rate']),
-                'passes_accuracy': _percentile_rank(
-                    (safe_stats.get('passes') or {}).get('accuracy') if isinstance(safe_stats.get('passes'), dict) else 0,
-                    pop['passes_accuracy'],
-                ),
-                'shots_accuracy': _percentile_rank(
-                    (safe_stats.get('shots') or {}).get('accuracy') if isinstance(safe_stats.get('shots'), dict) else 0,
-                    pop['shots_accuracy'],
-                ),
-                'aerial_rate': _percentile_rank(_aerial_rate(safe_stats), pop['aerial_rate']),
-                'total_actions': _percentile_rank(safe_stats.get('total_actions') or 0, pop['total_actions']),
-                'decisive_actions_per90': _percentile_rank(safe_stats.get('decisive_actions_per90') or 0, pop['decisive_actions_per90']),
-                'successes_per90': _percentile_rank(safe_stats.get('successes_per90') or 0, pop['successes_per90']),
+                'commitment': _percentile_rank(_commitment(safe_stats), pop['commitment']),
+                'actions_per90': _percentile_rank(_actions_per90(safe_stats), pop['actions_per90']),
+                'success_rate': _percentile_rank(_row_num(safe_stats, 'success_rate'), pop['success_rate']),
+                'importance_score': _percentile_rank(_row_num(safe_stats, 'importance_score'), pop['importance_score']),
+                'influence_score': _percentile_rank(_row_num(safe_stats, 'influence_score'), pop['influence_score']),
             }
         except Exception:
             player_percentiles = {}
@@ -57519,6 +57530,7 @@ def player_pdf(request, player_id):
 
     played_matches = []
     upcoming_matches = []
+    normalized_raw_matches = []
     for entry in raw_matches:
         if not isinstance(entry, dict):
             continue
@@ -57540,10 +57552,12 @@ def player_pdf(request, player_id):
         # arrastran partidos con fecha pasada pero sin registros (y eso mostraba rivales incorrectos).
         is_played = bool(played_flag or actions > 0 or successes > 0 or goals > 0 or assists > 0 or has_result)
         entry = {**entry, 'date_obj': match_date}
+        normalized_raw_matches.append(entry)
         if is_played:
             played_matches.append(entry)
         else:
             upcoming_matches.append(entry)
+    raw_matches = normalized_raw_matches
 
     played_matches.sort(
         key=lambda m: (
@@ -57560,9 +57574,11 @@ def player_pdf(request, player_id):
         future = [m for m in upcoming_matches if m.get('date_obj') and m.get('date_obj') >= today]
         next_scheduled_match = future[0] if future else upcoming_matches[0]
 
-    # Gráficas por jornadas (minutos y G/A).
+    # Gráficas por jornadas/partidos (minutos y G/A) para todo el periodo.
     matchday_minutes_chart = []
     matchday_ga_chart = []
+    matchday_minutes_chart_rows = []
+    matchday_ga_chart_rows = []
     try:
         regulation = _parse_int(detail.get('match_regulation_minutes')) if isinstance(detail, dict) else None
         regulation = int(regulation) if regulation else 90
@@ -57576,10 +57592,7 @@ def player_pdf(request, player_id):
                 item.get('date_obj') or date.min,
             )
 
-        chart_matches = sorted([m for m in played_matches if isinstance(m, dict)], key=_chart_sort_key)
-        # Evitar PDFs ilegibles: nos quedamos con las últimas 12 jornadas/partidos.
-        if len(chart_matches) > 12:
-            chart_matches = chart_matches[-12:]
+        chart_matches = sorted([m for m in raw_matches if isinstance(m, dict)], key=_chart_sort_key)
 
         max_minutes = max((int(m.get('minutes') or 0) for m in chart_matches), default=0)
         minutes_scale = max(1, int(max(regulation, max_minutes)))
@@ -57620,6 +57633,19 @@ def player_pdf(request, player_id):
     except Exception:
         matchday_minutes_chart = []
         matchday_ga_chart = []
+        matchday_minutes_chart_rows = []
+        matchday_ga_chart_rows = []
+
+    # Partir en filas (12 columnas) para PDF.
+    try:
+        cols = 12
+        matchday_minutes_chart_rows = [
+            matchday_minutes_chart[i : i + cols] for i in range(0, len(matchday_minutes_chart), cols)
+        ]
+        matchday_ga_chart_rows = [matchday_ga_chart[i : i + cols] for i in range(0, len(matchday_ga_chart), cols)]
+    except Exception:
+        matchday_minutes_chart_rows = []
+        matchday_ga_chart_rows = []
 
     def _clamp_pct(value):
         try:
