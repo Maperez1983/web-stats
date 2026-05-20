@@ -60323,7 +60323,21 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                         for player in (
                             Player.objects
                             .filter(team=primary_team, id__in=cached_ids)
-                            .only('id', 'team_id', 'photo_updated_at')
+                            # Importante: `resolve_player_photo_url()` puede caer a `resolve_player_photo_static_path()`,
+                            # que usa `player.name`, `player.number` y `player.team.*`. Si estos campos están diferidos
+                            # (por `.only()`), Django hace N+1 queries (muy caro en Render/Postgres).
+                            .select_related('team')
+                            .only(
+                                'id',
+                                'team_id',
+                                'name',
+                                'number',
+                                'photo_updated_at',
+                                'team__id',
+                                'team__slug',
+                                'team__category',
+                                'team__is_primary',
+                            )
                         )
                     }
                     for row in cached_rows:
