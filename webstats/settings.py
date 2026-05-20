@@ -555,9 +555,16 @@ if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' 
 # Usamos LocMemCache por defecto (rápido) y dejamos FileBasedCache como opción por env.
 # Nota: LocMemCache NO se comparte entre procesos (gunicorn workers). En producción esto provoca
 # que invalidaciones (p.ej. edición manual de estadísticas) no se reflejen si el siguiente request
-# cae en otro worker con caché "vieja". Por defecto en producción preferimos FileBasedCache para
-# consistencia; en desarrollo mantenemos LocMemCache.
-_default_cache_backend = 'locmem' if DEBUG else 'filebased'
+# cae en otro worker con caché "vieja".
+#
+# Rendimiento: en Render solemos ejecutar con `WEB_CONCURRENCY=1`, así que LocMemCache es el backend
+# más rápido y suficiente. Si hay >1 worker y no se especifica `CACHE_BACKEND`, usamos FileBasedCache
+# como opción "shared" sin dependencias externas (aunque sea más lenta).
+try:
+    _web_concurrency = int(os.getenv("WEB_CONCURRENCY") or "1")
+except Exception:
+    _web_concurrency = 1
+_default_cache_backend = 'locmem' if DEBUG else ('locmem' if _web_concurrency <= 1 else 'filebased')
 CACHE_BACKEND = (os.getenv('CACHE_BACKEND') or _default_cache_backend).strip().lower()
 CACHE_DEFAULT_TIMEOUT = _env_int('CACHE_DEFAULT_TIMEOUT', 3600)
 _cache_max_entries = _env_int('CACHE_MAX_ENTRIES', 10000)
