@@ -97,6 +97,8 @@ html {
 
 body {
   font-family: var(--prod-font-ui);
+  background-color: var(--prod-bg);
+  color: var(--prod-text);
 }
 
 /* iOS/Android: evitar scroll horizontal accidental y mejorar viewport dinámico. */
