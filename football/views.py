@@ -29574,73 +29574,78 @@ def coach_tactics_page(request):
     except Exception:
         available_players = []
 
+    lite_catalogs = str(os.getenv('TACTICS_LITE_CATALOGS', '1') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
     pdf_assets = []
     pdf_assets_json = '[]'
-    try:
-        system_team = None
-        try:
-            system_team = Team.objects.filter(slug='pizarra').first()
-        except Exception:
-            system_team = None
-        assets_filter = Q(team=primary_team) | Q(owner=request.user)
-        if system_team:
-            assets_filter |= Q(team=system_team)
-        pdf_assets = list(
-            PdfGraphicAsset.objects
-            .filter(assets_filter)
-            .exclude(file='')
-            .order_by('-created_at', '-id')[:80]
-        )
-        pdf_assets_json = json.dumps(
-            [
-                {
-                    'id': int(item.id),
-                    'title': str(item.title or '').strip(),
-                    'url': reverse('pdf-graphic-asset-file', args=[item.id]),
-                    'width': int(item.width or 0),
-                    'height': int(item.height or 0),
-                }
-                for item in pdf_assets
-                if getattr(item, 'file', None)
-            ],
-            ensure_ascii=False,
-        )
-    except Exception:
-        pdf_assets = []
-        pdf_assets_json = '[]'
-
-    # Catálogos auxiliares (opcional). Si fallan, el módulo de táctica sigue funcionando.
     ppt_icons = []
-    try:
-        if TASK_MATERIAL_PPT_DIR.exists():
-            allowed = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
-            files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
-            files = sorted(files, key=lambda p: p.name.lower())[:90]
-            for p in files:
-                ppt_icons.append(
-                    {
-                        'label': str(p.stem or '').strip()[:80],
-                        'static_path': f'football/images/task-materials/ppt/{p.name}',
-                    }
-                )
-    except Exception:
-        ppt_icons = []
-
     drills_catalog = []
-    try:
-        drills_catalog = [
-            {
-                'id': item.id,
-                'label': item.label,
-                'category': item.category,
-                'icon_static_path': item.icon_static_path,
-                'age_min': item.age_min,
-                'age_max': item.age_max,
-            }
-            for item in DRILL_CATALOG
-        ]
-    except Exception:
-        drills_catalog = []
+
+    # Rendimiento: en modo Táctica, por defecto no cargamos catálogos pesados (assets importados,
+    # iconos PPT, drills). Si se necesita, se puede desactivar con `TACTICS_LITE_CATALOGS=0`.
+    if not lite_catalogs:
+        try:
+            system_team = None
+            try:
+                system_team = Team.objects.filter(slug='pizarra').first()
+            except Exception:
+                system_team = None
+            assets_filter = Q(team=primary_team) | Q(owner=request.user)
+            if system_team:
+                assets_filter |= Q(team=system_team)
+            pdf_assets = list(
+                PdfGraphicAsset.objects
+                .filter(assets_filter)
+                .exclude(file='')
+                .order_by('-created_at', '-id')[:80]
+            )
+            pdf_assets_json = json.dumps(
+                [
+                    {
+                        'id': int(item.id),
+                        'title': str(item.title or '').strip(),
+                        'url': reverse('pdf-graphic-asset-file', args=[item.id]),
+                        'width': int(item.width or 0),
+                        'height': int(item.height or 0),
+                    }
+                    for item in pdf_assets
+                    if getattr(item, 'file', None)
+                ],
+                ensure_ascii=False,
+            )
+        except Exception:
+            pdf_assets = []
+            pdf_assets_json = '[]'
+
+        # Catálogos auxiliares (opcional). Si fallan, el módulo de táctica sigue funcionando.
+        try:
+            if TASK_MATERIAL_PPT_DIR.exists():
+                allowed = {'.png', '.jpg', '.jpeg', '.webp', '.svg'}
+                files = [p for p in TASK_MATERIAL_PPT_DIR.iterdir() if p.is_file() and p.suffix.lower() in allowed]
+                files = sorted(files, key=lambda p: p.name.lower())[:90]
+                for p in files:
+                    ppt_icons.append(
+                        {
+                            'label': str(p.stem or '').strip()[:80],
+                            'static_path': f'football/images/task-materials/ppt/{p.name}',
+                        }
+                    )
+        except Exception:
+            ppt_icons = []
+
+        try:
+            drills_catalog = [
+                {
+                    'id': item.id,
+                    'label': item.label,
+                    'category': item.category,
+                    'icon_static_path': item.icon_static_path,
+                    'age_min': item.age_min,
+                    'age_max': item.age_max,
+                }
+                for item in DRILL_CATALOG
+            ]
+        except Exception:
+            drills_catalog = []
 
     try:
         back_url = reverse('dashboard-home')

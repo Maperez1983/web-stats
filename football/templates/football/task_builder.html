@@ -6815,9 +6815,29 @@
 		          'webstats3dReady'
 		        );
 		      })();
-		    </script>
-					    <script>
-					      window.addEventListener('DOMContentLoaded', () => {
+		          </script>
+        {% if tactics_mode %}
+						    <script>
+						      // Modo Táctica: evita JS inline pesado (asistente, landing, etc.).
+						      // Mantiene el guard-rail de submit: el guardado se hace como clip en Playbook.
+						      window.addEventListener('DOMContentLoaded', () => {
+						        try {
+						          const form = document.getElementById('task-builder-form');
+						          if (!form) return;
+						          form.addEventListener('submit', (ev) => {
+						            try { ev.preventDefault(); } catch (e) { /* ignore */ }
+						            try {
+						              const status = document.getElementById('task-builder-status');
+						              if (status) status.textContent = 'Táctica: guarda como clip en Playbook (no se crea tarea).';
+						            } catch (e) { /* ignore */ }
+						            return false;
+						          });
+						        } catch (e) { /* ignore */ }
+						      });
+						    </script>
+						    {% else %}
+						    <script>
+						      window.addEventListener('DOMContentLoaded', () => {
 				        const tacticsMode = document.getElementById('task-builder-form')?.dataset?.tacticsMode === '1';
 				        if (tacticsMode) {
 				          const form = document.getElementById('task-builder-form');
@@ -11298,10 +11318,10 @@
               }
             } catch (e) { /* ignore */ }
 			      });
-			    </script>
-	          <script>
-	            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
-		            (function () {
+		          </script>
+		          <script>
+		            // Pantalla de entrada (¿Qué quieres hacer?): selección (tap) + "Entrar" (ejecuta).
+			            (function () {
 		              const landing = document.getElementById('task-landing');
 		              if (!landing) return;
 
@@ -11506,6 +11526,7 @@
 	              openLandingIfNeeded();
 	            })();
 	          </script>
+						    {% endif %}
         {% if tactics_mode %}
         <script>
           // Seguro extra: si el script principal falló antes de enganchar listeners, estos botones
