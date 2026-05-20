@@ -17,7 +17,29 @@
 	        --muted: var(--prod-muted, #91a1b9);
 	        --brand: var(--prod-secondary, #f4b400);
 	        --pitch: var(--prod-primary, #2f7d32);
+
+          /* Variables de superficie/ink para evitar mezclar “modo claro” dentro del tema oscuro. */
+          --hub-card-bg: var(--panel);
+          --hub-card-ink: var(--text);
+          --hub-card-muted: var(--muted);
+          --hub-card-border: var(--line);
+          --hub-subcard-bg: rgba(2, 6, 23, 0.08);
+          --hub-subcard-border: var(--line);
+          --hub-field-bg: rgba(2, 6, 23, 0.08);
+          --hub-field-ink: var(--text);
+          --hub-field-border: var(--line);
 	      }
+        :root[data-theme="light"] {
+          --hub-card-bg: linear-gradient(180deg, rgba(226, 232, 240, 0.96), rgba(203, 213, 225, 0.92));
+          --hub-card-ink: #0f172a;
+          --hub-card-muted: rgba(15, 23, 42, 0.68);
+          --hub-card-border: rgba(148, 163, 184, 0.22);
+          --hub-subcard-bg: linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.17));
+          --hub-subcard-border: rgba(148, 163, 184, 0.28);
+          --hub-field-bg: rgba(255, 255, 255, 0.88);
+          --hub-field-ink: #0f172a;
+          --hub-field-border: rgba(148, 163, 184, 0.22);
+        }
 	      body {
 	        margin: 0;
 	        font-family: var(--prod-font-ui, 'Inter', system-ui, sans-serif);
@@ -106,10 +128,10 @@
       .summary-card {
         border-radius: 18px;
         padding: 1rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: linear-gradient(180deg, rgba(226, 232, 240, 0.96), rgba(203, 213, 225, 0.92));
-        color: #0f172a;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        color: var(--hub-card-ink);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
@@ -125,7 +147,7 @@
       }
       .summary-meta {
         margin: 0;
-        color: rgba(15, 23, 42, 0.68);
+        color: var(--hub-card-muted);
       }
       .summary-mini-grid {
         display: grid;
@@ -136,13 +158,13 @@
       .summary-mini-item {
         border-radius: 14px;
         padding: 0.85rem;
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        background: linear-gradient(180deg, rgba(148, 163, 184, 0.24), rgba(148, 163, 184, 0.17));
+        border: 1px solid var(--hub-subcard-border);
+        background: var(--hub-subcard-bg);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
       }
       .summary-mini-item .label {
         font-size: 0.68rem;
-        color: rgba(15, 23, 42, 0.58);
+        color: var(--hub-card-muted);
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
@@ -181,7 +203,7 @@
       .summary-toolbar label {
         display: block;
         margin-bottom: 0.35rem;
-        color: rgba(15, 23, 42, 0.62);
+        color: var(--hub-card-muted);
         font-size: 0.74rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -189,7 +211,7 @@
       .individual-search label {
         display: block;
         margin-bottom: 0.35rem;
-        color: rgba(15, 23, 42, 0.62);
+        color: var(--hub-card-muted);
         font-size: 0.74rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -198,9 +220,9 @@
       .individual-search input {
         width: 100%;
         border-radius: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(255, 255, 255, 0.88);
-        color: #0f172a;
+        border: 1px solid var(--hub-field-border);
+        background: var(--hub-field-bg);
+        color: var(--hub-field-ink);
         padding: 0.8rem 0.9rem;
       }
       .individual-search {
@@ -217,10 +239,10 @@
         color: inherit;
         border-radius: 16px;
         padding: 0.9rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: linear-gradient(180deg, rgba(226, 232, 240, 0.96), rgba(203, 213, 225, 0.92));
-        color: #0f172a;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        color: var(--hub-card-ink);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
       }
       .individual-card.is-selected {
         border-color: rgba(15, 118, 110, 0.42);
@@ -292,10 +314,10 @@
       .kpi {
         border-radius: 14px;
         padding: 0.7rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: linear-gradient(180deg, rgba(226, 232, 240, 0.96), rgba(203, 213, 225, 0.92));
-        color: #0f172a;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        color: var(--hub-card-ink);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
         text-align: center;
       }
       .kpi-ring {
@@ -306,8 +328,8 @@
         display: grid;
         place-items: center;
         background:
-          radial-gradient(circle at center, rgba(248, 250, 252, 0.98) 58%, transparent 59%),
-          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.22) 0);
+          radial-gradient(circle at center, var(--prod-panel-flat, rgba(18, 30, 50, 0.94)) 58%, transparent 59%),
+          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.35) 0);
       }
       .kpi-value {
         font-size: 1rem;
@@ -318,21 +340,21 @@
         font-size: 0.68rem;
         letter-spacing: 0.07em;
         text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.62);
+        color: var(--hub-card-muted);
       }
       .kpi-note {
         margin-top: 0.55rem;
         font-size: 0.75rem;
-        color: rgba(15, 23, 42, 0.6);
+        color: var(--hub-card-muted);
       }
       .overview {
         margin-top: 1rem;
         padding: 1.4rem;
         border-radius: 20px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
-        color: #0f172a;
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+        color: var(--hub-card-ink);
       }
       .overview-title {
         margin: 0 0 1rem;
@@ -362,18 +384,18 @@
         display: grid;
         place-items: center;
         background:
-          radial-gradient(circle at center, rgba(255,255,255,0.96) 0 50px, transparent 51px),
-          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), #d8dee9 0);
+          radial-gradient(circle at center, var(--prod-panel-flat, rgba(18, 30, 50, 0.94)) 0 50px, transparent 51px),
+          conic-gradient(var(--pitch) calc(var(--pct, 0) * 1%), rgba(148, 163, 184, 0.35) 0);
       }
       .overview-ring-value {
         font-size: 1.2rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--hub-card-ink);
       }
       .overview-ring-label {
         font-size: 0.95rem;
         font-weight: 700;
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .overview-summary {
         display: grid;
@@ -384,15 +406,15 @@
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       }
       .overview-item {
-        background: rgba(255, 255, 255, 0.82);
-        border: 1px solid rgba(15, 124, 147, 0.14);
+        background: var(--hub-subcard-bg);
+        border: 1px solid var(--hub-subcard-border);
         border-radius: 1rem;
         padding: 1rem;
         text-align: center;
       }
       .overview-item .label {
         font-size: 0.78rem;
-        color: #475569;
+        color: var(--hub-card-muted);
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
@@ -400,15 +422,15 @@
         margin-top: 0.25rem;
         font-size: 1.15rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--hub-card-ink);
       }
       .coach-player-tools {
         margin-top: 1rem;
         border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
-        color: #0f172a;
+        border: 1px solid var(--hub-card-border);
+        background: var(--hub-card-bg);
+        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+        color: var(--hub-card-ink);
         padding: 1.2rem;
       }
       .coach-player-toolbar {
@@ -423,15 +445,15 @@
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #475569;
+        color: var(--hub-card-muted);
         margin-bottom: 0.35rem;
       }
       .coach-player-toolbar select {
         width: 100%;
         border-radius: 12px;
-        border: 1px solid rgba(15, 124, 147, 0.18);
-        background: rgba(255,255,255,0.92);
-        color: #0f172a;
+        border: 1px solid var(--hub-field-border);
+        background: var(--hub-field-bg);
+        color: var(--hub-field-ink);
         padding: 0.7rem 0.8rem;
       }
       .coach-player-header {
@@ -555,9 +577,9 @@
         color: #f8fafc;
       }
       .coach-map-wrap.is-light {
-        background: rgba(255,255,255,0.94);
-        border-color: rgba(15, 124, 147, 0.14);
-        color: #0f172a;
+        background: var(--hub-card-bg);
+        border-color: var(--hub-card-border);
+        color: var(--hub-card-ink);
       }
       .coach-map-wrap h3 {
         margin: 0 0 0.55rem;
@@ -725,9 +747,10 @@
         border: 1px solid rgba(148, 163, 184, 0.2);
       }
       .analysis-section.is-light {
-        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(226,232,240,0.92));
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.28);
-        color: #0f172a;
+        background: var(--hub-card-bg);
+        border-color: var(--hub-card-border);
+        box-shadow: var(--prod-shadow-md, 0 16px 36px rgba(0, 0, 0, 0.24));
+        color: var(--hub-card-ink);
       }
       .analysis-section h3 {
         margin: 0 0 0.3rem;
@@ -739,32 +762,32 @@
         color: rgba(226, 232, 240, 0.72);
       }
       .analysis-section.is-light .section-copy {
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .analysis-section.is-light .coach-player-toolbar label {
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .analysis-section.is-light .coach-match-toolbar label {
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .analysis-section.is-light .coach-match-toolbar select {
-        background: rgba(255,255,255,0.92);
-        color: #0f172a;
-        border-color: rgba(15, 124, 147, 0.18);
+        background: var(--hub-field-bg);
+        color: var(--hub-field-ink);
+        border-color: var(--hub-field-border);
       }
       .analysis-section.is-light .coach-match-table {
-        background: rgba(255,255,255,0.56);
-        border-color: rgba(15, 124, 147, 0.14);
+        background: var(--hub-subcard-bg);
+        border-color: var(--hub-subcard-border);
       }
       .analysis-section.is-light .coach-match-table th {
-        color: #64748b;
+        color: var(--hub-card-muted);
       }
       .analysis-section.is-light .coach-player-card {
-        background: rgba(255,255,255,0.62);
-        border-color: rgba(15, 124, 147, 0.12);
+        background: var(--hub-subcard-bg);
+        border-color: var(--hub-subcard-border);
       }
       .analysis-section.is-light .coach-player-card .meta {
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .coach-match-toolbar {
         display: grid;
@@ -801,8 +824,8 @@
         overflow: hidden;
       }
       .fold-card.is-light {
-        background: rgba(255,255,255,0.7);
-        border-color: rgba(15, 124, 147, 0.14);
+        background: var(--hub-subcard-bg);
+        border-color: var(--hub-subcard-border);
       }
       .fold-card summary {
         list-style: none;
@@ -823,11 +846,11 @@
         margin: 0;
         font-size: 1.1rem;
         font-weight: 800;
-        color: #0f172a;
+        color: var(--hub-card-ink);
       }
       .brief-meta {
         margin: 0.4rem 0 0;
-        color: #475569;
+        color: var(--hub-card-muted);
       }
       .brief-list {
         list-style: none;
@@ -839,9 +862,9 @@
       .brief-list li {
         border-radius: 12px;
         padding: 0.65rem 0.75rem;
-        background: rgba(255,255,255,0.82);
-        border: 1px solid rgba(15, 124, 147, 0.12);
-        color: #0f172a;
+        background: var(--hub-subcard-bg);
+        border: 1px solid var(--hub-subcard-border);
+        color: var(--hub-card-ink);
       }
       .analysis-stack {
         display: grid;
@@ -891,9 +914,9 @@
       .coach-tag {
         padding: 0.45rem 0.7rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.78);
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        color: #0f172a;
+        background: var(--hub-subcard-bg);
+        border: 1px solid var(--hub-subcard-border);
+        color: var(--hub-card-ink);
         font-size: 0.8rem;
       }
       .weekly-brief {
