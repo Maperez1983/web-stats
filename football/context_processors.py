@@ -157,8 +157,9 @@ def brand_theme(request):
         'line': _color(override.get('line') or default.get('line'), 'rgba(144, 161, 185, 0.22)'),
         'panel_flat': _color(override.get('panel_flat') or default.get('panel_flat'), 'rgba(14, 23, 39, 0.96)'),
         'info': _color(override.get('info') or default.get('info'), '#22d3ee'),
-        # Default del producto: claro (estilo informe) salvo que el club/equipo fuerce otro.
-        'ui': str(override.get('ui') or default.get('ui') or 'light').strip().lower(),
+        # Default del producto: oscuro (más consistente con la mayoría de pantallas).
+        # El club/equipo puede forzar 'light' o 'hc' vía WorkspacePreference si lo desea.
+        'ui': str(override.get('ui') or default.get('ui') or 'dark').strip().lower(),
         'bg_light': _color(override.get('bg_light') or default.get('bg_light'), '#f4f7fb'),
         'text_light': _color(override.get('text_light') or default.get('text_light'), '#0f172a'),
     }
