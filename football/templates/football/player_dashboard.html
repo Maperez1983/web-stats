@@ -511,7 +511,7 @@
 	        {% for player in player_stats %}
 	          <article
               class="card broadcast-card"
-              data-player-name="{{ player.name|lower }}"
+              data-player-name="{{ player.name|lower }} {{ player.nickname|default:''|lower }}"
               data-player="{{ player.player_id }}"
               data-minutes="{{ player.minutes|default:0 }}"
               data-goals="{{ player.goals|default:0 }}"
@@ -533,7 +533,7 @@
                       {% if player.number %}<span class="dorsal-badge">{{ player.number }}</span>{% endif %}
                     </div>
                     <div>
-                      <h2 class="broadcast-name">{{ player.name }}</h2>
+                      <h2 class="broadcast-name">{{ player.nickname|default:player.name }}</h2>
                       <div class="broadcast-sub">{{ player.profile_label|default:"-" }}</div>
                     </div>
                   </div>

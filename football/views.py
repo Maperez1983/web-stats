@@ -61008,6 +61008,7 @@ def compute_player_dashboard(
             {
                 'player_id': player.id,
                 'name': player.name,
+                'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': player.number,
                 'photo_url': resolved_photo_url,
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position', ''),
@@ -61403,6 +61404,7 @@ def compute_player_dashboard(
             player_stats[player.id] = {
                 'player_id': player.id,
                 'name': player.name,
+                'nickname': str(getattr(player, 'nickname', '') or '').strip(),
                 'number': player.number,
                 'photo_url': static(photo_path) if photo_path else '',
                 'position': player.position or universo_entry.get('position') or roster_entry.get('position'),
