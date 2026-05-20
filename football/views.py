@@ -53057,7 +53057,7 @@ def _video_studio_cut_source_to_mp4(*, source_path: str, start_s: float, end_s: 
 
     ffmpeg_path = shutil.which('ffmpeg')
     if not ffmpeg_path:
-        raise RuntimeError('FFmpeg no disponible')
+        raise ValueError('FFmpeg no disponible en este servidor (export MP4 en servidor deshabilitado).')
 
     duration = max(0.01, end - start)
     safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'export'
@@ -53153,7 +53153,7 @@ def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tup
 
     ffmpeg_path = shutil.which('ffmpeg')
     if not ffmpeg_path:
-        raise RuntimeError('FFmpeg no disponible')
+        raise ValueError('FFmpeg no disponible en este servidor (export MP4 en servidor deshabilitado).')
 
     safe_base = re.sub(r'[^a-zA-Z0-9_-]+', '-', str(base_name or '').strip()).strip('-')[:48] or 'playlist'
 

@@ -6679,7 +6679,8 @@ class VideoStudioProApiTests(TestCase):
                 data=json.dumps({'video_id': self.video.id, 'clip_ids': [c1.id, c2.id], 'title': 'PL'}),
                 content_type='application/json',
             )
-        self.assertEqual(resp.status_code, 503)
+        # Si no hay FFmpeg, devolvemos 400 con mensaje claro (no debe ser 5xx para no ensuciar logs de producción).
+        self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.json().get('ok'))
 
     def test_video_studio_music_upload_list_and_delete(self):
