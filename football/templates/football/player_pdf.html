@@ -557,7 +557,8 @@
           <div class="pad">
             <div class="section-title">Partidos{% if matches_for_report_pages|length > 1 %} · Página {{ forloop.counter }}/{{ matches_for_report_pages|length }}{% endif %}</div>
 
-            {% if forloop.first and (matchday_minutes_chart_rows or matchday_ga_chart_rows) %}
+            {% if forloop.first %}
+            {% if matchday_minutes_chart_rows or matchday_ga_chart_rows %}
               <div class="charts-row">
                 <div class="charts-cell">
                   <div class="chart-card">
@@ -617,6 +618,7 @@
                   </div>
                 </div>
               </div>
+            {% endif %}
             {% endif %}
 
             <table class="table">
