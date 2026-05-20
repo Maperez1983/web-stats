@@ -227,7 +227,9 @@
         font-size: 0.98rem;
         letter-spacing: 0.04em;
         line-height: 1.15;
-        overflow-wrap: anywhere;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .player-card p {
         margin: 0.15rem 0 0;
@@ -381,6 +383,34 @@
       }
       @media (max-width: 740px) {
         .pc-summary { min-width: 0; }
+      }
+      @media (max-width: 520px) {
+        .player-card {
+          grid-template-columns: 1fr;
+          gap: 0.75rem;
+        }
+        .avatar-wrap {
+          width: 100%;
+          flex-direction: row;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 0.6rem;
+        }
+        .player-card img {
+          width: 72px;
+          height: 72px;
+        }
+        .pc-top {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .pc-summary {
+          width: 100%;
+          min-width: 0;
+        }
+        .pc-mid {
+          grid-template-columns: 1fr;
+        }
       }
       .broadcast-kpis {
         margin-top: 0.55rem;
