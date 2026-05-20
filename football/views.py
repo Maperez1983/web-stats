@@ -61704,8 +61704,7 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             pid = 0
         if pid:
             manual_entry = manual_entry_by_player_id.get(pid, {}) if isinstance(manual_entry_by_player_id, dict) else {}
-            has_manual_match = bool(isinstance(manual_by_player_match, dict) and manual_by_player_match.get(pid))
-            if isinstance(manual_entry, dict) and manual_entry and not has_manual_match:
+            if isinstance(manual_entry, dict) and manual_entry:
                 for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
                     if key in manual_entry and manual_entry.get(key) is not None:
                         stats[key] = manual_entry.get(key)
