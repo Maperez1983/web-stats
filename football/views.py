@@ -61413,6 +61413,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             processed_lineup_matches[player_id].add(match_id)
 
     # Overrides manuales por partido (minutos/goles/asistencias). Importante en cantera/cambios ilimitados.
+    # Nota: estas overrides (manual-match) deben prevalecer solo para el jugador que las tenga.
+    manual_by_player_match = {}
+    minutes_mode_match_ids = set()
     try:
         manual_match_qs = PlayerStatistic.objects.filter(
             player__team=primary_team,
@@ -61425,11 +61428,9 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             # El Match es la fuente de verdad de temporada.
             manual_match_qs = manual_match_qs.filter(match__season=season_obj)
         manual_match_rows = manual_match_qs.values('player_id', 'match_id', 'name', 'value')
-        manual_by_player_match = {}
         # "Modo ficha de partido": si un partido tiene ALGÚN override manual (min/g/a) guardado,
         # interpretamos que la ficha de partido está siendo usada y que "Auto" (sin fila)
         # significa que el jugador NO jugó.
-        minutes_mode_match_ids = set()
         for row in manual_match_rows:
             pid = _parse_int(row.get('player_id'))
             mid = _canonical_match_id(_parse_int(row.get('match_id')))
@@ -61694,6 +61695,24 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
                 round((decisive_actions / minutes_value) * match_regulation_minutes, 2),
             )
     for stats in player_stats.values():
+        # Manual-base (edición rápida en ficha del jugador):
+        # si el jugador NO usa ficha por partido (manual-match), aplicamos los overrides aquí para
+        # que prevalezcan sobre cálculos automáticos y se reflejen en KPIs.
+        try:
+            pid = int(stats.get('player_id') or 0)
+        except Exception:
+            pid = 0
+        if pid:
+            manual_entry = manual_entry_by_player_id.get(pid, {}) if isinstance(manual_entry_by_player_id, dict) else {}
+            has_manual_match = bool(isinstance(manual_by_player_match, dict) and manual_by_player_match.get(pid))
+            if isinstance(manual_entry, dict) and manual_entry and not has_manual_match:
+                for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
+                    if key in manual_entry and manual_entry.get(key) is not None:
+                        stats[key] = manual_entry.get(key)
+                try:
+                    stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
+                except Exception:
+                    pass
         matches = sorted(
             stats['matches'].values(),
             key=lambda entry: (
