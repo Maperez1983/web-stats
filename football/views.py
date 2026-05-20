@@ -56448,6 +56448,7 @@ def player_detail_page(request, player_id):
                 force_refresh=force_refresh_stats,
                 scope=scope,
                 tournament_name=tournament_filter,
+                refresh_photo_urls=False,
             )
             stats_error = ''
         except Exception:
@@ -60363,7 +60364,17 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
-def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tournament_name=None, request=None, date_start=None, date_end=None):
+def compute_player_dashboard(
+    primary_team,
+    force_refresh=False,
+    scope=None,
+    tournament_name=None,
+    request=None,
+    date_start=None,
+    date_end=None,
+    *,
+    refresh_photo_urls: bool = True,
+):
     if not primary_team:
         return []
     scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower()
@@ -60406,44 +60417,45 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
         if isinstance(cached_rows, list):
             # Refresca la URL de foto incluso cuando los KPIs vienen de caché:
             # evita tarjetas con foto antigua en clientes móviles (cache-buster `?v=`).
-            try:
-                cached_ids = sorted({
-                    int(_parse_int(row.get('player_id')) or 0)
-                    for row in cached_rows
-                    if isinstance(row, dict) and _parse_int(row.get('player_id'))
-                })
-                cached_ids = [pid for pid in cached_ids if pid][:120]
-                if cached_ids:
-                    photo_by_id = {
-                        int(player.id): str(resolve_player_photo_url(request, player) or resolve_player_photo_url(None, player) or '').strip()
-                        for player in (
-                            Player.objects
-                            .filter(team=primary_team, id__in=cached_ids)
-                            # Importante: `resolve_player_photo_url()` puede caer a `resolve_player_photo_static_path()`,
-                            # que usa `player.name`, `player.number` y `player.team.*`. Si estos campos están diferidos
-                            # (por `.only()`), Django hace N+1 queries (muy caro en Render/Postgres).
-                            .select_related('team')
-                            .only(
-                                'id',
-                                'team_id',
-                                'name',
-                                'number',
-                                'photo_updated_at',
-                                'team__id',
-                                'team__slug',
-                                'team__category',
-                                'team__is_primary',
+            if refresh_photo_urls:
+                try:
+                    cached_ids = sorted({
+                        int(_parse_int(row.get('player_id')) or 0)
+                        for row in cached_rows
+                        if isinstance(row, dict) and _parse_int(row.get('player_id'))
+                    })
+                    cached_ids = [pid for pid in cached_ids if pid][:120]
+                    if cached_ids:
+                        photo_by_id = {
+                            int(player.id): str(resolve_player_photo_url(request, player) or resolve_player_photo_url(None, player) or '').strip()
+                            for player in (
+                                Player.objects
+                                .filter(team=primary_team, id__in=cached_ids)
+                                # Importante: `resolve_player_photo_url()` puede caer a `resolve_player_photo_static_path()`,
+                                # que usa `player.name`, `player.number` y `player.team.*`. Si estos campos están diferidos
+                                # (por `.only()`), Django hace N+1 queries (muy caro en Render/Postgres).
+                                .select_related('team')
+                                .only(
+                                    'id',
+                                    'team_id',
+                                    'name',
+                                    'number',
+                                    'photo_updated_at',
+                                    'team__id',
+                                    'team__slug',
+                                    'team__category',
+                                    'team__is_primary',
+                                )
                             )
-                        )
-                    }
-                    for row in cached_rows:
-                        if not isinstance(row, dict):
-                            continue
-                        pid = _parse_int(row.get('player_id'))
-                        if pid and int(pid) in photo_by_id and photo_by_id[int(pid)]:
-                            row['photo_url'] = photo_by_id[int(pid)]
-            except Exception:
-                pass
+                        }
+                        for row in cached_rows:
+                            if not isinstance(row, dict):
+                                continue
+                            pid = _parse_int(row.get('player_id'))
+                            if pid and int(pid) in photo_by_id and photo_by_id[int(pid)]:
+                                row['photo_url'] = photo_by_id[int(pid)]
+                except Exception:
+                    pass
             return cached_rows
     player_stats = {}
     competition_total_rounds = get_competition_total_rounds(primary_team)
