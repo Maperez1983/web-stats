@@ -57706,6 +57706,104 @@ def player_pdf(request, player_id):
                 except Exception:
                     pass
 
+    # Bloque "Estadísticas temporada" (mismo contenido que la ficha del jugador).
+    def _num_int(value, default=0):
+        try:
+            return int(value or 0)
+        except Exception:
+            return int(default)
+
+    def _num_float(value, default=0.0):
+        try:
+            return float(value or 0)
+        except Exception:
+            return float(default)
+
+    pj_val = max(0, _num_int(detail.get('pj') if isinstance(detail, dict) else 0))
+    pt_val = max(0, _num_int(detail.get('pt') if isinstance(detail, dict) else 0))
+    goals_val = max(0, _num_int(detail.get('goals') if isinstance(detail, dict) else 0))
+    assists_val = max(0, _num_int(detail.get('assists') if isinstance(detail, dict) else 0))
+    minutes_val = max(0, _num_int(detail.get('minutes') if isinstance(detail, dict) else 0))
+    suplente_val = max(0, pj_val - pt_val)
+    season_overview = {
+        'pj': pj_val,
+        'pt': pt_val,
+        'suplente': suplente_val,
+        'minutes': minutes_val,
+        'goals': goals_val,
+        'assists': assists_val,
+        'goals_per_match': round((goals_val / pj_val), 2) if pj_val else 0.0,
+        'participation_pct': _num_float(detail.get('participation_pct') if isinstance(detail, dict) else 0),
+        'participation_matches_pct': _num_float(detail.get('participation_matches_pct') if isinstance(detail, dict) else 0),
+        'starter_pct': _num_float(detail.get('starter_pct') if isinstance(detail, dict) else 0),
+        'importance_score': _num_float(detail.get('importance_score') if isinstance(detail, dict) else 0),
+        'influence_score': _num_float(detail.get('influence_score') if isinstance(detail, dict) else 0),
+        'yellow_cards': max(0, _num_int(detail.get('yellow_cards') if isinstance(detail, dict) else 0)),
+        'red_cards': max(0, _num_int(detail.get('red_cards') if isinstance(detail, dict) else 0)),
+        'second_yellow_cards': max(0, _num_int(detail.get('second_yellow_cards') if isinstance(detail, dict) else 0)),
+    }
+
+    # Bloque KPI de rendimiento (formato ficha).
+    passes = detail.get('passes') if isinstance(detail, dict) and isinstance(detail.get('passes'), dict) else {}
+    shots = detail.get('shots') if isinstance(detail, dict) and isinstance(detail.get('shots'), dict) else {}
+    duel_summary = detail.get('duel_summary') if isinstance(detail, dict) and isinstance(detail.get('duel_summary'), dict) else {}
+    aerial_summary = detail.get('aerial_duel_summary') if isinstance(detail, dict) and isinstance(detail.get('aerial_duel_summary'), dict) else {}
+    rendimiento = {
+        'success_rate': _num_float(detail.get('success_rate') if isinstance(detail, dict) else 0),
+        'duel_rate': _num_float(detail.get('duel_rate') if isinstance(detail, dict) else 0),
+        'pass_accuracy': _num_float(passes.get('accuracy')),
+        'shot_accuracy': _num_float(shots.get('accuracy')),
+        'total_actions': max(0, _num_int(detail.get('total_actions') if isinstance(detail, dict) else 0)),
+        'duels_won': max(0, _num_int(duel_summary.get('won') if isinstance(duel_summary, dict) else 0)),
+        'duels_total': max(0, _num_int(duel_summary.get('total') if isinstance(duel_summary, dict) else 0)),
+        'aerial_won': max(0, _num_int(aerial_summary.get('won') if isinstance(aerial_summary, dict) else 0)),
+        'aerial_total': max(0, _num_int(aerial_summary.get('total') if isinstance(aerial_summary, dict) else 0)),
+        'passes_completed': max(0, _num_int(passes.get('completed'))),
+        'passes_attempts': max(0, _num_int(passes.get('attempts'))),
+        'shots_on_target': max(0, _num_int(shots.get('on_target'))),
+        'shots_attempts': max(0, _num_int(shots.get('attempts'))),
+        'shots_per_goal': shots.get('per_goal') if isinstance(shots, dict) else None,
+        'goals': goals_val,
+        'assists': assists_val,
+    }
+
+    # Campo para mapa de acción (data URI para WeasyPrint).
+    pitch_src = ''
+    try:
+        pitch_src = _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol.jpg')
+    except Exception:
+        pitch_src = ''
+    if not pitch_src:
+        try:
+            pitch_src = request.build_absolute_uri(static('football/campo-futbol.jpg'))
+        except Exception:
+            pitch_src = ''
+
+    # Paginación tabla "Partidos" del informe (incluye partidos sin acciones).
+    matches_for_report_pages = []
+    try:
+        def _report_sort_key(item):
+            if not isinstance(item, dict):
+                return (True, 9999, True, date.max, 0)
+            rnd = extract_round_number(item.get('round'))
+            rnd_is_none = rnd is None
+            rnd_value = int(rnd) if rnd is not None else 9999
+            d = item.get('date_obj')
+            d_is_none = d is None
+            d_value = d if d is not None else date.max
+            mid = _parse_int(item.get('match_id')) or 0
+            return (rnd_is_none, rnd_value, d_is_none, d_value, mid)
+
+        matches_for_report = sorted([m for m in raw_matches if isinstance(m, dict)], key=_report_sort_key)
+        page_size = 22
+        matches_for_report_pages = [
+            matches_for_report[i : i + page_size] for i in range(0, len(matches_for_report), page_size)
+        ]
+        if not matches_for_report_pages:
+            matches_for_report_pages = [[]]
+    except Exception:
+        matches_for_report_pages = [[]]
+
     def _ring_kpi_value(key: str):
         if not isinstance(detail, dict):
             return 0.0
@@ -57887,6 +57985,16 @@ def player_pdf(request, player_id):
     except Exception:
         pass
 
+    # Radar PDF: incorpora asistencia a entrenos si existe (compromiso = participación + entrenos).
+    try:
+        radar_data = _build_player_radar_data(
+            detail,
+            player_percentiles=player_percentiles,
+            attendance_pct=(attendance_summary or {}).get('completion_pct', 0.0),
+        )
+    except Exception:
+        pass
+
     fine_rows = []
     fine_summary = {'count': 0, 'total_amount': 0}
     try:
@@ -57917,6 +58025,10 @@ def player_pdf(request, player_id):
             **_build_pdf_nav_urls(request),
             'player': player,
             'stats': detail,
+            'season_overview': season_overview,
+            'rendimiento': rendimiento,
+            'pitch_src': pitch_src,
+            'matches_for_report_pages': matches_for_report_pages,
             'staff_report': staff_report,
             'primary_team': primary_team,
             'season_label': season_label,
@@ -57936,6 +58048,8 @@ def player_pdf(request, player_id):
             'next_scheduled_match': next_scheduled_match,
             'matchday_minutes_chart': matchday_minutes_chart,
             'matchday_ga_chart': matchday_ga_chart,
+            'matchday_minutes_chart_rows': matchday_minutes_chart_rows,
+            'matchday_ga_chart_rows': matchday_ga_chart_rows,
             'player_photo_src': player_photo_src,
             'player_photo_is_real': bool(player_photo_is_real),
             'player_initials': player_initials or '??',
