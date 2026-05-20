@@ -8,9 +8,12 @@
 :root {
   --kpi-paper: rgba(241, 245, 249, 0.98);
   --kpi-paper-2: rgba(226, 232, 240, 0.96);
-  --kpi-ink: var(--prod-text, #0f172a);
-  --kpi-muted: var(--prod-muted, rgba(15, 23, 42, 0.64));
-  --kpi-border: var(--prod-line, rgba(15, 23, 42, 0.14));
+  /* Importante: este módulo pinta un “papel” claro incluso en modo oscuro.
+     Por eso el “ink” NO debe heredar `--prod-text` (blanco en dark mode),
+     o el contenido queda ilegible (texto blanco sobre fondo claro). */
+  --kpi-ink: #0f172a;
+  --kpi-muted: rgba(15, 23, 42, 0.64);
+  --kpi-border: rgba(15, 23, 42, 0.14);
   --kpi-accent: var(--prod-secondary, #f4b400);
   --kpi-primary: var(--prod-primary, #2f7d32);
   --kpi-surface: rgba(255, 255, 255, 0.78);
@@ -153,4 +156,3 @@
 .performance-overview.is-compact .performance-block .value {
   font-size: 1.05rem;
 }
-
