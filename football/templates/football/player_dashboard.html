@@ -96,9 +96,58 @@
       .bar-row { border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.35); padding: 0.55rem 0.75rem; display:flex; align-items:center; justify-content:space-between; gap: 0.7rem; }
       .bar-row span { color: rgba(148,163,184,0.92); font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; font-size: 0.78rem; }
       .bar-row strong { font-size: 1.35rem; font-weight: 950; }
-      .broadcast-mini { margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.45rem; }
-      .mini-pill { display:inline-flex; align-items:center; gap: 0.4rem; padding: 0.36rem 0.6rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 900; color: rgba(226,232,240,0.95); }
-      .mini-pill strong { font-weight: 950; }
+	      .broadcast-mini { margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.45rem; }
+	      .mini-pill { display:inline-flex; align-items:center; gap: 0.4rem; padding: 0.36rem 0.6rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 900; color: rgba(226,232,240,0.95); }
+	      .mini-pill strong { font-weight: 950; }
+	      .broadcast-kpis {
+	        margin-top: 0.7rem;
+	        display: grid;
+	        grid-template-columns: repeat(2, minmax(0, 1fr));
+	        gap: 0.5rem;
+	      }
+	      .broadcast-kpi {
+	        border-radius: 0.85rem;
+	        border: 1px solid rgba(148, 163, 184, 0.18);
+	        background: rgba(2, 6, 23, 0.32);
+	        padding: 0.55rem 0.65rem;
+	        display: flex;
+	        align-items: baseline;
+	        justify-content: space-between;
+	        gap: 0.6rem;
+	        min-width: 0;
+	      }
+	      .broadcast-kpi .k {
+	        font-size: 0.68rem;
+	        font-weight: 900;
+	        letter-spacing: 0.12em;
+	        text-transform: uppercase;
+	        color: rgba(148, 163, 184, 0.9);
+	        white-space: nowrap;
+	      }
+	      .broadcast-kpi .v {
+	        font-size: 0.95rem;
+	        font-weight: 950;
+	        color: rgba(226, 232, 240, 0.96);
+	        white-space: nowrap;
+	      }
+	      .broadcast-kpi.is-accent {
+	        border-color: rgba(244, 180, 0, 0.28);
+	        background: rgba(244, 180, 0, 0.08);
+	      }
+	      .broadcast-kpi.is-accent .k { color: rgba(255, 242, 199, 0.92); }
+	      .broadcast-kpi.is-accent .v { color: rgba(255, 242, 199, 0.98); }
+	      .broadcast-details {
+	        margin-top: 0.75rem;
+	        border-top: 1px solid rgba(148,163,184,0.14);
+	        padding-top: 0.6rem;
+	      }
+	      .broadcast-details > summary {
+	        cursor: pointer;
+	        font-weight: 900;
+	        color: rgba(226,232,240,0.92);
+	        letter-spacing: 0.02em;
+	      }
+	      .broadcast-details[open] > summary { margin-bottom: 0.6rem; }
       details { margin-top: 0.85rem; }
       details summary { cursor: pointer; font-weight: 900; color: rgba(226,232,240,0.92); }
       details table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.86rem; }
@@ -513,46 +562,46 @@
 	                  <span class="mini-pill">% Éx <strong>{{ player.success_rate|default:0|floatformat:1 }}</strong></span>
 	                </div>
 
-	                <div class="performance-overview is-compact" style="margin-top:0.75rem;">
-	                  <h3>KPI de rendimiento</h3>
-	                  <div class="performance-rings">
-	                    <article class="kpi-ring">
-	                      <div class="kpi-ring-chart" style="--pct: {{ player.success_rate|default:0 }};">
-	                        <span class="kpi-ring-value">{{ player.success_rate|default:0|floatformat:-1 }}%</span>
-	                      </div>
-	                      <div class="kpi-ring-label">Tasa de éxito</div>
-	                    </article>
-	                    <article class="kpi-ring">
-	                      <div class="kpi-ring-chart" style="--pct: {{ player.duel_rate|default:0 }};">
-	                        <span class="kpi-ring-value">{{ player.duel_rate|default:0|floatformat:-1 }}%</span>
-	                      </div>
-	                      <div class="kpi-ring-label">Duelos ganados</div>
-	                    </article>
-	                    <article class="kpi-ring">
-	                      <div class="kpi-ring-chart" style="--pct: {{ player.passes_accuracy|default:player.passes.accuracy|default:0 }};">
-	                        <span class="kpi-ring-value">{{ player.passes_accuracy|default:player.passes.accuracy|default:0|floatformat:-1 }}%</span>
-	                      </div>
-	                      <div class="kpi-ring-label">Precisión de pase</div>
-	                    </article>
-	                    <article class="kpi-ring">
-	                      <div class="kpi-ring-chart" style="--pct: {{ player.shots_accuracy|default:player.shots.accuracy|default:0 }};">
-	                        <span class="kpi-ring-value">{{ player.shots_accuracy|default:player.shots.accuracy|default:0|floatformat:-1 }}%</span>
-	                      </div>
-	                      <div class="kpi-ring-label">Tiro a puerta</div>
-	                    </article>
-	                  </div>
-	                  <div class="performance-blocks">
-	                    <div class="performance-block"><span class="label">Acciones</span><span class="value">{{ player.total_actions|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ player.duel_summary.won|default:0 }}/{{ player.duel_summary.total|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Duelos aéreos</span><span class="value">{{ player.aerial_duel_summary.won|default:0 }}/{{ player.aerial_duel_summary.total|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Pases</span><span class="value">{{ player.passes.completed|default:player.passes_completed|default:0 }}/{{ player.passes.attempts|default:player.pass_attempts|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ player.shots.on_target|default:player.shots_on_target|default:0 }}/{{ player.shots.attempts|default:player.shot_attempts|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{% if player.shots.per_goal != None %}{{ player.shots.per_goal|floatformat:2 }}{% elif player.shots_per_goal != None %}{{ player.shots_per_goal|floatformat:2 }}{% else %}—{% endif %}</span></div>
-	                    <div class="performance-block"><span class="label">Goles</span><span class="value">{{ player.goals|default:0 }}</span></div>
-	                    <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ player.assists|default:0 }}</span></div>
-	                  </div>
+	                <div class="broadcast-kpis" aria-label="KPIs rápidos">
+	                  <div class="broadcast-kpi is-accent"><span class="k">% Éxito</span><span class="v">{{ player.success_rate|default:0|floatformat:-1 }}%</span></div>
+	                  <div class="broadcast-kpi"><span class="k">% Duelos</span><span class="v">{{ player.duel_rate|default:0|floatformat:-1 }}%</span></div>
+	                  <div class="broadcast-kpi"><span class="k">% Pase</span><span class="v">{{ player.passes_accuracy|default:player.passes.accuracy|default:0|floatformat:-1 }}%</span></div>
+	                  <div class="broadcast-kpi"><span class="k">% Tiro</span><span class="v">{{ player.shots_accuracy|default:player.shots.accuracy|default:0|floatformat:-1 }}%</span></div>
 	                </div>
-              </a>
+	
+	                <details class="broadcast-details">
+	                  <summary>Ver detalle KPI</summary>
+	                  <div class="performance-overview is-compact">
+	                    <h3>KPI de rendimiento</h3>
+	                    <div class="performance-rings">
+	                      <article class="kpi-ring">
+	                        <div class="kpi-ring-chart" style="--pct: {{ player.success_rate|default:0 }};">
+	                          <span class="kpi-ring-value">{{ player.success_rate|default:0|floatformat:-1 }}%</span>
+	                        </div>
+	                        <div class="kpi-ring-label">Tasa de éxito</div>
+	                      </article>
+	                      <article class="kpi-ring">
+	                        <div class="kpi-ring-chart" style="--pct: {{ player.duel_rate|default:0 }};">
+	                          <span class="kpi-ring-value">{{ player.duel_rate|default:0|floatformat:-1 }}%</span>
+	                        </div>
+	                        <div class="kpi-ring-label">Duelos ganados</div>
+	                      </article>
+	                      <article class="kpi-ring">
+	                        <div class="kpi-ring-chart" style="--pct: {{ player.passes_accuracy|default:player.passes.accuracy|default:0 }};">
+	                          <span class="kpi-ring-value">{{ player.passes_accuracy|default:player.passes.accuracy|default:0|floatformat:-1 }}%</span>
+	                        </div>
+	                        <div class="kpi-ring-label">Precisión de pase</div>
+	                      </article>
+	                      <article class="kpi-ring">
+	                        <div class="kpi-ring-chart" style="--pct: {{ player.shots_accuracy|default:player.shots.accuracy|default:0 }};">
+	                          <span class="kpi-ring-value">{{ player.shots_accuracy|default:player.shots.accuracy|default:0|floatformat:-1 }}%</span>
+	                        </div>
+	                        <div class="kpi-ring-label">Tiro a puerta</div>
+	                      </article>
+	                    </div>
+	                  </div>
+	                </details>
+	              </a>
 
               {% if can_preview_player_view %}
               <div class="card-actions">
