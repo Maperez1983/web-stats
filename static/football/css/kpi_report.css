@@ -83,6 +83,11 @@
   color: color-mix(in srgb, var(--kpi-ink) 72%, transparent);
 }
 
+.performance-overview.is-compact .kpi-ring-label {
+  font-size: 0.78rem;
+  line-height: 1.15;
+}
+
 .performance-rings {
   margin-top: 0.95rem;
   display: grid;
@@ -91,14 +96,10 @@
 }
 
 .performance-overview.is-compact .performance-rings {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Evita superposición dentro de cards estrechas: auto-fit permite que el grid “salte”
+     a 2 columnas cuando no hay ancho suficiente. */
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 0.6rem;
-}
-
-@media (max-width: 520px) {
-  .performance-overview.is-compact .performance-rings {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 /* Blocks */
@@ -110,14 +111,9 @@
 }
 
 .performance-overview.is-compact .performance-blocks {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  /* Igual: deja que el contenido respire y no se pise en cards estrechas. */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 0.5rem;
-}
-
-@media (max-width: 780px) {
-  .performance-overview.is-compact .performance-blocks {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 .performance-block {
