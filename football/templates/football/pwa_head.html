@@ -36,9 +36,28 @@
       var stored = "";
       try { stored = (window.localStorage && window.localStorage.getItem(key)) || ""; } catch (e) {}
       // Default producto: oscuro. Evita contrastes malos en páginas que aún tienen estilos "dark-first".
-      var mode = (stored || "{{ brand_theme.ui|default:'dark' }}").toString().trim().toLowerCase();
-      if (!mode) mode = "dark";
-      if (mode !== "light" && mode !== "hc" && mode !== "dark") mode = "dark";
+      // IMPORTANTE: si el club/equipo fuerza `dark`, ignoramos `stored=light` para no romper contraste
+      // (muchas pantallas aún no son compatibles al 100% con modo claro).
+      var brandMode = ("{{ brand_theme.ui|default:'dark' }}").toString().trim().toLowerCase();
+      if (!brandMode) brandMode = "dark";
+      if (brandMode !== "light" && brandMode !== "hc" && brandMode !== "dark") brandMode = "dark";
+
+      var storedMode = (stored || "").toString().trim().toLowerCase();
+      if (storedMode !== "light" && storedMode !== "hc" && storedMode !== "dark") storedMode = "";
+
+      var forceDark = (brandMode === "dark");
+      var mode = brandMode;
+      if (!forceDark) {
+        // Solo permitimos override cuando el club NO fuerza oscuro.
+        mode = storedMode || brandMode;
+      } else {
+        // En oscuro forzado, permitimos como mucho "hc".
+        mode = (storedMode === "hc") ? "hc" : "dark";
+        // Limpia light guardado para evitar que vuelva el modo claro en otros dispositivos.
+        if (storedMode && storedMode !== mode) {
+          try { window.localStorage && window.localStorage.setItem(key, mode); } catch (e) {}
+        }
+      }
       if (mode === "dark") {
         document.documentElement.removeAttribute("data-theme");
       } else {
@@ -51,6 +70,8 @@
           var current = (document.documentElement.getAttribute("data-theme") || "dark").toLowerCase();
           var target = next || (current === "light" ? "dark" : "light");
           if (target !== "light" && target !== "hc" && target !== "dark") target = "dark";
+          // Si el club fuerza oscuro, no permitimos pasar a "light" (solo hc o dark).
+          if (forceDark && target === "light") target = "dark";
           if (target === "dark") {
             document.documentElement.removeAttribute("data-theme");
           } else {
