@@ -61802,6 +61802,25 @@ def compute_player_dashboard(primary_team, force_refresh=False, scope=None, tour
             )
         else:
             merged['participation_pct'] = 0
+
+        # Participación por PJ (cuántos partidos del equipo ha jugado).
+        if int(team_played_matches or 0) > 0:
+            merged['participation_matches_pct'] = round(
+                min((int(stats.get('pj') or 0) / int(team_played_matches or 0)) * 100, 100),
+                1,
+            )
+        elif competition_total_rounds > 0:
+            merged['participation_matches_pct'] = round(
+                min((int(stats.get('pj') or 0) / competition_total_rounds) * 100, 100),
+                1,
+            )
+        else:
+            merged['participation_matches_pct'] = 0
+
+        # Titularidad: % de veces que el jugador fue titular cuando jugó (PT / PJ).
+        pj_value = int(stats.get('pj') or 0)
+        pt_value = int(stats.get('pt') or 0)
+        merged['starter_pct'] = round(min((pt_value / pj_value) * 100, 100), 1) if pj_value > 0 else 0
         importance = calculate_importance_score(
             minutes=merged.get('minutes', 0),
             total_possible_minutes=total_possible_minutes,
