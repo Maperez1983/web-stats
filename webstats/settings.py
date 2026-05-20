@@ -553,11 +553,20 @@ if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' 
 #
 # Importante: FileBasedCache puede bloquearse o ir lento en algunos entornos (I/O / locks).
 # Usamos LocMemCache por defecto (rápido) y dejamos FileBasedCache como opción por env.
-CACHE_BACKEND = (os.getenv('CACHE_BACKEND') or 'locmem').strip().lower()
+# Nota: LocMemCache NO se comparte entre procesos (gunicorn workers). En producción esto provoca
+# que invalidaciones (p.ej. edición manual de estadísticas) no se reflejen si el siguiente request
+# cae en otro worker con caché "vieja". Por defecto en producción preferimos FileBasedCache para
+# consistencia; en desarrollo mantenemos LocMemCache.
+_default_cache_backend = 'locmem' if DEBUG else 'filebased'
+CACHE_BACKEND = (os.getenv('CACHE_BACKEND') or _default_cache_backend).strip().lower()
 CACHE_DEFAULT_TIMEOUT = _env_int('CACHE_DEFAULT_TIMEOUT', 3600)
 _cache_max_entries = _env_int('CACHE_MAX_ENTRIES', 10000)
 if CACHE_BACKEND in {'file', 'filebased'}:
     CACHE_DIR = (os.getenv('CACHE_DIR') or '/tmp/webstats-cache').strip() or '/tmp/webstats-cache'
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+    except Exception:
+        pass
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
