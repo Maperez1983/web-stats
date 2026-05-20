@@ -11,9 +11,9 @@
     <style>
       body {
         margin: 0;
-        font-family: "Inter", "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #020617 0%, #07162f 100%);
-        color: #e2e8f0;
+        font-family: var(--prod-font-ui, "Inter", "Segoe UI", sans-serif);
+        background: transparent;
+        color: var(--prod-text, #f5f7fa);
       }
       .page {
         max-width: 980px;
@@ -36,14 +36,14 @@
         text-decoration: none;
         border-radius: 10px;
         padding: 0.55rem 0.85rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #e2e8f0;
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        color: var(--prod-text, #f5f7fa);
       }
       .panel {
         margin-top: 1rem;
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94));
         padding: 1rem;
       }
       .tabs {
@@ -56,17 +56,17 @@
         text-decoration: none;
         border-radius: 999px;
         padding: 0.55rem 0.85rem;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        color: rgba(226, 232, 240, 0.92);
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        color: var(--prod-muted-soft, rgba(15, 23, 42, 0.78));
         font-size: 0.78rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        background: rgba(2, 6, 23, 0.35);
+        background: rgba(2, 6, 23, 0.08);
       }
       .tab.is-active {
-        border-color: rgba(56, 189, 248, 0.55);
-        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18);
-        background: rgba(56, 189, 248, 0.12);
+        border-color: rgba(34, 211, 238, 0.55);
+        box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.18);
+        background: rgba(34, 211, 238, 0.12);
       }
       .alert {
         margin: 0 0 0.85rem;
@@ -94,9 +94,9 @@
       input, select {
         width: 100%;
         border-radius: 9px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: rgba(2, 6, 23, 0.7);
-        color: #e2e8f0;
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: rgba(2, 6, 23, 0.08);
+        color: var(--prod-text, #f5f7fa);
         padding: 0.45rem 0.55rem;
       }
       button.primary {
@@ -116,7 +116,7 @@
         margin-top: 1rem;
       }
       th, td {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-bottom: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
         padding: 0.58rem 0.45rem;
         text-align: left;
       }
@@ -124,7 +124,7 @@
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.1em;
-        color: #94a3b8;
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
       }
       .badge {
         display: inline-block;
@@ -171,8 +171,8 @@
         align-items: start;
         padding: 0.9rem;
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: linear-gradient(165deg, rgba(2, 6, 23, 0.46), rgba(56, 189, 248, 0.06));
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: var(--prod-panel, linear-gradient(180deg, rgba(24, 38, 62, 0.92), rgba(14, 26, 45, 0.9)));
         text-decoration: none;
         color: inherit;
         transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
@@ -183,8 +183,8 @@
       }
       .player-card:hover {
         transform: translateY(-2px);
-        border-color: rgba(56, 189, 248, 0.45);
-        background: rgba(56, 189, 248, 0.08);
+        border-color: rgba(34, 211, 238, 0.55);
+        background: rgba(34, 211, 238, 0.10);
       }
       .avatar-wrap {
         width: 92px;
@@ -201,8 +201,8 @@
         object-fit: contain;
         object-position: center;
         padding: 2px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        background: rgba(2, 6, 23, 0.8);
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+        background: rgba(2, 6, 23, 0.08);
       }
       .dorsal-badge {
         position: static;
@@ -233,7 +233,7 @@
       }
       .player-card p {
         margin: 0.15rem 0 0;
-        color: rgba(148, 163, 184, 0.95);
+        color: var(--prod-muted, rgba(15, 23, 42, 0.64));
         font-size: 0.78rem;
         line-height: 1.2;
       }
@@ -273,9 +273,9 @@
       .mini-kpi {
         border-radius: 999px;
         padding: 0.15rem 0.55rem;
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
         font-size: 0.72rem;
-        color: rgba(226, 232, 240, 0.9);
+        color: var(--prod-text, #f5f7fa);
       }
       .pc-top {
         display: flex;
@@ -514,7 +514,7 @@
       {% include 'football/includes/dragon_nav.html' %}
       <header class="top">
         <div>
-          <p style="margin:0;color:#94a3b8;">Cuerpo técnico</p>
+          <p style="margin:0;color:var(--prod-muted, rgba(15, 23, 42, 0.64));">Cuerpo técnico</p>
           <h1>Plantilla · {{ team_name }}</h1>
         </div>
         <a class="button" href="{% url 'coach-cards' %}">Volver</a>
@@ -609,7 +609,7 @@
 	                </div>
 	              </a>
 	            {% empty %}
-	              <div style="grid-column:1/-1; color:#94a3b8;">No hay jugadores aún. Usa “Alta y plantilla”.</div>
+	              <div style="grid-column:1/-1; color:var(--prod-muted, rgba(15, 23, 42, 0.64));">No hay jugadores aún. Usa “Alta y plantilla”.</div>
 	            {% endfor %}
           </div>
           <script>
@@ -704,8 +704,8 @@
               · Confirmados {{ season_confirmed_total|default:0 }} · Pendientes {{ season_pending_total|default:0 }}
             </p>
           {% else %}
-            <p style="margin:0 0 0.85rem;color:#94a3b8;">
-              No hay temporada activa. Iníciala desde <a style="color:#e2e8f0;" href="{% url 'club-onboarding' %}">Configuración</a>.
+            <p style="margin:0 0 0.85rem;color:var(--prod-muted, rgba(15, 23, 42, 0.64));">
+              No hay temporada activa. Iníciala desde <a style="color:var(--prod-text, #f5f7fa);" href="{% url 'club-onboarding' %}">Configuración</a>.
             </p>
           {% endif %}
 	        <form method="post" class="add">
@@ -748,7 +748,7 @@
             {% for player in players %}
             <tr>
               <td>{{ player.number|default:"--" }}</td>
-              <td><a style="color:#e2e8f0; text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}">{{ player.name }}</a></td>
+              <td><a style="color:var(--prod-text, #f5f7fa); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}">{{ player.name }}</a></td>
               <td>{{ player.position|default:"-" }}</td>
               <td>
                 {% if player.is_active %}
