@@ -18,10 +18,16 @@
       .btn:hover { border-color: rgba(250,204,21,0.5); }
       .btn.danger { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.25); color:#fecaca; }
       .btn.primary { background: linear-gradient(90deg, rgba(250,204,21,0.95), rgba(132,204,22,0.85)); border-color: rgba(250,204,21,0.2); color:#0b1220; }
-      .panel { background: rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.22); border-radius: 18px; padding: 0.9rem; margin-bottom: 1rem; }
-      label { display:block; font-weight:800; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(148,163,184,0.95); }
-	      input, select { width:100%; padding:0.6rem 0.7rem; border-radius: 14px; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); color:#e2e8f0; }
-	      table { width:100%; border-collapse: separate; border-spacing:0; }
+	      .panel { background: rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.22); border-radius: 18px; padding: 0.9rem; margin-bottom: 1rem; }
+	      .flash-wrap { display: grid; gap: 0.5rem; margin: 0.9rem 0 1rem; }
+	      .flash { border-radius: 16px; padding: 0.7rem 0.85rem; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 800; letter-spacing: 0.01em; }
+	      .flash.success { border-color: rgba(16,185,129,0.45); background: rgba(16,185,129,0.14); color: #bbf7d0; }
+	      .flash.error { border-color: rgba(239,68,68,0.45); background: rgba(239,68,68,0.14); color: #fecaca; }
+	      .flash.warning { border-color: rgba(250,204,21,0.45); background: rgba(250,204,21,0.12); color: rgba(255,242,199,0.96); }
+	      .flash.info { border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.12); color: #bae6fd; }
+	      label { display:block; font-weight:800; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color: rgba(148,163,184,0.95); }
+		      input, select { width:100%; padding:0.6rem 0.7rem; border-radius: 14px; border:1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); color:#e2e8f0; }
+		      table { width:100%; border-collapse: separate; border-spacing:0; }
 	      th, td { padding: 0.55rem 0.55rem; border-bottom: 1px solid rgba(148,163,184,0.12); vertical-align: top; }
 	      th { text-align:left; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color: rgba(148,163,184,0.95); }
 	      th.sortable { user-select:none; }
@@ -51,11 +57,19 @@
           <a class="btn primary" href="{% url 'match-hub' %}{% if active_team %}?team={{ active_team.id }}&open_create=1{% else %}?open_create=1{% endif %}">Nuevo partido</a>
           <a class="btn primary" href="{% url 'match-hub' %}">Ir a Partido</a>
         </div>
-      </header>
+	      </header>
 
-      <section class="panel">
-        <form method="get" style="display:flex;gap:0.65rem;flex-wrap:wrap;align-items:flex-end;">
-          <div style="min-width: 240px; flex: 1;">
+	      {% if messages %}
+	      <div class="flash-wrap" aria-live="polite" aria-label="Mensajes">
+	        {% for message in messages %}
+	          <div class="flash {{ message.tags|default:'' }}">{{ message }}</div>
+	        {% endfor %}
+	      </div>
+	      {% endif %}
+	
+	      <section class="panel">
+	        <form method="get" style="display:flex;gap:0.65rem;flex-wrap:wrap;align-items:flex-end;">
+	          <div style="min-width: 240px; flex: 1;">
             <label>Buscar</label>
             <input name="q" value="{{ q|default:'' }}" placeholder="Rival, jornada, torneo, campo..." />
           </div>
