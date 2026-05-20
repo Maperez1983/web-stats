@@ -22200,6 +22200,7 @@
         const message = (err && typeof err === 'object' && 'message' in err) ? String(err.message || '') : String(err || '');
         const stack = (err && typeof err === 'object' && 'stack' in err) ? String(err.stack || '') : '';
         window.__WEBSTATS_LAST_TPAD_ERROR = { message, stack, at: new Date().toISOString() };
+        try { window.__webstatsTpadLastError = String(message || 'Error').slice(0, 220); } catch (e) { /* ignore */ }
         try {
           window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(window.__WEBSTATS_LAST_TPAD_ERROR));
         } catch (e) { /* ignore */ }

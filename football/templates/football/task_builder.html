@@ -5550,6 +5550,7 @@
                     {% if tactics_mode %}
                     <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
                       <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
+                      <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
                     </div>
                     {% endif %}
 	                    {% if not tactics_mode %}
@@ -6534,9 +6535,9 @@
 				      })();
 				    </script>
 				    <script>
-				      (function () {
-				        const btn = document.getElementById('tpad-diag-copy');
-				        if (!btn) return;
+					      (function () {
+					        const btn = document.getElementById('tpad-diag-copy');
+					        if (!btn) return;
 				        const snapRect = (el) => {
 				          try {
 				            if (!el || !el.getBoundingClientRect) return null;
@@ -6551,41 +6552,48 @@
 				              .filter((src) => src && (!needle || src.includes(needle)));
 				          } catch (e) { return []; }
 				        };
-				        const buildDiag = async () => {
-				          const form = document.getElementById('task-builder-form');
-				          const canvas = document.getElementById('create-task-canvas');
-				          const stage = document.getElementById('task-pitch-stage');
-				          const viewport = document.getElementById('task-pitch-viewport');
-				          const statusEl = document.getElementById('task-builder-status');
-				          const lines = [];
-				          lines.push(`url=${String(location.href || '').slice(0, 240)}`);
-				          lines.push(`ua=${String(navigator.userAgent || '').slice(0, 240)}`);
-				          lines.push(`tactics_mode=1`);
-				          lines.push(`status=${String(statusEl && statusEl.textContent ? statusEl.textContent : '').trim()}`);
-				          lines.push(`fabric=${typeof window.fabric}`);
-				          lines.push(`initSessionsTacticalPad=${typeof window.initSessionsTacticalPad}`);
-				          lines.push(`last_error=${String(window.__webstatsTpadLastError || '').trim()}`);
-				          lines.push(`form.fabricSrc=${form ? String(form.dataset.fabricSrc || '') : ''}`);
-				          lines.push(`form.tpadSrc=${form ? String(form.dataset.tpadSrc || '') : ''}`);
-				          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
-				          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
-				          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
-				          try { lines.push(`canvas.attr=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
-				          try { lines.push(`canvas.prop=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
-				          lines.push(`scripts.fabric=${JSON.stringify(listScripts('fabric'))}`);
-				          lines.push(`scripts.tpad=${JSON.stringify(listScripts('sessions_tactical_pad'))}`);
-				          try {
-				            if (typeof window.__webstatsEnsureEditorStack === 'function') {
-				              const ok = await window.__webstatsEnsureEditorStack();
-				              lines.push(`ensureEditorStack=${ok ? 'ok' : 'fail'}`);
-				            } else {
-				              lines.push(`ensureEditorStack=missing`);
-				            }
-				          } catch (e) {
-				            lines.push(`ensureEditorStack=error:${String(e && (e.message || e) ? (e.message || e) : e).slice(0, 120)}`);
-				          }
-				          return lines.join('\n');
-				        };
+					        const buildDiag = async () => {
+					          const form = document.getElementById('task-builder-form');
+					          const canvas = document.getElementById('create-task-canvas');
+					          const stage = document.getElementById('task-pitch-stage');
+					          const viewport = document.getElementById('task-pitch-viewport');
+					          const statusEl = document.getElementById('task-builder-status');
+					          const lines = [];
+					          // Asegura carga + init antes de capturar tamaños.
+					          let ensureOk = null;
+					          try {
+					            if (typeof window.__webstatsEnsureEditorStack === 'function') {
+					              ensureOk = await window.__webstatsEnsureEditorStack();
+					            }
+					          } catch (e) {
+					            ensureOk = null;
+					          }
+					          lines.push(`url=${String(location.href || '').slice(0, 240)}`);
+					          lines.push(`ua=${String(navigator.userAgent || '').slice(0, 240)}`);
+					          lines.push(`tactics_mode=1`);
+					          lines.push(`status=${String(statusEl && statusEl.textContent ? statusEl.textContent : '').trim()}`);
+					          lines.push(`fabric=${typeof window.fabric}`);
+					          lines.push(`initSessionsTacticalPad=${typeof window.initSessionsTacticalPad}`);
+					          lines.push(`last_error=${String(window.__webstatsTpadLastError || '').trim()}`);
+					          try { lines.push(`tpad_ready=${String(form?.dataset?.webstatsTpadReady || '')}`); } catch (e) {}
+					          try { lines.push(`tpad_init=${String(form?.dataset?.webstatsTpadInit || '')}`); } catch (e) {}
+					          try { lines.push(`tpad_last_error_ls=${String(window.localStorage?.getItem('webstats:tpad:last_error') || '').slice(0, 220)}`); } catch (e) {}
+					          lines.push(`ensureEditorStack=${ensureOk === null ? 'n/a' : (ensureOk ? 'ok' : 'fail')}`);
+					          lines.push(`form.fabricSrc=${form ? String(form.dataset.fabricSrc || '') : ''}`);
+					          lines.push(`form.tpadSrc=${form ? String(form.dataset.tpadSrc || '') : ''}`);
+					          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
+					          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
+					          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
+					          try { lines.push(`canvas.attr=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
+					          try { lines.push(`canvas.prop=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
+					          lines.push(`scripts.fabric=${JSON.stringify(listScripts('fabric'))}`);
+					          lines.push(`scripts.tpad=${JSON.stringify(listScripts('sessions_tactical_pad'))}`);
+					          // Vuelve a capturar tamaños tras init (clave para saber si Fabric llegó a setDimensions).
+					          try { lines.push(`rect.canvas.after=${JSON.stringify(snapRect(canvas))}`); } catch (e) {}
+					          try { lines.push(`canvas.attr.after=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
+					          try { lines.push(`canvas.prop.after=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
+					          return lines.join('\n');
+					        };
 				        const copyText = async (txt) => {
 				          try {
 				            if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -6618,9 +6626,43 @@
 				            try { window.prompt('Copia el diagnóstico:', txt); } catch (e) {}
 				          }
 				        });
-				      })();
-				    </script>
-				    {% endif %}
+					      })();
+					    </script>
+              <script>
+                (function () {
+                  const btn = document.getElementById('tpad-reinit');
+                  if (!btn) return;
+                  btn.addEventListener('click', async () => {
+                    const form = document.getElementById('task-builder-form');
+                    const statusEl = document.getElementById('task-builder-status');
+                    const setStatus = (msg) => { try { if (statusEl) statusEl.textContent = String(msg || ''); } catch (e) {} };
+                    try {
+                      if (form && form.dataset) {
+                        try { delete form.dataset.webstatsTpadReady; } catch (e) {}
+                        try { delete form.dataset.webstatsTpadInit; } catch (e) {}
+                      }
+                      try { window.__WEBSTATS_TPAD_READY = false; } catch (e) {}
+                      setStatus('Reiniciando pizarra…');
+                      if (typeof window.__webstatsEnsureEditorStack === 'function') {
+                        await window.__webstatsEnsureEditorStack();
+                      } else if (typeof window.initSessionsTacticalPad === 'function') {
+                        window.initSessionsTacticalPad();
+                      }
+                      window.setTimeout(() => {
+                        try {
+                          if (typeof window.initSessionsTacticalPad === 'function') window.initSessionsTacticalPad();
+                          setStatus('');
+                        } catch (e) {
+                          setStatus('Error al reiniciar pizarra.');
+                        }
+                      }, 220);
+                    } catch (e) {
+                      setStatus('Error al reiniciar pizarra.');
+                    }
+                  });
+                })();
+              </script>
+					    {% endif %}
 			    <script>
 			      // Rendimiento: cargamos Fabric + editor (TPad) + 3D SOLO cuando hace falta.
 			      (function () {
