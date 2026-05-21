@@ -1647,7 +1647,9 @@
               }
 		          text.setAttribute('font-size', '11');
 		          text.setAttribute('font-weight', '900');
-	          text.setAttribute('text-anchor', pl.x < cx - 10 ? 'end' : (pl.x > cx + 10 ? 'start' : 'middle'));
+	          // En el lado izquierdo queremos que el texto "crezca" hacia dentro (a la derecha)
+	          // para evitar que se recorte fuera del viewBox.
+	          text.setAttribute('text-anchor', pl.x < cx - 10 ? 'start' : (pl.x > cx + 10 ? 'end' : 'middle'));
 	          text.setAttribute('dominant-baseline', pl.y < cy ? 'auto' : 'hanging');
 	          text.textContent = axis.key;
 	          labelsG.appendChild(text);
