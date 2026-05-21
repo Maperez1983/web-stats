@@ -674,18 +674,12 @@
 	                    <div class="radar-row">
 	                      <div class="radar-figure">
 	                        <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" style="width:100%; height:auto;">
-	                          <defs>
-	                            <linearGradient id="radarFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
-	                              <stop offset="0%" stop-color="rgba(244,180,0,0.52)"></stop>
-	                              <stop offset="100%" stop-color="rgba(47,125,50,0.38)"></stop>
-	                            </linearGradient>
-	                          </defs>
 	                          <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
 	                          <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
 	                          <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
 	                          <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
 	                          {% if radar_data.path_d %}
-	                            <path d="{{ radar_data.path_d }}" fill="url(#radarFillPdf)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
+	                            <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
 	                          {% endif %}
 	                          {% if radar_data.points %}
 	                            {% for pt in radar_data.points %}
