@@ -21861,8 +21861,16 @@
 					      if (getDeviceMode() === 'desktop') return false;
 					      try { return !!(window.matchMedia && window.matchMedia('(max-width: 979px)').matches); } catch (error) { return false; }
 					    };
-            // Biblioteca colapsable: rail + panel. En tablet por defecto colapsada para no robar campo.
-            const LIBRARY_COLLAPSED_KEY = 'webstats:tpad:library-collapsed-v1';
+            // Biblioteca colapsable: rail + panel. Ojo: el estado se persistía en una key única,
+            // lo que hacía que si el usuario la colapsaba en iPad, luego apareciese colapsada también en escritorio (misma cuenta/navegador).
+            // Guardamos por "bucket" de dispositivo para evitar ese efecto.
+            const LEGACY_LIBRARY_COLLAPSED_KEY = 'webstats:tpad:library-collapsed-v1';
+            const libraryCollapsedBucket = (() => {
+              const mode = getDeviceMode();
+              if (mode === 'desktop' || mode === 'tablet') return mode;
+              try { return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ? 'coarse' : 'fine'; } catch (e) { return 'fine'; }
+            })();
+            const LIBRARY_COLLAPSED_KEY = `webstats:tpad:library-collapsed-v2:${libraryCollapsedBucket}`;
             let libraryCollapsed = false;
             const defaultLibraryCollapsed = (() => {
               if (getDeviceMode() === 'tablet') return true;
@@ -21893,11 +21901,20 @@
 	            };
             try {
               const stored = window.localStorage?.getItem(LIBRARY_COLLAPSED_KEY);
-              if (stored == null) applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
-              else applyLibraryCollapsed(stored === '1', { persist: false });
-	            } catch (e) {
-	              applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
-	            }
+              if (stored != null) {
+                applyLibraryCollapsed(stored === '1', { persist: false });
+              } else {
+                // Migración desde v1: solo en buckets "tablet/coarse", para no arrastrar el estado del iPad al escritorio.
+                let legacy = null;
+                if (libraryCollapsedBucket === 'tablet' || libraryCollapsedBucket === 'coarse') {
+                  legacy = window.localStorage?.getItem(LEGACY_LIBRARY_COLLAPSED_KEY);
+                }
+                if (legacy != null) applyLibraryCollapsed(legacy === '1', { persist: false });
+                else applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
+              }
+            } catch (e) {
+              applyLibraryCollapsed(defaultLibraryCollapsed, { persist: false });
+            }
 	            libraryToggleBtn?.addEventListener('click', () => applyLibraryCollapsed(!libraryCollapsed));
 	            window.__webstatsTpadSetLibraryCollapsed = (value) => applyLibraryCollapsed(!!value);
 	            window.__webstatsTpadGetLibraryCollapsed = () => libraryCollapsed;
