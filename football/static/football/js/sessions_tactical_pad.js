@@ -11752,6 +11752,10 @@
 					      simulationProCaches = new Map();
 					      simulationActiveIndex = simulationSteps.length - 1;
 					      renderSimulationSteps();
+					      // En iPad/Safari (y en general con punteros táctiles), a veces el "tap" en el botón
+					      // puede terminar un drag fuera del canvas y el objeto vuelve a su posición anterior.
+					      // Forzamos a aplicar el snapshot recién capturado para que lo que ves coincida con el paso guardado.
+					      try { void selectSimulationStep(simulationActiveIndex, { keepPlaying: true }); } catch (e) { /* ignore */ }
 				      setStatus('Paso capturado.');
 				    };
 					    const appendSimulationStepFromCanvas = (meta = {}) => {
