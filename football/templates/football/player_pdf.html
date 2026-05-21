@@ -294,7 +294,19 @@
       }
       .perf-rings { margin-top: 8px; }
       .perf-ring { text-align: center; padding: 6px 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); }
-      .perf-ring-value { font-size: 17px; font-weight: 1000; letter-spacing: -0.01em; color: #ffffff; }
+      .perf-donut { width: 78px; height: 78px; margin: 0 auto; position: relative; }
+      .perf-donut svg { width: 78px; height: 78px; display: block; }
+      .perf-donut .val {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        font-weight: 1000;
+        letter-spacing: -0.01em;
+        color: #ffffff;
+      }
       .perf-ring-label { margin-top: 4px; font-size: 9.4px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
       .perf-blocks { margin-top: 10px; }
       .perf-block { border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); padding: 8px; }
@@ -643,10 +655,58 @@
 
 	                <table class="kpi-table" style="border-spacing:8px 8px;">
 	                  <tr>
-	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Tasa de éxito</div></div></td>
-	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.duel_rate|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Duelos ganados</div></div></td>
-	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Precisión de pase</div></div></td>
-	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.shot_accuracy|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Tiro a puerta</div></div></td>
+	                    <td>
+                        <div class="perf-ring">
+                          <div class="perf-donut">
+                            <svg viewBox="0 0 42 42" aria-hidden="true">
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
+                                stroke-dasharray="{{ rendimiento.success_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
+                            </svg>
+                            <div class="val">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div>
+                          </div>
+                          <div class="perf-ring-label">Tasa de éxito</div>
+                        </div>
+                      </td>
+	                    <td>
+                        <div class="perf-ring">
+                          <div class="perf-donut">
+                            <svg viewBox="0 0 42 42" aria-hidden="true">
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
+                                stroke-dasharray="{{ rendimiento.duel_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
+                            </svg>
+                            <div class="val">{{ rendimiento.duel_rate|default:0|floatformat:-1 }}%</div>
+                          </div>
+                          <div class="perf-ring-label">Duelos ganados</div>
+                        </div>
+                      </td>
+	                    <td>
+                        <div class="perf-ring">
+                          <div class="perf-donut">
+                            <svg viewBox="0 0 42 42" aria-hidden="true">
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
+                                stroke-dasharray="{{ rendimiento.pass_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
+                            </svg>
+                            <div class="val">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div>
+                          </div>
+                          <div class="perf-ring-label">Precisión de pase</div>
+                        </div>
+                      </td>
+	                    <td>
+                        <div class="perf-ring">
+                          <div class="perf-donut">
+                            <svg viewBox="0 0 42 42" aria-hidden="true">
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
+                                stroke-dasharray="{{ rendimiento.shot_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
+                            </svg>
+                            <div class="val">{{ rendimiento.shot_accuracy|default:0|floatformat:-1 }}%</div>
+                          </div>
+                          <div class="perf-ring-label">Tiro a puerta</div>
+                        </div>
+                      </td>
 	                  </tr>
 	                </table>
 
