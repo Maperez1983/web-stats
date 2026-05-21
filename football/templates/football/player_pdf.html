@@ -382,8 +382,23 @@
         margin-bottom: 6px;
         color: var(--pdf-ink);
       }
-      .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; }
-      .radar-axis-value { color: var(--pdf-muted); font-weight: 900; float: right; }
+      .radar-axis-row { display: table; width: 100%; table-layout: fixed; }
+      .radar-axis-left, .radar-axis-right { display: table-cell; vertical-align: middle; }
+      .radar-axis-left { width: 45%; }
+      .radar-axis-right { width: 55%; text-align: right; }
+      .radar-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(244, 180, 0, 0.95);
+        border: 1px solid rgba(11,18,32,0.12);
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+      .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; vertical-align: middle; }
+      .radar-axis-meta { color: var(--pdf-muted); font-weight: 900; }
+      .radar-axis-rank { color: rgba(47,125,50,0.95); font-weight: 1000; margin-left: 6px; }
 
       .mini-note { margin-top: 8px; color: var(--pdf-muted); font-size: 10.2px; }
 
@@ -765,8 +780,16 @@
 	                        <ul class="radar-axes">
 	                          {% for axis in radar_data.axes %}
 	                            <li>
-	                              <span class="radar-axis-label">{{ axis.key }}</span>
-	                              <span class="radar-axis-value">{{ axis.display }}</span>
+	                              <div class="radar-axis-row">
+	                                <div class="radar-axis-left">
+	                                  <span class="radar-dot" aria-hidden="true"></span>
+	                                  <span class="radar-axis-label">{{ axis.key }}</span>
+	                                </div>
+	                                <div class="radar-axis-right">
+	                                  <span class="radar-axis-meta">{{ axis.display }}</span>
+	                                  <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
+	                                </div>
+	                              </div>
 	                            </li>
 	                          {% endfor %}
 	                        </ul>
