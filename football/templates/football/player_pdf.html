@@ -17,7 +17,8 @@
       .sheet {
         width: 210mm;
         min-height: 297mm;
-        background: radial-gradient(140% 120% at 30% 10%, rgba(24, 60, 110, 0.35), rgba(5, 11, 20, 1) 55%);
+        /* Evitar gradients complejos: en algunos builds de WeasyPrint pueden disparar RecursionError. */
+        background: #050b14;
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
       .sheet + .sheet { page-break-before: always; }
@@ -25,7 +26,7 @@
         display: table;
         width: 100%;
         border-bottom: 1px solid #d5dde7;
-        background: linear-gradient(135deg, {{ pdf_palette.primary|default:"#007050" }}, {{ pdf_palette.accent|default:"#063b31" }});
+        background: {{ pdf_palette.primary|default:"#007050" }};
         color: #ffffff;
       }
       .brand-logo,
@@ -76,7 +77,7 @@
         padding: 7px 10px;
         border: 1px solid rgba(255,255,255,0.10);
         border-radius: 10px;
-        background: linear-gradient(135deg, rgba(15, 122, 53, 0.95), rgba(6, 59, 49, 0.9));
+        background: rgba(15, 122, 53, 0.95);
         color: #ffffff;
         font-weight: 900;
         text-transform: uppercase;
@@ -244,7 +245,7 @@
         display:flex;
         align-items:center;
         justify-content:center;
-        background: linear-gradient(135deg, rgba(2,6,23,0.92), rgba(2,6,23,0.76));
+        background: rgba(2,6,23,0.86);
         color: rgba(255,255,255,0.92);
         font-size: 46px;
         font-weight: 900;
