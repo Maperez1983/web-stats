@@ -3182,6 +3182,10 @@
 						    // sin mezclarlos con el historial/undo del editor.
 						    let simulationSavedSteps = [];
 						    let simulationSavedUpdatedAt = 0;
+						    // Grabación simplificada de movimientos (keyframes + ruta suave).
+						    let simMotionRecordActive = false;
+						    let simMotionPrevAutoCapture = false;
+						    let simMotionSegmentRoutes = new Map(); // uid -> { points:[{x,y,t_ms}], spline:true, last_t }
 						    let simGuideX = null;
 						    let simGuideY = null;
 						    let simMoveOverlays = [];
@@ -5671,6 +5675,11 @@
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
+					      if (simCaptureBtn) simCaptureBtn.textContent = simMotionRecordActive ? 'Capturar movimiento' : 'Capturar paso';
+					      if (simRecordQuickBtn) {
+					        simRecordQuickBtn.textContent = simMotionRecordActive ? 'Parar' : 'Grabar';
+					        try { simRecordQuickBtn.disabled = false; } catch (e) { /* ignore */ }
+					      }
 						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
 						      if (simPlayBtn) {
 						        simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
@@ -5680,13 +5689,38 @@
 						      }
 						      const canRecord = canRecord2d();
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord;
-						      if (simRecordQuickBtn) simRecordQuickBtn.disabled = !canRecord;
 						      if (!isSimulating && simScriptModal) simScriptModal.hidden = true;
 					    };
-						    if (simRecordQuickBtn && simRecordBtn) {
+						    const startSimMotionRecording = () => {
+						      if (!isSimulating) return;
+						      if (simMotionRecordActive) return;
+						      simMotionPrevAutoCapture = !!simulationAutoCapture;
+						      simulationAutoCapture = false;
+						      simMotionRecordActive = true;
+						      clearSimMotionSegment();
+						      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
+						      syncSimUi();
+						      setStatus('Grabación activa: mueve fichas/recursos y pulsa “Capturar movimiento” para crear segmentos. Luego “Guardar clip”.');
+						    };
+						    const stopSimMotionRecording = () => {
+						      if (!isSimulating) return;
+						      if (!simMotionRecordActive) return;
+						      simMotionRecordActive = false;
+						      simulationAutoCapture = !!simMotionPrevAutoCapture;
+						      clearSimMotionSegment();
+						      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
+						      syncSimUi();
+						      setStatus(simulationSteps.length >= 2 ? 'Grabación detenida. Pulsa “Guardar clip”.' : 'Grabación detenida. Captura al menos 2 movimientos y luego guarda el clip.');
+						    };
+						    const toggleSimMotionRecording = () => {
+						      if (!isSimulating) return;
+						      if (simMotionRecordActive) stopSimMotionRecording();
+						      else startSimMotionRecording();
+						    };
+						    if (simRecordQuickBtn) {
 						      simRecordQuickBtn.addEventListener('click', (ev) => {
 						        ev.preventDefault();
-						        try { simRecordBtn.click(); } catch (e) { /* ignore */ }
+						        toggleSimMotionRecording();
 						      });
 						    }
 
@@ -8903,6 +8937,72 @@
 				    // Rutas editables por jugador (waypoints) + pase / balón pegado.
 				    let simRouteAddMode = false;
 				    let simRouteOverlays = [];
+				    const simMotionMaxPoints = 44;
+				    const simMotionMinPointDist = 5.5;
+				    const simMotionMinPointMs = 80;
+				    const simMotionNowMs = () => (window.performance?.now?.() || Date.now());
+				    const clearSimMotionSegment = () => {
+				      simMotionSegmentRoutes = new Map();
+				    };
+				    const simMotionRouteForUid = (uid) => {
+				      const key = safeText(uid);
+				      if (!key) return null;
+				      const existing = simMotionSegmentRoutes.get(key);
+				      if (existing) return existing;
+				      const created = { points: [], spline: true, last_t: 0 };
+				      simMotionSegmentRoutes.set(key, created);
+				      return created;
+				    };
+				    const simMotionAppendPoint = (uid, x, y, tMs) => {
+				      if (!simMotionRecordActive) return;
+				      const route = simMotionRouteForUid(uid);
+				      if (!route) return;
+				      const xNum = Number(x);
+				      const yNum = Number(y);
+				      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return;
+				      const t = Number.isFinite(Number(tMs)) ? Number(tMs) : simMotionNowMs();
+				      const pts = Array.isArray(route.points) ? route.points : [];
+				      const last = pts.length ? pts[pts.length - 1] : null;
+				      const dist = last ? Math.hypot(xNum - (Number(last.x) || 0), yNum - (Number(last.y) || 0)) : 999;
+				      const dt = route.last_t ? (t - route.last_t) : 999;
+				      if (last && dist < simMotionMinPointDist && dt < simMotionMinPointMs) return;
+				      pts.push({ x: xNum, y: yNum, t_ms: Math.round(t) });
+				      while (pts.length > simMotionMaxPoints) pts.splice(1, 1);
+				      route.points = pts;
+				      route.last_t = t;
+				    };
+				    const simMotionUidsFromTarget = (target) => {
+				      if (!target) return [];
+				      if (target?.data?.base) return [];
+				      if (safeText(target?.type) === 'activeSelection' && typeof target.getObjects === 'function') {
+				        const list = (target.getObjects() || []).filter((obj) => obj && !obj?.data?.base);
+				        const uids = list.map((obj) => safeText(obj?.data?.layer_uid)).filter(Boolean);
+				        return Array.from(new Set(uids)).slice(0, 18);
+				      }
+				      const uid = safeText(target?.data?.layer_uid);
+				      return uid ? [uid] : [];
+				    };
+				    const simMotionFinalizeTarget = (target) => {
+				      if (!simMotionRecordActive) return;
+				      simMotionUidsFromTarget(target).forEach((uid) => {
+				        const left = Number(target?.left);
+				        const top = Number(target?.top);
+				        if (Number.isFinite(left) && Number.isFinite(top)) simMotionAppendPoint(uid, left, top, simMotionNowMs());
+				      });
+				    };
+				    const simMotionConsumeRoutes = () => {
+				      const out = {};
+				      try {
+				        for (const [uidRaw, routeRaw] of simMotionSegmentRoutes.entries()) {
+				          const uid = safeText(uidRaw);
+				          if (!uid) continue;
+				          const pts = Array.isArray(routeRaw?.points) ? routeRaw.points : [];
+				          if (pts.length < 2) continue;
+				          out[uid] = { points: pts.map((p) => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })), spline: true };
+				        }
+				      } catch (e) { /* ignore */ }
+				      return out;
+				    };
 				    const clearSimRouteOverlays = () => {
 				      try {
 				        (simRouteOverlays || []).forEach((obj) => {
@@ -11727,6 +11827,9 @@
 					    const captureSimulationStep = () => {
 					      if (!isSimulating) return;
 					      stopSimulationPlayback();
+					      if (simMotionRecordActive) {
+					        try { simMotionFinalizeTarget(canvas.getActiveObject?.()); } catch (e) { /* ignore */ }
+					      }
 					      const { w, h } = worldSize();
 					      ensureLayerUidsOnCanvas();
 					      const pitchMeta = capturePitchMetaForStep();
@@ -11735,6 +11838,8 @@
 					      const prevState = prev?.canvas_state || null;
 					      const nextState = serializeCanvasOnly();
 				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
+					      const routes = simMotionRecordActive ? simMotionConsumeRoutes() : {};
+					      if (simMotionRecordActive) clearSimMotionSegment();
 					      simulationSteps.push({
 					        title: `Paso ${index}`,
 					        duration: 3,
@@ -11742,8 +11847,8 @@
 					        canvas_width: Math.round(w || 0),
 					        canvas_height: Math.round(h || 0),
 					        moves,
-					        routes: {},
-					        ball_follow_uid: '',
+					        routes,
+					        ball_follow_uid: safeText(prev?.ball_follow_uid),
 					        preset: pitchMeta.preset,
 					        orientation: pitchMeta.orientation,
 					        grass_style: pitchMeta.grass_style,
@@ -12524,6 +12629,8 @@
 				    const exitSimulation = () => {
 				      if (!isSimulating) return;
 				      stopSimulationPlayback();
+				      simMotionRecordActive = false;
+				      clearSimMotionSegment();
 				      simRouteAddMode = false;
 				      if (simRouteToggleBtn) {
 				        simRouteToggleBtn.textContent = 'Añadir waypoints';
@@ -12572,6 +12679,8 @@
 							    const resetSimulation = () => {
 							      if (!isSimulating) return;
 							      stopSimulationPlayback();
+							      simMotionRecordActive = false;
+							      clearSimMotionSegment();
 						      simRouteAddMode = false;
 						      if (simRouteToggleBtn) {
 						        simRouteToggleBtn.textContent = 'Añadir waypoints';
@@ -18217,6 +18326,7 @@
 				      } catch (e) { /* ignore */ }
 				      if (isSimulating) {
 				        hideSimGuides();
+				        try { if (simMotionRecordActive) simMotionFinalizeTarget(event?.target); } catch (e) { /* ignore */ }
 				        if (simulationAutoCapture && !simulationPlaying) {
 				          const now = Date.now();
 				          if (now - simulationLastAutoCaptureAt >= 450) {
@@ -19042,6 +19152,13 @@
 			        if (!didMove) return;
 			        target.setPositionByOrigin(new fabric.Point(next.x, next.y), 'center', 'center');
 			        target.setCoords();
+			        if (simMotionRecordActive) {
+			          try {
+			            simMotionUidsFromTarget(target).forEach((uid) => {
+			              simMotionAppendPoint(uid, Number(target.left) || 0, Number(target.top) || 0, simMotionNowMs());
+			            });
+			          } catch (e) { /* ignore */ }
+			        }
 			        return;
 			      }
 
