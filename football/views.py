@@ -23507,7 +23507,9 @@ def _build_player_percentiles(detail_row, population_rows):
     def _shots_acc(row):
         return _shots_accuracy(row)
 
-    def _aerial_rate(row):
+    # Nota: existe helper global `_aerial_rate(row)`; NO lo sombrees aquí.
+    # Un bug histórico introdujo recursión infinita (`return _aerial_rate(row)`).
+    def _aerial_rate_row(row):
         return _aerial_rate(row)
 
     pop = {
@@ -23515,7 +23517,7 @@ def _build_player_percentiles(detail_row, population_rows):
         'duel_rate': [_num(r.get('duel_rate')) for r in rows],
         'passes_accuracy': [_passes_acc(r) for r in rows],
         'shots_accuracy': [_shots_acc(r) for r in rows],
-        'aerial_rate': [_aerial_rate(r) for r in rows],
+        'aerial_rate': [_aerial_rate_row(r) for r in rows],
         'decisive_actions_per90': [_num(r.get('decisive_actions_per90')) for r in rows],
         'total_actions': [_num(r.get('total_actions')) for r in rows],
     }
