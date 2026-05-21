@@ -20180,7 +20180,7 @@
 	              let interactiveRoutesAnimFrame = null;
 	              let interactiveRoutesStartAt = 0;
 	              let interactiveRoutesDurationMs = 0;
-	              let interactiveRoutesBaseline = null; // Map(uid -> {x,y})
+	              let interactiveRoutesBaseline = null; // Map(uid -> { obj, x, y })
 
               const isTokenLike = (obj) => {
                 const kind = safeText(obj?.data?.kind);
@@ -20444,6 +20444,17 @@
 	                  try { window.cancelAnimationFrame(interactiveRoutesAnimFrame); } catch (e) { /* ignore */ }
 	                  interactiveRoutesAnimFrame = null;
 	                }
+	                // Vuelve al inicio para que el usuario pueda reproducir de nuevo sin “saltos”.
+	                try {
+	                  if (interactiveRoutesBaseline && typeof interactiveRoutesBaseline.forEach === 'function') {
+	                    interactiveRoutesBaseline.forEach((entry) => {
+	                      if (!entry || !entry.obj) return;
+	                      try { entry.obj.set({ left: Number(entry.x) || 0, top: Number(entry.y) || 0 }); } catch (e) { /* ignore */ }
+	                      try { entry.obj.setCoords(); } catch (e) { /* ignore */ }
+	                    });
+	                    try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	                  }
+	                } catch (e) { /* ignore */ }
 	                interactiveRoutesStartAt = 0;
 	                interactiveRoutesDurationMs = 0;
 	                interactiveRoutesBaseline = null;
@@ -20471,7 +20482,7 @@
 	                }
 	                // Baseline para re-play (si el usuario vuelve a pulsar ▶, empezamos desde el inicio).
 	                interactiveRoutesBaseline = new Map();
-	                plans.forEach((p) => interactiveRoutesBaseline.set(p.uid, { x: Number(p.obj.left) || 0, y: Number(p.obj.top) || 0 }));
+	                plans.forEach((p) => interactiveRoutesBaseline.set(p.uid, { obj: p.obj, x: Number(p.obj.left) || 0, y: Number(p.obj.top) || 0 }));
 	                const maxLen = Math.max(...plans.map((p) => planTotalLen(p.points)));
 	                const speedPxPerS = 220; // velocidad “humana” por defecto
 	                interactiveRoutesDurationMs = clamp(Math.round((Math.max(80, maxLen) / speedPxPerS) * 1000), 900, 12000);
