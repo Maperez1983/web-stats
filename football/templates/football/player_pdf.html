@@ -426,6 +426,7 @@
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
       .spark-label { margin-top: 4px; font-size: 9px; color: rgba(230,238,247,0.70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(230,238,247,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chart-note { margin-top: 6px; font-size: 9.4px; color: rgba(230,238,247,0.70); }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
@@ -960,6 +961,7 @@
                           </tr>
                         </table>
                       {% endfor %}
+                      <div class="chart-note">Cada barra representa los minutos jugados en esa jornada.</div>
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
 	                    {% endif %}
@@ -999,6 +1001,7 @@
                           </tr>
                         </table>
                       {% endfor %}
+                      <div class="chart-note">Verde = goles (⚽) · Amarillo = asistencias (🎯). Altura = volumen.</div>
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
                     {% endif %}
