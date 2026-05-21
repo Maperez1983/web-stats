@@ -20144,12 +20144,17 @@
                 activateFactory(simpleFactory(kind), RESOURCE_LABELS[kind] || kind, kind);
               };
 
-              // ----------------------------
-              // TÁCTICA INTERACTIVA (opcional)
-              // ----------------------------
-              let tacticsInteractiveEnabled = false;
-              let interactiveRouteMode = false;
-              let interactiveRouteFrom = null; // { obj, start:{x,y} }
+	              // ----------------------------
+	              // TÁCTICA INTERACTIVA (opcional)
+	              // ----------------------------
+	              let tacticsInteractiveEnabled = false;
+	              let interactiveRouteMode = false;
+	              let interactiveRouteFrom = null; // { obj, start:{x,y} }
+	              let interactiveRoutesPlaying = false;
+	              let interactiveRoutesAnimFrame = null;
+	              let interactiveRoutesStartAt = 0;
+	              let interactiveRoutesDurationMs = 0;
+	              let interactiveRoutesBaseline = null; // Map(uid -> {x,y})
 
               const isTokenLike = (obj) => {
                 const kind = safeText(obj?.data?.kind);
@@ -20179,20 +20184,21 @@
                 tacticsRouteSummary.textContent = `Rutas: ${n}`;
               };
 
-              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {
-                tacticsInteractiveEnabled = !!enabled;
-                document.body.classList.toggle('tactics-interactive', tacticsInteractiveEnabled);
+	              const setTacticsInteractiveEnabled = (enabled, { persist = true } = {}) => {
+	                tacticsInteractiveEnabled = !!enabled;
+	                document.body.classList.toggle('tactics-interactive', tacticsInteractiveEnabled);
                 try {
                   tacticsModeStaticBtn?.classList.toggle('is-active', !tacticsInteractiveEnabled);
                   tacticsModeInteractiveBtn?.classList.toggle('is-active', tacticsInteractiveEnabled);
                   tacticsModeStaticBtn?.setAttribute('aria-selected', tacticsInteractiveEnabled ? 'false' : 'true');
                   tacticsModeInteractiveBtn?.setAttribute('aria-selected', tacticsInteractiveEnabled ? 'true' : 'false');
                 } catch (e) { /* ignore */ }
-                if (!tacticsInteractiveEnabled) {
-                  interactiveRouteMode = false;
-                  interactiveRouteFrom = null;
-                  highlightTacticsQuickTool(''); // limpia chip activo
-                }
+	                if (!tacticsInteractiveEnabled) {
+	                  stopInteractiveRoutesPlayback();
+	                  interactiveRouteMode = false;
+	                  interactiveRouteFrom = null;
+	                  highlightTacticsQuickTool(''); // limpia chip activo
+	                }
                 if (persist) {
                   try { window.localStorage.setItem(TACTICS_INTERACTIVE_KEY, tacticsInteractiveEnabled ? '1' : '0'); } catch (e) { /* ignore */ }
                 }
@@ -20213,13 +20219,14 @@
                 setTacticsInteractiveEnabled(true);
               });
 
-              const setInteractiveRouteMode = (on) => {
-                interactiveRouteMode = !!on;
-                interactiveRouteFrom = null;
-                if (interactiveRouteMode) {
-                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
-                  highlightTacticsQuickTool('route_move');
-                } else {
+	              const setInteractiveRouteMode = (on) => {
+	                interactiveRouteMode = !!on;
+	                interactiveRouteFrom = null;
+	                if (interactiveRouteMode) stopInteractiveRoutesPlayback();
+	                if (interactiveRouteMode) {
+	                  setStatus('Ruta (Interactiva): toca una ficha y arrastra hasta el destino. (Shift: mantener activo)', false);
+	                  highlightTacticsQuickTool('route_move');
+	                } else {
                   setStatus('Modo selección activo.');
                   highlightTacticsQuickTool('');
                 }
@@ -20277,13 +20284,14 @@
                 return true;
               };
 
-              const clearInteractiveRoutes = () => {
-                if (isSimulating) return;
-                (canvas.getObjects() || []).forEach((o) => {
-                  if (!o) return;
-                  if (o?.data?.kind === 'route_arrow') {
-                    try { canvas.remove(o); } catch (e) { /* ignore */ }
-                  } else if (isTokenLike(o) && o.data && Array.isArray(o.data.interactive_routes)) {
+	              const clearInteractiveRoutes = () => {
+	                if (isSimulating) return;
+	                stopInteractiveRoutesPlayback();
+	                (canvas.getObjects() || []).forEach((o) => {
+	                  if (!o) return;
+	                  if (o?.data?.kind === 'route_arrow') {
+	                    try { canvas.remove(o); } catch (e) { /* ignore */ }
+	                  } else if (isTokenLike(o) && o.data && Array.isArray(o.data.interactive_routes)) {
                     o.data.interactive_routes = [];
                   }
                 });
@@ -20294,7 +20302,125 @@
                 setStatus('Rutas borradas.');
               };
 
-              const distance = (a, b) => Math.hypot((Number(a.x) || 0) - (Number(b.x) || 0), (Number(a.y) || 0) - (Number(b.y) || 0));
+	              const distance = (a, b) => Math.hypot((Number(a.x) || 0) - (Number(b.x) || 0), (Number(a.y) || 0) - (Number(b.y) || 0));
+
+	              function collectInteractiveRoutePlans() {
+	                const plans = [];
+	                (canvas.getObjects() || []).forEach((obj) => {
+	                  if (!obj || !isTokenLike(obj)) return;
+	                  const uid = getUidForObj(obj);
+	                  if (!uid) return;
+	                  const routes = Array.isArray(obj?.data?.interactive_routes) ? obj.data.interactive_routes : [];
+	                  if (!routes.length) return;
+	                  const start = { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
+	                  const points = [start];
+	                  routes.forEach((r) => {
+	                    const to = r?.to || {};
+	                    const pt = { x: Number(to.x) || 0, y: Number(to.y) || 0 };
+	                    const prev = points[points.length - 1] || start;
+	                    if (distance(prev, pt) >= 6) points.push(pt);
+	                  });
+	                  if (points.length < 2) return;
+	                  plans.push({ uid, obj, points });
+	                });
+	                return plans;
+	              }
+
+	              function planTotalLen(points) {
+	                const pts = Array.isArray(points) ? points : [];
+	                let total = 0;
+	                for (let i = 0; i < pts.length - 1; i += 1) total += Math.hypot((pts[i + 1].x - pts[i].x), (pts[i + 1].y - pts[i].y)) || 0;
+	                return Math.max(0, total);
+	              }
+
+	              function stopInteractiveRoutesPlayback(msg) {
+	                interactiveRoutesPlaying = false;
+	                if (interactiveRoutesAnimFrame) {
+	                  try { window.cancelAnimationFrame(interactiveRoutesAnimFrame); } catch (e) { /* ignore */ }
+	                  interactiveRoutesAnimFrame = null;
+	                }
+	                interactiveRoutesStartAt = 0;
+	                interactiveRoutesDurationMs = 0;
+	                interactiveRoutesBaseline = null;
+	                try { highlightTacticsQuickTool(''); } catch (e) { /* ignore */ }
+	                if (msg) setStatus(msg);
+	              }
+
+	              function playInteractiveRoutes() {
+	                if (!tacticsInteractiveEnabled) {
+	                  setStatus('Activa “Interactiva” para reproducir rutas.', true);
+	                  return;
+	                }
+	                if (isSimulating) {
+	                  setStatus('Sal del simulador para reproducir rutas.', true);
+	                  return;
+	                }
+	                if (interactiveRoutesPlaying) {
+	                  stopInteractiveRoutesPlayback('Reproducción detenida.');
+	                  return;
+	                }
+	                const plans = collectInteractiveRoutePlans();
+	                if (!plans.length) {
+	                  setStatus('No hay rutas. Pulsa “Ruta” y arrastra una ficha para crear el movimiento.', true);
+	                  return;
+	                }
+	                // Baseline para re-play (si el usuario vuelve a pulsar ▶, empezamos desde el inicio).
+	                interactiveRoutesBaseline = new Map();
+	                plans.forEach((p) => interactiveRoutesBaseline.set(p.uid, { x: Number(p.obj.left) || 0, y: Number(p.obj.top) || 0 }));
+	                const maxLen = Math.max(...plans.map((p) => planTotalLen(p.points)));
+	                const speedPxPerS = 220; // velocidad “humana” por defecto
+	                interactiveRoutesDurationMs = clamp(Math.round((Math.max(80, maxLen) / speedPxPerS) * 1000), 900, 12000);
+	                interactiveRoutesStartAt = window.performance?.now?.() || Date.now();
+	                interactiveRoutesPlaying = true;
+	                highlightTacticsQuickTool('route_play');
+	                setStatus('Reproduciendo rutas…');
+
+	                // Balón: si no tiene rutas propias y está activado “seguimiento”, lo pegamos al jugador más cercano al inicio.
+	                const ballFollow = tacticsBallFollowInput ? !!tacticsBallFollowInput.checked : true;
+	                const ballObj = findBallObject ? findBallObject() : null;
+	                const ballHasRoutes = ballObj && Array.isArray(ballObj?.data?.interactive_routes) && ballObj.data.interactive_routes.length > 0;
+	                let ballFollowUid = '';
+	                if (ballFollow && ballObj && !ballHasRoutes) {
+	                  const ballStart = { x: Number(ballObj.left) || 0, y: Number(ballObj.top) || 0 };
+	                  const candidates = plans.filter((p) => safeText(p.obj?.data?.kind) === 'token');
+	                  if (candidates.length) {
+	                    let best = candidates[0];
+	                    let bestD = distance(ballStart, { x: Number(best.obj.left) || 0, y: Number(best.obj.top) || 0 });
+	                    candidates.forEach((c) => {
+	                      const d = distance(ballStart, { x: Number(c.obj.left) || 0, y: Number(c.obj.top) || 0 });
+	                      if (d < bestD) { best = c; bestD = d; }
+	                    });
+	                    ballFollowUid = safeText(best?.uid);
+	                  }
+	                }
+
+	                const tick = (nowRaw) => {
+	                  if (!interactiveRoutesPlaying) return;
+	                  const now = Number(nowRaw) || (window.performance?.now?.() || Date.now());
+	                  const elapsed = now - interactiveRoutesStartAt;
+	                  const t = clamp(elapsed / Math.max(1, interactiveRoutesDurationMs), 0, 1);
+	                  plans.forEach((plan) => {
+	                    const pt = sampleRoutePolyline(plan.points, t);
+	                    try { plan.obj.set({ left: Number(pt.x) || 0, top: Number(pt.y) || 0 }); } catch (e) { /* ignore */ }
+	                    try { plan.obj.setCoords(); } catch (e) { /* ignore */ }
+	                  });
+	                  if (ballObj && ballFollowUid) {
+	                    const followPlan = plans.find((p) => p.uid === ballFollowUid) || null;
+	                    if (followPlan) {
+	                      const pt = sampleRoutePolyline(followPlan.points, t);
+	                      try { ballObj.set({ left: Number(pt.x) || 0, top: Number(pt.y) || 0 }); } catch (e) { /* ignore */ }
+	                      try { ballObj.setCoords(); } catch (e) { /* ignore */ }
+	                    }
+	                  }
+	                  try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	                  if (t >= 1) {
+	                    stopInteractiveRoutesPlayback('Rutas reproducidas.');
+	                    return;
+	                  }
+	                  interactiveRoutesAnimFrame = window.requestAnimationFrame(tick);
+	                };
+	                interactiveRoutesAnimFrame = window.requestAnimationFrame(tick);
+	              }
 
               const generateSimulationFromRoutes = (mode) => {
                 if (isSimulating) {
@@ -20539,23 +20665,28 @@
                 try { if (tacticsFormationMenu) tacticsFormationMenu.open = false; } catch (e) { /* ignore */ }
               };
 
-              if (tacticsQuickbar) {
-                tacticsQuickbar.addEventListener('click', (event) => {
+	                if (tacticsQuickbar) {
+	                tacticsQuickbar.addEventListener('click', (event) => {
                   const btn = event.target.closest('[data-tactics-tool]');
                   if (btn) {
                     event.preventDefault();
                     const kind = safeText(btn.dataset.tacticsTool);
-                    if (kind === 'route_move') {
-                      if (!tacticsInteractiveEnabled) {
-                        setStatus('Activa “Interactiva” para usar rutas.', true);
-                        return;
-                      }
-                      setInteractiveRouteMode(!interactiveRouteMode);
-                      return;
-                    }
-                    if (kind) activateAddKind(kind, { fromQuickbar: true });
-                    return;
-                  }
+	                    if (kind === 'route_move') {
+	                      if (!tacticsInteractiveEnabled) {
+	                        setStatus('Activa “Interactiva” para usar rutas.', true);
+	                        return;
+	                      }
+	                      setInteractiveRouteMode(!interactiveRouteMode);
+	                      return;
+	                    }
+	                    if (kind === 'route_play') {
+	                      event.preventDefault();
+	                      playInteractiveRoutes();
+	                      return;
+	                    }
+	                    if (kind) activateAddKind(kind, { fromQuickbar: true });
+	                    return;
+	                  }
                   const genBtn = event.target.closest('[data-tactics-generate]');
                   if (genBtn) {
                     event.preventDefault();
