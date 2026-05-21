@@ -510,6 +510,28 @@
       .spark-empty .spark-value { color: transparent; }
       .spark-zero .spark-value { color: transparent; }
       .chart-note { margin-top: 6px; font-size: 9.4px; color: var(--pdf-muted); }
+      .linechart {
+        width: 100%;
+        margin-top: 8px;
+        border: 1px solid rgba(11,18,32,0.08);
+        border-radius: 12px;
+        background: #ffffff;
+        overflow: hidden;
+      }
+      .linechart svg { display:block; width: 100%; height: auto; }
+      .lc-grid { stroke: rgba(148,163,184,0.35); stroke-width: 1; }
+      .lc-axis { stroke: rgba(148,163,184,0.55); stroke-width: 1.2; }
+      .lc-tick { fill: rgba(71,85,105,0.92); font-size: 9.4px; font-weight: 900; }
+      .lc-xlab { fill: rgba(71,85,105,0.90); font-size: 9.2px; font-weight: 900; letter-spacing: 0.02em; }
+      .lc-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .lc-line.minutes { stroke: rgba(15, 122, 53, 0.92); }
+      .lc-line.goals { stroke: rgba(15, 122, 53, 0.92); }
+      .lc-line.assists { stroke: rgba(255, 181, 0, 0.92); }
+      .lc-dot { stroke: rgba(11,18,32,0.20); stroke-width: 1; }
+      .lc-dot.minutes { fill: rgba(15, 122, 53, 0.92); }
+      .lc-dot.goals { fill: rgba(15, 122, 53, 0.92); }
+      .lc-dot.assists { fill: rgba(255, 181, 0, 0.92); }
+      .lc-val { fill: rgba(11,18,32,0.78); font-size: 9.2px; font-weight: 1000; }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
@@ -1111,32 +1133,56 @@
                       </div>
                     </div>
                     {% if matchday_minutes_chart_rows %}
-                      {% for row in matchday_minutes_chart_rows %}
-                        <table class="spark-table">
-                          <tr>
-                          {% for item in row %}
-                              {% if item %}
-                                <td class="{% if item.is_zero %}spark-zero{% endif %}">
-                                  <div class="spark-wrap">
-                                    <div class="spark-stack">
-                                      <div class="spark-bar goal{% if item.is_zero %} zero{% endif %}" style="height: {{ item.bar_px }}px;"></div>
-                                    </div>
-                                  </div>
-                                  <div class="spark-label">{{ item.label }}</div>
-                                  <div class="spark-value">{{ item.minutes }}'</div>
-                                </td>
-                              {% else %}
-                                <td class="spark-empty">
-                                  <div class="spark-wrap"></div>
-                                  <div class="spark-label">—</div>
-                                  <div class="spark-value">—</div>
-                                </td>
+                      {% if matchday_minutes_line %}
+                        <div class="linechart">
+                          <svg viewBox="0 0 {{ matchday_minutes_line.w }} {{ matchday_minutes_line.h }}" role="img" aria-label="Minutos por jornada (línea)">
+                            {% for t in matchday_minutes_line.ticks %}
+                              <line x1="{{ matchday_minutes_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ t.y }}" class="lc-grid"></line>
+                              <text x="8" y="{{ t.y|add:'3' }}" class="lc-tick">{{ t.v }}</text>
+                            {% endfor %}
+                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.mt }}" x2="{{ matchday_minutes_line.ml }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
+                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
+                            <path d="{{ matchday_minutes_line.path_d }}" class="lc-line minutes"></path>
+                            {% for p in matchday_minutes_line.points %}
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" class="lc-dot minutes"></circle>
+                              {% if p.value and p.value|floatformat:0 != '0' %}
+                                <text x="{{ p.x }}" y="{{ p.y|add:'-8' }}" text-anchor="middle" class="lc-val">{{ p.value|floatformat:0 }}</text>
+                              {% endif %}
+                              {% if p.show_label %}
+                                <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
-                          </tr>
-                        </table>
-                      {% endfor %}
-                      <div class="chart-note">Cada barra representa los minutos jugados en esa jornada.</div>
+                          </svg>
+                        </div>
+                        <div class="chart-note">Línea de minutos por jornada (eje Y hasta {{ matchday_minutes_line.y_max }}').</div>
+                      {% else %}
+                        {% for row in matchday_minutes_chart_rows %}
+                          <table class="spark-table">
+                            <tr>
+                            {% for item in row %}
+                                {% if item %}
+                                  <td class="{% if item.is_zero %}spark-zero{% endif %}">
+                                    <div class="spark-wrap">
+                                      <div class="spark-stack">
+                                        <div class="spark-bar goal{% if item.is_zero %} zero{% endif %}" style="height: {{ item.bar_px }}px;"></div>
+                                      </div>
+                                    </div>
+                                    <div class="spark-label">{{ item.label }}</div>
+                                    <div class="spark-value">{{ item.minutes }}'</div>
+                                  </td>
+                                {% else %}
+                                  <td class="spark-empty">
+                                    <div class="spark-wrap"></div>
+                                    <div class="spark-label">—</div>
+                                    <div class="spark-value">—</div>
+                                  </td>
+                                {% endif %}
+                              {% endfor %}
+                            </tr>
+                          </table>
+                        {% endfor %}
+                        <div class="chart-note">Cada barra representa los minutos jugados en esa jornada.</div>
+                      {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
                     {% endif %}
@@ -1154,44 +1200,77 @@
                       </div>
                     </div>
                     {% if matchday_ga_chart_rows %}
-                      {% for row in matchday_ga_chart_rows %}
-                        <table class="spark-table">
-                          <tr>
-                          {% for item in row %}
-                              {% if item %}
-                                <td class="{% if item.is_zero %}spark-zero{% endif %}">
-                                  <div class="spark-wrap">
-                                    <div class="spark-stack">
-                                      {% if item.goals_px %}
-                                        <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
-                                      {% endif %}
-                                      {% if item.assists_px %}
-                                        <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
-                                      {% endif %}
-                                      {% if item.is_zero %}
-                                        <div class="spark-bar zero" style="height: 2px; margin-top: 2px;"></div>
-                                      {% endif %}
-                                    </div>
-                                  </div>
-                                  <div class="spark-label">{{ item.label }}</div>
-                                  {% if item.total > 0 %}
-                                    <div class="spark-value"><span class="g">{{ item.goals }}</span> · <span class="a">{{ item.assists }}</span></div>
-                                  {% else %}
-                                    <div class="spark-value">—</div>
-                                  {% endif %}
-                                </td>
-                              {% else %}
-                                <td class="spark-empty">
-                                  <div class="spark-wrap"></div>
-                                  <div class="spark-label">—</div>
-                                  <div class="spark-value">—</div>
-                                </td>
+                      {% if matchday_ga_line %}
+                        <div class="linechart">
+                          <svg viewBox="0 0 {{ matchday_ga_line.w }} {{ matchday_ga_line.h }}" role="img" aria-label="Goles y asistencias por jornada (línea)">
+                            {% for t in matchday_ga_line.ticks %}
+                              <line x1="{{ matchday_ga_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ t.y }}" class="lc-grid"></line>
+                              <text x="8" y="{{ t.y|add:'3' }}" class="lc-tick">{{ t.v }}</text>
+                            {% endfor %}
+                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.mt }}" x2="{{ matchday_ga_line.ml }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
+                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
+                            <path d="{{ matchday_ga_line.path_goals_d }}" class="lc-line goals"></path>
+                            <path d="{{ matchday_ga_line.path_assists_d }}" class="lc-line assists"></path>
+                            {% for p in matchday_ga_line.x_points %}
+                              {% if p.show_label %}
+                                <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
-                          </tr>
-                        </table>
-                      {% endfor %}
-                      <div class="chart-note">Verde = goles · Amarillo = asistencias. Altura = volumen.</div>
+                            {% for p in matchday_ga_line.goals_points %}
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot goals"></circle>
+                              {% if p.value and p.value|floatformat:0 != '0' %}
+                                <text x="{{ p.x|add:'-7' }}" y="{{ p.y|add:'-8' }}" text-anchor="end" class="lc-val">{{ p.value|floatformat:0 }}</text>
+                              {% endif %}
+                            {% endfor %}
+                            {% for p in matchday_ga_line.assists_points %}
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot assists"></circle>
+                              {% if p.value and p.value|floatformat:0 != '0' %}
+                                <text x="{{ p.x|add:'7' }}" y="{{ p.y|add:'-8' }}" text-anchor="start" class="lc-val">{{ p.value|floatformat:0 }}</text>
+                              {% endif %}
+                            {% endfor %}
+                          </svg>
+                        </div>
+                        <div class="chart-note">Líneas: verde = goles · amarillo = asistencias (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
+                      {% else %}
+                        {% for row in matchday_ga_chart_rows %}
+                          <table class="spark-table">
+                            <tr>
+                            {% for item in row %}
+                                {% if item %}
+                                  <td class="{% if item.is_zero %}spark-zero{% endif %}">
+                                    <div class="spark-wrap">
+                                      <div class="spark-stack">
+                                        {% if item.goals_px %}
+                                          <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
+                                        {% endif %}
+                                        {% if item.assists_px %}
+                                          <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
+                                        {% endif %}
+                                        {% if item.is_zero %}
+                                          <div class="spark-bar zero" style="height: 2px; margin-top: 2px;"></div>
+                                        {% endif %}
+                                      </div>
+                                    </div>
+                                    <div class="spark-label">{{ item.label }}</div>
+                                    {% if item.total > 0 %}
+                                      <div class="spark-value"><span class="g">{{ item.goals }}</span> · <span class="a">{{ item.assists }}</span></div>
+                                    {% else %}
+                                      <div class="spark-value">—</div>
+                                    {% endif %}
+                                  </td>
+                                {% else %}
+                                  <td class="spark-empty">
+                                    <div class="spark-wrap"></div>
+                                    <div class="spark-label">—</div>
+                                    <div class="spark-value">—</div>
+                                  </td>
+                                {% endif %}
+                              {% endfor %}
+                            </tr>
+                          </table>
+                        {% endfor %}
+                        <div class="chart-note">Verde = goles · Amarillo = asistencias. Altura = volumen.</div>
+                      {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
                     {% endif %}

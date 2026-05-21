@@ -58209,6 +58209,8 @@ def player_pdf(request, player_id):
     matchday_ga_chart = []
     matchday_minutes_chart_rows = []
     matchday_ga_chart_rows = []
+    matchday_minutes_line = None
+    matchday_ga_line = None
     try:
         regulation = _parse_int(detail.get('match_regulation_minutes')) if isinstance(detail, dict) else None
         regulation = int(regulation) if regulation else 90
@@ -58299,11 +58301,93 @@ def player_pdf(request, player_id):
                     'is_zero': total_ga <= 0,
                 }
             )
+
+        # Alternativa legible: charts tipo línea (SVG, sin JS) para PDF.
+        def _build_line_series(items, *, get_value, y_max, show_every=2):
+            W, H = 980.0, 220.0
+            ml, mr, mt, mb = 40.0, 18.0, 18.0, 42.0
+            pw = max(1.0, W - ml - mr)
+            ph = max(1.0, H - mt - mb)
+            n = max(1, len(items))
+            denom = (n - 1) if n > 1 else 1
+
+            pts = []
+            for i, it in enumerate(items):
+                try:
+                    v = float(get_value(it) or 0)
+                except Exception:
+                    v = 0.0
+                v = max(0.0, v)
+                x = ml + (pw * (i / denom))
+                t = (v / float(y_max or 1)) if y_max else 0.0
+                t = max(0.0, min(t, 1.0))
+                y = mt + (ph * (1.0 - t))
+                pts.append(
+                    {
+                        'x': round(x, 1),
+                        'y': round(y, 1),
+                        'label': str(it.get('label') or ''),
+                        'value': v,
+                        'show_label': bool((i % max(1, int(show_every or 1)) == 0) or i == (n - 1)),
+                    }
+                )
+            d = ''
+            if pts:
+                d = ' '.join([('M' if idx == 0 else 'L') + f" {p['x']} {p['y']}" for idx, p in enumerate(pts)])
+            ticks = []
+            for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
+                vv = float(y_max or 0) * frac
+                y = mt + (ph * (1.0 - frac))
+                ticks.append({'y': round(y, 1), 'v': int(round(vv))})
+            return {
+                'w': int(W),
+                'h': int(H),
+                'ml': float(ml),
+                'mr': float(mr),
+                'mt': float(mt),
+                'mb': float(mb),
+                'pw': float(pw),
+                'ph': float(ph),
+                'path_d': d,
+                'points': pts,
+                'ticks': ticks,
+                'y_max': int(y_max or 0),
+            }
+
+        matchday_minutes_line = _build_line_series(
+            matchday_minutes_chart,
+            get_value=lambda it: it.get('minutes', 0),
+            y_max=max(1, int(minutes_scale or 90)),
+            show_every=2,
+        )
+        ga_ymax = max(2, int(max_ga or 0))
+        goals_series = _build_line_series(matchday_ga_chart, get_value=lambda it: it.get('goals', 0), y_max=ga_ymax, show_every=2)
+        assists_series = _build_line_series(matchday_ga_chart, get_value=lambda it: it.get('assists', 0), y_max=ga_ymax, show_every=2)
+        matchday_ga_line = {
+            'w': goals_series.get('w'),
+            'h': goals_series.get('h'),
+            'ml': goals_series.get('ml'),
+            'mr': goals_series.get('mr'),
+            'mt': goals_series.get('mt'),
+            'mb': goals_series.get('mb'),
+            'pw': goals_series.get('pw'),
+            'ph': goals_series.get('ph'),
+            'ticks': goals_series.get('ticks') or [],
+            'y_max': goals_series.get('y_max') or ga_ymax,
+            'path_goals_d': goals_series.get('path_d') or '',
+            'path_assists_d': assists_series.get('path_d') or '',
+            # Para etiquetas de X usamos la serie de goles (misma X).
+            'x_points': goals_series.get('points') or [],
+            'goals_points': goals_series.get('points') or [],
+            'assists_points': assists_series.get('points') or [],
+        }
     except Exception:
         matchday_minutes_chart = []
         matchday_ga_chart = []
         matchday_minutes_chart_rows = []
         matchday_ga_chart_rows = []
+        matchday_minutes_line = None
+        matchday_ga_line = None
 
     # Partir en filas (mismo nº de columnas SIEMPRE) para que la última fila no tenga huecos gigantes.
     try:
@@ -58737,6 +58821,8 @@ def player_pdf(request, player_id):
             'matchday_ga_chart': matchday_ga_chart,
             'matchday_minutes_chart_rows': matchday_minutes_chart_rows,
             'matchday_ga_chart_rows': matchday_ga_chart_rows,
+            'matchday_minutes_line': matchday_minutes_line,
+            'matchday_ga_line': matchday_ga_line,
             'player_photo_src': player_photo_src,
             'player_photo_is_real': bool(player_photo_is_real),
             'player_initials': player_initials or '??',
