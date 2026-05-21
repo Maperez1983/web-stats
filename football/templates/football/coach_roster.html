@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/kpi_report.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
     {% include 'football/pwa_head.html' %}
     <style>
       body {
@@ -502,11 +503,46 @@
         .card-grid {
           grid-template-columns: 1fr;
         }
+        .grid {
+          grid-template-columns: 1fr;
+        }
         .scope-row select {
           width: 100%;
           min-width: 0;
         }
       }
+
+      /* Unificación de tarjetas: mismo layout que `/players/` */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 0.9rem;
+      }
+      .card {
+        background: var(--prod-panel, linear-gradient(170deg, rgba(16, 25, 43, 0.93), rgba(11, 18, 34, 0.95)));
+        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.22));
+        border-radius: 0.95rem;
+        padding: 0.95rem;
+      }
+      .card-link {
+        color: inherit;
+        text-decoration: none;
+        display: block;
+      }
+      .broadcast-card { padding: 1.05rem; }
+      .broadcast-head { display:flex; justify-content:space-between; align-items:flex-start; gap: 0.9rem; }
+      .broadcast-head-left { display:flex; align-items:center; gap: 0.8rem; min-width: 0; }
+      .broadcast-head-right { display:flex; align-items:center; justify-content:flex-end; gap: 0.45rem; flex-wrap: wrap; }
+      .avatar-wrap { width: 86px; height: 86px; border-radius: 18px; overflow:hidden; background: rgba(2,6,23,0.65); border: 1px solid rgba(148,163,184,0.22); position: relative; flex: 0 0 auto; }
+      .avatar-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; display:block; }
+      .avatar-wrap img.avatar { object-fit: contain; object-position: center; padding: 2px; }
+      .dorsal-badge { position:absolute; right: 8px; bottom: 8px; min-width: 32px; height: 28px; padding: 0 8px; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-weight: 900; color: rgba(255,255,255,0.96); background: rgba(2,6,23,0.8); border: 1px solid rgba(250,204,21,0.55); }
+      .broadcast-name { margin:0; font-size: 1.25rem; font-weight: 950; letter-spacing: 0.01em; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; max-width: 16ch; }
+      .broadcast-sub { margin-top: 0.25rem; color: rgba(148,163,184,0.92); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; }
+      .broadcast-pill { border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); padding: 0.35rem 0.6rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.82rem; }
+      .broadcast-mini { margin-top: 0.75rem; display:flex; flex-wrap: wrap; gap: 0.45rem; }
+      .mini-pill { display:inline-flex; align-items:center; gap: 0.4rem; padding: 0.36rem 0.6rem; border-radius: 999px; border: 1px solid rgba(148,163,184,0.22); background: rgba(2,6,23,0.45); font-weight: 900; color: rgba(226,232,240,0.95); }
+      .mini-pill strong { font-weight: 950; }
     </style>
   </head>
   <body class="prod-commercial">
@@ -550,67 +586,155 @@
               </select>
             {% endif %}
           </div>
-	          <div class="card-grid">
-	            {% for card in player_cards %}
-	              <a class="player-card" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
-	                <div class="avatar-wrap" aria-hidden="true">
-	                  <img src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="" loading="lazy" />
-	                  {% if card.number %}<span class="dorsal-badge">{{ card.number }}</span>{% endif %}
-	                </div>
-	                <div>
-	                  <div class="pc-top">
-	                    <div class="pc-title">
-	                      <h3>{{ card.name }}</h3>
-	                      <p class="player-sub">
-	                        <span>{{ card.position|default:"-" }}</span>
-	                        <span class="mini-kpi">INF {{ card.influence_score|default:0|floatformat:0 }}</span>
-	                        <span class="mini-kpi">IMP {{ card.importance_score|default:0|floatformat:0 }}</span>
-	                        <span class="status-icons" aria-label="Estado">
-	                          {% if card.has_active_injury %}<span class="status-icon injury" title="Lesión activa">✚</span>{% endif %}
-	                          {% if card.is_sanctioned %}<span class="status-icon sanction" title="Sancionado">!</span>{% endif %}
-	                          {% if card.is_apercibido %}<span class="status-icon warn" title="Apercibido">•</span>{% endif %}
-	                        </span>
-	                      </p>
-	                    </div>
-	                    <div class="pc-summary" aria-label="Resumen">
-	                      <div class="pc-stat"><div class="k">PJ</div><div class="v">{{ card.pj|default:0 }}</div></div>
-	                      <div class="pc-stat"><div class="k">G</div><div class="v">{{ card.goals|default:0 }}</div></div>
-	                      <div class="pc-stat"><div class="k">A</div><div class="v">{{ card.assists|default:0 }}</div></div>
-	                    </div>
-	                  </div>
+          <div style="display:flex; gap:0.55rem; align-items:center; justify-content:flex-end; margin: 0 0 0.85rem; flex-wrap: wrap;">
+            <input id="playerSearch" type="search" placeholder="Buscar jugador" style="min-width: 240px;" />
+          </div>
 
-	                  <div class="pc-mid">
-	                    <div class="pc-charts">
-	                      <div class="mini-radar-wrap" aria-hidden="true">
-	                        <svg
-	                          class="mini-radar"
-	                          viewBox="0 0 100 100"
-	                          data-a90="{{ card.radar_pcts.a90|default:0 }}"
-	                          data-sr="{{ card.radar_pcts.sr|default:0 }}"
-	                          data-part="{{ card.radar_pcts.part|default:0 }}"
-	                          data-inf="{{ card.radar_pcts.inf|default:0 }}"
-	                          data-imp="{{ card.radar_pcts.imp|default:0 }}"
-	                        ></svg>
-	                      </div>
-	                      <div class="pc-donut" style="--pct: {{ card.participation_pct|default:0|floatformat:0 }};">
-	                        <div class="pc-donut-label">
-	                          <div class="k">% PART.</div>
-	                          <div class="v">{{ card.participation_pct|default:0|floatformat:0 }}%</div>
-	                        </div>
-	                      </div>
-	                    </div>
-	                  </div>
+          <div class="grid" id="playersGrid">
+            {% for card in player_cards %}
+              <article class="card broadcast-card" data-player-name="{{ card.name|lower }} {{ card.nickname|default:''|lower }}">
+                <a class="card-link" href="{% url 'player-detail' player_id=card.player_id %}{{ active_team_query|default:'' }}">
+                  <div class="broadcast-head">
+                    <div class="broadcast-head-left">
+                      <div class="avatar-wrap" aria-hidden="true">
+                        <img class="avatar" src="{% if card.photo_url %}{{ card.photo_url }}{% else %}{% static 'football/images/player-avatar.svg' %}{% endif %}" alt="{{ card.name }}" loading="lazy" />
+                        {% if card.number %}<span class="dorsal-badge">{{ card.number }}</span>{% endif %}
+                      </div>
+                      <div>
+                        <h2 class="broadcast-name">{{ card.nickname|default:card.name }}</h2>
+                        <div class="broadcast-sub">{{ card.profile_label|default:card.position|default:"-" }}</div>
+                      </div>
+                    </div>
+                    <div class="broadcast-head-right">
+                      <div class="broadcast-pill">INF {{ card.influence_score|default:0|floatformat:0 }}</div>
+                      <div class="broadcast-pill">IMP {{ card.importance_score|default:0|floatformat:0 }}</div>
+                      <span class="status-icons">
+                        {% if card.has_active_injury %}<span class="status-icon injury" title="Lesión activa">✚</span>{% endif %}
+                        {% if card.is_sanctioned %}<span class="status-icon sanction" title="Sancionado">🟥</span>{% endif %}
+                        {% if card.is_apercibido %}<span class="status-icon warn" title="Apercibido">•</span>{% endif %}
+                      </span>
+                    </div>
+                  </div>
 
-	                  <div class="pc-bottom" aria-label="Tarjetas y estado">
-	                    <span class="mini-kpi" title="Tarjetas amarillas">🟨 {{ card.yellow_cards|default:0 }}</span>
-	                    <span class="mini-kpi" title="Tarjetas rojas">🟥 {{ card.red_cards|default:0 }}</span>
-	                    <span class="mini-kpi" title="Disponibilidad">% Disp. {{ card.availability_pct|default:0|floatformat:0 }}%</span>
-	                  </div>
-	                </div>
-	              </a>
-	            {% empty %}
-	              <div style="grid-column:1/-1; color:var(--prod-muted, rgba(15, 23, 42, 0.64));">No hay jugadores aún. Usa “Alta y plantilla”.</div>
-	            {% endfor %}
+                  <div class="broadcast-mini" style="margin-top:0.65rem;">
+                    <span class="mini-pill">PJ <strong>{{ card.pj|default:0 }}</strong></span>
+                    <span class="mini-pill">Min <strong>{{ card.minutes|default:0 }}</strong></span>
+                    <span class="mini-pill">⚽ <strong>{{ card.goals|default:0 }}</strong></span>
+                    <span class="mini-pill">🅰️ <strong>{{ card.assists|default:0 }}</strong></span>
+                    <span class="mini-pill">% Éx <strong>{{ card.success_rate|default:0|floatformat:1 }}</strong></span>
+                  </div>
+
+                  <div class="mini-radar-wrap" title="Radar comparativo (percentiles dentro del equipo)">
+                    <svg
+                      class="mini-radar"
+                      viewBox="0 0 100 100"
+                      role="img"
+                      aria-label="Radar de percentiles: acciones/90, éxito, participación, influencia e importancia"
+                      data-a90="{{ card.radar_pcts.a90|default:0 }}"
+                      data-sr="{{ card.radar_pcts.sr|default:0 }}"
+                      data-part="{{ card.radar_pcts.part|default:0 }}"
+                      data-inf="{{ card.radar_pcts.inf|default:0 }}"
+                      data-imp="{{ card.radar_pcts.imp|default:0 }}"
+                    ></svg>
+                  </div>
+
+                  <div class="broadcast-kpis" aria-label="KPIs rápidos">
+                    <div class="broadcast-kpi is-accent"><span class="k">% Éxito</span><span class="v">{{ card.success_rate|default:0|floatformat:-1 }}%</span></div>
+                    <div class="broadcast-kpi"><span class="k">% Duelos</span><span class="v">{{ card.duel_rate|default:0|floatformat:-1 }}%</span></div>
+                    <div class="broadcast-kpi"><span class="k">% Pase</span><span class="v">{{ card.passes_accuracy|default:0|floatformat:-1 }}%</span></div>
+                    <div class="broadcast-kpi"><span class="k">% Tiro</span><span class="v">{{ card.shots_accuracy|default:0|floatformat:-1 }}%</span></div>
+                  </div>
+
+                  <details class="broadcast-details" style="margin-top:0.75rem;">
+                    <summary>Ver detalle KPI</summary>
+                    <div class="performance-overview is-compact">
+                      <h3>KPI de rendimiento</h3>
+                      <div class="performance-rings">
+                        <article class="kpi-ring">
+                          <div class="kpi-ring-chart" style="--pct: {{ card.success_rate|default:0 }};">
+                            <span class="kpi-ring-value">{{ card.success_rate|default:0|floatformat:-1 }}%</span>
+                          </div>
+                          <div class="kpi-ring-label">Tasa de éxito</div>
+                        </article>
+                        <article class="kpi-ring">
+                          <div class="kpi-ring-chart" style="--pct: {{ card.duel_rate|default:0 }};">
+                            <span class="kpi-ring-value">{{ card.duel_rate|default:0|floatformat:-1 }}%</span>
+                          </div>
+                          <div class="kpi-ring-label">Duelos ganados</div>
+                        </article>
+                        <article class="kpi-ring">
+                          <div class="kpi-ring-chart" style="--pct: {{ card.passes_accuracy|default:0 }};">
+                            <span class="kpi-ring-value">{{ card.passes_accuracy|default:0|floatformat:-1 }}%</span>
+                          </div>
+                          <div class="kpi-ring-label">Precisión de pase</div>
+                        </article>
+                        <article class="kpi-ring">
+                          <div class="kpi-ring-chart" style="--pct: {{ card.shots_accuracy|default:0 }};">
+                            <span class="kpi-ring-value">{{ card.shots_accuracy|default:0|floatformat:-1 }}%</span>
+                          </div>
+                          <div class="kpi-ring-label">Tiro a puerta</div>
+                        </article>
+                      </div>
+                    </div>
+                  </details>
+                </a>
+
+                <details>
+                  <summary>Ver jornadas</summary>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="nowrap">Jor</th>
+                        <th>Rival</th>
+                        <th class="nowrap">Fecha</th>
+                        <th class="nowrap">Res</th>
+                        <th class="nowrap">Min</th>
+                        <th class="nowrap">⚽</th>
+                        <th class="nowrap">🅰️</th>
+                        <th class="nowrap">Acc</th>
+                        <th class="nowrap">Éx</th>
+                        <th class="nowrap">% Éx</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for match in card.matches %}
+                        <tr>
+                          <td class="nowrap">
+                            {{ match.round }}
+                            {% if match.home %}<span class="chip">Local</span>{% else %}<span class="chip">Visit</span>{% endif %}
+                          </td>
+                          <td>{{ match.opponent }}</td>
+                          <td class="cell-muted nowrap">{{ match.date|default:"—" }}</td>
+                          <td class="nowrap">
+                            {% if match.home_score != None and match.away_score != None %}
+                              {% if match.home %}{{ match.home_score }}{% else %}{{ match.away_score }}{% endif %}-{% if match.home %}{{ match.away_score }}{% else %}{{ match.home_score }}{% endif %}
+                            {% elif match.result %}
+                              {{ match.result }}
+                            {% else %}—{% endif %}
+                          </td>
+                          <td class="nowrap">
+                            {% if match.minutes_auto %}<span class="cell-muted">Auto</span>
+                            {% elif match.minutes != None %}{{ match.minutes }}'
+                            {% else %}<span class="cell-muted">—</span>{% endif %}
+                          </td>
+                          <td class="nowrap">{{ match.goals|default:0 }}</td>
+                          <td class="nowrap">{{ match.assists|default:0 }}</td>
+                          <td class="nowrap">{{ match.actions|default:0 }}</td>
+                          <td class="nowrap">{{ match.successes|default:0 }}</td>
+                          <td class="nowrap">{% if match.actions|default:0 > 0 %}{{ match.success_rate|default:0 }}%{% else %}<span class="cell-muted">—</span>{% endif %}</td>
+                        </tr>
+                      {% empty %}
+                        <tr><td colspan="10">Sin registros por partidos.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </details>
+              </article>
+            {% empty %}
+              <article class="card" style="grid-column:1/-1;">
+                No hay jugadores aún. Usa “Alta y plantilla”.
+              </article>
+            {% endfor %}
           </div>
           <script>
             (function() {
@@ -647,6 +771,20 @@
               }
 	            })();
 	          </script>
+          <script>
+            (function() {
+              const searchInput = document.getElementById('playerSearch');
+              const cards = Array.from(document.querySelectorAll('#playersGrid .card'));
+              if (!searchInput || !cards.length) return;
+              searchInput.addEventListener('input', () => {
+                const term = (searchInput.value || '').trim().toLowerCase();
+                cards.forEach((card) => {
+                  const name = card.dataset.playerName || '';
+                  card.style.display = !term || name.includes(term) ? '' : 'none';
+                });
+              });
+            })();
+          </script>
 	          <script>
 	            (function() {
 	              const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));

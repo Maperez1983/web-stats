@@ -60945,8 +60945,10 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
             {
                 'player_id': row.get('player_id'),
                 'name': row.get('name'),
+                'nickname': row.get('nickname') or '',
                 'number': row.get('number'),
                 'photo_url': row.get('photo_url', ''),
+                'profile_label': row.get('profile_label') or row.get('profile') or '',
                 'pj': int(row.get('pj', 0) or 0),
                 'minutes': minutes,
                 'goals': goals,
@@ -60971,6 +60973,9 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
                 'key_passes_completed': int(row.get('key_passes_completed', 0) or 0),
                 'goalkeeper_saves': int(row.get('goalkeeper_saves', 0) or 0),
                 'success_rate': float(row.get('success_rate', 0) or 0),
+                'duel_rate': float(row.get('duel_rate', 0) or 0),
+                'passes_accuracy': float(row.get('passes_accuracy', 0) or 0),
+                'shots_accuracy': float(row.get('shots_accuracy', 0) or 0),
                 'participation_pct': float(row.get('participation_pct', 0) or 0),
                 'availability_pct': float(row.get('availability_pct', 0) or 0),
                 'importance_score': float(row.get('importance_score', 0) or 0),
@@ -60979,6 +60984,7 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
                 'is_sanctioned': bool(row.get('is_sanctioned')),
                 'is_apercibido': bool(row.get('is_apercibido')),
                 'position': row.get('position') or '',
+                'matches': row.get('matches') if isinstance(row.get('matches'), list) else [],
             }
         )
     return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
