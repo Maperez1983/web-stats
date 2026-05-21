@@ -907,7 +907,7 @@
 	                          {% endif %}
                             {% if radar_data.labels %}
                               {% for lbl in radar_data.labels %}
-                                <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="middle" class="radar-label" style="font-size:11px;font-weight:1000;fill:rgba(11,18,32,0.80);letter-spacing:0.02em;">{{ lbl.text }}</text>
+                                <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" class="radar-label" style="font-size:11px;font-weight:1000;fill:rgba(11,18,32,0.80);letter-spacing:0.02em;">{{ lbl.text }}</text>
                               {% endfor %}
                             {% endif %}
 	                        </svg>
@@ -945,7 +945,7 @@
                               {% endif %}
                               {% if card_radar_data.labels %}
                                 {% for lbl in card_radar_data.labels %}
-                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="middle" class="radar-label-mini" style="font-size:7.2px;font-weight:1000;fill:rgba(11,18,32,0.72);letter-spacing:0.03em;">{{ lbl.text }}</text>
+                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" class="radar-label-mini" style="font-size:7.2px;font-weight:1000;fill:rgba(11,18,32,0.72);letter-spacing:0.03em;">{{ lbl.text }}</text>
                                 {% endfor %}
                               {% endif %}
                             </svg>

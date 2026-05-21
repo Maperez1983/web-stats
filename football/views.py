@@ -23690,20 +23690,25 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
-            lr = 142.0
+            # Extra margen para que etiquetas (COMP/ESF/...) no se monten ni se recorten.
+            lr = 154.0
             lx = cx + math.cos(angle) * lr
             ly = cy + math.sin(angle) * lr
             anchor = 'middle'
-            if lx > cx + 6:
+            # En el lado izquierdo el texto debe crecer hacia dentro (a la derecha),
+            # para evitar que se recorte fuera del viewBox.
+            if lx < cx - 10:
                 anchor = 'start'
-            elif lx < cx - 6:
+            elif lx > cx + 10:
                 anchor = 'end'
+            baseline = 'auto' if ly < cy else 'hanging'
             labels.append(
                 {
                     'x': round(lx, 1),
                     'y': round(ly, 1),
                     'text': short_map.get(str(axis.get('key') or ''), str(axis.get('key') or '')),
                     'anchor': anchor,
+                    'baseline': baseline,
                     'full': str(axis.get('key') or ''),
                 }
             )
@@ -23851,14 +23856,15 @@ def _build_player_card_radar_data(detail_row, population_rows):
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
-            lr = 46.0
+            lr = 49.0
             lx = cx + math.cos(angle) * lr
             ly = cy + math.sin(angle) * lr
             anchor = 'middle'
-            if lx > cx + 4:
+            if lx < cx - 6:
                 anchor = 'start'
-            elif lx < cx - 4:
+            elif lx > cx + 6:
                 anchor = 'end'
+            baseline = 'auto' if ly < cy else 'hanging'
             label_text = str(axis.get('key') or '')
             # Etiquetas ultra-compactas para que no se monten en PDF/print.
             if label_text == 'A/90':
@@ -23867,7 +23873,7 @@ def _build_player_card_radar_data(detail_row, population_rows):
                 label_text = 'ÉX'
             elif label_text.lower().startswith('part'):
                 label_text = 'PART'
-            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': label_text, 'anchor': anchor})
+            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': label_text, 'anchor': anchor, 'baseline': baseline})
         pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
         return {'axes': axes, 'polygon_points': pts_str, 'labels': labels}
     except Exception:
