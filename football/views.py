@@ -23453,13 +23453,31 @@ def _build_player_percentiles(detail_row, population_rows):
         'total_actions': [_num(r.get('total_actions')) for r in rows],
     }
 
+    # Para "Calidad", comparamos preferentemente contra jugadores del MISMO rol/bucket.
+    # Así evitamos que un delantero se compare contra defensas/porteros (escalas distintas).
+    try:
+        detail_bucket = _player_role_bucket(
+            detail_row.get('position') or detail_row.get('position_label') or '',
+            profile=detail_row.get('profile') or '',
+        )
+        bucket_rows = [
+            r for r in rows
+            if _player_role_bucket(
+                r.get('position') or r.get('position_label') or '',
+                profile=r.get('profile') or '',
+            ) == detail_bucket
+        ]
+        quality_population = [_quality_raw_score(r) for r in bucket_rows] if len(bucket_rows) >= 4 else pop['quality_raw']
+    except Exception:
+        quality_population = pop['quality_raw']
+
     out = {
         'success_rate': _percentile_rank(_num(detail_row.get('success_rate')), pop['success_rate']),
         'duel_rate': _percentile_rank(_num(detail_row.get('duel_rate')), pop['duel_rate']),
         'passes_accuracy': _percentile_rank(_passes_acc(detail_row), pop['passes_accuracy']),
         'shots_accuracy': _percentile_rank(_shots_acc(detail_row), pop['shots_accuracy']),
         'aerial_rate': _percentile_rank(_aerial_rate(detail_row), pop['aerial_rate']),
-        'quality': _percentile_rank(_quality_raw_score(detail_row), pop['quality_raw']),
+        'quality': _percentile_rank(_quality_raw_score(detail_row), quality_population),
         'decisive_actions_per90': _percentile_rank(_num(detail_row.get('decisive_actions_per90')), pop['decisive_actions_per90']),
         'total_actions': _percentile_rank(_num(detail_row.get('total_actions')), pop['total_actions']),
     }
@@ -56666,11 +56684,26 @@ def player_detail_page(request, player_id):
                 'importance_score': [_row_num(r, 'importance_score') for r in all_rows],
                 'influence_score': [_row_num(r, 'influence_score') for r in all_rows],
             }
+            try:
+                safe_bucket = _player_role_bucket(
+                    safe_stats.get('position') or safe_stats.get('position_label') or '',
+                    profile=safe_stats.get('profile') or '',
+                )
+                bucket_rows = [
+                    r for r in all_rows
+                    if _player_role_bucket(
+                        r.get('position') or r.get('position_label') or '',
+                        profile=r.get('profile') or '',
+                    ) == safe_bucket
+                ]
+                quality_population = [_quality_raw_score(r) for r in bucket_rows] if len(bucket_rows) >= 4 else pop['quality_raw']
+            except Exception:
+                quality_population = pop['quality_raw']
             player_percentiles = {
                 'commitment': _percentile_rank(_commitment(safe_stats), pop['commitment']),
                 'actions_per90': _percentile_rank(_actions_per90(safe_stats), pop['actions_per90']),
                 'success_rate': _percentile_rank(_row_num(safe_stats, 'success_rate'), pop['success_rate']),
-                'quality': _percentile_rank(_quality_raw_score(safe_stats), pop['quality_raw']),
+                'quality': _percentile_rank(_quality_raw_score(safe_stats), quality_population),
                 'importance_score': _percentile_rank(_row_num(safe_stats, 'importance_score'), pop['importance_score']),
                 'influence_score': _percentile_rank(_row_num(safe_stats, 'influence_score'), pop['influence_score']),
             }
