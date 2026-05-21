@@ -265,6 +265,7 @@
       body.tactics-mode .pitch-viewport {
         flex: 1 1 auto;
         min-height: 0;
+        min-width: 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2083,7 +2084,10 @@
          En vez de apilar (campo arriba + recursos abajo), mantenemos un split:
          campo a la izquierda y Recursos a la derecha, con scroll interno solo en Recursos. */
       body.tactics-mode .pitch-layout {
-        grid-template-columns: minmax(0, 1fr) var(--tactics-library-width, 360px);
+        /* Evita overflow horizontal: en pantallas estrechas, el panel lateral reduce ancho automáticamente. */
+        width: 100%;
+        max-width: 100%;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, min(var(--tactics-library-width, 360px), 36vw));
         grid-template-areas: "main side";
         gap: 0.75rem;
       }
