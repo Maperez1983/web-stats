@@ -23677,6 +23677,13 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         n = max(3, len(axes))
         pts = []
         labels = []
+        short_map = {
+            'Compromiso': 'COMP',
+            'Esfuerzo': 'ESF',
+            'Calidad': 'CAL',
+            'Importancia': 'IMP',
+            'Influencia': 'INF',
+        }
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (_clamp(axis.get('value', 0.0)) / 100.0)
@@ -23691,7 +23698,15 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
                 anchor = 'start'
             elif lx < cx - 6:
                 anchor = 'end'
-            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': axis.get('key', ''), 'anchor': anchor})
+            labels.append(
+                {
+                    'x': round(lx, 1),
+                    'y': round(ly, 1),
+                    'text': short_map.get(str(axis.get('key') or ''), str(axis.get('key') or '')),
+                    'anchor': anchor,
+                    'full': str(axis.get('key') or ''),
+                }
+            )
         d = ' '.join([('M' if idx == 0 else 'L') + f' {x:.1f} {y:.1f}' for idx, (x, y) in enumerate(pts)]) + ' Z'
         return {
             'axes': axes,
@@ -23844,7 +23859,15 @@ def _build_player_card_radar_data(detail_row, population_rows):
                 anchor = 'start'
             elif lx < cx - 4:
                 anchor = 'end'
-            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': axis.get('key', ''), 'anchor': anchor})
+            label_text = str(axis.get('key') or '')
+            # Etiquetas ultra-compactas para que no se monten en PDF/print.
+            if label_text == 'A/90':
+                label_text = 'A/90'
+            elif label_text.lower().startswith('é'):
+                label_text = 'ÉX'
+            elif label_text.lower().startswith('part'):
+                label_text = 'PART'
+            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': label_text, 'anchor': anchor})
         pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
         return {'axes': axes, 'polygon_points': pts_str, 'labels': labels}
     except Exception:
