@@ -5652,7 +5652,12 @@
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
 						      if (simSpeedSelect) simSpeedSelect.value = String(simulationSpeed);
-						      if (simPlayBtn) simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
+						      if (simPlayBtn) {
+						        simPlayBtn.textContent = (simulationProEnabled ? simulationProPlaying : simulationPlaying) ? 'Parar' : 'Reproducir';
+						        const needsMoreSteps = !!isSimulating && (simulationSteps.length < 2);
+						        try { simPlayBtn.disabled = needsMoreSteps; } catch (e) { /* ignore */ }
+						        try { simPlayBtn.title = needsMoreSteps ? 'Captura al menos 2 pasos para reproducir el movimiento.' : 'Reproducir/Pausar'; } catch (e) { /* ignore */ }
+						      }
 						      const canRecord = canRecord2d();
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord;
 						      if (simRecordQuickBtn) simRecordQuickBtn.disabled = !canRecord;
@@ -12329,8 +12334,20 @@
 				      setStatus('Pasos reordenados.');
 				    };
 				    const playSimulationSteps = async () => {
-				      if (!isSimulating) return;
-				      if (!simulationSteps.length) return;
+				      if (!isSimulating) {
+				        setStatus('Simulador: pulsa “Entrar en simulación” primero.');
+				        return;
+				      }
+				      if (!simulationSteps.length) {
+				        setStatus('Simulador: no hay pasos aún. Pulsa “Capturar paso” (inicio) y vuelve a capturar tras mover las fichas (final).');
+				        try { simCaptureBtn?.focus?.(); } catch (e) { /* ignore */ }
+				        return;
+				      }
+				      if (simulationSteps.length < 2) {
+				        setStatus('Simulador: con 1 paso no hay movimiento. Captura al menos 2 pasos (inicio y final) y luego pulsa “Reproducir”.');
+				        try { simCaptureBtn?.focus?.(); } catch (e) { /* ignore */ }
+				        return;
+				      }
 				      if (simulationProEnabled) {
 				        if (simulationProPlaying) {
 				          stopSimulationPlayback();
