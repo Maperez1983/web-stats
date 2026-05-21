@@ -58274,7 +58274,8 @@ def player_pdf(request, player_id):
             return (rnd_is_none, rnd_value, d_is_none, d_value, mid)
 
         matches_for_report = sorted([m for m in raw_matches if isinstance(m, dict)], key=_report_sort_key)
-        page_size = 22
+        # Tabla de "Partidos": ajustado para aprovechar mejor la hoja (menos páginas / menos huecos).
+        page_size = 34
         matches_for_report_pages = [
             matches_for_report[i : i + page_size] for i in range(0, len(matches_for_report), page_size)
         ]
