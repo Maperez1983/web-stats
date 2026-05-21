@@ -912,6 +912,7 @@
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
+		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
 		    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
@@ -4382,6 +4383,7 @@
 			        if (tokenPatternActions) tokenPatternActions.hidden = true;
 			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
+			        if (backgroundEditActions) backgroundEditActions.hidden = true;
 			        selectionDockDismissed = false;
 			        selectionDockDismissedUid = '';
 				        try { if (selectionDockEl) selectionDockEl.hidden = true; } catch (e) { /* ignore */ }
@@ -4460,6 +4462,20 @@
 		            btn.classList.toggle('is-active', btnStyle === style);
 		            try { btn.setAttribute('aria-pressed', btnStyle === style ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
+		        }
+		      }
+		      if (backgroundEditActions) {
+		        const isBg = isBackgroundShape(active);
+		        backgroundEditActions.hidden = !isBg;
+		        if (isBg) {
+		          const inEdit = !!active?.data?.background_edit;
+		          const btn = backgroundEditActions.querySelector('button[data-inspector-action="toggle_background_edit"]');
+		          if (btn) {
+		            btn.textContent = inEdit ? 'Salir edición' : 'Editar';
+		            btn.classList.toggle('is-active', inEdit);
+		            try { btn.setAttribute('aria-pressed', inEdit ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		            try { btn.title = inEdit ? 'Volver a modo “pasar a través” (no bloquea clicks)' : 'Editar fondo (se pone delante para ajustar)'; } catch (e) { /* ignore */ }
+		          }
 		        }
 		      }
 		      if (tokenMetaRow && tokenNameInput && tokenNumberInput) {
@@ -19137,22 +19153,23 @@
 			      setStatus('JSON descargado.');
 			    };
 
-		    const normalizeTokenSelection = () => {
+		    const normalizeGroupSelection = () => {
 		      const active = canvas.getActiveObject();
 		      if (!active) return;
-		      // Si se selecciona un sub-elemento dentro de una ficha (token), promovemos la selección al grupo
-		      // para que el inspector (color/escala) funcione siempre.
+		      // Si se selecciona un sub-elemento dentro de un Group (token/fondo),
+		      // promovemos la selección al grupo para que el inspector (color/escala) funcione siempre.
 		      const parent = active.group || active._group || null;
-		      if (!parent) return;
-		      if (safeText(parent?.data?.kind) !== 'token') return;
+		      if (!parent || parent === active) return;
+		      const parentKind = safeText(parent?.data?.kind);
+		      if (parentKind !== 'token' && !isBackgroundShape(parent)) return;
 		      try {
 		        canvas.setActiveObject(parent);
 		        canvas.requestRenderAll();
 		      } catch (e) { /* ignore */ }
 		    };
 
-		    canvas.on('selection:created', normalizeTokenSelection);
-		    canvas.on('selection:updated', normalizeTokenSelection);
+		    canvas.on('selection:created', normalizeGroupSelection);
+		    canvas.on('selection:updated', normalizeGroupSelection);
 		    canvas.on('selection:created', syncInspector);
 		    canvas.on('selection:updated', syncInspector);
 		    canvas.on('selection:cleared', syncInspector);
@@ -19544,6 +19561,15 @@
 	      }
 		      if (inspectorAction === 'paste') {
 		        pasteClipboardObject();
+		        return;
+		      }
+		      if (inspectorAction === 'toggle_background_edit') {
+		        const current = activeInspectableObject();
+		        const willEnable = !(current?.data?.background_edit);
+		        applyToActiveFlexibleObject((active) => {
+		          if (!isBackgroundShape(active)) return;
+		          setBackgroundEditMode(active, willEnable, { force: true });
+		        }, willEnable ? 'Fondo: modo edición.' : 'Fondo: modo “pasar a través”.');
 		        return;
 		      }
 			      const tokenSize = safeText(button.dataset.tokenSize);
