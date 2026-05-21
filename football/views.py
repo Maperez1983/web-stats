@@ -62698,6 +62698,7 @@ def compute_player_dashboard(
     total_possible_minutes = max(0, competition_total_rounds) * match_regulation_minutes
     # Partidos jugados por el equipo en la temporada (para % participación real).
     team_played_matches = 0
+    standing_played_matches = 0
     try:
         standing = (
             TeamStanding.objects
@@ -62705,34 +62706,50 @@ def compute_player_dashboard(
             .order_by('-last_updated', '-played', '-id')
             .first()
         )
-        team_played_matches = int(getattr(standing, 'played', 0) or 0) if standing else 0
+        standing_played_matches = int(getattr(standing, 'played', 0) or 0) if standing else 0
+        team_played_matches = standing_played_matches
     except Exception:
+        standing_played_matches = 0
         team_played_matches = 0
-    if team_played_matches <= 0:
-        # Fallback: inferir por partidos con evidencias (eventos / fin explícito / marcador).
-        played_ids = set()
-        try:
-            played_ids |= {int(mid) for mid in match_end_minutes.keys() if mid}
-        except Exception:
-            pass
-        try:
-            played_ids |= {int(mid) for mid in match_end_marker_minutes.keys() if mid}
-        except Exception:
-            pass
-        try:
-            candidates = list(lineup_by_match.keys())
-            if candidates:
-                played_ids |= set(
-                    Match.objects.filter(id__in=candidates)
-                    .filter(
-                        Q(home_score__isnull=False, away_score__isnull=False)
-                        | (Q(result__isnull=False) & ~Q(result__exact=''))
-                    )
-                    .values_list('id', flat=True)
+
+    # Evidencias internas: partidos con acciones / fin explícito / marcador guardado.
+    # Motivo: `TeamStanding.played` puede quedarse corto si el usuario registra más partidos
+    # (torneos/amistosos o contextos mal clasificados). En esos casos el % participación se infla.
+    played_ids = set()
+    try:
+        played_ids |= {int(mid) for mid in match_end_minutes.keys() if mid}
+    except Exception:
+        pass
+    try:
+        played_ids |= {int(mid) for mid in match_end_marker_minutes.keys() if mid}
+    except Exception:
+        pass
+    try:
+        candidates = list(lineup_by_match.keys())
+        if candidates:
+            played_ids |= set(
+                Match.objects.filter(id__in=candidates)
+                .filter(
+                    Q(home_score__isnull=False, away_score__isnull=False)
+                    | (Q(result__isnull=False) & ~Q(result__exact=''))
                 )
-        except Exception:
-            pass
-        team_played_matches = len(played_ids)
+                .values_list('id', flat=True)
+            )
+    except Exception:
+        pass
+    if played_ids:
+        team_played_matches = max(int(team_played_matches or 0), int(len(played_ids)))
+
+    # Coherencia final: el denominador NO puede ser menor que el máximo PJ observado en el dataset
+    # que estamos mostrando (mismo scope/fechas). Si no, el % participación queda artificialmente alto.
+    observed_max_pj = 0
+    try:
+        observed_max_pj = max(int(stats.get('pj', 0) or 0) for stats in player_stats.values()) if player_stats else 0
+    except Exception:
+        observed_max_pj = 0
+    if observed_max_pj > 0:
+        team_played_matches = max(int(team_played_matches or 0), int(observed_max_pj))
+
     if team_played_matches <= 0:
         # Último fallback: si el equipo no tiene standing y no hay marcadores,
         # usamos el máximo PJ del cálculo (suele venir de convocatorias/11 inicial).
