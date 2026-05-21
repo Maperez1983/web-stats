@@ -57607,15 +57607,45 @@ def player_pdf(request, player_id):
     if getattr(primary_team, 'crest_image', None):
         try:
             if getattr(primary_team.crest_image, 'path', None):
-                crest_src = _image_file_as_small_data_uri(Path(primary_team.crest_image.path), max_width=220, max_height=220, quality=75)
+                crest_src = _image_file_as_small_data_uri(
+                    Path(primary_team.crest_image.path),
+                    max_width=220,
+                    max_height=220,
+                    quality=75,
+                )
             else:
                 with primary_team.crest_image.open('rb') as fp:
                     raw = fp.read() or b''
-                crest_src = _image_bytes_as_small_data_uri(raw, mime_type='image/jpeg', max_width=220, max_height=220, quality=75)
+                crest_src = _image_bytes_as_small_data_uri(
+                    raw,
+                    mime_type='image/jpeg',
+                    max_width=220,
+                    max_height=220,
+                    quality=75,
+                )
         except Exception:
             crest_src = ''
     if not crest_src:
-        crest_src = resolve_team_crest_url(request, primary_team, sync=True) or logo_data_uri or request.build_absolute_uri(static('football/images/cdb-logo.png'))
+        # En PDF evitamos URLs externas o SVG generados (pueden fallar en WeasyPrint / romper el render).
+        # Preferimos un escudo local embebido (data URI) o, como último recurso, un SVG simple de iniciales.
+        try:
+            local_primary = (
+                'football/images/cdb-benagalbon-crest-contrast.png'
+                if _is_benagalbon_team(primary_team)
+                else 'football/images/cdb-logo.png'
+            )
+            crest_src = _file_as_data_uri(static_base_dir / local_primary) or ''
+        except Exception:
+            crest_src = ''
+    if not crest_src:
+        crest_src = logo_data_uri or ''
+    if not crest_src:
+        try:
+            initials = ''.join([c for c in str(primary_team.display_name or primary_team.name or '').upper() if c.isalpha()])[:2] or '2J'
+            svg = f"""<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><rect width='100%' height='100%' rx='90' ry='90' fill='#0f172a'/><text x='50%' y='54%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='72' font-weight='900' fill='#f8fafc'>{initials}</text></svg>"""
+            crest_src = 'data:image/svg+xml;charset=utf-8,' + urllib.parse.quote(svg)
+        except Exception:
+            crest_src = ''
 
     license_exists = False
     try:
