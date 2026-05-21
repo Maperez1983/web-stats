@@ -7,19 +7,28 @@
     <style>
       @page { size: A4; margin: 0; }
       * { box-sizing: border-box; }
+      :root {
+        --pdf-paper: #ffffff;
+        --pdf-ink: #0b1220;
+        --pdf-muted: #475569;
+        --pdf-line: #d5dde7;
+        --pdf-panel: #f8fafc;
+        --pdf-card: #ffffff;
+        --pdf-chip: #f1f5f9;
+        --pdf-chip-ink: #0b1220;
+      }
       body {
         margin: 0;
         font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
         font-size: 10.5px;
-        color: #e6eef7;
-        background: #050b14;
+        color: var(--pdf-ink);
+        background: var(--pdf-paper);
       }
       .sheet {
         width: 210mm;
         min-height: 297mm;
-        /* Evitar gradients complejos: en algunos builds de WeasyPrint pueden disparar RecursionError. */
-        background: #050b14;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--pdf-paper);
+        border: 1px solid var(--pdf-line);
       }
       .sheet + .sheet { page-break-before: always; }
       .brand {
@@ -75,7 +84,7 @@
       .pad { padding: 12px; }
       .section-title {
         padding: 7px 10px;
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid rgba(11,18,32,0.10);
         border-radius: 10px;
         background: rgba(15, 122, 53, 0.95);
         color: #ffffff;
@@ -93,30 +102,30 @@
       .attendance-banner {
         margin-top: 10px;
         padding: 10px;
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 14px;
-        background: rgba(255,255,255,0.05);
+        background: var(--pdf-panel);
       }
       .attendance-banner .title {
         font-weight: 1000;
         letter-spacing: 0.10em;
         text-transform: uppercase;
         font-size: 9.6px;
-        color: rgba(230,238,247,0.70);
+        color: var(--pdf-muted);
       }
       .attendance-banner .meta {
         margin-top: 6px;
         font-size: 10.3px;
-        color: rgba(230,238,247,0.82);
+        color: rgba(11,18,32,0.82);
       }
       .chip-row { margin-top: 8px; }
       .chip {
         display:inline-block;
         padding: 4px 10px;
         border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.10);
-        background: rgba(2, 6, 23, 0.55);
-        color: rgba(255,255,255,0.92);
+        border: 1px solid rgba(11,18,32,0.12);
+        background: var(--pdf-chip);
+        color: var(--pdf-chip-ink);
         font-weight: 1000;
         font-size: 10px;
         letter-spacing: 0.06em;
@@ -135,23 +144,23 @@
       }
       .personal-table td { padding: 0; vertical-align: top; }
       .field {
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 12px;
         padding: 8px 9px;
-        background: rgba(255,255,255,0.05);
+        background: var(--pdf-card);
       }
       .field .label {
         font-size: 9px;
         font-weight: 1000;
         letter-spacing: 0.10em;
         text-transform: uppercase;
-        color: rgba(230,238,247,0.65);
+        color: var(--pdf-muted);
       }
       .field .value {
         margin-top: 3px;
         font-size: 12px;
         font-weight: 1000;
-        color: #ffffff;
+        color: var(--pdf-ink);
       }
 
       .stats-board { margin-top: 10px; }
@@ -161,34 +170,34 @@
       .stats-head-left, .stats-head-right { width: 22%; text-align: center; }
       .stats-head-center { width: 56%; text-align: center; }
       .stats-big { font-size: 34px; font-weight: 1000; letter-spacing: -0.02em; }
-      .stats-small { margin-top: 2px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .stats-small { margin-top: 2px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: var(--pdf-muted); }
       .stats-center-title { font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; text-transform: uppercase; }
       .stats-center-sub { margin-top: 4px; color: #f4b400; font-weight: 1000; letter-spacing: 0.12em; text-transform: uppercase; }
       .stats-center-crest { margin-top: 10px; }
       .stats-center-crest img { width: 72px; height: 72px; object-fit: contain; }
 
-      .ring-wrap { text-align: center; }
+      .ring-wrap { text-align: center; width: 86px; margin: 0 auto; position: relative; }
       .ring-circle {
         width: 86px;
         height: 86px;
         border-radius: 999px;
-        border: 12px solid rgba(255,255,255,0.14);
+        border: 12px solid rgba(148, 163, 184, 0.45);
         margin: 0 auto;
       }
       .ring-circle.green { border-color: rgba(15,122,53,0.95); }
-      .ring-circle.gray { border-color: rgba(255,255,255,0.26); }
-      .ring-value { position: relative; margin-top: -66px; font-size: 22px; font-weight: 1000; color: #ffffff; }
-      .ring-label { margin-top: 34px; font-size: 11px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
+      .ring-circle.gray { border-color: rgba(148, 163, 184, 0.45); }
+      .ring-value { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; font-size: 22px; font-weight: 1000; color: var(--pdf-ink); width: 100%; text-align: center; }
+      .ring-label { margin-top: 8px; font-size: 11px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
 
       .stats-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
       .stats-row-cell { display: table-cell; vertical-align: middle; text-align: center; }
-      .stats-row-cell .n { font-size: 28px; font-weight: 1000; letter-spacing: -0.02em; }
-      .stats-row-cell .l { margin-top: 4px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
+      .stats-row-cell .n { font-size: 28px; font-weight: 1000; letter-spacing: -0.02em; color: var(--pdf-ink); }
+      .stats-row-cell .l { margin-top: 4px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: var(--pdf-muted); }
 
       .stats-metrics { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
       .stats-metrics-cell { display: table-cell; vertical-align: top; text-align: center; }
-      .stats-metrics-cell .v { font-size: 22px; font-weight: 1000; color: #ffffff; }
-      .stats-metrics-cell .k { margin-top: 4px; font-size: 10px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.65); }
+      .stats-metrics-cell .v { font-size: 22px; font-weight: 1000; color: var(--pdf-ink); }
+      .stats-metrics-cell .k { margin-top: 4px; font-size: 10px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: var(--pdf-muted); }
       .grid {
         display: table;
         width: 100%;
@@ -200,33 +209,33 @@
       .col.left { width: 68%; padding-right: 12px; }
       .col.right { width: 32%; }
       .card {
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 14px;
-        background: rgba(6, 13, 24, 0.72);
+        background: var(--pdf-card);
         padding: 12px;
         break-inside: avoid;
         page-break-inside: avoid;
       }
       .player-name { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.01em; }
-      .player-sub { margin: 6px 0 0; color: {{ pdf_palette.muted|default:"#51606f" }}; font-size: 12px; }
+      .player-sub { margin: 6px 0 0; color: var(--pdf-muted); font-size: 12px; }
       .pill {
         display:inline-block;
         padding: 4px 10px;
         border-radius: 999px;
         font-size: 11px;
-        background: rgba(2, 6, 23, 0.82);
-        color: #ffffff;
+        background: var(--pdf-chip);
+        color: var(--pdf-ink);
         margin-right: 8px;
         margin-bottom: 6px;
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid rgba(11,18,32,0.12);
       }
-      .pill.light { background: rgba(255,255,255,0.06); color: rgba(230,238,247,0.9); border: 1px solid rgba(255,255,255,0.10); }
+      .pill.light { background: var(--pdf-panel); color: var(--pdf-ink); border: 1px solid rgba(11,18,32,0.12); }
 
       .photo {
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 14px;
         overflow: hidden;
-        background: rgba(255,255,255,0.04);
+        background: var(--pdf-panel);
         padding: 6px;
       }
 	      .photo img {
@@ -245,8 +254,8 @@
         display:flex;
         align-items:center;
         justify-content:center;
-        background: rgba(2,6,23,0.86);
-        color: rgba(255,255,255,0.92);
+        background: var(--pdf-panel);
+        color: var(--pdf-muted);
         font-size: 46px;
         font-weight: 900;
         letter-spacing: 0.08em;
@@ -262,20 +271,20 @@
       }
       .kpi-table td { padding: 0; vertical-align: top; }
       .kpi {
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 12px;
         padding: 10px;
-        background: rgba(255,255,255,0.05);
+        background: var(--pdf-panel);
       }
       .kpi.slim { padding: 8px 8px; }
-      .kpi .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(230,238,247,0.70); font-weight: 900; }
-      .kpi .v { margin-top: 2px; font-size: 16px; font-weight: 900; color: #ffffff; }
+      .kpi .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--pdf-muted); font-weight: 900; }
+      .kpi .v { margin-top: 2px; font-size: 16px; font-weight: 900; color: var(--pdf-ink); }
 
       .perf-panel {
         margin-top: 10px;
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 14px;
-        background: rgba(6, 13, 24, 0.72);
+        background: var(--pdf-card);
         padding: 10px;
         break-inside: avoid;
         page-break-inside: avoid;
@@ -290,52 +299,54 @@
         font-weight: 900;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: rgba(230,238,247,0.70);
+        color: var(--pdf-muted);
       }
       .perf-rings { margin-top: 8px; }
-      .perf-ring { text-align: center; padding: 6px 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); }
+      .perf-ring { text-align: center; padding: 6px 6px 8px; border: 1px solid var(--pdf-line); border-radius: 12px; background: var(--pdf-panel); }
       .perf-donut { width: 78px; height: 78px; margin: 0 auto; position: relative; }
       .perf-donut svg { width: 78px; height: 78px; display: block; }
       .perf-donut .val {
         position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 78px;
+        text-align: center;
         font-size: 17px;
         font-weight: 1000;
         letter-spacing: -0.01em;
-        color: #ffffff;
+        color: var(--pdf-ink);
       }
-      .perf-ring-label { margin-top: 4px; font-size: 9.4px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .perf-ring { border: 1px solid var(--pdf-line); background: var(--pdf-panel); }
+      .perf-ring-label { margin-top: 4px; font-size: 9.4px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
       .perf-blocks { margin-top: 10px; }
-      .perf-block { border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); padding: 8px; }
-      .perf-block .label { font-size: 9.2px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
-      .perf-block .value { margin-top: 2px; font-size: 14px; font-weight: 1000; color: #ffffff; }
+      .perf-block { border: 1px solid var(--pdf-line); border-radius: 12px; background: var(--pdf-panel); padding: 8px; }
+      .perf-block .label { font-size: 9.2px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
+      .perf-block .value { margin-top: 2px; font-size: 14px; font-weight: 1000; color: var(--pdf-ink); }
 
       .field-diagram {
         position: relative;
         width: 100%;
         border-radius: 14px;
         overflow: hidden;
-        border: 1px solid #d5dde7;
+        border: 1px solid var(--pdf-line);
         background: #0b1a11;
         height: 238px;
       }
-      .field-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.98; }
+      .field-bg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 1; }
       .field-zone {
         position: absolute;
         padding: 3px 5px;
         border-radius: 10px;
-        background: rgba(2, 6, 23, 0.66);
-        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255,255,255,0.46);
+        border: 1px solid rgba(11,18,32,0.14);
       }
-      .field-zone span { display:block; text-align:center; font-size: 8.2px; font-weight: 900; color: rgba(255, 255, 255, 0.92); text-transform: uppercase; letter-spacing: 0.06em; }
+      .field-zone span { display:block; text-align:center; font-size: 8.2px; font-weight: 900; color: rgba(11,18,32,0.88); text-transform: uppercase; letter-spacing: 0.06em; }
       .field-zone .zone-count {
         font-size: 10.2px;
-        color: #facc15;
-        background: rgba(2, 6, 23, 0.75);
-        border: 1px solid rgba(250, 204, 21, 0.25);
+        color: #92400e;
+        background: rgba(250, 204, 21, 0.35);
+        border: 1px solid rgba(250, 204, 21, 0.55);
         border-radius: 999px;
         padding: 1px 6px;
         line-height: 1.25;
@@ -361,20 +372,20 @@
       .radar-figure { display: table-cell; width: 52%; vertical-align: top; }
       .radar-legend { display: table-cell; width: 48%; vertical-align: top; padding-left: 10px; }
       .radar-legend h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-      .radar-legend p { margin: 6px 0 0; color: rgba(230,238,247,0.78); font-size: 10.5px; line-height: 1.35; }
+      .radar-legend p { margin: 6px 0 0; color: var(--pdf-muted); font-size: 10.5px; line-height: 1.35; }
       .radar-axes { list-style: none; padding: 0; margin: 8px 0 0; }
       .radar-axes li {
-        border: 1px solid rgba(255,255,255,0.10);
+        border: 1px solid var(--pdf-line);
         border-radius: 10px;
         padding: 7px 8px;
-        background: rgba(255,255,255,0.05);
+        background: var(--pdf-panel);
         margin-bottom: 6px;
-        color: rgba(230,238,247,0.92);
+        color: var(--pdf-ink);
       }
       .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; }
-      .radar-axis-value { color: rgba(230,238,247,0.78); font-weight: 900; float: right; }
+      .radar-axis-value { color: var(--pdf-muted); font-weight: 900; float: right; }
 
-      .mini-note { margin-top: 8px; color: rgba(230,238,247,0.78); font-size: 10.2px; }
+      .mini-note { margin-top: 8px; color: var(--pdf-muted); font-size: 10.2px; }
 
       .table {
         width: 100%;
@@ -382,18 +393,18 @@
         margin-top: 10px;
       }
       .table th, .table td {
-        border-bottom: 1px solid rgba(255,255,255,0.10);
+        border-bottom: 1px solid var(--pdf-line);
         padding: 7px 8px;
         text-align: left;
         font-size: 10.3px;
-        color: rgba(230,238,247,0.92);
+        color: var(--pdf-ink);
       }
       .table th {
-        background: rgba(255,255,255,0.06);
+        background: var(--pdf-panel);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 9.6px;
-        color: rgba(230,238,247,0.70);
+        color: var(--pdf-muted);
       }
       .group-row td {
         background: rgba(15, 122, 53, 0.18);
@@ -402,19 +413,19 @@
         letter-spacing: 0.08em;
         font-size: 9.6px;
       }
-      .muted { color: rgba(230,238,247,0.70); }
+      .muted { color: var(--pdf-muted); }
 
       /* Gráficos: mejor en horizontal (a ancho completo) para lectura rápida. */
       .charts-row { margin-top: 10px; }
       .charts-cell { width: 100%; margin-top: 10px; }
       .charts-cell:first-child { margin-top: 0; }
-      .chart-card { border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; background: rgba(6, 13, 24, 0.72); padding: 10px; break-inside: avoid; page-break-inside: avoid; }
+      .chart-card { border: 1px solid var(--pdf-line); border-radius: 14px; background: var(--pdf-card); padding: 10px; break-inside: avoid; page-break-inside: avoid; }
       .chart-head { display: table; width: 100%; table-layout: fixed; }
       .chart-head-row { display: table-row; }
-      .chart-title { display: table-cell; font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 1000; color: rgba(230,238,247,0.70); }
+      .chart-title { display: table-cell; font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 1000; color: var(--pdf-muted); }
       .chart-legend { display: table-cell; text-align: right; vertical-align: middle; }
-      .legend-item { display: inline-block; margin-left: 10px; font-size: 9.6px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
-      .legend-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.14); }
+      .legend-item { display: inline-block; margin-left: 10px; font-size: 9.6px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
+      .legend-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(11,18,32,0.18); }
       .legend-swatch.goal { background: rgba(15, 122, 53, 0.92); }
       .legend-swatch.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
@@ -424,20 +435,20 @@
       .spark-bar { width: 14px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
-      .spark-label { margin-top: 4px; font-size: 9px; color: rgba(230,238,247,0.70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(230,238,247,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .chart-note { margin-top: 6px; font-size: 9.4px; color: rgba(230,238,247,0.70); }
+      .spark-label { margin-top: 4px; font-size: 9px; color: var(--pdf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: var(--pdf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .chart-note { margin-top: 6px; font-size: 9.4px; color: var(--pdf-muted); }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid rgba(255,255,255,0.10);
+        border-top: 1px solid var(--pdf-line);
         display:flex;
         justify-content: space-between;
         align-items: center;
       }
       .foot .brandline { display:flex; align-items:center; gap: 8px; }
       .foot .brandline img { width: 28px; height: auto; }
-      .foot .fine { font-size: 10px; color: rgba(230,238,247,0.70); }
+      .foot .fine { font-size: 10px; color: var(--pdf-muted); }
     </style>
   </head>
   <body>
@@ -660,7 +671,7 @@
                         <div class="perf-ring">
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.success_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
@@ -673,7 +684,7 @@
                         <div class="perf-ring">
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.duel_rate|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
@@ -686,7 +697,7 @@
                         <div class="perf-ring">
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(47,125,50,0.95)" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.pass_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
@@ -699,7 +710,7 @@
                         <div class="perf-ring">
                           <div class="perf-donut">
                             <svg viewBox="0 0 42 42" aria-hidden="true">
-                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="5"></circle>
+                              <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="5"></circle>
                               <circle cx="21" cy="21" r="15.915" fill="none" stroke="rgba(244,180,0,0.92)" stroke-width="5" pathLength="100"
                                 stroke-dasharray="{{ rendimiento.shot_accuracy|default:0|floatformat:0 }} 100" stroke-dashoffset="25"></circle>
                             </svg>
@@ -735,10 +746,10 @@
 	                    <div class="radar-row">
 	                      <div class="radar-figure">
 	                        <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" style="width:100%; height:auto;">
-	                          <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
-	                          <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
-	                          <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
-	                          <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
 	                          {% if radar_data.path_d %}
 	                            <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
 	                          {% endif %}
@@ -769,7 +780,7 @@
 	                <div class="perf-title">Mapa de acción</div>
 	                <div style="margin-top:8px;">
 	                  <div class="field-diagram">
-	                    <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
+                      <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
 	                    {% for zone in stats.field_zones %}
 	                      <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
 	                        <span>{{ zone.label }}</span>

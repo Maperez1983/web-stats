@@ -58198,14 +58198,16 @@ def player_pdf(request, player_id):
     }
 
     # Campo para mapa de acción (data URI para WeasyPrint).
+    # Nota: `static/football/campo-futbol.jpg` puede ser AVIF con extensión .jpg (válido en navegador),
+    # pero WeasyPrint no soporta AVIF. Para PDF usamos el fallback JPEG real.
     pitch_src = ''
     try:
-        pitch_src = _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol.jpg')
+        pitch_src = _file_as_data_uri(static_base_dir / 'football' / 'campo-futbol-fallback.jpg')
     except Exception:
         pitch_src = ''
     if not pitch_src:
         try:
-            pitch_src = request.build_absolute_uri(static('football/campo-futbol.jpg'))
+            pitch_src = request.build_absolute_uri(static('football/campo-futbol-fallback.jpg'))
         except Exception:
             pitch_src = ''
 
