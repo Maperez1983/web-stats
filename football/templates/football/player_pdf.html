@@ -11,14 +11,14 @@
         margin: 0;
         font-family: var(--print-font, "Segoe UI", Arial, sans-serif);
         font-size: 10.5px;
-        color: var(--print-ink, {{ pdf_palette.ink|default:"#102734" }});
-        background: var(--print-paper, {{ pdf_palette.sheet|default:"#ffffff" }});
+        color: #e6eef7;
+        background: #050b14;
       }
       .sheet {
         width: 210mm;
         min-height: 297mm;
-        background: {{ pdf_palette.sheet|default:"#ffffff" }};
-        border: 1px solid #d5dde7;
+        background: radial-gradient(140% 120% at 30% 10%, rgba(24, 60, 110, 0.35), rgba(5, 11, 20, 1) 55%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
       }
       .sheet + .sheet { page-break-before: always; }
       .brand {
@@ -74,14 +74,111 @@
       .pad { padding: 12px; }
       .section-title {
         padding: 7px 10px;
-        border: 1px solid #d5dde7;
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 10px;
-        background: {{ pdf_palette.primary|default:"#007050" }};
+        background: linear-gradient(135deg, rgba(15, 122, 53, 0.95), rgba(6, 59, 49, 0.9));
         color: #ffffff;
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
+
+      .top-split { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
+      .top-split-row { display: table-row; }
+      .top-split-left, .top-split-right { display: table-cell; vertical-align: top; }
+      .top-split-left { width: 66%; padding-right: 12px; }
+      .top-split-right { width: 34%; }
+
+      .attendance-banner {
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.05);
+      }
+      .attendance-banner .title {
+        font-weight: 1000;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        font-size: 9.6px;
+        color: rgba(230,238,247,0.70);
+      }
+      .attendance-banner .meta {
+        margin-top: 6px;
+        font-size: 10.3px;
+        color: rgba(230,238,247,0.82);
+      }
+      .chip-row { margin-top: 8px; }
+      .chip {
+        display:inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(2, 6, 23, 0.55);
+        color: rgba(255,255,255,0.92);
+        font-weight: 1000;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-right: 6px;
+        margin-bottom: 6px;
+      }
+      .chip .n { font-weight: 1000; }
+
+      .personal-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 6px;
+        table-layout: fixed;
+        margin-top: 10px;
+      }
+      .personal-table td { padding: 0; vertical-align: top; }
+      .field {
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 12px;
+        padding: 8px 9px;
+        background: rgba(255,255,255,0.05);
+      }
+      .field .label {
+        font-size: 9px;
+        font-weight: 1000;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: rgba(230,238,247,0.65);
+      }
+      .field .value {
+        margin-top: 3px;
+        font-size: 12px;
+        font-weight: 1000;
+        color: #ffffff;
+      }
+
+      .stats-board { margin-top: 10px; }
+      .stats-head { display: table; width: 100%; table-layout: fixed; }
+      .stats-head-row { display: table-row; }
+      .stats-head-left, .stats-head-center, .stats-head-right { display: table-cell; vertical-align: middle; }
+      .stats-head-left, .stats-head-right { width: 22%; text-align: center; }
+      .stats-head-center { width: 56%; text-align: center; }
+      .stats-big { font-size: 34px; font-weight: 1000; letter-spacing: -0.02em; }
+      .stats-small { margin-top: 2px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .stats-center-title { font-size: 18px; font-weight: 1000; letter-spacing: 0.04em; text-transform: uppercase; }
+      .stats-center-sub { margin-top: 4px; color: #f4b400; font-weight: 1000; letter-spacing: 0.12em; text-transform: uppercase; }
+      .stats-center-crest { margin-top: 10px; }
+      .stats-center-crest img { width: 72px; height: 72px; object-fit: contain; }
+
+      .ring-wrap { text-align: center; }
+      .ring-value { position: relative; margin-top: -62px; font-size: 22px; font-weight: 1000; color: #ffffff; }
+      .ring-label { margin-top: 30px; font-size: 11px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
+
+      .stats-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
+      .stats-row-cell { display: table-cell; vertical-align: middle; text-align: center; }
+      .stats-row-cell .n { font-size: 28px; font-weight: 1000; letter-spacing: -0.02em; }
+      .stats-row-cell .l { margin-top: 4px; font-size: 11px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
+
+      .stats-metrics { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
+      .stats-metrics-cell { display: table-cell; vertical-align: top; text-align: center; }
+      .stats-metrics-cell .v { font-size: 22px; font-weight: 1000; color: #ffffff; }
+      .stats-metrics-cell .k { margin-top: 4px; font-size: 10px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: rgba(230,238,247,0.65); }
       .grid {
         display: table;
         width: 100%;
@@ -93,9 +190,9 @@
       .col.left { width: 68%; padding-right: 12px; }
       .col.right { width: 32%; }
       .card {
-        border: 1px solid #d5dde7;
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 14px;
-        background: #ffffff;
+        background: rgba(6, 13, 24, 0.72);
         padding: 12px;
         break-inside: avoid;
         page-break-inside: avoid;
@@ -103,24 +200,23 @@
       .player-name { margin: 0; font-size: 20px; font-weight: 900; letter-spacing: -0.01em; }
       .player-sub { margin: 6px 0 0; color: {{ pdf_palette.muted|default:"#51606f" }}; font-size: 12px; }
       .pill {
-        display:inline-flex;
-        align-items:center;
-        gap: 6px;
+        display:inline-block;
         padding: 4px 10px;
         border-radius: 999px;
         font-size: 11px;
-        background: rgba(2, 6, 23, 0.92);
+        background: rgba(2, 6, 23, 0.82);
         color: #ffffff;
         margin-right: 8px;
         margin-bottom: 6px;
+        border: 1px solid rgba(255,255,255,0.10);
       }
-      .pill.light { background: #eef2f7; color: #0f172a; }
+      .pill.light { background: rgba(255,255,255,0.06); color: rgba(230,238,247,0.9); border: 1px solid rgba(255,255,255,0.10); }
 
       .photo {
-        border: 1px solid #d5dde7;
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 14px;
         overflow: hidden;
-        background: #ffffff;
+        background: rgba(255,255,255,0.04);
         padding: 6px;
       }
 	      .photo img {
@@ -146,27 +242,30 @@
         letter-spacing: 0.08em;
       }
 
-      .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 10px;
+      /* WeasyPrint (v57) no soporta CSS Grid: usar tablas para layouts multi-columna. */
+      .kpi-table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: separate;
+        border-spacing: 8px;
         margin-top: 10px;
       }
+      .kpi-table td { padding: 0; vertical-align: top; }
       .kpi {
-        border: 1px solid #d5dde7;
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 12px;
         padding: 10px;
-        background: #ffffff;
+        background: rgba(255,255,255,0.05);
       }
       .kpi.slim { padding: 8px 8px; }
-      .kpi .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: {{ pdf_palette.muted|default:"#51606f" }}; font-weight: 900; }
-      .kpi .v { margin-top: 2px; font-size: 16px; font-weight: 900; }
+      .kpi .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(230,238,247,0.70); font-weight: 900; }
+      .kpi .v { margin-top: 2px; font-size: 16px; font-weight: 900; color: #ffffff; }
 
       .perf-panel {
         margin-top: 10px;
-        border: 1px solid #d5dde7;
+        border: 1px solid rgba(255,255,255,0.10);
         border-radius: 14px;
-        background: #ffffff;
+        background: rgba(6, 13, 24, 0.72);
         padding: 10px;
         break-inside: avoid;
         page-break-inside: avoid;
@@ -181,17 +280,16 @@
         font-weight: 900;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: {{ pdf_palette.muted|default:"#51606f" }};
+        color: rgba(230,238,247,0.70);
       }
-      .perf-rings { margin-top: 8px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-      .perf-ring { text-align: center; padding: 6px 6px 8px; border: 1px solid #d5dde7; border-radius: 12px; background: #ffffff; }
-      .perf-ring-value { font-size: 17px; font-weight: 1000; letter-spacing: -0.01em; }
-      .perf-ring-label { margin-top: 4px; font-size: 9.4px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: {{ pdf_palette.muted|default:"#51606f" }}; }
-      .perf-blocks { margin-top: 10px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-      .perf-block { border: 1px solid #d5dde7; border-radius: 12px; background: #ffffff; padding: 8px; }
-      .perf-block .label { font-size: 9.2px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: {{ pdf_palette.muted|default:"#51606f" }}; }
-      .perf-block .value { margin-top: 2px; font-size: 14px; font-weight: 1000; }
-      .perf-blocks.bottom { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .perf-rings { margin-top: 8px; }
+      .perf-ring { text-align: center; padding: 6px 6px 8px; border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); }
+      .perf-ring-value { font-size: 17px; font-weight: 1000; letter-spacing: -0.01em; color: #ffffff; }
+      .perf-ring-label { margin-top: 4px; font-size: 9.4px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .perf-blocks { margin-top: 10px; }
+      .perf-block { border: 1px solid rgba(255,255,255,0.10); border-radius: 12px; background: rgba(255,255,255,0.05); padding: 8px; }
+      .perf-block .label { font-size: 9.2px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .perf-block .value { margin-top: 2px; font-size: 14px; font-weight: 1000; color: #ffffff; }
 
       .field-diagram {
         position: relative;
@@ -205,17 +303,12 @@
       .field-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.98; }
       .field-zone {
         position: absolute;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
         padding: 3px 5px;
-        gap: 2px;
         border-radius: 10px;
         background: rgba(2, 6, 23, 0.66);
         border: 1px solid rgba(255, 255, 255, 0.14);
       }
-      .field-zone span { font-size: 8.2px; font-weight: 900; color: rgba(255, 255, 255, 0.92); text-transform: uppercase; letter-spacing: 0.06em; }
+      .field-zone span { display:block; text-align:center; font-size: 8.2px; font-weight: 900; color: rgba(255, 255, 255, 0.92); text-transform: uppercase; letter-spacing: 0.06em; }
       .field-zone .zone-count {
         font-size: 10.2px;
         color: #facc15;
@@ -246,13 +339,20 @@
       .radar-figure { display: table-cell; width: 52%; vertical-align: top; }
       .radar-legend { display: table-cell; width: 48%; vertical-align: top; padding-left: 10px; }
       .radar-legend h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-      .radar-legend p { margin: 6px 0 0; color: {{ pdf_palette.muted|default:"#51606f" }}; font-size: 10.5px; line-height: 1.35; }
-      .radar-axes { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
-      .radar-axes li { display:flex; justify-content: space-between; gap: 8px; border: 1px solid #d5dde7; border-radius: 10px; padding: 7px 8px; background: #ffffff; }
-      .radar-axis-label { font-weight: 900; }
-      .radar-axis-value { color: {{ pdf_palette.muted|default:"#51606f" }}; font-weight: 800; }
+      .radar-legend p { margin: 6px 0 0; color: rgba(230,238,247,0.78); font-size: 10.5px; line-height: 1.35; }
+      .radar-axes { list-style: none; padding: 0; margin: 8px 0 0; }
+      .radar-axes li {
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 10px;
+        padding: 7px 8px;
+        background: rgba(255,255,255,0.05);
+        margin-bottom: 6px;
+        color: rgba(230,238,247,0.92);
+      }
+      .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; }
+      .radar-axis-value { color: rgba(230,238,247,0.78); font-weight: 900; float: right; }
 
-      .mini-note { margin-top: 8px; color: {{ pdf_palette.muted|default:"#51606f" }}; font-size: 10.2px; }
+      .mini-note { margin-top: 8px; color: rgba(230,238,247,0.78); font-size: 10.2px; }
 
       .table {
         width: 100%;
@@ -260,31 +360,33 @@
         margin-top: 10px;
       }
       .table th, .table td {
-        border-bottom: 1px solid #d5dde7;
+        border-bottom: 1px solid rgba(255,255,255,0.10);
         padding: 7px 8px;
         text-align: left;
         font-size: 10.3px;
+        color: rgba(230,238,247,0.92);
       }
       .table th {
-        background: #eef2f7;
+        background: rgba(255,255,255,0.06);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 9.6px;
+        color: rgba(230,238,247,0.70);
       }
       .group-row td {
-        background: rgba(15, 122, 53, 0.08);
+        background: rgba(15, 122, 53, 0.18);
         font-weight: 900;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 9.6px;
       }
-      .muted { color: {{ pdf_palette.muted|default:"#51606f" }}; }
+      .muted { color: rgba(230,238,247,0.70); }
 
       .charts-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
       .charts-cell { display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; }
       .charts-cell:last-child { padding-right: 0; }
-      .chart-card { border: 1px solid #d5dde7; border-radius: 14px; background: #ffffff; padding: 10px; break-inside: avoid; page-break-inside: avoid; }
-      .chart-title { font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 900; color: {{ pdf_palette.muted|default:"#51606f" }}; }
+      .chart-card { border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; background: rgba(6, 13, 24, 0.72); padding: 10px; break-inside: avoid; page-break-inside: avoid; }
+      .chart-title { font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 900; color: rgba(230,238,247,0.70); }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
       .spark-wrap { height: 70px; position: relative; }
@@ -292,19 +394,19 @@
       .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
-      .spark-label { margin-top: 4px; font-size: 9px; color: {{ pdf_palette.muted|default:"#51606f" }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(2,6,23,0.88); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-label { margin-top: 4px; font-size: 9px; color: rgba(230,238,247,0.70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: rgba(230,238,247,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .foot {
         margin-top: 10px;
         padding-top: 10px;
-        border-top: 1px solid #d5dde7;
+        border-top: 1px solid rgba(255,255,255,0.10);
         display:flex;
         justify-content: space-between;
         align-items: center;
       }
       .foot .brandline { display:flex; align-items:center; gap: 8px; }
       .foot .brandline img { width: 28px; height: auto; }
-      .foot .fine { font-size: 10px; color: {{ pdf_palette.muted|default:"#51606f" }}; }
+      .foot .fine { font-size: 10px; color: rgba(230,238,247,0.70); }
     </style>
   </head>
   <body>
@@ -325,153 +427,170 @@
       </div>
 
       <div class="pad">
-        <div class="grid">
-          <div class="grid-row">
-            <div class="col left">
+        <div class="top-split">
+          <div class="top-split-row">
+            <div class="top-split-left">
               <div class="card">
-	                <h2 class="player-name">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h2>
-	                <div class="player-sub">
-	                  <span class="pill">#{{ player.number|default:"--" }}</span>
-	                  <span class="pill light">Posición: {% if player.position %}{{ player.position }}{% elif stats.dominant_position %}{{ stats.dominant_position }}{% else %}—{% endif %}</span>
-	                  {% if player.nickname %}<span class="pill light">Apodo: {{ player.nickname }}</span>{% endif %}
-	                  {% if player.birth_date %}<span class="pill light">Nacimiento: {{ player.birth_date|date:"d/m/Y" }}{% if stats.age %} ({{ stats.age }}){% endif %}</span>{% endif %}
-	                  {% if player.name and player.full_name and player.name != player.full_name %}<span class="pill light">Nombre: {{ player.name }}</span>{% endif %}
-	                  {% if player.height_cm %}<span class="pill light">Altura: {{ player.height_cm }} cm</span>{% endif %}
-	                  {% if player.weight_kg %}<span class="pill light">Peso: {{ player.weight_kg|floatformat:0 }} kg</span>{% endif %}
-	                  <span class="pill light">Licencia: {% if license_exists %}OK{% else %}—{% endif %}</span>
-	                </div>
+                <div class="section-title">Datos personales y estadísticas generales</div>
 
-                  <div style="margin-top:12px;">
-                    <div class="section-title">Estadísticas temporada</div>
-                    <div class="kpi-grid" style="grid-template-columns: repeat(6, minmax(0, 1fr));">
-                      <div class="kpi slim"><div class="k">Partidos</div><div class="v">{{ season_overview.pj|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">Titular</div><div class="v">{{ season_overview.pt|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">Suplente</div><div class="v">{{ season_overview.suplente|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">Minutos</div><div class="v">{{ season_overview.minutes|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">Goles</div><div class="v">{{ season_overview.goals|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">Asist.</div><div class="v">{{ season_overview.assists|default:0 }}</div></div>
-                    </div>
-                    <div class="kpi-grid" style="grid-template-columns: repeat(6, minmax(0, 1fr)); margin-top:10px;">
-                      <div class="kpi slim"><div class="k">Goles/partido</div><div class="v">{{ season_overview.goals_per_match|default:0 }}</div></div>
-                      <div class="kpi slim"><div class="k">% participación</div><div class="v">{{ season_overview.participation_pct|default:0|floatformat:-1 }}%</div></div>
-                      <div class="kpi slim"><div class="k">% participación (PJ)</div><div class="v">{{ season_overview.participation_matches_pct|default:0|floatformat:-1 }}%</div></div>
-                      <div class="kpi slim"><div class="k">% titularidad</div><div class="v">{{ season_overview.starter_pct|default:0|floatformat:-1 }}%</div></div>
-                      <div class="kpi slim"><div class="k">Importancia</div><div class="v">{{ season_overview.importance_score|default:0|floatformat:-1 }}</div></div>
-                      <div class="kpi slim"><div class="k">Influencia</div><div class="v">{{ season_overview.influence_score|default:0|floatformat:-1 }}</div></div>
-                    </div>
-                  </div>
-
-                <div style="margin-top:12px;">
-		                  <div class="section-title">Rendimiento, KPI y mapa de calor</div>
-                  <div class="perf-panel">
-                    <div class="perf-grid">
-                      <div class="perf-grid-row">
-                        <div class="perf-grid-left">
-                          <div class="perf-title">KPI de rendimiento</div>
-                          <div class="perf-rings">
-                            <div class="perf-ring">
-                              <div class="perf-ring-value">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div>
-                              <div class="perf-ring-label">Tasa de éxito</div>
-                            </div>
-                            <div class="perf-ring">
-                              <div class="perf-ring-value">{{ rendimiento.duel_rate|default:0|floatformat:-1 }}%</div>
-                              <div class="perf-ring-label">Duelos ganados</div>
-                            </div>
-                            <div class="perf-ring">
-                              <div class="perf-ring-value">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div>
-                              <div class="perf-ring-label">Precisión de pase</div>
-                            </div>
-                            <div class="perf-ring">
-                              <div class="perf-ring-value">{{ rendimiento.shot_accuracy|default:0|floatformat:-1 }}%</div>
-                              <div class="perf-ring-label">Tiro a puerta</div>
-                            </div>
-                          </div>
-
-                          <div class="perf-blocks">
-                            <div class="perf-block"><div class="label">Acciones</div><div class="value">{{ rendimiento.total_actions|default:0 }}</div></div>
-                            <div class="perf-block"><div class="label">Duelos</div><div class="value">{{ rendimiento.duels_won|default:0 }}/{{ rendimiento.duels_total|default:0 }}</div></div>
-                            <div class="perf-block"><div class="label">Duelos aéreos</div><div class="value">{{ rendimiento.aerial_won|default:0 }}/{{ rendimiento.aerial_total|default:0 }}</div></div>
-                            <div class="perf-block"><div class="label">Pases</div><div class="value">{{ rendimiento.passes_completed|default:0 }}/{{ rendimiento.passes_attempts|default:0 }}</div></div>
-                            <div class="perf-block"><div class="label">Disparos</div><div class="value">{{ rendimiento.shots_on_target|default:0 }}/{{ rendimiento.shots_attempts|default:0 }}</div></div>
-                          </div>
-                          <div class="perf-blocks bottom">
-                            <div class="perf-block">
-                              <div class="label">Disparos/Gol</div>
-                              <div class="value">{% if rendimiento.shots_per_goal == None %}—{% else %}{{ rendimiento.shots_per_goal }}{% endif %}</div>
-                            </div>
-                            <div class="perf-block"><div class="label">Goles</div><div class="value">{{ rendimiento.goals|default:0 }}</div></div>
-                            <div class="perf-block"><div class="label">Asistencias</div><div class="value">{{ rendimiento.assists|default:0 }}</div></div>
-                          </div>
-
-                          <div style="margin-top:10px;">
-                            <div class="perf-title">Radar (normalizado)</div>
-                            <div class="radar-wrap" style="margin-top:6px;">
-                              <div class="radar-row">
-                                <div class="radar-figure">
-                                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" style="width:100%; height:auto;">
-                                    <defs>
-                                      <linearGradient id="radarFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stop-color="rgba(244,180,0,0.52)"></stop>
-                                        <stop offset="100%" stop-color="rgba(47,125,50,0.38)"></stop>
-                                      </linearGradient>
-                                    </defs>
-                                    <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1" />
-                                    <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1" />
-                                    <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1" />
-                                    <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1" />
-                                    {% if radar_data.path_d %}
-                                      <path d="{{ radar_data.path_d }}" fill="url(#radarFillPdf)" stroke="rgba(15,23,42,0.22)" stroke-width="1.5"></path>
-                                    {% endif %}
-                                    {% if radar_data.points %}
-                                      {% for pt in radar_data.points %}
-                                        <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
-                                      {% endfor %}
-                                    {% endif %}
-                                  </svg>
-                                </div>
-                                <div class="radar-legend">
-                                  <p>Escala 0–100. Ejes: Compromiso (participación+entrenos), Impacto (G+A/PJ), Calidad (% éxito ponderado por volumen+impacto).</p>
-                                  <ul class="radar-axes">
-                                    {% for axis in radar_data.axes %}
-                                      <li>
-                                        <span class="radar-axis-label">{{ axis.key }}</span>
-                                        <span class="radar-axis-value">{{ axis.display }}</span>
-                                      </li>
-                                    {% endfor %}
-                                  </ul>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        <div class="perf-grid-right">
-                          <div class="perf-title">Mapa de acción</div>
-                          <div style="margin-top:8px;">
-                            <div class="field-diagram">
-                              <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
-                              {% for zone in stats.field_zones %}
-                                <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
-                                  <span>{{ zone.label }}</span>
-                                  <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
-                                </div>
-                              {% endfor %}
-                            </div>
-                          </div>
-                          <div class="mini-note">Distribución de acciones con zona válida.</div>
-                        </div>
-                      </div>
-                    </div>
+                <div style="margin-top:10px;">
+                  <h2 class="player-name">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h2>
+                  <div class="player-sub">
+                    <span class="pill">#{{ player.number|default:"--" }}</span>
+                    <span class="pill light">Posición: {% if player.position %}{{ player.position }}{% elif stats.dominant_position %}{{ stats.dominant_position }}{% else %}—{% endif %}</span>
+                    {% if player.nickname %}<span class="pill light">Apodo: {{ player.nickname }}</span>{% endif %}
                   </div>
                 </div>
+
+                <div class="attendance-banner">
+                  <div class="title">Asistencia (temporada)</div>
+                  <div class="meta">
+                    {% if report_start %}{{ report_start|date:"d/m/Y" }}{% else %}—{% endif %}–{% if report_end %}{{ report_end|date:"d/m/Y" }}{% else %}—{% endif %}
+                    · Sesiones: <strong>{{ attendance_summary.total_sessions|default:0 }}</strong>
+                    · Completados: <strong>{{ attendance_summary.completed_total|default:0 }}</strong> (<strong>{{ attendance_summary.completion_pct|default:0 }}%</strong>)
+                    · Marcadas: <strong>{{ attendance_summary.marked_total|default:0 }}</strong>
+                    · Pendientes: <strong>{{ attendance_summary.pending_total|default:0 }}</strong>
+                  </div>
+                  <div class="chip-row">
+                    <span class="chip">PRES <span class="n">{{ attendance_summary.status_counts.present|default:0 }}</span></span>
+                    <span class="chip">AUS <span class="n">{{ attendance_summary.status_counts.absent|default:0 }}</span></span>
+                    <span class="chip">TARDE <span class="n">{{ attendance_summary.status_counts.late|default:0 }}</span></span>
+                    <span class="chip">LES <span class="n">{{ attendance_summary.status_counts.injured|default:0 }}</span></span>
+                    <span class="chip">JUST <span class="n">{{ attendance_summary.status_counts.excused|default:0 }}</span></span>
+                  </div>
+                </div>
+
+                <table class="personal-table">
+                  <tr>
+                    <td>
+                      <div class="field">
+                        <div class="label">Nombre completo</div>
+                        <div class="value">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="field">
+                        <div class="label">Apodo</div>
+                        <div class="value">{% if player.nickname %}{{ player.nickname }}{% else %}{{ player.name }}{% endif %}</div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="field">
+                        <div class="label">Nacimiento</div>
+                        <div class="value">{% if player.birth_date %}{{ player.birth_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="field">
+                        <div class="label">Posición</div>
+                        <div class="value">{% if player.position %}{{ player.position }}{% elif stats.dominant_position %}{{ stats.dominant_position }}{% else %}—{% endif %}</div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="field">
+                        <div class="label">Dorsal</div>
+                        <div class="value">{{ player.number|default:"—" }}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="field">
+                        <div class="label">Altura / peso</div>
+                        <div class="value">
+                          {% if player.height_cm %}{{ player.height_cm }} cm{% else %}—{% endif %}
+                          ·
+                          {% if player.weight_kg %}{{ player.weight_kg|floatformat:0 }} kg{% else %}—{% endif %}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2">
+                      <div class="field">
+                        <div class="label">Licencia federativa</div>
+                        <div class="value">{% if license_exists %}OK{% else %}—{% endif %}</div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
               </div>
             </div>
-            <div class="col right">
+
+            <div class="top-split-right">
               <div class="photo">
                 {% if player_photo_is_real and player_photo_src %}
                   <img src="{{ player_photo_src }}" alt="Foto jugador" />
                 {% else %}
                   <div class="photo-fallback">{{ player_initials }}</div>
                 {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="section-title">Estadísticas {{ season_label }}</div>
+          <div class="stats-board">
+            <div class="stats-head">
+              <div class="stats-head-row">
+                <div class="stats-head-left">
+                  <div class="stats-big">{{ team_points|default:0 }}</div>
+                  <div class="stats-small">Puntos</div>
+                </div>
+                <div class="stats-head-center">
+                  <div class="stats-center-title">{{ primary_team.display_name }}</div>
+                  <div class="stats-center-sub">{% if division_label %}{{ division_label }}{% endif %}</div>
+                  <div class="stats-center-crest"><img src="{{ crest_src }}" alt="Escudo" /></div>
+                </div>
+                <div class="stats-head-right">
+                  <div class="stats-big">{{ team_rank|default:0 }}º</div>
+                  <div class="stats-small">Posición</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-row">
+              <div class="stats-row-cell">
+                <div class="ring-wrap">
+                  {% with ring_pct=season_overview.participation_matches_pct|default:0 %}
+                    <svg viewBox="0 0 120 120" style="width:86px;height:86px;">
+                      <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="12" />
+                      <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(15,122,53,0.95)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{{ ring_pct|floatformat:0 }} 100" transform="rotate(-90 60 60)" />
+                    </svg>
+                  {% endwith %}
+                  <div class="ring-value">{{ season_overview.pj|default:0 }}</div>
+                  <div class="ring-label">Partidos</div>
+                </div>
+              </div>
+
+              <div class="stats-row-cell"><div class="n">{{ season_overview.pt|default:0 }}</div><div class="l">Titular</div></div>
+              <div class="stats-row-cell"><div class="n">{{ season_overview.suplente|default:0 }}</div><div class="l">Suplente</div></div>
+              <div class="stats-row-cell"><div class="n">{{ season_overview.minutes|default:0 }}</div><div class="l">Minutos</div></div>
+              <div class="stats-row-cell"><div class="n">{{ season_overview.goals|default:0 }}</div><div class="l">Total goles</div></div>
+
+              <div class="stats-row-cell">
+                <div class="ring-wrap">
+                  <svg viewBox="0 0 120 120" style="width:86px;height:86px;">
+                    <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="12" />
+                    <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.26)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{% if season_overview.assists %}100{% else %}0{% endif %} 100" transform="rotate(-90 60 60)" />
+                  </svg>
+                  <div class="ring-value">{{ season_overview.assists|default:0 }}</div>
+                  <div class="ring-label">Asistencias</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stats-metrics">
+              <div class="stats-head-row">
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.goals_per_match|default:0 }}</div><div class="k">Media goles/partido</div></div>
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.participation_pct|default:0|floatformat:-1 }}%</div><div class="k">% participación</div></div>
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.participation_matches_pct|default:0|floatformat:-1 }}%</div><div class="k">% participación (PJ)</div></div>
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.starter_pct|default:0|floatformat:-1 }}%</div><div class="k">% titularidad</div></div>
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.importance_score|default:0|floatformat:-1 }}</div><div class="k">Importancia</div></div>
+                <div class="stats-metrics-cell"><div class="v">{{ season_overview.influence_score|default:0|floatformat:-1 }}</div><div class="k">Influencia</div></div>
               </div>
             </div>
           </div>
@@ -485,6 +604,129 @@
           <div class="fine">{{ player.name }}</div>
         </div>
       </div>
+	    </section>
+
+	    <section class="sheet">
+	      <div class="brand">
+	        <div class="brand-logo">
+	          <img src="{{ brand_mark_src }}" alt="2J" />
+	          <img class="crest" src="{{ crest_src }}" alt="Escudo" />
+	        </div>
+	        <div class="brand-copy">
+	          <h1>Rendimiento · {{ player.name }}</h1>
+	          <p>{{ primary_team.display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
+	        </div>
+	        <div class="brand-meta">
+	          <div>Ámbito: <strong>{% if scope_label %}{{ scope_label }}{% else %}Global{% endif %}</strong></div>
+	          <div>Partidos: <strong>{{ season_overview.pj|default:0 }}</strong></div>
+	        </div>
+	      </div>
+
+	      <div class="pad">
+	        <div class="section-title">Rendimiento, KPI y mapa de calor</div>
+
+	        <div class="perf-panel">
+	          <div class="perf-grid">
+	            <div class="perf-grid-row">
+	              <div class="perf-grid-left">
+	                <div class="perf-title">KPI de rendimiento</div>
+
+	                <table class="kpi-table" style="border-spacing:8px 8px;">
+	                  <tr>
+	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.success_rate|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Tasa de éxito</div></div></td>
+	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.duel_rate|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Duelos ganados</div></div></td>
+	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.pass_accuracy|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Precisión de pase</div></div></td>
+	                    <td><div class="perf-ring"><div class="perf-ring-value">{{ rendimiento.shot_accuracy|default:0|floatformat:-1 }}%</div><div class="perf-ring-label">Tiro a puerta</div></div></td>
+	                  </tr>
+	                </table>
+
+	                <table class="kpi-table" style="border-spacing:8px 8px;">
+	                  <tr>
+	                    <td><div class="perf-block"><div class="label">Acciones</div><div class="value">{{ rendimiento.total_actions|default:0 }}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Duelos</div><div class="value">{{ rendimiento.duels_won|default:0 }}/{{ rendimiento.duels_total|default:0 }}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Duelos aéreos</div><div class="value">{{ rendimiento.aerial_won|default:0 }}/{{ rendimiento.aerial_total|default:0 }}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Pases</div><div class="value">{{ rendimiento.passes_completed|default:0 }}/{{ rendimiento.passes_attempts|default:0 }}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Disparos</div><div class="value">{{ rendimiento.shots_on_target|default:0 }}/{{ rendimiento.shots_attempts|default:0 }}</div></div></td>
+	                  </tr>
+	                </table>
+
+	                <table class="kpi-table" style="border-spacing:8px 8px;">
+	                  <tr>
+	                    <td><div class="perf-block"><div class="label">Disparos/Gol</div><div class="value">{% if rendimiento.shots_per_goal == None %}—{% else %}{{ rendimiento.shots_per_goal }}{% endif %}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Goles</div><div class="value">{{ rendimiento.goals|default:0 }}</div></div></td>
+	                    <td><div class="perf-block"><div class="label">Asistencias</div><div class="value">{{ rendimiento.assists|default:0 }}</div></div></td>
+	                  </tr>
+	                </table>
+
+	                <div style="margin-top:10px;">
+	                  <div class="perf-title">Radar (normalizado)</div>
+	                  <div class="radar-wrap" style="margin-top:6px;">
+	                    <div class="radar-row">
+	                      <div class="radar-figure">
+	                        <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" style="width:100%; height:auto;">
+	                          <defs>
+	                            <linearGradient id="radarFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
+	                              <stop offset="0%" stop-color="rgba(244,180,0,0.52)"></stop>
+	                              <stop offset="100%" stop-color="rgba(47,125,50,0.38)"></stop>
+	                            </linearGradient>
+	                          </defs>
+	                          <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
+	                          <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1" />
+	                          {% if radar_data.path_d %}
+	                            <path d="{{ radar_data.path_d }}" fill="url(#radarFillPdf)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
+	                          {% endif %}
+	                          {% if radar_data.points %}
+	                            {% for pt in radar_data.points %}
+	                              <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
+	                            {% endfor %}
+	                          {% endif %}
+	                        </svg>
+	                      </div>
+	                      <div class="radar-legend">
+	                        <p>Escala 0–100. Ejes: Compromiso (participación+entrenos), Impacto (G+A/PJ), Calidad (% éxito ponderado por volumen+impacto).</p>
+	                        <ul class="radar-axes">
+	                          {% for axis in radar_data.axes %}
+	                            <li>
+	                              <span class="radar-axis-label">{{ axis.key }}</span>
+	                              <span class="radar-axis-value">{{ axis.display }}</span>
+	                            </li>
+	                          {% endfor %}
+	                        </ul>
+	                      </div>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+
+	              <div class="perf-grid-right">
+	                <div class="perf-title">Mapa de acción</div>
+	                <div style="margin-top:8px;">
+	                  <div class="field-diagram">
+	                    <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
+	                    {% for zone in stats.field_zones %}
+	                      <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+	                        <span>{{ zone.label }}</span>
+	                        <span class="zone-count" title="{{ zone.count }} acciones">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+	                      </div>
+	                    {% endfor %}
+	                  </div>
+	                </div>
+	                <div class="mini-note">Distribución de acciones con zona válida.</div>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
+
+	        <div class="foot">
+	          <div class="brandline">
+	            <img src="{{ brand_mark_src }}" alt="2J" />
+	            <div class="fine">PDF Club · Informe final de temporada</div>
+	          </div>
+	          <div class="fine">{{ player.name }}</div>
+	        </div>
+	      </div>
 	    </section>
 
 	    <section class="sheet">
