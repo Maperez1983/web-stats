@@ -20292,15 +20292,94 @@
 	                  if (o?.data?.kind === 'route_arrow') {
 	                    try { canvas.remove(o); } catch (e) { /* ignore */ }
 	                  } else if (isTokenLike(o) && o.data && Array.isArray(o.data.interactive_routes)) {
-                    o.data.interactive_routes = [];
-                  }
-                });
-                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-                try { pushHistory(); } catch (e) { /* ignore */ }
-                syncRouteSummary();
-                scheduleDraftSave('canvas');
-                setStatus('Rutas borradas.');
-              };
+	                    o.data.interactive_routes = [];
+	                  }
+	                });
+	                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	                try { pushHistory(); } catch (e) { /* ignore */ }
+	                syncRouteSummary();
+	                scheduleDraftSave('canvas');
+	                setStatus('Rutas borradas.');
+	              };
+
+	              const removeLastInteractiveRouteForObject = (obj) => {
+	                if (!obj || !isTokenLike(obj)) return false;
+	                if (isSimulating) return false;
+	                stopInteractiveRoutesPlayback();
+	                obj.data = obj.data || {};
+	                const routes = Array.isArray(obj.data.interactive_routes) ? obj.data.interactive_routes : [];
+	                if (!routes.length) return false;
+	                routes.pop();
+	                obj.data.interactive_routes = routes;
+	                const uid = getUidForObj(obj);
+	                if (uid) {
+	                  // Elimina la última flecha (por index más alto) asociada a este UID.
+	                  const arrows = (canvas.getObjects() || []).filter((o) => o && o?.data?.kind === 'route_arrow' && safeText(o?.data?.route_for_uid) === uid);
+	                  let best = null;
+	                  let bestIdx = -1;
+	                  arrows.forEach((a) => {
+	                    const idx = Number(a?.data?.route_index);
+	                    if (!Number.isFinite(idx)) return;
+	                    if (idx > bestIdx) { best = a; bestIdx = idx; }
+	                  });
+	                  if (best) {
+	                    try { canvas.remove(best); } catch (e) { /* ignore */ }
+	                  } else if (!routes.length) {
+	                    // Fallback: si no hay índices, al borrar la última ruta eliminamos todas las flechas del UID.
+	                    arrows.forEach((a) => { try { canvas.remove(a); } catch (e) { /* ignore */ } });
+	                  }
+	                }
+	                try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	                try { pushHistory(); } catch (e) { /* ignore */ }
+	                try { syncInspector(); } catch (e) { /* ignore */ }
+	                syncRouteSummary();
+	                scheduleDraftSave('canvas');
+	                setStatus('Ruta borrada.');
+	                return true;
+	              };
+
+	              const isEditableTarget = (node) => {
+	                const el = node && node.nodeType === 1 ? node : null;
+	                if (!el) return false;
+	                const tag = safeText(el.tagName).toUpperCase();
+	                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+	                try { if (el.isContentEditable) return true; } catch (e) { /* ignore */ }
+	                return false;
+	              };
+
+	              // Atajos sencillos (táctica interactiva):
+	              // - Backspace/Delete: borrar última ruta del elemento seleccionado
+	              // - Shift+Backspace/Delete: borrar todas las rutas
+	              try {
+	                window.addEventListener('keydown', (ev) => {
+	                  if (!tacticsInteractiveEnabled) return;
+	                  if (isSimulating) return;
+	                  if (ev.defaultPrevented) return;
+	                  if (isEditableTarget(ev.target)) return;
+	                  const key = safeText(ev.key);
+	                  const isDel = key === 'Backspace' || key === 'Delete';
+	                  if (!isDel) return;
+	                  try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	                  try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+	                  if (ev.shiftKey) {
+	                    clearInteractiveRoutes();
+	                    return;
+	                  }
+	                  const active = canvas.getActiveObject?.();
+	                  if (active && safeText(active?.type) === 'activeSelection' && Array.isArray(active?._objects) && active._objects.length) {
+	                    const first = active._objects.find((o) => o && isTokenLike(o)) || null;
+	                    if (first) {
+	                      removeLastInteractiveRouteForObject(first);
+	                      return;
+	                    }
+	                  }
+	                  if (active && isTokenLike(active)) {
+	                    removeLastInteractiveRouteForObject(active);
+	                    return;
+	                  }
+	                  setStatus('Selecciona una ficha (o el balón) para borrar su última ruta.');
+	                }, true);
+	              } catch (e) { /* ignore */ }
 
 	              const distance = (a, b) => Math.hypot((Number(a.x) || 0) - (Number(b.x) || 0), (Number(a.y) || 0) - (Number(b.y) || 0));
 
