@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>Informe temporada · {{ player.name }}</title>
+    <title>Informe temporada · {{ player_display_name|default:player.name }}</title>
     {% include 'football/includes/print_tokens_css.html' %}
     <style>
       @page { size: A4; margin: 0; }
@@ -531,7 +531,7 @@
           <img class="crest" src="{{ crest_src }}" alt="Escudo" />
         </div>
         <div class="brand-copy">
-          <h1>Informe de temporada · {% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h1>
+          <h1>Informe de temporada · {{ player_display_name|default:player.name }}</h1>
           <p>{{ primary_team.display_name }}{% if division_label %} · {{ division_label }}{% endif %} · {{ season_label }}</p>
         </div>
         <div class="brand-meta">
@@ -548,7 +548,7 @@
                 <div class="section-title">Datos personales y estadísticas generales</div>
 
                 <div style="margin-top:10px;">
-                  <h2 class="player-name">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</h2>
+                  <h2 class="player-name">{{ player_display_name|default:player.name }}</h2>
                   <div class="player-sub">
                     <span class="pill">#{{ player.number|default:"--" }}</span>
                     <span class="pill light">Posición: {% if player.position %}{{ player.position }}{% elif stats.dominant_position %}{{ stats.dominant_position }}{% else %}—{% endif %}</span>
@@ -579,7 +579,7 @@
                     <td>
                       <div class="field">
                         <div class="label">Nombre completo</div>
-                        <div class="value">{% if player.full_name %}{{ player.full_name }}{% else %}{{ player.name }}{% endif %}</div>
+                        <div class="value">{{ player_display_name|default:player.name }}</div>
                       </div>
                     </td>
                     <td>

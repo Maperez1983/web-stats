@@ -57739,6 +57739,24 @@ def player_pdf(request, player_id):
     except Exception:
         pass
 
+    # Nombre "entregable": si `full_name` son apellidos y `name` es nombre corto,
+    # combinarlos evita PDFs que muestren solo apellidos.
+    try:
+        nm = str(getattr(player, 'name', '') or '').strip()
+    except Exception:
+        nm = ''
+    try:
+        fn = str(getattr(player, 'full_name', '') or '').strip()
+    except Exception:
+        fn = ''
+    if fn and nm:
+        if nm.lower() in fn.lower():
+            player_display_name = fn
+        else:
+            player_display_name = f'{nm} {fn}'.strip()
+    else:
+        player_display_name = fn or nm or 'Jugador'
+
     static_base_dir = Path(settings.BASE_DIR) / 'static'
     logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
     avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
@@ -58691,6 +58709,7 @@ def player_pdf(request, player_id):
         {
             **_build_pdf_nav_urls(request),
             'player': player,
+            'player_display_name': player_display_name,
             'stats': detail,
             'season_overview': season_overview,
             'rendimiento': rendimiento,
