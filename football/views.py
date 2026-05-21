@@ -58029,24 +58029,58 @@ def player_pdf(request, player_id):
         max_ga = max((int(m.get('goals') or 0) + int(m.get('assists') or 0) for m in chart_matches), default=0)
         ga_scale = max(1, int(max_ga))
 
-        for m in chart_matches:
+        def _safe_round_label(raw: str, idx: int) -> str:
+            """
+            Etiqueta compacta y estable para las gráficas:
+            - Si hay número de jornada: usarlo (1..n).
+            - Si es playoff: PO-I / PO-V / PO.
+            - Si no hay jornada válida: usar índice (evita ids/códigos raros y huecos).
+            """
+            raw = str(raw or '').strip()
+            if raw:
+                # Jornadas reales: sólo aceptamos números si el texto parece una jornada.
+                # Evita casos como "AUD-4669e4ab" o IDs con dígitos que no son jornada.
+                if re.match(r'^\\d+$', raw, flags=re.IGNORECASE) or re.match(
+                    r'^(?:JORNADA|J|PARTIDO)\\s*\\d+$', raw, flags=re.IGNORECASE
+                ):
+                    rnd = extract_round_number(raw)
+                    if rnd is not None:
+                        return str(int(rnd))
+                if 'SIN JORNADA' in raw.upper():
+                    return 'SJ'
+                raw_norm = (
+                    raw.upper()
+                    .replace('Á', 'A')
+                    .replace('É', 'E')
+                    .replace('Í', 'I')
+                    .replace('Ó', 'O')
+                    .replace('Ú', 'U')
+                )
+                if 'PLAY' in raw_norm or re.search(r'\\bPO\\b', raw_norm):
+                    if 'IDA' in raw_norm:
+                        return 'PO-I'
+                    if 'VUELTA' in raw_norm:
+                        return 'PO-V'
+                    return 'PO'
+            return str(idx + 1)
+
+        for idx, m in enumerate(chart_matches):
             minutes_val = max(0, int(m.get('minutes') or 0))
             goals_val = max(0, int(m.get('goals') or 0))
             assists_val = max(0, int(m.get('assists') or 0))
             raw_round = str(m.get('round') or '').strip()
-            # Etiqueta compacta para PDF (evita solapes). Si es una jornada numerada, mostramos solo el número.
-            round_num = extract_round_number(raw_round)
-            if round_num is not None:
-                label = str(round_num)
-            else:
-                label = raw_round or '—'
-                if len(label) > 10:
-                    label = label[:10].rstrip()
+            label = _safe_round_label(raw_round, idx)
             matchday_minutes_chart.append(
                 {
                     'label': label,
                     'minutes': minutes_val,
-                    'bar_px': int(round((minutes_val / minutes_scale) * chart_max_px)) if minutes_scale else 0,
+                    # Incluso con 0', mostramos un tick mínimo para que se entienda que existe esa jornada.
+                    'bar_px': (
+                        max(2, int(round((minutes_val / minutes_scale) * chart_max_px)))
+                        if minutes_scale and minutes_val > 0
+                        else 2
+                    ),
+                    'is_zero': minutes_val <= 0,
                 }
             )
             total_ga = goals_val + assists_val
@@ -58056,8 +58090,13 @@ def player_pdf(request, player_id):
                     'goals': goals_val,
                     'assists': assists_val,
                     'total': total_ga,
-                    'goals_px': int(round((goals_val / ga_scale) * chart_max_px)) if ga_scale else 0,
-                    'assists_px': int(round((assists_val / ga_scale) * chart_max_px)) if ga_scale else 0,
+                    'goals_px': (
+                        max(2, int(round((goals_val / ga_scale) * chart_max_px))) if ga_scale and goals_val > 0 else 0
+                    ),
+                    'assists_px': (
+                        max(2, int(round((assists_val / ga_scale) * chart_max_px))) if ga_scale and assists_val > 0 else 0
+                    ),
+                    'is_zero': total_ga <= 0,
                 }
             )
     except Exception:
@@ -58066,13 +58105,21 @@ def player_pdf(request, player_id):
         matchday_minutes_chart_rows = []
         matchday_ga_chart_rows = []
 
-    # Partir en filas (12 columnas) para PDF.
+    # Partir en filas (mismo nº de columnas SIEMPRE) para que la última fila no tenga huecos gigantes.
     try:
-        cols = 12
-        matchday_minutes_chart_rows = [
-            matchday_minutes_chart[i : i + cols] for i in range(0, len(matchday_minutes_chart), cols)
-        ]
-        matchday_ga_chart_rows = [matchday_ga_chart[i : i + cols] for i in range(0, len(matchday_ga_chart), cols)]
+        cols = 16
+
+        def _chunk_pad(items):
+            rows = []
+            for i in range(0, len(items), cols):
+                row = list(items[i : i + cols])
+                if len(row) < cols:
+                    row.extend([None] * (cols - len(row)))
+                rows.append(row)
+            return rows
+
+        matchday_minutes_chart_rows = _chunk_pad(matchday_minutes_chart)
+        matchday_ga_chart_rows = _chunk_pad(matchday_ga_chart)
     except Exception:
         matchday_minutes_chart_rows = []
         matchday_ga_chart_rows = []

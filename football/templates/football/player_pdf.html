@@ -445,13 +445,18 @@
       .legend-swatch.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
-      .spark-wrap { height: 70px; position: relative; }
-      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 14px; transform: translateX(-50%); }
-      .spark-bar { width: 14px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
+      .spark-wrap { height: 62px; position: relative; }
+      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 10px; transform: translateX(-50%); }
+      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
+      .spark-bar.zero { background: rgba(148, 163, 184, 0.45); }
       .spark-label { margin-top: 4px; font-size: 9px; color: var(--pdf-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .spark-value { margin-top: 2px; font-size: 9px; font-weight: 900; color: var(--pdf-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .spark-value .g { color: rgba(15, 122, 53, 0.98); }
+      .spark-value .a { color: rgba(255, 181, 0, 0.98); }
+      .spark-empty .spark-label,
+      .spark-empty .spark-value { color: transparent; }
       .chart-note { margin-top: 6px; font-size: 9.4px; color: var(--pdf-muted); }
       .foot {
         margin-top: 10px;
@@ -982,15 +987,23 @@
 	                        <table class="spark-table">
 	                          <tr>
 	                          {% for item in row %}
-                              <td>
-                                <div class="spark-wrap">
-                                  <div class="spark-stack">
-                                    <div class="spark-bar goal" style="height: {{ item.bar_px }}px;"></div>
+                              {% if item %}
+                                <td>
+                                  <div class="spark-wrap">
+                                    <div class="spark-stack">
+                                      <div class="spark-bar goal{% if item.is_zero %} zero{% endif %}" style="height: {{ item.bar_px }}px;"></div>
+                                    </div>
                                   </div>
-                                </div>
-                                <div class="spark-label">{{ item.label }}</div>
-                                <div class="spark-value">{{ item.minutes }}'</div>
-                              </td>
+                                  <div class="spark-label">{{ item.label }}</div>
+                                  <div class="spark-value">{{ item.minutes }}'</div>
+                                </td>
+                              {% else %}
+                                <td class="spark-empty">
+                                  <div class="spark-wrap"></div>
+                                  <div class="spark-label">—</div>
+                                  <div class="spark-value">—</div>
+                                </td>
+                              {% endif %}
                             {% endfor %}
                           </tr>
                         </table>
@@ -1017,25 +1030,36 @@
 	                        <table class="spark-table">
 	                          <tr>
                           {% for item in row %}
-                              <td>
-                                <div class="spark-wrap">
-                                  <div class="spark-stack">
-                                    {% if item.goals_px %}
-                                      <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
-                                    {% endif %}
-                                    {% if item.assists_px %}
-                                      <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
-                                    {% endif %}
+                              {% if item %}
+                                <td>
+                                  <div class="spark-wrap">
+                                    <div class="spark-stack">
+                                      {% if item.goals_px %}
+                                        <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
+                                      {% endif %}
+                                      {% if item.assists_px %}
+                                        <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
+                                      {% endif %}
+                                      {% if item.is_zero %}
+                                        <div class="spark-bar zero" style="height: 2px; margin-top: 2px;"></div>
+                                      {% endif %}
+                                    </div>
                                   </div>
-                                </div>
-                                <div class="spark-label">{{ item.label }}</div>
-                                <div class="spark-value">{{ item.goals }}⚽ {{ item.assists }}🎯</div>
-                              </td>
+                                  <div class="spark-label">{{ item.label }}</div>
+                                  <div class="spark-value"><span class="g">{{ item.goals }}</span> · <span class="a">{{ item.assists }}</span></div>
+                                </td>
+                              {% else %}
+                                <td class="spark-empty">
+                                  <div class="spark-wrap"></div>
+                                  <div class="spark-label">—</div>
+                                  <div class="spark-value">—</div>
+                                </td>
+                              {% endif %}
                             {% endfor %}
                           </tr>
                         </table>
                       {% endfor %}
-                      <div class="chart-note">Verde = goles (⚽) · Amarillo = asistencias (🎯). Altura = volumen.</div>
+                      <div class="chart-note">Verde = goles · Amarillo = asistencias. Altura = volumen.</div>
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
                     {% endif %}
