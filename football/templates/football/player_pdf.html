@@ -198,6 +198,40 @@
       .stats-metrics-cell { display: table-cell; vertical-align: top; text-align: center; }
       .stats-metrics-cell .v { font-size: 22px; font-weight: 1000; color: var(--pdf-ink); }
       .stats-metrics-cell .k { margin-top: 4px; font-size: 10px; font-weight: 1000; letter-spacing: 0.10em; text-transform: uppercase; color: var(--pdf-muted); }
+
+      /* KPIs temporada: bloque compacto, centrado y "entregable" */
+      .season-kpis-panel {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 16px;
+        background: rgba(15, 122, 53, 0.14);
+        border: 1px solid rgba(15, 122, 53, 0.22);
+      }
+      .season-kpis-grid { display: table; width: 100%; table-layout: fixed; }
+      .season-kpis-row { display: table-row; }
+      .season-kpi { display: table-cell; padding: 6px; text-align: center; vertical-align: middle; }
+      .season-kpi-card {
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid rgba(11,18,32,0.12);
+        padding: 10px 6px 9px;
+        min-height: 64px;
+      }
+      .season-kpi-card .n {
+        font-size: 24px;
+        font-weight: 1000;
+        letter-spacing: -0.02em;
+        color: var(--pdf-ink);
+        line-height: 1.05;
+      }
+      .season-kpi-card .l {
+        margin-top: 4px;
+        font-size: 9.4px;
+        font-weight: 1000;
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--pdf-muted);
+      }
       .grid {
         display: table;
         width: 100%;
@@ -614,37 +648,85 @@
               </div>
             </div>
 
-            <div class="stats-row">
-              <div class="stats-row-cell">
-                <div class="ring-wrap">
-                  <div class="ring-circle green"></div>
-                  <div class="ring-value">{{ season_overview.pj|default:0 }}</div>
-                  <div class="ring-label">Partidos</div>
+            <div class="season-kpis-panel">
+              <div class="season-kpis-grid">
+                <div class="season-kpis-row">
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.pj|default:0 }}</div>
+                      <div class="l">Partidos</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.pt|default:0 }}</div>
+                      <div class="l">Titular</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.suplente|default:0 }}</div>
+                      <div class="l">Suplente</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.minutes|default:0 }}</div>
+                      <div class="l">Minutos</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.goals|default:0 }}</div>
+                      <div class="l">Goles</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.assists|default:0 }}</div>
+                      <div class="l">Asistencias</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div class="stats-row-cell"><div class="n">{{ season_overview.pt|default:0 }}</div><div class="l">Titular</div></div>
-              <div class="stats-row-cell"><div class="n">{{ season_overview.suplente|default:0 }}</div><div class="l">Suplente</div></div>
-              <div class="stats-row-cell"><div class="n">{{ season_overview.minutes|default:0 }}</div><div class="l">Minutos</div></div>
-              <div class="stats-row-cell"><div class="n">{{ season_overview.goals|default:0 }}</div><div class="l">Total goles</div></div>
-
-              <div class="stats-row-cell">
-                <div class="ring-wrap">
-                  <div class="ring-circle gray"></div>
-                  <div class="ring-value">{{ season_overview.assists|default:0 }}</div>
-                  <div class="ring-label">Asistencias</div>
+                <div class="season-kpis-row">
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.goals_per_match|default:0 }}</div>
+                      <div class="l">Media goles/partido</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.participation_pct|default:0|floatformat:-1 }}%</div>
+                      <div class="l">% participación</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.participation_matches_pct|default:0|floatformat:-1 }}%</div>
+                      <div class="l">% participación (PJ)</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.starter_pct|default:0|floatformat:-1 }}%</div>
+                      <div class="l">% titularidad</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.importance_score|default:0|floatformat:-1 }}</div>
+                      <div class="l">Importancia</div>
+                    </div>
+                  </div>
+                  <div class="season-kpi">
+                    <div class="season-kpi-card">
+                      <div class="n">{{ season_overview.influence_score|default:0|floatformat:-1 }}</div>
+                      <div class="l">Influencia</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div class="stats-metrics">
-              <div class="stats-head-row">
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.goals_per_match|default:0 }}</div><div class="k">Media goles/partido</div></div>
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.participation_pct|default:0|floatformat:-1 }}%</div><div class="k">% participación</div></div>
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.participation_matches_pct|default:0|floatformat:-1 }}%</div><div class="k">% participación (PJ)</div></div>
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.starter_pct|default:0|floatformat:-1 }}%</div><div class="k">% titularidad</div></div>
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.importance_score|default:0|floatformat:-1 }}</div><div class="k">Importancia</div></div>
-                <div class="stats-metrics-cell"><div class="v">{{ season_overview.influence_score|default:0|floatformat:-1 }}</div><div class="k">Influencia</div></div>
               </div>
             </div>
           </div>
