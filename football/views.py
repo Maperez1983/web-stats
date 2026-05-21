@@ -56704,6 +56704,76 @@ def player_detail_page(request, player_id):
             logger.exception('No se pudo recomponer el dashboard del jugador %s', player_id)
             matches = []
             stats_error = 'Las estadísticas consolidadas no están disponibles temporalmente.'
+
+        # Añadir (si existe) asistencia a entrenos por jugador para próximas temporadas.
+        # Se usa en "Compromiso" cuando hay suficiente volumen de marcas.
+        try:
+            season_obj = _resolve_season()
+            report_start = getattr(season_obj, 'start_date', None)
+            report_end = getattr(season_obj, 'end_date', None)
+
+            sessions_qs = TrainingSession.objects.filter(microcycle__team=primary_team).exclude(
+                status=TrainingSession.STATUS_CANCELED
+            )
+            if report_start:
+                sessions_qs = sessions_qs.filter(session_date__gte=report_start)
+            if report_end:
+                sessions_qs = sessions_qs.filter(session_date__lte=report_end)
+            total_sessions = int(sessions_qs.count() or 0)
+
+            attendance_by_player_id = {}
+            if total_sessions > 0:
+                marks_qs = TrainingSessionAttendance.objects.filter(
+                    session__microcycle__team=primary_team
+                ).exclude(session__status=TrainingSession.STATUS_CANCELED)
+                if report_start:
+                    marks_qs = marks_qs.filter(session__session_date__gte=report_start)
+                if report_end:
+                    marks_qs = marks_qs.filter(session__session_date__lte=report_end)
+
+                status_rows = list(marks_qs.values('player_id', 'status').annotate(c=Count('id')))
+                counts_by_player = {}
+                for r in status_rows:
+                    pid = _parse_int(r.get('player_id')) or 0
+                    if not pid:
+                        continue
+                    status_key = str(r.get('status') or '').strip()
+                    if not status_key:
+                        continue
+                    counts_by_player.setdefault(pid, {})[status_key] = int(r.get('c') or 0)
+
+                for pid, counts in counts_by_player.items():
+                    marked_total = sum(int(v or 0) for v in counts.values())
+                    completed_total = int(counts.get(TrainingSessionAttendance.STATUS_PRESENT, 0)) + int(
+                        counts.get(TrainingSessionAttendance.STATUS_LATE, 0)
+                    )
+                    completion_pct = round((completed_total / total_sessions) * 100.0, 1) if total_sessions else 0.0
+                    coverage = (marked_total / total_sessions) if total_sessions else 0.0
+                    attendance_by_player_id[int(pid)] = {
+                        'total_sessions': int(total_sessions),
+                        'marked_total': int(marked_total),
+                        'completion_pct': float(completion_pct),
+                        'coverage': float(coverage),
+                    }
+
+            # Adjuntar a cada fila para usarlo en radar/compromiso (sin romper si no hay datos).
+            for row in matches or []:
+                if not isinstance(row, dict):
+                    continue
+                pid = _parse_int(row.get('player_id')) or 0
+                payload = attendance_by_player_id.get(int(pid)) if pid else None
+                if payload:
+                    row['attendance_total_sessions'] = payload.get('total_sessions', 0)
+                    row['attendance_marked_total'] = payload.get('marked_total', 0)
+                    row['attendance_completion_pct'] = payload.get('completion_pct', 0.0)
+                    row['attendance_coverage'] = payload.get('coverage', 0.0)
+                else:
+                    row['attendance_total_sessions'] = 0
+                    row['attendance_marked_total'] = 0
+                    row['attendance_completion_pct'] = 0.0
+                    row['attendance_coverage'] = 0.0
+        except Exception:
+            pass
         detail = next((p for p in matches if p.get('player_id') == player_id), None)
         safe_stats = detail or {
             'position': player.position or '',
@@ -56729,6 +56799,14 @@ def player_detail_page(request, player_id):
             'successes_per90': 0,
             'decisive_actions_per90': 0,
         }
+        # Asegura claves de asistencia (si se adjuntaron a `matches`) para que la UI no falle.
+        try:
+            safe_stats['attendance_total_sessions'] = safe_stats.get('attendance_total_sessions', 0) or 0
+            safe_stats['attendance_marked_total'] = safe_stats.get('attendance_marked_total', 0) or 0
+            safe_stats['attendance_completion_pct'] = safe_stats.get('attendance_completion_pct', 0.0) or 0.0
+            safe_stats['attendance_coverage'] = safe_stats.get('attendance_coverage', 0.0) or 0.0
+        except Exception:
+            pass
         # Percentiles vs plantilla (para lectura rápida tipo TV).
         # Nota: usamos el dashboard ya calculado (misma fuente que la ficha) para evitar dobles queries.
         try:
@@ -56775,9 +56853,18 @@ def player_detail_page(request, player_id):
                 participation = _row_num(row, 'participation_pct') or 0.0
                 availability = _row_num(row, 'availability_pct') or 0.0
                 part = part_matches if part_matches > 0 else participation
+                attendance = _row_num(row, 'attendance_completion_pct') or 0.0
+                coverage = _row_num(row, 'attendance_coverage') or 0.0
+                has_attendance = attendance > 0 and coverage >= 0.6 and (_row_num(row, 'attendance_total_sessions') or 0) >= 4
+
+                # Si hay asistencia fiable, la incorporamos (compromiso = PART + DISP + ENTRENOS).
+                if part > 0 and availability > 0 and has_attendance:
+                    return (part * 0.4) + (availability * 0.3) + (attendance * 0.3)
+                if part > 0 and has_attendance:
+                    return (part * 0.6) + (attendance * 0.4)
                 if part > 0 and availability > 0:
                     return (part + availability) / 2.0
-                return part if part > 0 else availability
+                return part if part > 0 else (attendance if has_attendance else availability)
 
             pop = {
                 'commitment': [_commitment(r) for r in all_rows],

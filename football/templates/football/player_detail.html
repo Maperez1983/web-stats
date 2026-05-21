@@ -1113,6 +1113,7 @@
 		              data-total-actions="{{ stats.total_actions|default:0 }}"
 		              data-minutes="{{ stats.minutes|default:0 }}"
 		              data-success="{{ stats.success_rate|default:0 }}"
+		              data-attendance="{{ stats.attendance_completion_pct|default:0 }}"
 		              data-position="{{ stats.position|default:'' }}"
 		              data-profile="{{ stats.profile|default:'' }}"
 		              data-goals="{{ stats.goals|default:0 }}"
@@ -1526,6 +1527,7 @@
 
 		        const participation = clamp(num(root.dataset.participation), 0, 100);
 		        const availability = clamp(num(root.dataset.availability), 0, 100);
+		        const attendance = clamp(num(root.dataset.attendance), 0, 100);
 		        let actionsPer90 = Math.max(0, num(root.dataset.actionsPer90));
 		        if (!actionsPer90) {
 		          const totalActions = Math.max(0, num(root.dataset.totalActions));
@@ -1578,8 +1580,10 @@
             else if (bucket === 'gk') qualityDisplay = `Paradas/90 ${saves90.toFixed(1)} · Pase ${Math.round(passAcc)}%`;
 
 		        const mk = (key, value, display, pctRank) => ({ key, value, display, pctRank: clamp(num(pctRank), 0, 100) });
+		        const commitmentBits = [`PART ${Math.round(participation)}%`, `DISP ${Math.round(availability)}%`];
+            if (attendance > 0) commitmentBits.push(`ENT ${Math.round(attendance)}%`);
 		        const axes = [
-		          mk('Compromiso', pctCommitment, `PART ${Math.round(participation)}% · DISP ${Math.round(availability)}%`, pctCommitment),
+		          mk('Compromiso', pctCommitment, commitmentBits.join(' · '), pctCommitment),
 		          mk('Esfuerzo', pctEffort, `${Math.round(actionsPer90 * 10) / 10} A/90`, pctEffort),
 		          mk('Calidad', pctQuality, qualityDisplay, pctQuality),
 		          mk('Importancia', pctImportance, fmt(importanceScore), pctImportance),
