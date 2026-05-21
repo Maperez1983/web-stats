@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="2J">
+  <rect x="0" y="0" width="180" height="180" rx="40" fill="#0b1220"/>
+  <rect x="6" y="6" width="168" height="168" rx="36" fill="none" stroke="#ffffff" stroke-opacity=".10" stroke-width="2"/>
+  <text x="50%" y="56%" text-anchor="middle" dominant-baseline="middle"
+        font-family="Avenir Next, Inter, Segoe UI, Arial, sans-serif"
+        font-size="86" font-weight="900" fill="#ffffff">2J</text>
+  <circle cx="146" cy="34" r="10" fill="#f4b400"/>
+</svg>

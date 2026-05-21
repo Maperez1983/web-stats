@@ -3892,8 +3892,15 @@ def staff_member_pdf(request, staff_id):
     team_for_pdf = member.team or active_team or getattr(workspace, 'primary_team', None)
 
     static_base_dir = Path(settings.BASE_DIR) / 'static'
-    avatar_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
-    brand_mark_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
+    # Para PDFs (WeasyPrint) preferimos SVGs "flat" (sin gradients), para evitar RecursionError.
+    avatar_data_uri = (
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar-flat.svg')
+        or _file_as_data_uri(static_base_dir / 'football' / 'images' / 'player-avatar.svg')
+    )
+    brand_mark_data_uri = (
+        _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark-flat.svg')
+        or _file_as_data_uri(static_base_dir / 'football' / 'images' / '2j-mark.svg')
+    )
     logo_data_uri = _file_as_data_uri(static_base_dir / 'football' / 'images' / 'cdb-logo.png')
 
     photo_src = ''
