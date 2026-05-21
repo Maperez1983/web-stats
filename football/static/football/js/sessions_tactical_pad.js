@@ -340,6 +340,9 @@
 	    const drawH = 748;
 	    const doc = document.implementation.createDocument('http://www.w3.org/2000/svg', 'svg', null);
 	    const root = doc.documentElement;
+	    // Compat: Safari puede requerir xlink:href en <image> dentro de <pattern>.
+	    // Si no lo ponemos, ciertos estilos de césped pueden renderizar en negro al cambiar superficie.
+	    root.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
 	    root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
     // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
@@ -402,6 +405,7 @@
 	          height: 220,
 	          preserveAspectRatio: 'xMidYMid slice',
 	        });
+	        try { image.setAttribute('xlink:href', dataUrl); } catch (e) { /* ignore */ }
 	        pattern.appendChild(image);
 	        defs.appendChild(pattern);
 	      }
