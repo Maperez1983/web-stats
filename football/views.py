@@ -23369,32 +23369,93 @@ def _per90(value, minutes):
     return (_row_float(value, 0.0) / denom) if denom > 0 else 0.0
 
 
-def _quality_raw_score(row):
+def _quality_raw_score(row, *, priors=None):
     """
     Score 0..100 aproximado (no percentil) que intenta capturar "calidad" según rol.
     Luego se convierte a percentil vs la población actual.
     """
     if not isinstance(row, dict):
         row = {}
+    priors = priors if isinstance(priors, dict) else {}
     position = row.get('position') or row.get('position_label') or ''
     profile = row.get('profile') or ''
     bucket = _player_role_bucket(position, profile=profile)
 
     minutes = _row_float(row.get('minutes'), 0.0)
     success_rate = max(0.0, min(100.0, _row_float(row.get('success_rate'), 0.0)))
-    pass_acc = max(0.0, min(100.0, _passes_accuracy(row)))
-    shot_acc = max(0.0, min(100.0, _shots_accuracy(row)))
-    duel_rate = max(0.0, min(100.0, _duel_rate(row)))
-    aerial_rate = max(0.0, min(100.0, _aerial_rate(row)))
+
+    def _get_attempts(row, kind):
+        if kind == 'passes':
+            p = _row_get_dict(row, 'passes')
+            return _row_int(p.get('attempts') or row.get('pass_attempts') or row.get('passes_attempts') or 0)
+        if kind == 'shots':
+            s = _row_get_dict(row, 'shots')
+            return _row_int(s.get('attempts') or row.get('shot_attempts') or 0)
+        if kind == 'duels':
+            d = _row_get_dict(row, 'duel_summary')
+            return _row_int(d.get('total') or row.get('duels_total') or 0)
+        if kind == 'aerial':
+            a = _row_get_dict(row, 'aerial_duel_summary')
+            return _row_int(a.get('total') or row.get('aerial_duels_total') or 0)
+        return 0
+
+    def _shrink_pct(raw_pct, attempts, prior_pct, k):
+        # Suavizado por volumen: pocos intentos => acercar al prior del rol.
+        try:
+            a = max(0.0, float(attempts or 0))
+            k = max(0.0, float(k or 0))
+            raw_pct = max(0.0, min(100.0, float(raw_pct or 0)))
+            prior_pct = max(0.0, min(100.0, float(prior_pct or 0)))
+        except Exception:
+            return max(0.0, min(100.0, _row_float(raw_pct, 0.0)))
+        if k <= 0:
+            return raw_pct
+        # Convertimos % a "éxitos" esperados para mezclar.
+        raw_success = (raw_pct / 100.0) * a
+        prior_success = (prior_pct / 100.0) * k
+        denom = a + k
+        return ((raw_success + prior_success) / denom) * 100.0 if denom > 0 else prior_pct
+
+    pass_attempts = _get_attempts(row, 'passes')
+    shot_attempts = _get_attempts(row, 'shots')
+    duels_total = _get_attempts(row, 'duels')
+    aerial_total = _get_attempts(row, 'aerial')
+
+    pass_acc_raw = max(0.0, min(100.0, _passes_accuracy(row)))
+    shot_acc_raw = max(0.0, min(100.0, _shots_accuracy(row)))
+    duel_rate_raw = max(0.0, min(100.0, _duel_rate(row)))
+    aerial_rate_raw = max(0.0, min(100.0, _aerial_rate(row)))
+
+    pass_acc = _shrink_pct(pass_acc_raw, pass_attempts, priors.get('pass_acc', 70.0), k=60.0)
+    shot_acc = _shrink_pct(shot_acc_raw, shot_attempts, priors.get('shot_acc', 40.0), k=10.0)
+    duel_rate = _shrink_pct(duel_rate_raw, duels_total, priors.get('duel_rate', 50.0), k=14.0)
+    aerial_rate = _shrink_pct(aerial_rate_raw, aerial_total, priors.get('aerial_rate', 50.0), k=10.0)
+    success_rate = _shrink_pct(success_rate, _row_int(row.get('total_actions') or 0), priors.get('success_rate', 55.0), k=120.0)
 
     goals = _row_int(row.get('goals'), 0)
     assists = _row_int(row.get('assists'), 0)
     key_passes = _row_int(row.get('key_passes_completed') or row.get('key_passes') or 0)
     saves = _row_int(row.get('goalkeeper_saves') or 0)
 
-    ga_per90 = _per90(goals + assists, minutes)
-    kp_per90 = _per90(key_passes, minutes)
-    saves_per90 = _per90(saves, minutes)
+    ga_per90_raw = _per90(goals + assists, minutes)
+    kp_per90_raw = _per90(key_passes, minutes)
+    saves_per90_raw = _per90(saves, minutes)
+
+    def _shrink_per90(raw, minutes, prior, k_minutes):
+        # Suavizado por minutos: pocos minutos => acercar al prior del rol.
+        try:
+            m = max(0.0, float(minutes or 0))
+            k = max(1.0, float(k_minutes or 1))
+            raw = max(0.0, float(raw or 0))
+            prior = max(0.0, float(prior or 0))
+        except Exception:
+            return max(0.0, _row_float(raw, 0.0))
+        w = m / (m + k)
+        return (raw * w) + (prior * (1.0 - w))
+
+    ga_per90 = _shrink_per90(ga_per90_raw, minutes, priors.get('ga_per90', 0.2), k_minutes=720.0)
+    kp_per90 = _shrink_per90(kp_per90_raw, minutes, priors.get('kp_per90', 0.4), k_minutes=720.0)
+    saves_per90 = _shrink_per90(saves_per90_raw, minutes, priors.get('saves_per90', 2.5), k_minutes=540.0)
 
     def _scale(val, good):
         try:
@@ -23448,10 +23509,39 @@ def _build_player_percentiles(detail_row, population_rows):
         'passes_accuracy': [_passes_acc(r) for r in rows],
         'shots_accuracy': [_shots_acc(r) for r in rows],
         'aerial_rate': [_aerial_rate(r) for r in rows],
-        'quality_raw': [_quality_raw_score(r) for r in rows],
         'decisive_actions_per90': [_num(r.get('decisive_actions_per90')) for r in rows],
         'total_actions': [_num(r.get('total_actions')) for r in rows],
     }
+
+    def _attempts(row, kind):
+        if kind == 'passes':
+            p = _row_get_dict(row, 'passes')
+            return _row_int(p.get('attempts') or row.get('pass_attempts') or row.get('passes_attempts') or 0)
+        if kind == 'shots':
+            s = _row_get_dict(row, 'shots')
+            return _row_int(s.get('attempts') or row.get('shot_attempts') or 0)
+        if kind == 'duels':
+            d = _row_get_dict(row, 'duel_summary')
+            return _row_int(d.get('total') or row.get('duels_total') or 0)
+        if kind == 'aerial':
+            a = _row_get_dict(row, 'aerial_duel_summary')
+            return _row_int(a.get('total') or row.get('aerial_duels_total') or 0)
+        return 0
+
+    def _weighted_avg(pairs, fallback=0.0):
+        num = 0.0
+        den = 0.0
+        for value, weight in pairs:
+            try:
+                w = float(weight or 0)
+                v = float(value or 0)
+            except Exception:
+                continue
+            if w <= 0:
+                continue
+            num += v * w
+            den += w
+        return (num / den) if den > 0 else float(fallback)
 
     # Para "Calidad", comparamos preferentemente contra jugadores del MISMO rol/bucket.
     # Así evitamos que un delantero se compare contra defensas/porteros (escalas distintas).
@@ -23467,9 +23557,22 @@ def _build_player_percentiles(detail_row, population_rows):
                 profile=r.get('profile') or '',
             ) == detail_bucket
         ]
-        quality_population = [_quality_raw_score(r) for r in bucket_rows] if len(bucket_rows) >= 4 else pop['quality_raw']
+        base_rows = bucket_rows if len(bucket_rows) >= 4 else rows
+        priors = {
+            'pass_acc': _weighted_avg([(_passes_acc(r), _attempts(r, 'passes')) for r in base_rows], fallback=70.0),
+            'shot_acc': _weighted_avg([(_shots_acc(r), _attempts(r, 'shots')) for r in base_rows], fallback=40.0),
+            'duel_rate': _weighted_avg([(_duel_rate(r), _attempts(r, 'duels')) for r in base_rows], fallback=50.0),
+            'aerial_rate': _weighted_avg([(_aerial_rate(r), _attempts(r, 'aerial')) for r in base_rows], fallback=50.0),
+            'success_rate': _weighted_avg([(_num(r.get('success_rate')), _num(r.get('total_actions'))) for r in base_rows], fallback=55.0),
+            'ga_per90': _weighted_avg([(_per90((_num(r.get('goals')) + _num(r.get('assists'))), _num(r.get('minutes'))), _num(r.get('minutes'))) for r in base_rows], fallback=0.2),
+            'kp_per90': _weighted_avg([(_per90(_num(r.get('key_passes_completed')), _num(r.get('minutes'))), _num(r.get('minutes'))) for r in base_rows], fallback=0.4),
+            'saves_per90': _weighted_avg([(_per90(_num(r.get('goalkeeper_saves')), _num(r.get('minutes'))), _num(r.get('minutes'))) for r in base_rows], fallback=2.5),
+        }
+        quality_scope_rows = bucket_rows if len(bucket_rows) >= 4 else rows
+        quality_population = [_quality_raw_score(r, priors=priors) for r in quality_scope_rows]
     except Exception:
-        quality_population = pop['quality_raw']
+        priors = {}
+        quality_population = [_quality_raw_score(r) for r in rows]
 
     out = {
         'success_rate': _percentile_rank(_num(detail_row.get('success_rate')), pop['success_rate']),
@@ -23477,7 +23580,7 @@ def _build_player_percentiles(detail_row, population_rows):
         'passes_accuracy': _percentile_rank(_passes_acc(detail_row), pop['passes_accuracy']),
         'shots_accuracy': _percentile_rank(_shots_acc(detail_row), pop['shots_accuracy']),
         'aerial_rate': _percentile_rank(_aerial_rate(detail_row), pop['aerial_rate']),
-        'quality': _percentile_rank(_quality_raw_score(detail_row), quality_population),
+        'quality': _percentile_rank(_quality_raw_score(detail_row, priors=priors), quality_population),
         'decisive_actions_per90': _percentile_rank(_num(detail_row.get('decisive_actions_per90')), pop['decisive_actions_per90']),
         'total_actions': _percentile_rank(_num(detail_row.get('total_actions')), pop['total_actions']),
     }
@@ -56680,11 +56783,40 @@ def player_detail_page(request, player_id):
                 'commitment': [_commitment(r) for r in all_rows],
                 'actions_per90': [_actions_per90(r) for r in all_rows],
                 'success_rate': [_row_num(r, 'success_rate') for r in all_rows],
-                'quality_raw': [_quality_raw_score(r) for r in all_rows],
                 'importance_score': [_row_num(r, 'importance_score') for r in all_rows],
                 'influence_score': [_row_num(r, 'influence_score') for r in all_rows],
             }
             try:
+                def _attempts(row, kind):
+                    if kind == 'passes':
+                        p = row.get('passes') if isinstance(row.get('passes'), dict) else {}
+                        return _parse_int(p.get('attempts') or row.get('pass_attempts') or row.get('passes_attempts') or 0) or 0
+                    if kind == 'shots':
+                        s = row.get('shots') if isinstance(row.get('shots'), dict) else {}
+                        return _parse_int(s.get('attempts') or row.get('shot_attempts') or 0) or 0
+                    if kind == 'duels':
+                        d = row.get('duel_summary') if isinstance(row.get('duel_summary'), dict) else {}
+                        return _parse_int(d.get('total') or row.get('duels_total') or 0) or 0
+                    if kind == 'aerial':
+                        a = row.get('aerial_duel_summary') if isinstance(row.get('aerial_duel_summary'), dict) else {}
+                        return _parse_int(a.get('total') or row.get('aerial_duels_total') or 0) or 0
+                    return 0
+
+                def _weighted_avg(pairs, fallback=0.0):
+                    num = 0.0
+                    den = 0.0
+                    for value, weight in pairs:
+                        try:
+                            w = float(weight or 0)
+                            v = float(value or 0)
+                        except Exception:
+                            continue
+                        if w <= 0:
+                            continue
+                        num += v * w
+                        den += w
+                    return (num / den) if den > 0 else float(fallback)
+
                 safe_bucket = _player_role_bucket(
                     safe_stats.get('position') or safe_stats.get('position_label') or '',
                     profile=safe_stats.get('profile') or '',
@@ -56696,14 +56828,27 @@ def player_detail_page(request, player_id):
                         profile=r.get('profile') or '',
                     ) == safe_bucket
                 ]
-                quality_population = [_quality_raw_score(r) for r in bucket_rows] if len(bucket_rows) >= 4 else pop['quality_raw']
+                base_rows = bucket_rows if len(bucket_rows) >= 4 else all_rows
+                priors = {
+                    'pass_acc': _weighted_avg([(_passes_acc(r), _attempts(r, 'passes')) for r in base_rows], fallback=70.0),
+                    'shot_acc': _weighted_avg([(_shots_acc(r), _attempts(r, 'shots')) for r in base_rows], fallback=40.0),
+                    'duel_rate': _weighted_avg([(_row_num(r, 'duel_rate'), _attempts(r, 'duels')) for r in base_rows], fallback=50.0),
+                    'aerial_rate': _weighted_avg([(_aerial_rate(r), _attempts(r, 'aerial')) for r in base_rows], fallback=50.0),
+                    'success_rate': _weighted_avg([(_row_num(r, 'success_rate'), _row_num(r, 'total_actions')) for r in base_rows], fallback=55.0),
+                    'ga_per90': _weighted_avg([(_per90((_row_num(r, 'goals') + _row_num(r, 'assists')), _row_num(r, 'minutes')), _row_num(r, 'minutes')) for r in base_rows], fallback=0.2),
+                    'kp_per90': _weighted_avg([(_per90((_row_num(r, 'key_passes_completed')), _row_num(r, 'minutes')), _row_num(r, 'minutes')) for r in base_rows], fallback=0.4),
+                    'saves_per90': _weighted_avg([(_per90((_row_num(r, 'goalkeeper_saves')), _row_num(r, 'minutes')), _row_num(r, 'minutes')) for r in base_rows], fallback=2.5),
+                }
+                quality_scope_rows = bucket_rows if len(bucket_rows) >= 4 else all_rows
+                quality_population = [_quality_raw_score(r, priors=priors) for r in quality_scope_rows]
             except Exception:
-                quality_population = pop['quality_raw']
+                priors = {}
+                quality_population = [_quality_raw_score(r) for r in all_rows]
             player_percentiles = {
                 'commitment': _percentile_rank(_commitment(safe_stats), pop['commitment']),
                 'actions_per90': _percentile_rank(_actions_per90(safe_stats), pop['actions_per90']),
                 'success_rate': _percentile_rank(_row_num(safe_stats, 'success_rate'), pop['success_rate']),
-                'quality': _percentile_rank(_quality_raw_score(safe_stats), quality_population),
+                'quality': _percentile_rank(_quality_raw_score(safe_stats, priors=priors), quality_population),
                 'importance_score': _percentile_rank(_row_num(safe_stats, 'importance_score'), pop['importance_score']),
                 'influence_score': _percentile_rank(_row_num(safe_stats, 'influence_score'), pop['influence_score']),
             }
