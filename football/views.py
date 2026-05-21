@@ -23289,6 +23289,135 @@ def _percentile_rank(value, population):
     return max(0, min(100, pct))
 
 
+def _player_role_bucket(position, profile=None):
+    """
+    Agrupa posiciones en buckets simples para métricas comparables (UI).
+    Devuelve: 'gk' | 'def' | 'mid' | 'fwd'
+    """
+    s = f"{profile or ''} {position or ''}".strip().lower()
+    if not s:
+        return 'mid'
+    if 'goalkeeper' in s or 'portero' in s or s.startswith('gk') or ' gk' in s:
+        return 'gk'
+    if any(k in s for k in ('defensa', 'defens', 'central', 'lateral', 'carril', 'libero', 'ld', 'li', 'rb', 'lb', 'cb')):
+        return 'def'
+    if any(k in s for k in ('medio', 'centro', 'interior', 'pivote', 'mediocentro', 'centrocamp', 'volante', 'mc', 'mcd', 'mco')):
+        return 'mid'
+    if any(k in s for k in ('delanter', 'extremo', 'punta', 'striker', 'forward', 'media punta', 'mp')):
+        return 'fwd'
+    return 'mid'
+
+
+def _row_float(value, default=0.0):
+    try:
+        return float(value or 0)
+    except Exception:
+        return float(default)
+
+
+def _row_int(value, default=0):
+    try:
+        return int(value or 0)
+    except Exception:
+        return int(default)
+
+
+def _row_get_dict(row, key):
+    return row.get(key) if isinstance(row, dict) and isinstance(row.get(key), dict) else {}
+
+
+def _passes_accuracy(row):
+    p = _row_get_dict(row, 'passes')
+    acc = p.get('accuracy', None)
+    if acc is not None:
+        return _row_float(acc, 0.0)
+    completed = _row_int(p.get('completed') or row.get('passes_completed') or 0)
+    attempts = _row_int(p.get('attempts') or row.get('pass_attempts') or row.get('passes_attempts') or 0)
+    return (completed / attempts) * 100.0 if attempts else 0.0
+
+
+def _shots_accuracy(row):
+    s = _row_get_dict(row, 'shots')
+    acc = s.get('accuracy', None)
+    if acc is not None:
+        return _row_float(acc, 0.0)
+    on_target = _row_int(s.get('on_target') or row.get('shots_on_target') or 0)
+    attempts = _row_int(s.get('attempts') or row.get('shot_attempts') or 0)
+    return (on_target / attempts) * 100.0 if attempts else 0.0
+
+
+def _duel_rate(row):
+    rate = row.get('duel_rate', None) if isinstance(row, dict) else None
+    if rate is not None:
+        return _row_float(rate, 0.0)
+    d = _row_get_dict(row, 'duel_summary')
+    won = _row_int(d.get('won') or row.get('duels_won') or 0)
+    total = _row_int(d.get('total') or row.get('duels_total') or 0)
+    return (won / total) * 100.0 if total else 0.0
+
+
+def _aerial_rate(row):
+    a = _row_get_dict(row, 'aerial_duel_summary')
+    won = _row_int(a.get('won') or row.get('aerial_duels_won') or 0)
+    total = _row_int(a.get('total') or row.get('aerial_duels_total') or 0)
+    return (won / total) * 100.0 if total else 0.0
+
+
+def _per90(value, minutes):
+    mins = max(0.0, _row_float(minutes, 0.0))
+    denom = mins / 90.0
+    return (_row_float(value, 0.0) / denom) if denom > 0 else 0.0
+
+
+def _quality_raw_score(row):
+    """
+    Score 0..100 aproximado (no percentil) que intenta capturar "calidad" según rol.
+    Luego se convierte a percentil vs la población actual.
+    """
+    if not isinstance(row, dict):
+        row = {}
+    position = row.get('position') or row.get('position_label') or ''
+    profile = row.get('profile') or ''
+    bucket = _player_role_bucket(position, profile=profile)
+
+    minutes = _row_float(row.get('minutes'), 0.0)
+    success_rate = max(0.0, min(100.0, _row_float(row.get('success_rate'), 0.0)))
+    pass_acc = max(0.0, min(100.0, _passes_accuracy(row)))
+    shot_acc = max(0.0, min(100.0, _shots_accuracy(row)))
+    duel_rate = max(0.0, min(100.0, _duel_rate(row)))
+    aerial_rate = max(0.0, min(100.0, _aerial_rate(row)))
+
+    goals = _row_int(row.get('goals'), 0)
+    assists = _row_int(row.get('assists'), 0)
+    key_passes = _row_int(row.get('key_passes_completed') or row.get('key_passes') or 0)
+    saves = _row_int(row.get('goalkeeper_saves') or 0)
+
+    ga_per90 = _per90(goals + assists, minutes)
+    kp_per90 = _per90(key_passes, minutes)
+    saves_per90 = _per90(saves, minutes)
+
+    def _scale(val, good):
+        try:
+            good = float(good)
+        except Exception:
+            good = 1.0
+        if good <= 0:
+            good = 1.0
+        return max(0.0, min((float(val) / good) * 100.0, 100.0))
+
+    if bucket == 'fwd':
+        # Alta ponderación a producir (G+A/90), sin ignorar ejecución.
+        return (0.55 * _scale(ga_per90, 1.0)) + (0.25 * shot_acc) + (0.20 * success_rate)
+    if bucket == 'mid':
+        # Creatividad + limpieza técnica.
+        return (0.40 * _scale(kp_per90, 2.0)) + (0.35 * pass_acc) + (0.25 * success_rate)
+    if bucket == 'def':
+        # Ganar duelos + fiabilidad en salida.
+        return (0.35 * duel_rate) + (0.25 * aerial_rate) + (0.25 * pass_acc) + (0.15 * success_rate)
+    # gk
+    return (0.55 * _scale(saves_per90, 4.0)) + (0.25 * pass_acc) + (0.20 * success_rate)
+
+
 def _build_player_percentiles(detail_row, population_rows):
     """
     Percentiles (0-100) de un jugador vs. la población actual (plantilla / filtro).
@@ -23305,18 +23434,13 @@ def _build_player_percentiles(detail_row, population_rows):
             return float(default)
 
     def _passes_acc(row):
-        p = row.get('passes') if isinstance(row.get('passes'), dict) else {}
-        return _num(p.get('accuracy'), 0.0)
+        return _passes_accuracy(row)
 
     def _shots_acc(row):
-        s = row.get('shots') if isinstance(row.get('shots'), dict) else {}
-        return _num(s.get('accuracy'), 0.0)
+        return _shots_accuracy(row)
 
     def _aerial_rate(row):
-        a = row.get('aerial_duel_summary') if isinstance(row.get('aerial_duel_summary'), dict) else {}
-        won = _parse_int(a.get('won')) or 0
-        total = _parse_int(a.get('total')) or 0
-        return (won / total) * 100.0 if total else 0.0
+        return _aerial_rate(row)
 
     pop = {
         'success_rate': [_num(r.get('success_rate')) for r in rows],
@@ -23324,6 +23448,7 @@ def _build_player_percentiles(detail_row, population_rows):
         'passes_accuracy': [_passes_acc(r) for r in rows],
         'shots_accuracy': [_shots_acc(r) for r in rows],
         'aerial_rate': [_aerial_rate(r) for r in rows],
+        'quality_raw': [_quality_raw_score(r) for r in rows],
         'decisive_actions_per90': [_num(r.get('decisive_actions_per90')) for r in rows],
         'total_actions': [_num(r.get('total_actions')) for r in rows],
     }
@@ -23334,6 +23459,7 @@ def _build_player_percentiles(detail_row, population_rows):
         'passes_accuracy': _percentile_rank(_passes_acc(detail_row), pop['passes_accuracy']),
         'shots_accuracy': _percentile_rank(_shots_acc(detail_row), pop['shots_accuracy']),
         'aerial_rate': _percentile_rank(_aerial_rate(detail_row), pop['aerial_rate']),
+        'quality': _percentile_rank(_quality_raw_score(detail_row), pop['quality_raw']),
         'decisive_actions_per90': _percentile_rank(_num(detail_row.get('decisive_actions_per90')), pop['decisive_actions_per90']),
         'total_actions': _percentile_rank(_num(detail_row.get('total_actions')), pop['total_actions']),
     }
@@ -23383,9 +23509,7 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
     else:
         compromiso_score = _clamp((participation_pct * 0.6) + (attendance_value * 0.4))
 
-    volume_factor = min(1.0, max(0.0, actions_per_match / 40.0))
-    success_weighted = success_rate * volume_factor
-    quality_score = _clamp((success_weighted * 0.7) + (impact_score * 0.3))
+    quality_score = _clamp(_quality_raw_score(detail_row))
 
     def _fmt_pct(value):
         return f"{int(round(value))}%"
@@ -23414,8 +23538,8 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         _mk(
             'Calidad',
             quality_score,
-            f"{success_rate:.1f}% éxito · {int(round(actions_per_match))}/PJ",
-            pcts.get('success_rate', 0),
+            f"{quality_score:.0f}/100",
+            pcts.get('quality', pcts.get('success_rate', 0)),
         ),
     ]
 
@@ -56538,6 +56662,7 @@ def player_detail_page(request, player_id):
                 'commitment': [_commitment(r) for r in all_rows],
                 'actions_per90': [_actions_per90(r) for r in all_rows],
                 'success_rate': [_row_num(r, 'success_rate') for r in all_rows],
+                'quality_raw': [_quality_raw_score(r) for r in all_rows],
                 'importance_score': [_row_num(r, 'importance_score') for r in all_rows],
                 'influence_score': [_row_num(r, 'influence_score') for r in all_rows],
             }
@@ -56545,6 +56670,7 @@ def player_detail_page(request, player_id):
                 'commitment': _percentile_rank(_commitment(safe_stats), pop['commitment']),
                 'actions_per90': _percentile_rank(_actions_per90(safe_stats), pop['actions_per90']),
                 'success_rate': _percentile_rank(_row_num(safe_stats, 'success_rate'), pop['success_rate']),
+                'quality': _percentile_rank(_quality_raw_score(safe_stats), pop['quality_raw']),
                 'importance_score': _percentile_rank(_row_num(safe_stats, 'importance_score'), pop['importance_score']),
                 'influence_score': _percentile_rank(_row_num(safe_stats, 'influence_score'), pop['influence_score']),
             }
