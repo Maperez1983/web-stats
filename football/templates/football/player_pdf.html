@@ -167,8 +167,17 @@
       .stats-center-crest img { width: 72px; height: 72px; object-fit: contain; }
 
       .ring-wrap { text-align: center; }
-      .ring-value { position: relative; margin-top: -62px; font-size: 22px; font-weight: 1000; color: #ffffff; }
-      .ring-label { margin-top: 30px; font-size: 11px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
+      .ring-circle {
+        width: 86px;
+        height: 86px;
+        border-radius: 999px;
+        border: 12px solid rgba(255,255,255,0.14);
+        margin: 0 auto;
+      }
+      .ring-circle.green { border-color: rgba(15,122,53,0.95); }
+      .ring-circle.gray { border-color: rgba(255,255,255,0.26); }
+      .ring-value { position: relative; margin-top: -66px; font-size: 22px; font-weight: 1000; color: #ffffff; }
+      .ring-label { margin-top: 34px; font-size: 11px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.72); }
 
       .stats-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
       .stats-row-cell { display: table-cell; vertical-align: middle; text-align: center; }
@@ -563,12 +572,7 @@
             <div class="stats-row">
               <div class="stats-row-cell">
                 <div class="ring-wrap">
-                  {% with ring_pct=season_overview.participation_matches_pct|default:0 %}
-                    <svg viewBox="0 0 120 120" style="width:86px;height:86px;">
-                      <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="12" />
-                      <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(15,122,53,0.95)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{{ ring_pct|floatformat:0 }} 100" transform="rotate(-90 60 60)" />
-                    </svg>
-                  {% endwith %}
+                  <div class="ring-circle green"></div>
                   <div class="ring-value">{{ season_overview.pj|default:0 }}</div>
                   <div class="ring-label">Partidos</div>
                 </div>
@@ -581,10 +585,7 @@
 
               <div class="stats-row-cell">
                 <div class="ring-wrap">
-                  <svg viewBox="0 0 120 120" style="width:86px;height:86px;">
-                    <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="12" />
-                    <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,0.26)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="{% if season_overview.assists %}100{% else %}0{% endif %} 100" transform="rotate(-90 60 60)" />
-                  </svg>
+                  <div class="ring-circle gray"></div>
                   <div class="ring-value">{{ season_overview.assists|default:0 }}</div>
                   <div class="ring-label">Asistencias</div>
                 </div>
