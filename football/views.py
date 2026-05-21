@@ -23600,13 +23600,17 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
     """
     Construye ejes + path SVG del radar (araña) para PDF (sin JS).
 
-    Informe de temporada:
-    - Compromiso: participación + entrenos
-    - Impacto: G+A por partido (0–100)
-    - Calidad: % éxito ponderado por volumen + impacto
+    Radar "staff" (Pxx dentro del equipo/filtro):
+    - Compromiso
+    - Esfuerzo
+    - Calidad
+    - Importancia
+    - Influencia
     """
     if not isinstance(detail_row, dict):
         detail_row = {}
+    # Históricamente este helper recibía un dict de percentiles (player_percentiles).
+    # Para el PDF, usamos el mismo parámetro como fuente de Pxx para cada eje.
     pcts = player_percentiles or {}
 
     def _num(value, default=0.0):
@@ -23621,25 +23625,24 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         except Exception:
             return lo
 
+    participation_pct = _clamp(_num(detail_row.get('participation_matches_pct') or detail_row.get('participation_pct')))
+    availability_pct = _clamp(_num(detail_row.get('availability_pct')))
+    attendance_value = _clamp(_num(attendance_pct)) if attendance_pct is not None else _clamp(_num(detail_row.get('attendance_completion_pct')))
+
+    def _actions_per90(row):
+        try:
+            if row.get('actions_per90') is not None:
+                return float(row.get('actions_per90') or 0)
+        except Exception:
+            pass
+        minutes = max(0.0, _num(row.get('minutes')))
+        total_actions = max(0.0, _num(row.get('total_actions')))
+        return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
+
+    actions_per90 = max(0.0, _actions_per90(detail_row))
     success_rate = _clamp(_num(detail_row.get('success_rate')))
-
-    actions = max(0.0, _num(detail_row.get('total_actions')))
-    pj = max(0.0, _num(detail_row.get('pj')))
-    actions_per_match = (actions / pj) if pj > 0 else actions
-
-    goals = max(0.0, _num(detail_row.get('goals')))
-    assists = max(0.0, _num(detail_row.get('assists')))
-    contrib_per_match = ((goals + assists) / pj) if pj > 0 else 0.0
-    impact_score = _clamp(contrib_per_match * 100.0)
-
-    participation_pct = _clamp(_num(detail_row.get('participation_pct')))
-    attendance_value = _clamp(_num(attendance_pct)) if attendance_pct is not None else 0.0
-    if attendance_pct is None:
-        compromiso_score = participation_pct
-    else:
-        compromiso_score = _clamp((participation_pct * 0.6) + (attendance_value * 0.4))
-
-    quality_score = _clamp(_quality_raw_score(detail_row))
+    importance_score = _clamp(_num(detail_row.get('importance_score')))
+    influence_score = _clamp(_num(detail_row.get('influence_score')))
 
     def _fmt_pct(value):
         return f"{int(round(value))}%"
@@ -23652,25 +23655,18 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
             'pct_rank': int(_clamp(_num(pct_rank), 0, 100)),
         }
 
+    commitment_bits = [f"PART {participation_pct:.0f}%"]
+    if availability_pct > 0:
+        commitment_bits.append(f"DISP {availability_pct:.0f}%")
+    if attendance_value > 0:
+        commitment_bits.append(f"ENT {attendance_value:.0f}%")
+
     axes = [
-        _mk(
-            'Compromiso',
-            compromiso_score,
-            f"{participation_pct:.1f}% part · {attendance_value:.1f}% entrenos" if attendance_pct is not None else f"{participation_pct:.1f}% part",
-            pcts.get('participation_pct', 0),
-        ),
-        _mk(
-            'Impacto',
-            impact_score,
-            f"{contrib_per_match:.2f} G+A/PJ" if pj > 0 else f"{int(goals + assists)}",
-            pcts.get('decisive_actions_per90', 0),
-        ),
-        _mk(
-            'Calidad',
-            quality_score,
-            f"{quality_score:.0f}/100",
-            pcts.get('quality', pcts.get('success_rate', 0)),
-        ),
+        _mk('Compromiso', pcts.get('commitment', 0), ' · '.join(commitment_bits), pcts.get('commitment', 0)),
+        _mk('Esfuerzo', pcts.get('actions_per90', 0), f"{actions_per90:.1f} A/90", pcts.get('actions_per90', 0)),
+        _mk('Calidad', pcts.get('quality', 0), f"Éx {success_rate:.0f}% · {actions_per90:.1f} A/90", pcts.get('quality', 0)),
+        _mk('Importancia', pcts.get('importance_score', 0), f"{importance_score:.0f}", pcts.get('importance_score', 0)),
+        _mk('Influencia', pcts.get('influence_score', 0), f"{influence_score:.0f}", pcts.get('influence_score', 0)),
     ]
 
     # SVG path
@@ -23680,16 +23676,179 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         cx, cy, rmax = 180.0, 180.0, 120.0
         n = max(3, len(axes))
         pts = []
+        labels = []
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (_clamp(axis.get('value', 0.0)) / 100.0)
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
+            lr = 142.0
+            lx = cx + math.cos(angle) * lr
+            ly = cy + math.sin(angle) * lr
+            anchor = 'middle'
+            if lx > cx + 6:
+                anchor = 'start'
+            elif lx < cx - 6:
+                anchor = 'end'
+            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': axis.get('key', ''), 'anchor': anchor})
         d = ' '.join([('M' if idx == 0 else 'L') + f' {x:.1f} {y:.1f}' for idx, (x, y) in enumerate(pts)]) + ' Z'
-        return {'axes': axes, 'path_d': d, 'points': [{'x': round(x, 1), 'y': round(y, 1)} for (x, y) in pts]}
+        return {
+            'axes': axes,
+            'path_d': d,
+            'points': [{'x': round(x, 1), 'y': round(y, 1)} for (x, y) in pts],
+            'labels': labels,
+        }
     except Exception:
-        return {'axes': axes, 'path_d': '', 'points': []}
+        return {'axes': axes, 'path_d': '', 'points': [], 'labels': []}
+
+
+def _build_player_staff_percentiles(detail_row, population_rows, *, attendance_pct=None):
+    """
+    Percentiles (0-100) para el radar "staff" del PDF.
+
+    Devuelve: commitment, actions_per90, quality, importance_score, influence_score.
+    """
+    if not isinstance(detail_row, dict):
+        detail_row = {}
+    rows = [r for r in (population_rows or []) if isinstance(r, dict)]
+
+    def _num(value, default=0.0):
+        try:
+            return float(value or 0)
+        except Exception:
+            return float(default)
+
+    def _actions_per90(row):
+        try:
+            if row.get('actions_per90') is not None:
+                return float(row.get('actions_per90') or 0)
+        except Exception:
+            pass
+        minutes = max(0.0, _num(row.get('minutes')))
+        total_actions = max(0.0, _num(row.get('total_actions')))
+        return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
+
+    def _commitment(row):
+        part_matches = _num(row.get('participation_matches_pct'))
+        participation = _num(row.get('participation_pct'))
+        availability = _num(row.get('availability_pct'))
+        part = part_matches if part_matches > 0 else participation
+        attendance = _num(row.get('attendance_completion_pct'))
+        coverage = _num(row.get('attendance_coverage'))
+        total_sessions = _num(row.get('attendance_total_sessions'))
+        has_attendance = attendance > 0 and coverage >= 0.6 and total_sessions >= 4
+        if attendance_pct is not None:
+            try:
+                attendance = float(attendance_pct or 0)
+                has_attendance = attendance > 0
+            except Exception:
+                pass
+
+        if part > 0 and availability > 0 and has_attendance:
+            return (part * 0.4) + (availability * 0.3) + (attendance * 0.3)
+        if part > 0 and has_attendance:
+            return (part * 0.6) + (attendance * 0.4)
+        if part > 0 and availability > 0:
+            return (part + availability) / 2.0
+        return part if part > 0 else (attendance if has_attendance else availability)
+
+    pop_commitment = [_commitment(r) for r in rows]
+    pop_a90 = [_actions_per90(r) for r in rows]
+    pop_imp = [_num(r.get('importance_score')) for r in rows]
+    pop_inf = [_num(r.get('influence_score')) for r in rows]
+
+    try:
+        quality_pct = float((_build_player_percentiles(detail_row, rows) or {}).get('quality', 0) or 0)
+    except Exception:
+        quality_pct = 0.0
+
+    return {
+        'commitment': _percentile_rank(_commitment(detail_row), pop_commitment),
+        'actions_per90': _percentile_rank(_actions_per90(detail_row), pop_a90),
+        'quality': max(0.0, min(float(quality_pct or 0), 100.0)),
+        'importance_score': _percentile_rank(_num(detail_row.get('importance_score')), pop_imp),
+        'influence_score': _percentile_rank(_num(detail_row.get('influence_score')), pop_inf),
+    }
+
+
+def _build_player_card_radar_data(detail_row, population_rows):
+    """
+    Radar mini (como el de las cards): percentiles dentro del equipo/filtro.
+
+    Ejes (orden estable): A/90, Éxito, Participación, Influencia, Importancia.
+    """
+    if not isinstance(detail_row, dict):
+        detail_row = {}
+    rows = [r for r in (population_rows or []) if isinstance(r, dict)]
+
+    def _num(value, default=0.0):
+        try:
+            return float(value or 0)
+        except Exception:
+            return float(default)
+
+    def _actions_per90(row):
+        try:
+            if row.get('actions_per90') is not None:
+                return float(row.get('actions_per90') or 0)
+        except Exception:
+            pass
+        minutes = max(0.0, _num(row.get('minutes')))
+        total_actions = max(0.0, _num(row.get('total_actions')))
+        return round((total_actions / minutes) * 90.0, 1) if minutes > 0 else 0.0
+
+    def _part_pct(row):
+        part_matches = _num(row.get('participation_matches_pct'))
+        participation = _num(row.get('participation_pct'))
+        return part_matches if part_matches > 0 else participation
+
+    pop_a90 = [_actions_per90(r) for r in rows]
+    pop_sr = [_num(r.get('success_rate')) for r in rows]
+    pop_part = [_part_pct(r) for r in rows]
+    pop_inf = [_num(r.get('influence_score')) for r in rows]
+    pop_imp = [_num(r.get('importance_score')) for r in rows]
+
+    p_a90 = _percentile_rank(_actions_per90(detail_row), pop_a90)
+    p_sr = _percentile_rank(_num(detail_row.get('success_rate')), pop_sr)
+    p_part = _percentile_rank(_part_pct(detail_row), pop_part)
+    p_inf = _percentile_rank(_num(detail_row.get('influence_score')), pop_inf)
+    p_imp = _percentile_rank(_num(detail_row.get('importance_score')), pop_imp)
+
+    axes = [
+        {'key': 'A/90', 'value': p_a90, 'display': f"{_actions_per90(detail_row):.1f} A/90", 'pct_rank': int(round(p_a90))},
+        {'key': 'Éxito', 'value': p_sr, 'display': f"{_num(detail_row.get('success_rate')):.0f}%", 'pct_rank': int(round(p_sr))},
+        {'key': 'Part.', 'value': p_part, 'display': f"{_part_pct(detail_row):.0f}%", 'pct_rank': int(round(p_part))},
+        {'key': 'INF', 'value': p_inf, 'display': f"{_num(detail_row.get('influence_score')):.0f}", 'pct_rank': int(round(p_inf))},
+        {'key': 'IMP', 'value': p_imp, 'display': f"{_num(detail_row.get('importance_score')):.0f}", 'pct_rank': int(round(p_imp))},
+    ]
+
+    try:
+        import math  # noqa: WPS433
+
+        cx, cy, rmax = 50.0, 50.0, 34.0
+        n = len(axes)
+        pts = []
+        labels = []
+        for i, axis in enumerate(axes):
+            angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
+            rr = rmax * (max(0.0, min(float(axis.get('value', 0.0)), 100.0)) / 100.0)
+            x = cx + math.cos(angle) * rr
+            y = cy + math.sin(angle) * rr
+            pts.append((x, y))
+            lr = 46.0
+            lx = cx + math.cos(angle) * lr
+            ly = cy + math.sin(angle) * lr
+            anchor = 'middle'
+            if lx > cx + 4:
+                anchor = 'start'
+            elif lx < cx - 4:
+                anchor = 'end'
+            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': axis.get('key', ''), 'anchor': anchor})
+        pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
+        return {'axes': axes, 'polygon_points': pts_str, 'labels': labels}
+    except Exception:
+        return {'axes': axes, 'polygon_points': '', 'labels': []}
 
 
 @login_required
@@ -58132,8 +58291,9 @@ def player_pdf(request, player_id):
 
     pdf_style = 'club'
     pdf_palette = _team_pdf_palette(primary_team, pdf_style)
-    player_percentiles = _build_player_percentiles(detail, matches)
-    radar_data = _build_player_radar_data(detail, player_percentiles=player_percentiles)
+    staff_percentiles = {}
+    radar_data = {'axes': [], 'path_d': '', 'points': [], 'labels': []}
+    card_radar_data = {'axes': [], 'polygon_points': '', 'labels': []}
     player_initials = ''
     try:
         parts = [p for p in re.split(r'\\s+', str(player.name or '').strip()) if p]
@@ -58465,13 +58625,17 @@ def player_pdf(request, player_id):
     except Exception:
         pass
 
-    # Radar PDF: incorpora asistencia a entrenos si existe (compromiso = participación + entrenos).
+    # Radars PDF (sin JS):
+    # - Radar staff (Compromiso/Esfuerzo/Calidad/Importancia/Influencia) con labels visibles.
+    # - Radar mini tipo card (A/90, Éxito, Participación, INF, IMP).
     try:
-        radar_data = _build_player_radar_data(
-            detail,
-            player_percentiles=player_percentiles,
-            attendance_pct=(attendance_summary or {}).get('completion_pct', 0.0),
-        )
+        attendance_pct_val = float((attendance_summary or {}).get('completion_pct', 0.0) or 0.0)
+    except Exception:
+        attendance_pct_val = 0.0
+    try:
+        staff_percentiles = _build_player_staff_percentiles(detail, matches, attendance_pct=attendance_pct_val)
+        radar_data = _build_player_radar_data(detail, player_percentiles=staff_percentiles, attendance_pct=attendance_pct_val)
+        card_radar_data = _build_player_card_radar_data(detail, matches)
     except Exception:
         pass
 
@@ -58520,8 +58684,9 @@ def player_pdf(request, player_id):
             'general_kpis': general_kpis,
             'advanced_kpis': advanced_kpis,
             'visual_kpis': visual_kpis,
-            'player_percentiles': player_percentiles,
+            'player_percentiles': staff_percentiles,
             'radar_data': radar_data,
+            'card_radar_data': card_radar_data,
             'played_matches': played_matches,
             'upcoming_matches': upcoming_matches,
             'latest_played_match': latest_played_match,
