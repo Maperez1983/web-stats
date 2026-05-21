@@ -382,16 +382,24 @@
       }
       .muted { color: rgba(230,238,247,0.70); }
 
-      .charts-row { display: table; width: 100%; table-layout: fixed; margin-top: 10px; }
-      .charts-cell { display: table-cell; width: 50%; vertical-align: top; padding-right: 10px; }
-      .charts-cell:last-child { padding-right: 0; }
+      /* Gráficos: mejor en horizontal (a ancho completo) para lectura rápida. */
+      .charts-row { margin-top: 10px; }
+      .charts-cell { width: 100%; margin-top: 10px; }
+      .charts-cell:first-child { margin-top: 0; }
       .chart-card { border: 1px solid rgba(255,255,255,0.10); border-radius: 14px; background: rgba(6, 13, 24, 0.72); padding: 10px; break-inside: avoid; page-break-inside: avoid; }
-      .chart-title { font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 900; color: rgba(230,238,247,0.70); }
+      .chart-head { display: table; width: 100%; table-layout: fixed; }
+      .chart-head-row { display: table-row; }
+      .chart-title { display: table-cell; font-size: 9.6px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 1000; color: rgba(230,238,247,0.70); }
+      .chart-legend { display: table-cell; text-align: right; vertical-align: middle; }
+      .legend-item { display: inline-block; margin-left: 10px; font-size: 9.6px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(230,238,247,0.70); }
+      .legend-swatch { display:inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.14); }
+      .legend-swatch.goal { background: rgba(15, 122, 53, 0.92); }
+      .legend-swatch.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
       .spark-wrap { height: 70px; position: relative; }
-      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 10px; transform: translateX(-50%); }
-      .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
+      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 14px; transform: translateX(-50%); }
+      .spark-bar { width: 14px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
       .spark-label { margin-top: 4px; font-size: 9px; color: rgba(230,238,247,0.70); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -866,16 +874,23 @@
             <div class="section-title">Partidos{% if matches_for_report_pages|length > 1 %} · Página {{ forloop.counter }}/{{ matches_for_report_pages|length }}{% endif %}</div>
 
             {% if forloop.first %}
-            {% if matchday_minutes_chart_rows or matchday_ga_chart_rows %}
-              <div class="charts-row">
-                <div class="charts-cell">
-                  <div class="chart-card">
-                    <div class="chart-title">Minutos por jornada</div>
-                    {% if matchday_minutes_chart_rows %}
-                      {% for row in matchday_minutes_chart_rows %}
-                        <table class="spark-table">
-                          <tr>
-                          {% for item in row %}
+	            {% if matchday_minutes_chart_rows or matchday_ga_chart_rows %}
+	              <div class="charts-row">
+	                <div class="charts-cell">
+	                  <div class="chart-card">
+	                    <div class="chart-head">
+	                      <div class="chart-head-row">
+	                        <div class="chart-title">Minutos por jornada</div>
+	                        <div class="chart-legend">
+	                          <span class="legend-item"><span class="legend-swatch goal"></span>Minutos</span>
+	                        </div>
+	                      </div>
+	                    </div>
+	                    {% if matchday_minutes_chart_rows %}
+	                      {% for row in matchday_minutes_chart_rows %}
+	                        <table class="spark-table">
+	                          <tr>
+	                          {% for item in row %}
                               <td>
                                 <div class="spark-wrap">
                                   <div class="spark-stack">
@@ -891,16 +906,24 @@
                       {% endfor %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="charts-cell">
-                  <div class="chart-card">
-                    <div class="chart-title">Goles + asistencias por jornada</div>
-                    {% if matchday_ga_chart_rows %}
-                      {% for row in matchday_ga_chart_rows %}
-                        <table class="spark-table">
-                          <tr>
+	                    {% endif %}
+	                  </div>
+	                </div>
+	                <div class="charts-cell">
+	                  <div class="chart-card">
+	                    <div class="chart-head">
+	                      <div class="chart-head-row">
+	                        <div class="chart-title">Goles + asistencias por jornada</div>
+	                        <div class="chart-legend">
+	                          <span class="legend-item"><span class="legend-swatch goal"></span>Goles</span>
+	                          <span class="legend-item"><span class="legend-swatch assist"></span>Asist.</span>
+	                        </div>
+	                      </div>
+	                    </div>
+	                    {% if matchday_ga_chart_rows %}
+	                      {% for row in matchday_ga_chart_rows %}
+	                        <table class="spark-table">
+	                          <tr>
                           {% for item in row %}
                               <td>
                                 <div class="spark-wrap">
