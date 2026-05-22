@@ -2077,10 +2077,12 @@
 			      else setStatus('No se pudo copiar automáticamente. Se mostrará el texto para copiar.', true);
 			      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
 			    };
-			    diagCopyBtn?.addEventListener('click', (event) => {
-			      event.preventDefault();
-			      void copyTacticsDiagnostics();
-			    });
+				    // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
+				    const diagBtn = document.getElementById('tpad-diag-copy');
+				    diagBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      void copyTacticsDiagnostics();
+				    });
 
 			    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {
