@@ -159,6 +159,11 @@ self.addEventListener('fetch', (event) => {{
       try {{
         // Importante: NO cachear HTML autenticado en runtime.
         // En iOS/PWA puede quedarse "pegado" a una versión vieja tras deploys.
+        // Bypass hard: si el usuario añade `?nocache=1`, forzamos a saltarnos cualquier caché intermedia.
+        // Útil para soporte cuando Safari/PWA queda enganchado a assets antiguos.
+        if (url.searchParams && url.searchParams.get('nocache') === '1') {{
+          return await fetch(req, {{ cache: 'reload' }});
+        }}
         return await fetch(req, {{ cache: 'no-store' }});
       }} catch (e) {{
         return caches.match(OFFLINE_URL);
