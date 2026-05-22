@@ -58420,6 +58420,8 @@ def player_pdf(request, player_id):
             v = str(value or '').strip().lower()
             if v in {'opponent', 'rival', 'club', 'team'}:
                 return 'opponent'
+            if v in {'both', 'mix', 'mixed', 'round+opponent', 'jornada+rival'}:
+                return 'both'
             return 'round'
 
         pdf_minutes_x_mode = _normalize_x_mode(pdf_minutes_x)
@@ -58434,11 +58436,20 @@ def player_pdf(request, player_id):
             raw_round = str(m.get('round') or '').strip()
             label_round = _safe_round_label(raw_round, idx)
             label_opp = _safe_opponent_label(m, idx)
+            def _pick_label(mode: str) -> str:
+                if mode == 'opponent':
+                    return label_opp
+                if mode == 'both':
+                    # Formato compacto para no romper el layout del PDF.
+                    return f"{label_round} · {label_opp}"
+                return label_round
+
             matchday_minutes_chart.append(
                 {
-                    'label': label_opp if pdf_minutes_x_mode == 'opponent' else label_round,
+                    'label': _pick_label(pdf_minutes_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
+                    'label_mode': pdf_minutes_x_mode,
                     'minutes': minutes_val,
                     # Incluso con 0', mostramos un tick mínimo para que se entienda que existe esa jornada.
                     'bar_px': (
@@ -58452,9 +58463,10 @@ def player_pdf(request, player_id):
             total_ga = goals_val + assists_val
             matchday_ga_chart.append(
                 {
-                    'label': label_opp if pdf_ga_x_mode == 'opponent' else label_round,
+                    'label': _pick_label(pdf_ga_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
+                    'label_mode': pdf_ga_x_mode,
                     'goals': goals_val,
                     'assists': assists_val,
                     'total': total_ga,
@@ -58542,6 +58554,10 @@ def player_pdf(request, player_id):
             y_max=ga_ymax,
             show_every=pdf_ga_show_every,
         )
+
+        # Metadatos para la template (leyendas).
+        minutes_x_label = 'Jornada' if pdf_minutes_x_mode == 'round' else ('Rival' if pdf_minutes_x_mode == 'opponent' else 'Jornada + rival')
+        ga_x_label = 'Jornada' if pdf_ga_x_mode == 'round' else ('Rival' if pdf_ga_x_mode == 'opponent' else 'Jornada + rival')
         matchday_ga_line = {
             'w': goals_series.get('w'),
             'h': goals_series.get('h'),
@@ -59009,6 +59025,8 @@ def player_pdf(request, player_id):
             'matchday_ga_chart_rows': matchday_ga_chart_rows,
             'matchday_minutes_line': matchday_minutes_line,
             'matchday_ga_line': matchday_ga_line,
+            'matchday_minutes_x_label': minutes_x_label if 'minutes_x_label' in locals() else 'Jornada',
+            'matchday_ga_x_label': ga_x_label if 'ga_x_label' in locals() else 'Jornada',
             'player_photo_src': player_photo_src,
             'player_photo_is_real': bool(player_photo_is_real),
             'player_initials': player_initials or '??',

@@ -1212,7 +1212,7 @@
                             {% endfor %}
                           </svg>
                         </div>
-                        <div class="chart-note">Línea de minutos por jornada (eje Y hasta {{ matchday_minutes_line.y_max }}').</div>
+                        <div class="chart-note">X: {{ matchday_minutes_x_label|default:"Jornada" }} · Línea de minutos (eje Y hasta {{ matchday_minutes_line.y_max }}').</div>
                       {% else %}
                         {% for row in matchday_minutes_chart_rows %}
                           <table class="spark-table">
@@ -1288,7 +1288,7 @@
                             {% endfor %}
                           </svg>
                         </div>
-                        <div class="chart-note">Líneas: verde = goles · amarillo = asistencias (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
+                        <div class="chart-note">X: {{ matchday_ga_x_label|default:"Jornada" }} · Líneas: verde = goles · amarillo = asistencias (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
                       {% else %}
                         {% for row in matchday_ga_chart_rows %}
                           <table class="spark-table">
