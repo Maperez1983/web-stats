@@ -13633,9 +13633,22 @@
 	    };
 	    const applyStageFitConstraint = () => {
 	      if (!stage || !viewportEl) return;
-	      const viewportRect = viewportEl?.getBoundingClientRect?.() || { width: viewportEl?.clientWidth || 0, height: viewportEl?.clientHeight || 0 };
-	      const vw = Math.max(0, Number(viewportRect.width) || 0);
-	      const vh = Math.max(0, Number(viewportRect.height) || 0);
+	      // Importante: NO podemos usar solo `viewportEl.height` como "alto disponible".
+	      // En CSS, `.pitch-viewport` no tiene un alto fijo: su alto depende del propio `.pitch-stage`
+	      // (aspect-ratio). Si calculamos el fit usando ese alto, creamos una dependencia circular:
+	      // un primer cálculo con poco alto -> encoge el stage -> el viewport se queda pequeño para siempre.
+	      const viewportRect = viewportEl?.getBoundingClientRect?.() || {
+	        width: viewportEl?.clientWidth || 0,
+	        height: viewportEl?.clientHeight || 0,
+	        top: 0,
+	      };
+	      const mainEl = viewportEl.closest?.('.pitch-main') || viewportEl.parentElement || viewportEl;
+	      const mainRect = mainEl?.getBoundingClientRect?.() || viewportRect;
+	      const vw = Math.max(0, Number(mainRect.width) || Number(viewportRect.width) || 0);
+	      // Altura disponible real dentro de la ventana (desde el top del viewport hasta el borde inferior).
+	      // Esto evita que el stage "se quede en miniatura" si el primer render midió un viewport pequeño.
+	      const top = Number(viewportRect.top) || 0;
+	      const vh = Math.max(0, (Number(window.innerHeight) || 0) - top - 12);
 	      if (vw < 10 || vh < 10) return;
 	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
 	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height

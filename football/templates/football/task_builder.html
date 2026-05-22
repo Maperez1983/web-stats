@@ -6606,12 +6606,23 @@
 					          lines.push(`ensureEditorStack=${ensureOk === null ? 'n/a' : (ensureOk ? 'ok' : 'fail')}`);
 					          lines.push(`form.fabricSrc=${form ? String(form.dataset.fabricSrc || '') : ''}`);
 					          lines.push(`form.tpadSrc=${form ? String(form.dataset.tpadSrc || '') : ''}`);
-					          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
-					          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
-					          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
-					          const svg = document.getElementById('task-pitch-surface');
-					          try { lines.push(`rect.svg=${JSON.stringify(snapRect(svg))}`); } catch (e) {}
-					          try { lines.push(`svg.viewBox=${svg ? String(svg.getAttribute('viewBox') || '') : ''}`); } catch (e) {}
+						          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
+						          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
+						          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
+						          try {
+						            const layout = document.querySelector('.pitch-layout');
+						            const main = document.querySelector('.pitch-main');
+						            const side = document.querySelector('.pitch-side');
+						            const panelBody = document.querySelector('.panel-body');
+						            lines.push(`rect.layout=${JSON.stringify(snapRect(layout))}`);
+						            lines.push(`rect.main=${JSON.stringify(snapRect(main))}`);
+						            lines.push(`rect.side=${JSON.stringify(snapRect(side))}`);
+						            lines.push(`rect.panelBody=${JSON.stringify(snapRect(panelBody))}`);
+						            lines.push(`win=${(window.innerWidth || 0)}x${(window.innerHeight || 0)} dpr=${String(window.devicePixelRatio || 1)}`);
+						          } catch (e) { /* ignore */ }
+						          const svg = document.getElementById('task-pitch-surface');
+						          try { lines.push(`rect.svg=${JSON.stringify(snapRect(svg))}`); } catch (e) {}
+						          try { lines.push(`svg.viewBox=${svg ? String(svg.getAttribute('viewBox') || '') : ''}`); } catch (e) {}
 					          try { lines.push(`svg.children=${svg ? String(svg.children?.length || 0) : '0'}`); } catch (e) {}
 					          try { lines.push(`canvas.attr=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
 					          try { lines.push(`canvas.prop=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
