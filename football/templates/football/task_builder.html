@@ -4575,11 +4575,10 @@
 					                          <button type="button" class="button" id="task-sim-record-quick" hidden title="Graba movimientos (keyframes + ruta suave) para convertirlo en un clip.">Grabar</button>
 					                          <button type="button" class="button danger" id="task-sim-remove" hidden>Eliminar paso</button>
 					                          <button type="button" class="button" id="task-sim-duplicate" hidden>Duplicar paso</button>
-					                          <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
+						                        <button type="button" class="button" id="task-sim-prev" hidden>Anterior</button>
 					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
 					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
 						                        </div>
-						                        {% if not tactics_mode %}
 						                        <details class="sim-advanced" id="task-sim-advanced" hidden>
 						                          <summary>Opciones avanzadas</summary>
 						                          <div class="sim-controls" style="margin-top:0.65rem;">
@@ -4661,10 +4660,8 @@
 						                            </label>
 						                          </div>
 						                        </details>
-						                        {% endif %}
 						                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
 						                        <input type="file" id="task-sim-video-file" accept="video/*" hidden />
-					                        {% if not tactics_mode %}
 					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
 					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
 					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
@@ -4709,7 +4706,6 @@
 					                            <button type="button" class="button" id="task-sim-ball-pass">Pase (2 seleccionados)</button>
 					                          </div>
 					                        </div>
-					                        {% endif %}
 					                        <div class="sim-steps" id="task-sim-steps" hidden></div>
 					                        <div class="sim-steps" id="task-sim-clips" hidden style="margin-top:0.65rem;"></div>
 					                        <div class="sim-meta" id="task-sim-meta" hidden>

@@ -917,10 +917,11 @@
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
 		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
-		    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
+				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
 				    const commandMenu = document.getElementById('task-command-menu');
+				    const uiModeLabel = document.getElementById('task-ui-mode-label');
 				    const focusToggleBtn = document.getElementById('task-focus-toggle');
 				    const focusExitBtn = document.getElementById('task-focus-exit');
 			    const simBtn = document.getElementById('task-sim-btn');
@@ -1791,12 +1792,12 @@
 	      if (!hintEl) return;
 	      hintEl.hidden = !visible;
 	    };
-		    (() => {
-		      if (!hintEl) return;
-		      let dismissed = false;
-		      if (canUseStorage) {
-		        try { dismissed = safeText(window.localStorage.getItem(HINT_STORAGE_KEY)) === '1'; } catch (e) { dismissed = false; }
-		      }
+	    (() => {
+	      if (!hintEl) return;
+	      let dismissed = false;
+	      if (canUseStorage) {
+	        try { dismissed = safeText(window.localStorage.getItem(HINT_STORAGE_KEY)) === '1'; } catch (e) { dismissed = false; }
+	      }
 		      // En modo Táctica (vista única) el hint ocupa espacio/ruido; usa “Guía” si hace falta.
 		      try {
 		        if (document.body && document.body.classList.contains('tactics-mode')) dismissed = true;
@@ -1810,6 +1811,50 @@
 	        }
 	      });
 	    })();
+
+	    // UI mode: Básico vs Avanzado.
+	    // - Básico: oculta herramientas "pro" para que cualquiera pueda usar la pizarra sin ruido.
+	    // - Avanzado: muestra overlays tácticos configurables y utilidades extra.
+	    const UI_MODE_STORAGE_KEY = 'tpad_ui_mode_v1';
+	    const readUiMode = () => {
+	      if (!canUseStorage) return 'basic';
+	      try {
+	        const raw = safeText(window.localStorage.getItem(UI_MODE_STORAGE_KEY));
+	        return raw === 'advanced' ? 'advanced' : 'basic';
+	      } catch (e) {
+	        return 'basic';
+	      }
+	    };
+	    const writeUiMode = (mode) => {
+	      if (!canUseStorage) return;
+	      try { window.localStorage.setItem(UI_MODE_STORAGE_KEY, mode === 'advanced' ? 'advanced' : 'basic'); } catch (e) { /* ignore */ }
+	    };
+	    let uiMode = readUiMode();
+	    const setCommandButtonHidden = (command, hidden) => {
+	      if (!commandMenu) return;
+	      const key = safeText(command);
+	      if (!key) return;
+	      const esc = (window.CSS && typeof window.CSS.escape === 'function') ? window.CSS.escape(key) : key.replace(/"/g, '\\"');
+	      const btn = commandMenu.querySelector(`button[data-command="${esc}"]`);
+	      if (!btn) return;
+	      btn.hidden = !!hidden;
+	    };
+	    const syncUiMode = () => {
+	      const advanced = uiMode === 'advanced';
+	      try { document.body.classList.toggle('tpad-ui-advanced', advanced); } catch (e) { /* ignore */ }
+	      if (uiModeLabel) uiModeLabel.textContent = advanced ? 'Avanzado' : 'Básico';
+	      // En básico escondemos herramientas que añaden complejidad visual.
+	      setCommandButtonHidden('tactical_overlays', !advanced);
+	      setCommandButtonHidden('lane_snap_toggle', !advanced);
+	      // Si el popover estaba abierto y cambiamos a básico, lo cerramos.
+	      try { if (!advanced && overlaysPopover) overlaysPopover.hidden = true; } catch (e) { /* ignore */ }
+	    };
+	    const toggleUiMode = () => {
+	      uiMode = uiMode === 'advanced' ? 'basic' : 'advanced';
+	      writeUiMode(uiMode);
+	      syncUiMode();
+	    };
+	    try { syncUiMode(); } catch (e) { /* ignore */ }
 
 		    const simStorageKey = (() => {
 		      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
@@ -2776,6 +2821,9 @@
 		    let tacticalHalfspacesVisible = !!initialTacticalPrefs.halfspaces;
 		    let tacticalOffsideVisible = !!initialTacticalPrefs.offside;
 		    let tacticalZone14Visible = !!initialTacticalPrefs.zone14;
+		    let tacticalGridVisible = !!initialTacticalPrefs.grid;
+		    let tacticalGridRows = clamp(Number.parseInt(String(initialTacticalPrefs.grid_rows || ''), 10) || 4, 2, 12);
+		    let tacticalGridCols = clamp(Number.parseInt(String(initialTacticalPrefs.grid_cols || ''), 10) || 6, 2, 12);
 
 		    let tacticalOverlayObjects = [];
 		    let tacticalOverlayFrame = null;
@@ -2790,6 +2838,9 @@
 		      if (overlayHalfspacesInput) overlayHalfspacesInput.checked = !!tacticalHalfspacesVisible;
 		      if (overlayOffsideInput) overlayOffsideInput.checked = !!tacticalOffsideVisible;
 		      if (overlayZone14Input) overlayZone14Input.checked = !!tacticalZone14Visible;
+		      if (overlayGridInput) overlayGridInput.checked = !!tacticalGridVisible;
+		      if (overlayGridRowsInput) overlayGridRowsInput.value = String(clamp(Number.parseInt(String(tacticalGridRows || 4), 10) || 4, 2, 12));
+		      if (overlayGridColsInput) overlayGridColsInput.value = String(clamp(Number.parseInt(String(tacticalGridCols || 6), 10) || 6, 2, 12));
 		    };
 		    const persistTacticalPrefs = () => {
 		      writeTacticalPrefs({
@@ -2801,6 +2852,9 @@
 		        halfspaces: !!tacticalHalfspacesVisible,
 		        offside: !!tacticalOffsideVisible,
 		        zone14: !!tacticalZone14Visible,
+		        grid: !!tacticalGridVisible,
+		        grid_rows: clamp(Number.parseInt(String(tacticalGridRows || 4), 10) || 4, 2, 12),
+		        grid_cols: clamp(Number.parseInt(String(tacticalGridCols || 6), 10) || 6, 2, 12),
 		      });
 		    };
 		    // Sincroniza el UI inicial con las prefs persistidas.
@@ -2883,6 +2937,27 @@
 		    const isRivalToken = (token) => {
 		      const tk = safeText(token?.data?.token_kind).toLowerCase();
 		      return tk.includes('rival') || tk === 'player_rival';
+		    };
+
+		    const buildGridOverlays = () => {
+		      if (!tacticalGridVisible) return [];
+		      const overlays = [];
+		      const { w, h } = worldSize();
+		      if (!w || !h) return overlays;
+		      const rows = clamp(Number.parseInt(String(tacticalGridRows || 4), 10) || 4, 2, 12);
+		      const cols = clamp(Number.parseInt(String(tacticalGridCols || 6), 10) || 6, 2, 12);
+		      const dash = [10, 12];
+		      const stroke = 'rgba(226,232,240,0.26)';
+		      const strokeWidth = 1;
+		      for (let r = 1; r < rows; r += 1) {
+		        const y = (h * r) / rows;
+		        overlays.push(makeOverlayLine([0, y, w, y], { overlay: 'grid-nm', dash, stroke, strokeWidth, opacity: 0.68 }));
+		      }
+		      for (let c = 1; c < cols; c += 1) {
+		        const x = (w * c) / cols;
+		        overlays.push(makeOverlayLine([x, 0, x, h], { overlay: 'grid-nm', dash, stroke, strokeWidth, opacity: 0.68 }));
+		      }
+		      return overlays;
 		    };
 
 		    const buildLaneSectorOverlays = () => {
@@ -3078,11 +3153,12 @@
 
 		    const renderTacticalOverlays = () => {
 		      clearTacticalOverlays();
-		      if (!(tacticalLanesVisible || tacticalSectorsVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) {
+		      if (!(tacticalGridVisible || tacticalLanesVisible || tacticalSectorsVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) {
 		        canvas.requestRenderAll();
 		        return;
 		      }
 		      const overlays = [
+		        ...buildGridOverlays(),
 		        ...buildLaneSectorOverlays(),
 		        ...buildHalfspacesOverlays(),
 		        ...buildOffsideOverlays(),
@@ -3103,7 +3179,7 @@
 		        tacticalOverlayObjects.forEach((obj) => {
 		          if (!obj) return;
 		          const overlay = safeText(obj?.data?.overlay);
-		          if (overlay === 'lanes' || overlay === 'sectors' || overlay === 'halfspaces' || overlay === 'offside' || overlay === 'zone14' || overlay === 'zone14-group' || overlay === 'offside-label' || overlay === 'zone14-label') {
+		          if (overlay === 'grid-nm' || overlay === 'lanes' || overlay === 'sectors' || overlay === 'halfspaces' || overlay === 'offside' || overlay === 'zone14' || overlay === 'zone14-group' || overlay === 'offside-label' || overlay === 'zone14-label') {
 		            try { canvas.sendToBack(obj); } catch (e) { /* ignore */ }
 		          }
 		        });
@@ -3112,7 +3188,7 @@
 		    };
 
 		    const scheduleTacticalOverlayRefresh = () => {
-		      if (!(tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalLanesVisible || tacticalSectorsVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) return;
+		      if (!(tacticalGridVisible || tacticalPassLinesVisible || tacticalSuperioritiesVisible || tacticalLanesVisible || tacticalSectorsVisible || tacticalHalfspacesVisible || tacticalOffsideVisible || tacticalZone14Visible)) return;
 		      tacticalOverlayDirty = true;
 		      if (tacticalOverlayFrame) return;
 		      tacticalOverlayFrame = window.requestAnimationFrame(() => {
@@ -5441,6 +5517,7 @@
 			      const command = safeText(button.dataset.command);
 			      if (!command) return;
 			      setCommandMenuOpen(false);
+			      if (command === 'ui_mode_toggle') { toggleUiMode(); return; }
 		      if (command === 'align_x') alignSelection('x');
 		      else if (command === 'align_y') alignSelection('y');
 		      else if (command === 'distribute_x') distributeSelection('x');
@@ -5571,6 +5648,9 @@
 		      tacticalHalfspacesVisible = !!overlayHalfspacesInput?.checked;
 		      tacticalOffsideVisible = !!overlayOffsideInput?.checked;
 		      tacticalZone14Visible = !!overlayZone14Input?.checked;
+		      tacticalGridVisible = !!overlayGridInput?.checked;
+		      tacticalGridRows = clamp(Number.parseInt(String(overlayGridRowsInput?.value || ''), 10) || tacticalGridRows || 4, 2, 12);
+		      tacticalGridCols = clamp(Number.parseInt(String(overlayGridColsInput?.value || ''), 10) || tacticalGridCols || 6, 2, 12);
 		      persistTacticalPrefs();
 		      syncTacticalOverlaysUi();
 		      closeOverlaysPopover();
@@ -5578,10 +5658,10 @@
 		      setStatus('Overlays actualizados.');
 		    });
 		    const OVERLAY_PRESETS = {
-		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false, halfspaces: false, offside: false, zone14: false },
-		      grid: { snap: true, lanes: true, sectors: true, passlines: false, superiorities: false, halfspaces: true, offside: false, zone14: false },
-		      analysis: { snap: false, lanes: false, sectors: false, passlines: true, superiorities: true, halfspaces: false, offside: false, zone14: true },
-		      full: { snap: true, lanes: true, sectors: true, passlines: true, superiorities: true, halfspaces: true, offside: false, zone14: true },
+		      clean: { snap: false, lanes: false, sectors: false, passlines: false, superiorities: false, halfspaces: false, offside: false, zone14: false, grid: false, grid_rows: 4, grid_cols: 6 },
+		      grid: { snap: true, lanes: true, sectors: true, passlines: false, superiorities: false, halfspaces: true, offside: false, zone14: false, grid: true, grid_rows: 4, grid_cols: 6 },
+		      analysis: { snap: false, lanes: false, sectors: false, passlines: true, superiorities: true, halfspaces: false, offside: false, zone14: true, grid: false, grid_rows: 4, grid_cols: 6 },
+		      full: { snap: true, lanes: true, sectors: true, passlines: true, superiorities: true, halfspaces: true, offside: false, zone14: true, grid: true, grid_rows: 4, grid_cols: 6 },
 		    };
 		    overlaysPresetSelect?.addEventListener('change', () => {
 		      const key = safeText(overlaysPresetSelect.value, 'custom');
@@ -5596,6 +5676,9 @@
 		      if (overlayHalfspacesInput) overlayHalfspacesInput.checked = !!preset.halfspaces;
 		      if (overlayOffsideInput) overlayOffsideInput.checked = !!preset.offside;
 		      if (overlayZone14Input) overlayZone14Input.checked = !!preset.zone14;
+		      if (overlayGridInput) overlayGridInput.checked = !!preset.grid;
+		      if (overlayGridRowsInput) overlayGridRowsInput.value = String(clamp(Number.parseInt(String(preset.grid_rows || 4), 10) || 4, 2, 12));
+		      if (overlayGridColsInput) overlayGridColsInput.value = String(clamp(Number.parseInt(String(preset.grid_cols || 6), 10) || 6, 2, 12));
 		      try { overlaysApplyBtn?.click?.(); } catch (e) { /* ignore */ }
 		      setStatus('Preset aplicado.');
 		    });
