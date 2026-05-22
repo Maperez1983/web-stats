@@ -1912,16 +1912,60 @@
                   {% endfor %}
                 </select>
               </div>
+              <div>
+                <label for="pdf-charts-preview-player">Vista previa</label>
+                <select id="pdf-charts-preview-player">
+                  <option value="">—</option>
+                  {% for p in coach_player_options %}
+                  <option value="{{ p.id }}">{{ p.name }}{% if p.number %} · #{{ p.number }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div style="align-self:end; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button type="button" class="workspace-tab" id="pdf-charts-preview-html">Abrir HTML</button>
+                <button type="button" class="workspace-tab" id="pdf-charts-preview-pdf">Abrir PDF</button>
+              </div>
             </form>
 
             <div class="summary-mini-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
               <article class="summary-mini-item">
                 <div class="label">Minutos por partido</div>
                 <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-metric" style="margin-bottom:0.3rem;">Variable (Y)</label>
+                  <select id="pdf-charts-minutes-metric">
+                    <option value="minutes">Minutos</option>
+                    <option value="actions">Acciones</option>
+                    <option value="success_rate">Tasa de éxito (%)</option>
+                    <option value="goals">Goles</option>
+                    <option value="assists">Asistencias</option>
+                    <option value="ga_total">Goles+Asist.</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-metric2" style="margin-bottom:0.3rem;">2ª serie (opcional)</label>
+                  <select id="pdf-charts-minutes-metric2">
+                    <option value="">—</option>
+                    <option value="minutes">Minutos</option>
+                    <option value="actions">Acciones</option>
+                    <option value="success_rate">Tasa de éxito (%)</option>
+                    <option value="goals">Goles</option>
+                    <option value="assists">Asistencias</option>
+                    <option value="ga_total">Goles+Asist.</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem;">
                   <label for="pdf-charts-minutes-type" style="margin-bottom:0.3rem;">Tipo</label>
                   <select id="pdf-charts-minutes-type">
                     <option value="line">Línea</option>
                     <option value="bars">Barras</option>
+                    <option value="area">Área</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-dataset" style="margin-bottom:0.3rem;">Datos</label>
+                  <select id="pdf-charts-minutes-dataset">
+                    <option value="all">Todos los partidos</option>
+                    <option value="played">Solo jugados</option>
                   </select>
                 </div>
                 <div style="margin-top:0.55rem;">
@@ -1952,14 +1996,55 @@
                     </select>
                   </div>
                 </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-showvalues" style="margin-bottom:0.3rem;">Valores</label>
+                  <select id="pdf-charts-minutes-showvalues">
+                    <option value="none">Ocultar</option>
+                    <option value="last">Solo último</option>
+                    <option value="all">Todos</option>
+                  </select>
+                </div>
               </article>
               <article class="summary-mini-item">
                 <div class="label">Goles + asistencias</div>
+                <div style="margin-top:0.55rem; display:grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                  <div>
+                    <label for="pdf-charts-ga-metric" style="margin-bottom:0.3rem;">Serie A</label>
+                    <select id="pdf-charts-ga-metric">
+                      <option value="goals">Goles</option>
+                      <option value="assists">Asistencias</option>
+                      <option value="ga_total">Goles+Asist.</option>
+                      <option value="minutes">Minutos</option>
+                      <option value="actions">Acciones</option>
+                      <option value="success_rate">Tasa de éxito (%)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="pdf-charts-ga-metric2" style="margin-bottom:0.3rem;">Serie B</label>
+                    <select id="pdf-charts-ga-metric2">
+                      <option value="assists">Asistencias</option>
+                      <option value="goals">Goles</option>
+                      <option value="">—</option>
+                      <option value="ga_total">Goles+Asist.</option>
+                      <option value="minutes">Minutos</option>
+                      <option value="actions">Acciones</option>
+                      <option value="success_rate">Tasa de éxito (%)</option>
+                    </select>
+                  </div>
+                </div>
                 <div style="margin-top:0.55rem;">
                   <label for="pdf-charts-ga-type" style="margin-bottom:0.3rem;">Tipo</label>
                   <select id="pdf-charts-ga-type">
                     <option value="line">Líneas (2 series)</option>
                     <option value="bars">Barras (stack)</option>
+                    <option value="area">Área</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-ga-dataset" style="margin-bottom:0.3rem;">Datos</label>
+                  <select id="pdf-charts-ga-dataset">
+                    <option value="all">Todos los partidos</option>
+                    <option value="played">Solo jugados</option>
                   </select>
                 </div>
                 <div style="margin-top:0.55rem;">
@@ -1990,6 +2075,14 @@
                       <option value="5">5</option>
                     </select>
                   </div>
+                </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-ga-showvalues" style="margin-bottom:0.3rem;">Valores</label>
+                  <select id="pdf-charts-ga-showvalues">
+                    <option value="none">Ocultar</option>
+                    <option value="last">Solo último</option>
+                    <option value="all">Todos</option>
+                  </select>
                 </div>
               </article>
             </div>
@@ -2067,14 +2160,27 @@
         const scopeSelect = document.getElementById('pdf-charts-scope');
         const playerWrap = document.getElementById('pdf-charts-player-wrap');
         const playerSelect = document.getElementById('pdf-charts-player');
+        const previewPlayerSelect = document.getElementById('pdf-charts-preview-player');
+        const previewHtmlBtn = document.getElementById('pdf-charts-preview-html');
+        const previewPdfBtn = document.getElementById('pdf-charts-preview-pdf');
+
+        const minutesMetric = document.getElementById('pdf-charts-minutes-metric');
+        const minutesMetric2 = document.getElementById('pdf-charts-minutes-metric2');
         const minutesType = document.getElementById('pdf-charts-minutes-type');
+        const minutesDataset = document.getElementById('pdf-charts-minutes-dataset');
         const minutesX = document.getElementById('pdf-charts-minutes-x');
         const minutesEvery = document.getElementById('pdf-charts-minutes-every');
         const minutesYmax = document.getElementById('pdf-charts-minutes-ymax');
+        const minutesShowValues = document.getElementById('pdf-charts-minutes-showvalues');
+
+        const gaMetric = document.getElementById('pdf-charts-ga-metric');
+        const gaMetric2 = document.getElementById('pdf-charts-ga-metric2');
         const gaType = document.getElementById('pdf-charts-ga-type');
+        const gaDataset = document.getElementById('pdf-charts-ga-dataset');
         const gaX = document.getElementById('pdf-charts-ga-x');
         const gaEvery = document.getElementById('pdf-charts-ga-every');
         const gaYmax = document.getElementById('pdf-charts-ga-ymax');
+        const gaShowValues = document.getElementById('pdf-charts-ga-showvalues');
         const saveBtn = document.getElementById('pdf-charts-save');
         const resetBtn = document.getElementById('pdf-charts-reset');
         const statusEl = document.getElementById('pdf-charts-status');
@@ -2119,14 +2225,22 @@
           const v = (value && typeof value === 'object') ? value : {};
           const minutes = (v.minutes && typeof v.minutes === 'object') ? v.minutes : {};
           const ga = (v.ga && typeof v.ga === 'object') ? v.ga : {};
+          if (minutesMetric) minutesMetric.value = String(minutes.metric || 'minutes');
+          if (minutesMetric2) minutesMetric2.value = String(minutes.metric2 || '');
           if (minutesType) minutesType.value = String(minutes.type || 'line');
+          if (minutesDataset) minutesDataset.value = String(minutes.dataset || 'all');
           if (minutesX) minutesX.value = String(minutes.x || 'round');
           if (minutesEvery) minutesEvery.value = String(minutes.show_every || 2);
           if (minutesYmax) minutesYmax.value = String(minutes.y_max || 'auto');
+          if (minutesShowValues) minutesShowValues.value = String(minutes.show_values || 'none');
+          if (gaMetric) gaMetric.value = String(ga.metric || 'goals');
+          if (gaMetric2) gaMetric2.value = String(ga.metric2 || 'assists');
           if (gaType) gaType.value = String(ga.type || 'line');
+          if (gaDataset) gaDataset.value = String(ga.dataset || 'all');
           if (gaX) gaX.value = String(ga.x || 'round');
           if (gaEvery) gaEvery.value = String(ga.show_every || 2);
           if (gaYmax) gaYmax.value = String(ga.y_max || 'auto');
+          if (gaShowValues) gaShowValues.value = String(ga.show_values || 'none');
         };
 
         const loadCurrent = async () => {
@@ -2163,18 +2277,26 @@
             return;
           }
           const payload = {
-            version: 1,
+            version: 2,
             minutes: {
+              metric: String(minutesMetric?.value || 'minutes'),
+              metric2: String(minutesMetric2?.value || ''),
               type: String(minutesType?.value || 'line'),
+              dataset: String(minutesDataset?.value || 'all'),
               x: String(minutesX?.value || 'round'),
               show_every: parseInt(String(minutesEvery?.value || '2'), 10) || 2,
               y_max: String(minutesYmax?.value || 'auto'),
+              show_values: String(minutesShowValues?.value || 'none'),
             },
             ga: {
+              metric: String(gaMetric?.value || 'goals'),
+              metric2: String(gaMetric2?.value || 'assists'),
               type: String(gaType?.value || 'line'),
+              dataset: String(gaDataset?.value || 'all'),
               x: String(gaX?.value || 'round'),
               show_every: parseInt(String(gaEvery?.value || '2'), 10) || 2,
               y_max: String(gaYmax?.value || 'auto'),
+              show_values: String(gaShowValues?.value || 'none'),
             },
           };
           setStatus('Guardando…');
@@ -2204,6 +2326,24 @@
 
         // Inicializa UI.
         if (scopeSelect) scopeChanged();
+
+        const openPreview = (asPdf) => {
+          const pid = String(previewPlayerSelect?.value || '').trim();
+          if (!pid) {
+            setStatus('Selecciona un jugador en "Vista previa".', true);
+            return;
+          }
+          const workspace = params.get('workspace');
+          const team = params.get('team');
+          const qs = new URLSearchParams();
+          if (workspace) qs.set('workspace', workspace);
+          if (team) qs.set('team', team);
+          qs.set('scope', 'all');
+          qs.set('format', asPdf ? 'pdf' : 'html');
+          window.open(`/player/${encodeURIComponent(pid)}/pdf/?${qs.toString()}`, '_blank');
+        };
+        previewHtmlBtn?.addEventListener('click', () => openPreview(false));
+        previewPdfBtn?.addEventListener('click', () => openPreview(true));
       })();
     </script>
     {% endif %}

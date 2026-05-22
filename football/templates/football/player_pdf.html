@@ -1187,9 +1187,12 @@
                   <div class="chart-card">
                     <div class="chart-head">
                       <div class="chart-head-row">
-                        <div class="chart-title">Minutos por jornada</div>
+                        <div class="chart-title">{{ matchday_minutes_metric_label|default:"Minutos" }} por jornada</div>
                         <div class="chart-legend">
-                          <span class="legend-item"><span class="legend-swatch goal"></span>Minutos</span>
+                          <span class="legend-item"><span class="legend-swatch goal"></span>{{ matchday_minutes_metric_label|default:"Minutos" }}</span>
+                          {% if matchday_minutes_metric2_label %}
+                            <span class="legend-item"><span class="legend-swatch assist"></span>{{ matchday_minutes_metric2_label }}</span>
+                          {% endif %}
                         </div>
                       </div>
                     </div>
@@ -1203,16 +1206,39 @@
                             {% endfor %}
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.mt }}" x2="{{ matchday_minutes_line.ml }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
+                            {% if matchday_minutes_line.chart_type == 'area' %}
+                              {% if matchday_minutes_line.area_d %}
+                                <path d="{{ matchday_minutes_line.area_d }}" fill="rgba(15, 122, 53, 0.18)" stroke="none"></path>
+                              {% endif %}
+                              {% if matchday_minutes_line.area2_d %}
+                                <path d="{{ matchday_minutes_line.area2_d }}" fill="rgba(255, 181, 0, 0.14)" stroke="none"></path>
+                              {% endif %}
+                            {% endif %}
                             <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            {% if matchday_minutes_line.path2_d %}
+                              <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            {% endif %}
                             {% for p in matchday_minutes_line.points %}
                               <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              {% if matchday_minutes_line.show_values == 'all' or matchday_minutes_line.show_values == 'last' %}
+                                {% if matchday_minutes_line.show_values == 'all' or forloop.last %}
+                                  {% if p.value and p.value|floatformat:0 != '0' %}
+                                    <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+                                  {% endif %}
+                                {% endif %}
+                              {% endif %}
                               {% if p.show_label %}
                                 <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
+                            {% if matchday_minutes_line.points2 %}
+                              {% for p in matchday_minutes_line.points2 %}
+                                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              {% endfor %}
+                            {% endif %}
                           </svg>
                         </div>
-                        <div class="chart-note">X: {{ matchday_minutes_x_label|default:"Jornada" }} · Línea de minutos (eje Y hasta {{ matchday_minutes_line.y_max }}').</div>
+                        <div class="chart-note">X: {{ matchday_minutes_x_label|default:"Jornada" }} · {{ matchday_minutes_metric_label|default:"Minutos" }} (eje Y hasta {{ matchday_minutes_line.y_max }}).</div>
                       {% else %}
                         {% for row in matchday_minutes_chart_rows %}
                           <table class="spark-table">
@@ -1226,7 +1252,9 @@
                                       </div>
                                     </div>
                                     <div class="spark-label">{{ item.label }}</div>
-                                    <div class="spark-value">{{ item.minutes }}'</div>
+                                    <div class="spark-value">
+                                      {{ item.v1|default:0|floatformat:0 }}{% if item.metric == 'minutes' %}'{% endif %}
+                                    </div>
                                   </td>
                                 {% else %}
                                   <td class="spark-empty">
@@ -1239,7 +1267,7 @@
                             </tr>
                           </table>
                         {% endfor %}
-                        <div class="chart-note">Cada barra representa los minutos jugados en esa jornada.</div>
+                        <div class="chart-note">Cada barra representa {{ matchday_minutes_metric_label|default:"la variable" }} en esa jornada.</div>
                       {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>
@@ -1250,45 +1278,65 @@
                   <div class="chart-card">
                     <div class="chart-head">
                       <div class="chart-head-row">
-                        <div class="chart-title">Goles + asistencias por jornada</div>
+                        <div class="chart-title">{{ matchday_ga_metric_label|default:"Goles" }}{% if matchday_ga_metric2_label %} + {{ matchday_ga_metric2_label }}{% endif %} por jornada</div>
                         <div class="chart-legend">
-                          <span class="legend-item"><span class="legend-swatch goal"></span>Goles</span>
-                          <span class="legend-item"><span class="legend-swatch assist"></span>Asist.</span>
+                          <span class="legend-item"><span class="legend-swatch goal"></span>{{ matchday_ga_metric_label|default:"Serie A" }}</span>
+                          {% if matchday_ga_metric2_label %}
+                            <span class="legend-item"><span class="legend-swatch assist"></span>{{ matchday_ga_metric2_label }}</span>
+                          {% endif %}
                         </div>
                       </div>
                     </div>
                     {% if matchday_ga_chart_rows %}
                       {% if matchday_ga_line %}
                         <div class="linechart">
-                          <svg viewBox="0 0 {{ matchday_ga_line.w }} {{ matchday_ga_line.h }}" role="img" aria-label="Goles y asistencias por jornada (línea)">
+                          <svg viewBox="0 0 {{ matchday_ga_line.w }} {{ matchday_ga_line.h }}" role="img" aria-label="Series por jornada (línea)">
                             {% for t in matchday_ga_line.ticks %}
                               <line x1="{{ matchday_ga_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ t.y }}" stroke="rgba(148,163,184,0.35)" stroke-width="1"></line>
                               <text x="8" y="{{ t.y|add:'3' }}" fill="rgba(71,85,105,0.92)" font-size="9.4" font-weight="900">{{ t.v }}</text>
                             {% endfor %}
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.mt }}" x2="{{ matchday_ga_line.ml }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
-                            <path d="{{ matchday_ga_line.path_goals_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-                            <path d="{{ matchday_ga_line.path_assists_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            {% if matchday_ga_line.chart_type == 'area' %}
+                              {% if matchday_ga_line.area_a_d %}
+                                <path d="{{ matchday_ga_line.area_a_d }}" fill="rgba(15, 122, 53, 0.18)" stroke="none"></path>
+                              {% endif %}
+                              {% if matchday_ga_line.area_b_d %}
+                                <path d="{{ matchday_ga_line.area_b_d }}" fill="rgba(255, 181, 0, 0.14)" stroke="none"></path>
+                              {% endif %}
+                            {% endif %}
+                            <path d="{{ matchday_ga_line.path_a_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            {% if matchday_ga_line.path_b_d %}
+                              <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            {% endif %}
                             {% for p in matchday_ga_line.x_points %}
                               {% if p.show_label %}
                                 <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
-                            {% for p in matchday_ga_line.goals_points %}
+                            {% for p in matchday_ga_line.a_points %}
                               <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
-                              {% if p.value and p.value|floatformat:0 != '0' %}
-                                <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+                              {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
+                                {% if matchday_ga_line.show_values == 'all' or forloop.last %}
+                                  {% if p.value and p.value|floatformat:0 != '0' %}
+                                    <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+                                  {% endif %}
+                                {% endif %}
                               {% endif %}
                             {% endfor %}
-                            {% for p in matchday_ga_line.assists_points %}
+                            {% for p in matchday_ga_line.b_points %}
                               <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
-                              {% if p.value and p.value|floatformat:0 != '0' %}
-                                <text x="{{ p.x|add:'7' }}" y="{{ p.val_y }}" text-anchor="start" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+                              {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}
+                                {% if matchday_ga_line.show_values == 'all' or forloop.last %}
+                                  {% if p.value and p.value|floatformat:0 != '0' %}
+                                    <text x="{{ p.x|add:'7' }}" y="{{ p.val_y }}" text-anchor="start" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+                                  {% endif %}
+                                {% endif %}
                               {% endif %}
                             {% endfor %}
                           </svg>
                         </div>
-                        <div class="chart-note">X: {{ matchday_ga_x_label|default:"Jornada" }} · Líneas: verde = goles · amarillo = asistencias (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
+                        <div class="chart-note">X: {{ matchday_ga_x_label|default:"Jornada" }} · Series A/B (eje Y hasta {{ matchday_ga_line.y_max }}).</div>
                       {% else %}
                         {% for row in matchday_ga_chart_rows %}
                           <table class="spark-table">
@@ -1298,11 +1346,11 @@
                                   <td class="{% if item.is_zero %}spark-zero{% endif %}">
                                     <div class="spark-wrap">
                                       <div class="spark-stack">
-                                        {% if item.goals_px %}
-                                          <div class="spark-bar goal" style="height: {{ item.goals_px }}px;"></div>
+                                        {% if item.v1_px %}
+                                          <div class="spark-bar goal" style="height: {{ item.v1_px }}px;"></div>
                                         {% endif %}
-                                        {% if item.assists_px %}
-                                          <div class="spark-bar assist" style="height: {{ item.assists_px }}px;"></div>
+                                        {% if item.v2_px %}
+                                          <div class="spark-bar assist" style="height: {{ item.v2_px }}px;"></div>
                                         {% endif %}
                                         {% if item.is_zero %}
                                           <div class="spark-bar zero" style="height: 2px; margin-top: 2px;"></div>
@@ -1310,11 +1358,11 @@
                                       </div>
                                     </div>
                                     <div class="spark-label">{{ item.label }}</div>
-                                    {% if item.total > 0 %}
-                                      <div class="spark-value"><span class="g">{{ item.goals }}</span> · <span class="a">{{ item.assists }}</span></div>
-                                    {% else %}
-                                      <div class="spark-value">—</div>
-                                    {% endif %}
+                                    <div class="spark-value">
+                                      {% if item.is_zero %}—{% else %}
+                                        <span class="g">{{ item.v1|default:0|floatformat:0 }}</span>{% if item.metric2 %} · <span class="a">{{ item.v2|default:0|floatformat:0 }}</span>{% endif %}
+                                      {% endif %}
+                                    </div>
                                   </td>
                                 {% else %}
                                   <td class="spark-empty">
@@ -1327,7 +1375,7 @@
                             </tr>
                           </table>
                         {% endfor %}
-                        <div class="chart-note">Verde = goles · Amarillo = asistencias. Altura = volumen.</div>
+                        <div class="chart-note">Series A/B. Altura = volumen.</div>
                       {% endif %}
                     {% else %}
                       <div class="muted" style="margin-top:8px;">Sin jornadas para graficar.</div>

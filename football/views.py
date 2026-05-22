@@ -58220,7 +58220,7 @@ def player_pdf(request, player_id):
         # Nota: NO usamos "fecha <= hoy" como único criterio, porque hay calendarios que
         # arrastran partidos con fecha pasada pero sin registros (y eso mostraba rivales incorrectos).
         is_played = bool(played_flag or actions > 0 or successes > 0 or goals > 0 or assists > 0 or has_result)
-        entry = {**entry, 'date_obj': match_date}
+        entry = {**entry, 'date_obj': match_date, 'is_played': is_played}
         normalized_raw_matches.append(entry)
         if is_played:
             played_matches.append(entry)
@@ -58254,6 +58254,14 @@ def player_pdf(request, player_id):
     pdf_ga_show_every = 2
     pdf_minutes_ymax_override = None
     pdf_ga_ymax_override = None
+    pdf_minutes_metric = 'minutes'
+    pdf_minutes_metric2 = ''
+    pdf_minutes_dataset = 'all'
+    pdf_minutes_show_values = 'none'
+    pdf_ga_metric = 'goals'
+    pdf_ga_metric2 = 'assists'
+    pdf_ga_dataset = 'all'
+    pdf_ga_show_values = 'none'
     try:
         ws = _get_active_workspace(request)
     except Exception:
@@ -58301,6 +58309,14 @@ def player_pdf(request, player_id):
                             return None
                     pdf_minutes_ymax_override = _parse_ymax(minutes_cfg.get('y_max'))
                     pdf_ga_ymax_override = _parse_ymax(ga_cfg.get('y_max'))
+                    pdf_minutes_metric = str(minutes_cfg.get('metric') or 'minutes').strip().lower()
+                    pdf_minutes_metric2 = str(minutes_cfg.get('metric2') or '').strip().lower()
+                    pdf_minutes_dataset = str(minutes_cfg.get('dataset') or 'all').strip().lower()
+                    pdf_minutes_show_values = str(minutes_cfg.get('show_values') or 'none').strip().lower()
+                    pdf_ga_metric = str(ga_cfg.get('metric') or 'goals').strip().lower()
+                    pdf_ga_metric2 = str(ga_cfg.get('metric2') or 'assists').strip().lower()
+                    pdf_ga_dataset = str(ga_cfg.get('dataset') or 'all').strip().lower()
+                    pdf_ga_show_values = str(ga_cfg.get('show_values') or 'none').strip().lower()
                 except Exception:
                     pdf_minutes_chart_type = 'line'
                     pdf_ga_chart_type = 'line'
@@ -58310,6 +58326,14 @@ def player_pdf(request, player_id):
                     pdf_ga_show_every = 2
                     pdf_minutes_ymax_override = None
                     pdf_ga_ymax_override = None
+                    pdf_minutes_metric = 'minutes'
+                    pdf_minutes_metric2 = ''
+                    pdf_minutes_dataset = 'all'
+                    pdf_minutes_show_values = 'none'
+                    pdf_ga_metric = 'goals'
+                    pdf_ga_metric2 = 'assists'
+                    pdf_ga_dataset = 'all'
+                    pdf_ga_show_values = 'none'
     except Exception:
         pdf_charts_preset = {}
         pdf_minutes_chart_type = 'line'
@@ -58320,6 +58344,14 @@ def player_pdf(request, player_id):
         pdf_ga_show_every = 2
         pdf_minutes_ymax_override = None
         pdf_ga_ymax_override = None
+        pdf_minutes_metric = 'minutes'
+        pdf_minutes_metric2 = ''
+        pdf_minutes_dataset = 'all'
+        pdf_minutes_show_values = 'none'
+        pdf_ga_metric = 'goals'
+        pdf_ga_metric2 = 'assists'
+        pdf_ga_dataset = 'all'
+        pdf_ga_show_values = 'none'
 
     # Gráficas por jornadas/partidos (minutos y G/A) para todo el periodo.
     matchday_minutes_chart = []
@@ -58343,9 +58375,49 @@ def player_pdf(request, player_id):
 
         chart_matches = sorted([m for m in raw_matches if isinstance(m, dict)], key=_chart_sort_key)
 
-        max_minutes = max((int(m.get('minutes') or 0) for m in chart_matches), default=0)
+        def _metric_value(metric: str, match_row: dict) -> float:
+            metric = str(metric or '').strip().lower()
+            try:
+                minutes_val = float(int(match_row.get('minutes') or 0))
+            except Exception:
+                minutes_val = 0.0
+            try:
+                actions_val = float(int(match_row.get('actions') or 0))
+            except Exception:
+                actions_val = 0.0
+            try:
+                successes_val = float(int(match_row.get('successes') or 0))
+            except Exception:
+                successes_val = 0.0
+            try:
+                goals_val = float(int(match_row.get('goals') or 0))
+            except Exception:
+                goals_val = 0.0
+            try:
+                assists_val = float(int(match_row.get('assists') or 0))
+            except Exception:
+                assists_val = 0.0
+
+            if metric in {'minutes', 'min'}:
+                return max(0.0, minutes_val)
+            if metric in {'actions', 'acc'}:
+                return max(0.0, actions_val)
+            if metric in {'success_rate', 'success', 'sr'}:
+                return max(0.0, (successes_val / actions_val) * 100.0) if actions_val > 0 else 0.0
+            if metric in {'goals', 'g'}:
+                return max(0.0, goals_val)
+            if metric in {'assists', 'a'}:
+                return max(0.0, assists_val)
+            if metric in {'ga_total', 'g+a', 'ga'}:
+                return max(0.0, goals_val + assists_val)
+            return max(0.0, minutes_val)
+
+        minutes_matches = chart_matches if str(pdf_minutes_dataset or '').lower() != 'played' else [m for m in chart_matches if m.get('is_played')]
+        ga_matches = chart_matches if str(pdf_ga_dataset or '').lower() != 'played' else [m for m in chart_matches if m.get('is_played')]
+
+        max_minutes = max((int(m.get('minutes') or 0) for m in minutes_matches), default=0)
         minutes_scale = max(1, int(max(regulation, max_minutes)))
-        max_ga = max((int(m.get('goals') or 0) + int(m.get('assists') or 0) for m in chart_matches), default=0)
+        max_ga = max((int(m.get('goals') or 0) + int(m.get('assists') or 0) for m in ga_matches), default=0)
         ga_scale = max(1, int(max_ga))
 
         def _safe_round_label(raw: str, idx: int) -> str:
@@ -58429,54 +58501,83 @@ def player_pdf(request, player_id):
         pdf_minutes_show_every = max(1, min(int(pdf_minutes_show_every or 2), 6))
         pdf_ga_show_every = max(1, min(int(pdf_ga_show_every or 2), 6))
 
-        for idx, m in enumerate(chart_matches):
-            minutes_val = max(0, int(m.get('minutes') or 0))
-            goals_val = max(0, int(m.get('goals') or 0))
-            assists_val = max(0, int(m.get('assists') or 0))
+        def _pick_label(label_round: str, label_opp: str, mode: str) -> str:
+            if mode == 'opponent':
+                return label_opp
+            if mode == 'both':
+                return f'{label_round} · {label_opp}'
+            return label_round
+
+        def _default_ymax_for_metric(metric: str, matches_rows, *, regulation_default: int):
+            metric = str(metric or '').strip().lower()
+            if metric in {'minutes', 'min'}:
+                max_val = max((int(m.get('minutes') or 0) for m in matches_rows), default=0)
+                return max(1, int(max(regulation_default or 90, max_val)))
+            if metric in {'success_rate', 'success', 'sr'}:
+                return 100
+            max_val = max((_metric_value(metric, m) for m in matches_rows), default=0.0)
+            return max(1, int(round(max_val)))
+
+        minutes_metric = str(pdf_minutes_metric or 'minutes').strip().lower()
+        minutes_metric2 = str(pdf_minutes_metric2 or '').strip().lower()
+        ga_metric = str(pdf_ga_metric or 'goals').strip().lower()
+        ga_metric2 = str(pdf_ga_metric2 or 'assists').strip().lower()
+
+        minutes_y_auto = _default_ymax_for_metric(minutes_metric, minutes_matches, regulation_default=regulation)
+        ga_y_auto = _default_ymax_for_metric(ga_metric if ga_metric else 'goals', ga_matches, regulation_default=2)
+
+        minutes_scale = max(1, int(pdf_minutes_ymax_override or minutes_y_auto))
+        ga_scale = max(1, int(pdf_ga_ymax_override or ga_y_auto))
+
+        for idx, m in enumerate(minutes_matches):
             raw_round = str(m.get('round') or '').strip()
             label_round = _safe_round_label(raw_round, idx)
             label_opp = _safe_opponent_label(m, idx)
-            def _pick_label(mode: str) -> str:
-                if mode == 'opponent':
-                    return label_opp
-                if mode == 'both':
-                    # Formato compacto para no romper el layout del PDF.
-                    return f"{label_round} · {label_opp}"
-                return label_round
-
+            v1 = float(_metric_value(minutes_metric, m))
+            v2 = float(_metric_value(minutes_metric2, m)) if minutes_metric2 else 0.0
             matchday_minutes_chart.append(
                 {
-                    'label': _pick_label(pdf_minutes_x_mode),
+                    'label': _pick_label(label_round, label_opp, pdf_minutes_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_minutes_x_mode,
-                    'minutes': minutes_val,
-                    # Incluso con 0', mostramos un tick mínimo para que se entienda que existe esa jornada.
+                    'v1': v1,
+                    'v2': v2,
+                    'metric': minutes_metric,
+                    'metric2': minutes_metric2,
+                    # Mantén compatibilidad: si la variable es minutos, rellena minutes.
+                    'minutes': int(m.get('minutes') or 0),
                     'bar_px': (
-                        max(2, int(round((minutes_val / minutes_scale) * chart_max_px)))
-                        if minutes_scale and minutes_val > 0
-                        else 2
+                        max(2, int(round((v1 / float(minutes_scale or 1)) * chart_max_px))) if v1 > 0 else 2
                     ),
-                    'is_zero': minutes_val <= 0,
+                    'is_zero': v1 <= 0,
                 }
             )
-            total_ga = goals_val + assists_val
+
+        for idx, m in enumerate(ga_matches):
+            raw_round = str(m.get('round') or '').strip()
+            label_round = _safe_round_label(raw_round, idx)
+            label_opp = _safe_opponent_label(m, idx)
+            a1 = float(_metric_value(ga_metric, m))
+            a2 = float(_metric_value(ga_metric2, m)) if ga_metric2 else 0.0
+            total = a1 + a2
             matchday_ga_chart.append(
                 {
-                    'label': _pick_label(pdf_ga_x_mode),
+                    'label': _pick_label(label_round, label_opp, pdf_ga_x_mode),
                     'label_round': label_round,
                     'label_opponent': label_opp,
                     'label_mode': pdf_ga_x_mode,
-                    'goals': goals_val,
-                    'assists': assists_val,
-                    'total': total_ga,
-                    'goals_px': (
-                        max(2, int(round((goals_val / ga_scale) * chart_max_px))) if ga_scale and goals_val > 0 else 0
-                    ),
-                    'assists_px': (
-                        max(2, int(round((assists_val / ga_scale) * chart_max_px))) if ga_scale and assists_val > 0 else 0
-                    ),
-                    'is_zero': total_ga <= 0,
+                    'v1': a1,
+                    'v2': a2,
+                    'metric': ga_metric,
+                    'metric2': ga_metric2,
+                    # Compatibilidad: goals/assists para el caso clásico.
+                    'goals': int(m.get('goals') or 0),
+                    'assists': int(m.get('assists') or 0),
+                    'total': total,
+                    'v1_px': max(2, int(round((a1 / float(ga_scale or 1)) * chart_max_px))) if a1 > 0 else 0,
+                    'v2_px': max(2, int(round((a2 / float(ga_scale or 1)) * chart_max_px))) if a2 > 0 else 0,
+                    'is_zero': total <= 0,
                 }
             )
 
@@ -58535,53 +58636,113 @@ def player_pdf(request, player_id):
                 'y_max': int(y_max or 0),
             }
 
-        matchday_minutes_line = _build_line_series(
+        minutes_series = _build_line_series(
             matchday_minutes_chart,
-            get_value=lambda it: it.get('minutes', 0),
-            y_max=max(1, int(pdf_minutes_ymax_override or minutes_scale or 90)),
+            get_value=lambda it: it.get('v1', 0),
+            y_max=max(1, int(minutes_scale or 1)),
             show_every=pdf_minutes_show_every,
         )
-        ga_ymax = max(2, int(pdf_ga_ymax_override or max_ga or 0))
-        goals_series = _build_line_series(
+        minutes_series2 = None
+        if minutes_metric2:
+            minutes_series2 = _build_line_series(
+                matchday_minutes_chart,
+                get_value=lambda it: it.get('v2', 0),
+                y_max=max(1, int(minutes_scale or 1)),
+                show_every=pdf_minutes_show_every,
+            )
+        def _area_from_points(points, base_y):
+            try:
+                if not points:
+                    return ''
+                first = points[0]
+                last = points[-1]
+                segs = [f"M {first['x']} {base_y}", f"L {first['x']} {first['y']}"]
+                for p in points[1:]:
+                    segs.append(f"L {p['x']} {p['y']}")
+                segs.append(f"L {last['x']} {base_y} Z")
+                return ' '.join(segs)
+            except Exception:
+                return ''
+
+        base_y_minutes = float(minutes_series.get('h', 0)) - 42.0
+        matchday_minutes_line = {
+            **minutes_series,
+            'metric': minutes_metric,
+            'metric2': minutes_metric2,
+            'path2_d': (minutes_series2.get('path_d') if minutes_series2 else ''),
+            'points2': (minutes_series2.get('points') if minutes_series2 else []),
+            'area_d': _area_from_points(minutes_series.get('points') or [], base_y_minutes),
+            'area2_d': _area_from_points((minutes_series2.get('points') if minutes_series2 else []), base_y_minutes),
+            'show_values': str(pdf_minutes_show_values or 'none').strip().lower(),
+            'chart_type': str(pdf_minutes_chart_type or 'line').strip().lower(),
+        }
+
+        ga_ymax = max(1, int(ga_scale or 1))
+        series1 = _build_line_series(
             matchday_ga_chart,
-            get_value=lambda it: it.get('goals', 0),
+            get_value=lambda it: it.get('v1', 0),
             y_max=ga_ymax,
             show_every=pdf_ga_show_every,
         )
-        assists_series = _build_line_series(
+        series2 = _build_line_series(
             matchday_ga_chart,
-            get_value=lambda it: it.get('assists', 0),
+            get_value=lambda it: it.get('v2', 0),
             y_max=ga_ymax,
             show_every=pdf_ga_show_every,
-        )
+        ) if ga_metric2 else None
+        base_y_ga = float(series1.get('h', 0)) - 42.0
 
         # Metadatos para la template (leyendas).
+        metric_labels = {
+            'minutes': 'Minutos',
+            'min': 'Minutos',
+            'actions': 'Acciones',
+            'acc': 'Acciones',
+            'success_rate': '% Éxito',
+            'success': '% Éxito',
+            'sr': '% Éxito',
+            'goals': 'Goles',
+            'g': 'Goles',
+            'assists': 'Asist.',
+            'a': 'Asist.',
+            'ga_total': 'G+A',
+            'ga': 'G+A',
+        }
+        minutes_metric_label = metric_labels.get(minutes_metric, minutes_metric.upper() or 'Y')
+        minutes_metric2_label = metric_labels.get(minutes_metric2, minutes_metric2.upper()) if minutes_metric2 else ''
+        ga_metric_label = metric_labels.get(ga_metric, ga_metric.upper() or 'A')
+        ga_metric2_label = metric_labels.get(ga_metric2, ga_metric2.upper()) if ga_metric2 else ''
         minutes_x_label = 'Jornada' if pdf_minutes_x_mode == 'round' else ('Rival' if pdf_minutes_x_mode == 'opponent' else 'Jornada + rival')
         ga_x_label = 'Jornada' if pdf_ga_x_mode == 'round' else ('Rival' if pdf_ga_x_mode == 'opponent' else 'Jornada + rival')
         matchday_ga_line = {
-            'w': goals_series.get('w'),
-            'h': goals_series.get('h'),
-            'ml': goals_series.get('ml'),
-            'mr': goals_series.get('mr'),
-            'mt': goals_series.get('mt'),
-            'mb': goals_series.get('mb'),
-            'pw': goals_series.get('pw'),
-            'ph': goals_series.get('ph'),
-            'ticks': goals_series.get('ticks') or [],
-            'y_max': goals_series.get('y_max') or ga_ymax,
-            'path_goals_d': goals_series.get('path_d') or '',
-            'path_assists_d': assists_series.get('path_d') or '',
-            # Para etiquetas de X usamos la serie de goles (misma X).
-            'x_points': goals_series.get('points') or [],
-            'goals_points': goals_series.get('points') or [],
-            'assists_points': assists_series.get('points') or [],
+            'w': series1.get('w'),
+            'h': series1.get('h'),
+            'ml': series1.get('ml'),
+            'mr': series1.get('mr'),
+            'mt': series1.get('mt'),
+            'mb': series1.get('mb'),
+            'pw': series1.get('pw'),
+            'ph': series1.get('ph'),
+            'ticks': series1.get('ticks') or [],
+            'y_max': series1.get('y_max') or ga_ymax,
+            'metric': ga_metric,
+            'metric2': ga_metric2,
+            'path_a_d': series1.get('path_d') or '',
+            'path_b_d': (series2.get('path_d') if series2 else ''),
+            'x_points': series1.get('points') or [],
+            'a_points': series1.get('points') or [],
+            'b_points': (series2.get('points') if series2 else []),
+            'area_a_d': _area_from_points(series1.get('points') or [], base_y_ga),
+            'area_b_d': _area_from_points((series2.get('points') if series2 else []), base_y_ga),
+            'show_values': str(pdf_ga_show_values or 'none').strip().lower(),
+            'chart_type': str(pdf_ga_chart_type or 'line').strip().lower(),
         }
 
         # Aplica presets: si el user prefiere barras, anulamos la serie de línea (la template
         # ya tiene fallback a sparklines/barras). Nota: "bars" es alias de cualquier modo no-línea.
-        if str(pdf_minutes_chart_type or '').lower() not in {'line', 'lines'}:
+        if str(pdf_minutes_chart_type or '').lower() not in {'line', 'lines', 'area'}:
             matchday_minutes_line = None
-        if str(pdf_ga_chart_type or '').lower() not in {'line', 'lines'}:
+        if str(pdf_ga_chart_type or '').lower() not in {'line', 'lines', 'area'}:
             matchday_ga_line = None
     except Exception:
         matchday_minutes_chart = []
@@ -59027,6 +59188,10 @@ def player_pdf(request, player_id):
             'matchday_ga_line': matchday_ga_line,
             'matchday_minutes_x_label': minutes_x_label if 'minutes_x_label' in locals() else 'Jornada',
             'matchday_ga_x_label': ga_x_label if 'ga_x_label' in locals() else 'Jornada',
+            'matchday_minutes_metric_label': minutes_metric_label if 'minutes_metric_label' in locals() else 'Minutos',
+            'matchday_minutes_metric2_label': minutes_metric2_label if 'minutes_metric2_label' in locals() else '',
+            'matchday_ga_metric_label': ga_metric_label if 'ga_metric_label' in locals() else 'Goles',
+            'matchday_ga_metric2_label': ga_metric2_label if 'ga_metric2_label' in locals() else 'Asist.',
             'player_photo_src': player_photo_src,
             'player_photo_is_real': bool(player_photo_is_real),
             'player_initials': player_initials or '??',
