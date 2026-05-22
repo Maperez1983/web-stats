@@ -2010,6 +2010,26 @@
 			      const payload = {};
 			      try { payload.href = String(window.location.href || ''); } catch (e) { /* ignore */ }
 			      try { payload.ua = String(navigator.userAgent || ''); } catch (e) { /* ignore */ }
+			      try {
+			        payload.assets = {
+			          form_fabric_src: safeText(form?.dataset?.fabricSrc || ''),
+			          form_tpad_src: safeText(form?.dataset?.tpadSrc || ''),
+			          scripts_fabric: Array.from(document.querySelectorAll('script[src]'))
+			            .map((s) => safeText(s.getAttribute('src') || ''))
+			            .filter((src) => src.includes('fabric') || src.includes('fabric.min'))
+			            .slice(0, 8),
+			          scripts_tpad: Array.from(document.querySelectorAll('script[src]'))
+			            .map((s) => safeText(s.getAttribute('src') || ''))
+			            .filter((src) => src.includes('sessions_tactical_pad'))
+			            .slice(0, 8),
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        payload.pwa = {
+			          sw_supported: !!(navigator.serviceWorker),
+			          controller: safeText(navigator.serviceWorker?.controller?.scriptURL || ''),
+			        };
+			      } catch (e) { /* ignore */ }
 			      try { payload.is_tactics_mode = !!isTacticsMode; } catch (e) { /* ignore */ }
 			      try { payload.is_simulating = !!isSimulating; } catch (e) { /* ignore */ }
 			      try { payload.is_submitting = !!isSubmitting; } catch (e) { /* ignore */ }
