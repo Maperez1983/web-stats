@@ -527,7 +527,17 @@
       .spark-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; }
       .spark-table td { padding: 0; vertical-align: bottom; text-align: center; }
       .spark-wrap { height: 62px; position: relative; }
-      .spark-stack { position: absolute; bottom: 0; left: 50%; width: 10px; transform: translateX(-50%); }
+      .spark-stack {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        width: 10px;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column-reverse;
+        gap: 2px;
+        align-items: stretch;
+      }
       .spark-bar { width: 10px; display: block; border-radius: 999px; background: rgba(15, 122, 53, 0.88); }
       .spark-bar.assist { background: rgba(255, 181, 0, 0.92); }
       .spark-bar.goal { background: rgba(15, 122, 53, 0.92); }
@@ -940,7 +950,7 @@
 	                              {% endif %}
 	                              {% if radar_data.labels %}
 	                                {% for lbl in radar_data.labels %}
-	                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" class="radar-label" style="font-size:10px;">{{ lbl.full|default:lbl.text }}</text>
+	                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.full|default:lbl.text }}</text>
 	                                {% endfor %}
 	                              {% endif %}
 	                            </svg>
@@ -971,24 +981,21 @@
 	                          <div class="radar-box-title">Radar (card)</div>
 	                          <div class="radar-box-figure">
 	                            <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
-	                              <g transform="scale(3.6)">
-	                                <circle cx="50" cy="50" r="17" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="1"></circle>
-	                                <circle cx="50" cy="50" r="34" fill="none" stroke="rgba(148,163,184,0.35)" stroke-width="1"></circle>
-	                                {% if card_radar_data.labels %}
-	                                  {% for lbl in card_radar_data.labels %}
-	                                    <line x1="50" y1="50" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.30)" stroke-width="1"></line>
-	                                  {% endfor %}
-	                                {% endif %}
-	                                {% if card_radar_data.polygon_points %}
-	                                  <polygon points="{{ card_radar_data.polygon_points }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.90)" stroke-width="1.3"></polygon>
-	                                {% endif %}
-	                                {% if card_radar_data.labels %}
-	                                  {% for lbl in card_radar_data.labels %}
-	                                    {# Labels dentro del sistema escalado: usar font-size muy pequeño para que, tras scale(3.6), sea legible sin pisarse. #}
-	                                    <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" class="radar-label-mini" style="font-size:1.9px;">{{ lbl.text }}</text>
-	                                  {% endfor %}
-	                                {% endif %}
-	                              </g>
+	                              <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                              <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                              {% if card_radar_data.labels_svg %}
+	                                {% for lbl in card_radar_data.labels_svg %}
+	                                  <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
+	                                {% endfor %}
+	                              {% endif %}
+	                              {% if card_radar_data.polygon_points_svg %}
+	                                <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                              {% endif %}
+	                              {% if card_radar_data.labels_svg %}
+	                                {% for lbl in card_radar_data.labels_svg %}
+	                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.text }}</text>
+	                                {% endfor %}
+	                              {% endif %}
 	                            </svg>
 	                          </div>
 	                          <div class="radar-box-legend">
@@ -1182,16 +1189,16 @@
                         <div class="linechart">
                           <svg viewBox="0 0 {{ matchday_minutes_line.w }} {{ matchday_minutes_line.h }}" role="img" aria-label="Minutos por jornada (línea)">
                             {% for t in matchday_minutes_line.ticks %}
-                              <line x1="{{ matchday_minutes_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ t.y }}" class="lc-grid"></line>
-                              <text x="8" y="{{ t.y|add:'3' }}" class="lc-tick">{{ t.v }}</text>
+                              <line x1="{{ matchday_minutes_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ t.y }}" stroke="rgba(148,163,184,0.35)" stroke-width="1"></line>
+                              <text x="8" y="{{ t.y|add:'3' }}" fill="rgba(71,85,105,0.92)" font-size="9.4" font-weight="900">{{ t.v }}</text>
                             {% endfor %}
-                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.mt }}" x2="{{ matchday_minutes_line.ml }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <path d="{{ matchday_minutes_line.path_d }}" class="lc-line minutes" fill="none" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.mt }}" x2="{{ matchday_minutes_line.ml }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
+                            <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
+                            <path d="{{ matchday_minutes_line.path_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% for p in matchday_minutes_line.points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" class="lc-dot minutes" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.show_label %}
-                                <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
+                                <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
                           </svg>
@@ -1246,28 +1253,28 @@
                         <div class="linechart">
                           <svg viewBox="0 0 {{ matchday_ga_line.w }} {{ matchday_ga_line.h }}" role="img" aria-label="Goles y asistencias por jornada (línea)">
                             {% for t in matchday_ga_line.ticks %}
-                              <line x1="{{ matchday_ga_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ t.y }}" class="lc-grid"></line>
-                              <text x="8" y="{{ t.y|add:'3' }}" class="lc-tick">{{ t.v }}</text>
+                              <line x1="{{ matchday_ga_line.ml }}" y1="{{ t.y }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ t.y }}" stroke="rgba(148,163,184,0.35)" stroke-width="1"></line>
+                              <text x="8" y="{{ t.y|add:'3' }}" fill="rgba(71,85,105,0.92)" font-size="9.4" font-weight="900">{{ t.v }}</text>
                             {% endfor %}
-                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.mt }}" x2="{{ matchday_ga_line.ml }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <path d="{{ matchday_ga_line.path_goals_d }}" class="lc-line goals" fill="none" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
-                            <path d="{{ matchday_ga_line.path_assists_d }}" class="lc-line assists" fill="none" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.mt }}" x2="{{ matchday_ga_line.ml }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
+                            <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" stroke="rgba(148,163,184,0.55)" stroke-width="1.2"></line>
+                            <path d="{{ matchday_ga_line.path_goals_d }}" fill="none" style="fill:none;" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_ga_line.path_assists_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% for p in matchday_ga_line.x_points %}
                               {% if p.show_label %}
-                                <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
+                                <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.goals_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot goals" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.value and p.value|floatformat:0 != '0' %}
-                                <text x="{{ p.x|add:'-7' }}" y="{{ p.y|add:'-8' }}" text-anchor="end" class="lc-val">{{ p.value|floatformat:0 }}</text>
+                                <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.assists_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot assists" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.value and p.value|floatformat:0 != '0' %}
-                                <text x="{{ p.x|add:'7' }}" y="{{ p.y|add:'-8' }}" text-anchor="start" class="lc-val">{{ p.value|floatformat:0 }}</text>
+                                <text x="{{ p.x|add:'7' }}" y="{{ p.val_y }}" text-anchor="start" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
                               {% endif %}
                             {% endfor %}
                           </svg>

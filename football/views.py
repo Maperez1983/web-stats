@@ -23847,6 +23847,7 @@ def _build_player_card_radar_data(detail_row, population_rows):
         import math  # noqa: WPS433
 
         cx, cy, rmax = 50.0, 50.0, 34.0
+        scale = 3.6
         n = len(axes)
         pts = []
         labels = []
@@ -23882,7 +23883,28 @@ def _build_player_card_radar_data(detail_row, population_rows):
                 }
             )
         pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
-        return {'axes': axes, 'polygon_points': pts_str, 'labels': labels}
+        # Precalcula coordenadas en un sistema 360x360 para PDF (WeasyPrint/CairoSVG
+        # no siempre aplica transform/scale de <g> como en navegador).
+        pts_str_svg = ' '.join([f"{(x * scale):.1f},{(y * scale):.1f}" for (x, y) in pts])
+        labels_svg = []
+        for lbl in labels:
+            try:
+                labels_svg.append(
+                    {
+                        **lbl,
+                        'x': round(float(lbl.get('x') or 0) * scale, 1),
+                        'y': round(float(lbl.get('y') or 0) * scale, 1),
+                    }
+                )
+            except Exception:
+                labels_svg.append(lbl)
+        return {
+            'axes': axes,
+            'polygon_points': pts_str,
+            'labels': labels,
+            'polygon_points_svg': pts_str_svg,
+            'labels_svg': labels_svg,
+        }
     except Exception:
         return {'axes': axes, 'polygon_points': '', 'labels': []}
 
@@ -58222,6 +58244,12 @@ def player_pdf(request, player_id):
     pdf_charts_preset = {}
     pdf_minutes_chart_type = 'line'
     pdf_ga_chart_type = 'line'
+    pdf_minutes_x = 'round'
+    pdf_ga_x = 'round'
+    pdf_minutes_show_every = 2
+    pdf_ga_show_every = 2
+    pdf_minutes_ymax_override = None
+    pdf_ga_ymax_override = None
     try:
         ws = _get_active_workspace(request)
     except Exception:
@@ -58246,13 +58274,48 @@ def player_pdf(request, player_id):
                     ga_cfg = value.get('ga') if isinstance(value.get('ga'), dict) else {}
                     pdf_minutes_chart_type = str(minutes_cfg.get('type') or 'line').strip().lower()
                     pdf_ga_chart_type = str(ga_cfg.get('type') or 'line').strip().lower()
+                    pdf_minutes_x = str(minutes_cfg.get('x') or 'round').strip().lower()
+                    pdf_ga_x = str(ga_cfg.get('x') or 'round').strip().lower()
+                    try:
+                        pdf_minutes_show_every = int(minutes_cfg.get('show_every') or 2)
+                    except Exception:
+                        pdf_minutes_show_every = 2
+                    try:
+                        pdf_ga_show_every = int(ga_cfg.get('show_every') or 2)
+                    except Exception:
+                        pdf_ga_show_every = 2
+                    def _parse_ymax(raw):
+                        if raw is None:
+                            return None
+                        s = str(raw).strip().lower()
+                        if not s or s == 'auto':
+                            return None
+                        try:
+                            v = int(float(s))
+                            return v if v > 0 else None
+                        except Exception:
+                            return None
+                    pdf_minutes_ymax_override = _parse_ymax(minutes_cfg.get('y_max'))
+                    pdf_ga_ymax_override = _parse_ymax(ga_cfg.get('y_max'))
                 except Exception:
                     pdf_minutes_chart_type = 'line'
                     pdf_ga_chart_type = 'line'
+                    pdf_minutes_x = 'round'
+                    pdf_ga_x = 'round'
+                    pdf_minutes_show_every = 2
+                    pdf_ga_show_every = 2
+                    pdf_minutes_ymax_override = None
+                    pdf_ga_ymax_override = None
     except Exception:
         pdf_charts_preset = {}
         pdf_minutes_chart_type = 'line'
         pdf_ga_chart_type = 'line'
+        pdf_minutes_x = 'round'
+        pdf_ga_x = 'round'
+        pdf_minutes_show_every = 2
+        pdf_ga_show_every = 2
+        pdf_minutes_ymax_override = None
+        pdf_ga_ymax_override = None
 
     # Gráficas por jornadas/partidos (minutos y G/A) para todo el periodo.
     matchday_minutes_chart = []
@@ -58316,15 +58379,62 @@ def player_pdf(request, player_id):
                     return 'PO'
             return str(idx + 1)
 
+        def _safe_opponent_label(match: dict, idx: int) -> str:
+            try:
+                raw = str(
+                    match.get('opponent')
+                    or match.get('rival')
+                    or match.get('opponent_name')
+                    or match.get('rival_name')
+                    or ''
+                ).strip()
+            except Exception:
+                raw = ''
+            if not raw:
+                return _safe_round_label(str(match.get('round') or '').strip(), idx)
+            raw = re.sub(r'\\s+', ' ', raw).strip()
+            # Quita siglas habituales para acortar.
+            raw = (
+                raw.replace('C.D.', '')
+                .replace('C.F.', '')
+                .replace('F.C.', '')
+                .replace('C. D.', '')
+                .replace('C. F.', '')
+                .replace('F. C.', '')
+            )
+            raw = re.sub(r'\\s+', ' ', raw).strip()
+            # Compacta: si es largo, abrevia.
+            if len(raw) > 14:
+                parts = [p for p in raw.split(' ') if p]
+                if len(parts) >= 2:
+                    raw = f"{parts[0][:4]}.{parts[-1][:4]}"
+                else:
+                    raw = raw[:13] + '…'
+            return raw.upper()
+
+        def _normalize_x_mode(value: str) -> str:
+            v = str(value or '').strip().lower()
+            if v in {'opponent', 'rival', 'club', 'team'}:
+                return 'opponent'
+            return 'round'
+
+        pdf_minutes_x_mode = _normalize_x_mode(pdf_minutes_x)
+        pdf_ga_x_mode = _normalize_x_mode(pdf_ga_x)
+        pdf_minutes_show_every = max(1, min(int(pdf_minutes_show_every or 2), 6))
+        pdf_ga_show_every = max(1, min(int(pdf_ga_show_every or 2), 6))
+
         for idx, m in enumerate(chart_matches):
             minutes_val = max(0, int(m.get('minutes') or 0))
             goals_val = max(0, int(m.get('goals') or 0))
             assists_val = max(0, int(m.get('assists') or 0))
             raw_round = str(m.get('round') or '').strip()
-            label = _safe_round_label(raw_round, idx)
+            label_round = _safe_round_label(raw_round, idx)
+            label_opp = _safe_opponent_label(m, idx)
             matchday_minutes_chart.append(
                 {
-                    'label': label,
+                    'label': label_opp if pdf_minutes_x_mode == 'opponent' else label_round,
+                    'label_round': label_round,
+                    'label_opponent': label_opp,
                     'minutes': minutes_val,
                     # Incluso con 0', mostramos un tick mínimo para que se entienda que existe esa jornada.
                     'bar_px': (
@@ -58338,7 +58448,9 @@ def player_pdf(request, player_id):
             total_ga = goals_val + assists_val
             matchday_ga_chart.append(
                 {
-                    'label': label,
+                    'label': label_opp if pdf_ga_x_mode == 'opponent' else label_round,
+                    'label_round': label_round,
+                    'label_opponent': label_opp,
                     'goals': goals_val,
                     'assists': assists_val,
                     'total': total_ga,
@@ -58354,8 +58466,8 @@ def player_pdf(request, player_id):
 
         # Alternativa legible: charts tipo línea (SVG, sin JS) para PDF.
         def _build_line_series(items, *, get_value, y_max, show_every=2):
-            W, H = 980.0, 220.0
-            ml, mr, mt, mb = 40.0, 18.0, 18.0, 42.0
+            W, H = 980.0, 240.0
+            ml, mr, mt, mb = 40.0, 18.0, 26.0, 48.0
             pw = max(1.0, W - ml - mr)
             ph = max(1.0, H - mt - mb)
             n = max(1, len(items))
@@ -58372,10 +58484,13 @@ def player_pdf(request, player_id):
                 t = (v / float(y_max or 1)) if y_max else 0.0
                 t = max(0.0, min(t, 1.0))
                 y = mt + (ph * (1.0 - t))
+                # Posición segura para etiquetas de valor (evita recortes en el borde superior).
+                val_y = max(mt + 12.0, y - 10.0)
                 pts.append(
                     {
                         'x': round(x, 1),
                         'y': round(y, 1),
+                        'val_y': round(val_y, 1),
                         'label': str(it.get('label') or ''),
                         'value': v,
                         'show_label': bool((i % max(1, int(show_every or 1)) == 0) or i == (n - 1)),
@@ -58407,12 +58522,22 @@ def player_pdf(request, player_id):
         matchday_minutes_line = _build_line_series(
             matchday_minutes_chart,
             get_value=lambda it: it.get('minutes', 0),
-            y_max=max(1, int(minutes_scale or 90)),
-            show_every=2,
+            y_max=max(1, int(pdf_minutes_ymax_override or minutes_scale or 90)),
+            show_every=pdf_minutes_show_every,
         )
-        ga_ymax = max(2, int(max_ga or 0))
-        goals_series = _build_line_series(matchday_ga_chart, get_value=lambda it: it.get('goals', 0), y_max=ga_ymax, show_every=2)
-        assists_series = _build_line_series(matchday_ga_chart, get_value=lambda it: it.get('assists', 0), y_max=ga_ymax, show_every=2)
+        ga_ymax = max(2, int(pdf_ga_ymax_override or max_ga or 0))
+        goals_series = _build_line_series(
+            matchday_ga_chart,
+            get_value=lambda it: it.get('goals', 0),
+            y_max=ga_ymax,
+            show_every=pdf_ga_show_every,
+        )
+        assists_series = _build_line_series(
+            matchday_ga_chart,
+            get_value=lambda it: it.get('assists', 0),
+            y_max=ga_ymax,
+            show_every=pdf_ga_show_every,
+        )
         matchday_ga_line = {
             'w': goals_series.get('w'),
             'h': goals_series.get('h'),

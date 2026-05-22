@@ -1924,6 +1924,33 @@
                     <option value="bars">Barras</option>
                   </select>
                 </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-x" style="margin-bottom:0.3rem;">Eje X</label>
+                  <select id="pdf-charts-minutes-x">
+                    <option value="round">Jornada</option>
+                    <option value="opponent">Rival</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem; display:grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                  <div>
+                    <label for="pdf-charts-minutes-every" style="margin-bottom:0.3rem;">Etiquetas</label>
+                    <select id="pdf-charts-minutes-every">
+                      <option value="1">Todas</option>
+                      <option value="2">1 de cada 2</option>
+                      <option value="3">1 de cada 3</option>
+                      <option value="4">1 de cada 4</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="pdf-charts-minutes-ymax" style="margin-bottom:0.3rem;">Eje Y</label>
+                    <select id="pdf-charts-minutes-ymax">
+                      <option value="auto">Auto</option>
+                      <option value="90">90'</option>
+                      <option value="95">95'</option>
+                      <option value="120">120'</option>
+                    </select>
+                  </div>
+                </div>
               </article>
               <article class="summary-mini-item">
                 <div class="label">Goles + asistencias</div>
@@ -1933,6 +1960,34 @@
                     <option value="line">Líneas (2 series)</option>
                     <option value="bars">Barras (stack)</option>
                   </select>
+                </div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-ga-x" style="margin-bottom:0.3rem;">Eje X</label>
+                  <select id="pdf-charts-ga-x">
+                    <option value="round">Jornada</option>
+                    <option value="opponent">Rival</option>
+                  </select>
+                </div>
+                <div style="margin-top:0.55rem; display:grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;">
+                  <div>
+                    <label for="pdf-charts-ga-every" style="margin-bottom:0.3rem;">Etiquetas</label>
+                    <select id="pdf-charts-ga-every">
+                      <option value="1">Todas</option>
+                      <option value="2">1 de cada 2</option>
+                      <option value="3">1 de cada 3</option>
+                      <option value="4">1 de cada 4</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="pdf-charts-ga-ymax" style="margin-bottom:0.3rem;">Eje Y</label>
+                    <select id="pdf-charts-ga-ymax">
+                      <option value="auto">Auto</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                    </select>
+                  </div>
                 </div>
               </article>
             </div>
@@ -2011,7 +2066,13 @@
         const playerWrap = document.getElementById('pdf-charts-player-wrap');
         const playerSelect = document.getElementById('pdf-charts-player');
         const minutesType = document.getElementById('pdf-charts-minutes-type');
+        const minutesX = document.getElementById('pdf-charts-minutes-x');
+        const minutesEvery = document.getElementById('pdf-charts-minutes-every');
+        const minutesYmax = document.getElementById('pdf-charts-minutes-ymax');
         const gaType = document.getElementById('pdf-charts-ga-type');
+        const gaX = document.getElementById('pdf-charts-ga-x');
+        const gaEvery = document.getElementById('pdf-charts-ga-every');
+        const gaYmax = document.getElementById('pdf-charts-ga-ymax');
         const saveBtn = document.getElementById('pdf-charts-save');
         const resetBtn = document.getElementById('pdf-charts-reset');
         const statusEl = document.getElementById('pdf-charts-status');
@@ -2057,7 +2118,13 @@
           const minutes = (v.minutes && typeof v.minutes === 'object') ? v.minutes : {};
           const ga = (v.ga && typeof v.ga === 'object') ? v.ga : {};
           if (minutesType) minutesType.value = String(minutes.type || 'line');
+          if (minutesX) minutesX.value = String(minutes.x || 'round');
+          if (minutesEvery) minutesEvery.value = String(minutes.show_every || 2);
+          if (minutesYmax) minutesYmax.value = String(minutes.y_max || 'auto');
           if (gaType) gaType.value = String(ga.type || 'line');
+          if (gaX) gaX.value = String(ga.x || 'round');
+          if (gaEvery) gaEvery.value = String(ga.show_every || 2);
+          if (gaYmax) gaYmax.value = String(ga.y_max || 'auto');
         };
 
         const loadCurrent = async () => {
@@ -2095,8 +2162,18 @@
           }
           const payload = {
             version: 1,
-            minutes: { type: String(minutesType?.value || 'line') },
-            ga: { type: String(gaType?.value || 'line') },
+            minutes: {
+              type: String(minutesType?.value || 'line'),
+              x: String(minutesX?.value || 'round'),
+              show_every: parseInt(String(minutesEvery?.value || '2'), 10) || 2,
+              y_max: String(minutesYmax?.value || 'auto'),
+            },
+            ga: {
+              type: String(gaType?.value || 'line'),
+              x: String(gaX?.value || 'round'),
+              show_every: parseInt(String(gaEvery?.value || '2'), 10) || 2,
+              y_max: String(gaYmax?.value || 'auto'),
+            },
           };
           setStatus('Guardando…');
           try {
