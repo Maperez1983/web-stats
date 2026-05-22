@@ -21978,7 +21978,10 @@
 							          steps = steps.slice(start);
 							        }
 							      } catch (e) { /* ignore */ }
-						      const dest = safeText(simClipDestSelect?.value, 'local');
+						      // En modo Táctica/Playbook el clip SIEMPRE debe ir al Playbook del equipo (evita confusión
+						      // con "local" y mantiene el flujo consistente aunque el selector de destino no esté visible).
+						      const destDefault = isTacticsMode ? 'team' : 'local';
+						      const dest = safeText(simClipDestSelect?.value, destDefault);
 							      if (dest !== 'local') {
 						        const scope = dest === 'system' ? 'system' : 'team';
 						        (async () => {

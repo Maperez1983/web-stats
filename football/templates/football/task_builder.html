@@ -4397,10 +4397,12 @@
 	                      <button type="button" id="pitch-size-up" title="Campo más grande">+</button>
 	                      <button type="button" id="pitch-size-fit" title="Ajustar a pantalla">⤢</button>
 	                    </div>
+                      {% if not tactics_mode %}
                       <button type="button" class="surface-trigger" id="pitch-3d-open" title="Vista 3D (presentación)" aria-label="Vista 3D">
                         <span>Vista 3D</span>
                         <span class="current">Presentar</span>
                       </button>
+                      {% endif %}
                     </div>
                   </details>
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
@@ -4577,6 +4579,7 @@
 					                          <button type="button" class="button" id="task-sim-next" hidden>Siguiente</button>
 					                          <button type="button" class="button" id="task-sim-clip-save" hidden>Guardar clip</button>
 						                        </div>
+						                        {% if not tactics_mode %}
 						                        <details class="sim-advanced" id="task-sim-advanced" hidden>
 						                          <summary>Opciones avanzadas</summary>
 						                          <div class="sim-controls" style="margin-top:0.65rem;">
@@ -4658,8 +4661,10 @@
 						                            </label>
 						                          </div>
 						                        </details>
+						                        {% endif %}
 						                        <input type="file" id="task-sim-clip-file" accept="application/json,.json" hidden />
 						                        <input type="file" id="task-sim-video-file" accept="video/*" hidden />
+					                        {% if not tactics_mode %}
 					                        <div class="sim-options" id="task-sim-pro-panel" hidden style="margin-top:0.75rem;">
 					                          <div class="meta" style="grid-column:1/-1;">Timeline Pro: scrub continuo + keyframes por objeto (posición/rotación/escala/opacidad).</div>
 					                          <div style="grid-column:1/-1; display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
@@ -4704,6 +4709,7 @@
 					                            <button type="button" class="button" id="task-sim-ball-pass">Pase (2 seleccionados)</button>
 					                          </div>
 					                        </div>
+					                        {% endif %}
 					                        <div class="sim-steps" id="task-sim-steps" hidden></div>
 					                        <div class="sim-steps" id="task-sim-clips" hidden style="margin-top:0.65rem;"></div>
 					                        <div class="sim-meta" id="task-sim-meta" hidden>
@@ -4718,6 +4724,7 @@
 					                      </div>
 					                    </div>
 
+				                    {% if not tactics_mode %}
 				                    <div class="sim-3d-modal" id="task-sim-script-modal" hidden>
 				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Guion de jugada" style="width:min(780px, 96vw); height:min(620px, 92vh);">
 				                        <div class="sim-3d-head">
@@ -4739,6 +4746,7 @@
 				                        </div>
 				                      </div>
 				                    </div>
+				                    {% endif %}
 
 				                    <div class="sim-3d-modal" id="task-sim-3d-modal" hidden>
 				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D de la tarea">
@@ -4820,6 +4828,7 @@
 					                      </div>
 				                    </div>
 
+				                    {% if not tactics_mode %}
 				                    <div class="sim-3d-modal" id="task-video-studio-modal" hidden>
 				                      <div class="sim-3d-card video-studio-card" role="dialog" aria-modal="true" aria-label="Video Studio">
 				                        <div class="sim-3d-head">
@@ -4975,6 +4984,7 @@
 					                      </div>
 					                    </div>
 				                    </div>
+				                    {% endif %}
 				                    </div>
 				                    <div class="pattern-popover" id="task-pattern-popover" hidden>
 				                      <div class="pattern-head">
@@ -5029,6 +5039,7 @@
 				                      </div>
 				                    </div>
 
+				                    {% if not tactics_mode %}
 				                    <div class="sim-3d-modal" id="task-pitch-3d-modal" hidden>
 				                      <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D">
 				                        <div class="sim-3d-head">
@@ -5099,6 +5110,7 @@
 				                        </div>
 				                      </div>
 				                    </div>
+				                    {% endif %}
 
 				                    <div class="pattern-popover" id="task-formation-popover" hidden>
 				                      <div class="pattern-head">
