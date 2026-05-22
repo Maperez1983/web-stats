@@ -23677,13 +23677,6 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         n = max(3, len(axes))
         pts = []
         labels = []
-        short_map = {
-            'Compromiso': 'COMP',
-            'Esfuerzo': 'ESF',
-            'Calidad': 'CAL',
-            'Importancia': 'IMP',
-            'Influencia': 'INF',
-        }
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (_clamp(axis.get('value', 0.0)) / 100.0)
@@ -23691,7 +23684,7 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
             # Extra margen para que etiquetas (COMP/ESF/...) no se monten ni se recorten.
-            lr = 146.0
+            lr = 140.0
             lx = cx + math.cos(angle) * lr
             ly = cy + math.sin(angle) * lr
             anchor = 'middle'
@@ -23705,12 +23698,20 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
             baseline = 'middle'
             # Clamps suaves para evitar recortes en los bordes del viewBox.
             lx = max(18.0, min(float(lx), 342.0))
-            ly = max(22.0, min(float(ly), 338.0))
+            ly = max(28.0, min(float(ly), 332.0))
+            # Ajustes mínimos por cuadrante para evitar solapes en esquinas (WeasyPrint recorta fácil).
+            if ly < cy - 60 and anchor == 'middle':
+                ly += 6.0
+            if ly < cy and anchor == 'start':
+                lx += 4.0
+            if ly < cy and anchor == 'end':
+                lx -= 4.0
             labels.append(
                 {
                     'x': round(lx, 1),
                     'y': round(ly, 1),
-                    'text': short_map.get(str(axis.get('key') or ''), str(axis.get('key') or '')),
+                    # El usuario necesita el texto COMPLETO en cada punta (no iniciales).
+                    'text': str(axis.get('key') or ''),
                     'anchor': anchor,
                     'baseline': baseline,
                     'full': str(axis.get('key') or ''),
@@ -23840,36 +23841,41 @@ def _build_player_card_radar_data(detail_row, population_rows):
     p_imp = _percentile_rank(_num(detail_row.get('importance_score')), pop_imp)
 
     axes = [
-        {'key': 'A/90', 'value': p_a90, 'display': f"{_actions_per90(detail_row):.1f} A/90", 'pct_rank': int(round(p_a90))},
+        {'key': 'Acc/90', 'value': p_a90, 'display': f"{_actions_per90(detail_row):.1f} A/90", 'pct_rank': int(round(p_a90))},
         {'key': 'Éxito', 'value': p_sr, 'display': f"{_num(detail_row.get('success_rate')):.0f}%", 'pct_rank': int(round(p_sr))},
         {'key': 'Part.', 'value': p_part, 'display': f"{_part_pct(detail_row):.0f}%", 'pct_rank': int(round(p_part))},
-        {'key': 'INF', 'value': p_inf, 'display': f"{_num(detail_row.get('influence_score')):.0f}", 'pct_rank': int(round(p_inf))},
-        {'key': 'IMP', 'value': p_imp, 'display': f"{_num(detail_row.get('importance_score')):.0f}", 'pct_rank': int(round(p_imp))},
+        {'key': 'Influencia', 'value': p_inf, 'display': f"{_num(detail_row.get('influence_score')):.0f}", 'pct_rank': int(round(p_inf))},
+        {'key': 'Importancia', 'value': p_imp, 'display': f"{_num(detail_row.get('importance_score')):.0f}", 'pct_rank': int(round(p_imp))},
     ]
 
     try:
         import math  # noqa: WPS433
 
-        cx, cy, rmax = 50.0, 50.0, 34.0
-        scale = 3.6
+        # Render en coords "reales" del SVG 360x360 para PDF (WeasyPrint/Cairo):
+        # evita escalados que llevan labels demasiado arriba (y=4 => texto recortado).
+        cx, cy, rmax = 180.0, 180.0, 122.4
         n = len(axes)
         pts = []
-        labels = []
+        labels_svg = []
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (max(0.0, min(float(axis.get('value', 0.0)), 100.0)) / 100.0)
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
-            lr = 49.0
+            # Label radius: dentro del viewBox y con margen suficiente para palabras largas.
+            lr = 158.0
             lx = cx + math.cos(angle) * lr
             ly = cy + math.sin(angle) * lr
             anchor = 'middle'
-            if lx < cx - 6:
+            if lx < cx - 10:
                 anchor = 'start'
-            elif lx > cx + 6:
+            elif lx > cx + 10:
                 anchor = 'end'
-            baseline = 'auto' if ly < cy else 'hanging'
+            baseline = 'middle'
+            # Clamps suaves (evita recortes en parte superior/inferior).
+            lx = max(22.0, min(float(lx), 338.0))
+            ly = max(28.0, min(float(ly), 332.0))
             label_text = str(axis.get('key') or '')
             # Mantener etiquetas informativas (pero cortas) para el radar de card.
             # No usamos el display (lleva números) para evitar ruido visual.
@@ -23877,40 +23883,23 @@ def _build_player_card_radar_data(detail_row, population_rows):
                 label_text = 'Éxito'
             elif label_text.lower().startswith('part'):
                 label_text = 'Part.'
-            labels.append(
+            labels_svg.append(
                 {
-                    'x': round(lx, 1),
-                    'y': round(ly, 1),
+                    'x': round(float(lx), 1),
+                    'y': round(float(ly), 1),
                     'text': label_text,
                     'anchor': anchor,
                     'baseline': baseline,
                 }
             )
-        pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
-        # Precalcula coordenadas en un sistema 360x360 para PDF (WeasyPrint/CairoSVG
-        # no siempre aplica transform/scale de <g> como en navegador).
-        pts_str_svg = ' '.join([f"{(x * scale):.1f},{(y * scale):.1f}" for (x, y) in pts])
-        labels_svg = []
-        for lbl in labels:
-            try:
-                labels_svg.append(
-                    {
-                        **lbl,
-                        'x': round(float(lbl.get('x') or 0) * scale, 1),
-                        'y': round(float(lbl.get('y') or 0) * scale, 1),
-                    }
-                )
-            except Exception:
-                labels_svg.append(lbl)
+        pts_str_svg = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
         return {
             'axes': axes,
-            'polygon_points': pts_str,
-            'labels': labels,
             'polygon_points_svg': pts_str_svg,
             'labels_svg': labels_svg,
         }
     except Exception:
-        return {'axes': axes, 'polygon_points': '', 'labels': []}
+        return {'axes': axes, 'polygon_points_svg': '', 'labels_svg': []}
 
 
 @login_required

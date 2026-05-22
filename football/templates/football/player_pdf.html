@@ -1008,8 +1008,23 @@
 	                          </div>
 	                          <div class="radar-box-legend">
 	                            <div class="mini-note">Escala 0–100 (Pxx dentro del equipo/filtro).</div>
-	                            <div class="radar-mini-legend"><strong>A/90</strong> · <strong>Éxito</strong> · <strong>Participación</strong> · <strong>INF</strong> · <strong>IMP</strong></div>
-	                            <div class="mini-note">Percentiles dentro del equipo.</div>
+	                            <ul class="radar-axes">
+	                              {% for axis in card_radar_data.axes %}
+	                                <li>
+	                                  <div class="radar-axis-row">
+	                                    <div class="radar-axis-left">
+	                                      <span class="radar-dot" aria-hidden="true"></span>
+	                                      <span class="radar-axis-label">{{ axis.key }}</span>
+	                                    </div>
+	                                    <div class="radar-axis-right">
+	                                      <span class="radar-axis-meta">{{ axis.display }}</span>
+	                                      <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
+	                                    </div>
+	                                  </div>
+	                                </li>
+	                              {% endfor %}
+	                            </ul>
+	                            <div class="mini-note">Acc/90 = acciones por 90 · Part. = participación.</div>
 	                          </div>
 	                        </div>
 	                      </div>
