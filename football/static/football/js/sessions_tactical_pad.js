@@ -2017,14 +2017,28 @@
 			      statusEl.style.color = isError ? '#fca5a5' : 'rgba(226,232,240,0.72)';
 			    }
 
-			    const copyTacticsDiagnostics = async () => {
-			      const payload = {};
-			      try { payload.href = String(window.location.href || ''); } catch (e) { /* ignore */ }
-			      try { payload.ua = String(navigator.userAgent || ''); } catch (e) { /* ignore */ }
-			      try {
-			        payload.assets = {
-			          form_fabric_src: safeText(form?.dataset?.fabricSrc || ''),
-			          form_tpad_src: safeText(form?.dataset?.tpadSrc || ''),
+				    const copyTacticsDiagnostics = async () => {
+				      const snapRect = (el) => {
+				        try {
+				          if (!el || !el.getBoundingClientRect) return null;
+				          const r = el.getBoundingClientRect();
+				          return { w: Math.round(r.width || 0), h: Math.round(r.height || 0), x: Math.round(r.x || 0), y: Math.round(r.y || 0), top: Math.round(r.top || 0), left: Math.round(r.left || 0) };
+				        } catch (e) { return null; }
+				      };
+				      const payload = {};
+				      try { payload.href = String(window.location.href || ''); } catch (e) { /* ignore */ }
+				      try { payload.ua = String(navigator.userAgent || ''); } catch (e) { /* ignore */ }
+				      try {
+				        payload.window = {
+				          inner: [Number(window.innerWidth) || 0, Number(window.innerHeight) || 0],
+				          scroll: [Math.round(Number(window.scrollX) || 0), Math.round(Number(window.scrollY) || 0)],
+				          dpr: Number(window.devicePixelRatio) || 1,
+				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        payload.assets = {
+				          form_fabric_src: safeText(form?.dataset?.fabricSrc || ''),
+				          form_tpad_src: safeText(form?.dataset?.tpadSrc || ''),
 			          scripts_fabric: Array.from(document.querySelectorAll('script[src]'))
 			            .map((s) => safeText(s.getAttribute('src') || ''))
 			            .filter((src) => src.includes('fabric') || src.includes('fabric.min'))
@@ -2092,22 +2106,54 @@
 			          preserve: svg ? safeText(svg.getAttribute('preserveAspectRatio') || '') : '',
 			        };
 			      } catch (e) { /* ignore */ }
-			      try {
-			        payload.stage = {
-			          aspect_ratio: safeText(stage?.style?.aspectRatio || ''),
-			          rect: (() => {
-			            try {
-			              const r = stage?.getBoundingClientRect?.();
-			              if (!r) return null;
-			              return { w: Math.round(r.width || 0), h: Math.round(r.height || 0), x: Math.round(r.x || 0), y: Math.round(r.y || 0) };
-			            } catch (e) { return null; }
-			          })(),
-			        };
-			      } catch (e) { /* ignore */ }
-			      try {
-			        const raw = window.localStorage?.getItem('webstats:tpad:last_error');
-			        payload.last_error = raw ? JSON.parse(raw) : null;
-			      } catch (e) {
+				      try {
+				        payload.stage = {
+				          aspect_ratio: safeText(stage?.style?.aspectRatio || ''),
+				          rect: (() => {
+				            try {
+				              const r = stage?.getBoundingClientRect?.();
+				              if (!r) return null;
+				              return { w: Math.round(r.width || 0), h: Math.round(r.height || 0), x: Math.round(r.x || 0), y: Math.round(r.y || 0) };
+				            } catch (e) { return null; }
+				          })(),
+				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        const viewport = document.getElementById('task-pitch-viewport');
+				        const layout = document.querySelector('.pitch-layout');
+				        const main = document.querySelector('.pitch-main');
+				        const side = document.querySelector('.pitch-side');
+				        const panelBody = document.querySelector('.panel-body');
+				        payload.rects = {
+				          viewport: snapRect(viewport),
+				          stage: snapRect(stage),
+				          layout: snapRect(layout),
+				          main: snapRect(main),
+				          side: snapRect(side),
+				          panelBody: snapRect(panelBody),
+				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        const cs = window.getComputedStyle ? window.getComputedStyle(stage) : null;
+				        payload.stage_css = {
+				          display: safeText(cs?.display || ''),
+				          position: safeText(cs?.position || ''),
+				          width: safeText(cs?.width || ''),
+				          height: safeText(cs?.height || ''),
+				          max_width: safeText(cs?.maxWidth || ''),
+				          max_height: safeText(cs?.maxHeight || ''),
+				          overflow: safeText(cs?.overflow || ''),
+				          z_index: safeText(cs?.zIndex || ''),
+				          var_stage_max_fit: safeText(cs?.getPropertyValue('--stage-max-fit') || ''),
+				          var_stage_max_user: safeText(cs?.getPropertyValue('--stage-max-user') || ''),
+				          style_stage_max_fit: safeText(stage?.style?.getPropertyValue?.('--stage-max-fit') || ''),
+				          style_stage_max_user: safeText(stage?.style?.getPropertyValue?.('--stage-max-user') || ''),
+				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        const raw = window.localStorage?.getItem('webstats:tpad:last_error');
+				        payload.last_error = raw ? JSON.parse(raw) : null;
+				      } catch (e) {
 			        try { payload.last_error = window.localStorage?.getItem('webstats:tpad:last_error') || null; } catch (err) { /* ignore */ }
 			      }
 			      try { payload.time = new Date().toISOString(); } catch (e) { /* ignore */ }
