@@ -2034,6 +2034,13 @@
 			      try { payload.is_simulating = !!isSimulating; } catch (e) { /* ignore */ }
 			      try { payload.is_submitting = !!isSubmitting; } catch (e) { /* ignore */ }
 			      try {
+			        payload.init = {
+			          ready: safeText(form?.dataset?.webstatsTpadReady || ''),
+			          init_flag: safeText(form?.dataset?.webstatsTpadInit || ''),
+			          global_ready: String(window.__WEBSTATS_TPAD_READY === true),
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
 			        payload.pitch = {
 			          preset: safeText(pitchPreset || presetSelect?.value || ''),
 			          preset_select: safeText(presetSelect?.value || ''),
@@ -2064,6 +2071,14 @@
 			          width: Math.round(canvas?.getWidth?.() || 0),
 			          height: Math.round(canvas?.getHeight?.() || 0),
 			          objects: (canvas?.getObjects?.() || []).filter((o) => o && !o?.data?.base).length,
+			        };
+			      } catch (e) { /* ignore */ }
+			      try {
+			        const svg = document.getElementById('task-pitch-surface');
+			        payload.svg = {
+			          children: svg ? (svg.children?.length || 0) : 0,
+			          viewBox: svg ? safeText(svg.getAttribute('viewBox') || '') : '',
+			          preserve: svg ? safeText(svg.getAttribute('preserveAspectRatio') || '') : '',
 			        };
 			      } catch (e) { /* ignore */ }
 			      try {
