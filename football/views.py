@@ -23866,14 +23866,21 @@ def _build_player_card_radar_data(detail_row, population_rows):
                 anchor = 'end'
             baseline = 'auto' if ly < cy else 'hanging'
             label_text = str(axis.get('key') or '')
-            # Etiquetas ultra-compactas para que no se monten en PDF/print.
-            if label_text == 'A/90':
-                label_text = 'A/90'
-            elif label_text.lower().startswith('é'):
-                label_text = 'ÉX'
+            # Mantener etiquetas informativas (pero cortas) para el radar de card.
+            # No usamos el display (lleva números) para evitar ruido visual.
+            if label_text.lower().startswith('é'):
+                label_text = 'Éxito'
             elif label_text.lower().startswith('part'):
-                label_text = 'PART'
-            labels.append({'x': round(lx, 1), 'y': round(ly, 1), 'text': label_text, 'anchor': anchor, 'baseline': baseline})
+                label_text = 'Part.'
+            labels.append(
+                {
+                    'x': round(lx, 1),
+                    'y': round(ly, 1),
+                    'text': label_text,
+                    'anchor': anchor,
+                    'baseline': baseline,
+                }
+            )
         pts_str = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
         return {'axes': axes, 'polygon_points': pts_str, 'labels': labels}
     except Exception:
