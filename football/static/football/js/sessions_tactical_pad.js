@@ -969,6 +969,8 @@
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
+				    const simMotionAutoInput = document.getElementById('task-sim-motion-auto');
+				    const simMotionCutMsInput = document.getElementById('task-sim-motion-cut-ms');
 				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
 				    const simProPanel = document.getElementById('task-sim-pro-panel');
 				    const simAdvancedDetails = document.getElementById('task-sim-advanced');
@@ -3186,6 +3188,24 @@
 						    let simMotionRecordActive = false;
 						    let simMotionPrevAutoCapture = false;
 						    let simMotionSegmentRoutes = new Map(); // uid -> { points:[{x,y,t_ms}], spline:true, last_t }
+						    let simMotionAutoEnabled = true;
+						    let simMotionAutoCutMs = 520;
+						    let simMotionAutoTimer = null;
+						    let simMotionLastAutoCaptureAt = 0;
+						    let simMotionSegmentStartAt = 0;
+						    let simMotionClipStartIndex = null;
+						    const SIM_MOTION_PREF_KEY = 'tpad_sim_motion_record_prefs_v1';
+						    try {
+						      const raw = safeText(window.localStorage?.getItem?.(SIM_MOTION_PREF_KEY));
+						      if (raw) {
+						        const parsed = JSON.parse(raw);
+						        if (parsed && typeof parsed === 'object') {
+						          if (typeof parsed.auto_enabled === 'boolean') simMotionAutoEnabled = parsed.auto_enabled;
+						          const ms = Number(parsed.auto_cut_ms);
+						          if (Number.isFinite(ms)) simMotionAutoCutMs = clamp(ms, 180, 6000);
+						        }
+						      }
+						    } catch (e) { /* ignore */ }
 						    let simGuideX = null;
 						    let simGuideY = null;
 						    let simMoveOverlays = [];
@@ -5665,17 +5685,24 @@
 							      if (simVideoImportBtn) simVideoImportBtn.hidden = !isSimulating;
 							      if (simClipDestWrap) simClipDestWrap.hidden = !isSimulating;
 						      if (simPackBtn) simPackBtn.hidden = !isSimulating;
-						      if (simClipsList) simClipsList.hidden = !isSimulating;
-						      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
-						      if (simRoutesPanel) simRoutesPanel.hidden = !isSimulating;
-						      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
-						      if (simProEnabledInput) simProEnabledInput.checked = !!simulationProEnabled;
+							      if (simClipsList) simClipsList.hidden = !isSimulating;
+							      if (simMetaPanel) simMetaPanel.hidden = !isSimulating;
+							      if (simRoutesPanel) simRoutesPanel.hidden = !isSimulating;
+							      if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture;
+							      if (simMotionAutoInput) {
+							        simMotionAutoInput.checked = !!simMotionAutoEnabled;
+							      }
+							      if (simMotionCutMsInput) {
+							        simMotionCutMsInput.value = String(clamp(Number(simMotionAutoCutMs) || 520, 180, 6000));
+							        try { simMotionCutMsInput.disabled = !simMotionAutoEnabled; } catch (e) { /* ignore */ }
+							      }
+							      if (simProEnabledInput) simProEnabledInput.checked = !!simulationProEnabled;
 						      if (simProPanel) simProPanel.hidden = !isSimulating || !simulationProEnabled;
 						      if (simTrajectoriesInput) simTrajectoriesInput.checked = !!simulationTrajectories;
 					      if (simMagnetsInput) simMagnetsInput.checked = !!simulationMagnets;
 					      if (simGuidesInput) simGuidesInput.checked = !!simulationGuides;
 					      if (simCollisionInput) simCollisionInput.checked = !!simulationCollision;
-					      if (simCaptureBtn) simCaptureBtn.textContent = simMotionRecordActive ? 'Capturar movimiento' : 'Capturar paso';
+						      if (simCaptureBtn) simCaptureBtn.textContent = simMotionRecordActive ? 'Marcar hito' : 'Capturar paso';
 					      if (simRecordQuickBtn) {
 					        simRecordQuickBtn.textContent = simMotionRecordActive ? 'Parar' : 'Grabar';
 					        try { simRecordQuickBtn.disabled = false; } catch (e) { /* ignore */ }
@@ -5691,27 +5718,43 @@
 						      if (simRecordBtn) simRecordBtn.disabled = !canRecord;
 						      if (!isSimulating && simScriptModal) simScriptModal.hidden = true;
 					    };
-						    const startSimMotionRecording = () => {
-						      if (!isSimulating) return;
-						      if (simMotionRecordActive) return;
-						      simMotionPrevAutoCapture = !!simulationAutoCapture;
-						      simulationAutoCapture = false;
-						      simMotionRecordActive = true;
-						      clearSimMotionSegment();
-						      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
-						      syncSimUi();
-						      setStatus('Grabación activa: mueve fichas/recursos y pulsa “Capturar movimiento” para crear segmentos. Luego “Guardar clip”.');
-						    };
-						    const stopSimMotionRecording = () => {
-						      if (!isSimulating) return;
-						      if (!simMotionRecordActive) return;
-						      simMotionRecordActive = false;
-						      simulationAutoCapture = !!simMotionPrevAutoCapture;
-						      clearSimMotionSegment();
-						      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
-						      syncSimUi();
-						      setStatus(simulationSteps.length >= 2 ? 'Grabación detenida. Pulsa “Guardar clip”.' : 'Grabación detenida. Captura al menos 2 movimientos y luego guarda el clip.');
-						    };
+							    const startSimMotionRecording = () => {
+							      if (!isSimulating) return;
+							      if (simMotionRecordActive) return;
+							      stopSimulationPlayback();
+							      simMotionPrevAutoCapture = !!simulationAutoCapture;
+							      simulationAutoCapture = false;
+							      simMotionRecordActive = true;
+							      clearSimMotionAutoTimer();
+							      simMotionLastAutoCaptureAt = 0;
+							      // Para guardar un clip "de una vez": marca el inicio del clip desde el estado actual.
+							      // No borramos pasos existentes, pero al exportar recortaremos desde este índice.
+							      try {
+							        appendSimulationStepFromCanvas({ title: 'Inicio (grabación)', duration: 2 });
+							        renderSimulationSteps();
+							        void selectSimulationStep(simulationActiveIndex, { keepPlaying: true });
+							        simMotionClipStartIndex = clamp(simulationActiveIndex, 0, Math.max(0, simulationSteps.length - 1));
+							      } catch (e) {
+							        simMotionClipStartIndex = clamp(simulationActiveIndex, 0, Math.max(0, simulationSteps.length - 1));
+							      }
+							      clearSimMotionSegment();
+							      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
+							      syncSimUi();
+							      setStatus('Grabación activa: mueve fichas/recursos. Se crearán pasos automáticamente al pausar. Usa “Marcar hito” si quieres forzar un corte. Luego pulsa “Guardar clip”.');
+							    };
+							    const stopSimMotionRecording = () => {
+							      if (!isSimulating) return;
+							      if (!simMotionRecordActive) return;
+							      // Captura un último corte si hay cambios pendientes (sin obligar al usuario a pulsar "Marcar hito").
+							      try { captureSimulationStep({ mode: 'motion_auto', reason: 'stop' }); } catch (e) { /* ignore */ }
+							      simMotionRecordActive = false;
+							      simulationAutoCapture = !!simMotionPrevAutoCapture;
+							      clearSimMotionSegment();
+							      clearSimMotionAutoTimer();
+							      try { if (simAutoCaptureInput) simAutoCaptureInput.checked = !!simulationAutoCapture; } catch (e) { /* ignore */ }
+							      syncSimUi();
+							      setStatus(simulationSteps.length >= 2 ? 'Grabación detenida. Pulsa “Guardar clip”.' : 'Grabación detenida.');
+							    };
 						    const toggleSimMotionRecording = () => {
 						      if (!isSimulating) return;
 						      if (simMotionRecordActive) stopSimMotionRecording();
@@ -8939,12 +8982,54 @@
 				    let simRouteOverlays = [];
 				    const simMotionMaxPoints = 44;
 				    const simMotionMinPointDist = 5.5;
-				    const simMotionMinPointMs = 80;
-				    const simMotionNowMs = () => (window.performance?.now?.() || Date.now());
-				    const clearSimMotionSegment = () => {
-				      simMotionSegmentRoutes = new Map();
-				    };
-				    const simMotionRouteForUid = (uid) => {
+					    const simMotionMinPointMs = 80;
+					    const simMotionNowMs = () => (window.performance?.now?.() || Date.now());
+					    const persistSimMotionPrefs = () => {
+					      try {
+					        const payload = { auto_enabled: !!simMotionAutoEnabled, auto_cut_ms: clamp(Number(simMotionAutoCutMs) || 520, 180, 6000) };
+					        window.localStorage?.setItem?.(SIM_MOTION_PREF_KEY, JSON.stringify(payload));
+					      } catch (e) { /* ignore */ }
+					    };
+					    const clearSimMotionAutoTimer = () => {
+					      if (!simMotionAutoTimer) return;
+					      try { window.clearTimeout(simMotionAutoTimer); } catch (e) { /* ignore */ }
+					      simMotionAutoTimer = null;
+					    };
+					    const noteSimMotionActivity = () => {
+					      if (!simMotionRecordActive) return;
+					      if (!simMotionSegmentStartAt) simMotionSegmentStartAt = simMotionNowMs();
+					    };
+					    const canAutoCaptureSimMotion = () => {
+					      if (!simMotionRecordActive) return false;
+					      if (!isSimulating) return false;
+					      if (!simMotionAutoEnabled) return false;
+					      return true;
+					    };
+					    const scheduleSimMotionAutoCapture = (reason = '') => {
+					      if (!canAutoCaptureSimMotion()) return;
+					      clearSimMotionAutoTimer();
+					      const delay = clamp(Number(simMotionAutoCutMs) || 520, 180, 6000);
+					      simMotionAutoTimer = window.setTimeout(() => {
+					        simMotionAutoTimer = null;
+					        if (!canAutoCaptureSimMotion()) return;
+					        // Evita capturar mientras el usuario está arrastrando.
+					        try {
+					          if (canvas && canvas._currentTransform) {
+					            scheduleSimMotionAutoCapture('dragging');
+					            return;
+					          }
+					        } catch (e) { /* ignore */ }
+					        const now = Date.now();
+					        if (now - simMotionLastAutoCaptureAt < 220) return;
+					        simMotionLastAutoCaptureAt = now;
+					        try { captureSimulationStep({ mode: 'motion_auto', reason }); } catch (e) { /* ignore */ }
+					      }, delay);
+					    };
+					    const clearSimMotionSegment = () => {
+					      simMotionSegmentRoutes = new Map();
+					      simMotionSegmentStartAt = 0;
+					    };
+					    const simMotionRouteForUid = (uid) => {
 				      const key = safeText(uid);
 				      if (!key) return null;
 				      const existing = simMotionSegmentRoutes.get(key);
@@ -8953,10 +9038,11 @@
 				      simMotionSegmentRoutes.set(key, created);
 				      return created;
 				    };
-				    const simMotionAppendPoint = (uid, x, y, tMs) => {
-				      if (!simMotionRecordActive) return;
-				      const route = simMotionRouteForUid(uid);
-				      if (!route) return;
+					    const simMotionAppendPoint = (uid, x, y, tMs) => {
+					      if (!simMotionRecordActive) return;
+					      noteSimMotionActivity();
+					      const route = simMotionRouteForUid(uid);
+					      if (!route) return;
 				      const xNum = Number(x);
 				      const yNum = Number(y);
 				      if (!Number.isFinite(xNum) || !Number.isFinite(yNum)) return;
@@ -8982,14 +9068,15 @@
 				      const uid = safeText(target?.data?.layer_uid);
 				      return uid ? [uid] : [];
 				    };
-				    const simMotionFinalizeTarget = (target) => {
-				      if (!simMotionRecordActive) return;
-				      simMotionUidsFromTarget(target).forEach((uid) => {
-				        const left = Number(target?.left);
-				        const top = Number(target?.top);
-				        if (Number.isFinite(left) && Number.isFinite(top)) simMotionAppendPoint(uid, left, top, simMotionNowMs());
-				      });
-				    };
+					    const simMotionFinalizeTarget = (target) => {
+					      if (!simMotionRecordActive) return;
+					      noteSimMotionActivity();
+					      simMotionUidsFromTarget(target).forEach((uid) => {
+					        const left = Number(target?.left);
+					        const top = Number(target?.top);
+					        if (Number.isFinite(left) && Number.isFinite(top)) simMotionAppendPoint(uid, left, top, simMotionNowMs());
+					      });
+					    };
 				    const simMotionConsumeRoutes = () => {
 				      const out = {};
 				      try {
@@ -11824,7 +11911,7 @@
 				        simulationAnimFrame = window.requestAnimationFrame(tick);
 				      });
 				    };
-					    const captureSimulationStep = () => {
+					    const captureSimulationStep = (opts = {}) => {
 					      if (!isSimulating) return;
 					      stopSimulationPlayback();
 					      if (simMotionRecordActive) {
@@ -11837,12 +11924,30 @@
 					      const prev = simulationSteps.length ? simulationSteps[simulationSteps.length - 1] : null;
 					      const prevState = prev?.canvas_state || null;
 					      const nextState = serializeCanvasOnly();
-				      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
+					      const moves = prevState ? computeMovesBetweenStates(prevState, nextState) : [];
 					      const routes = simMotionRecordActive ? simMotionConsumeRoutes() : {};
+					      const mode = safeText(opts?.mode, 'manual');
+					      const shouldSkipNoop = mode === 'motion_auto';
+					      const hasMoves = Array.isArray(moves) && moves.length > 0;
+					      const hasRoutes = routes && typeof routes === 'object' && Object.keys(routes).length > 0;
+					      if (shouldSkipNoop && !hasMoves && !hasRoutes) {
+					        if (simMotionRecordActive) clearSimMotionSegment();
+					        return;
+					      }
+					      let duration = 3;
+					      if (mode === 'motion_auto') {
+					        const startAt = Number(simMotionSegmentStartAt) || 0;
+					        if (startAt > 0) {
+					          const segMs = Math.max(0, (simMotionNowMs() - startAt));
+					          duration = clamp(Math.round((segMs / 1000) * 10) / 10, 0.8, 8);
+					        } else {
+					          duration = 1.6;
+					        }
+					      }
 					      if (simMotionRecordActive) clearSimMotionSegment();
 					      simulationSteps.push({
 					        title: `Paso ${index}`,
-					        duration: 3,
+					        duration,
 					        canvas_state: nextState,
 					        canvas_width: Math.round(w || 0),
 					        canvas_height: Math.round(h || 0),
@@ -12626,12 +12731,14 @@
 				        runPlaybookActionNow(action);
 				      }
 				    } catch (e) { /* ignore */ }
-				    const exitSimulation = () => {
-				      if (!isSimulating) return;
-				      stopSimulationPlayback();
-				      simMotionRecordActive = false;
-				      clearSimMotionSegment();
-				      simRouteAddMode = false;
+					    const exitSimulation = () => {
+					      if (!isSimulating) return;
+					      stopSimulationPlayback();
+					      simMotionRecordActive = false;
+					      simMotionClipStartIndex = null;
+					      clearSimMotionSegment();
+					      clearSimMotionAutoTimer();
+					      simRouteAddMode = false;
 				      if (simRouteToggleBtn) {
 				        simRouteToggleBtn.textContent = 'Añadir waypoints';
 				        simRouteToggleBtn.classList.remove('primary');
@@ -12676,12 +12783,14 @@
 					    // Exponer salida del simulador para cierres “externos” (click fuera / backdrop)
 					    // sin depender del orden de inicialización (evita TDZ).
 					    try { window.__webstats_tpad_exit_sim = exitSimulation; } catch (e) { /* ignore */ }
-							    const resetSimulation = () => {
-							      if (!isSimulating) return;
-							      stopSimulationPlayback();
-							      simMotionRecordActive = false;
-							      clearSimMotionSegment();
-						      simRouteAddMode = false;
+								    const resetSimulation = () => {
+								      if (!isSimulating) return;
+								      stopSimulationPlayback();
+								      simMotionRecordActive = false;
+								      simMotionClipStartIndex = null;
+								      clearSimMotionSegment();
+								      clearSimMotionAutoTimer();
+							      simRouteAddMode = false;
 						      if (simRouteToggleBtn) {
 						        simRouteToggleBtn.textContent = 'Añadir waypoints';
 						        simRouteToggleBtn.classList.remove('primary');
@@ -12832,10 +12941,15 @@
 			      event.preventDefault();
 			      resetSimulation();
 			    });
-			    simCaptureBtn?.addEventListener('click', (event) => {
-			      event.preventDefault();
-			      captureSimulationStep();
-			    });
+				    simCaptureBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      if (simMotionRecordActive) {
+				        try { clearSimMotionAutoTimer(); } catch (e) { /* ignore */ }
+				        captureSimulationStep({ mode: 'motion_mark', reason: 'mark' });
+				        return;
+				      }
+				      captureSimulationStep();
+				    });
 			    simPlayBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      void playSimulationSteps();
@@ -12874,10 +12988,23 @@
 			        syncSimProUi();
 			      });
 			    });
-				    simAutoCaptureInput?.addEventListener('change', () => {
-				      simulationAutoCapture = !!simAutoCaptureInput.checked;
-				      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
-				    });
+					    simAutoCaptureInput?.addEventListener('change', () => {
+					      simulationAutoCapture = !!simAutoCaptureInput.checked;
+					      setStatus(simulationAutoCapture ? 'Auto-captura activada.' : 'Auto-captura desactivada.');
+					    });
+					    simMotionAutoInput?.addEventListener('change', () => {
+					      simMotionAutoEnabled = !!simMotionAutoInput.checked;
+					      try { if (simMotionCutMsInput) simMotionCutMsInput.disabled = !simMotionAutoEnabled; } catch (e) { /* ignore */ }
+					      persistSimMotionPrefs();
+					      setStatus(simMotionAutoEnabled ? 'Auto-corte de grabación activado.' : 'Auto-corte de grabación desactivado.');
+					    });
+					    simMotionCutMsInput?.addEventListener('change', () => {
+					      const ms = Number(simMotionCutMsInput.value);
+					      if (Number.isFinite(ms)) simMotionAutoCutMs = clamp(ms, 180, 6000);
+					      try { simMotionCutMsInput.value = String(clamp(Number(simMotionAutoCutMs) || 520, 180, 6000)); } catch (e) { /* ignore */ }
+					      persistSimMotionPrefs();
+					      setStatus('Corte automático actualizado.');
+					    });
 				    simRecordFormatSelect?.addEventListener('change', () => {
 				      try { simPersistRecordPrefsFromUi(); } catch (e) { /* ignore */ }
 				      setStatus('Formato de vídeo guardado.');
@@ -18327,15 +18454,16 @@
 				      if (isSimulating) {
 				        hideSimGuides();
 				        try { if (simMotionRecordActive) simMotionFinalizeTarget(event?.target); } catch (e) { /* ignore */ }
+				        try { if (simMotionRecordActive) scheduleSimMotionAutoCapture('modified'); } catch (e) { /* ignore */ }
 				        if (simulationAutoCapture && !simulationPlaying) {
 				          const now = Date.now();
 				          if (now - simulationLastAutoCaptureAt >= 450) {
-			            simulationLastAutoCaptureAt = now;
-			            captureSimulationStep();
-			          }
-			        }
-			        return;
-			      }
+				            simulationLastAutoCaptureAt = now;
+				            captureSimulationStep();
+				          }
+				        }
+				        return;
+				      }
 			      persistActiveStepSnapshot();
 			      pushHistory();
 			      syncInspector();
@@ -18345,12 +18473,19 @@
 			      schedulePlayerBankUpdate();
 			      scheduleDraftSave('canvas');
 			    });
-		    canvas.on('object:added', (event) => {
-		      if (event?.target?.data?.base) return;
-		      const target = event?.target;
-		      const deferSmartInkPath = (!canvas.__loading)
-		        && freeDrawMode
-		        && smartInkMode !== 'off'
+			    canvas.on('object:added', (event) => {
+			      if (event?.target?.data?.base) return;
+			      if (isSimulating) {
+			        try { if (simMotionRecordActive) scheduleSimMotionAutoCapture('added'); } catch (e) { /* ignore */ }
+			        try { syncInspector(); } catch (e) { /* ignore */ }
+			        try { renderLayers(); } catch (e) { /* ignore */ }
+			        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+			        return;
+			      }
+			      const target = event?.target;
+			      const deferSmartInkPath = (!canvas.__loading)
+			        && freeDrawMode
+			        && smartInkMode !== 'off'
 		        && target
 		        && target.type === 'path';
 		      if (!canvas.__loading && !deferSmartInkPath) {
@@ -18363,12 +18498,19 @@
 		      schedulePlayerBankUpdate();
 		      scheduleDraftSave('canvas');
 		    });
-		    canvas.on('object:removed', (event) => {
-		      if (event?.target?.data?.base) return;
-		      if (!canvas.__loading) {
-		        persistActiveStepSnapshot();
-		        pushHistory();
-		        renderLayers();
+			    canvas.on('object:removed', (event) => {
+			      if (event?.target?.data?.base) return;
+			      if (isSimulating) {
+			        try { if (simMotionRecordActive) scheduleSimMotionAutoCapture('removed'); } catch (e) { /* ignore */ }
+			        try { syncInspector(); } catch (e) { /* ignore */ }
+			        try { renderLayers(); } catch (e) { /* ignore */ }
+			        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+			        return;
+			      }
+			      if (!canvas.__loading) {
+			        persistActiveStepSnapshot();
+			        pushHistory();
+			        renderLayers();
 		      }
 		      refreshLivePreview();
 		      scheduleTacticalOverlayRefresh();
@@ -21797,12 +21939,19 @@
 						      // Guardar clip puede refrescar Playbook y re-renderizar paneles: protege contra resizes.
 						      __blockResizesFor(8000);
 						      const metaBefore = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
-						      let steps = [];
-						      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+							      let steps = [];
+							      try { steps = JSON.parse(JSON.stringify(simulationSteps)); } catch (e) { steps = simulationSteps.slice(); }
+							      // Si la grabación de movimiento está (o estuvo) activa, recorta el clip desde el inicio marcado.
+							      try {
+							        const start = Number(simMotionClipStartIndex);
+							        if (Number.isFinite(start) && start >= 0 && start < steps.length) {
+							          steps = steps.slice(start);
+							        }
+							      } catch (e) { /* ignore */ }
 						      const dest = safeText(simClipDestSelect?.value, 'local');
-						      if (dest !== 'local') {
-					        const scope = dest === 'system' ? 'system' : 'team';
-					        (async () => {
+							      if (dest !== 'local') {
+						        const scope = dest === 'system' ? 'system' : 'team';
+						        (async () => {
 					          __blockResizesFor(8000);
 					          try {
 					            const payload = { scope, name: name.slice(0, 160), folder, tags, steps };
@@ -21827,9 +21976,10 @@
 						            __blockResizesFor(2500);
 						            try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
 						          }
-						        })();
-						        return;
-						      }
+							        })();
+							        try { simMotionClipStartIndex = null; } catch (e) { /* ignore */ }
+							        return;
+							      }
 				      let pro = null;
 				      try {
 				        const hasTracks = simulationProTracks && typeof simulationProTracks === 'object' && Object.keys(simulationProTracks).length >= 1;
@@ -21843,15 +21993,16 @@
 				          };
 				        }
 				      } catch (e) { /* ignore */ }
-				      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps, pro };
+							      const clip = { name: name.slice(0, 120), created_at: new Date().toISOString(), steps, pro };
 				      const prev = readClipsLibrary();
 				      const next = [clip, ...prev].slice(0, 40);
 						      writeClipsLibrary(next);
 						      renderClipsLibrary();
-						      setStatus('Clip guardado (local).');
-						      __blockResizesFor(2500);
-						      try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
-					    });
+							      setStatus('Clip guardado (local).');
+							      try { simMotionClipStartIndex = null; } catch (e) { /* ignore */ }
+							      __blockResizesFor(2500);
+							      try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
+						    });
 				    simClipImportBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      if (!isSimulating) return;

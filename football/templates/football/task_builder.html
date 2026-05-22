@@ -4602,15 +4602,23 @@
 						                            </label>
 						                            <button type="button" class="button" id="task-sim-pack" hidden>Pack presentación</button>
 						                          </div>
-						                          <div class="sim-options">
-						                            <label class="sim-check">
-						                              <input type="checkbox" id="task-sim-autocapture" />
-						                              Auto-capturar al mover
-						                            </label>
-						                            <label class="sim-check">
-						                              <input type="checkbox" id="task-sim-pro-enabled" />
-						                              Timeline Pro
-						                            </label>
+							                          <div class="sim-options">
+							                            <label class="sim-check">
+							                              <input type="checkbox" id="task-sim-autocapture" />
+							                              Auto-capturar al mover
+							                            </label>
+							                            <label class="sim-check" title="Durante “Grabar”, crea pasos automáticamente al pausar unos ms.">
+							                              <input type="checkbox" id="task-sim-motion-auto" checked />
+							                              Auto-corte (grabación)
+							                            </label>
+							                            <label title="Milisegundos de pausa para cerrar un tramo (keyframes).">
+							                              Corte (ms)
+							                              <input type="number" id="task-sim-motion-cut-ms" min="180" max="6000" step="20" value="520" style="max-width:120px;" />
+							                            </label>
+							                            <label class="sim-check">
+							                              <input type="checkbox" id="task-sim-pro-enabled" />
+							                              Timeline Pro
+							                            </label>
 						                            <label class="sim-check">
 						                              <input type="checkbox" id="task-sim-trajectories" />
 						                              Trayectorias
