@@ -58210,6 +58210,43 @@ def player_pdf(request, player_id):
         future = [m for m in upcoming_matches if m.get('date_obj') and m.get('date_obj') >= today]
         next_scheduled_match = future[0] if future else upcoming_matches[0]
 
+    # Presets de gráficas del PDF (configurable desde Entrenador → Gráficas).
+    # Se guarda por club (workspace) y opcionalmente override por jugador.
+    pdf_charts_preset = {}
+    pdf_minutes_chart_type = 'line'
+    pdf_ga_chart_type = 'line'
+    try:
+        ws = _get_active_workspace(request)
+    except Exception:
+        ws = None
+    try:
+        if ws:
+            pref = None
+            try:
+                pref = WorkspacePreference.objects.filter(workspace=ws, key=f'pdfcharts:player:{int(player.id)}').first()
+            except Exception:
+                pref = None
+            if not pref:
+                try:
+                    pref = WorkspacePreference.objects.filter(workspace=ws, key='pdfcharts:club').first()
+                except Exception:
+                    pref = None
+            value = pref.value if pref and isinstance(getattr(pref, 'value', None), dict) else {}
+            if isinstance(value, dict) and value:
+                pdf_charts_preset = value
+                try:
+                    minutes_cfg = value.get('minutes') if isinstance(value.get('minutes'), dict) else {}
+                    ga_cfg = value.get('ga') if isinstance(value.get('ga'), dict) else {}
+                    pdf_minutes_chart_type = str(minutes_cfg.get('type') or 'line').strip().lower()
+                    pdf_ga_chart_type = str(ga_cfg.get('type') or 'line').strip().lower()
+                except Exception:
+                    pdf_minutes_chart_type = 'line'
+                    pdf_ga_chart_type = 'line'
+    except Exception:
+        pdf_charts_preset = {}
+        pdf_minutes_chart_type = 'line'
+        pdf_ga_chart_type = 'line'
+
     # Gráficas por jornadas/partidos (minutos y G/A) para todo el periodo.
     matchday_minutes_chart = []
     matchday_ga_chart = []
@@ -58387,6 +58424,13 @@ def player_pdf(request, player_id):
             'goals_points': goals_series.get('points') or [],
             'assists_points': assists_series.get('points') or [],
         }
+
+        # Aplica presets: si el user prefiere barras, anulamos la serie de línea (la template
+        # ya tiene fallback a sparklines/barras). Nota: "bars" es alias de cualquier modo no-línea.
+        if str(pdf_minutes_chart_type or '').lower() not in {'line', 'lines'}:
+            matchday_minutes_line = None
+        if str(pdf_ga_chart_type or '').lower() not in {'line', 'lines'}:
+            matchday_ga_line = None
     except Exception:
         matchday_minutes_chart = []
         matchday_ga_chart = []

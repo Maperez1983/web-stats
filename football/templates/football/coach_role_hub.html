@@ -1508,6 +1508,7 @@
       <div class="workspace-tabs" role="tablist" aria-label="Estadísticas del entrenador">
         <button class="workspace-tab is-active" type="button" data-tab-target="summary">Generales</button>
         <button class="workspace-tab" type="button" data-tab-target="player">Individuales</button>
+        <button class="workspace-tab" type="button" data-tab-target="charts" title="Configura las gráficas del PDF del jugador (por club o por jugador)">Gráficas</button>
         <a
           class="workspace-tab"
           role="tab"
@@ -1887,6 +1888,64 @@
           {% endif %}
         </section>
       </section>
+
+      <section class="workspace-panel" data-tab-panel="charts">
+        <div class="workspace-stack">
+          <section class="summary-card">
+            <h3>Gráficas del informe (PDF jugador)</h3>
+            <p class="summary-meta">Editor “tipo Excel”: elige variables y tipo de gráfica. Se guarda por club o por jugador y se aplica al PDF.</p>
+
+            <form id="pdf-charts-form" class="summary-toolbar" onsubmit="return false;">
+              <div>
+                <label for="pdf-charts-scope">Ámbito</label>
+                <select id="pdf-charts-scope">
+                  <option value="club">Club (por defecto)</option>
+                  <option value="player">Jugador (override)</option>
+                </select>
+              </div>
+              <div id="pdf-charts-player-wrap" hidden>
+                <label for="pdf-charts-player">Jugador</label>
+                <select id="pdf-charts-player">
+                  <option value="">—</option>
+                  {% for p in coach_player_options %}
+                  <option value="{{ p.id }}">{{ p.name }}{% if p.number %} · #{{ p.number }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </form>
+
+            <div class="summary-mini-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+              <article class="summary-mini-item">
+                <div class="label">Minutos por partido</div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-minutes-type" style="margin-bottom:0.3rem;">Tipo</label>
+                  <select id="pdf-charts-minutes-type">
+                    <option value="line">Línea</option>
+                    <option value="bars">Barras</option>
+                  </select>
+                </div>
+              </article>
+              <article class="summary-mini-item">
+                <div class="label">Goles + asistencias</div>
+                <div style="margin-top:0.55rem;">
+                  <label for="pdf-charts-ga-type" style="margin-bottom:0.3rem;">Tipo</label>
+                  <select id="pdf-charts-ga-type">
+                    <option value="line">Líneas (2 series)</option>
+                    <option value="bars">Barras (stack)</option>
+                  </select>
+                </div>
+              </article>
+            </div>
+
+            <div style="margin-top:0.9rem; display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center;">
+              <button type="button" class="workspace-tab is-active" id="pdf-charts-save">Guardar configuración</button>
+              <button type="button" class="workspace-tab" id="pdf-charts-reset" title="Vuelve a la configuración por defecto (solo para el ámbito seleccionado)">Restablecer</button>
+              <span id="pdf-charts-status" style="color:rgba(226,232,240,0.78); font-size:0.88rem;"></span>
+            </div>
+            <p class="summary-meta" style="margin-top:0.75rem;">Tras guardar, genera de nuevo el PDF del jugador para ver el resultado.</p>
+          </section>
+        </div>
+      </section>
       {% endif %}
       {% else %}
       <nav class="section-nav">
@@ -1922,8 +1981,11 @@
           tab.addEventListener('click', () => activateTab(tab.dataset.tabTarget));
         });
         const params = new URLSearchParams(window.location.search);
+        const tabParam = String(params.get('tab') || '').trim().toLowerCase();
         if (params.get('player')) {
           activateTab('player');
+        } else if (tabParam && ['summary', 'player', 'charts'].includes(tabParam)) {
+          activateTab(tabParam);
         }
         const searchInput = document.getElementById('individual-player-search');
         const playerCards = Array.from(document.querySelectorAll('[data-player-card]'));
@@ -1943,6 +2005,126 @@
           searchInput.addEventListener('input', filterCards);
           filterCards();
         }
+
+        // Configurador de gráficas PDF (por club / por jugador).
+        const scopeSelect = document.getElementById('pdf-charts-scope');
+        const playerWrap = document.getElementById('pdf-charts-player-wrap');
+        const playerSelect = document.getElementById('pdf-charts-player');
+        const minutesType = document.getElementById('pdf-charts-minutes-type');
+        const gaType = document.getElementById('pdf-charts-ga-type');
+        const saveBtn = document.getElementById('pdf-charts-save');
+        const resetBtn = document.getElementById('pdf-charts-reset');
+        const statusEl = document.getElementById('pdf-charts-status');
+
+        const setStatus = (msg, isError) => {
+          if (!statusEl) return;
+          statusEl.textContent = msg || '';
+          statusEl.style.color = isError ? 'rgba(248,113,113,0.95)' : 'rgba(226,232,240,0.78)';
+        };
+
+        const prefKeyFor = () => {
+          const scope = String(scopeSelect?.value || 'club');
+          if (scope === 'player') {
+            const pid = String(playerSelect?.value || '').trim();
+            if (!pid) return null;
+            return `pdfcharts:player:${pid}`;
+          }
+          return 'pdfcharts:club';
+        };
+
+        const fetchPref = async (key) => {
+          const res = await fetch(`/api/workspace/preferences/get/?key=${encodeURIComponent(key)}`, { headers: { 'Accept': 'application/json' } });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!data || data.ok !== true) throw new Error(String((data && data.error) || 'No se pudo cargar la preferencia.'));
+          return data.value || null;
+        };
+
+        const savePref = async (key, value) => {
+          const res = await fetch('/api/workspace/preferences/set/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ key, value }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!data || data.ok !== true) throw new Error(String((data && data.error) || 'No se pudo guardar la preferencia.'));
+          return data;
+        };
+
+        const applyValueToForm = (value) => {
+          const v = (value && typeof value === 'object') ? value : {};
+          const minutes = (v.minutes && typeof v.minutes === 'object') ? v.minutes : {};
+          const ga = (v.ga && typeof v.ga === 'object') ? v.ga : {};
+          if (minutesType) minutesType.value = String(minutes.type || 'line');
+          if (gaType) gaType.value = String(ga.type || 'line');
+        };
+
+        const loadCurrent = async () => {
+          const key = prefKeyFor();
+          if (!key) {
+            applyValueToForm(null);
+            setStatus('Elige un jugador para editar su override.', true);
+            return;
+          }
+          setStatus('Cargando…');
+          try {
+            const value = await fetchPref(key);
+            applyValueToForm(value);
+            setStatus(`Cargado: ${key}`);
+          } catch (e) {
+            applyValueToForm(null);
+            setStatus(`No se pudo cargar (${key}).`, true);
+          }
+        };
+
+        const scopeChanged = () => {
+          const scope = String(scopeSelect?.value || 'club');
+          if (playerWrap) playerWrap.hidden = scope !== 'player';
+          loadCurrent();
+        };
+
+        scopeSelect?.addEventListener('change', scopeChanged);
+        playerSelect?.addEventListener('change', loadCurrent);
+
+        saveBtn?.addEventListener('click', async () => {
+          const key = prefKeyFor();
+          if (!key) {
+            setStatus('Falta seleccionar jugador.', true);
+            return;
+          }
+          const payload = {
+            version: 1,
+            minutes: { type: String(minutesType?.value || 'line') },
+            ga: { type: String(gaType?.value || 'line') },
+          };
+          setStatus('Guardando…');
+          try {
+            await savePref(key, payload);
+            setStatus('Guardado.');
+          } catch (e) {
+            setStatus('Error al guardar.', true);
+          }
+        });
+
+        resetBtn?.addEventListener('click', async () => {
+          const key = prefKeyFor();
+          if (!key) {
+            setStatus('Falta seleccionar jugador.', true);
+            return;
+          }
+          setStatus('Restableciendo…');
+          try {
+            await savePref(key, {});
+            await loadCurrent();
+            setStatus('Restablecido.');
+          } catch (e) {
+            setStatus('Error al restablecer.', true);
+          }
+        });
+
+        // Inicializa UI.
+        if (scopeSelect) scopeChanged();
       })();
     </script>
     {% endif %}

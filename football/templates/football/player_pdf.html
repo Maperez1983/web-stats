@@ -1174,12 +1174,9 @@
                             {% endfor %}
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.mt }}" x2="{{ matchday_minutes_line.ml }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
                             <line x1="{{ matchday_minutes_line.ml }}" y1="{{ matchday_minutes_line.h|add:'-42' }}" x2="{{ matchday_minutes_line.w|add:'-18' }}" y2="{{ matchday_minutes_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <path d="{{ matchday_minutes_line.path_d }}" class="lc-line minutes"></path>
+                            <path d="{{ matchday_minutes_line.path_d }}" class="lc-line minutes" fill="none" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% for p in matchday_minutes_line.points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" class="lc-dot minutes"></circle>
-                              {% if p.value and p.value|floatformat:0 != '0' %}
-                                <text x="{{ p.x }}" y="{{ p.y|add:'-8' }}" text-anchor="middle" class="lc-val">{{ p.value|floatformat:0 }}</text>
-                              {% endif %}
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" class="lc-dot minutes" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.show_label %}
                                 <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
                               {% endif %}
@@ -1241,21 +1238,21 @@
                             {% endfor %}
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.mt }}" x2="{{ matchday_ga_line.ml }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
                             <line x1="{{ matchday_ga_line.ml }}" y1="{{ matchday_ga_line.h|add:'-42' }}" x2="{{ matchday_ga_line.w|add:'-18' }}" y2="{{ matchday_ga_line.h|add:'-42' }}" class="lc-axis"></line>
-                            <path d="{{ matchday_ga_line.path_goals_d }}" class="lc-line goals"></path>
-                            <path d="{{ matchday_ga_line.path_assists_d }}" class="lc-line assists"></path>
+                            <path d="{{ matchday_ga_line.path_goals_d }}" class="lc-line goals" fill="none" stroke="rgba(15, 122, 53, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                            <path d="{{ matchday_ga_line.path_assists_d }}" class="lc-line assists" fill="none" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% for p in matchday_ga_line.x_points %}
                               {% if p.show_label %}
                                 <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" class="lc-xlab">{{ p.label }}</text>
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.goals_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot goals"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot goals" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.value and p.value|floatformat:0 != '0' %}
                                 <text x="{{ p.x|add:'-7' }}" y="{{ p.y|add:'-8' }}" text-anchor="end" class="lc-val">{{ p.value|floatformat:0 }}</text>
                               {% endif %}
                             {% endfor %}
                             {% for p in matchday_ga_line.assists_points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot assists"></circle>
+                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" class="lc-dot assists" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if p.value and p.value|floatformat:0 != '0' %}
                                 <text x="{{ p.x|add:'7' }}" y="{{ p.y|add:'-8' }}" text-anchor="start" class="lc-val">{{ p.value|floatformat:0 }}</text>
                               {% endif %}
