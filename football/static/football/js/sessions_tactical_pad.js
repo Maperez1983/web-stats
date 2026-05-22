@@ -1716,14 +1716,25 @@
     );
     const sideTabs = Array.from(document.querySelectorAll('#task-side-tabs .side-tab'));
     const sideMore = document.getElementById('task-side-more');
-    const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
-	    const assignedHidden = document.getElementById('assigned-players-hidden');
-	    const assignedSummary = document.getElementById('task-assigned-summary');
-	    const exportPngBtn = document.getElementById('export-png');
-	    const exportPngHdBtn = document.getElementById('export-png-hd');
-	    const exportJsonBtn = document.getElementById('export-json');
-	    const exportStepsBtn = document.getElementById('export-png-steps');
-    if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) return;
+	    const sidePanes = Array.from(document.querySelectorAll('.side-pane[data-pane]'));
+		    const assignedHidden = document.getElementById('assigned-players-hidden');
+		    const assignedSummary = document.getElementById('task-assigned-summary');
+		    const exportPngBtn = document.getElementById('export-png');
+		    const exportPngHdBtn = document.getElementById('export-png-hd');
+		    const exportJsonBtn = document.getElementById('export-json');
+		    const exportStepsBtn = document.getElementById('export-png-steps');
+	    // OJO: esta función se llama con reintentos (boot retries) porque en Safari/Render a veces
+	    // el orden de `defer` + carga de scripts hace que `window.fabric` aún no exista en el primer tick.
+	    // Si devolvemos aquí SIN limpiar `webstatsTpadInit`, bloqueamos los reintentos y la pizarra queda "en blanco".
+	    if (!window.fabric || !form || !canvasEl || !stage || !svgSurface || !presetSelect) {
+	      try { if (form && form.dataset) delete form.dataset.webstatsTpadInit; } catch (e) { /* ignore */ }
+	      try {
+	        window.setTimeout(() => {
+	          try { if (typeof window.initSessionsTacticalPad === 'function') window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
+	        }, 80);
+	      } catch (e) { /* ignore */ }
+	      return;
+	    }
 
     const draftAlert = document.getElementById('task-builder-draft-alert');
     const draftText = document.getElementById('task-builder-draft-text');
