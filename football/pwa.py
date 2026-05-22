@@ -32,6 +32,10 @@ def _build_id() -> str:
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio.js",
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_simple_ui.js",
             base_dir / "football" / "static" / "football" / "js" / "analysis_video_studio_youtube.js",
+            # Tactical Pad: muy sensible a cache en iOS/Safari. Si no hay env de commit, el SW debe cambiar
+            # cuando cambie el editor para evitar que se quede pegado a assets viejos.
+            base_dir / "football" / "static" / "football" / "js" / "sessions_tactical_pad.js",
+            base_dir / "football" / "static" / "football" / "js" / "pitch_surface_preview.js",
             base_dir / "static" / "football" / "css" / "product_system.css",
             base_dir / "static" / "football" / "css" / "commercial.css",
         ]
