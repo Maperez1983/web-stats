@@ -6609,6 +6609,10 @@
 					          lines.push(`rect.viewport=${JSON.stringify(snapRect(viewport))}`);
 					          lines.push(`rect.stage=${JSON.stringify(snapRect(stage))}`);
 					          lines.push(`rect.canvas=${JSON.stringify(snapRect(canvas))}`);
+					          const svg = document.getElementById('task-pitch-surface');
+					          try { lines.push(`rect.svg=${JSON.stringify(snapRect(svg))}`); } catch (e) {}
+					          try { lines.push(`svg.viewBox=${svg ? String(svg.getAttribute('viewBox') || '') : ''}`); } catch (e) {}
+					          try { lines.push(`svg.children=${svg ? String(svg.children?.length || 0) : '0'}`); } catch (e) {}
 					          try { lines.push(`canvas.attr=${canvas ? `${canvas.getAttribute('width') || ''}x${canvas.getAttribute('height') || ''}` : ''}`); } catch (e) {}
 					          try { lines.push(`canvas.prop=${canvas ? `${canvas.width}x${canvas.height}` : ''}`); } catch (e) {}
 					          lines.push(`scripts.fabric=${JSON.stringify(listScripts('fabric'))}`);
