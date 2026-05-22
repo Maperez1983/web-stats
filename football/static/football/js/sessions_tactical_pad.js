@@ -10492,9 +10492,15 @@
 				      try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
 				      try { syncSimUi(); } catch (e) { /* ignore */ }
 				      try {
+				        // Si el usuario está grabando, primero detén la grabación para que se capture el último tramo
+				        // y aparezcan pasos antes de intentar guardar.
+				        if (isSimulating && simMotionRecordActive && typeof stopSimMotionRecording === 'function') {
+				          try { stopSimMotionRecording(); } catch (e) { /* ignore */ }
+				        }
 				        // Solo dispara guardar si ya hay pasos.
 				        if (Array.isArray(simulationSteps) && simulationSteps.length && simClipSaveBtn && !simClipSaveBtn.hidden) {
-				          simClipSaveBtn.click();
+				          // Deja un tick para que el UI/render añada el último paso tras parar grabación.
+				          window.setTimeout(() => { try { simClipSaveBtn.click(); } catch (e) { /* ignore */ } }, 80);
 				        } else {
 				          setStatus('Simulador abierto: captura pasos y pulsa “Guardar clip”.');
 				        }
@@ -20902,7 +20908,25 @@
                 }
 
                 // Escribe la simulación (reutiliza el motor existente).
-                simulationSavedSteps = steps.map((s) => ({ title: s.title, duration: s.duration, canvas_state: s.canvas_state, canvas_width: 0, canvas_height: 0, moves: [], routes: {} }));
+                // Importante: guarda también el tamaño del mundo y los metadatos de superficie.
+                // Si `canvas_width/height` quedan a 0, al abrir pasos el loader no puede mapear bien
+                // coordenadas y parece que “cambia la superficie” o desordena fichas.
+                const { w, h } = worldSize();
+                const pitchMeta = capturePitchMetaForStep();
+                simulationSavedSteps = steps.map((s) => ({
+                  title: s.title,
+                  duration: s.duration,
+                  canvas_state: s.canvas_state,
+                  canvas_width: Math.round(w || 0),
+                  canvas_height: Math.round(h || 0),
+                  moves: [],
+                  routes: {},
+                  ball_follow_uid: '',
+                  preset: pitchMeta.preset,
+                  orientation: pitchMeta.orientation,
+                  grass_style: pitchMeta.grass_style,
+                  zoom: pitchMeta.zoom,
+                }));
                 simulationSavedUpdatedAt = Date.now();
                 try {
                   if (canUseStorage) {
