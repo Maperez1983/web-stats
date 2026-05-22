@@ -465,8 +465,14 @@
         font-weight: 1000;
         color: var(--pdf-muted);
       }
-      .radar-box-figure { margin-top: 8px; }
-      .radar-box-figure svg { display: block; width: 100%; height: auto; }
+      .radar-box-figure { margin-top: 8px; text-align: center; }
+      /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
+      .radar-box-figure svg {
+        display: inline-block;
+        width: 300px;
+        height: 300px;
+        max-width: 100%;
+      }
       .radar-box-legend { margin-top: 8px; }
       .radar-mini-legend {
         margin-top: 10px;
