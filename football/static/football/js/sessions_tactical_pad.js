@@ -1667,6 +1667,9 @@
 				    const overlayHalfspacesInput = document.getElementById('task-overlay-halfspaces');
 				    const overlayOffsideInput = document.getElementById('task-overlay-offside');
 				    const overlayZone14Input = document.getElementById('task-overlay-zone14');
+				    const overlayGridInput = document.getElementById('task-overlay-grid');
+				    const overlayGridRowsInput = document.getElementById('task-overlay-grid-rows');
+				    const overlayGridColsInput = document.getElementById('task-overlay-grid-cols');
 				    const overlaysApplyBtn = document.getElementById('task-overlays-apply');
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
@@ -12834,7 +12837,10 @@
 			      }
 			      if (simPopover && !simPopover.hidden) {
 			        const inside = resolveClosest(target, '#task-command-bar') || resolveClosest(target, '#task-sim-popover');
-			        if (!inside) setSimPopoverOpen(false);
+			        // En simulación el usuario necesita clicar fichas constantemente: no debemos cerrar el simulador
+			        // por "click fuera", porque parece que se sale del modo y obliga a reabrirlo desde la barra superior.
+			        // El cierre debe ser explícito (botón X / Esc / abrir otro panel).
+			        if (!inside && !isSimulating) setSimPopoverOpen(false);
 			      }
 			    };
 			    // Cerrar menús aunque Fabric/otros handlers hagan stopPropagation.
