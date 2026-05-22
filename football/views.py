@@ -23691,7 +23691,7 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
             # Extra margen para que etiquetas (COMP/ESF/...) no se monten ni se recorten.
-            lr = 154.0
+            lr = 146.0
             lx = cx + math.cos(angle) * lr
             ly = cy + math.sin(angle) * lr
             anchor = 'middle'
@@ -23701,7 +23701,11 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
                 anchor = 'start'
             elif lx > cx + 10:
                 anchor = 'end'
-            baseline = 'auto' if ly < cy else 'hanging'
+            # En PDF preferimos baseline estable para que no se "corte" el texto en bordes.
+            baseline = 'middle'
+            # Clamps suaves para evitar recortes en los bordes del viewBox.
+            lx = max(18.0, min(float(lx), 342.0))
+            ly = max(22.0, min(float(ly), 338.0))
             labels.append(
                 {
                     'x': round(lx, 1),
