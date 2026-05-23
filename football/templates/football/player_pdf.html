@@ -327,6 +327,17 @@
         break-inside: auto;
         page-break-inside: auto;
       }
+      .perf-snapshot-img {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--pdf-line);
+        background: #ffffff;
+      }
+      .perf-snapshot-img img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
       .perf-grid { display: table; width: 100%; table-layout: fixed; }
       .perf-grid-row { display: table-row; }
       .perf-grid-left, .perf-grid-right { display: table-cell; vertical-align: top; }
@@ -898,13 +909,18 @@
 	        </div>
 	      </div>
 
-	      <div class="pad">
-	        <div class="section-title">Rendimiento, KPI y mapa de calor</div>
+		      <div class="pad">
+		        <div class="section-title">Rendimiento, KPI y mapa de calor</div>
 
-	        <div class="perf-panel">
-	          <div class="perf-grid">
-	            <div class="perf-grid-row">
-	              <div class="perf-grid-left">
+		        <div class="perf-panel">
+		          {% if performance_snapshot_src %}
+		            <div class="perf-snapshot-img">
+		              <img src="{{ performance_snapshot_src }}" alt="Rendimiento, KPI y mapa de calor" />
+		            </div>
+		          {% else %}
+		          <div class="perf-grid">
+		            <div class="perf-grid-row">
+		              <div class="perf-grid-left">
 	                <div class="perf-title">KPI de rendimiento</div>
 
 	                <table class="kpi-table" style="border-spacing:8px 8px;">
@@ -1019,10 +1035,11 @@
 	                                  <span class="radar-axis-tag br">Calidad</span>
 	                                  <span class="radar-axis-tag bl">Importancia</span>
 	                                  <span class="radar-axis-tag left">Influencia</span>
-	                                </div>
-	                              </div>
-	                            </div>
-	                          </div>
+		            </div>
+		          </div>
+		          {% endif %}
+		        </div>
+		      </div>
 	                          <div class="radar-right">
 	                            <table class="radar-axes-table">
 	                              {% for row in radar_staff_axes_rows %}
@@ -1353,19 +1370,21 @@
                             {% if matchday_minutes_line.path2_d %}
                               <path d="{{ matchday_minutes_line.path2_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
-                            {% for p in matchday_minutes_line.points %}
-                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
-                              {% if matchday_minutes_line.show_values == 'all' or matchday_minutes_line.show_values == 'last' %}
-                                {% if matchday_minutes_line.show_values == 'all' or forloop.last %}
-                                  {% if p.value and p.value|floatformat:0 != '0' %}
-                                    <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
-                                  {% endif %}
-                                {% endif %}
-                              {% endif %}
-                              {% if p.show_label %}
-                                <text x="{{ p.x }}" y="{{ matchday_minutes_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
-                              {% endif %}
-                            {% endfor %}
+		                            {% for p in matchday_minutes_line.points %}
+		                              <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.6" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
+		                              {% if matchday_minutes_line.show_values == 'all' or matchday_minutes_line.show_values == 'last' %}
+		                                {% if matchday_minutes_line.show_values == 'all' or forloop.last %}
+		                                  {% if p.value and p.value|floatformat:0 != '0' %}
+		                                    <text x="{{ p.x|add:'-7' }}" y="{{ p.val_y }}" text-anchor="end" fill="rgba(11,18,32,0.78)" font-size="9.2" font-weight="1000">{{ p.value|floatformat:0 }}</text>
+		                                  {% endif %}
+		                                {% endif %}
+		                              {% endif %}
+		                              {% if p.show_label %}
+		                                {% with yl=matchday_minutes_line.h|add:'-16' %}
+		                                  <text x="{{ p.x }}" y="{{ yl }}" text-anchor="end" transform="rotate(-35 {{ p.x }} {{ yl }})" fill="rgba(71,85,105,0.92)" font-size="9.2" font-weight="900">{{ p.label }}</text>
+		                                {% endwith %}
+		                              {% endif %}
+		                            {% endfor %}
                             {% if matchday_minutes_line.points2 %}
                               {% for p in matchday_minutes_line.points2 %}
                                 <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(255, 181, 0, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
@@ -1444,11 +1463,13 @@
                             {% if matchday_ga_line.path_b_d %}
                               <path d="{{ matchday_ga_line.path_b_d }}" fill="none" style="fill:none;" stroke="rgba(255, 181, 0, 0.92)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
                             {% endif %}
-                            {% for p in matchday_ga_line.x_points %}
-                              {% if p.show_label %}
-                                <text x="{{ p.x }}" y="{{ matchday_ga_line.h|add:'-20' }}" text-anchor="middle" fill="rgba(71,85,105,0.90)" font-size="9.2" font-weight="900">{{ p.label }}</text>
-                              {% endif %}
-                            {% endfor %}
+		                            {% for p in matchday_ga_line.x_points %}
+		                              {% if p.show_label %}
+		                                {% with yl=matchday_ga_line.h|add:'-16' %}
+		                                  <text x="{{ p.x }}" y="{{ yl }}" text-anchor="end" transform="rotate(-35 {{ p.x }} {{ yl }})" fill="rgba(71,85,105,0.92)" font-size="9.2" font-weight="900">{{ p.label }}</text>
+		                                {% endwith %}
+		                              {% endif %}
+		                            {% endfor %}
                             {% for p in matchday_ga_line.a_points %}
                               <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.4" fill="rgba(15, 122, 53, 0.92)" stroke="rgba(11,18,32,0.20)" stroke-width="1"></circle>
                               {% if matchday_ga_line.show_values == 'all' or matchday_ga_line.show_values == 'last' %}

@@ -40,7 +40,7 @@ services:
         value: "0"
       # Opcional: instala chromium en build (coste CPU/tiempo). Desactivado por defecto.
       - key: INSTALL_PLAYWRIGHT_BROWSERS
-        value: "false"
+        value: "true"
       # Seguridad: NO instalar Chromium en runtime (puede romper el deploy por "No open ports detected").
       - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
         value: "false"

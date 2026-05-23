@@ -59,7 +59,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 from .task_backups import write_task_backup
-from .preview_render import render_task_preview_png
+from .preview_render import render_html_selector_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 
 try:
@@ -58287,8 +58287,9 @@ def player_pdf(request, player_id):
     pdf_charts_preset = {}
     pdf_minutes_chart_type = 'line'
     pdf_ga_chart_type = 'line'
-    pdf_minutes_x = 'round'
-    pdf_ga_x = 'round'
+    # Por defecto mostramos jornada + rival (más informativo que solo la jornada).
+    pdf_minutes_x = 'both'
+    pdf_ga_x = 'both'
     pdf_minutes_show_every = 2
     pdf_ga_show_every = 2
     pdf_minutes_ymax_override = None
@@ -58623,7 +58624,8 @@ def player_pdf(request, player_id):
         # Alternativa legible: charts tipo línea (SVG, sin JS) para PDF.
         def _build_line_series(items, *, get_value, y_max, show_every=2):
             W, H = 980.0, 240.0
-            ml, mr, mt, mb = 40.0, 18.0, 26.0, 48.0
+            # Más margen inferior para etiquetas del eje X (rotadas) sin solaparse.
+            ml, mr, mt, mb = 40.0, 18.0, 26.0, 78.0
             pw = max(1.0, W - ml - mr)
             ph = max(1.0, H - mt - mb)
             n = max(1, len(items))
@@ -59285,6 +59287,40 @@ def player_pdf(request, player_id):
     except Exception:
         fine_rows = []
         fine_summary = {'count': 0, 'total_amount': 0}
+
+    performance_snapshot_src = ''
+    try:
+        snapshot_mode = str(request.GET.get('snapshot') or '').strip().lower()
+    except Exception:
+        snapshot_mode = ''
+    use_snapshot = snapshot_mode not in {'0', 'false', 'no'}
+    if use_snapshot:
+        try:
+            snapshot_html = render_to_string(
+                'football/player_performance_snapshot.html',
+                {
+                    'player': player,
+                    'stats': detail,
+                    'player_percentiles': staff_percentiles,
+                    'radar_data': radar_data,
+                    'card_radar_data': card_radar_data,
+                    'pitch_src': pitch_src,
+                },
+                request=request,
+            )
+            snapshot_png = render_html_selector_png(
+                html=snapshot_html,
+                selector='#perf-snapshot',
+                viewport_width=1400,
+                viewport_height=1000,
+                device_scale_factor=2.0,
+                wait_for_js='window.__radar_done === true && window.__trends_done === true',
+                timeout_ms=25000,
+            )
+            if snapshot_png:
+                performance_snapshot_src = f"data:image/png;base64,{base64.b64encode(snapshot_png).decode('ascii')}"
+        except Exception:
+            performance_snapshot_src = ''
     html = render_to_string(
         'football/player_pdf.html',
         {
@@ -59312,6 +59348,7 @@ def player_pdf(request, player_id):
             'card_radar_data': card_radar_data,
             'radar_staff_axes_rows': radar_staff_axes_rows,
             'radar_card_axes_rows': radar_card_axes_rows,
+            'performance_snapshot_src': performance_snapshot_src,
             'played_matches': played_matches,
             'upcoming_matches': upcoming_matches,
             'latest_played_match': latest_played_match,

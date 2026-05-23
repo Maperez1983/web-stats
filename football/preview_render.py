@@ -318,6 +318,7 @@ def render_task_preview_png(
     with _acquire_playwright_browser() as (pw, browser):
         if not pw or not browser:
             return None
+
         context = None
         try:
             context = browser.new_context(
@@ -329,7 +330,12 @@ def render_task_preview_png(
             # We inline local /static and /media URLs into data: URLs before rendering.
             # Any other remote requests are aborted quickly.
             try:
-                page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+                page.route(
+                    "**/*",
+                    lambda route: route.abort()
+                    if route.request.url.startswith(("http://", "https://"))
+                    else route.continue_(),
+                )
             except Exception:
                 pass
             page.set_content(html, wait_until="load")
@@ -405,6 +411,73 @@ def render_task_preview_png(
             page.wait_for_function("window.__render_done === true", timeout=15000)
             # Capture stage (pitch + overlay) at device scale.
             png_bytes = page.locator("#stage").screenshot(type="png")
+            try:
+                context.close()
+            except Exception:
+                pass
+            return png_bytes
+        except Exception:
+            try:
+                if context:
+                    context.close()
+            except Exception:
+                pass
+            return None
+
+
+def render_html_selector_png(
+    *,
+    html: str,
+    selector: str,
+    viewport_width: int = 1400,
+    viewport_height: int = 900,
+    device_scale_factor: float = 2.0,
+    wait_for_js: str | None = None,
+    timeout_ms: int = 20000,
+) -> bytes | None:
+    """
+    Render arbitrary HTML into a PNG screenshot of a given selector using Playwright.
+
+    This is used to create WYSIWYG "snapshots" for PDFs when the live UI relies on JavaScript.
+    """
+    if not html or not selector:
+        return None
+    viewport_width = max(640, min(int(viewport_width or 1400), 2200))
+    viewport_height = max(480, min(int(viewport_height or 900), 1800))
+    try:
+        device_scale_factor = float(device_scale_factor or 2.0)
+    except Exception:
+        device_scale_factor = 2.0
+    device_scale_factor = max(1.0, min(device_scale_factor, 3.0))
+    timeout_ms = max(2000, min(int(timeout_ms or 20000), 60000))
+
+    with _acquire_playwright_browser() as (pw, browser):
+        if not pw or not browser:
+            return None
+        context = None
+        try:
+            context = browser.new_context(
+                viewport={"width": int(viewport_width), "height": int(viewport_height)},
+                device_scale_factor=float(device_scale_factor),
+            )
+            page = context.new_page()
+            # No external network from snapshot renders.
+            try:
+                page.route("**/*", lambda route: route.abort() if route.request.url.startswith(("http://", "https://")) else route.continue_())
+            except Exception:
+                pass
+            page.set_content(str(html), wait_until="load")
+            if wait_for_js:
+                try:
+                    page.wait_for_function(str(wait_for_js), timeout=timeout_ms)
+                except Exception:
+                    pass
+            loc = page.locator(str(selector))
+            try:
+                loc.wait_for(state="visible", timeout=timeout_ms)
+            except Exception:
+                pass
+            png_bytes = loc.screenshot(type="png")
             try:
                 context.close()
             except Exception:

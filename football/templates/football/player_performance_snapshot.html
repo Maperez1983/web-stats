@@ -1,0 +1,484 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Snapshot rendimiento · {{ player.name }}</title>
+    <style>
+      /* Base "claro" para snapshot en PDF */
+      :root{
+        color-scheme: light;
+        --prod-bg: #ffffff;
+        --prod-panel-flat: #ffffff;
+        --prod-line: rgba(15,23,42,0.14);
+        --prod-line-strong: rgba(244,180,0,0.30);
+        --prod-text: rgba(15,23,42,0.92);
+        --prod-muted: rgba(15,23,42,0.62);
+        --prod-muted-soft: rgba(15,23,42,0.78);
+        --prod-primary: #2f7d32;
+        --prod-secondary: #f4b400;
+        --prod-shadow-md: 0 16px 36px rgba(2, 6, 23, 0.08);
+      }
+      body{
+        margin:0;
+        padding:18px;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        background:#fff;
+        color:var(--prod-text);
+      }
+      .card{
+        background:var(--prod-panel-flat);
+        border:1px solid var(--prod-line);
+        border-radius:16px;
+        padding:18px;
+        box-shadow:var(--prod-shadow-md);
+      }
+      h2{margin:0 0 12px;font-size:18px;}
+
+      /* --- KPI rings --- (misma estructura que ficha) */
+      .performance-rings { display:flex; gap:14px; flex-wrap:wrap; margin-top: 10px; }
+      .kpi-ring{ width: 210px; border-radius: 14px; border:1px solid var(--prod-line); background: rgba(2,6,23,0.02); padding: 12px; }
+      .kpi-ring-chart{
+        --pct: 0;
+        width: 104px;
+        height: 104px;
+        margin: 0 auto;
+        border-radius: 999px;
+        background:
+          conic-gradient(var(--prod-primary) calc(var(--pct) * 1%), rgba(148,163,184,0.35) 0);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+      .kpi-ring-chart::before{
+        content:"";
+        width: 76px;
+        height: 76px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid rgba(15,23,42,0.08);
+        position:absolute;
+      }
+      .kpi-ring-value{ position:relative; font-weight:900; font-size:18px; }
+      .kpi-ring-label{ margin-top:10px; text-align:center; font-weight:800; color:var(--prod-muted); text-transform:uppercase; letter-spacing:0.08em; font-size:11px;}
+
+      .performance-blocks{ display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:10px; margin-top:12px;}
+      .performance-block{ border-radius:14px; border:1px solid var(--prod-line); background: rgba(2,6,23,0.02); padding:10px; }
+      .performance-block .label{ font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--prod-muted); font-weight:900; display:block; }
+      .performance-block .value{ font-size:18px; font-weight:1000; margin-top:4px; display:block; }
+
+      .radar-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:14px; }
+      .radar-figure{ border-radius:14px; border:1px solid var(--prod-line); background:#fff; padding:12px; }
+      .radar-legend{ border-radius:14px; border:1px solid var(--prod-line); background:#fff; padding:12px; }
+      .radar-legend h4{ margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; }
+      .radar-legend p{ margin:8px 0 0; color:var(--prod-muted); font-size:11px; line-height:1.35; }
+      .radar-axes{ list-style:none; padding:0; margin:10px 0 0; }
+      .radar-axes li{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed rgba(15,23,42,0.10); }
+      .radar-dot{ width:10px; height:10px; border-radius:999px; background: rgba(244,180,0,0.92); border:1px solid rgba(15,23,42,0.12); display:inline-block; margin-right:8px; flex:0 0 auto; }
+      .radar-axis-label{ font-weight:1000; }
+      .radar-axis-value{ color:var(--prod-muted-soft); font-weight:900; }
+      .radar-trends{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
+      .trend-card{ border:1px solid rgba(15,23,42,0.12); border-radius:12px; background: rgba(2,6,23,0.02); padding:10px; }
+      .trend-card strong{ display:block; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--prod-muted); }
+      .trend-card svg{ width:100%; height:54px; display:block; margin-top:6px; }
+      .trend-meta{ display:flex; justify-content:space-between; margin-top:6px; color:var(--prod-muted); font-size:10px; font-weight:900; }
+
+      .performance-map{ margin-top:14px; }
+      .field-diagram{ position:relative; width:100%; padding-bottom:56%; background:#0b1b12; border-radius:14px; border:1px solid rgba(15,23,42,0.14); overflow:hidden; }
+      .field-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position:center; }
+      .field-zone{ position:absolute; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:900; text-align:center; padding:4px; text-transform:uppercase; letter-spacing:0.04em; text-shadow: 0 2px 8px rgba(2,6,23,0.95); }
+      .field-zone span{ display:inline-flex; align-items:center; justify-content:center; max-width:100%; padding:3px 8px; border-radius:999px; background: rgba(2,6,23,0.66); border:1px solid rgba(255,255,255,0.14); }
+      .zone-count{ margin-top:4px; font-size:13px; font-weight:1000; color:#facc15; background: rgba(2,6,23,0.75); border-color: rgba(250,204,21,0.25); }
+    </style>
+  </head>
+  <body>
+    <div id="perf-snapshot" class="card">
+      <h2>Rendimiento, KPI y mapa de calor</h2>
+
+      <div class="performance-rings">
+        <article class="kpi-ring">
+          <div class="kpi-ring-chart" style="--pct: {{ stats.success_rate|default:0 }};">
+            <span class="kpi-ring-value">{{ stats.success_rate|default:0|floatformat:-1 }}%</span>
+          </div>
+          <div class="kpi-ring-label">Tasa de éxito</div>
+        </article>
+        <article class="kpi-ring">
+          <div class="kpi-ring-chart" style="--pct: {{ stats.duel_rate|default:0 }};">
+            <span class="kpi-ring-value">{{ stats.duel_rate|default:0|floatformat:-1 }}%</span>
+          </div>
+          <div class="kpi-ring-label">Duelos ganados</div>
+        </article>
+        <article class="kpi-ring">
+          <div class="kpi-ring-chart" style="--pct: {{ stats.passes.accuracy|default:0 }};">
+            <span class="kpi-ring-value">{{ stats.passes.accuracy|default:0|floatformat:-1 }}%</span>
+          </div>
+          <div class="kpi-ring-label">Precisión de pase</div>
+        </article>
+        <article class="kpi-ring">
+          <div class="kpi-ring-chart" style="--pct: {{ stats.shots.accuracy|default:0 }};">
+            <span class="kpi-ring-value">{{ stats.shots.accuracy|default:0|floatformat:-1 }}%</span>
+          </div>
+          <div class="kpi-ring-label">Tiro a puerta</div>
+        </article>
+      </div>
+
+      <div class="performance-blocks">
+        <div class="performance-block"><span class="label">Acciones</span><span class="value">{{ stats.total_actions|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Duelos</span><span class="value">{{ stats.duel_summary.won|default:0 }}/{{ stats.duel_summary.total|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Duelos aéreos</span><span class="value">{{ stats.aerial_duel_summary.won|default:0 }}/{{ stats.aerial_duel_summary.total|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Pases</span><span class="value">{{ stats.passes.completed|default:0 }}/{{ stats.passes.attempts|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Disparos</span><span class="value">{{ stats.shots.on_target|default:0 }}/{{ stats.shots.attempts|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Disparos/Gol</span><span class="value">{{ stats.shots.per_goal|default:"-" }}</span></div>
+        <div class="performance-block"><span class="label">Goles</span><span class="value">{{ stats.goals|default:0 }}</span></div>
+        <div class="performance-block"><span class="label">Asistencias</span><span class="value">{{ stats.assists|default:0 }}</span></div>
+      </div>
+
+      <div
+        class="performance-radar"
+        id="player-performance-radar"
+        data-pct-commitment="{{ player_percentiles.commitment|default:0 }}"
+        data-pct-effort="{{ player_percentiles.actions_per90|default:0 }}"
+        data-pct-quality="{{ player_percentiles.quality|default:0 }}"
+        data-pct-importance="{{ player_percentiles.importance_score|default:0 }}"
+        data-pct-influence="{{ player_percentiles.influence_score|default:0 }}"
+        data-participation="{{ stats.participation_matches_pct|default:stats.participation_pct }}"
+        data-availability="{{ stats.availability_pct|default:0 }}"
+        data-actions-per90="{{ stats.actions_per90|default:0 }}"
+        data-total-actions="{{ stats.total_actions|default:0 }}"
+        data-minutes="{{ stats.minutes|default:0 }}"
+        data-success="{{ stats.success_rate|default:0 }}"
+        data-attendance="{{ stats.attendance_completion_pct|default:0 }}"
+        data-position="{{ stats.position|default:'' }}"
+        data-profile="{{ stats.profile|default:'' }}"
+        data-goals="{{ stats.goals|default:0 }}"
+        data-assists="{{ stats.assists|default:0 }}"
+        data-key-passes="{{ stats.key_passes_completed|default:stats.passes.key_completed|default:0 }}"
+        data-pass-attempts="{{ stats.pass_attempts|default:stats.passes.attempts|default:0 }}"
+        data-passes-completed="{{ stats.passes_completed|default:stats.passes.completed|default:0 }}"
+        data-shot-attempts="{{ stats.shot_attempts|default:stats.shots.attempts|default:0 }}"
+        data-shots-on-target="{{ stats.shots_on_target|default:stats.shots.on_target|default:0 }}"
+        data-duels-won="{{ stats.duels_won|default:stats.duel_summary.won|default:0 }}"
+        data-duels-total="{{ stats.duels_total|default:stats.duel_summary.total|default:0 }}"
+        data-aerial-won="{{ stats.aerial_duels_won|default:stats.aerial_duel_summary.won|default:0 }}"
+        data-aerial-total="{{ stats.aerial_duels_total|default:stats.aerial_duel_summary.total|default:0 }}"
+        data-saves="{{ stats.goalkeeper_saves|default:0 }}"
+        data-importance="{{ stats.importance_score|default:0 }}"
+        data-influence="{{ stats.influence_score|default:0 }}"
+      >
+        <div class="radar-grid">
+          <div class="radar-figure">
+            <svg viewBox="0 0 360 360" role="img" aria-label="Radar rendimiento" focusable="false">
+              <defs>
+                <linearGradient id="radarFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="rgba(244,180,0,0.55)"></stop>
+                  <stop offset="100%" stop-color="rgba(47,125,50,0.45)"></stop>
+                </linearGradient>
+              </defs>
+              <g id="radar-grid"></g>
+              <g id="radar-data"></g>
+              <g id="radar-labels"></g>
+            </svg>
+          </div>
+          <div class="radar-legend">
+            <h4>Radar (normalizado)</h4>
+            <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Compromiso, Esfuerzo, Calidad, Importancia e Influencia.</p>
+            <ul class="radar-axes" id="radar-axes-list"></ul>
+            <div class="radar-trends" id="radar-trends">
+              <div class="trend-card">
+                <strong>Acciones (últimos 6)</strong>
+                <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia acciones" role="img">
+                  <path id="trend-actions-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+                  <path id="trend-actions-fill" d="" fill="rgba(244,180,0,0.16)" stroke="none"></path>
+                </svg>
+                <div class="trend-meta"><span id="trend-actions-min">—</span><span id="trend-actions-max">—</span></div>
+              </div>
+              <div class="trend-card">
+                <strong>% Éxito (últimos 6)</strong>
+                <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia éxito" role="img">
+                  <path id="trend-success-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+                  <path id="trend-success-fill" d="" fill="rgba(47,125,50,0.16)" stroke="none"></path>
+                </svg>
+                <div class="trend-meta"><span id="trend-success-min">—</span><span id="trend-success-max">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {% if card_radar_data and card_radar_data.polygon_points_svg %}
+          <div class="radar-grid" style="margin-top:14px;">
+            <div class="radar-figure">
+              <svg viewBox="0 0 360 360" role="img" aria-label="Radar (card)" focusable="false">
+                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1.2"></circle>
+                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1.2"></circle>
+                {% if card_radar_data.axis_svg %}
+                  {% for ax in card_radar_data.axis_svg %}
+                    <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(15,23,42,0.14)" stroke-width="1.1"></line>
+                  {% endfor %}
+                {% endif %}
+                <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+                {% if card_radar_data.axis_svg %}
+                  {% for ax in card_radar_data.axis_svg %}
+                    <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(15,23,42,0.78)" font-size="11" font-weight="900">{{ ax.text }}</text>
+                  {% endfor %}
+                {% endif %}
+              </svg>
+            </div>
+            <div class="radar-legend">
+              <h4>Radar (card)</h4>
+              <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Acc/90, Éxito, Part., Influencia, Importancia.</p>
+              <ul class="radar-axes">
+                {% for axis in card_radar_data.axes %}
+                  <li>
+                    <span><span class="radar-dot"></span><span class="radar-axis-label">{{ axis.key }}</span></span>
+                    <span class="radar-axis-value">{{ axis.display }}{% if axis.pct_rank %} · P{{ axis.pct_rank|default:0 }}{% endif %}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="performance-map">
+        <div class="field-diagram">
+          <img class="field-bg" src="{{ pitch_src }}" alt="Campo" />
+          {% for zone in stats.field_zones %}
+            <div class="field-zone" style="left: {{ zone.left }}; top: {{ zone.top }}; width: {{ zone.width }}; height: {{ zone.height }};">
+              <span>{{ zone.label }}</span>
+              <span class="zone-count">{{ zone.pct|default:0|floatformat:-1 }}%</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if stats.matches %}
+        {{ stats.matches|json_script:"player-trend-matches" }}
+      {% endif %}
+    </div>
+
+    <script>
+      (function () {
+        const root = document.getElementById('player-performance-radar');
+        if (!root) return;
+        const svg = root.querySelector('svg');
+        if (!svg) return;
+        const gridG = svg.querySelector('#radar-grid');
+        const dataG = svg.querySelector('#radar-data');
+        const labelsG = svg.querySelector('#radar-labels');
+        const axesList = document.getElementById('radar-axes-list');
+        if (!gridG || !dataG || !labelsG || !axesList) return;
+
+        const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        const pct = (a, b) => b > 0 ? (a / b) * 100 : 0;
+        const fmtPct = (v) => `${Math.round(v)}%`;
+        const fmt = (v) => String(Math.round(num(v)));
+
+        const pctCommitment = clamp(num(root.dataset.pctCommitment), 0, 100);
+        const pctEffort = clamp(num(root.dataset.pctEffort), 0, 100);
+        const pctQuality = clamp(num(root.dataset.pctQuality), 0, 100);
+        const pctImportance = clamp(num(root.dataset.pctImportance), 0, 100);
+        const pctInfluence = clamp(num(root.dataset.pctInfluence), 0, 100);
+
+        const participation = clamp(num(root.dataset.participation), 0, 100);
+        const availability = clamp(num(root.dataset.availability), 0, 100);
+        const actionsPer90 = Math.max(0, num(root.dataset.actionsPer90));
+        const minutes = Math.max(0, num(root.dataset.minutes));
+        const successRate = clamp(num(root.dataset.success), 0, 100);
+        const attendance = clamp(num(root.dataset.attendance), 0, 100);
+        const importanceScore = clamp(num(root.dataset.importance), 0, 100);
+        const influenceScore = clamp(num(root.dataset.influence), 0, 100);
+
+        const position = String(root.dataset.position ?? '').toLowerCase();
+        const profile = String(root.dataset.profile ?? '').toLowerCase();
+        const bucket = (() => {
+          const s = `${profile} ${position}`.trim();
+          if (!s) return 'mid';
+          if (s.includes('goalkeeper') || s.includes('portero') || s.startsWith('gk') || s.includes(' gk')) return 'gk';
+          if (['defensa','defens','central','lateral','carril','libero','ld','li','rb','lb','cb'].some(k => s.includes(k))) return 'def';
+          if (['medio','centro','interior','pivote','mediocentro','centrocamp','volante','mc','mcd','mco'].some(k => s.includes(k))) return 'mid';
+          if (['delanter','extremo','punta','striker','forward','media punta','mp'].some(k => s.includes(k))) return 'fwd';
+          return 'mid';
+        })();
+
+        const goals = Math.max(0, num(root.dataset.goals));
+        const assists = Math.max(0, num(root.dataset.assists));
+        const keyPasses = Math.max(0, num(root.dataset.keyPasses));
+        const passAttempts = Math.max(0, num(root.dataset.passAttempts));
+        const passesCompleted = Math.max(0, num(root.dataset.passesCompleted));
+        const shotAttempts = Math.max(0, num(root.dataset.shotAttempts));
+        const shotsOnTarget = Math.max(0, num(root.dataset.shotsOnTarget));
+        const duelsWon = Math.max(0, num(root.dataset.duelsWon));
+        const duelsTotal = Math.max(0, num(root.dataset.duelsTotal));
+        const aerialWon = Math.max(0, num(root.dataset.aerialWon));
+        const aerialTotal = Math.max(0, num(root.dataset.aerialTotal));
+        const saves = Math.max(0, num(root.dataset.saves));
+
+        const m90 = minutes > 0 ? (minutes / 90) : 0;
+        const ga90 = m90 > 0 ? (goals + assists) / m90 : 0;
+        const kp90 = m90 > 0 ? keyPasses / m90 : 0;
+        const saves90 = m90 > 0 ? saves / m90 : 0;
+        const shotAcc = pct(shotsOnTarget, shotAttempts);
+        const passAcc = pct(passesCompleted, passAttempts);
+        const duelRate = pct(duelsWon, duelsTotal);
+        const aerialRate = pct(aerialWon, aerialTotal);
+
+        let qualityDisplay = fmtPct(successRate);
+        if (bucket === 'fwd') qualityDisplay = `G+A/90 ${ga90.toFixed(1)} · Tiro ${Math.round(shotAcc)}%`;
+        else if (bucket === 'mid') qualityDisplay = `KP/90 ${kp90.toFixed(1)} · Pase ${Math.round(passAcc)}%`;
+        else if (bucket === 'def') qualityDisplay = `Duel ${Math.round(duelRate)}% · Aéreo ${Math.round(aerialRate)}%`;
+        else if (bucket === 'gk') qualityDisplay = `Paradas/90 ${saves90.toFixed(1)} · Pase ${Math.round(passAcc)}%`;
+
+        const mk = (key, value, display, pctRank) => ({ key, value, display, pctRank: clamp(num(pctRank), 0, 100) });
+        const commitmentBits = [`PART ${Math.round(participation)}%`, `DISP ${Math.round(availability)}%`];
+        if (attendance > 0) commitmentBits.push(`ENT ${Math.round(attendance)}%`);
+        const axes = [
+          mk('Compromiso', pctCommitment, commitmentBits.join(' · '), pctCommitment),
+          mk('Esfuerzo', pctEffort, `${Math.round(actionsPer90 * 10) / 10} A/90`, pctEffort),
+          mk('Calidad', pctQuality, qualityDisplay, pctQuality),
+          mk('Importancia', pctImportance, fmt(importanceScore), pctImportance),
+          mk('Influencia', pctInfluence, fmt(influenceScore), pctInfluence),
+        ];
+
+        const cx = 180, cy = 180, R = 120, labelR = 142;
+        const rings = [0.25, 0.5, 0.75, 1];
+        const angleFor = (i, n) => (-Math.PI / 2) + (i * 2 * Math.PI / n);
+        const point = (angle, r) => ({ x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r });
+        const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); };
+        clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
+
+        const gridStroke = 'rgba(15,23,42,0.14)';
+        const axisStroke = 'rgba(15,23,42,0.14)';
+        const labelFill = 'rgba(15,23,42,0.78)';
+        const polygonStroke = 'rgba(15,23,42,0.22)';
+        const dotStroke = 'rgba(15,23,42,0.18)';
+
+        rings.forEach((t) => {
+          const rr = R * t;
+          const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          c.setAttribute('cx', String(cx));
+          c.setAttribute('cy', String(cy));
+          c.setAttribute('r', String(rr));
+          c.setAttribute('fill', 'none');
+          c.setAttribute('stroke', gridStroke);
+          c.setAttribute('stroke-width', '1');
+          gridG.appendChild(c);
+        });
+
+        axes.forEach((axis, i) => {
+          const a = angleFor(i, axes.length);
+          const p0 = point(a, 0);
+          const p1 = point(a, R);
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', String(p0.x));
+          line.setAttribute('y1', String(p0.y));
+          line.setAttribute('x2', String(p1.x));
+          line.setAttribute('y2', String(p1.y));
+          line.setAttribute('stroke', axisStroke);
+          line.setAttribute('stroke-width', '1');
+          gridG.appendChild(line);
+
+          const pl = point(a, labelR);
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', String(pl.x));
+          text.setAttribute('y', String(pl.y));
+          text.setAttribute('fill', labelFill);
+          text.setAttribute('font-size', '11');
+          text.setAttribute('font-weight', '900');
+          text.setAttribute('text-anchor', pl.x < cx - 10 ? 'start' : (pl.x > cx + 10 ? 'end' : 'middle'));
+          text.setAttribute('dominant-baseline', pl.y < cy ? 'auto' : 'hanging');
+          text.textContent = axis.key;
+          labelsG.appendChild(text);
+        });
+
+        const pts = axes.map((axis, i) => {
+          const a = angleFor(i, axes.length);
+          const r = R * (clamp(num(axis.value), 0, 100) / 100);
+          return point(a, r);
+        });
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const d = pts.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'url(#radarFill)');
+        path.setAttribute('stroke', polygonStroke);
+        path.setAttribute('stroke-width', '1.5');
+        dataG.appendChild(path);
+        pts.forEach((p) => {
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', String(p.x));
+          dot.setAttribute('cy', String(p.y));
+          dot.setAttribute('r', '3.6');
+          dot.setAttribute('fill', 'rgba(244,180,0,0.92)');
+          dot.setAttribute('stroke', dotStroke);
+          dot.setAttribute('stroke-width', '1');
+          dataG.appendChild(dot);
+        });
+
+        axes.forEach((axis) => {
+          const li = document.createElement('li');
+          const left = document.createElement('span');
+          const dot = document.createElement('span');
+          dot.className = 'radar-dot';
+          const label = document.createElement('span');
+          label.className = 'radar-axis-label';
+          label.textContent = axis.key;
+          left.appendChild(dot);
+          left.appendChild(label);
+          const value = document.createElement('span');
+          value.className = 'radar-axis-value';
+          const rank = typeof axis.pctRank === 'number' ? ` · P${Math.round(axis.pctRank)}` : '';
+          value.textContent = String(axis.display || fmt(axis.value)) + rank;
+          li.appendChild(left);
+          li.appendChild(value);
+          axesList.appendChild(li);
+        });
+
+        window.__radar_done = true;
+      })();
+    </script>
+    <script>
+      (function () {
+        const el = document.getElementById('player-trend-matches');
+        if (!el) return;
+        let matches = [];
+        try { matches = JSON.parse(el.textContent || '[]') || []; } catch (e) { matches = []; }
+        if (!Array.isArray(matches) || !matches.length) return;
+        const last = matches.slice(-6);
+        const actions = last.map((m) => Number(m && m.actions) || 0);
+        const success = last.map((m) => {
+          const a = Number(m && m.actions) || 0;
+          const s = Number(m && m.successes) || 0;
+          return a ? (s / a) * 100 : 0;
+        });
+        const draw = (vals, pathId, fillId, minId, maxId, fmt) => {
+          const path = document.getElementById(pathId);
+          const fill = document.getElementById(fillId);
+          const minEl = document.getElementById(minId);
+          const maxEl = document.getElementById(maxId);
+          if (!path || !fill || !minEl || !maxEl) return;
+          const w = 240;
+          const h = 54;
+          const max = Math.max(...vals, 1);
+          const min = Math.min(...vals, 0);
+          const span = Math.max(1e-6, max - min);
+          const pts = vals.map((v, i) => {
+            const x = (vals.length === 1) ? (w / 2) : (i * (w / (vals.length - 1)));
+            const y = h - (((v - min) / span) * (h - 6) + 3);
+            return [x, y];
+          });
+          const d = pts.map((p, i) => `${i ? 'L' : 'M'} ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+          path.setAttribute('d', d);
+          const df = `${d} L ${pts[pts.length - 1][0].toFixed(1)} ${h} L ${pts[0][0].toFixed(1)} ${h} Z`;
+          fill.setAttribute('d', df);
+          minEl.textContent = `min ${fmt(min)}`;
+          maxEl.textContent = `max ${fmt(max)}`;
+        };
+        draw(actions, 'trend-actions-path', 'trend-actions-fill', 'trend-actions-min', 'trend-actions-max', (v) => String(Math.round(v)));
+        draw(success, 'trend-success-path', 'trend-success-fill', 'trend-success-min', 'trend-success-max', (v) => `${Math.round(v)}%`);
+        window.__trends_done = true;
+      })();
+    </script>
+  </body>
+</html>
+
