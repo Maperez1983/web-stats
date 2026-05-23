@@ -18715,6 +18715,102 @@ def reports_hub_page(request):
 
 
 @login_required
+def player_reports_zip(request):
+    """
+    Descarga masiva: ZIP con los informes PDF de todos los jugadores del equipo.
+    """
+    if not _can_edit_match_actions(request.user):
+        return HttpResponse('Solo el cuerpo técnico puede generar informes.', status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'players', label='informes de jugadores')
+    if forbidden:
+        return forbidden
+    primary_team = _get_primary_team_for_request(request) or _team_from_request_param(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    players = list(
+        Player.objects
+        .filter(team=primary_team, is_active=True)
+        .order_by('number', 'name', 'id')
+    )
+    if not players:
+        raise Http404('Sin jugadores para generar informes')
+
+    base_get = request.GET.copy()
+    try:
+        base_get.pop('format', None)
+    except Exception:
+        pass
+    # ZIP: evitar recalcular el dashboard por cada jugador (ver `player_pdf`).
+    base_get['cache'] = str(base_get.get('cache') or '1')
+    # Snapshot "igual que la ficha" por defecto (WYSIWYG).
+    if 'snapshot' not in base_get:
+        base_get['snapshot'] = '1'
+
+    errors: list[str] = []
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode='w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for player in players:
+            forbidden = _forbid_if_no_player_access(request.user, player, primary_team=primary_team)
+            if forbidden:
+                errors.append(f'{player.id} · {player.name}: sin permisos')
+                continue
+
+            filename_slug = slugify(player.name or '') or f'player-{player.id}'
+            try:
+                number = int(getattr(player, 'number', 0) or 0)
+            except Exception:
+                number = 0
+            zip_name = f'{number:02d}-{filename_slug}.pdf' if number else f'{filename_slug}.pdf'
+
+            orig_get = getattr(request, 'GET', None)
+            try:
+                request.GET = base_get
+                resp = player_pdf(request, int(player.id))
+            except Exception as exc:  # pragma: no cover
+                errors.append(f'{player.id} · {player.name}: {exc.__class__.__name__}: {exc}')
+                continue
+            finally:
+                try:
+                    request.GET = orig_get
+                except Exception:
+                    pass
+
+            status = int(getattr(resp, 'status_code', 0) or 0)
+            try:
+                content_type = str(getattr(resp, 'headers', {}).get('Content-Type') or resp.get('Content-Type') or '').lower()
+            except Exception:
+                content_type = ''
+            if status != 200 or 'application/pdf' not in content_type:
+                errors.append(f"{player.id} · {player.name}: error {status or '??'}")
+                continue
+            try:
+                pdf_bytes = bytes(getattr(resp, 'content', b'') or b'')
+            except Exception:
+                pdf_bytes = b''
+            if not pdf_bytes:
+                errors.append(f'{player.id} · {player.name}: PDF vacío')
+                continue
+
+            zf.writestr(zip_name, pdf_bytes)
+
+        if errors:
+            zf.writestr('_ERRORES.txt', '\n'.join(errors) + '\n')
+
+    zip_bytes = buf.getvalue()
+    buf.close()
+    team_slug = slugify(getattr(primary_team, 'display_name', '') or 'equipo') or 'equipo'
+    stamp = timezone.localdate().strftime('%Y%m%d')
+    out_name = f'informes-jugadores-{team_slug}-{stamp}.zip'
+    response = HttpResponse(zip_bytes, content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename=\"{out_name}\"'
+    response['Cache-Control'] = 'no-store, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
+
+
+@login_required
 def coach_overview_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
@@ -57799,9 +57895,17 @@ def player_pdf(request, player_id):
             date_start = getattr(club_season, 'start_date', None)
             date_end = getattr(club_season, 'end_date', None) or timezone.localdate()
 
+    # PDFs individuales: por defecto no usamos caché para evitar datos stale.
+    # Para descargas masivas (ZIP), se puede permitir caché con `?cache=1` para
+    # no recalcular el dashboard por cada jugador.
+    try:
+        allow_cache = str(request.GET.get('cache') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
+    except Exception:
+        allow_cache = False
+
     matches = compute_player_dashboard(
         primary_team,
-        force_refresh=True,
+        force_refresh=not allow_cache,
         scope=scope,
         tournament_name=tournament_filter,
         request=request,

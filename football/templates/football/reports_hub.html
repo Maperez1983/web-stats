@@ -114,12 +114,64 @@
             </div>
           </form>
         </section>
+
+        <section class="card">
+          <h2>Informes de jugadores (ZIP)</h2>
+          <p>Descarga todos los informes de la plantilla de una vez (un PDF por jugador dentro de un ZIP).</p>
+          <form method="get" action="{% url 'player-reports-zip' %}" target="_blank" rel="noreferrer">
+            {% if request.GET.team %}<input type="hidden" name="team" value="{{ request.GET.team|urlencode }}" />{% endif %}
+            <div class="form-grid">
+              <div class="field">
+                <label for="playerzip-scope">Ámbito</label>
+                <select id="playerzip-scope" name="scope">
+                  {% with scope=stats_scope|default:"league" %}
+                  <option value="all" {% if scope == 'all' %}selected{% endif %}>Global</option>
+                  <option value="league" {% if scope == 'league' %}selected{% endif %}>Liga</option>
+                  <option value="tournament" {% if scope == 'tournament' %}selected{% endif %}>Torneo</option>
+                  <option value="friendly" {% if scope == 'friendly' %}selected{% endif %}>Amistoso</option>
+                  {% endwith %}
+                </select>
+              </div>
+              <div class="field" id="playerzip-tournament-field" style="display:none;">
+                <label for="playerzip-tournament">Torneo</label>
+                <select id="playerzip-tournament" name="tournament">
+                  <option value="">—</option>
+                  {% for opt in tournament_options %}<option value="{{ opt.value|urlencode }}">{{ opt.label }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="sections">
+              <h3>Opciones</h3>
+              <div class="checks">
+                <label class="check">
+                  <input type="hidden" name="snapshot" value="0" />
+                  <input type="checkbox" name="snapshot" value="1" checked />
+                  Snapshot (igual que la ficha)
+                </label>
+              </div>
+              <div class="actions">
+                <button class="btn primary" type="submit">Descargar ZIP</button>
+                <span class="hint">Puede tardar si la plantilla es grande.</span>
+              </div>
+            </div>
+          </form>
+        </section>
       </div>
     </div>
     <script>
       (function () {
         var scopeSelect = document.getElementById('rep-scope');
         var tournamentField = document.getElementById('rep-tournament-field');
+        if (!scopeSelect || !tournamentField) return;
+        function refresh() { tournamentField.style.display = scopeSelect.value === 'tournament' ? '' : 'none'; }
+        scopeSelect.addEventListener('change', refresh);
+        refresh();
+      })();
+    </script>
+    <script>
+      (function () {
+        var scopeSelect = document.getElementById('playerzip-scope');
+        var tournamentField = document.getElementById('playerzip-tournament-field');
         if (!scopeSelect || !tournamentField) return;
         function refresh() { tournamentField.style.display = scopeSelect.value === 'tournament' ? '' : 'none'; }
         scopeSelect.addEventListener('change', refresh);

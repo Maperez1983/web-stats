@@ -74,6 +74,7 @@ urlpatterns = [
     path('players/videos/report/<int:item_id>/', views.player_video_inbox_report_view_page, name='player-video-inbox-report'),
     path('coach/agenda/', views.team_agenda_page, name='team-agenda'),
     path('coach/informes/', views.reports_hub_page, name='reports-hub'),
+    path('coach/informes/jugadores/zip/', views.player_reports_zip, name='player-reports-zip'),
     path('coach/dashboard/', views.kpi_dashboard_page, name='kpi-dashboard'),
     path('coach/informes/equipo/pdf/', views.team_season_report_pdf, name='team-season-report-pdf'),
     path('coach/informes/partido/', views.match_staff_report_page, name='match-staff-report'),
