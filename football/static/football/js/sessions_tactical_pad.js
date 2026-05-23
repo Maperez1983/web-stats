@@ -2196,14 +2196,34 @@
 			      else setStatus('No se pudo copiar automáticamente. Se mostrará el texto para copiar.', true);
 			      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
 			    };
-				    // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
-				    const diagBtn = document.getElementById('tpad-diag-copy');
-				    diagBtn?.addEventListener('click', (event) => {
-				      event.preventDefault();
-				      void copyTacticsDiagnostics();
-				    });
+					    // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
+					    const diagButtons = [
+					      document.getElementById('tpad-diag-copy'),
+					      document.getElementById('tpad-diag-copy-fab'),
+					    ].filter(Boolean);
+					    diagButtons.forEach((btn) => {
+					      try {
+					        btn.addEventListener('click', (event) => {
+					          event.preventDefault();
+					          void copyTacticsDiagnostics();
+					        });
+					      } catch (e) { /* ignore */ }
+					    });
+					    // Atajo de teclado (si algún overlay tapa botones): Cmd/Ctrl+Shift+D.
+					    try {
+					      if (isTacticsMode && !window.__WEBSTATS_TPAD_DIAG_SHORTCUT) {
+					        window.__WEBSTATS_TPAD_DIAG_SHORTCUT = true;
+					        window.addEventListener('keydown', (ev) => {
+					          const key = String(ev?.key || '').toLowerCase();
+					          if (key !== 'd') return;
+					          if (!(ev.metaKey || ev.ctrlKey) || !ev.shiftKey) return;
+					          ev.preventDefault();
+					          void copyTacticsDiagnostics();
+					        }, true);
+					      }
+					    } catch (e) { /* ignore */ }
 
-			    let syncRichEditorsNow = () => {};
+				    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {
 			      const wrappers = Array.from(form.querySelectorAll('[data-rich-editor]'));
 			      if (!wrappers.length) return;

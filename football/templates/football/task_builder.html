@@ -3129,9 +3129,26 @@
 	        bottom: calc(96px + env(safe-area-inset-bottom));
 	        width: min(520px, calc(100vw - 24px));
 	      }
-	      body.ui-tablet.library-collapsed .selection-dock {
-	        left: calc(12px + env(safe-area-inset-left));
-	      }
+      body.ui-tablet.library-collapsed .selection-dock {
+        left: calc(12px + env(safe-area-inset-left));
+      }
+      /* Táctica: botones de soporte siempre clicables (diagnóstico / reinicio),
+         aunque haya overlays/inspectores flotantes. */
+      body.tactics-mode .tpad-support-fab {
+        position: fixed;
+        right: calc(14px + env(safe-area-inset-right));
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 2600;
+        pointer-events: auto;
+      }
+      body.tactics-mode .tpad-support-fab .button {
+        box-shadow: 0 18px 46px rgba(2, 6, 23, 0.42);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
 	      /* iPad en vertical: no mostramos inspector flotante si el bottom-sheet de Recursos está abierto. */
 	      @media (orientation: portrait) {
 	        body.ui-tablet:not(.library-collapsed) .selection-dock {
@@ -3972,10 +3989,16 @@
 	      }
 	    </style>
 	  </head>
-		  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
-	    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
-	    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
-	    <main class="page">
+			  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
+		    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
+		    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
+		    {% if tactics_mode %}
+		    <div class="tpad-support-fab" aria-label="Soporte pizarra">
+		      <button type="button" class="button secondary" id="tpad-diag-copy-fab" title="Copia el diagnóstico (errores + estado) para soporte">Diagnóstico</button>
+		      <button type="button" class="button" id="tpad-reinit-fab" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar</button>
+		    </div>
+		    {% endif %}
+		    <main class="page">
 	      {% if show_dragon_nav|default:True %}
 	      {% include 'football/includes/dragon_nav.html' %}
 	      {% endif %}
