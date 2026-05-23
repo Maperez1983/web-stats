@@ -2058,13 +2058,18 @@
 			      try { payload.is_tactics_mode = !!isTacticsMode; } catch (e) { /* ignore */ }
 			      try { payload.is_simulating = !!isSimulating; } catch (e) { /* ignore */ }
 			      try { payload.is_submitting = !!isSubmitting; } catch (e) { /* ignore */ }
-			      try {
-			        payload.init = {
-			          ready: safeText(form?.dataset?.webstatsTpadReady || ''),
-			          init_flag: safeText(form?.dataset?.webstatsTpadInit || ''),
-			          global_ready: String(window.__WEBSTATS_TPAD_READY === true),
-			        };
-			      } catch (e) { /* ignore */ }
+				      try {
+				        payload.init = {
+				          ready: safeText(form?.dataset?.webstatsTpadReady || ''),
+				          init_flag: safeText(form?.dataset?.webstatsTpadInit || ''),
+				          global_ready: String(window.__WEBSTATS_TPAD_READY === true),
+				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        payload.body = {
+				          class: safeText(document.body ? (document.body.className || '') : ''),
+				        };
+				      } catch (e) { /* ignore */ }
 			      try {
 			        payload.pitch = {
 			          preset: safeText(pitchPreset || presetSelect?.value || ''),
@@ -2149,6 +2154,28 @@
 				          style_stage_max_fit: safeText(stage?.style?.getPropertyValue?.('--stage-max-fit') || ''),
 				          style_stage_max_user: safeText(stage?.style?.getPropertyValue?.('--stage-max-user') || ''),
 				        };
+				      } catch (e) { /* ignore */ }
+				      try {
+				        const viewport = document.getElementById('task-pitch-viewport');
+				        const main = document.querySelector('.pitch-main');
+				        const layout = document.querySelector('.pitch-layout');
+				        const cs = window.getComputedStyle;
+				        if (cs) {
+				          const v = viewport ? cs(viewport) : null;
+				          const m = main ? cs(main) : null;
+				          const l = layout ? cs(layout) : null;
+				          payload.layout_css = {
+				            layout_display: safeText(l?.display || ''),
+				            layout_template: safeText(l?.gridTemplateAreas || ''),
+				            layout_columns: safeText(l?.gridTemplateColumns || ''),
+				            main_display: safeText(m?.display || ''),
+				            main_grid_area: safeText(m?.gridArea || ''),
+				            main_grid_column: safeText(m?.gridColumn || ''),
+				            viewport_display: safeText(v?.display || ''),
+				            viewport_flex: safeText(v?.flex || ''),
+				            viewport_min_h: safeText(v?.minHeight || ''),
+				          };
+				        }
 				      } catch (e) { /* ignore */ }
 				      try {
 				        const raw = window.localStorage?.getItem('webstats:tpad:last_error');
