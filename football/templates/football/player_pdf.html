@@ -323,8 +323,9 @@
         border-radius: 14px;
         background: var(--pdf-card);
         padding: 10px;
-        break-inside: avoid;
-        page-break-inside: avoid;
+        /* Este bloque es muy alto; si evitamos el salto interno, puede generar una página casi vacía. */
+        break-inside: auto;
+        page-break-inside: auto;
       }
       .perf-grid { display: table; width: 100%; table-layout: fixed; }
       .perf-grid-row { display: table-row; }
@@ -615,8 +616,9 @@
         border-radius: 12px;
         background: #ffffff;
         overflow: hidden;
+        text-align: center;
       }
-      .linechart svg { display:block; width: 100%; height: auto; }
+      .linechart svg { display:inline-block; width: 100%; height: auto; }
       .lc-grid { stroke: rgba(148,163,184,0.35); stroke-width: 1; }
       .lc-axis { stroke: rgba(148,163,184,0.55); stroke-width: 1.2; }
       .lc-tick { fill: rgba(71,85,105,0.92); font-size: 9.4px; font-weight: 900; }
