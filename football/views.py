@@ -30458,69 +30458,6 @@ def coach_tactics_page(request):
         },
 	    )
 
-def coach_tactics_v2_page(request):
-    """
-    Táctica v2 (MVP estable).
-
-    Objetivo: una pizarra mínima y robusta, sin mezclar features "pro".
-    Persistencia: reutiliza la API del Playbook (clips) para no introducir migraciones.
-    """
-    forbidden = _forbid_if_no_coach_access(request.user)
-    if forbidden:
-        return forbidden
-    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
-    if forbidden:
-        return forbidden
-
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return HttpResponse('No hay equipo activo configurado para abrir Táctica.', status=400)
-
-    roster_json = '[]'
-    try:
-        players = list(
-            Player.objects
-            .filter(team=primary_team, is_active=True)
-            .order_by('number', 'name', 'id')[:40]
-        )
-        roster = []
-        for p in players:
-            roster.append(
-                {
-                    'id': int(getattr(p, 'id', 0) or 0) or None,
-                    'name': str(getattr(p, 'name', '') or '').strip(),
-                    'nickname': str(getattr(p, 'nickname', '') or '').strip(),
-                    'number': int(getattr(p, 'number', 0) or 0) or 0,
-                    'position': str(getattr(p, 'position', '') or '').strip(),
-                    'photo_url': str(getattr(p, 'photo_url', '') or '').strip(),
-                }
-            )
-        roster_json = json.dumps(roster, ensure_ascii=False)
-    except Exception:
-        roster_json = '[]'
-
-    try:
-        back_url = reverse('dashboard-home')
-        active_team = _get_active_team_for_request(request)
-        if active_team:
-            back_url = f'{back_url}?team={int(active_team.id)}'
-    except Exception:
-        back_url = '/'
-
-    return render(
-        request,
-        'football/tactics_v2.html',
-        {
-            'scope_title': 'Táctica',
-            'team_id': int(getattr(primary_team, 'id', 0) or 0) or '',
-            'team_name': str(getattr(primary_team, 'name', '') or '').strip() or 'Equipo',
-            'clips_api_url': reverse('tactical-playbook-clips-api'),
-            'clip_save_api_url': reverse('tactical-playbook-clip-save-api'),
-            'back_url': back_url,
-            'roster_json': roster_json,
-        },
-    )
-
 
 @login_required
 def coach_roster_page(request):
