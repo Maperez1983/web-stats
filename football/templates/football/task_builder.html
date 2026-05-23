@@ -2087,6 +2087,8 @@
         /* Evita overflow horizontal: en pantallas estrechas, el panel lateral reduce ancho automáticamente. */
         width: 100%;
         max-width: 100%;
+        display: grid;
+        grid-auto-flow: row;
         grid-template-columns: minmax(0, 1fr) minmax(280px, min(var(--tactics-library-width, 360px), 36vw));
         grid-template-areas: "main side";
         gap: 0.75rem;
@@ -2122,6 +2124,18 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
+
+      /* Hardening: en algunos navegadores/estados, el grid-area puede no aplicarse correctamente
+         (y la pizarra acaba dentro del panel lateral, con viewport 0px de alto). Forzamos columnas/filas. */
+      body.tactics-mode .pitch-main {
+        grid-column: 1 / 2;
+        grid-row: 1;
+        align-self: stretch;
+      }
+      body.tactics-mode .pitch-side {
+        grid-column: 2 / 3;
+        grid-row: 1;
       }
       body.tactics-mode.tactics-fullscreen .pitch-side {
         max-height: calc(100dvh - 130px);
