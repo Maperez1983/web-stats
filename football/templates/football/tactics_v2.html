@@ -207,17 +207,26 @@
             <span>{{ team_name|default:'Equipo' }} · MVP estable (sin mezclas)</span>
           </div>
         </div>
-        <div class="t2-actions">
-          <button class="t2-btn" id="t2-mode-move" type="button">Mover</button>
-          <button class="t2-btn" id="t2-mode-draw" type="button">Dibujar</button>
-          <button class="t2-btn" id="t2-add-home" type="button">+ Local</button>
-          <button class="t2-btn" id="t2-add-away" type="button">+ Rival</button>
-          <button class="t2-btn" id="t2-add-ball" type="button">+ Balón</button>
-          <button class="t2-btn" id="t2-undo" type="button">↶</button>
-          <button class="t2-btn" id="t2-redo" type="button">↷</button>
-          <button class="t2-btn primary" id="t2-export-png" type="button">PNG</button>
-          <button class="t2-btn" id="t2-export-json" type="button">JSON</button>
-        </div>
+	        <div class="t2-actions">
+	          <button class="t2-btn" id="t2-mode-move" type="button">Mover</button>
+	          <button class="t2-btn" id="t2-mode-draw" type="button">Dibujar</button>
+	          <button class="t2-btn" id="t2-tool-arrow" type="button">Flecha</button>
+	          <button class="t2-btn" id="t2-tool-zone" type="button">Zona</button>
+	          <button class="t2-btn" id="t2-tool-cone" type="button">Cono</button>
+	          <button class="t2-btn" id="t2-tool-goal" type="button">Portería</button>
+	          <button class="t2-btn" id="t2-tool-text" type="button">Texto</button>
+	          <button class="t2-btn danger" id="t2-delete" type="button">Borrar</button>
+	          <button class="t2-btn" id="t2-add-home" type="button">+ Local</button>
+	          <button class="t2-btn" id="t2-add-away" type="button">+ Rival</button>
+	          <button class="t2-btn" id="t2-add-ball" type="button">+ Balón</button>
+	          <button class="t2-btn" id="t2-undo" type="button">↶</button>
+	          <button class="t2-btn" id="t2-redo" type="button">↷</button>
+	          <button class="t2-btn primary" id="t2-capture-step" type="button">+ Paso</button>
+	          <button class="t2-btn" id="t2-step-prev" type="button">◀</button>
+	          <button class="t2-btn" id="t2-step-next" type="button">▶</button>
+	          <button class="t2-btn primary" id="t2-export-png" type="button">PNG</button>
+	          <button class="t2-btn" id="t2-export-json" type="button">JSON</button>
+	        </div>
       </header>
 
       <main class="t2-main">
@@ -225,13 +234,15 @@
           <canvas id="t2-canvas" class="t2-canvas"></canvas>
         </section>
 
-        <aside class="t2-panel">
-          <h3>Playbook</h3>
+	        <aside class="t2-panel">
+	          <h3>Playbook</h3>
 
-          <div class="t2-field">
-            <label for="t2-clip-name">Nombre del clip</label>
-            <input id="t2-clip-name" placeholder="Ej: Salida 3-2 + tercer hombre" maxlength="160" />
-          </div>
+	          <div class="t2-status" id="t2-steps-status">Pasos: 1/1</div>
+
+	          <div class="t2-field">
+	            <label for="t2-clip-name">Nombre del clip</label>
+	            <input id="t2-clip-name" placeholder="Ej: Salida 3-2 + tercer hombre" maxlength="160" />
+	          </div>
           <div class="t2-field">
             <label for="t2-clip-folder">Carpeta (opcional)</label>
             <input id="t2-clip-folder" placeholder="Ej: Salida / Presión / ABP" maxlength="80" />
@@ -253,4 +264,3 @@
     <script src="{% static 'football/js/tactics_v2.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>
 </html>
-
