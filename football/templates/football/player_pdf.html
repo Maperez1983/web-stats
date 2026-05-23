@@ -26,9 +26,12 @@
       }
       .sheet {
         width: 210mm;
-        min-height: 297mm;
+        /* Evita páginas "fantasma" en Safari/WeasyPrint por min-height y bordes. */
+        height: 297mm;
         background: var(--pdf-paper);
-        border: 1px solid var(--pdf-line);
+        border: 0;
+        outline: 1px solid var(--pdf-line);
+        overflow: hidden;
       }
       .sheet + .sheet { page-break-before: always; }
       .brand {
