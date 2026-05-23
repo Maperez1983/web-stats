@@ -1,0 +1,256 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Táctica (v2) · {{ scope_title }}</title>
+    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
+    {% include 'football/pwa_head.html' %}
+    <style>
+      :root {
+        --bg: var(--prod-bg, #071320);
+        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
+        --line: var(--prod-line, rgba(144, 161, 185, 0.22));
+        --ink: var(--prod-text, #f8fafc);
+        --muted: var(--prod-muted-soft, rgba(226, 232, 240, 0.84));
+        --accent: var(--prod-info, #22d3ee);
+        --accent-soft: rgba(34, 211, 238, 0.16);
+        --warn: #fbbf24;
+        --danger: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 520px at 20% -10%, rgba(34,211,238,0.12), transparent 60%),
+                    radial-gradient(860px 520px at 100% 10%, rgba(244,180,0,0.10), transparent 55%),
+                    linear-gradient(180deg, rgba(3,10,22,1), rgba(3,10,22,1));
+        color: var(--ink);
+        font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+      }
+      .t2-wrap {
+        min-height: 100dvh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      .t2-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px calc(14px + env(safe-area-inset-right)) 12px calc(14px + env(safe-area-inset-left));
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(2, 6, 23, 0.36);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        position: sticky;
+        top: 0;
+        z-index: 50;
+      }
+      .t2-topbar .left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      .t2-title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .t2-title strong { font-size: 0.98rem; letter-spacing: 0.02em; }
+      .t2-title span { font-size: 0.82rem; opacity: 0.78; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .t2-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .t2-btn {
+        appearance: none;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(15, 23, 42, 0.52);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 9px 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        line-height: 1;
+      }
+      .t2-btn.primary {
+        border-color: rgba(244,180,0,0.34);
+        background: linear-gradient(180deg, rgba(244,180,0,0.22), rgba(244,180,0,0.10));
+      }
+      .t2-btn.danger {
+        border-color: rgba(239,68,68,0.36);
+        background: rgba(239,68,68,0.10);
+      }
+      .t2-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+      .t2-main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 12px;
+        padding: 14px calc(14px + env(safe-area-inset-right)) 14px calc(14px + env(safe-area-inset-left));
+        align-items: stretch;
+      }
+      @media (max-width: 1020px) {
+        .t2-main { grid-template-columns: 1fr; }
+      }
+      .t2-stage {
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(2,6,23,0.32);
+        box-shadow: 0 18px 60px rgba(2,6,23,0.48);
+        overflow: hidden;
+        position: relative;
+        min-height: min(72vh, 760px);
+      }
+      .t2-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .t2-panel {
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(2,6,23,0.32);
+        box-shadow: 0 18px 60px rgba(2,6,23,0.48);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 240px;
+      }
+      .t2-panel h3 {
+        margin: 0;
+        font-size: 0.92rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.9;
+      }
+      .t2-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .t2-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+      }
+      .t2-field label { font-size: 0.8rem; opacity: 0.78; }
+      .t2-field input, .t2-field select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(15,23,42,0.52);
+        color: var(--ink);
+        outline: none;
+      }
+      .t2-status {
+        font-size: 0.85rem;
+        opacity: 0.88;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(15,23,42,0.34);
+      }
+      .t2-status.is-error { border-color: rgba(239,68,68,0.32); color: #fecaca; }
+      .t2-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: auto;
+        max-height: 48vh;
+        padding-right: 4px;
+      }
+      .t2-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(15,23,42,0.34);
+      }
+      .t2-item .meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .t2-item .meta strong {
+        font-size: 0.88rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .t2-item .meta span { font-size: 0.78rem; opacity: 0.78; }
+      .t2-item .actions { display: flex; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="t2-wrap" id="t2-root"
+         data-clips-url="{{ clips_api_url }}"
+         data-clip-save-url="{{ clip_save_api_url }}"
+         data-back-url="{{ back_url }}"
+         data-team-id="{{ team_id|default:'' }}"
+         data-team-name="{{ team_name|default:'' }}">
+      <header class="t2-topbar">
+        <div class="left">
+          <button class="t2-btn" id="t2-back" type="button">← Volver</button>
+          <div class="t2-title">
+            <strong>TÁCTICA (v2)</strong>
+            <span>{{ team_name|default:'Equipo' }} · MVP estable (sin mezclas)</span>
+          </div>
+        </div>
+        <div class="t2-actions">
+          <button class="t2-btn" id="t2-mode-move" type="button">Mover</button>
+          <button class="t2-btn" id="t2-mode-draw" type="button">Dibujar</button>
+          <button class="t2-btn" id="t2-add-home" type="button">+ Local</button>
+          <button class="t2-btn" id="t2-add-away" type="button">+ Rival</button>
+          <button class="t2-btn" id="t2-add-ball" type="button">+ Balón</button>
+          <button class="t2-btn" id="t2-undo" type="button">↶</button>
+          <button class="t2-btn" id="t2-redo" type="button">↷</button>
+          <button class="t2-btn primary" id="t2-export-png" type="button">PNG</button>
+          <button class="t2-btn" id="t2-export-json" type="button">JSON</button>
+        </div>
+      </header>
+
+      <main class="t2-main">
+        <section class="t2-stage">
+          <canvas id="t2-canvas" class="t2-canvas"></canvas>
+        </section>
+
+        <aside class="t2-panel">
+          <h3>Playbook</h3>
+
+          <div class="t2-field">
+            <label for="t2-clip-name">Nombre del clip</label>
+            <input id="t2-clip-name" placeholder="Ej: Salida 3-2 + tercer hombre" maxlength="160" />
+          </div>
+          <div class="t2-field">
+            <label for="t2-clip-folder">Carpeta (opcional)</label>
+            <input id="t2-clip-folder" placeholder="Ej: Salida / Presión / ABP" maxlength="80" />
+          </div>
+          <div class="t2-row">
+            <button class="t2-btn primary" id="t2-save-clip" type="button">Guardar clip</button>
+            <button class="t2-btn danger" id="t2-clear" type="button">Limpiar</button>
+          </div>
+
+          <div class="t2-status" id="t2-status">Listo.</div>
+
+          <h3>Clips del equipo</h3>
+          <div class="t2-list" id="t2-clips"></div>
+        </aside>
+      </main>
+    </div>
+
+    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+    <script src="{% static 'football/js/tactics_v2.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+  </body>
+</html>
+
