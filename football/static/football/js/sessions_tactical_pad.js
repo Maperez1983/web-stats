@@ -972,14 +972,62 @@
 				    const simAutoCaptureInput = document.getElementById('task-sim-autocapture');
 				    const simMotionAutoInput = document.getElementById('task-sim-motion-auto');
 				    const simMotionCutMsInput = document.getElementById('task-sim-motion-cut-ms');
-				    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
-				    const simProPanel = document.getElementById('task-sim-pro-panel');
-				    const simAdvancedDetails = document.getElementById('task-sim-advanced');
-				    const isTacticsMode = document.body.classList.contains('tactics-mode');
-				    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
-				    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
-				    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
-				    const tacticsFullscreenBtn = document.getElementById('task-tactics-fullscreen');
+					    const simProEnabledInput = document.getElementById('task-sim-pro-enabled');
+					    const simProPanel = document.getElementById('task-sim-pro-panel');
+					    const simAdvancedDetails = document.getElementById('task-sim-advanced');
+					    const isTacticsMode = document.body.classList.contains('tactics-mode');
+					    // Táctica: hardening del layout (algunos estados/caches dejan el DOM/CSS en un
+					    // estado donde `.pitch-main` acaba en la columna lateral o el stage se queda mini).
+					    // Esto evita que la pizarra desaparezca aunque el CSS no se aplique a tiempo.
+					    const ensureTacticsPitchPlacement = (reason = '') => {
+					      if (!isTacticsMode) return;
+					      const layout = document.querySelector('.pitch-layout');
+					      const main = document.querySelector('.pitch-main');
+					      const side = document.querySelector('.pitch-side');
+					      if (!layout || !main || !side) return;
+					      try {
+					        // Fallback de grid-placement (si por cualquier motivo el grid-area no se aplica).
+					        main.style.gridArea = 'main';
+					        main.style.gridColumn = '1 / 2';
+					        main.style.gridRow = '1';
+					      } catch (e) { /* ignore */ }
+					      try {
+					        side.style.gridArea = 'side';
+					        side.style.gridColumn = '2 / 3';
+					        side.style.gridRow = '1';
+					      } catch (e) { /* ignore */ }
+					      try {
+					        // Fallback por orden (auto-placement): main siempre primero.
+					        if (layout.firstElementChild && layout.firstElementChild !== main) {
+					          layout.insertBefore(main, layout.firstElementChild);
+					        }
+					      } catch (e) { /* ignore */ }
+					      // Asegura que viewport/stage estén dentro de `.pitch-main`.
+					      try {
+					        if (viewportEl && !main.contains(viewportEl)) main.appendChild(viewportEl);
+					      } catch (e) { /* ignore */ }
+					      try {
+					        if (stage && viewportEl && stage.parentElement !== viewportEl) viewportEl.appendChild(stage);
+					      } catch (e) { /* ignore */ }
+					      try { if (viewportEl) viewportEl.hidden = false; } catch (e) { /* ignore */ }
+					      try { if (stage) stage.hidden = false; } catch (e) { /* ignore */ }
+					      // Si por CSS el grid-template-areas se pierde (raro), forzamos un split mínimo.
+					      try {
+					        const cs = window.getComputedStyle ? window.getComputedStyle(layout) : null;
+					        const areas = String(cs?.gridTemplateAreas || '');
+					        if (!areas || !areas.includes('main')) {
+					          layout.style.display = 'grid';
+					          layout.style.gridTemplateAreas = '"main side"';
+					          layout.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(280px, 360px)';
+					          layout.style.gap = '0.75rem';
+					        }
+					      } catch (e) { /* ignore */ }
+					    };
+					    try { ensureTacticsPitchPlacement('init'); } catch (e) { /* ignore */ }
+					    const tacticsPanelToggle = document.getElementById('task-tactics-panel-toggle');
+					    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
+					    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
+					    const tacticsFullscreenBtn = document.getElementById('task-tactics-fullscreen');
 				    // Táctica simple: ocultamos controles de tamaño/rotación/patrones que no aportan en pizarra rápida.
 				    try {
 				      if (isTacticsMode) {
@@ -13708,14 +13756,62 @@
 	        syncWorldFromInputs();
 	        applyViewportTransformToWorld();
 	      }
-	      canvas.calcOffset();
-	      canvas.requestRenderAll();
-	    };
-	    const syncOrientationUi = () => {
-	      if (orientationInput) orientationInput.value = pitchOrientation;
-	      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
-	      if (orientationLabelQuick) orientationLabelQuick.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
-	      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+		      canvas.calcOffset();
+		      canvas.requestRenderAll();
+		    };
+		    // Táctica: el tamaño disponible del campo puede cambiar sin `window.resize`
+		    // (grid/columnas, panel lateral, fullscreen CSS, etc). Si no recalculamos, el stage puede
+		    // quedarse "mini" y/o fuera de su columna.
+		    let __layoutRecalcRaf = 0;
+		    let __layoutRecalcLast = { w: 0, h: 0 };
+		    const scheduleLayoutRecalc = (reason = '') => {
+		      if (!isTacticsMode) return;
+		      if (__layoutRecalcRaf) return;
+		      __layoutRecalcRaf = window.requestAnimationFrame(() => {
+		        __layoutRecalcRaf = 0;
+		        try { ensureTacticsPitchPlacement(`recalc:${reason}`); } catch (e) { /* ignore */ }
+		        try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+		        try {
+		          const r = stage?.getBoundingClientRect?.() || null;
+		          const w = Math.round(Number(r?.width) || 0);
+		          const h = Math.round(Number(r?.height) || 0);
+		          if (w > 0 && h > 0 && Math.abs(w - __layoutRecalcLast.w) < 1 && Math.abs(h - __layoutRecalcLast.h) < 1) return;
+		          __layoutRecalcLast = { w, h };
+		        } catch (e) { /* ignore */ }
+		        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+		        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+		        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		      });
+		    };
+		    const initLayoutRecalcObservers = () => {
+		      if (!isTacticsMode) return;
+		      if (window.__WEBSTATS_TPAD_LAYOUT_OBS) return;
+		      window.__WEBSTATS_TPAD_LAYOUT_OBS = true;
+		      try {
+		        const layout = document.querySelector('.pitch-layout');
+		        const main = document.querySelector('.pitch-main');
+		        const side = document.querySelector('.pitch-side');
+		        if (typeof ResizeObserver !== 'undefined') {
+		          const ro = new ResizeObserver(() => scheduleLayoutRecalc('resize_observer'));
+		          if (layout) ro.observe(layout);
+		          if (main) ro.observe(main);
+		          if (side) ro.observe(side);
+		          if (viewportEl) ro.observe(viewportEl);
+		        } else {
+		          window.setTimeout(() => scheduleLayoutRecalc('timeout_150'), 150);
+		          window.setTimeout(() => scheduleLayoutRecalc('timeout_450'), 450);
+		          window.setTimeout(() => scheduleLayoutRecalc('timeout_950'), 950);
+		        }
+		      } catch (e) { /* ignore */ }
+		      try { window.requestAnimationFrame(() => scheduleLayoutRecalc('raf1')); } catch (e) { /* ignore */ }
+		      try { window.requestAnimationFrame(() => window.requestAnimationFrame(() => scheduleLayoutRecalc('raf2'))); } catch (e) { /* ignore */ }
+		      try { window.setTimeout(() => scheduleLayoutRecalc('timeout_250'), 250); } catch (e) { /* ignore */ }
+		    };
+		    const syncOrientationUi = () => {
+		      if (orientationInput) orientationInput.value = pitchOrientation;
+		      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
+		      if (orientationLabelQuick) orientationLabelQuick.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
+		      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
 	      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
 	      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
 	      orientationToggleQuick?.classList.toggle('is-active', pitchOrientation === 'portrait');
@@ -18370,12 +18466,13 @@
       tempForm.remove();
     };
 
-			    syncOrientationUi();
-			    syncZoomUi();
-			    applyStageSizeUi({ noFit: true });
-			    fitCanvas();
-			    initPitchResizer();
-			    setPreset(presetSelect.value || 'full_pitch');
+				    syncOrientationUi();
+				    syncZoomUi();
+				    applyStageSizeUi({ noFit: true });
+				    fitCanvas();
+				    try { initLayoutRecalcObservers(); } catch (e) { /* ignore */ }
+				    initPitchResizer();
+				    setPreset(presetSelect.value || 'full_pitch');
 		    // Si la tarea es nueva (sin objetos guardados), aseguramos que el "mundo" (canvas_width/height)
 		    // coincide con el viewBox del SVG. Si no, el viewportTransform crea barras/offsets y los punteros
 		    // quedan desincronizados: parece que no se pueden colocar chapas en todo el campo.
