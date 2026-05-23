@@ -480,6 +480,7 @@
       .radar-left { display: table-cell; width: 46%; vertical-align: top; padding-right: 12px; }
       .radar-right { display: table-cell; width: 54%; vertical-align: top; padding-left: 12px; }
       .radar-figure { text-align: center; }
+      .radar-figure-wrap { position: relative; width: 300px; height: 300px; margin: 0 auto; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
       .radar-figure svg {
         display: inline-block;
@@ -488,6 +489,23 @@
         max-width: 100%;
         overflow: visible;
       }
+      .radar-axis-tags { position: absolute; inset: 0; pointer-events: none; }
+      .radar-axis-tag {
+        position: absolute;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(11,18,32,0.06);
+        border: 1px solid rgba(11,18,32,0.14);
+        color: rgba(11,18,32,0.82);
+        font-size: 10.2px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+      .radar-axis-tag.top { top: -10px; left: 50%; transform: translateX(-50%); }
+      .radar-axis-tag.right { top: 46%; right: -10px; transform: translateY(-50%); }
+      .radar-axis-tag.br { bottom: 22px; right: 18px; }
+      .radar-axis-tag.bl { bottom: 22px; left: 18px; }
+      .radar-axis-tag.left { top: 46%; left: -10px; transform: translateY(-50%); }
       .radar-legend { margin-top: 8px; }
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -970,30 +988,34 @@
 	                        <div class="radar-layout-row">
 	                          <div class="radar-left">
 	                            <div class="radar-figure">
-	                              <svg viewBox="0 0 360 360" role="img" aria-label="Radar staff (percentiles)">
-	                                <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                {% if radar_data.labels %}
-	                                  {% for lbl in radar_data.labels %}
-	                                    <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
-	                                  {% endfor %}
-	                                {% endif %}
-	                                {% if radar_data.path_d %}
-	                                  <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
-	                                {% endif %}
-	                                {% if radar_data.points %}
-	                                  {% for pt in radar_data.points %}
-	                                    <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
-	                                  {% endfor %}
-	                                {% endif %}
-	                                {% if radar_data.labels %}
-	                                  {% for lbl in radar_data.labels %}
-	                                    <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.full|default:lbl.text }}</text>
-	                                  {% endfor %}
-	                                {% endif %}
-	                              </svg>
+	                              <div class="radar-figure-wrap">
+	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar staff (percentiles)">
+	                                  <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                  {% if radar_data.labels %}
+	                                    {% for lbl in radar_data.labels %}
+	                                      <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
+	                                    {% endfor %}
+	                                  {% endif %}
+	                                  {% if radar_data.path_d %}
+	                                    <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
+	                                  {% endif %}
+	                                  {% if radar_data.points %}
+	                                    {% for pt in radar_data.points %}
+	                                      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
+	                                    {% endfor %}
+	                                  {% endif %}
+	                                </svg>
+	                                <div class="radar-axis-tags" aria-hidden="true">
+	                                  <span class="radar-axis-tag top">Compromiso</span>
+	                                  <span class="radar-axis-tag right">Esfuerzo</span>
+	                                  <span class="radar-axis-tag br">Calidad</span>
+	                                  <span class="radar-axis-tag bl">Importancia</span>
+	                                  <span class="radar-axis-tag left">Influencia</span>
+	                                </div>
+	                              </div>
 	                            </div>
 	                          </div>
 	                          <div class="radar-right">
@@ -1067,23 +1089,27 @@
 	                        <div class="radar-layout-row">
 	                          <div class="radar-left">
 	                            <div class="radar-figure">
-	                              <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
-	                                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                                {% if card_radar_data.labels_svg %}
-	                                  {% for lbl in card_radar_data.labels_svg %}
-	                                    <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
-	                                  {% endfor %}
-	                                {% endif %}
-	                                {% if card_radar_data.polygon_points_svg %}
-	                                  <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
-	                                {% endif %}
-	                                {% if card_radar_data.labels_svg %}
-	                                  {% for lbl in card_radar_data.labels_svg %}
-	                                    <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.text }}</text>
-	                                  {% endfor %}
-	                                {% endif %}
-	                              </svg>
+	                              <div class="radar-figure-wrap">
+	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
+	                                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                                  {% if card_radar_data.labels_svg %}
+	                                    {% for lbl in card_radar_data.labels_svg %}
+	                                      <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
+	                                    {% endfor %}
+	                                  {% endif %}
+	                                  {% if card_radar_data.polygon_points_svg %}
+	                                    <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                                  {% endif %}
+	                                </svg>
+	                                <div class="radar-axis-tags" aria-hidden="true">
+	                                  <span class="radar-axis-tag top">Acc/90</span>
+	                                  <span class="radar-axis-tag right">Éxito</span>
+	                                  <span class="radar-axis-tag br">Part.</span>
+	                                  <span class="radar-axis-tag bl">Importancia</span>
+	                                  <span class="radar-axis-tag left">Influencia</span>
+	                                </div>
+	                              </div>
 	                            </div>
 	                          </div>
 	                          <div class="radar-right">
