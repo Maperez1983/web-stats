@@ -264,7 +264,8 @@
       }
       body.tactics-mode .pitch-viewport {
         flex: 1 1 auto;
-        min-height: 0;
+        /* Evita colapsos a 0px (Safari/WebKit) cuando el grid/flex calcula alturas “auto” con aspect-ratio. */
+        min-height: clamp(260px, 48dvh, 920px);
         min-width: 0;
         display: flex;
         align-items: center;
@@ -2132,10 +2133,12 @@
         grid-column: 1 / 2;
         grid-row: 1;
         align-self: stretch;
+        order: -1;
       }
       body.tactics-mode .pitch-side {
         grid-column: 2 / 3;
         grid-row: 1;
+        order: 0;
       }
       body.tactics-mode.tactics-fullscreen .pitch-side {
         max-height: calc(100dvh - 130px);
