@@ -450,6 +450,27 @@
         zoom: 1,
       };
     };
+
+    const syncActiveStepFromCanvas = () => {
+      if (!steps.length) {
+        steps = [captureStep()];
+        activeStepIndex = 0;
+        updateStepsUi();
+        return;
+      }
+      const prev = steps[activeStepIndex] || null;
+      const next = captureStep();
+      // Mantén metadatos del paso actual si existían.
+      if (prev && typeof prev === 'object') {
+        next.title = safeText(prev.title, next.title);
+        next.duration = Number.isFinite(Number(prev.duration)) ? Number(prev.duration) : next.duration;
+        next.preset = safeText(prev.preset, next.preset);
+        next.orientation = safeText(prev.orientation, next.orientation);
+        next.grass_style = safeText(prev.grass_style, next.grass_style);
+        next.zoom = Number.isFinite(Number(prev.zoom)) ? Number(prev.zoom) : next.zoom;
+      }
+      steps[activeStepIndex] = next;
+    };
     const loadStep = async (step) => {
       const state = step?.canvas_state && typeof step.canvas_state === 'object' ? step.canvas_state : null;
       if (!state) return;
@@ -638,12 +659,16 @@
     });
     stepPrevBtn?.addEventListener('click', async () => {
       if (activeStepIndex <= 0) return;
+      // Antes de cambiar, guarda el estado actual en el paso activo.
+      try { syncActiveStepFromCanvas(); } catch (e) { /* ignore */ }
       activeStepIndex -= 1;
       await loadStep(steps[activeStepIndex]);
       updateStepsUi();
     });
     stepNextBtn?.addEventListener('click', async () => {
       if (activeStepIndex >= steps.length - 1) return;
+      // Antes de cambiar, guarda el estado actual en el paso activo.
+      try { syncActiveStepFromCanvas(); } catch (e) { /* ignore */ }
       activeStepIndex += 1;
       await loadStep(steps[activeStepIndex]);
       updateStepsUi();
@@ -789,6 +814,8 @@
         setStatus(statusEl, 'Falta CSRF (cookie). Recarga la página.', true);
         return;
       }
+      // Asegura que el clip capture el estado actual (si no pulsaron "+ Paso").
+      try { syncActiveStepFromCanvas(); } catch (e) { /* ignore */ }
       const payload = {
         scope: 'team',
         name,
