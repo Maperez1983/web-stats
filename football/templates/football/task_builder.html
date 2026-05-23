@@ -11433,16 +11433,29 @@
 			            }
 		          } catch (e) { /* ignore */ }
 
-			          (window.__webstatsScheduleIdle || __webstatsScheduleIdle)(() => {
-			            try { if (window.initSessionsTacticalPad) window.initSessionsTacticalPad(); } catch (e) { /* ignore */ }
-			            try {
-			              const statusEl = document.getElementById('task-builder-status');
-			              if (statusEl && String(statusEl.textContent || '').trim() === 'Cargando editor…') statusEl.textContent = '';
-			            } catch (e) { /* ignore */ }
-			          }, 1800);
-		            } catch (e) {
-	              try {
-	                const statusEl = document.getElementById('task-builder-status');
+				          (window.__webstatsScheduleIdle || __webstatsScheduleIdle)(() => {
+				            // Ultra-robusto: en HTML grande + Safari, el timeout puede disparar antes de que los
+				            // scripts `defer` (fabric + sessions_tactical_pad) hayan ejecutado.
+				            // Reintentamos unas cuantas veces hasta que exista `window.initSessionsTacticalPad`.
+				            const boot = (attempt = 0) => {
+				              try {
+				                if (typeof window.initSessionsTacticalPad === 'function') {
+				                  window.initSessionsTacticalPad();
+				                  try {
+				                    const statusEl = document.getElementById('task-builder-status');
+				                    if (statusEl && String(statusEl.textContent || '').trim() === 'Cargando editor…') statusEl.textContent = '';
+				                  } catch (e) { /* ignore */ }
+				                  return;
+				                }
+				              } catch (e) { /* ignore */ }
+				              if (attempt >= 40) return; // ~4s max
+				              try { window.setTimeout(() => boot(attempt + 1), 100); } catch (e) { /* ignore */ }
+				            };
+				            boot(0);
+				          }, 1800);
+			            } catch (e) {
+		              try {
+		                const statusEl = document.getElementById('task-builder-status');
 	                if (statusEl) statusEl.textContent = 'Error al inicializar la pizarra. Se activó modo seguro.';
 	              } catch (err) { /* ignore */ }
 	              try { window.alert('Error al inicializar la pizarra. Envía una captura del mensaje rojo superior para diagnosticar.'); } catch (err) { /* ignore */ }
