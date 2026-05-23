@@ -342,7 +342,12 @@
 	    const root = doc.documentElement;
 	    // Compat: Safari puede requerir xlink:href en <image> dentro de <pattern>.
 	    // Si no lo ponemos, ciertos estilos de césped pueden renderizar en negro al cambiar superficie.
-	    root.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+	    // Nota: `xmlns:*` debe declararse con el namespace de XMLNS para que algunos parsers no lo ignoren.
+	    try {
+	      root.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:xlink', 'http://www.w3.org/1999/xlink');
+	    } catch (e) {
+	      root.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+	    }
 	    root.setAttribute('viewBox', `${-bleed} ${-bleed} ${stageW + (bleed * 2)} ${stageH + (bleed * 2)}`);
     // En vertical, algunos contenedores (y navegadores) pueden acabar con una ligera
     // desincronización de ratio, generando "barras" arriba/abajo. Usamos `slice` para
@@ -14368,9 +14373,9 @@
 	      }, ['data']);
 	    };
 
-		    const applyPitchSurface = (presetValue, orientationValue, grassStyleValue) => {
-		      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
-		      const markup = buildPitchSvg(presetValue, orientationValue, grassStyleValue);
+			    const applyPitchSurface = (presetValue, orientationValue, grassStyleValue) => {
+			      // Evita SVG anidados (innerHTML con <svg> completo) que luego rompen la previsualización y el PDF.
+			      const markup = buildPitchSvg(presetValue, orientationValue, grassStyleValue);
 		      const syncStageAspectFromSvg = () => {
 		        try {
 		          const viewBoxRaw = safeText(svgSurface.getAttribute('viewBox'));
@@ -14386,10 +14391,18 @@
 		          }
 		        } catch (error) { /* ignore */ }
 		      };
-		      const applyFromRoot = (root) => {
-		        svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-		        svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
-		        svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
+			      const applyFromRoot = (root) => {
+			        svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+			        // Importante: si el SVG contiene `xlink:href` (patterns con <image>), el SVG destino
+			        // también debe declarar `xmlns:xlink` o algunos navegadores acaban renderizando en negro.
+			        try {
+			          const xlink = safeText(root.getAttribute('xmlns:xlink') || root.getAttribute('xmlns:XLink'));
+			          svgSurface.setAttribute('xmlns:xlink', xlink || 'http://www.w3.org/1999/xlink');
+			        } catch (e) {
+			          try { svgSurface.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink'); } catch (e2) { /* ignore */ }
+			        }
+			        svgSurface.setAttribute('viewBox', root.getAttribute('viewBox') || '-2 -2 1054 684');
+			        svgSurface.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid meet');
 		        const pitchBox = root.getAttribute('data-pitch-box') || '';
 		        if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
 		        else svgSurface.removeAttribute('data-pitch-box');
@@ -14420,10 +14433,10 @@
 
 	      // 2) Fallback robusto: extrae el contenido interior del <svg> serializado y lo inserta dentro del <svg> existente.
 	      // Esto evita que aparezca el campo "pequeñísimo" con grandes márgenes (por <svg> anidado con tamaño por defecto 300x150).
-	      try {
-	        const openMatch = markup.match(/<svg\b([^>]*)>/i);
-	        const closeIndex = markup.lastIndexOf('</svg>');
-	        if (openMatch && closeIndex > 0) {
+		      try {
+		        const openMatch = markup.match(/<svg\b([^>]*)>/i);
+		        const closeIndex = markup.lastIndexOf('</svg>');
+		        if (openMatch && closeIndex > 0) {
 	          const openIndex = openMatch.index || 0;
 	          const openEnd = markup.indexOf('>', openIndex);
 	          if (openEnd > openIndex) {
@@ -14434,12 +14447,14 @@
 	              const m = attrs.match(re);
 	              return m ? safeText(m[1]) : '';
 	            };
-	            const viewBox = readAttr('viewBox') || '-2 -2 1054 684';
-	            const preserve = readAttr('preserveAspectRatio') || 'xMidYMid meet';
-	            const pitchBox = readAttr('data-pitch-box');
-		            svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-		            svgSurface.setAttribute('viewBox', viewBox);
-		            svgSurface.setAttribute('preserveAspectRatio', preserve);
+		            const viewBox = readAttr('viewBox') || '-2 -2 1054 684';
+		            const preserve = readAttr('preserveAspectRatio') || 'xMidYMid meet';
+		            const pitchBox = readAttr('data-pitch-box');
+		            const xlink = readAttr('xmlns:xlink') || readAttr('xmlns:XLink') || 'http://www.w3.org/1999/xlink';
+			            svgSurface.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+			            try { svgSurface.setAttribute('xmlns:xlink', xlink); } catch (e) { /* ignore */ }
+			            svgSurface.setAttribute('viewBox', viewBox);
+			            svgSurface.setAttribute('preserveAspectRatio', preserve);
 		            if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
 		            else svgSurface.removeAttribute('data-pitch-box');
 		            svgSurface.innerHTML = inner;
@@ -14451,9 +14466,24 @@
 	        // ignore
 	      }
 
-	      // Último recurso: si no podemos parsear, dejamos el contenido vacío (mejor que romper el layout con <svg> anidado).
-	      svgSurface.innerHTML = '';
-	    };
+		      // Último recurso: si no podemos parsear, intentamos al menos dejar algo visible.
+		      // Evitamos dejar el SVG vacío (se percibe como “campo negro”).
+		      try {
+		        const openMatch = markup.match(/<svg\b[^>]*>/i);
+		        const closeIndex = markup.lastIndexOf('</svg>');
+		        if (openMatch && closeIndex > 0) {
+		          const openIndex = openMatch.index || 0;
+		          const openEnd = markup.indexOf('>', openIndex);
+		          if (openEnd > openIndex) {
+		            const inner = markup.slice(openEnd + 1, closeIndex);
+		            svgSurface.innerHTML = inner;
+		            syncStageAspectFromSvg();
+		            return;
+		          }
+		        }
+		      } catch (e) { /* ignore */ }
+		      try { svgSurface.textContent = ''; } catch (e) { /* ignore */ }
+		    };
 
 		    const setPreset = (presetValue, options = {}) => {
 		      const preset = safeText(presetValue, 'full_pitch');
