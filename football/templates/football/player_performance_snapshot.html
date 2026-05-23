@@ -6,29 +6,30 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Snapshot rendimiento · {{ player.name }}</title>
     <style>
-      /* Base "claro" para snapshot en PDF */
+      /* Snapshot "como en la ficha" (modo oscuro). */
       :root{
-        color-scheme: light;
-        --prod-bg: #ffffff;
-        --prod-panel-flat: #ffffff;
-        --prod-line: rgba(15,23,42,0.14);
-        --prod-line-strong: rgba(244,180,0,0.30);
-        --prod-text: rgba(15,23,42,0.92);
-        --prod-muted: rgba(15,23,42,0.62);
-        --prod-muted-soft: rgba(15,23,42,0.78);
+        color-scheme: dark;
+        --prod-bg: #0b1626;
+        --prod-panel: linear-gradient(180deg, rgba(24, 38, 62, 0.92), rgba(14, 26, 45, 0.9));
+        --prod-panel-flat: rgba(18, 30, 50, 0.94);
+        --prod-line: rgba(144, 161, 185, 0.28);
+        --prod-line-strong: rgba(244, 180, 0, 0.30);
+        --prod-text: #f5f7fa;
+        --prod-muted: #a7b6cf;
+        --prod-muted-soft: #c3cee0;
         --prod-primary: #2f7d32;
         --prod-secondary: #f4b400;
-        --prod-shadow-md: 0 16px 36px rgba(2, 6, 23, 0.08);
+        --prod-shadow-md: 0 16px 36px rgba(0, 0, 0, 0.22);
       }
       body{
         margin:0;
         padding:18px;
         font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-        background:#fff;
+        background:var(--prod-bg);
         color:var(--prod-text);
       }
       .card{
-        background:var(--prod-panel-flat);
+        background:var(--prod-panel);
         border:1px solid var(--prod-line);
         border-radius:16px;
         padding:18px;
@@ -37,55 +38,69 @@
       h2{margin:0 0 12px;font-size:18px;}
 
       /* --- KPI rings --- (misma estructura que ficha) */
-      .performance-rings { display:flex; gap:14px; flex-wrap:wrap; margin-top: 10px; }
-      .kpi-ring{ width: 210px; border-radius: 14px; border:1px solid var(--prod-line); background: rgba(2,6,23,0.02); padding: 12px; }
+      .performance-rings {
+        margin-top: 0.95rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+      }
+      .kpi-ring{ text-align:center; }
       .kpi-ring-chart{
         --pct: 0;
-        width: 104px;
-        height: 104px;
+        width: 96px;
+        height: 96px;
         margin: 0 auto;
-        border-radius: 999px;
+        border-radius: 50%;
         background:
-          conic-gradient(var(--prod-primary) calc(var(--pct) * 1%), rgba(148,163,184,0.35) 0);
+          radial-gradient(closest-side, var(--prod-panel-flat) 68%, transparent 70% 100%),
+          conic-gradient(var(--prod-secondary) calc(var(--pct) * 1%), rgba(148,163,184,0.35) 0);
         display:flex;
         align-items:center;
         justify-content:center;
       }
-      .kpi-ring-chart::before{
-        content:"";
-        width: 76px;
-        height: 76px;
-        border-radius: 999px;
-        background: #ffffff;
-        border: 1px solid rgba(15,23,42,0.08);
-        position:absolute;
+      .kpi-ring-value{ font-weight:900; font-size:1.7rem; color:var(--prod-text); }
+      .kpi-ring-label{ margin-top:0.35rem; text-align:center; font-weight:800; color:var(--prod-muted); }
+
+      .performance-blocks{
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.7rem;
       }
-      .kpi-ring-value{ position:relative; font-weight:900; font-size:18px; }
-      .kpi-ring-label{ margin-top:10px; text-align:center; font-weight:800; color:var(--prod-muted); text-transform:uppercase; letter-spacing:0.08em; font-size:11px;}
+      .performance-block{
+        border-radius: 0.85rem;
+        padding: 0.75rem 0.8rem;
+        border: 1px solid rgba(15, 118, 110, 0.22);
+        background: rgba(2, 6, 23, 0.08);
+        text-align: center;
+      }
+      .performance-block .label{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--prod-muted); font-weight:900; display:block; }
+      .performance-block .value{ font-size:1.35rem; font-weight:900; margin-top:0.25rem; display:block; color:var(--prod-text); }
 
-      .performance-blocks{ display:grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap:10px; margin-top:12px;}
-      .performance-block{ border-radius:14px; border:1px solid var(--prod-line); background: rgba(2,6,23,0.02); padding:10px; }
-      .performance-block .label{ font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--prod-muted); font-weight:900; display:block; }
-      .performance-block .value{ font-size:18px; font-weight:1000; margin-top:4px; display:block; }
-
-      .radar-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-top:14px; }
-      .radar-figure{ border-radius:14px; border:1px solid var(--prod-line); background:#fff; padding:12px; }
-      .radar-legend{ border-radius:14px; border:1px solid var(--prod-line); background:#fff; padding:12px; }
-      .radar-legend h4{ margin:0; font-size:12px; text-transform:uppercase; letter-spacing:0.08em; }
-      .radar-legend p{ margin:8px 0 0; color:var(--prod-muted); font-size:11px; line-height:1.35; }
-      .radar-axes{ list-style:none; padding:0; margin:10px 0 0; }
-      .radar-axes li{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px dashed rgba(15,23,42,0.10); }
-      .radar-dot{ width:10px; height:10px; border-radius:999px; background: rgba(244,180,0,0.92); border:1px solid rgba(15,23,42,0.12); display:inline-block; margin-right:8px; flex:0 0 auto; }
-      .radar-axis-label{ font-weight:1000; }
-      .radar-axis-value{ color:var(--prod-muted-soft); font-weight:900; }
-      .radar-trends{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px; }
-      .trend-card{ border:1px solid rgba(15,23,42,0.12); border-radius:12px; background: rgba(2,6,23,0.02); padding:10px; }
-      .trend-card strong{ display:block; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--prod-muted); }
-      .trend-card svg{ width:100%; height:54px; display:block; margin-top:6px; }
-      .trend-meta{ display:flex; justify-content:space-between; margin-top:6px; color:var(--prod-muted); font-size:10px; font-weight:900; }
+      .radar-grid {
+        display: grid;
+        grid-template-columns: minmax(240px, 0.9fr) minmax(220px, 1.1fr);
+        gap: 0.9rem;
+        align-items: center;
+        margin-top: 1rem;
+      }
+      .radar-figure{ display:grid; place-items:center; }
+      .radar-figure svg{ width:min(360px, 100%); height:auto; display:block; }
+      .radar-legend h4{ margin:0; font-size:0.86rem; text-transform:uppercase; letter-spacing:0.08em; }
+      .radar-legend p{ margin:0.35rem 0 0; color:var(--prod-muted); font-size:0.85rem; line-height:1.35; font-weight:700; }
+      .radar-axes{ list-style:none; padding:0; margin:0.65rem 0 0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.5rem 0.75rem; }
+      .radar-axes li{ display:flex; align-items:baseline; gap:0.5rem; min-width:0; }
+      .radar-dot{ width:10px; height:10px; border-radius:999px; background: var(--prod-secondary); border:1px solid var(--prod-line); flex:0 0 auto; margin-top:0.2rem; }
+      .radar-axis-label{ font-weight:950; letter-spacing:0.06em; }
+      .radar-axis-value{ color:var(--prod-muted-soft); font-weight:900; margin-left:auto; white-space:nowrap; }
+      .radar-trends{ margin-top:0.75rem; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.65rem; }
+      .trend-card{ border:1px solid var(--prod-line); border-radius:14px; background: rgba(2,6,23,0.08); padding:0.6rem 0.65rem; }
+      .trend-card strong{ display:block; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--prod-muted); }
+      .trend-card svg{ width:100%; height:54px; display:block; margin-top:0.35rem; }
+      .trend-meta{ display:flex; justify-content:space-between; margin-top:0.35rem; color:var(--prod-muted); font-size:0.8rem; font-weight:800; }
 
       .performance-map{ margin-top:14px; }
-      .field-diagram{ position:relative; width:100%; padding-bottom:56%; background:#0b1b12; border-radius:14px; border:1px solid rgba(15,23,42,0.14); overflow:hidden; }
+      .field-diagram{ position:relative; width:100%; padding-bottom:56%; background:#0b1b12; border-radius:14px; border:1px solid var(--prod-line); overflow:hidden; }
       .field-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; object-position:center; }
       .field-zone{ position:absolute; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:900; text-align:center; padding:4px; text-transform:uppercase; letter-spacing:0.04em; text-shadow: 0 2px 8px rgba(2,6,23,0.95); }
       .field-zone span{ display:inline-flex; align-items:center; justify-content:center; max-width:100%; padding:3px 8px; border-radius:999px; background: rgba(2,6,23,0.66); border:1px solid rgba(255,255,255,0.14); }
@@ -188,7 +203,7 @@
               <div class="trend-card">
                 <strong>Acciones (últimos 6)</strong>
                 <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia acciones" role="img">
-                  <path id="trend-actions-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+                  <path id="trend-actions-path" d="" fill="none" stroke="rgba(226,232,240,0.28)" stroke-width="2"></path>
                   <path id="trend-actions-fill" d="" fill="rgba(244,180,0,0.16)" stroke="none"></path>
                 </svg>
                 <div class="trend-meta"><span id="trend-actions-min">—</span><span id="trend-actions-max">—</span></div>
@@ -196,7 +211,7 @@
               <div class="trend-card">
                 <strong>% Éxito (últimos 6)</strong>
                 <svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="Tendencia éxito" role="img">
-                  <path id="trend-success-path" d="" fill="none" stroke="rgba(15,23,42,0.22)" stroke-width="2"></path>
+                  <path id="trend-success-path" d="" fill="none" stroke="rgba(226,232,240,0.28)" stroke-width="2"></path>
                   <path id="trend-success-fill" d="" fill="rgba(47,125,50,0.16)" stroke="none"></path>
                 </svg>
                 <div class="trend-meta"><span id="trend-success-min">—</span><span id="trend-success-max">—</span></div>
@@ -209,17 +224,17 @@
           <div class="radar-grid" style="margin-top:14px;">
             <div class="radar-figure">
               <svg viewBox="0 0 360 360" role="img" aria-label="Radar (card)" focusable="false">
-                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1.2"></circle>
-                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="1.2"></circle>
+                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
                 {% if card_radar_data.axis_svg %}
                   {% for ax in card_radar_data.axis_svg %}
-                    <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(15,23,42,0.14)" stroke-width="1.1"></line>
+                    <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
                   {% endfor %}
                 {% endif %}
                 <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
                 {% if card_radar_data.axis_svg %}
                   {% for ax in card_radar_data.axis_svg %}
-                    <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(15,23,42,0.78)" font-size="11" font-weight="900">{{ ax.text }}</text>
+                    <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
                   {% endfor %}
                 {% endif %}
               </svg>
@@ -349,10 +364,10 @@
         clear(gridG); clear(dataG); clear(labelsG); axesList.innerHTML = '';
 
         const gridStroke = 'rgba(15,23,42,0.14)';
-        const axisStroke = 'rgba(15,23,42,0.14)';
-        const labelFill = 'rgba(15,23,42,0.78)';
-        const polygonStroke = 'rgba(15,23,42,0.22)';
-        const dotStroke = 'rgba(15,23,42,0.18)';
+        const axisStroke = 'rgba(226,232,240,0.20)';
+        const labelFill = 'rgba(226,232,240,0.86)';
+        const polygonStroke = 'rgba(244,180,0,0.72)';
+        const dotStroke = 'rgba(226,232,240,0.20)';
 
         rings.forEach((t) => {
           const rr = R * t;
@@ -481,4 +496,3 @@
     </script>
   </body>
 </html>
-

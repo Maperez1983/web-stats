@@ -23957,12 +23957,15 @@ def _build_player_card_radar_data(detail_row, population_rows):
         n = len(axes)
         pts = []
         labels_svg = []
+        axis_svg = []
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (max(0.0, min(float(axis.get('value', 0.0)), 100.0)) / 100.0)
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
+            ax_x = cx + math.cos(angle) * rmax
+            ax_y = cy + math.sin(angle) * rmax
             # Label radius: dentro del viewBox y con margen suficiente para palabras largas.
             lr = 158.0
             lx = cx + math.cos(angle) * lr
@@ -23992,14 +23995,26 @@ def _build_player_card_radar_data(detail_row, population_rows):
                     'baseline': baseline,
                 }
             )
+            axis_svg.append(
+                {
+                    'axis_x': round(float(ax_x), 1),
+                    'axis_y': round(float(ax_y), 1),
+                    'label_x': round(float(lx), 1),
+                    'label_y': round(float(ly), 1),
+                    'text': label_text,
+                    'anchor': anchor,
+                    'baseline': baseline,
+                }
+            )
         pts_str_svg = ' '.join([f"{x:.1f},{y:.1f}" for (x, y) in pts])
         return {
             'axes': axes,
             'polygon_points_svg': pts_str_svg,
             'labels_svg': labels_svg,
+            'axis_svg': axis_svg,
         }
     except Exception:
-        return {'axes': axes, 'polygon_points_svg': '', 'labels_svg': []}
+        return {'axes': axes, 'polygon_points_svg': '', 'labels_svg': [], 'axis_svg': []}
 
 
 @login_required
