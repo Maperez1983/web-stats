@@ -80,6 +80,10 @@
         letter-spacing: 0.02em;
         cursor: pointer;
         line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       }
       .t2-btn.primary {
         border-color: rgba(244,180,0,0.34);
@@ -235,6 +239,35 @@
         </section>
 
 	        <aside class="t2-panel">
+	          <h3>Superficie</h3>
+	          <div class="t2-row" style="gap:10px;">
+	            <div class="t2-field" style="flex: 1 1 180px;">
+	              <label for="t2-grass-style">Césped</label>
+	              <select id="t2-grass-style">
+	                <option value="uefa_b" selected>UEFA (tile)</option>
+	                <option value="classic">Clásico</option>
+	                <option value="broadcast">Broadcast</option>
+	                <option value="pro">Pro</option>
+	                <option value="realistic">Realista</option>
+	                <option value="artificial">Artificial</option>
+	                <option value="dry">Seco</option>
+	                <option value="wet">Mojado</option>
+	                <option value="whiteboard">Pizarra blanca</option>
+	                <option value="blackboard">Pizarra negra</option>
+	              </select>
+	            </div>
+	          </div>
+
+	          <h3>Recursos</h3>
+	          <div class="t2-field">
+	            <label for="t2-resource-filter">Filtra</label>
+	            <input id="t2-resource-filter" type="text" placeholder="Buscar recurso…" />
+	          </div>
+	          <div class="t2-row" id="t2-resources" style="gap:8px;"></div>
+
+	          <h3>Plantilla</h3>
+	          <div class="t2-list" id="t2-roster" style="max-height: 22vh;"></div>
+
 	          <h3>Playbook</h3>
 
 	          <div class="t2-status" id="t2-steps-status">Pasos: 1/1</div>
@@ -260,6 +293,7 @@
       </main>
     </div>
 
+    <script id="t2-roster-json" type="application/json">{{ roster_json|default:"[]"|safe }}</script>
     <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
     <script src="{% static 'football/js/tactics_v2.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
   </body>

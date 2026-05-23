@@ -154,8 +154,19 @@
     const isBall = kind === 'ball';
     const isHome = kind === 'home';
     const fill = isBall ? '#f8fafc' : isHome ? '#16a34a' : '#ef4444';
-    const stroke = isBall ? 'rgba(15,23,42,0.55)' : 'rgba(255,255,255,0.74)';
+    const stroke = isBall ? 'rgba(15,23,42,0.55)' : 'rgba(255,255,255,0.88)';
     const radius = isBall ? 12 : 20;
+    const shadow = new window.fabric.Circle({
+      radius: isBall ? radius + 2 : radius + 4,
+      fill: 'rgba(2,6,23,0.28)',
+      originX: 'center',
+      originY: 'center',
+      left: isBall ? 1 : 2,
+      top: isBall ? 2 : 4,
+      strokeWidth: 0,
+      selectable: false,
+      evented: false,
+    });
     const circle = new window.fabric.Circle({
       radius,
       fill,
@@ -163,15 +174,19 @@
       strokeWidth: isBall ? 2 : 2,
       originX: 'center',
       originY: 'center',
-      shadow: new window.fabric.Shadow({ color: 'rgba(2,6,23,0.35)', blur: 10, offsetX: 0, offsetY: 4 }),
+      selectable: false,
+      evented: false,
     });
     let text = null;
     if (!isBall) {
       text = new window.fabric.Text('0', {
         fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, sans-serif',
-        fontSize: 16,
-        fill: '#0b1220',
+        fontSize: 15,
+        fill: '#ffffff',
         fontWeight: '800',
+        stroke: 'rgba(2,6,23,0.65)',
+        strokeWidth: 2,
+        paintFirst: 'stroke',
         originX: 'center',
         originY: 'center',
         selectable: false,
@@ -179,6 +194,21 @@
       });
     }
     if (text) {
+      const nameBg = new window.fabric.Rect({
+        left: 0,
+        top: -34,
+        originX: 'center',
+        originY: 'center',
+        width: 88,
+        height: 18,
+        rx: 8,
+        ry: 8,
+        fill: 'rgba(2,6,23,0.68)',
+        stroke: 'rgba(255,255,255,0.14)',
+        strokeWidth: 1,
+        selectable: false,
+        evented: false,
+      });
       const tag = new window.fabric.Text('', {
         fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, sans-serif',
         fontSize: 11,
@@ -191,14 +221,26 @@
         evented: false,
         shadow: new window.fabric.Shadow({ color: 'rgba(2,6,23,0.45)', blur: 6, offsetX: 0, offsetY: 2 }),
       });
-      const grp = new window.fabric.Group([circle, text, tag], { left: 120, top: 120, hasControls: false });
+      const gloss = new window.fabric.Circle({
+        left: -7,
+        top: -10,
+        originX: 'center',
+        originY: 'center',
+        radius: 9,
+        fill: 'rgba(255,255,255,0.18)',
+        selectable: false,
+        evented: false,
+      });
+      const grp = new window.fabric.Group([shadow, circle, gloss, text, nameBg, tag], { hasControls: false, originX: 'center', originY: 'center' });
       grp.__t2Kind = 'player_token';
       grp.__t2Team = isHome ? 'home' : 'away';
       grp.__t2Number = 0;
       grp.__t2Name = '';
       return grp;
     }
-    return circle;
+    const grp = new window.fabric.Group([shadow, circle], { hasControls: false, originX: 'center', originY: 'center' });
+    grp.__t2Kind = 'ball';
+    return grp;
   };
 
   const setTokenMeta = (token, { number, name }) => {
@@ -210,10 +252,15 @@
     token.__t2Name = safeName;
     try {
       const objs = typeof token.getObjects === 'function' ? token.getObjects() : [];
-      const numText = objs.find((o) => o && o.type === 'text' && Number(o.fontSize) === 16);
+      const numText = objs.find((o) => o && o.type === 'text' && Number(o.fontSize) === 15);
       if (numText) numText.text = String(safeN || '');
       const tag = objs.find((o) => o && o.type === 'text' && Number(o.fontSize) === 11);
       if (tag) tag.text = safeName ? safeName.toUpperCase() : '';
+      const nameBg = objs.find((o) => o && o.type === 'rect' && Number(o.height) === 18 && Number(o.rx) === 8);
+      if (nameBg) {
+        const width = Math.max(48, Math.min(140, (safeName.length * 6.6) + 18));
+        nameBg.set('width', width);
+      }
     } catch (e) { /* ignore */ }
   };
 
@@ -309,6 +356,127 @@
     return grp;
   };
 
+  const makePoleMarker = ({ x, y }) => {
+    const pole = new window.fabric.Line([x, y + 18, x, y - 18], {
+      stroke: 'rgba(34,211,238,0.95)',
+      strokeWidth: 5,
+      strokeLineCap: 'round',
+    });
+    const cap = new window.fabric.Circle({
+      left: x,
+      top: y - 22,
+      originX: 'center',
+      originY: 'center',
+      radius: 6,
+      fill: 'rgba(248,250,252,0.92)',
+      stroke: 'rgba(15,23,42,0.28)',
+      strokeWidth: 1,
+    });
+    const grp = new window.fabric.Group([pole, cap], { hasControls: false });
+    grp.__t2Kind = 'pole_marker';
+    return grp;
+  };
+
+  const makeRing = ({ x, y }) => {
+    const ring = new window.fabric.Circle({
+      left: x,
+      top: y,
+      originX: 'center',
+      originY: 'center',
+      radius: 22,
+      fill: 'rgba(2,6,23,0.06)',
+      stroke: 'rgba(168,85,247,0.92)',
+      strokeWidth: 5,
+    });
+    ring.__t2Kind = 'ring';
+    return ring;
+  };
+
+  const makeLadder = ({ x, y }) => {
+    const width = 120;
+    const height = 46;
+    const stroke = 'rgba(34,211,238,0.95)';
+    const leftRail = new window.fabric.Line([-width / 2, -height / 2, -width / 2, height / 2], { stroke, strokeWidth: 5, strokeLineCap: 'round' });
+    const rightRail = new window.fabric.Line([width / 2, -height / 2, width / 2, height / 2], { stroke, strokeWidth: 5, strokeLineCap: 'round' });
+    const parts = [leftRail, rightRail];
+    const rungCount = 6;
+    const step = height / (rungCount + 1);
+    for (let i = 1; i <= rungCount; i += 1) {
+      const yy = -height / 2 + (step * i);
+      parts.push(new window.fabric.Line([-width / 2 + 10, yy, width / 2 - 10, yy], { stroke: 'rgba(248,250,252,0.86)', strokeWidth: 4, strokeLineCap: 'round' }));
+    }
+    const grp = new window.fabric.Group(parts, { left: x, top: y, originX: 'center', originY: 'center', hasControls: false });
+    grp.__t2Kind = 'ladder';
+    return grp;
+  };
+
+  const makeHurdle = ({ x, y, mini = false }) => {
+    const stroke = mini ? 'rgba(168,85,247,0.95)' : 'rgba(34,211,238,0.95)';
+    const width = mini ? 86 : 120;
+    const height = mini ? 24 : 34;
+    const bar = new window.fabric.Line([-width / 2, 0, width / 2, 0], { stroke, strokeWidth: 5, strokeLineCap: 'round' });
+    const leg = (xx) => new window.fabric.Line([xx, 0, xx, height], { stroke: 'rgba(248,250,252,0.50)', strokeWidth: 5, strokeLineCap: 'round' });
+    const grp = new window.fabric.Group([bar, leg(-width / 2), leg(width / 2)], { left: x, top: y, originX: 'center', originY: 'center', hasControls: false });
+    grp.__t2Kind = mini ? 'mini_hurdle' : 'hurdle';
+    return grp;
+  };
+
+  const makeGate = ({ x, y }) => {
+    const cone = (xx) => new window.fabric.Triangle({
+      left: xx,
+      top: 10,
+      originX: 'center',
+      originY: 'center',
+      width: 22,
+      height: 22,
+      angle: 180,
+      fill: 'rgba(244,180,0,0.95)',
+      stroke: 'rgba(15,23,42,0.28)',
+      strokeWidth: 1,
+    });
+    const bar = new window.fabric.Line([-44, 10, 44, 10], { stroke: 'rgba(248,250,252,0.86)', strokeWidth: 4, strokeLineCap: 'round' });
+    const grp = new window.fabric.Group([cone(-44), cone(44), bar], { left: x, top: y, originX: 'center', originY: 'center', hasControls: false });
+    grp.__t2Kind = 'gate';
+    return grp;
+  };
+
+  const makeWall = ({ x, y }) => {
+    const rect = new window.fabric.Rect({
+      left: x,
+      top: y,
+      originX: 'center',
+      originY: 'center',
+      width: 140,
+      height: 30,
+      rx: 12,
+      ry: 12,
+      fill: 'rgba(148,163,184,0.18)',
+      stroke: 'rgba(148,163,184,0.75)',
+      strokeWidth: 2,
+    });
+    rect.__t2Kind = 'wall';
+    return rect;
+  };
+
+  const makeTape = ({ x, y }) => {
+    const rect = new window.fabric.Rect({
+      left: x,
+      top: y,
+      originX: 'center',
+      originY: 'center',
+      width: 220,
+      height: 26,
+      rx: 10,
+      ry: 10,
+      fill: 'rgba(250,204,21,0.12)',
+      stroke: 'rgba(250,204,21,0.90)',
+      strokeWidth: 3,
+      strokeDashArray: [10, 8],
+    });
+    rect.__t2Kind = 'tape';
+    return rect;
+  };
+
   const init = async () => {
     const root = document.getElementById('t2-root');
     if (!root) return;
@@ -344,6 +512,10 @@
     const clearBtn = document.getElementById('t2-clear');
     const clipNameEl = document.getElementById('t2-clip-name');
     const clipFolderEl = document.getElementById('t2-clip-folder');
+    const grassStyleEl = document.getElementById('t2-grass-style');
+    const resourcesEl = document.getElementById('t2-resources');
+    const resourceFilterEl = document.getElementById('t2-resource-filter');
+    const rosterEl = document.getElementById('t2-roster');
 
     backBtn?.addEventListener('click', () => { window.location.href = backUrl; });
 
@@ -372,35 +544,45 @@
       stopContextMenu: true,
     });
 
-    // Fondo + grid simple
+    // Fondo (meta editable)
+    let pitchMeta = { preset: 'full_pitch', orientation: 'landscape', grass_style: 'uefa_b', zoom: 1 };
     canvas.setBackgroundColor('rgba(2,6,23,0.10)', canvas.renderAll.bind(canvas));
-    await buildPitchBackground(canvas, { width: initialW, height: initialH });
+    await buildPitchBackground(canvas, { width: initialW, height: initialH, grassStyle: pitchMeta.grass_style });
     canvas.renderAll();
 
     // Historial simple (JSON).
     const history = { past: [], future: [], lock: false };
     const snapshot = () => {
-      const json = normalizeCanvasJson(canvas.toDatalessJSON());
-      history.past.push(json);
+      const json = serializeCanvasState(canvas);
+      history.past.push({ canvas_state: json, pitch_meta: { ...pitchMeta } });
       history.future = [];
       if (history.past.length > 50) history.past.shift();
       undoBtn && (undoBtn.disabled = history.past.length < 2);
       redoBtn && (redoBtn.disabled = history.future.length === 0);
     };
-    const restore = async (json) => {
+    const restore = async (entry) => {
       history.lock = true;
+      const canvasState = entry?.canvas_state && typeof entry.canvas_state === 'object' ? entry.canvas_state : entry;
+      const nextMeta = entry?.pitch_meta && typeof entry.pitch_meta === 'object' ? entry.pitch_meta : null;
+      if (nextMeta) {
+        pitchMeta = {
+          preset: safeText(nextMeta.preset, pitchMeta.preset),
+          orientation: safeText(nextMeta.orientation, pitchMeta.orientation),
+          grass_style: safeText(nextMeta.grass_style, pitchMeta.grass_style),
+          zoom: Number.isFinite(Number(nextMeta.zoom)) ? Number(nextMeta.zoom) : pitchMeta.zoom,
+        };
+      }
+
       await new Promise((resolve) => {
-        canvas.loadFromJSON(json, () => {
-          // Garantiza que el fondo (SVG) se quede atrás.
-          try {
-            canvas.getObjects().forEach((obj) => {
-              if (obj && obj.evented === false && obj.selectable === false) obj.sendToBack();
-            });
-          } catch (e) { /* ignore */ }
-          canvas.renderAll();
-          resolve();
-        });
+        canvas.loadFromJSON(canvasState, () => resolve());
       });
+
+      try {
+        clearPitchBackground(canvas);
+        await buildPitchBackground(canvas, { width: canvas.getWidth(), height: canvas.getHeight(), grassStyle: pitchMeta.grass_style });
+      } catch (e) { /* ignore */ }
+
+      canvas.renderAll();
       history.lock = false;
       undoBtn && (undoBtn.disabled = history.past.length < 2);
       redoBtn && (redoBtn.disabled = history.future.length === 0);
@@ -435,7 +617,7 @@
       if (stepNextBtn) stepNextBtn.disabled = activeStepIndex >= (total - 1);
     };
     const captureStep = () => {
-      const json = normalizeCanvasJson(canvas.toDatalessJSON());
+      const json = serializeCanvasState(canvas);
       const w = Math.max(1, Math.round(canvas.getWidth() || 0));
       const h = Math.max(1, Math.round(canvas.getHeight() || 0));
       return {
@@ -444,10 +626,10 @@
         canvas_state: json,
         canvas_width: w,
         canvas_height: h,
-        preset: 'full_pitch',
-        orientation: 'landscape',
-        grass_style: 'grass_uefa_b_tile',
-        zoom: 1,
+        preset: pitchMeta.preset,
+        orientation: pitchMeta.orientation,
+        grass_style: pitchMeta.grass_style,
+        zoom: pitchMeta.zoom,
       };
     };
 
@@ -474,7 +656,15 @@
     const loadStep = async (step) => {
       const state = step?.canvas_state && typeof step.canvas_state === 'object' ? step.canvas_state : null;
       if (!state) return;
-      await restore(state);
+      try {
+        pitchMeta = {
+          preset: safeText(step?.preset, pitchMeta.preset),
+          orientation: safeText(step?.orientation, pitchMeta.orientation),
+          grass_style: safeText(step?.grass_style, pitchMeta.grass_style),
+          zoom: Number.isFinite(Number(step?.zoom)) ? Number(step.zoom) : pitchMeta.zoom,
+        };
+      } catch (e) { /* ignore */ }
+      await restore({ canvas_state: state, pitch_meta: { ...pitchMeta } });
     };
 
     steps = [captureStep()];
@@ -482,7 +672,7 @@
     updateStepsUi();
 
     // --- Herramientas ---
-    let tool = 'move'; // move|draw|arrow|zone|cone|goal|text
+    let tool = 'move'; // move|draw|arrow|zone|cone|goal|text|pole_marker|ring|ladder|hurdle|mini_hurdle|gate|wall|tape
     const setTool = (next) => {
       tool = safeText(next, 'move');
       canvas.isDrawingMode = tool === 'draw';
@@ -512,10 +702,120 @@
     toolTextBtn?.addEventListener('click', () => setTool('text'));
     setTool('move');
 
+    // --- Superficie (césped) ---
+    const applyGrassStyle = async (nextStyle) => {
+      const style = safeText(nextStyle, 'uefa_b').toLowerCase();
+      pitchMeta.grass_style = style;
+      try {
+        clearPitchBackground(canvas);
+        await buildPitchBackground(canvas, { width: canvas.getWidth(), height: canvas.getHeight(), grassStyle: style });
+        canvas.renderAll();
+      } catch (e) { /* ignore */ }
+      try { syncActiveStepFromCanvas(); } catch (e) { /* ignore */ }
+      setStatus(statusEl, `Césped: ${style}`);
+    };
+    if (grassStyleEl) {
+      grassStyleEl.value = pitchMeta.grass_style;
+      grassStyleEl.addEventListener('change', () => { void applyGrassStyle(grassStyleEl.value); });
+    }
+
+    // --- Recursos (equipamiento) ---
+    const RESOURCE_DEFS = [
+      { key: 'move', label: 'Mover' },
+      { key: 'ball', label: 'Balón' },
+      { key: 'cone', label: 'Cono' },
+      { key: 'pole_marker', label: 'Pica' },
+      { key: 'ring', label: 'Aro' },
+      { key: 'ladder', label: 'Escalera' },
+      { key: 'hurdle', label: 'Valla' },
+      { key: 'mini_hurdle', label: 'Mini valla' },
+      { key: 'gate', label: 'Puerta' },
+      { key: 'tape', label: 'Cinta' },
+      { key: 'wall', label: 'Muro' },
+      { key: 'goal', label: 'Portería' },
+      { key: 'arrow', label: 'Flecha' },
+      { key: 'zone', label: 'Zona' },
+      { key: 'text', label: 'Texto' },
+      { key: 'draw', label: 'Dibujar' },
+    ];
+
+    const renderResources = () => {
+      if (!resourcesEl) return;
+      const q = safeText(resourceFilterEl?.value, '').toLowerCase();
+      resourcesEl.innerHTML = '';
+      RESOURCE_DEFS
+        .filter((r) => !q || r.label.toLowerCase().includes(q) || r.key.toLowerCase().includes(q))
+        .forEach((res) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 't2-btn';
+          btn.textContent = res.label;
+          btn.addEventListener('click', () => {
+            if (res.key === 'ball') {
+              setTool('ball');
+              return;
+            }
+            setTool(res.key);
+          });
+          resourcesEl.appendChild(btn);
+        });
+    };
+    resourceFilterEl?.addEventListener('input', renderResources);
+    renderResources();
+
+    // --- Plantilla (chapa equipo propio) ---
+    const readRosterJson = () => {
+      try {
+        const el = document.getElementById('t2-roster-json');
+        if (!el) return [];
+        const raw = safeText(el.textContent, '[]');
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    };
+    const roster = readRosterJson();
+    const renderRoster = () => {
+      if (!rosterEl) return;
+      rosterEl.innerHTML = '';
+      if (!roster.length) {
+        const empty = document.createElement('div');
+        empty.className = 't2-status';
+        empty.textContent = 'No hay jugadores activos en la plantilla del equipo.';
+        rosterEl.appendChild(empty);
+        return;
+      }
+      roster.slice(0, 60).forEach((p) => {
+        const name = safeText(p?.nickname || p?.name, 'Jugador');
+        const num = Number(p?.number || 0) || 0;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 't2-btn';
+        btn.style.width = '100%';
+        btn.style.justifyContent = 'space-between';
+        btn.textContent = num ? `${String(num).padStart(2, '0')} · ${name}` : name;
+        btn.addEventListener('click', () => {
+          const token = makeToken('home');
+          token.left = canvas.getWidth() / 2;
+          token.top = canvas.getHeight() / 2;
+          canvas.add(token);
+          try { token.bringToFront(); } catch (e) { /* ignore */ }
+          setTokenMeta(token, { number: num, name });
+          canvas.setActiveObject(token);
+          canvas.requestRenderAll();
+          snapshot();
+          setTool('move');
+        });
+        rosterEl.appendChild(btn);
+      });
+    };
+    renderRoster();
+
     const addTokenAtCenter = (kind) => {
       const token = makeToken(kind);
-      if (token.left == null) token.left = canvas.getWidth() / 2;
-      if (token.top == null) token.top = canvas.getHeight() / 2;
+      token.left = canvas.getWidth() / 2;
+      token.top = canvas.getHeight() / 2;
       canvas.add(token);
       try { token.bringToFront(); } catch (e) { /* ignore */ }
       canvas.setActiveObject(token);
@@ -572,6 +872,18 @@
     canvas.on('mouse:down', (opt) => {
       if (!opt || !opt.e) return;
       const p = canvas.getPointer(opt.e);
+      if (tool === 'ball') {
+        const b = makeToken('ball');
+        b.left = p.x;
+        b.top = p.y;
+        canvas.add(b);
+        try { b.bringToFront(); } catch (e) { /* ignore */ }
+        canvas.setActiveObject(b);
+        canvas.requestRenderAll();
+        snapshot();
+        setTool('move');
+        return;
+      }
       if (tool === 'zone') {
         const rect = makeZoneRect({ x: p.x, y: p.y, w: 1, h: 1 });
         canvas.add(rect);
@@ -585,6 +897,54 @@
       }
       if (tool === 'cone') {
         canvas.add(makeCone({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'pole_marker') {
+        canvas.add(makePoleMarker({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'ring') {
+        canvas.add(makeRing({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'ladder') {
+        canvas.add(makeLadder({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'hurdle') {
+        canvas.add(makeHurdle({ x: p.x, y: p.y, mini: false }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'mini_hurdle') {
+        canvas.add(makeHurdle({ x: p.x, y: p.y, mini: true }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'gate') {
+        canvas.add(makeGate({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'wall') {
+        canvas.add(makeWall({ x: p.x, y: p.y }));
+        canvas.requestRenderAll();
+        snapshot();
+        return;
+      }
+      if (tool === 'tape') {
+        canvas.add(makeTape({ x: p.x, y: p.y }));
         canvas.requestRenderAll();
         snapshot();
         return;
@@ -691,8 +1051,8 @@
     });
 
 	    exportJsonBtn?.addEventListener('click', () => {
-	      const json = normalizeCanvasJson(canvas.toDatalessJSON());
-	      const payload = { version: 2, canvas: json, steps: steps.slice(), active_step: activeStepIndex };
+	      const json = serializeCanvasState(canvas);
+	      const payload = { version: 2, canvas: json, pitch_meta: { ...pitchMeta }, steps: steps.slice(), active_step: activeStepIndex };
 	      downloadText('tactica-v2.json', JSON.stringify(payload, null, 2));
 	      setStatus(statusEl, 'JSON exportado.');
 	    });
@@ -706,19 +1066,19 @@
     clearBtn?.addEventListener('click', async () => {
       const ok = window.confirm('¿Limpiar la pizarra?');
       if (!ok) return;
-      // Reset: recarga el fondo y limpia objetos interactivos.
+      // Reset: limpia objetos y reconstruye el fondo.
       history.lock = true;
-      const keep = canvas.getObjects().filter((obj) => obj && obj.evented === false && obj.selectable === false);
       canvas.clear();
       canvas.setBackgroundColor('rgba(2,6,23,0.10)', canvas.renderAll.bind(canvas));
-      keep.forEach((obj) => canvas.add(obj));
-      keep.forEach((obj) => obj.sendToBack());
+      try {
+        await buildPitchBackground(canvas, { width: canvas.getWidth(), height: canvas.getHeight(), grassStyle: pitchMeta.grass_style });
+      } catch (e) { /* ignore */ }
       canvas.renderAll();
-	      history.past = [];
-	      history.future = [];
-	      history.lock = false;
-	      snapshot();
-	      steps = [captureStep()];
+		      history.past = [];
+		      history.future = [];
+		      history.lock = false;
+		      snapshot();
+		      steps = [captureStep()];
 	      activeStepIndex = 0;
 	      updateStepsUi();
 	      setStatus(statusEl, 'Pizarra limpia.');

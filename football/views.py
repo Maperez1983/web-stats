@@ -30476,6 +30476,29 @@ def coach_tactics_v2_page(request):
     if not primary_team:
         return HttpResponse('No hay equipo activo configurado para abrir Táctica.', status=400)
 
+    roster_json = '[]'
+    try:
+        players = list(
+            Player.objects
+            .filter(team=primary_team, is_active=True)
+            .order_by('number', 'name', 'id')[:40]
+        )
+        roster = []
+        for p in players:
+            roster.append(
+                {
+                    'id': int(getattr(p, 'id', 0) or 0) or None,
+                    'name': str(getattr(p, 'name', '') or '').strip(),
+                    'nickname': str(getattr(p, 'nickname', '') or '').strip(),
+                    'number': int(getattr(p, 'number', 0) or 0) or 0,
+                    'position': str(getattr(p, 'position', '') or '').strip(),
+                    'photo_url': str(getattr(p, 'photo_url', '') or '').strip(),
+                }
+            )
+        roster_json = json.dumps(roster, ensure_ascii=False)
+    except Exception:
+        roster_json = '[]'
+
     try:
         back_url = reverse('dashboard-home')
         active_team = _get_active_team_for_request(request)
@@ -30494,6 +30517,7 @@ def coach_tactics_v2_page(request):
             'clips_api_url': reverse('tactical-playbook-clips-api'),
             'clip_save_api_url': reverse('tactical-playbook-clip-save-api'),
             'back_url': back_url,
+            'roster_json': roster_json,
         },
     )
 
