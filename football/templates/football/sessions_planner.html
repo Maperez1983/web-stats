@@ -1705,7 +1705,7 @@
 			                        <a class="create-mod-btn" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tarea <small>Abrir editor (clásica)</small></a>
 		                        <a class="create-mod-btn" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesión <small>Crear · importar PDF · tareas por bloque</small></a>
 		                        <a class="create-mod-btn" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclo <small>Crear · planificar semana</small></a>
-			                        <a class="create-mod-btn" href="{% url 'coach-tactics' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Táctica <small>Abrir pizarra</small></a>
+			                        <a class="create-mod-btn" href="{% url 'coach-tactics-v2' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Táctica <small>Abrir pizarra</small></a>
 		                        <a class="create-mod-btn" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca <small>Tareas · sesiones · microciclos</small></a>
 				              </div>
 				            </aside>
@@ -1886,7 +1886,7 @@
 	                    <h3>Táctica</h3>
 	                    <p class="meta">Pizarra táctica y ABP.</p>
 	                    <div class="create-actions-row">
-		                      <a class="create-action-btn" href="{% url 'coach-tactics' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
+		                      <a class="create-action-btn" href="{% url 'coach-tactics-v2' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Abrir táctica <small>Pizarra + Playbook</small> <span class="chev" aria-hidden="true">›</span></a>
 		                      <a class="create-action-btn" href="{% url 'coach-abp-board' %}?team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">ABP <small>Balón parado</small> <span class="chev" aria-hidden="true">›</span></a>
 	                    </div>
 	                  </div>

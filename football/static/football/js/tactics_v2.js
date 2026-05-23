@@ -62,7 +62,37 @@
   };
 
   const buildPitchBackground = async (canvas, { width, height }) => {
-    // MVP: usamos el SVG métrico como base. Lo escalamos al canvas y lo bloqueamos.
+    // MVP estable: renderizamos un campo "FM-like" (franjas verdes + líneas blancas via SVG referencia).
+    const w = Math.max(1, Number(width) || 1);
+    const h = Math.max(1, Number(height) || 1);
+
+    // 1) Franjas de césped (no depende de assets externos).
+    try {
+      const stripeCount = 12;
+      const stripeW = w / stripeCount;
+      const stripes = [];
+      for (let i = 0; i < stripeCount; i += 1) {
+        const fill = (i % 2 === 0) ? 'rgba(34,197,94,0.34)' : 'rgba(22,163,74,0.34)';
+        stripes.push(new window.fabric.Rect({
+          left: i * stripeW,
+          top: 0,
+          width: Math.ceil(stripeW + 1),
+          height: h,
+          fill,
+          selectable: false,
+          evented: false,
+          hoverCursor: 'default',
+        }));
+      }
+      const grass = new window.fabric.Group(stripes, { selectable: false, evented: false });
+      grass.set({ left: 0, top: 0 });
+      // Tag interno para poder reconocerlos.
+      grass.__t2Kind = 'pitch_grass';
+      canvas.add(grass);
+      grass.sendToBack();
+    } catch (e) { /* ignore */ }
+
+    // 2) Líneas de campo (SVG referencia).
     const svgUrl = '/static/football/images/surfaces/references/football_pitch_metric_reference.svg';
     return new Promise((resolve) => {
       try {
@@ -70,16 +100,20 @@
           try {
             const group = window.fabric.util.groupSVGElements(objects, options);
             group.set({ selectable: false, evented: false, hoverCursor: 'default' });
+            group.__t2Kind = 'pitch_lines';
             // Ajuste a tamaño disponible.
-            const w = Math.max(1, Number(width) || 1);
-            const h = Math.max(1, Number(height) || 1);
             const scale = Math.min(w / (group.width || w), h / (group.height || h));
             group.scale(scale);
             group.left = (w - (group.getScaledWidth ? group.getScaledWidth() : (group.width * scale))) / 2;
             group.top = (h - (group.getScaledHeight ? group.getScaledHeight() : (group.height * scale))) / 2;
-            // Layer inferior
             canvas.add(group);
-            group.sendToBack();
+            // Debe quedar por encima del césped, pero por debajo de tokens.
+            try { group.sendToBack(); } catch (e2) { /* ignore */ }
+            // Re-subimos el césped al fondo para asegurar orden.
+            try {
+              const grass = canvas.getObjects().find((o) => o && o.__t2Kind === 'pitch_grass');
+              if (grass) grass.sendToBack();
+            } catch (e3) { /* ignore */ }
             resolve(group);
           } catch (e) {
             resolve(null);
@@ -463,4 +497,3 @@
     void init();
   }
 })();
-

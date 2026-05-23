@@ -1349,12 +1349,12 @@
                     </a>
                     {% endif %}
 
-                    {% if workspace_module_access.tactics|default:True %}
-                    <a class="quick-action is-muted" href="{% url 'coach-tactics' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
-                      <strong>Táctica</strong>
-                      <span>Pizarra · clips · export</span>
-                    </a>
-                    {% endif %}
+	                    {% if workspace_module_access.tactics|default:True %}
+	                    <a class="quick-action is-muted" href="{% url 'coach-tactics-v2' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+	                      <strong>Táctica</strong>
+	                      <span>Pizarra · clips · export</span>
+	                    </a>
+	                    {% endif %}
 
                     {% if can_manage_workspace %}
                     <a class="quick-action is-muted" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
