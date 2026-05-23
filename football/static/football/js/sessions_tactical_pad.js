@@ -13694,6 +13694,10 @@
 	      // En CSS, `.pitch-viewport` no tiene un alto fijo: su alto depende del propio `.pitch-stage`
 	      // (aspect-ratio). Si calculamos el fit usando ese alto, creamos una dependencia circular:
 	      // un primer cálculo con poco alto -> encoge el stage -> el viewport se queda pequeño para siempre.
+	      //
+	      // Además, en modo táctica el usuario puede hacer scroll por la página. Si calculamos el
+	      // "alto disponible" como `innerHeight - rect.top`, cuando el campo cae más abajo el fit
+	      // se colapsa (p.ej. a 320px). Para evitarlo, limitamos el impacto de `rect.top` con un cap.
 	      const viewportRect = viewportEl?.getBoundingClientRect?.() || {
 	        width: viewportEl?.clientWidth || 0,
 	        height: viewportEl?.clientHeight || 0,
@@ -13702,10 +13706,12 @@
 	      const mainEl = viewportEl.closest?.('.pitch-main') || viewportEl.parentElement || viewportEl;
 	      const mainRect = mainEl?.getBoundingClientRect?.() || viewportRect;
 	      const vw = Math.max(0, Number(mainRect.width) || Number(viewportRect.width) || 0);
-	      // Altura disponible real dentro de la ventana (desde el top del viewport hasta el borde inferior).
-	      // Esto evita que el stage "se quede en miniatura" si el primer render midió un viewport pequeño.
-	      const top = Number(viewportRect.top) || 0;
-	      const vh = Math.max(0, (Number(window.innerHeight) || 0) - top - 12);
+	      const layoutVh = Math.max(0, Number(window.innerHeight) || Number(document.documentElement?.clientHeight) || 0);
+	      const topRaw = Math.max(0, Number(viewportRect.top) || 0);
+	      // Cap del "header" para evitar shrink exagerado si el campo cae abajo por scroll/contenido.
+	      const headerCap = layoutVh < 720 ? 220 : 420;
+	      const top = Math.min(topRaw, headerCap);
+	      const vh = Math.max(0, layoutVh - top - 12);
 	      if (vw < 10 || vh < 10) return;
 	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
 	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height
