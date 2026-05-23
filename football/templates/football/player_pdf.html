@@ -458,10 +458,8 @@
         break-inside: avoid;
         page-break-inside: avoid;
       }
-      .radar-panel + .radar-panel { margin-top: 12px; }
-      .radar-panel-head {
-        margin-bottom: 10px;
-      }
+      .radar-panel + .radar-panel { margin-top: 14px; }
+      .radar-panel-head { margin-bottom: 10px; }
       .radar-panel-title {
         font-size: 12px;
         font-weight: 1000;
@@ -477,10 +475,11 @@
       }
       .radar-layout { display: table; width: 100%; table-layout: fixed; }
       .radar-layout-row { display: table-row; }
-      .radar-left { display: table-cell; width: 46%; vertical-align: top; padding-right: 12px; }
-      .radar-right { display: table-cell; width: 54%; vertical-align: top; padding-left: 12px; }
+      .radar-left { display: table-cell; width: 50%; vertical-align: top; padding-right: 14px; }
+      .radar-right { display: table-cell; width: 50%; vertical-align: top; padding-left: 14px; }
       .radar-figure { text-align: center; }
-      .radar-figure-wrap { position: relative; width: 300px; height: 300px; margin: 0 auto; }
+      /* Deja margen para chips dentro del wrap (evita que invadan paneles de abajo). */
+      .radar-figure-wrap { position: relative; width: 320px; height: 320px; margin: 6px auto 0; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
       .radar-figure svg {
         display: inline-block;
@@ -501,11 +500,12 @@
         font-weight: 1000;
         white-space: nowrap;
       }
-      .radar-axis-tag.top { top: -10px; left: 50%; transform: translateX(-50%); }
-      .radar-axis-tag.right { top: 46%; right: -10px; transform: translateY(-50%); }
-      .radar-axis-tag.br { bottom: 22px; right: 18px; }
-      .radar-axis-tag.bl { bottom: 22px; left: 18px; }
-      .radar-axis-tag.left { top: 46%; left: -10px; transform: translateY(-50%); }
+      /* Chips siempre dentro del wrap (sin valores negativos que se recortan / pisan). */
+      .radar-axis-tag.top { top: 4px; left: 50%; transform: translateX(-50%); }
+      .radar-axis-tag.right { top: 50%; right: 6px; transform: translateY(-50%); }
+      .radar-axis-tag.br { bottom: 8px; right: 10px; }
+      .radar-axis-tag.bl { bottom: 8px; left: 10px; }
+      .radar-axis-tag.left { top: 50%; left: 6px; transform: translateY(-50%); }
       .radar-legend { margin-top: 8px; }
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
