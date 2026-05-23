@@ -447,45 +447,73 @@
       }
       .radar-mini-wrap { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(11,18,32,0.16); }
       .radar-mini-title { font-size: 10.5px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
-      .radar-duo { display: table; width: 100%; table-layout: fixed; margin-top: 6px; }
-      .radar-duo-row { display: table-row; }
-      .radar-duo-cell { display: table-cell; vertical-align: top; }
-      .radar-duo-cell.left { width: 50%; padding-right: 14px; }
-      .radar-duo-cell.right { width: 50%; padding-left: 14px; }
-      .radar-duo-cell.left .radar-box-figure { text-align: left; }
-      .radar-duo-cell.right .radar-box-figure { text-align: right; }
-      .radar-box {
+
+      /* Radar (PDF): formato tipo ficha (radar izq + resumen dcha), apilado uno debajo de otro. */
+      .radar-stack { margin-top: 8px; }
+      .radar-panel {
         border: 1px solid var(--pdf-line);
         border-radius: 14px;
         background: var(--pdf-card);
-        padding: 10px;
+        padding: 12px;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
-      .radar-box-title {
-        font-size: 9.6px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
+      .radar-panel + .radar-panel { margin-top: 12px; }
+      .radar-panel-head {
+        margin-bottom: 10px;
+      }
+      .radar-panel-title {
+        font-size: 12px;
         font-weight: 1000;
-        color: var(--pdf-muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--pdf-ink);
       }
-      .radar-box-figure { margin-top: 8px; text-align: center; }
+      .radar-panel-sub {
+        margin-top: 6px;
+        color: var(--pdf-muted);
+        font-size: 10.4px;
+        font-weight: 900;
+      }
+      .radar-layout { display: table; width: 100%; table-layout: fixed; }
+      .radar-layout-row { display: table-row; }
+      .radar-left { display: table-cell; width: 46%; vertical-align: top; padding-right: 12px; }
+      .radar-right { display: table-cell; width: 54%; vertical-align: top; padding-left: 12px; }
+      .radar-figure { text-align: center; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
-      .radar-box-figure svg {
+      .radar-figure svg {
         display: inline-block;
         width: 300px;
         height: 300px;
         max-width: 100%;
         overflow: visible;
       }
-      .radar-box-legend { margin-top: 8px; }
-      .radar-mini-legend {
-        margin-top: 10px;
-        font-size: 9.6px;
-        font-weight: 1000;
-        color: var(--pdf-muted);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+      .radar-legend { margin-top: 8px; }
+      .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
+      .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+      .radar-axis-left { display:flex; align-items: baseline; gap: 8px; }
+      .radar-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(244,180,0,0.90); border: 1px solid rgba(11,18,32,0.18); flex: 0 0 auto; }
+      .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; }
+      .radar-axis-meta { color: var(--pdf-muted); font-weight: 900; }
+      .radar-axis-rank { color: rgba(47,125,50,0.95); font-weight: 1000; margin-left: 6px; }
+
+      /* Lista de ejes estilo "ficha": dos columnas para lectura rápida */
+      .radar-axes-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0 10px; margin-top: 10px; }
+      .radar-axes-table td { vertical-align: top; padding-right: 14px; }
+      .radar-axes-table td:last-child { padding-right: 0; }
+      .radar-axes-table ul { margin: 0; }
+
+      .radar-sparks { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 10px; margin-top: 10px; }
+      .radar-sparks td { vertical-align: top; padding: 0; }
+      .radar-spark {
+        border: 1px solid var(--pdf-line);
+        border-radius: 12px;
+        background: var(--pdf-panel);
+        padding: 10px;
       }
-      .radar-mini-legend strong { color: var(--pdf-ink); }
+      .radar-spark-title { font-size: 9.4px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
+      .radar-spark-meta { margin-top: 6px; display:flex; justify-content: space-between; color: var(--pdf-muted); font-size: 9.2px; font-weight: 900; }
+      .radar-spark svg { margin-top: 8px; display:block; width: 100%; height: auto; }
 
       .mini-note { margin-top: 8px; color: var(--pdf-muted); font-size: 10.2px; }
 
@@ -932,99 +960,159 @@
 	                </table>
 
 	                <div style="margin-top:10px;">
-	                  <div class="perf-title">Radar (normalizado)</div>
-	                  <div class="radar-duo">
-	                    <div class="radar-duo-row">
-	                      <div class="radar-duo-cell left">
-	                        <div class="radar-box">
-	                          <div class="radar-box-title">Radar staff</div>
-	                          <div class="radar-box-figure">
-	                            <svg viewBox="0 0 360 360" role="img" aria-label="Radar staff (percentiles)">
-	                              <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                              <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                              <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                              <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                              {% if radar_data.labels %}
-	                                {% for lbl in radar_data.labels %}
-	                                  <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
-	                                {% endfor %}
-	                              {% endif %}
-	                              {% if radar_data.path_d %}
-	                                <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
-	                              {% endif %}
-	                              {% if radar_data.points %}
-	                                {% for pt in radar_data.points %}
-	                                  <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
-	                                {% endfor %}
-	                              {% endif %}
-	                              {% if radar_data.labels %}
-	                                {% for lbl in radar_data.labels %}
-	                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.full|default:lbl.text }}</text>
-	                                {% endfor %}
-	                              {% endif %}
-	                            </svg>
+	                  <div class="radar-stack">
+	                    <div class="radar-panel">
+	                      <div class="radar-panel-head">
+	                        <div class="radar-panel-title">Radar (normalizado)</div>
+	                        <div class="radar-panel-sub">Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Compromiso, Esfuerzo, Calidad, Importancia e Influencia.</div>
+	                      </div>
+	                      <div class="radar-layout">
+	                        <div class="radar-layout-row">
+	                          <div class="radar-left">
+	                            <div class="radar-figure">
+	                              <svg viewBox="0 0 360 360" role="img" aria-label="Radar staff (percentiles)">
+	                                <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                {% if radar_data.labels %}
+	                                  {% for lbl in radar_data.labels %}
+	                                    <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
+	                                  {% endfor %}
+	                                {% endif %}
+	                                {% if radar_data.path_d %}
+	                                  <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
+	                                {% endif %}
+	                                {% if radar_data.points %}
+	                                  {% for pt in radar_data.points %}
+	                                    <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
+	                                  {% endfor %}
+	                                {% endif %}
+	                                {% if radar_data.labels %}
+	                                  {% for lbl in radar_data.labels %}
+	                                    <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.full|default:lbl.text }}</text>
+	                                  {% endfor %}
+	                                {% endif %}
+	                              </svg>
+	                            </div>
 	                          </div>
-	                          <div class="radar-box-legend">
-	                            <div class="mini-note">Escala 0–100 (Pxx dentro del equipo/filtro).</div>
-	                            <ul class="radar-axes">
-	                              {% for axis in radar_data.axes %}
-	                                <li>
-	                                  <div class="radar-axis-row">
-	                                    <div class="radar-axis-left">
-	                                      <span class="radar-dot" aria-hidden="true"></span>
-	                                      <span class="radar-axis-label">{{ axis.key }}</span>
-	                                    </div>
-	                                    <div class="radar-axis-right">
-	                                      <span class="radar-axis-meta">{{ axis.display }}</span>
-	                                      <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
-	                                    </div>
-	                                  </div>
-	                                </li>
+	                          <div class="radar-right">
+	                            <table class="radar-axes-table">
+	                              {% for row in radar_staff_axes_rows %}
+	                                <tr>
+	                                  {% for axis in row %}
+	                                    <td>
+	                                      {% if axis %}
+	                                        <ul class="radar-axes">
+	                                          <li>
+	                                            <div class="radar-axis-row">
+	                                              <div class="radar-axis-left">
+	                                                <span class="radar-dot" aria-hidden="true"></span>
+	                                                <span class="radar-axis-label">{{ axis.key }}</span>
+	                                              </div>
+	                                              <div class="radar-axis-right">
+	                                                <span class="radar-axis-meta">{{ axis.display }}</span>
+	                                                <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
+	                                              </div>
+	                                            </div>
+	                                          </li>
+	                                        </ul>
+	                                      {% endif %}
+	                                    </td>
+	                                  {% endfor %}
+	                                </tr>
 	                              {% endfor %}
-	                            </ul>
+	                            </table>
+	                            {% if radar_actions_spark and radar_success_spark %}
+	                              <table class="radar-sparks">
+	                                <tr>
+	                                  <td>
+	                                    <div class="radar-spark">
+	                                      <div class="radar-spark-title">Acciones (últimos 6)</div>
+	                                      <svg viewBox="0 0 {{ radar_actions_spark.w }} {{ radar_actions_spark.h }}" role="img" aria-label="Acciones últimos 6">
+	                                        {% if radar_actions_spark.area_d %}
+	                                          <path d="{{ radar_actions_spark.area_d }}" fill="rgba(11,18,32,0.10)" stroke="none"></path>
+	                                        {% endif %}
+	                                        <path d="{{ radar_actions_spark.path_d }}" fill="none" stroke="rgba(11,18,32,0.55)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+	                                      </svg>
+	                                      <div class="radar-spark-meta"><span>min 0</span><span>max {{ radar_actions_spark.y_max }}</span></div>
+	                                    </div>
+	                                  </td>
+	                                  <td>
+	                                    <div class="radar-spark">
+	                                      <div class="radar-spark-title">% Éxito (últimos 6)</div>
+	                                      <svg viewBox="0 0 {{ radar_success_spark.w }} {{ radar_success_spark.h }}" role="img" aria-label="% Éxito últimos 6">
+	                                        {% if radar_success_spark.area_d %}
+	                                          <path d="{{ radar_success_spark.area_d }}" fill="rgba(47,125,50,0.14)" stroke="none"></path>
+	                                        {% endif %}
+	                                        <path d="{{ radar_success_spark.path_d }}" fill="none" stroke="rgba(47,125,50,0.78)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+	                                      </svg>
+	                                      <div class="radar-spark-meta"><span>min 0%</span><span>max {{ radar_success_spark.y_max }}%</span></div>
+	                                    </div>
+	                                  </td>
+	                                </tr>
+	                              </table>
+	                            {% endif %}
 	                          </div>
 	                        </div>
 	                      </div>
-	                      <div class="radar-duo-cell right">
-	                        <div class="radar-box">
-	                          <div class="radar-box-title">Radar (card)</div>
-	                          <div class="radar-box-figure">
-	                            <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
-	                              <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                              <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                              {% if card_radar_data.labels_svg %}
-	                                {% for lbl in card_radar_data.labels_svg %}
-	                                  <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
-	                                {% endfor %}
-	                              {% endif %}
-	                              {% if card_radar_data.polygon_points_svg %}
-	                                <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
-	                              {% endif %}
-	                              {% if card_radar_data.labels_svg %}
-	                                {% for lbl in card_radar_data.labels_svg %}
-	                                  <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.text }}</text>
-	                                {% endfor %}
-	                              {% endif %}
-	                            </svg>
+	                    </div>
+
+	                    <div class="radar-panel">
+	                      <div class="radar-panel-head">
+	                        <div class="radar-panel-title">Radar (card)</div>
+	                        <div class="radar-panel-sub">Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Acc/90, Éxito, Part., Influencia, Importancia.</div>
+	                      </div>
+	                      <div class="radar-layout">
+	                        <div class="radar-layout-row">
+	                          <div class="radar-left">
+	                            <div class="radar-figure">
+	                              <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
+	                                <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                                <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                                {% if card_radar_data.labels_svg %}
+	                                  {% for lbl in card_radar_data.labels_svg %}
+	                                    <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
+	                                  {% endfor %}
+	                                {% endif %}
+	                                {% if card_radar_data.polygon_points_svg %}
+	                                  <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                                {% endif %}
+	                                {% if card_radar_data.labels_svg %}
+	                                  {% for lbl in card_radar_data.labels_svg %}
+	                                    <text x="{{ lbl.x }}" y="{{ lbl.y }}" text-anchor="{{ lbl.anchor }}" dominant-baseline="{{ lbl.baseline|default:'middle' }}" style="font-size:10px; font-weight:1000; fill: rgba(15,23,42,0.82);">{{ lbl.text }}</text>
+	                                  {% endfor %}
+	                                {% endif %}
+	                              </svg>
+	                            </div>
 	                          </div>
-	                          <div class="radar-box-legend">
-	                            <div class="mini-note">Escala 0–100 (Pxx dentro del equipo/filtro).</div>
-	                            <ul class="radar-axes">
-	                              {% for axis in card_radar_data.axes %}
-	                                <li>
-	                                  <div class="radar-axis-row">
-	                                    <div class="radar-axis-left">
-	                                      <span class="radar-dot" aria-hidden="true"></span>
-	                                      <span class="radar-axis-label">{{ axis.key }}</span>
-	                                    </div>
-	                                    <div class="radar-axis-right">
-	                                      <span class="radar-axis-meta">{{ axis.display }}</span>
-	                                      <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
-	                                    </div>
-	                                  </div>
-	                                </li>
+	                          <div class="radar-right">
+	                            <table class="radar-axes-table">
+	                              {% for row in radar_card_axes_rows %}
+	                                <tr>
+	                                  {% for axis in row %}
+	                                    <td>
+	                                      {% if axis %}
+	                                        <ul class="radar-axes">
+	                                          <li>
+	                                            <div class="radar-axis-row">
+	                                              <div class="radar-axis-left">
+	                                                <span class="radar-dot" aria-hidden="true"></span>
+	                                                <span class="radar-axis-label">{{ axis.key }}</span>
+	                                              </div>
+	                                              <div class="radar-axis-right">
+	                                                <span class="radar-axis-meta">{{ axis.display }}</span>
+	                                                <span class="radar-axis-rank">P{{ axis.pct_rank|default:0 }}</span>
+	                                              </div>
+	                                            </div>
+	                                          </li>
+	                                        </ul>
+	                                      {% endif %}
+	                                    </td>
+	                                  {% endfor %}
+	                                </tr>
 	                              {% endfor %}
-	                            </ul>
+	                            </table>
 	                            <div class="mini-note">Acc/90 = acciones por 90 · Part. = participación.</div>
 	                          </div>
 	                        </div>

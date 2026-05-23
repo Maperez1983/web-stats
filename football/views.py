@@ -58731,6 +58731,79 @@ def player_pdf(request, player_id):
             'chart_type': str(pdf_ga_chart_type or 'line').strip().lower(),
         }
 
+        # Mini charts para el bloque de radar (últimos 6): Acciones y % Éxito.
+        radar_actions_spark = None
+        radar_success_spark = None
+        try:
+            played_src = [m for m in (chart_matches or []) if m.get('is_played')]
+            last6 = played_src[-6:] if len(played_src) >= 1 else []
+            mini_items = []
+            for idx, m in enumerate(last6):
+                raw_round = str(m.get('round') or '').strip()
+                label_round = _safe_round_label(raw_round, idx)
+                label_opp = _safe_opponent_label(m, idx)
+                mini_items.append(
+                    {
+                        'label': label_round,
+                        'label_opponent': label_opp,
+                        'actions': float(_metric_value('actions', m)),
+                        'success_rate': float(_metric_value('success_rate', m)),
+                    }
+                )
+
+            def _build_mini_series(items, *, metric_key: str, y_max: int):
+                W, H = 440.0, 140.0
+                ml, mr, mt, mb = 24.0, 16.0, 18.0, 34.0
+                pw = max(1.0, W - ml - mr)
+                ph = max(1.0, H - mt - mb)
+                n = max(1, len(items))
+                denom = (n - 1) if n > 1 else 1
+                pts = []
+                for i, it in enumerate(items):
+                    try:
+                        v = float(it.get(metric_key) or 0)
+                    except Exception:
+                        v = 0.0
+                    v = max(0.0, v)
+                    x = ml + (pw * (i / denom))
+                    t = (v / float(y_max or 1)) if y_max else 0.0
+                    t = max(0.0, min(t, 1.0))
+                    y = mt + (ph * (1.0 - t))
+                    pts.append(
+                        {
+                            'x': round(x, 1),
+                            'y': round(y, 1),
+                            'label': str(it.get('label') or ''),
+                            'value': v,
+                            'show_label': True,
+                        }
+                    )
+                d = ''
+                if pts:
+                    d = ' '.join([('M' if idx == 0 else 'L') + f" {p['x']} {p['y']}" for idx, p in enumerate(pts)])
+                base_y = H - 26.0
+                area_d = _area_from_points(pts, base_y)
+                return {
+                    'w': int(W),
+                    'h': int(H),
+                    'ml': float(ml),
+                    'mr': float(mr),
+                    'mt': float(mt),
+                    'mb': float(mb),
+                    'path_d': d,
+                    'area_d': area_d,
+                    'points': pts,
+                    'y_max': int(y_max or 0),
+                }
+
+            if mini_items:
+                actions_y = max(1, int(max((it.get('actions') or 0) for it in mini_items)))
+                radar_actions_spark = _build_mini_series(mini_items, metric_key='actions', y_max=actions_y)
+                radar_success_spark = _build_mini_series(mini_items, metric_key='success_rate', y_max=100)
+        except Exception:
+            radar_actions_spark = None
+            radar_success_spark = None
+
         # Aplica presets: si el user prefiere barras, anulamos la serie de línea (la template
         # ya tiene fallback a sparklines/barras). Nota: "bars" es alias de cualquier modo no-línea.
         if str(pdf_minutes_chart_type or '').lower() not in {'line', 'lines', 'area'}:
@@ -58744,6 +58817,8 @@ def player_pdf(request, player_id):
         matchday_ga_chart_rows = []
         matchday_minutes_line = None
         matchday_ga_line = None
+        radar_actions_spark = None
+        radar_success_spark = None
 
     # Partir en filas (mismo nº de columnas SIEMPRE) para que la última fila no tenga huecos gigantes.
     try:
@@ -59113,10 +59188,30 @@ def player_pdf(request, player_id):
         attendance_pct_val = float((attendance_summary or {}).get('completion_pct', 0.0) or 0.0)
     except Exception:
         attendance_pct_val = 0.0
+    radar_staff_axes_rows = []
+    radar_card_axes_rows = []
     try:
         staff_percentiles = _build_player_staff_percentiles(detail, matches, attendance_pct=attendance_pct_val)
         radar_data = _build_player_radar_data(detail, player_percentiles=staff_percentiles, attendance_pct=attendance_pct_val)
         card_radar_data = _build_player_card_radar_data(detail, matches)
+        def _chunk_pad_axes(items, cols=2):
+            try:
+                cols = max(1, int(cols or 2))
+            except Exception:
+                cols = 2
+            rows = []
+            try:
+                items = list(items or [])
+            except Exception:
+                items = []
+            for i in range(0, len(items), cols):
+                row = list(items[i : i + cols])
+                if len(row) < cols:
+                    row.extend([None] * (cols - len(row)))
+                rows.append(row)
+            return rows
+        radar_staff_axes_rows = _chunk_pad_axes((radar_data or {}).get('axes') or [], cols=2)
+        radar_card_axes_rows = _chunk_pad_axes((card_radar_data or {}).get('axes') or [], cols=2)
     except Exception:
         pass
 
@@ -59169,6 +59264,8 @@ def player_pdf(request, player_id):
             'player_percentiles': staff_percentiles,
             'radar_data': radar_data,
             'card_radar_data': card_radar_data,
+            'radar_staff_axes_rows': radar_staff_axes_rows,
+            'radar_card_axes_rows': radar_card_axes_rows,
             'played_matches': played_matches,
             'upcoming_matches': upcoming_matches,
             'latest_played_match': latest_played_match,
@@ -59179,6 +59276,8 @@ def player_pdf(request, player_id):
             'matchday_ga_chart_rows': matchday_ga_chart_rows,
             'matchday_minutes_line': matchday_minutes_line,
             'matchday_ga_line': matchday_ga_line,
+            'radar_actions_spark': radar_actions_spark if 'radar_actions_spark' in locals() else None,
+            'radar_success_spark': radar_success_spark if 'radar_success_spark' in locals() else None,
             'matchday_minutes_x_label': minutes_x_label if 'minutes_x_label' in locals() else 'Jornada',
             'matchday_ga_x_label': ga_x_label if 'ga_x_label' in locals() else 'Jornada',
             'matchday_minutes_metric_label': minutes_metric_label if 'minutes_metric_label' in locals() else 'Minutos',
