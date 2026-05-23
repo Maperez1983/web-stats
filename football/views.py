@@ -57431,6 +57431,12 @@ def player_detail_page(request, player_id):
             and int(player.user_id) == int(request.user.id)
         )
 
+        # Radar mini tipo card (para contrastar con el radar staff, y reutilizar en PDF).
+        try:
+            card_radar_data = _build_player_card_radar_data(safe_stats, matches)
+        except Exception:
+            card_radar_data = {'axes': [], 'polygon_points_svg': '', 'axis_svg': []}
+
         return render(
             request,
             'football/player_detail.html',
@@ -57438,6 +57444,7 @@ def player_detail_page(request, player_id):
                 'player': player,
                 'stats': safe_stats,
                 'player_percentiles': player_percentiles,
+                'card_radar_data': card_radar_data,
                 'scope_value': scope,
                 'tournament_filter': tournament_filter,
                 'tournament_options': _team_tournament_name_options(primary_team) if scope == Match.CONTEXT_TOURNAMENT else [],

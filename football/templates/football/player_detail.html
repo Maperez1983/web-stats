@@ -1170,6 +1170,40 @@
 	                </div>
 	              </div>
 	            </div>
+              {% if card_radar_data and card_radar_data.polygon_points_svg %}
+	              <div class="radar-grid" style="margin-top:1.05rem;">
+	                <div class="radar-figure" aria-label="Radar mini tipo card">
+	                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar (card)" focusable="false">
+                      <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                      <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                      {% if card_radar_data.axis_svg %}
+                        {% for ax in card_radar_data.axis_svg %}
+                          <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                        {% endfor %}
+                      {% endif %}
+                      <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+                      {% if card_radar_data.axis_svg %}
+                        {% for ax in card_radar_data.axis_svg %}
+                          <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
+                        {% endfor %}
+                      {% endif %}
+	                  </svg>
+	                </div>
+		                <div class="radar-legend">
+		                  <h4>Radar (card)</h4>
+		                  <p>Escala 0–100 (Pxx dentro del equipo/filtro). Ejes: Acc/90, Éxito, Part., Influencia, Importancia.</p>
+		                  <ul class="radar-axes">
+                        {% for axis in card_radar_data.axes %}
+                          <li>
+                            <span class="radar-dot"></span>
+                            <span class="radar-axis-label">{{ axis.key }}</span>
+                            <span class="radar-axis-value">{{ axis.display }}{% if axis.pct_rank %} · P{{ axis.pct_rank|floatformat:0 }}{% endif %}</span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+	                </div>
+	              </div>
+              {% endif %}
 	            {% if stats.matches %}
 	              {{ stats.matches|json_script:"player-trend-matches" }}
 	            {% endif %}
