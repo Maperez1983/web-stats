@@ -7,16 +7,24 @@
     <title>{% if tactics_mode %}Táctica{% elif task %}Editar tarea{% else %}Crear tarea{% endif %} · {{ scope_title }}</title>
 	    <link rel="stylesheet" href="{% static 'football/css/product_system.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
 	    <link rel="stylesheet" href="{% static 'football/css/commercial.css' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" />
-	    <script>
-	      window.__webstatsTaskLandingGo = function(href) {
-	        try {
-	          if (href) { window.location.href = href; }
-	        } catch (e) {}
-	        return false;
-	      };
-	    </script>
-			    {% include 'football/pwa_head.html' %}
-			    <style>
+		    <script>
+		      window.__webstatsTaskLandingGo = function(href) {
+		        try {
+		          if (href) { window.location.href = href; }
+		        } catch (e) {}
+		        return false;
+		      };
+
+		      // Contexto global compartido entre <script> tags.
+		      // Safari/WebKit puede dar `ReferenceError: Can't find variable: isTacticsMode` si un bloque
+		      // asume ese identificador en otro <script>. Lo declaramos UNA sola vez en el head.
+		      window.__WEBSTATS_TACTICS_MODE = {% if tactics_mode %}true{% else %}false{% endif %};
+		      // `var` crea binding global accesible por nombre en scripts posteriores.
+		      // Ojo: no usar `const/let` aquí porque en otros scripts puede redeclararse localmente.
+		      var isTacticsMode = window.__WEBSTATS_TACTICS_MODE;
+		    </script>
+				    {% include 'football/pwa_head.html' %}
+				    <style>
 	      :root {
 	        --bg: var(--prod-bg, #071320);
 	        --panel: var(--prod-panel-flat, rgba(14, 23, 39, 0.96));
@@ -7032,10 +7040,10 @@
               }
             } catch (e) {}
 
-			        // Contexto de pantalla (necesario en varios bloques del script).
-              // OJO: debe estar en el scope superior; si se declara dentro de un `try {}` luego
-              // los bloques inferiores lanzan `ReferenceError: Can't find variable: isTacticsMode` (Safari).
-              const isTacticsMode = {% if tactics_mode %}true{% else %}false{% endif %};
+				        // Contexto de pantalla (necesario en varios bloques del script).
+	              // Nota: `isTacticsMode` ya está declarado en el head como `var` global para evitar
+	              // `ReferenceError` en Safari cuando hay múltiples <script> tags.
+	              try { isTacticsMode = window.__WEBSTATS_TACTICS_MODE === true; } catch (e) { /* ignore */ }
 
 				        // Tutorial rápido (nuevos usuarios).
 				        try {
