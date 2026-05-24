@@ -3989,15 +3989,22 @@
 	      }
 	    </style>
 	  </head>
-			  <body class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}">
-		    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
-		    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
-		    {% if tactics_mode %}
-		    <div class="tpad-support-fab" aria-label="Soporte pizarra">
-		      <button type="button" class="button secondary" id="tpad-diag-copy-fab" title="Copia el diagnóstico (errores + estado) para soporte">Diagnóstico</button>
-		      <button type="button" class="button" id="tpad-reinit-fab" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar</button>
-		    </div>
-		    {% endif %}
+		  <body
+        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}"
+        data-tpad-diagnostics="{% if tactics_mode and (request.user.is_staff or request.user.is_superuser) and request.GET.diag == '1' %}1{% else %}0{% endif %}"
+      >
+			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
+			    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
+			    {% if tactics_mode %}
+          <div class="tpad-support-fab" aria-label="Soporte pizarra">
+            {% if request.user.is_staff or request.user.is_superuser %}
+              {% if request.GET.diag == '1' %}
+                <button type="button" class="button secondary" id="tpad-diag-copy-fab" title="Copia el diagnóstico (errores + estado) para soporte">Diagnóstico</button>
+              {% endif %}
+            {% endif %}
+            <button type="button" class="button" id="tpad-reinit-fab" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar</button>
+          </div>
+			    {% endif %}
 		    <main class="page">
 	      {% if show_dragon_nav|default:True %}
 	      {% include 'football/includes/dragon_nav.html' %}
@@ -4272,13 +4279,14 @@
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="ball" id="tactics-tool-ball" title="Insertar balón" aria-label="Insertar balón">⚽</button>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="arrow_solid" id="tactics-tool-arrow" title="Insertar flecha" aria-label="Insertar flecha">➡︎</button>
                     <button type="button" class="surface-trigger tactics-chip" data-tactics-tool="cone" id="tactics-tool-cone" title="Insertar cono" aria-label="Insertar cono">Cono</button>
-                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
-                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
-                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
-                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
-                        <span>Avanzado</span>
-                        <span class="current">Auto</span>
-                      </summary>
+	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
+	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
+	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Overlays tácticos (carriles, sectores, half-spaces, etc)" aria-label="Overlays tácticos" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover();}catch(e){}">Overlays</button>
+	                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
+	                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
+	                        <span>Avanzado</span>
+	                        <span class="current">Auto</span>
+	                      </summary>
                       <div class="tactics-menu-body" role="dialog" aria-label="Táctica interactiva">
                         <div class="row">
                           <span class="meta">Generar simulación desde rutas:</span>
@@ -5622,10 +5630,14 @@
 				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
                     {% if tactics_mode %}
                     <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
-                      <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
-                      <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
-                    </div>
-                    {% endif %}
+                        {% if request.user.is_staff or request.user.is_superuser %}
+                          {% if request.GET.diag == '1' %}
+	                          <button type="button" class="button" id="tpad-diag-copy" title="Copia el diagnóstico (errores + estado) para soporte">Copiar diagnóstico</button>
+                          {% endif %}
+                        {% endif %}
+	                      <button type="button" class="button secondary" id="tpad-reinit" title="Reinicia el motor de pizarra (si el canvas se quedó en blanco)">Reiniciar pizarra</button>
+	                    </div>
+	                    {% endif %}
 	                    {% if not tactics_mode %}
 	                    <div style="display:flex; gap:0.5rem; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:-0.15rem;">
 	                      <button type="button" class="button secondary" id="task-destination-open" title="Elige sesión destino para que la tarea quede añadida al entreno">➕ Añadir a sesión</button>

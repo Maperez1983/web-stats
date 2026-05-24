@@ -5766,18 +5766,21 @@
 			      }, 0);
 			    };
 
-			    const openOverlaysPopover = () => {
-			      setCommandMenuOpen(false);
-			      closePatternPopover();
-			      closeFormationPopover();
-			      try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
-			      setOverlaysPopoverOpen(true);
-			    };
-		    commandMoreBtn?.addEventListener('click', (event) => {
-		      event.preventDefault();
-		      event.stopPropagation();
-		      setCommandMenuOpen(commandMenu?.hidden);
-		    });
+				    const openOverlaysPopover = () => {
+				      setCommandMenuOpen(false);
+				      closePatternPopover();
+				      closeFormationPopover();
+				      try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
+				      setOverlaysPopoverOpen(true);
+				    };
+				    // Exponer un helper global: en modo "Táctica" algunos usuarios no ven el botón de "Más acciones (⋯)"
+				    // dependiendo del layout/zoom. Esto permite abrir Overlays desde un botón dedicado en la barra superior.
+				    try { window.__tpadOpenOverlaysPopover = openOverlaysPopover; } catch (e) { /* ignore */ }
+			    commandMoreBtn?.addEventListener('click', (event) => {
+			      event.preventDefault();
+			      event.stopPropagation();
+			      setCommandMenuOpen(commandMenu?.hidden);
+			    });
 			    commandMenu?.addEventListener('click', (event) => {
 			      const button = event.target.closest('button[data-command]');
 			      if (!button) return;
