@@ -4598,16 +4598,20 @@
                         <div class="library-current" id="task-resource-summary-label">Base</div>
 	                      </div>
 	                      <input type="search" class="library-filter" id="task-library-filter" placeholder="Filtra recursos…" aria-label="Filtrar recursos" />
-	                      <div class="resource-tabs" aria-label="Categorías de recursos">
-	                        <button type="button" class="resource-tab" data-resource="base" title="Base">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-	                          <span class="lib-label">Base</span>
-	                        </button>
-	                        {% if tactics_mode %}
-	                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
-	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
-	                          <span class="lib-label">Plantilla</span>
-	                        </button>
+		                      <div class="resource-tabs" aria-label="Categorías de recursos">
+		                        <button type="button" class="resource-tab" data-resource="base" title="Base">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
+		                          <span class="lib-label">Base</span>
+		                        </button>
+		                        <button type="button" class="resource-tab" data-resource="pro" title="PRO">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.3 21l1.7-7L2.7 9.6 10 9l2-7Z"/></svg></span>
+		                          <span class="lib-label">PRO</span>
+		                        </button>
+		                        {% if tactics_mode %}
+		                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
+		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg></span>
+		                          <span class="lib-label">Plantilla</span>
+		                        </button>
 	                        {% endif %}
 	                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
 	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
@@ -5615,15 +5619,68 @@
 	                      <div class="selection-note">
 	                        Tip: usa `Cmd/Ctrl + D` para duplicar.
 	                      </div>
-                    </div>
+	                  </div>
+	                </div>
+	              </div>
+
+                <div class="resource-panel" data-panel="pro" hidden>
+                  <h3 class="tool-group-title">Recursos PRO</h3>
+                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+                    Recursos “de pizarra” listos para tareas y táctica. Tip: tras colocar, selecciona el elemento para ajustar tamaño/color y usa “Capas” para reordenar/bloquear.
+                  </p>
+
+                  <div class="meta" style="margin:0.65rem 0 0.35rem;">Equipamiento</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
+                    <button type="button" class="tool-icon" data-add="cone_striped" title="Cono (rayas)" aria-label="Cono (rayas)"><span class="tool-emoji" aria-hidden="true">🔶</span><span class="sr-only">Cono (rayas)</span></button>
+                    <button type="button" class="tool-icon" data-add="pole_marker" title="Pica" aria-label="Pica"><span class="tool-emoji" aria-hidden="true">📍</span><span class="sr-only">Pica</span></button>
+                    <button type="button" class="tool-icon" data-add="ring" title="Aro" aria-label="Aro"><span class="tool-emoji" aria-hidden="true">⭕</span><span class="sr-only">Aro</span></button>
+                    <button type="button" class="tool-icon" data-add="tape" title="Cinta / línea de suelo" aria-label="Cinta / línea de suelo"><span class="tool-emoji" aria-hidden="true">🧵</span><span class="sr-only">Cinta</span></button>
+                    <button type="button" class="tool-icon" data-add="gate" title="Puerta (2 conos)" aria-label="Puerta (2 conos)"><span class="tool-emoji" aria-hidden="true">🚪</span><span class="sr-only">Puerta</span></button>
+                    <button type="button" class="tool-icon" data-add="ladder" title="Escalera de coordinación" aria-label="Escalera de coordinación"><span class="tool-emoji" aria-hidden="true">🪜</span><span class="sr-only">Escalera</span></button>
+                    <button type="button" class="tool-icon" data-add="ladder_L" title="Escalera en L" aria-label="Escalera en L"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Escalera en L</span></button>
+                    <button type="button" class="tool-icon" data-add="ladder_zigzag" title="Escalera en zigzag" aria-label="Escalera en zigzag"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Escalera zigzag</span></button>
+                    <button type="button" class="tool-icon" data-add="hurdle" title="Valla" aria-label="Valla"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Valla</span></button>
+                    <button type="button" class="tool-icon" data-add="mini_hurdle" title="Mini valla" aria-label="Mini valla"><span class="tool-emoji" aria-hidden="true">🪧</span><span class="sr-only">Mini valla</span></button>
+                    <button type="button" class="tool-icon" data-add="mannequin" title="Maniquí" aria-label="Maniquí"><span class="tool-emoji" aria-hidden="true">🧍</span><span class="sr-only">Maniquí</span></button>
+                    <button type="button" class="tool-icon" data-add="barrier" title="Barrera (4 maniquíes)" aria-label="Barrera (4 maniquíes)"><span class="tool-emoji" aria-hidden="true">🚧</span><span class="sr-only">Barrera</span></button>
+                    <button type="button" class="tool-icon" data-add="wall" title="Muro / panel" aria-label="Muro / panel"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Muro</span></button>
+                    <button type="button" class="tool-icon" data-add="rebounder" title="Rebounder" aria-label="Rebounder"><span class="tool-emoji" aria-hidden="true">🧲</span><span class="sr-only">Rebounder</span></button>
+                  </div>
+
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Porterías</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="goal" title="Portería" aria-label="Portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería</span></button>
+                    <button type="button" class="tool-icon" data-add="goal_posts" title="Portería (marco)" aria-label="Portería (marco)"><span class="tool-emoji" aria-hidden="true">🧱</span><span class="sr-only">Portería (marco)</span></button>
+                    <button type="button" class="tool-icon" data-add="goal_mini" title="Mini portería" aria-label="Mini portería"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Mini portería</span></button>
+                    <button type="button" class="tool-icon" data-add="goal_target" title="Portería con dianas" aria-label="Portería con dianas"><span class="tool-emoji" aria-hidden="true">🎯</span><span class="sr-only">Portería con dianas</span></button>
+                    <button type="button" class="tool-icon" data-add="goal_popup" title="Portería pop-up" aria-label="Portería pop-up"><span class="tool-emoji" aria-hidden="true">⛺</span><span class="sr-only">Portería pop-up</span></button>
+                    <button type="button" class="tool-icon" data-add="goal_futsal" title="Portería futsal" aria-label="Portería futsal"><span class="tool-emoji" aria-hidden="true">🥅</span><span class="sr-only">Portería futsal</span></button>
+                  </div>
+
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Marcadores</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="marker_start" title="Marcador: inicio" aria-label="Marcador: inicio"><span class="tool-emoji" aria-hidden="true">I</span><span class="sr-only">Marcador inicio</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_end" title="Marcador: fin" aria-label="Marcador: fin"><span class="tool-emoji" aria-hidden="true">F</span><span class="sr-only">Marcador fin</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_pass" title="Marcador: pase" aria-label="Marcador: pase"><span class="tool-emoji" aria-hidden="true">P</span><span class="sr-only">Marcador pase</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_shot" title="Marcador: tiro" aria-label="Marcador: tiro"><span class="tool-emoji" aria-hidden="true">T</span><span class="sr-only">Marcador tiro</span></button>
+                    <button type="button" class="tool-icon" data-add="marker_support" title="Marcador: apoyo" aria-label="Marcador: apoyo"><span class="tool-emoji" aria-hidden="true">A</span><span class="sr-only">Marcador apoyo</span></button>
+                    <button type="button" class="tool-icon" data-add="measure" title="Regla de medida" aria-label="Regla de medida"><span class="tool-emoji" aria-hidden="true">📏</span><span class="sr-only">Medida</span></button>
+                  </div>
+
+                  <div class="meta" style="margin:0.85rem 0 0.35rem;">Líneas tácticas</div>
+                  <div class="resource-strip">
+                    <button type="button" class="tool-icon" data-add="line_pressure" title="Línea de presión" aria-label="Línea de presión"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea de presión</span></button>
+                    <button type="button" class="tool-icon" data-add="line_defensive" title="Línea defensiva" aria-label="Línea defensiva"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea defensiva</span></button>
+                    <button type="button" class="tool-icon" data-add="line_offside" title="Línea de fuera de juego" aria-label="Línea de fuera de juego"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Fuera de juego</span></button>
                   </div>
                 </div>
 
-	                <div class="resource-panel" data-panel="importados" hidden>
-	                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
-	                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
-	                    Aquí aparecen los recursos del sistema (Platform → Asistente), los del equipo y los extraídos al importar tareas desde PDF (Sesiones → Biblioteca).
-	                  </p>
+		                <div class="resource-panel" data-panel="importados" hidden>
+		                  <h3 class="tool-group-title">Importados (PDF/PPT)</h3>
+		                  <p class="meta" style="margin:0 0 0.65rem; font-size:0.78rem;">
+		                    Aquí aparecen los recursos del sistema (Platform → Asistente), los del equipo y los extraídos al importar tareas desde PDF (Sesiones → Biblioteca).
+		                  </p>
 	                  {% if not pdf_assets and not ppt_icons %}
 	                    <span class="meta">Aún no hay recursos disponibles. Sube un PPTX/PNG en Platform → Asistente o importa tareas desde PDF.</span>
 	                  {% endif %}
