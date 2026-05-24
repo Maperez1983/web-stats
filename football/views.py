@@ -31797,6 +31797,39 @@ def initial_eleven_page(request):
             except Exception:
                 rival_team_crest_url = ''
 
+    # Superficie del campo (mismo render que en Táctica).
+    lineup_pitch_preset = ''
+    lineup_grass_style = ''
+    try:
+        default_preset = 'seven_side_single' if getattr(primary_team, 'game_format', None) == Team.GAME_FORMAT_F7 else 'full_pitch'
+        requested_preset = str(request.GET.get('surface') or request.GET.get('preset') or '').strip().lower()
+        allowed_presets = {
+            'full_pitch',
+            'half_pitch',
+            'seven_side_single',
+            'blank',
+        }
+        lineup_pitch_preset = requested_preset if requested_preset in allowed_presets else default_preset
+    except Exception:
+        lineup_pitch_preset = 'full_pitch'
+    try:
+        requested_grass = str(request.GET.get('grass') or '').strip().lower()
+        allowed_grass = {
+            'classic',
+            'realistic',
+            'pro',
+            'broadcast',
+            'artificial',
+            'dry',
+            'wet',
+            'uefa_b',
+            'whiteboard',
+            'blackboard',
+        }
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'classic'
+    except Exception:
+        lineup_grass_style = 'classic'
+
     return render(
         request,
         'football/coach_initial_eleven.html',
@@ -31820,6 +31853,8 @@ def initial_eleven_page(request):
             'rival_lineup_seed_json': json.dumps(rival_lineup_seed, ensure_ascii=False),
             'has_pending_convocation': has_pending_convocation,
             'has_pending_lineup': has_pending_lineup,
+            'lineup_pitch_preset': lineup_pitch_preset,
+            'lineup_grass_style': lineup_grass_style,
         },
     )
 

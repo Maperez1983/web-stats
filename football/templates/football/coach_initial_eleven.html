@@ -223,11 +223,15 @@
         border: 1px solid rgba(148, 163, 184, 0.28);
         touch-action: none;
         user-select: none;
-        background:
-          radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08), transparent 18%),
-          linear-gradient(0deg, transparent 49.4%, rgba(255,255,255,0.65) 50%, transparent 50.6%),
-          repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0 48px, rgba(255,255,255,0.06) 49px 98px),
-          linear-gradient(165deg, #0f5132, #14532d 55%, #064e3b);
+        background: rgba(2, 6, 23, 0.28);
+      }
+      .lineup-pitch-surface {
+        position: absolute;
+        inset: -2%;
+        width: 104%;
+        height: 104%;
+        pointer-events: none;
+        z-index: 0;
       }
       .pitch-markings {
         position: absolute;
@@ -306,6 +310,7 @@
         cursor: grab;
         touch-action: none;
         user-select: none;
+        z-index: 3;
       }
       .field-token:active {
         cursor: grabbing;
@@ -509,7 +514,9 @@
         position: absolute;
         inset: 0;
         pointer-events: none;
+        z-index: 2;
       }
+      #broadcast-l3 { z-index: 4; }
       .field-token.is-rival {
         opacity: 0.92;
       }
@@ -656,12 +663,19 @@
         </aside>
         <article class="panel">
           <h3>Campo</h3>
-          <div class="field" id="lineup-field"></div>
+          <div
+            class="field"
+            id="lineup-field"
+            data-pitch-preset="{{ lineup_pitch_preset|default:'full_pitch'|escape }}"
+            data-grass-style="{{ lineup_grass_style|default:'classic'|escape }}"
+            data-orientation="portrait"
+          ></div>
         </article>
       </section>
     </main>
     {{ lineup_seed_json|json_script:"lineup-seed-data" }}
     {{ rival_lineup_seed_json|default:"{}"|json_script:"rival-lineup-seed-data" }}
+    <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
       const saveUrlBase = '{% url "match-lineup-save" %}';
       const matchId = String('{{ match_id|default_if_none:"" }}').trim();
@@ -1021,19 +1035,20 @@
 
       const renderField = () => {
         field.innerHTML = '';
-        const markings = document.createElement('div');
-        markings.className = 'pitch-markings';
-        markings.innerHTML = `
-          <span class="pitch-mid-line"></span>
-          <span class="pitch-center-circle"></span>
-          <span class="pitch-line pitch-penalty top"></span>
-          <span class="pitch-line pitch-penalty bottom"></span>
-          <span class="pitch-line pitch-goal-area top"></span>
-          <span class="pitch-line pitch-goal-area bottom"></span>
-          <span class="pitch-goal top"></span>
-          <span class="pitch-goal bottom"></span>
-        `;
-        field.appendChild(markings);
+        // Superficie SVG (misma estética que el módulo de Táctica).
+        try {
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.id = 'lineup-pitch-surface';
+          svg.classList.add('lineup-pitch-surface');
+          svg.setAttribute('aria-hidden', 'true');
+          field.appendChild(svg);
+          const preset = String(field.dataset.pitchPreset || 'full_pitch');
+          const grass = String(field.dataset.grassStyle || 'classic');
+          const orientation = String(field.dataset.orientation || 'portrait');
+          if (window.WebstatsPitchSurface && typeof window.WebstatsPitchSurface.applyToSvg === 'function') {
+            window.WebstatsPitchSurface.applyToSvg(svg, preset, orientation, grass);
+          }
+        } catch (e) { /* ignore */ }
         const l3 = document.createElement('div');
         l3.id = 'broadcast-l3';
         l3.className = 'broadcast-l3 is-hidden';
