@@ -170,6 +170,8 @@
 		    shape_lane_4: 'una zona (4 carriles)',
 		    shape_lane_divider_v: 'un divisor vertical (carriles)',
 		    shape_lane_divider_h: 'un divisor horizontal (carriles)',
+		    shape_band_h: 'un bloque (horizontal)',
+		    shape_band_v: 'un bloque (vertical)',
 		    emoji_ball: 'un balón emoji',
 	    emoji_cone: 'un cono emoji',
 	    emoji_pole: 'una pica emoji',
@@ -17456,7 +17458,7 @@
 			        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
 			      }
 			      // Divisores de carril (libres): líneas a pantalla completa para crear carriles/espacios personalizados.
-			      const buildLaneDivider = (axis, atX, atY) => {
+		      const buildLaneDivider = (axis, atX, atY) => {
 			        const { w, h } = worldSize();
 			        const stroke = 'rgba(226,232,240,0.78)';
 			        const strokeWidth = 3;
@@ -17497,9 +17499,65 @@
 			      if (kind === 'shape_lane_divider_v') {
 			        return (left, top) => buildLaneDivider('v', left, top);
 			      }
-			      if (kind === 'shape_lane_divider_h') {
-			        return (left, top) => buildLaneDivider('h', left, top);
-			      }
+		      if (kind === 'shape_lane_divider_h') {
+		        return (left, top) => buildLaneDivider('h', left, top);
+		      }
+		      const buildHighlightBand = (left, top, axis) => {
+		        const horizontal = axis !== 'v';
+		        const width = horizontal ? 780 : 140;
+		        const height = horizontal ? 120 : 520;
+		        const rx = horizontal ? 28 : 22;
+		        const ry = horizontal ? 28 : 22;
+		        const fill = 'rgba(16,185,129,0.22)'; // emerald
+		        const stroke = 'rgba(15,23,42,0.92)'; // slate-900
+		        const border = new fabric.Rect({
+		          left: 0,
+		          top: 0,
+		          originX: 'center',
+		          originY: 'center',
+		          width,
+		          height,
+		          rx,
+		          ry,
+		          fill,
+		          stroke,
+		          strokeWidth: 4,
+		          strokeDashArray: [14, 10],
+		          strokeLineCap: 'round',
+		          strokeLineJoin: 'round',
+		          selectable: false,
+		          evented: false,
+		          shadow: 'rgba(2,6,23,0.22) 0 10px 22px',
+		        });
+		        border.data = { role: 'band_border' };
+		        const inner = new fabric.Rect({
+		          left: 0,
+		          top: 0,
+		          originX: 'center',
+		          originY: 'center',
+		          width: Math.max(12, width - 10),
+		          height: Math.max(12, height - 10),
+		          rx: Math.max(4, rx - 6),
+		          ry: Math.max(4, ry - 6),
+		          fill: 'rgba(15,23,42,0.06)',
+		          strokeWidth: 0,
+		          selectable: false,
+		          evented: false,
+		        });
+		        inner.data = { role: 'band_inner' };
+		        const group = new fabric.Group([border, inner], {
+		          left,
+		          top,
+		          originX: 'center',
+		          originY: 'center',
+		          data: { kind: horizontal ? 'shape-band-h' : 'shape-band-v', color: '#10b981' },
+		        });
+		        try { group.objectCaching = false; } catch (e) { /* ignore */ }
+		        try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		        return group;
+		      };
+		      if (kind === 'shape_band_h') return (left, top) => buildHighlightBand(left, top, 'h');
+		      if (kind === 'shape_band_v') return (left, top) => buildHighlightBand(left, top, 'v');
 		      const buildArrowGroup = (left, top, options = {}) => {
 	        const stroke = safeText(options.stroke, '#22d3ee');
 	        const strokeWidth = clamp(Number(options.strokeWidth) || 4, 2, 18);
