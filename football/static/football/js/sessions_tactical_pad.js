@@ -386,16 +386,29 @@
 		        pattern.appendChild(createSvgNode(doc, 'circle', { cx: x, cy: y, r, fill: 'rgba(248,250,252,0.06)' }));
 		      }
 		      defs.appendChild(pattern);
-		    } else if (grassStyle === 'whiteboard') {
-		      grassFillId = 'pitch-whiteboard';
-		      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 80, height: 80 });
-		      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 80, height: 80, fill: 'url(#pitch-bg)' }));
-		      pattern.appendChild(createSvgNode(doc, 'path', { d: 'M 0 40 L 80 40 M 40 0 L 40 80', stroke: 'rgba(15,23,42,0.08)', 'stroke-width': 1 }));
-		      defs.appendChild(pattern);
-		    } else if (grassStyle !== 'classic') {
-		      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
-		      if (dataUrl) {
-		        grassFillId = 'pitch-grass-img';
+			    } else if (grassStyle === 'whiteboard') {
+			      grassFillId = 'pitch-whiteboard';
+			      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 80, height: 80 });
+			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 80, height: 80, fill: 'url(#pitch-bg)' }));
+			      pattern.appendChild(createSvgNode(doc, 'path', { d: 'M 0 40 L 80 40 M 40 0 L 40 80', stroke: 'rgba(15,23,42,0.08)', 'stroke-width': 1 }));
+			      defs.appendChild(pattern);
+			    } else if (grassStyle === 'coachboard') {
+			      // Estilo "pizarra de entrenador": verde más plano con micro-textura.
+			      // Todo en SVG (sin <image>) para evitar problemas de renderizado/caché en Safari.
+			      grassFillId = 'pitch-coachboard';
+			      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 96, height: 96 });
+			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'url(#pitch-bg)' }));
+			      pattern.appendChild(createSvgNode(doc, 'path', {
+			        d: 'M 0 48 L 96 48 M 48 0 L 48 96',
+			        stroke: 'rgba(248,250,252,0.06)',
+			        'stroke-width': 1,
+			      }));
+			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.05)' }));
+			      defs.appendChild(pattern);
+			    } else if (grassStyle !== 'classic') {
+			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
+			      if (dataUrl) {
+			        grassFillId = 'pitch-grass-img';
 	        const pattern = createSvgNode(doc, 'pattern', {
 	          id: grassFillId,
 	          patternUnits: 'userSpaceOnUse',
@@ -482,37 +495,97 @@
 	    const line = (grassStyle === 'whiteboard') ? '#0f172a' : '#f8fafc';
 	    const soft = (grassStyle === 'whiteboard') ? 'rgba(15,23,42,0.55)' : 'rgba(248,250,252,0.66)';
 
-    const drawFrame = (x, y, width, height, lineWidth = 4) => {
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x,
-        y,
-        width,
-        height,
-        fill: `url(#${grassFillId})`,
-        stroke: line,
-        'stroke-width': lineWidth,
-      }));
-      const stripeW = width / 12;
-      for (let index = 0; index < 12; index += 1) {
-        drawRoot.appendChild(createSvgNode(doc, 'rect', {
-          x: x + (index * stripeW),
-          y,
-          width: stripeW + 1,
-          height,
-          fill: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-          stroke: 'none',
-        }));
-      }
-      drawRoot.appendChild(createSvgNode(doc, 'rect', {
-        x,
-        y,
-        width,
-        height,
-        fill: 'transparent',
-        stroke: line,
-        'stroke-width': lineWidth,
-      }));
-    };
+	    const drawFrame = (x, y, width, height, lineWidth = 4) => {
+	      const isCoachBoard = grassStyle === 'coachboard';
+	      const corner = isCoachBoard ? 26 : 0;
+
+	      if (isCoachBoard) {
+	        // Marco exterior suave (tipo tablero).
+	        drawRoot.appendChild(createSvgNode(doc, 'rect', {
+	          x: x - 6,
+	          y: y - 6,
+	          width: width + 12,
+	          height: height + 12,
+	          rx: corner + 10,
+	          ry: corner + 10,
+	          fill: 'rgba(15,23,42,0.10)',
+	          stroke: 'rgba(15,23,42,0.55)',
+	          'stroke-width': 6,
+	        }));
+	      }
+
+	      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+	        x,
+	        y,
+	        width,
+	        height,
+	        rx: corner,
+	        ry: corner,
+	        fill: `url(#${grassFillId})`,
+	        stroke: line,
+	        'stroke-width': lineWidth,
+	      }));
+
+	      if (isCoachBoard) {
+	        // Rejilla de entrenador: divisiones con línea discontinua.
+	        const dash = '10 12';
+	        const gridStroke = 'rgba(248,250,252,0.55)';
+	        const gridW = 1.8;
+	        // Vertical: 6 columnas.
+	        for (let i = 1; i <= 5; i += 1) {
+	          const gx = x + (width * i / 6);
+	          drawRoot.appendChild(createSvgNode(doc, 'line', {
+	            x1: gx,
+	            y1: y,
+	            x2: gx,
+	            y2: y + height,
+	            stroke: gridStroke,
+	            'stroke-width': gridW,
+	            'stroke-dasharray': dash,
+	          }));
+	        }
+	        // Horizontal: 4 filas.
+	        for (let j = 1; j <= 3; j += 1) {
+	          const gy = y + (height * j / 4);
+	          drawRoot.appendChild(createSvgNode(doc, 'line', {
+	            x1: x,
+	            y1: gy,
+	            x2: x + width,
+	            y2: gy,
+	            stroke: gridStroke,
+	            'stroke-width': gridW,
+	            'stroke-dasharray': dash,
+	          }));
+	        }
+	      }
+
+	      const showStripes = !(grassStyle === 'whiteboard' || grassStyle === 'blackboard' || grassStyle === 'coachboard');
+	      if (showStripes) {
+	        const stripeW = width / 12;
+	        for (let index = 0; index < 12; index += 1) {
+	          drawRoot.appendChild(createSvgNode(doc, 'rect', {
+	            x: x + (index * stripeW),
+	            y,
+	            width: stripeW + 1,
+	            height,
+	            fill: index % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+	            stroke: 'none',
+	          }));
+	        }
+	      }
+
+	      drawRoot.appendChild(createSvgNode(doc, 'rect', {
+	        x,
+	        y,
+	        width,
+	        height,
+	        rx: corner,
+	        ry: corner,
+	        fill: 'transparent',
+	        stroke: line,
+	        'stroke-width': lineWidth,
+	      }));
+	    };
 
     const drawGoal = (x, centerY, goalDepth, goalHeight, side) => {
       const topY = centerY - (goalHeight / 2);
