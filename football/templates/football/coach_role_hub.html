@@ -1043,7 +1043,25 @@
           <h1>{{ role_title }}</h1>
           <p>{{ role_description }}</p>
         </div>
-        <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
+          {% if role_key == 'trainer' %}
+          <a
+            class="pill-button"
+            style="border-radius:12px; text-decoration:none;"
+            href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
+            title="Biblioteca de informes PDF (club y jugador)"
+          >Informes (PDF)</a>
+          <a
+            class="pill-button"
+            style="border-radius:12px; text-decoration:none;"
+            href="{% url 'player-reports-zip' %}{% if active_team %}?team={{ active_team.id }}{% endif %}"
+            target="_blank"
+            rel="noreferrer"
+            title="Descarga masiva: ZIP con todos los informes PDF de jugadores"
+          >Descargar ZIP</a>
+          {% endif %}
+          <a class="pill-button" style="border-radius:12px;" href="{% url 'coach-cards' %}">Volver</a>
+        </div>
       </header>
       {% if role_key != 'trainer' %}
       <nav class="section-nav">
