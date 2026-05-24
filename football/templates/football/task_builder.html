@@ -4537,12 +4537,13 @@
 		                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
 		                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
 		                        {% elif initial.pitch_grass_style == 'dry' %}Seco
-		                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
-		                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
-		                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
-		                        {% else %}Césped{% endif %}
-		                      </span>
-		                    </button>
+			                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
+			                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
+			                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
+			                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
+			                        {% else %}Césped{% endif %}
+			                      </span>
+			                    </button>
 		                    <div class="pitch-zoom">
 		                      <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
 		                      <span class="zoom-readout" id="pitch-zoom-label">100%</span>
