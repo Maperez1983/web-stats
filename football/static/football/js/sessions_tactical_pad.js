@@ -446,7 +446,9 @@
       y: -bleed,
       width: stageW + (bleed * 2),
       height: stageH + (bleed * 2),
-      fill: preset === 'blank' ? 'transparent' : fillOutside,
+      // En el editor siempre rellenamos el exterior con césped para evitar que la superficie
+      // parezca “negra” o vacía al cambiar de preset (la exportación ya recorta por `data-pitch-box`).
+      fill: fillOutside,
     }));
     const drawRoot = createSvgNode(doc, 'g');
     if (orientation === 'portrait') {
