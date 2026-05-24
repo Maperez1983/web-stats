@@ -166,9 +166,11 @@
 	    shape_triangle: 'un triángulo',
 	    shape_diamond: 'un rombo',
 	    shape_u: 'una U',
-	    shape_lane_3: 'una zona (3 carriles)',
-	    shape_lane_4: 'una zona (4 carriles)',
-	    emoji_ball: 'un balón emoji',
+		    shape_lane_3: 'una zona (3 carriles)',
+		    shape_lane_4: 'una zona (4 carriles)',
+		    shape_lane_divider_v: 'un divisor vertical (carriles)',
+		    shape_lane_divider_h: 'un divisor horizontal (carriles)',
+		    emoji_ball: 'un balón emoji',
 	    emoji_cone: 'un cono emoji',
 	    emoji_pole: 'una pica emoji',
 	    emoji_ladder: 'una escalera emoji',
@@ -859,6 +861,7 @@
 			    try {
 			    const form = document.getElementById('task-builder-form');
 			    if (!form) return;
+			    const diagnosticsEnabled = safeText(document.body?.dataset?.tpadDiagnostics, '0') === '1';
 		    // Evita doble inicialización, pero PERMITE reintentos si la primera inicialización falló
 		    // (p.ej. Safari/iPad con scripts defer que tardan o DOM aún incompleto).
 		    try {
@@ -866,26 +869,28 @@
 		      if (form.dataset && form.dataset.webstatsTpadInit === '1') return; // init en curso
 		      if (form.dataset) form.dataset.webstatsTpadInit = '1';
 		    } catch (e) { /* ignore */ }
-		    // Captura errores runtime (no solo los de inicialización) para detectar “botones no funcionan”.
-			    // Elementos UI (pueden no existir en algunas vistas embebidas).
-			    const diagCopyBtn = document.getElementById('tpad-diag-copy');
+			    // Captura errores runtime (no solo los de inicialización) para detectar “botones no funcionan”.
+			    // Nota: en producción ocultamos UI/atajos de diagnóstico; el hook sigue guardando el último
+			    // error en localStorage y solo muestra aviso si `data-tpad-diagnostics=1`.
 
-			    try {
-			      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
+				    try {
+				      if (!window.__WEBSTATS_TPAD_RUNTIME_HOOKED) {
 			        window.__WEBSTATS_TPAD_RUNTIME_HOOKED = true;
 			        const report = (payload) => {
 			          try {
 			            const entry = { ...(payload || {}), at: new Date().toISOString() };
 			            window.__WEBSTATS_LAST_TPAD_ERROR = entry;
 			            try { window.localStorage?.setItem('webstats:tpad:last_error', JSON.stringify(entry)); } catch (e) { /* ignore */ }
-						    const statusEl = document.getElementById('task-builder-status');
-			            if (statusEl) {
-			              const msg = safeText(entry?.message, 'Error JS');
-			              statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
-			              statusEl.style.color = '#fca5a5';
-			            }
-			          } catch (e) { /* ignore */ }
-			        };
+						    if (diagnosticsEnabled) {
+						      const statusEl = document.getElementById('task-builder-status');
+				              if (statusEl) {
+				                const msg = safeText(entry?.message, 'Error JS');
+				                statusEl.textContent = `Error JS: ${msg.slice(0, 160)} (recarga si la UI no responde)`;
+				                statusEl.style.color = '#fca5a5';
+				              }
+						    }
+				          } catch (e) { /* ignore */ }
+				        };
 		        window.addEventListener('error', (event) => {
 		          const message = safeText(event?.message || (event?.error && event.error.message) || 'Error JS');
 		          const stack = safeText(event?.error?.stack || '');
@@ -2318,36 +2323,40 @@
 			        await navigator.clipboard.writeText(text);
 			        copied = true;
 			      } catch (e) { copied = false; }
-			      if (copied) setStatus('Diagnóstico copiado al portapapeles.');
-			      else setStatus('No se pudo copiar automáticamente. Se mostrará el texto para copiar.', true);
-			      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
-			    };
-					    // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
-					    const diagButtons = [
-					      document.getElementById('tpad-diag-copy'),
-					      document.getElementById('tpad-diag-copy-fab'),
-					    ].filter(Boolean);
-					    diagButtons.forEach((btn) => {
-					      try {
-					        btn.addEventListener('click', (event) => {
-					          event.preventDefault();
-					          void copyTacticsDiagnostics();
-					        });
-					      } catch (e) { /* ignore */ }
-					    });
-					    // Atajo de teclado (si algún overlay tapa botones): Cmd/Ctrl+Shift+D.
-					    try {
-					      if (isTacticsMode && !window.__WEBSTATS_TPAD_DIAG_SHORTCUT) {
-					        window.__WEBSTATS_TPAD_DIAG_SHORTCUT = true;
-					        window.addEventListener('keydown', (ev) => {
-					          const key = String(ev?.key || '').toLowerCase();
-					          if (key !== 'd') return;
-					          if (!(ev.metaKey || ev.ctrlKey) || !ev.shiftKey) return;
-					          ev.preventDefault();
-					          void copyTacticsDiagnostics();
-					        }, true);
-					      }
-					    } catch (e) { /* ignore */ }
+				      if (diagnosticsEnabled) {
+				        if (copied) setStatus('Diagnóstico copiado al portapapeles.');
+				        else setStatus('No se pudo copiar automáticamente. Se mostrará el texto para copiar.', true);
+				      }
+				      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
+				    };
+						    if (diagnosticsEnabled) {
+						      // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
+						      const diagButtons = [
+						        document.getElementById('tpad-diag-copy'),
+						        document.getElementById('tpad-diag-copy-fab'),
+						      ].filter(Boolean);
+						      diagButtons.forEach((btn) => {
+						        try {
+						          btn.addEventListener('click', (event) => {
+						            event.preventDefault();
+						            void copyTacticsDiagnostics();
+						          });
+						        } catch (e) { /* ignore */ }
+						      });
+						      // Atajo de teclado (si algún overlay tapa botones): Cmd/Ctrl+Shift+D.
+						      try {
+						        if (isTacticsMode && !window.__WEBSTATS_TPAD_DIAG_SHORTCUT) {
+						          window.__WEBSTATS_TPAD_DIAG_SHORTCUT = true;
+						          window.addEventListener('keydown', (ev) => {
+						            const key = String(ev?.key || '').toLowerCase();
+						            if (key !== 'd') return;
+						            if (!(ev.metaKey || ev.ctrlKey) || !ev.shiftKey) return;
+						            ev.preventDefault();
+						            void copyTacticsDiagnostics();
+						          }, true);
+						        }
+						      } catch (e) { /* ignore */ }
+						    }
 
 				    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {
@@ -17151,13 +17160,58 @@
 		          stroke: '#f8fafc', strokeWidth: 3, strokeDashArray: [2, 9], strokeLineCap: 'round', data: { kind: 'line-dot' },
 		        });
 		      }
-	      if (kind === 'line_double') {
-	        return (left, top) => new fabric.Group([
-	          new fabric.Line([-220, -10, 220, -10], { stroke: '#f8fafc', strokeWidth: 3 }),
-	          new fabric.Line([-220, 10, 220, 10], { stroke: '#f8fafc', strokeWidth: 3 }),
-	        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
-	      }
-	      const buildArrowGroup = (left, top, options = {}) => {
+			      if (kind === 'line_double') {
+			        return (left, top) => new fabric.Group([
+			          new fabric.Line([-220, -10, 220, -10], { stroke: '#f8fafc', strokeWidth: 3 }),
+			          new fabric.Line([-220, 10, 220, 10], { stroke: '#f8fafc', strokeWidth: 3 }),
+			        ], { left, top, originX: 'center', originY: 'center', data: { kind: 'line-double' } });
+			      }
+			      // Divisores de carril (libres): líneas a pantalla completa para crear carriles/espacios personalizados.
+			      const buildLaneDivider = (axis, atX, atY) => {
+			        const { w, h } = worldSize();
+			        const stroke = 'rgba(226,232,240,0.78)';
+			        const strokeWidth = 3;
+			        const dash = [12, 10];
+			        const safeW = Number(w) || 0;
+			        const safeH = Number(h) || 0;
+			        if (axis === 'v') {
+			          const x = clamp(Number(atX) || 0, 0, safeW || 0);
+			          const line = new fabric.Line([x, 0, x, safeH || 0], {
+			            stroke,
+			            strokeWidth,
+			            strokeDashArray: dash,
+			            selectable: true,
+			            evented: true,
+			            excludeFromExport: false,
+			            opacity: 0.92,
+			          });
+			          line.data = { kind: 'shape-lane-divider-v', axis: 'v' };
+			          try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+			          try { line.objectCaching = false; } catch (e) { /* ignore */ }
+			          return line;
+			        }
+			        const y = clamp(Number(atY) || 0, 0, safeH || 0);
+			        const line = new fabric.Line([0, y, safeW || 0, y], {
+			          stroke,
+			          strokeWidth,
+			          strokeDashArray: dash,
+			          selectable: true,
+			          evented: true,
+			          excludeFromExport: false,
+			          opacity: 0.92,
+			        });
+			        line.data = { kind: 'shape-lane-divider-h', axis: 'h' };
+			        try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+			        try { line.objectCaching = false; } catch (e) { /* ignore */ }
+			        return line;
+			      };
+			      if (kind === 'shape_lane_divider_v') {
+			        return (left, top) => buildLaneDivider('v', left, top);
+			      }
+			      if (kind === 'shape_lane_divider_h') {
+			        return (left, top) => buildLaneDivider('h', left, top);
+			      }
+		      const buildArrowGroup = (left, top, options = {}) => {
 	        const stroke = safeText(options.stroke, '#22d3ee');
 	        const strokeWidth = clamp(Number(options.strokeWidth) || 4, 2, 18);
 	        const dash = Array.isArray(options.dash) ? options.dash : null;

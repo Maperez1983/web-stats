@@ -3991,7 +3991,7 @@
 	  </head>
 		  <body
         class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}"
-        data-tpad-diagnostics="{% if tactics_mode and (request.user.is_staff or request.user.is_superuser) and request.GET.diag == '1' %}1{% else %}0{% endif %}"
+        data-tpad-diagnostics="{% if tactics_mode %}{% if request.user.is_staff or request.user.is_superuser %}{% if request.GET.diag == '1' %}1{% else %}0{% endif %}{% else %}0{% endif %}{% else %}0{% endif %}"
       >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
 			    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
@@ -5552,9 +5552,11 @@
 	                  <button type="button" class="tool-icon" data-action="draw_anim_path" title="Apple Pencil: dibuja una ruta para animar la ficha seleccionada (Timeline Pro)." aria-label="Ruta animada"><span class="tool-emoji" aria-hidden="true">🧭</span><span class="sr-only">Ruta animada</span></button>
 	                  <button type="button" class="tool-icon" data-add="line_solid" title="Línea continua" aria-label="Línea continua"><span class="tool-emoji" aria-hidden="true">➖</span><span class="sr-only">Línea continua</span></button>
 	                  <button type="button" class="tool-icon" data-add="line_thick" title="Línea gruesa" aria-label="Línea gruesa"><span class="tool-emoji" aria-hidden="true">➖</span><span class="sr-only">Línea gruesa</span></button>
-	                  <button type="button" class="tool-icon" data-add="line_dash" title="Línea discontinua" aria-label="Línea discontinua"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea discontinua</span></button>
-	                  <button type="button" class="tool-icon" data-add="line_dot" title="Línea de puntos" aria-label="Línea de puntos"><span class="tool-emoji" aria-hidden="true">⋯</span><span class="sr-only">Línea de puntos</span></button>
-			                  <button type="button" class="tool-icon" data-add="line_double" title="Línea doble" aria-label="Línea doble"><span class="tool-emoji" aria-hidden="true">〓</span><span class="sr-only">Línea doble</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_dash" title="Línea discontinua" aria-label="Línea discontinua"><span class="tool-emoji" aria-hidden="true">╌</span><span class="sr-only">Línea discontinua</span></button>
+		                  <button type="button" class="tool-icon" data-add="line_dot" title="Línea de puntos" aria-label="Línea de puntos"><span class="tool-emoji" aria-hidden="true">⋯</span><span class="sr-only">Línea de puntos</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_lane_divider_v" title="Divisor vertical (carriles libres)" aria-label="Divisor vertical (carriles)"><span class="tool-emoji" aria-hidden="true">┃</span><span class="sr-only">Divisor vertical</span></button>
+		                  <button type="button" class="tool-icon" data-add="shape_lane_divider_h" title="Divisor horizontal (carriles libres)" aria-label="Divisor horizontal (carriles)"><span class="tool-emoji" aria-hidden="true">━</span><span class="sr-only">Divisor horizontal</span></button>
+				                  <button type="button" class="tool-icon" data-add="line_double" title="Línea doble" aria-label="Línea doble"><span class="tool-emoji" aria-hidden="true">〓</span><span class="sr-only">Línea doble</span></button>
 			                  <button type="button" class="tool-icon" data-add="line_curve" title="Curva" aria-label="Curva"><span class="tool-emoji" aria-hidden="true">〰️</span><span class="sr-only">Curva</span></button>
 			                  <button type="button" class="tool-icon" data-add="line_wave" title="Ondulada" aria-label="Ondulada"><span class="tool-emoji" aria-hidden="true">🌊</span><span class="sr-only">Ondulada</span></button>
 	                  <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha continua" aria-label="Flecha continua"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha continua</span></button>
