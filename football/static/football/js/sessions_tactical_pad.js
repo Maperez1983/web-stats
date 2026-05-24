@@ -1803,6 +1803,14 @@
 				    const overlayGridRowsInput = document.getElementById('task-overlay-grid-rows');
 				    const overlayGridColsInput = document.getElementById('task-overlay-grid-cols');
 				    const overlaysApplyBtn = document.getElementById('task-overlays-apply');
+				    const zonesPopover = document.getElementById('task-zones-popover');
+				    const zonesCloseBtn = document.getElementById('task-zones-close');
+				    const zonesSnapInput = document.getElementById('task-zones-snap');
+				    const zonesTemplateSelect = document.getElementById('task-zones-template');
+				    const zonesTemplateNameInput = document.getElementById('task-zones-template-name');
+				    const zonesApplyBtn = document.getElementById('task-zones-apply');
+				    const zonesSaveBtn = document.getElementById('task-zones-save');
+				    const zonesClearBtn = document.getElementById('task-zones-clear');
 		    const layersBtn = document.getElementById('task-layers-btn');
 		    const layersPopover = document.getElementById('task-layers-popover');
 		    const layersCloseBtn = document.getElementById('task-layers-close');
@@ -3475,7 +3483,7 @@
 		      });
 		    };
 
-		    const snapPointToLanesSectors = (point) => {
+			    const snapPointToLanesSectors = (point) => {
 		      const { w, h } = worldSize();
 		      if (!w || !h) return { x: point.x, y: point.y, snappedX: false, snappedY: false };
 		      const tolerance = 26;
@@ -5462,6 +5470,75 @@
 			      }
 			      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 			    };
+
+			    const snapPointToCustomZones = (point) => {
+			      const { w, h } = worldSize();
+			      if (!w || !h) return { x: point.x, y: point.y, snappedX: false, snappedY: false };
+			      const tolerance = 26;
+			      const baseX = Number(point?.x) || 0;
+			      const baseY = Number(point?.y) || 0;
+
+			      const objects = canvas.getObjects?.() || [];
+			      const candidates = objects
+			        .filter((obj) => obj && obj.visible !== false && !obj?.data?.base)
+			        .filter((obj) => zoneLikeKinds(obj?.data?.kind))
+			        .slice(0, 140);
+			      if (!candidates.length) return { x: clamp(baseX, 0, w), y: clamp(baseY, 0, h), snappedX: false, snappedY: false };
+
+			      let bestX = baseX;
+			      let bestDx = tolerance + 1;
+			      let bestY = baseY;
+			      let bestDy = tolerance + 1;
+
+			      candidates.forEach((obj) => {
+			        try {
+			          const kind = safeText(obj?.data?.kind).toLowerCase();
+			          // Divisor vertical/horizontal: solo snap en un eje.
+			          if (kind === 'shape-lane-divider-v') {
+			            const cx = obj.getCenterPoint?.().x;
+			            const dx = Math.abs((Number(cx) || 0) - baseX);
+			            if (dx < bestDx) { bestDx = dx; bestX = Number(cx) || bestX; }
+			            return;
+			          }
+			          if (kind === 'shape-lane-divider-h') {
+			            const cy = obj.getCenterPoint?.().y;
+			            const dy = Math.abs((Number(cy) || 0) - baseY);
+			            if (dy < bestDy) { bestDy = dy; bestY = Number(cy) || bestY; }
+			            return;
+			          }
+			          const center = obj.getCenterPoint?.() || null;
+			          if (center) {
+			            const dx = Math.abs((Number(center.x) || 0) - baseX);
+			            const dy = Math.abs((Number(center.y) || 0) - baseY);
+			            if (dx < bestDx) { bestDx = dx; bestX = Number(center.x) || bestX; }
+			            if (dy < bestDy) { bestDy = dy; bestY = Number(center.y) || bestY; }
+			          }
+			          const rect = obj.getBoundingRect?.(true, true) || null;
+			          if (rect) {
+			            const left = Number(rect.left) || 0;
+			            const right = left + (Number(rect.width) || 0);
+			            const top = Number(rect.top) || 0;
+			            const bottom = top + (Number(rect.height) || 0);
+			            const cx = left + (right - left) / 2;
+			            const cy = top + (bottom - top) / 2;
+			            [left, cx, right].forEach((xv) => {
+			              const dx = Math.abs(xv - baseX);
+			              if (dx < bestDx) { bestDx = dx; bestX = xv; }
+			            });
+			            [top, cy, bottom].forEach((yv) => {
+			              const dy = Math.abs(yv - baseY);
+			              if (dy < bestDy) { bestDy = dy; bestY = yv; }
+			            });
+			          }
+			        } catch (e) { /* ignore */ }
+			      });
+
+			      const snappedX = bestDx <= tolerance;
+			      const snappedY = bestDy <= tolerance;
+			      const outX = snappedX ? bestX : baseX;
+			      const outY = snappedY ? bestY : baseY;
+			      return { x: clamp(outX, 0, w), y: clamp(outY, 0, h), snappedX, snappedY };
+			    };
 		    let patternMode = 'line';
 		    let patternAxis = 'x';
 				    const setPatternPopoverOpen = (open) => {
@@ -5478,12 +5555,156 @@
 				    };
 			    const closeFormationPopover = () => setFormationPopoverOpen(false);
 
-				    const setOverlaysPopoverOpen = (open) => {
-				      if (!overlaysPopover) return;
-				      overlaysPopover.hidden = !open;
-				      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					    const setOverlaysPopoverOpen = (open) => {
+					      if (!overlaysPopover) return;
+					      overlaysPopover.hidden = !open;
+					      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					    };
+				    const closeOverlaysPopover = () => setOverlaysPopoverOpen(false);
+
+					    const setZonesPopoverOpen = (open) => {
+					      if (!zonesPopover) return;
+					      zonesPopover.hidden = !open;
+					      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					    };
+				    const closeZonesPopover = () => setZonesPopoverOpen(false);
+
+				    // Zonas personalizadas: plantillas + snap.
+				    const zonesTemplatesKey = 'tpad_zone_templates_v1';
+				    const zonesSnapKey = 'tpad_zone_snap_v1';
+				    const readZonesTemplates = () => {
+				      if (!canUseStorage) return [];
+				      try {
+				        const raw = safeText(window.localStorage.getItem(zonesTemplatesKey));
+				        const parsed = raw ? JSON.parse(raw) : [];
+				        return Array.isArray(parsed) ? parsed : [];
+				      } catch (e) { return []; }
 				    };
-			    const closeOverlaysPopover = () => setOverlaysPopoverOpen(false);
+				    const writeZonesTemplates = (templates) => {
+				      if (!canUseStorage) return;
+				      try { window.localStorage.setItem(zonesTemplatesKey, JSON.stringify(Array.isArray(templates) ? templates : [])); } catch (e) { /* ignore */ }
+				    };
+				    let zoneSnapEnabled = false;
+				    try { zoneSnapEnabled = !!(canUseStorage && JSON.parse(window.localStorage.getItem(zonesSnapKey) || 'false')); } catch (e) { zoneSnapEnabled = false; }
+				    if (zonesSnapInput) zonesSnapInput.checked = !!zoneSnapEnabled;
+
+				    const zoneLikeKinds = (kind) => {
+				      const k = safeText(kind).toLowerCase();
+				      if (!k) return false;
+				      if (k === 'zone') return true;
+				      if (k.startsWith('shape-lane-')) return true;
+				      if (k.startsWith('shape-lane-divider-')) return true;
+				      return false;
+				    };
+				    const collectZoneObjectsForTemplate = () => {
+				      const objects = canvas.getObjects?.() || [];
+				      return objects
+				        .filter((obj) => obj && obj.visible !== false && !obj?.data?.base)
+				        .filter((obj) => zoneLikeKinds(obj?.data?.kind))
+				        .slice(0, 120);
+				    };
+				    const serializeZonesOnly = () => {
+				      const json = canvas.toJSON(['data']);
+				      json.objects = (json.objects || [])
+				        .filter((item) => !(item?.data?.base))
+				        .filter((item) => zoneLikeKinds(item?.data?.kind));
+				      return json;
+				    };
+				    const clearZonesOnCanvas = () => {
+				      const targets = collectZoneObjectsForTemplate();
+				      if (!targets.length) {
+				        setStatus('No hay zonas/carriles para borrar.');
+				        return;
+				      }
+				      const prevLoading = canvas.__loading;
+				      canvas.__loading = true;
+				      targets.forEach((obj) => { try { canvas.remove(obj); } catch (e) { /* ignore */ } });
+				      canvas.__loading = prevLoading;
+				      canvas.discardActiveObject();
+				      canvas.requestRenderAll();
+				      pushHistory();
+				      renderLayers();
+				      setStatus(`Zonas borradas (${targets.length}).`);
+				    };
+
+				    const fillZonesTemplateSelect = () => {
+				      if (!zonesTemplateSelect) return;
+				      const templates = readZonesTemplates();
+				      const options = [
+				        { id: '__none__', name: '— (elige plantilla)' },
+				        ...templates.map((t) => ({ id: safeText(t.id), name: safeText(t.name) || safeText(t.id) })),
+				      ].filter((o) => o.id);
+				      zonesTemplateSelect.innerHTML = options.map((o) => `<option value="${o.id}">${o.name}</option>`).join('');
+				      try { zonesTemplateSelect.value = '__none__'; } catch (e) { /* ignore */ }
+				    };
+
+				    const loadZonesFromTemplate = async (template) => {
+				      const json = template && typeof template === 'object' ? template.json : null;
+				      const fromW = Number(template?.sourceWidth) || 0;
+				      const fromH = Number(template?.sourceHeight) || 0;
+				      if (!json || typeof json !== 'object') {
+				        setStatus('Plantilla inválida.', true);
+				        return false;
+				      }
+				      const { w: toW, h: toH } = worldSize();
+				      if (!toW || !toH || !fromW || !fromH) {
+				        setStatus('No se pudo calcular el tamaño del campo.', true);
+				        return false;
+				      }
+				      // Limpia primero para evitar mezclas.
+				      clearZonesOnCanvas();
+				      // Cargar en canvas temporal y clonar.
+				      const tmpEl = document.createElement('canvas');
+				      tmpEl.width = Math.max(2, Math.round(fromW));
+				      tmpEl.height = Math.max(2, Math.round(fromH));
+				      const tmp = new fabric.StaticCanvas(tmpEl, { width: tmpEl.width, height: tmpEl.height });
+				      return new Promise((resolve) => {
+				        try {
+				          tmp.loadFromJSON(sanitizeLoadedState(json), () => {
+				            try {
+				              const scaleX = toW / fromW;
+				              const scaleY = toH / fromH;
+				              const uniformScale = Math.min(scaleX, scaleY);
+				              const loaded = tmp.getObjects().slice();
+				              loaded.forEach((obj) => {
+				                if (!obj) return;
+				                // Reescala a mundo actual.
+				                obj.set({
+				                  left: (Number(obj.left) || 0) * scaleX,
+				                  top: (Number(obj.top) || 0) * scaleY,
+				                  scaleX: clampScale((Number(obj.scaleX) || 1) * uniformScale),
+				                  scaleY: clampScale((Number(obj.scaleY) || 1) * uniformScale),
+				                });
+				                try { obj.setCoords(); } catch (e) { /* ignore */ }
+				                try { obj.excludeFromExport = false; } catch (e) { /* ignore */ }
+				                try { obj.evented = true; obj.selectable = true; } catch (e) { /* ignore */ }
+				                try { canvas.add(obj); } catch (e) { /* ignore */ }
+				              });
+				              canvas.requestRenderAll();
+				              pushHistory();
+				              renderLayers();
+				              setStatus(`Plantilla aplicada (${loaded.length} zonas).`);
+				              resolve(true);
+				            } catch (e) {
+				              resolve(false);
+				            }
+				          });
+				        } catch (e) {
+				          resolve(false);
+				        }
+				      });
+				    };
+
+				    const openZonesPopover = () => {
+				      setCommandMenuOpen(false);
+				      closePatternPopover();
+				      closeFormationPopover();
+				      closeOverlaysPopover();
+				      fillZonesTemplateSelect();
+				      if (zonesSnapInput) zonesSnapInput.checked = !!zoneSnapEnabled;
+				      setZonesPopoverOpen(true);
+				    };
+				    try { window.__tpadOpenZonesPopover = openZonesPopover; } catch (e) { /* ignore */ }
 
 			    const FORMATION_PRESETS = {
 			      f11: [
@@ -5785,6 +6006,72 @@
 				    // Exponer un helper global: en modo "Táctica" algunos usuarios no ven el botón de "Más acciones (⋯)"
 				    // dependiendo del layout/zoom. Esto permite abrir Overlays desde un botón dedicado en la barra superior.
 				    try { window.__tpadOpenOverlaysPopover = openOverlaysPopover; } catch (e) { /* ignore */ }
+				    zonesCloseBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      closeZonesPopover();
+				    });
+				    zonesPopover?.addEventListener('keydown', (event) => {
+				      const key = String(event.key || '').toLowerCase();
+				      if (key === 'escape') {
+				        event.preventDefault();
+				        closeZonesPopover();
+				      }
+				    });
+				    zonesSnapInput?.addEventListener('change', () => {
+				      zoneSnapEnabled = !!zonesSnapInput.checked;
+				      if (canUseStorage) {
+				        try { window.localStorage.setItem(zonesSnapKey, JSON.stringify(!!zoneSnapEnabled)); } catch (e) { /* ignore */ }
+				      }
+				      setStatus(zoneSnapEnabled ? 'Snap a zonas activado (Shift lo desactiva temporalmente).' : 'Snap a zonas desactivado.');
+				    });
+				    zonesClearBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      clearZonesOnCanvas();
+				    });
+				    zonesSaveBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      const name = safeText(zonesTemplateNameInput?.value).trim() || safeText(prompt('Nombre de la plantilla de zonas:', 'Zonas personalizadas') || '');
+				      if (!name) {
+				        setStatus('Nombre no válido.', true);
+				        return;
+				      }
+				      const zones = collectZoneObjectsForTemplate();
+				      if (!zones.length) {
+				        setStatus('No hay zonas/carriles para guardar.', true);
+				        return;
+				      }
+				      const { w, h } = worldSize();
+				      const templates = readZonesTemplates();
+				      const id = `zt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+				      templates.unshift({
+				        id,
+				        name,
+				        created_at: new Date().toISOString(),
+				        sourceWidth: Math.round(w || 0),
+				        sourceHeight: Math.round(h || 0),
+				        json: serializeZonesOnly(),
+				      });
+				      writeZonesTemplates(templates.slice(0, 30));
+				      fillZonesTemplateSelect();
+				      try { zonesTemplateSelect.value = id; } catch (e) { /* ignore */ }
+				      setStatus(`Plantilla guardada: ${name}.`);
+				    });
+				    zonesApplyBtn?.addEventListener('click', async (event) => {
+				      event.preventDefault();
+				      const id = safeText(zonesTemplateSelect?.value);
+				      if (!id || id === '__none__') {
+				        setStatus('Elige una plantilla.', true);
+				        return;
+				      }
+				      const templates = readZonesTemplates();
+				      const chosen = templates.find((t) => safeText(t.id) === id);
+				      if (!chosen) {
+				        setStatus('Plantilla no encontrada.', true);
+				        return;
+				      }
+				      closeZonesPopover();
+				      await loadZonesFromTemplate(chosen);
+				    });
 			    commandMoreBtn?.addEventListener('click', (event) => {
 			      event.preventDefault();
 			      event.stopPropagation();
@@ -19787,13 +20074,21 @@
 			        next = snapPointToGrid(next);
 			        didMove = true;
 			      }
-			      if (allowTacticalSnap && tokenLike) {
-			        const snapped = snapPointToLanesSectors(next);
-			        if (snapped.snappedX || snapped.snappedY) {
-			          next = { x: snapped.x, y: snapped.y };
-			          didMove = true;
-			        }
-			      }
+				      if (allowTacticalSnap && tokenLike) {
+				        const snapped = snapPointToLanesSectors(next);
+				        if (snapped.snappedX || snapped.snappedY) {
+				          next = { x: snapped.x, y: snapped.y };
+				          didMove = true;
+				        }
+				      }
+				      const allowZoneSnap = !!(zoneSnapEnabled && !rawEvent.shiftKey && !useMagnets);
+				      if (allowZoneSnap && tokenLike) {
+				        const snapped = snapPointToCustomZones(next);
+				        if (snapped.snappedX || snapped.snappedY) {
+				          next = { x: snapped.x, y: snapped.y };
+				          didMove = true;
+				        }
+				      }
 
 			      if (isSimulating) {
 			        if (simulationGuides) updateSimGuides(snapInfo);
@@ -20016,14 +20311,21 @@
 		        pointer = snapPointToCenters(base, null, 10);
 		      } else if (snapGrid) {
 		        pointer = snapPointToGrid(base);
-		      } else if (tacticalSnapEnabled && e && !e.shiftKey) {
-		        const kind = safeText(pendingKind).toLowerCase();
-		        const shouldSnap = kind.includes('player') || kind.includes('goalkeeper') || kind.includes('token');
-		        if (shouldSnap) {
-		          const snapped = snapPointToLanesSectors(base);
-		          if (snapped.snappedX || snapped.snappedY) pointer = { x: snapped.x, y: snapped.y };
-		        }
-		      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
+			      } else if (tacticalSnapEnabled && e && !e.shiftKey) {
+			        const kind = safeText(pendingKind).toLowerCase();
+			        const shouldSnap = kind.includes('player') || kind.includes('goalkeeper') || kind.includes('token');
+			        if (shouldSnap) {
+			          const snapped = snapPointToLanesSectors(base);
+			          if (snapped.snappedX || snapped.snappedY) pointer = { x: snapped.x, y: snapped.y };
+			        }
+			      } else if (zoneSnapEnabled && e && !e.shiftKey) {
+			        const kind = safeText(pendingKind).toLowerCase();
+			        const shouldSnap = kind.includes('player') || kind.includes('goalkeeper') || kind.includes('token');
+			        if (shouldSnap) {
+			          const snapped = snapPointToCustomZones(base);
+			          if (snapped.snappedX || snapped.snappedY) pointer = { x: snapped.x, y: snapped.y };
+			        }
+			      } else if (pendingKind && lastPlacedByKind.has(pendingKind)) {
 		        // Snap suave a la última colocación del mismo tipo (útil para alinear conos/jugadores).
 		        const last = lastPlacedByKind.get(pendingKind);
 		        const threshold = 16;
