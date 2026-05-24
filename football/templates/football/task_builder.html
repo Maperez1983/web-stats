@@ -283,6 +283,101 @@
       body.tactics-mode .pitch-stage {
         max-height: 100%;
       }
+      /* En modo táctica, el campo va “enmarcado” con una grada/estadio (estilo broadcast) con el
+         nombre del equipo activo. Solo es decorativo y no debe bloquear clicks. */
+      body.tactics-mode .tpad-stadium {
+        --tpad-team-primary: var(--prod-primary, #2f7d32);
+        --tpad-team-secondary: var(--prod-secondary, #f8fafc);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(10px, 2vmin, 22px);
+        border-radius: clamp(18px, 2.2vmin, 34px);
+        background:
+          radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.20), rgba(255,255,255,0.00) 55%),
+          radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.36), rgba(0,0,0,0.00) 60%),
+          linear-gradient(135deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.92)),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, rgba(255,255,255,0) 1px 10px);
+        box-shadow:
+          0 26px 70px rgba(0,0,0,0.55),
+          0 0 0 1px rgba(255,255,255,0.14) inset;
+        isolation: isolate;
+      }
+      body.tactics-mode .tpad-stadium::before {
+        content: "";
+        position: absolute;
+        inset: 10%;
+        border-radius: inherit;
+        background:
+          radial-gradient(closest-side at 50% 50%, rgba(0,0,0,0.0), rgba(0,0,0,0.45));
+        pointer-events: none;
+        z-index: 0;
+      }
+      body.tactics-mode .tpad-stadium-header {
+        position: absolute;
+        top: clamp(10px, 1.8vmin, 18px);
+        left: clamp(10px, 1.8vmin, 18px);
+        right: clamp(10px, 1.8vmin, 18px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.65rem;
+        pointer-events: none;
+        z-index: 2;
+        opacity: 0.92;
+      }
+      body.tactics-mode .tpad-stadium-header::before {
+        content: "";
+        position: absolute;
+        inset: -0.35rem;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(255,255,255,0.10), rgba(255,255,255,0.02), rgba(255,255,255,0.10));
+        border: 1px solid rgba(255,255,255,0.14);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+        z-index: -1;
+      }
+      body.tactics-mode .tpad-stadium-crest {
+        width: clamp(28px, 2.6vmin, 44px);
+        height: clamp(28px, 2.6vmin, 44px);
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.24);
+        background: rgba(2, 6, 23, 0.35);
+        object-fit: cover;
+        box-shadow: 0 10px 22px rgba(0,0,0,0.38);
+      }
+      body.tactics-mode .tpad-stadium-title {
+        font-weight: 950;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-size: clamp(0.78rem, 1.6vmin, 1.05rem);
+        color: rgba(248,250,252,0.96);
+        text-shadow: 0 18px 40px rgba(0,0,0,0.60);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: min(88%, 720px);
+      }
+      body.tactics-mode .tpad-stadium-title strong {
+        color: rgba(248,250,252,0.96);
+      }
+      body.tactics-mode .tpad-stadium-accent {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: 1;
+        background:
+          radial-gradient(90% 60% at 0% 0%, color-mix(in srgb, var(--tpad-team-primary) 38%, transparent), transparent 58%),
+          radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--tpad-team-secondary) 22%, transparent), transparent 62%);
+        opacity: 0.95;
+      }
+      body.tactics-mode .tpad-stadium .pitch-stage {
+        z-index: 3;
+        box-shadow: 0 18px 55px rgba(0,0,0,0.50);
+      }
       .simple-hint {
         margin: 0.65rem 0 0;
         padding: 0.7rem 0.85rem;
@@ -4124,6 +4219,12 @@
           <a class="button" href="{{ saved_task_info.url }}">Ver en lista</a>
         {% endif %}
       </div>
+      {# Harden: algunas builds antiguas del JS de pizarra referenciaban `diagCopyBtn` como variable global.
+         Definimos un placeholder para evitar ReferenceError aunque el botón no exista / esté oculto. #}
+      <script>
+        // eslint-disable-next-line no-unused-vars
+        var diagCopyBtn = null;
+      </script>
       {% endif %}
       {% if feedback and not saved_task_info %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
@@ -5650,6 +5751,24 @@
 
 			              <div class="pitch-main">
 		              <div class="pitch-viewport" id="task-pitch-viewport">
+                    {% if tactics_mode %}
+                      <div
+                        class="tpad-stadium"
+                        style="
+                          {% if tactics_team_primary %}--tpad-team-primary: {{ tactics_team_primary|escape }};{% endif %}
+                          {% if tactics_team_secondary %}--tpad-team-secondary: {{ tactics_team_secondary|escape }};{% endif %}
+                        "
+                      >
+                        <div class="tpad-stadium-accent" aria-hidden="true"></div>
+                        {% if tactics_team_name %}
+                          <div class="tpad-stadium-header" aria-hidden="true">
+                            {% if tactics_team_crest_url %}
+                              <img class="tpad-stadium-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+                            {% endif %}
+                            <div class="tpad-stadium-title">{{ tactics_team_name }}</div>
+                          </div>
+                        {% endif %}
+                    {% endif %}
 		                <div class="pitch-stage" id="task-pitch-stage">
 		                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
 		                  <canvas id="create-task-canvas"></canvas>
@@ -5657,6 +5776,9 @@
 		                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
 		                  </button>
 		                </div>
+                    {% if tactics_mode %}
+                      </div>
+                    {% endif %}
 		              </div>
 			              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
 				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>

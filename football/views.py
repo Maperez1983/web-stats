@@ -30425,6 +30425,26 @@ def coach_tactics_page(request):
     except Exception:
         back_url = '/'
 
+    tactics_team_name = ''
+    tactics_team_crest_url = ''
+    tactics_team_primary = ''
+    tactics_team_secondary = ''
+    try:
+        tactics_team_name = str(primary_team.display_name or primary_team.name or '').strip()
+    except Exception:
+        tactics_team_name = ''
+    try:
+        tactics_team_crest_url = resolve_team_crest_url(request, primary_team, sync=False) or ''
+    except Exception:
+        tactics_team_crest_url = ''
+    try:
+        hue = _team_color_seed(primary_team)
+        tactics_team_primary = f'hsl({int(hue) % 360}, 70%, 42%)'
+        tactics_team_secondary = f'hsl({(int(hue) + 35) % 360}, 74%, 36%)'
+    except Exception:
+        tactics_team_primary = ''
+        tactics_team_secondary = ''
+
     return render(
         request,
         'football/task_builder.html',
@@ -30470,6 +30490,10 @@ def coach_tactics_page(request):
             'show_session_selector': False,
             'show_dragon_nav': True,
             'tactics_mode': True,
+            'tactics_team_name': tactics_team_name,
+            'tactics_team_crest_url': tactics_team_crest_url,
+            'tactics_team_primary': tactics_team_primary,
+            'tactics_team_secondary': tactics_team_secondary,
         },
 	    )
 
