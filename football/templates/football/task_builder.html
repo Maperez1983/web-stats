@@ -233,6 +233,27 @@
         flex-direction: column;
         min-height: 0;
       }
+      /* Táctica: el aviso "Borrador local recuperado" no debe ocupar altura ni empujar el layout.
+         Se muestra como toast flotante (y el JS lo auto-oculta). */
+      body.tactics-mode #task-builder-draft-alert {
+        position: fixed;
+        top: calc(10px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 240;
+        width: min(980px, 94vw);
+        margin: 0;
+        padding: 0.55rem 0.75rem;
+        border-radius: 999px;
+        box-shadow: 0 18px 44px rgba(2, 6, 23, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      body.tactics-mode #task-builder-draft-alert .button {
+        padding: 0.45rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
       /* Táctica: pantalla completa (sin scroll del documento, todo en una vista). */
       body.tactics-mode.tactics-fullscreen {
         /* Importante: no bloqueamos el scroll global. Aunque el objetivo sea “1 vista”,
@@ -298,12 +319,19 @@
         --tpad-team-secondary: var(--prod-secondary, #f8fafc);
         --tpad-team-primary-soft: rgba(47, 125, 50, 0.22);
         --tpad-team-secondary-soft: rgba(248, 250, 252, 0.14);
+        --tpad-stand: clamp(54px, 8vmin, 92px);
         position: relative;
-        display: flex;
+        /* Grid para que las gradas rodeen el campo (no “debajo”). */
+        display: grid;
+        grid-template-areas:
+          "top top top"
+          "left center right"
+          "bottom bottom bottom";
+        grid-template-columns: var(--tpad-stand) minmax(0, 1fr) var(--tpad-stand);
+        grid-template-rows: var(--tpad-stand) auto var(--tpad-stand);
         align-items: center;
-        justify-content: center;
-        /* Si el padding es bajo, la “grada” se percibe como que solo existe en un lado. */
-        padding: clamp(18px, 3.2vmin, 46px);
+        justify-items: center;
+        padding: 0;
         border-radius: clamp(18px, 2.2vmin, 34px);
         /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
            sin soporte la declaración completa se ignora y “desaparece” la grada. */
@@ -323,53 +351,46 @@
           0 0 0 4px rgba(0,0,0,0.28) inset;
         isolation: isolate;
       }
+      body.tactics-mode .tpad-stadium-center {
+        grid-area: center;
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(12px, 2vmin, 22px);
+      }
       body.tactics-mode .tpad-stadium .pitch-stage {
         /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
         border: 2px solid rgba(255, 255, 255, 0.16);
         outline: 10px solid rgba(0, 0, 0, 0.20);
         outline-offset: 0;
       }
-      /* “Gradas” explícitas alrededor del campo (4 lados).
-         Ojo: debe vivir fuera de `.pitch-stage` porque ese contenedor tiene `overflow:hidden`
-         (si lo hacemos ahí, se recorta y parece que no existe). */
-      body.tactics-mode .tpad-stadium::before {
-        /* Mantenemos el viñeteado original, pero ampliamos para que actúe también como “anillo”. */
-        inset: clamp(10px, 1.2vmin, 18px);
+      /* Gradas (4 lados) como elementos del grid */
+      body.tactics-mode .tpad-stand {
+        grid-area: unset;
+        width: 100%;
+        height: 100%;
       }
-      body.tactics-mode .tpad-stadium::after {
-        content: "";
-        position: absolute;
-        inset: clamp(8px, 1.0vmin, 16px);
-        border-radius: inherit;
-        pointer-events: none;
-        z-index: 2;
-        opacity: 0.85;
-        background:
-          /* gradas superior e inferior */
-          repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0 7px, rgba(255,255,255,0) 7px 20px),
-          repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
-          /* gradas laterales */
-          repeating-linear-gradient(0deg, rgba(255,255,255,0.12) 0 7px, rgba(255,255,255,0) 7px 20px),
-          repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
-          /* glow equipo */
-          radial-gradient(70% 55% at 10% 18%, var(--tpad-team-primary-soft), transparent 68%),
-          radial-gradient(70% 55% at 90% 18%, var(--tpad-team-secondary-soft), transparent 72%);
-        background-repeat: no-repeat;
-        background-size:
-          100% 26px,
-          100% 26px,
-          26px 100%,
-          26px 100%,
-          70% 70%,
-          70% 70%;
-        background-position:
-          0 0,
-          0 100%,
-          0 0,
-          100% 0,
-          0 0,
-          100% 0;
-        mix-blend-mode: overlay;
+      body.tactics-mode .tpad-stand-top { grid-area: top; }
+      body.tactics-mode .tpad-stand-bottom { grid-area: bottom; }
+      body.tactics-mode .tpad-stand-left { grid-area: left; }
+      body.tactics-mode .tpad-stand-right { grid-area: right; }
+      body.tactics-mode .tpad-stand-top,
+      body.tactics-mode .tpad-stand-bottom {
+        writing-mode: horizontal-tb;
+        transform: none;
+      }
+      body.tactics-mode .tpad-stand-left,
+      body.tactics-mode .tpad-stand-right {
+        writing-mode: vertical-rl;
+      }
+      body.tactics-mode .tpad-stand-left { transform: rotate(180deg); }
+      body.tactics-mode .tpad-stand-right { transform: none; }
+      body.tactics-mode .tpad-stand-label {
+        font-size: clamp(0.62rem, 1.25vmin, 1.0rem);
+        padding: 0.45rem 0.6rem;
+        opacity: 0.95;
       }
       body.tactics-mode .tpad-stadium::before {
         content: "";
@@ -497,17 +518,8 @@
         user-select: none;
         padding: 0 1rem;
       }
-      /* Gradas “reales” (4 lados) estilo broadcast, sin depender de que se perciba el fondo. */
-      body.tactics-mode .tpad-stands {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        z-index: 2;
-        border-radius: inherit;
-        overflow: hidden;
-      }
       body.tactics-mode .tpad-stand {
-        position: absolute;
+        position: relative;
         display: grid;
         place-items: center;
         color: rgba(248, 250, 252, 0.86);
@@ -525,26 +537,11 @@
       }
       body.tactics-mode .tpad-stand-top,
       body.tactics-mode .tpad-stand-bottom {
-        left: 0;
-        right: 0;
-        height: clamp(54px, 8vmin, 92px);
+        height: var(--tpad-stand);
       }
-      body.tactics-mode .tpad-stand-top { top: 0; }
-      body.tactics-mode .tpad-stand-bottom { bottom: 0; }
       body.tactics-mode .tpad-stand-left,
       body.tactics-mode .tpad-stand-right {
-        top: 0;
-        bottom: 0;
-        width: clamp(54px, 8vmin, 92px);
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-      }
-      body.tactics-mode .tpad-stand-left { left: 0; }
-      body.tactics-mode .tpad-stand-right { right: 0; transform: none; }
-      body.tactics-mode .tpad-stand-label {
-        font-size: clamp(0.62rem, 1.55vmin, 1.08rem);
-        padding: 0.4rem 0.6rem;
-        opacity: 0.92;
+        width: var(--tpad-stand);
       }
       /* Asegura que el campo quede por encima de las gradas. */
       body.tactics-mode .tpad-stadium .pitch-stage { z-index: 3; }
@@ -5756,8 +5753,13 @@
                           <span class="preset-label">Cuerpo</span>
                           <button type="button" data-token-facing-step="-15" title="Girar orientación -15°">↺ 15°</button>
                           <button type="button" data-token-facing-step="15" title="Girar orientación +15°">↻ 15°</button>
+                          <button type="button" data-token-fov-toggle="1" title="Mostrar/ocultar cono de visión">Cono</button>
                           <button type="button" data-token-facing-reset="1" title="Reset orientación">Reset</button>
                         </div>
+                        <label style="grid-column:1 / -1;" id="task-token-fov-row" hidden>
+                          Cono de visión (amplitud)
+                          <input type="range" id="task-token-fov-width" min="20" max="140" step="5" value="70" />
+                        </label>
                         <label style="grid-column:1 / -1;" id="task-ball-direction-row" hidden>
                           Dirección del balón
                           <input type="range" id="task-ball-direction" min="0" max="359" step="1" value="0" />
@@ -5768,6 +5770,17 @@
                           <button type="button" data-ball-direction-step="-15" title="Girar dirección -15°">↺ 15°</button>
                           <button type="button" data-ball-direction-step="15" title="Girar dirección +15°">↻ 15°</button>
                           <button type="button" data-ball-direction-reset="1" title="Reset dirección">Reset</button>
+                        </div>
+                        <label style="grid-column:1 / -1;" id="task-ball-strike-row" hidden>
+                          Golpeo (contacto)
+                          <input type="range" id="task-ball-strike-contact" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-ball-strike-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Golpeo</span>
+                          <button type="button" data-ball-strike-toggle="1" title="Mostrar/ocultar golpeo">Mostrar/ocultar</button>
+                          <button type="button" data-ball-strike-foot="L" title="Pie izquierdo">Izq</button>
+                          <button type="button" data-ball-strike-foot="R" title="Pie derecho">Der</button>
+                          <button type="button" data-ball-strike-reset="1" title="Reset golpeo">Reset</button>
                         </div>
                         <label style="grid-column:1 / -1;">
                           Color
@@ -6100,12 +6113,8 @@
                           {% if tactics_team_secondary_soft %}--tpad-team-secondary-soft: {{ tactics_team_secondary_soft|escape }};{% endif %}
                         "
                       >
-                        <div class="tpad-stands" aria-hidden="true">
-                          <div class="tpad-stand tpad-stand-top"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
-                          <div class="tpad-stand tpad-stand-bottom"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
-                          <div class="tpad-stand tpad-stand-left"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
-                          <div class="tpad-stand tpad-stand-right"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
-                        </div>
+                        <div class="tpad-stand tpad-stand-top" aria-hidden="true"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                        <div class="tpad-stand tpad-stand-left" aria-hidden="true"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
                         <div class="tpad-stadium-header" aria-hidden="true">
                           {% if tactics_team_crest_url %}
@@ -6114,6 +6123,9 @@
                         <div class="tpad-stadium-title">{{ tactics_team_name|default:"EQUIPO" }}</div>
                         </div>
                         <div class="tpad-stadium-banner" aria-hidden="true">{{ tactics_team_name|default:"EQUIPO" }}</div>
+                        <div class="tpad-stand tpad-stand-right" aria-hidden="true"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                        <div class="tpad-stand tpad-stand-bottom" aria-hidden="true"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                        <div class="tpad-stadium-center">
                     {% endif %}
 		                <div class="pitch-stage" id="task-pitch-stage">
 		                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
@@ -6123,6 +6135,7 @@
 		                  </button>
 		                </div>
                     {% if tactics_mode %}
+                        </div>
                       </div>
                     {% endif %}
 		              </div>
