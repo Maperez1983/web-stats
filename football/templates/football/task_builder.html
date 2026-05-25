@@ -334,8 +334,10 @@
         padding: 0;
         /* Importante: `.pitch-viewport` es flex. Sin un ancho explícito, el grid puede colapsar la columna central
            y auto-colocar todo “a la izquierda” (se ven los 4 lados apilados). */
-        width: 100%;
-        max-width: min(100%, var(--stage-max-fit, 1400px));
+        /* La grada debe envolver al campo, no ocupar todo el viewport (si ocupa todo,
+           el “center” se estira y el campo parece quedar “fuera” a la derecha). */
+        width: fit-content;
+        max-width: 100%;
         border-radius: clamp(18px, 2.2vmin, 34px);
         /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
            sin soporte la declaración completa se ignora y “desaparece” la grada. */
@@ -357,12 +359,16 @@
       }
       body.tactics-mode .tpad-stadium-center {
         grid-area: center;
-        width: 100%;
+        width: fit-content;
         min-width: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: clamp(12px, 2vmin, 22px);
+      }
+      body.tactics-mode .tpad-stadium-center > .pitch-stage {
+        /* El estadio debe dimensionarse por el campo */
+        width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
       }
       body.tactics-mode .tpad-stadium .pitch-stage {
         /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
