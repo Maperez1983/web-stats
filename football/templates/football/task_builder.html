@@ -296,19 +296,27 @@
       body.tactics-mode .tpad-stadium {
         --tpad-team-primary: var(--prod-primary, #2f7d32);
         --tpad-team-secondary: var(--prod-secondary, #f8fafc);
+        --tpad-team-primary-soft: rgba(47, 125, 50, 0.22);
+        --tpad-team-secondary-soft: rgba(248, 250, 252, 0.14);
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: clamp(10px, 2vmin, 22px);
+        /* Si el padding es bajo, la “grada” se percibe como que solo existe en un lado. */
+        padding: clamp(18px, 3.2vmin, 46px);
         border-radius: clamp(18px, 2.2vmin, 34px);
-        background:
+        /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
+           sin soporte la declaración completa se ignora y “desaparece” la grada. */
+        background-color: rgba(2, 6, 23, 0.96);
+        background-image:
           radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.22), rgba(255,255,255,0.00) 55%),
           radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.42), rgba(0,0,0,0.00) 60%),
           linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96)),
-          repeating-linear-gradient(0deg, rgba(255,255,255,0.07) 0 1px, rgba(255,255,255,0) 1px 12px),
-          radial-gradient(circle at 14% 28%, color-mix(in srgb, var(--tpad-team-primary) 26%, transparent), transparent 55%),
-          radial-gradient(circle at 86% 28%, color-mix(in srgb, var(--tpad-team-secondary) 16%, transparent), transparent 62%);
+          /* Asientos: rejilla suave (horizontal + vertical) para que “rodee” el campo. */
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.075) 0 1px, rgba(255,255,255,0) 1px 12px),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.060) 0 1px, rgba(255,255,255,0) 1px 14px),
+          radial-gradient(circle at 14% 28%, var(--tpad-team-primary-soft), transparent 58%),
+          radial-gradient(circle at 86% 28%, var(--tpad-team-secondary-soft), transparent 64%);
         box-shadow:
           0 26px 70px rgba(0,0,0,0.55),
           0 0 0 1px rgba(255,255,255,0.16) inset,
@@ -333,7 +341,7 @@
         border-radius: inherit;
         pointer-events: none;
         z-index: 1;
-        opacity: 0.55;
+        opacity: 0.62;
         background:
           radial-gradient(circle at 10% 18%, rgba(255,255,255,0.10), rgba(255,255,255,0) 40%),
           radial-gradient(circle at 90% 18%, rgba(255,255,255,0.08), rgba(255,255,255,0) 42%),
@@ -414,7 +422,7 @@
         letter-spacing: 0.22em;
         text-transform: uppercase;
         font-size: clamp(1.2rem, 5.4vmin, 2.6rem);
-        color: rgba(248,250,252,0.10);
+        color: rgba(248,250,252,0.11);
         text-shadow: 0 40px 80px rgba(0,0,0,0.35);
         user-select: none;
         padding: 0 1rem;
@@ -5912,7 +5920,7 @@
 				                  {% endif %}
 				              </div>
 
-			              <div class="pitch-main">
+		              <div class="pitch-main">
 		              <div class="pitch-viewport" id="task-pitch-viewport">
                     {% if tactics_mode %}
                       <div
@@ -5920,18 +5928,18 @@
                         style="
                           {% if tactics_team_primary %}--tpad-team-primary: {{ tactics_team_primary|escape }};{% endif %}
                           {% if tactics_team_secondary %}--tpad-team-secondary: {{ tactics_team_secondary|escape }};{% endif %}
+                          {% if tactics_team_primary_soft %}--tpad-team-primary-soft: {{ tactics_team_primary_soft|escape }};{% endif %}
+                          {% if tactics_team_secondary_soft %}--tpad-team-secondary-soft: {{ tactics_team_secondary_soft|escape }};{% endif %}
                         "
                       >
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
-                        {% if tactics_team_name %}
-                          <div class="tpad-stadium-header" aria-hidden="true">
-                            {% if tactics_team_crest_url %}
-                              <img class="tpad-stadium-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-                            {% endif %}
-                            <div class="tpad-stadium-title">{{ tactics_team_name }}</div>
-                          </div>
-                          <div class="tpad-stadium-banner" aria-hidden="true">{{ tactics_team_name }}</div>
-                        {% endif %}
+                        <div class="tpad-stadium-header" aria-hidden="true">
+                          {% if tactics_team_crest_url %}
+                            <img class="tpad-stadium-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+                          {% endif %}
+                          <div class="tpad-stadium-title">{{ tactics_team_name|default:"EQUIPO" }}</div>
+                        </div>
+                        <div class="tpad-stadium-banner" aria-hidden="true">{{ tactics_team_name|default:"EQUIPO" }}</div>
                     {% endif %}
 		                <div class="pitch-stage" id="task-pitch-stage">
 		                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>

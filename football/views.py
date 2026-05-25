@@ -30429,6 +30429,8 @@ def coach_tactics_page(request):
     tactics_team_crest_url = ''
     tactics_team_primary = ''
     tactics_team_secondary = ''
+    tactics_team_primary_soft = ''
+    tactics_team_secondary_soft = ''
     try:
         tactics_team_name = str(primary_team.display_name or primary_team.name or '').strip()
     except Exception:
@@ -30439,11 +30441,16 @@ def coach_tactics_page(request):
         tactics_team_crest_url = ''
     try:
         hue = _team_color_seed(primary_team)
-        tactics_team_primary = f'hsl({int(hue) % 360}, 70%, 42%)'
-        tactics_team_secondary = f'hsl({(int(hue) + 35) % 360}, 74%, 36%)'
+        base_hue = int(hue) % 360
+        tactics_team_primary = f'hsl({base_hue}, 70%, 42%)'
+        tactics_team_secondary = f'hsl({(base_hue + 35) % 360}, 74%, 36%)'
+        tactics_team_primary_soft = f'hsla({base_hue}, 70%, 42%, 0.22)'
+        tactics_team_secondary_soft = f'hsla({(base_hue + 35) % 360}, 74%, 36%, 0.18)'
     except Exception:
         tactics_team_primary = ''
         tactics_team_secondary = ''
+        tactics_team_primary_soft = ''
+        tactics_team_secondary_soft = ''
 
     return render(
         request,
@@ -30494,6 +30501,8 @@ def coach_tactics_page(request):
             'tactics_team_crest_url': tactics_team_crest_url,
             'tactics_team_primary': tactics_team_primary,
             'tactics_team_secondary': tactics_team_secondary,
+            'tactics_team_primary_soft': tactics_team_primary_soft,
+            'tactics_team_secondary_soft': tactics_team_secondary_soft,
         },
 	    )
 
