@@ -1224,12 +1224,18 @@
 				      try { if (tacticsLayoutToggle) tacticsLayoutToggle.classList.toggle('is-active', next === 'top'); } catch (e) { /* ignore */ }
 				      try { if (tacticsLayoutToggle) tacticsLayoutToggle.setAttribute('aria-pressed', next === 'top' ? 'true' : 'false'); } catch (e) { /* ignore */ }
 				      try { window.localStorage.setItem(TACTICS_LAYOUT_KEY, next); } catch (e) { /* ignore */ }
+				      try { setStatus(next === 'top' ? 'Layout: recursos arriba (campo a todo lo ancho).' : 'Layout: recursos a la derecha.'); } catch (e) { /* ignore */ }
 				      try { scheduleLayoutRecalc('layout_toggle'); } catch (e) { /* ignore */ }
 				      return next;
 				    };
 				    try {
 				      const storedLayout = safeText(window.localStorage.getItem(TACTICS_LAYOUT_KEY));
 				      if (storedLayout) applyTacticsLayout(storedLayout);
+				      else {
+				        // Por defecto, en pantallas anchas preferimos campo full-width para aprovechar espacio.
+				        const vwCss = Math.max(0, Number(window.innerWidth) || 0);
+				        if (vwCss >= 1200) applyTacticsLayout('top');
+				      }
 				    } catch (e) { /* ignore */ }
 				    try {
 				      if (tacticsLayoutToggle) {
