@@ -456,6 +456,16 @@
         text-overflow: ellipsis;
         max-width: min(88%, 720px);
       }
+      /* En nombres largos, dejamos 2 líneas (mejor que truncar), sin romper layout. */
+      body.tactics-mode .tpad-stadium-title {
+        white-space: normal;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        line-height: 1.05;
+        max-width: min(92%, 820px);
+      }
       body.tactics-mode .tpad-stadium-title strong {
         color: rgba(248,250,252,0.96);
       }
@@ -487,6 +497,57 @@
         user-select: none;
         padding: 0 1rem;
       }
+      /* Gradas “reales” (4 lados) estilo broadcast, sin depender de que se perciba el fondo. */
+      body.tactics-mode .tpad-stands {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 2;
+        border-radius: inherit;
+        overflow: hidden;
+      }
+      body.tactics-mode .tpad-stand {
+        position: absolute;
+        display: grid;
+        place-items: center;
+        color: rgba(248, 250, 252, 0.86);
+        text-transform: uppercase;
+        letter-spacing: 0.28em;
+        font-weight: 950;
+        text-shadow: 0 18px 40px rgba(0,0,0,0.65);
+        background:
+          radial-gradient(circle at 50% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
+          repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0 1px, rgba(255,255,255,0) 1px 10px),
+          linear-gradient(180deg, rgba(2,6,23,0.76), rgba(2,6,23,0.35));
+        border: 1px solid rgba(255,255,255,0.10);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+      body.tactics-mode .tpad-stand-top,
+      body.tactics-mode .tpad-stand-bottom {
+        left: 0;
+        right: 0;
+        height: clamp(54px, 8vmin, 92px);
+      }
+      body.tactics-mode .tpad-stand-top { top: 0; }
+      body.tactics-mode .tpad-stand-bottom { bottom: 0; }
+      body.tactics-mode .tpad-stand-left,
+      body.tactics-mode .tpad-stand-right {
+        top: 0;
+        bottom: 0;
+        width: clamp(54px, 8vmin, 92px);
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+      }
+      body.tactics-mode .tpad-stand-left { left: 0; }
+      body.tactics-mode .tpad-stand-right { right: 0; transform: none; }
+      body.tactics-mode .tpad-stand-label {
+        font-size: clamp(0.62rem, 1.55vmin, 1.08rem);
+        padding: 0.4rem 0.6rem;
+        opacity: 0.92;
+      }
+      /* Asegura que el campo quede por encima de las gradas. */
+      body.tactics-mode .tpad-stadium .pitch-stage { z-index: 3; }
       body.tactics-mode .tpad-stadium .pitch-stage {
         z-index: 3;
         box-shadow: 0 18px 55px rgba(0,0,0,0.50);
@@ -6039,12 +6100,18 @@
                           {% if tactics_team_secondary_soft %}--tpad-team-secondary-soft: {{ tactics_team_secondary_soft|escape }};{% endif %}
                         "
                       >
+                        <div class="tpad-stands" aria-hidden="true">
+                          <div class="tpad-stand tpad-stand-top"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                          <div class="tpad-stand tpad-stand-bottom"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                          <div class="tpad-stand tpad-stand-left"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                          <div class="tpad-stand tpad-stand-right"><div class="tpad-stand-label">{{ tactics_team_name|default:"EQUIPO" }}</div></div>
+                        </div>
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
                         <div class="tpad-stadium-header" aria-hidden="true">
                           {% if tactics_team_crest_url %}
                             <img class="tpad-stadium-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
                           {% endif %}
-                          <div class="tpad-stadium-title">{{ tactics_team_name|default:"EQUIPO" }}</div>
+                        <div class="tpad-stadium-title">{{ tactics_team_name|default:"EQUIPO" }}</div>
                         </div>
                         <div class="tpad-stadium-banner" aria-hidden="true">{{ tactics_team_name|default:"EQUIPO" }}</div>
                     {% endif %}
