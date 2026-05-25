@@ -22,6 +22,24 @@
 		      // `var` crea binding global accesible por nombre en scripts posteriores.
 		      // Ojo: no usar `const/let` aquí porque en otros scripts puede redeclararse localmente.
 		      var isTacticsMode = window.__WEBSTATS_TACTICS_MODE;
+		      // Compat Safari/WebKit: algunas versiones/estados han mostrado `ReferenceError: Can't find variable: scheduleIdle`.
+		      // Definimos un helper global muy defensivo para cualquier <script> inline que lo use.
+		      try {
+		        if (typeof window.scheduleIdle !== 'function') {
+		          window.scheduleIdle = function(fn, timeoutMs) {
+		            try {
+		              if (typeof window.requestIdleCallback === 'function') {
+		                return window.requestIdleCallback(fn, { timeout: Number(timeoutMs) || 1600 });
+		              }
+		            } catch (e) { /* ignore */ }
+		            return window.setTimeout(fn, 120);
+		          };
+		        }
+		        // `var` crea binding global accesible por nombre en scripts posteriores.
+		        // eslint-disable-next-line no-var
+		        var scheduleIdle = window.scheduleIdle;
+		        void scheduleIdle;
+		      } catch (e) { /* ignore */ }
 		    </script>
 				    {% include 'football/pwa_head.html' %}
 				    <style>
@@ -2414,6 +2432,8 @@
         padding-right: 2px;
       }
       body.tactics-mode .pitch-side {
+        /* Stacking: los popovers/menús de recursos deben quedar por encima del campo si se solapan. */
+        z-index: 10;
         position: sticky;
         top: 0.75rem;
         align-self: start;
@@ -2430,6 +2450,10 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
+      }
+      body.tactics-mode .pitch-main {
+        position: relative;
+        z-index: 1;
       }
       /* Táctica: rail de recursos más compacto (menos “aire” y más contenido útil). */
       body.tactics-mode .pitch-side .library-head { margin-bottom: 0.45rem; }
@@ -5666,14 +5690,14 @@
 					                    </div>
 			                  </div>
 		                </div>
-	                <p class="resource-helper">Pulsa una pestaña para mostrar los recursos.</p>
+	                <p class="resource-helper" hidden>Pulsa una pestaña para mostrar los recursos.</p>
 	                {% if tactics_mode %}
 		                <div class="resource-panel" data-panel="plantilla" hidden>
 		                  <h3 class="tool-group-title">Plantilla</h3>
 		                  <div class="roster-bank-slot" id="task-roster-bank-slot" hidden></div>
 		                </div>
 	                {% endif %}
-			                <div class="resource-panel" data-panel="base" hidden>
+			                <div class="resource-panel is-visible" data-panel="base">
 			                  <h3 class="tool-group-title">Recursos base</h3>
 			                  {% if tactics_mode %}
 			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">

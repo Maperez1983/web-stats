@@ -1110,7 +1110,15 @@
 					        if (viewportEl && !main.contains(viewportEl)) main.appendChild(viewportEl);
 					      } catch (e) { /* ignore */ }
 					      try {
-					        if (stage && viewportEl && stage.parentElement !== viewportEl) viewportEl.appendChild(stage);
+					        if (stage && viewportEl) {
+					          // Si el stage está envuelto por el “estadio” (gradas) en el template,
+					          // NO lo movemos directamente a `viewportEl` porque rompe la composición:
+					          // la grada queda a un lado y el campo fuera. Si existe `.tpad-stadium-center`,
+					          // el stage debe vivir ahí.
+					          const stadiumCenter = viewportEl.querySelector?.('.tpad-stadium-center') || null;
+					          const desiredParent = stadiumCenter || viewportEl;
+					          if (stage.parentElement !== desiredParent) desiredParent.appendChild(stage);
+					        }
 					      } catch (e) { /* ignore */ }
 					      try { if (viewportEl) viewportEl.hidden = false; } catch (e) { /* ignore */ }
 					      try { if (stage) stage.hidden = false; } catch (e) { /* ignore */ }
@@ -23922,7 +23930,9 @@
         try { applyLibraryFilter(); } catch (e) { /* ignore */ }
 	    };
 	    resourceTabs.forEach((tab) => {
-	      tab.addEventListener('click', () => {
+	      tab.addEventListener('click', (event) => {
+	        try { event.preventDefault(); } catch (e) { /* ignore */ }
+	        try { event.stopPropagation(); } catch (e) { /* ignore */ }
 	        const target = safeText(tab.dataset.resource);
           if (libraryCollapsed) applyLibraryCollapsed(false);
 	        if (target && target === activeResourceKey) activateResourcePanel('');
