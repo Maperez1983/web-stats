@@ -24139,6 +24139,12 @@
 	      if (resourceHelper) {
 	        resourceHelper.hidden = !!normalized;
 	      }
+	      // Plantilla: asegura que el banco de jugadores se reubica y se pinta al abrir la pestaña.
+	      if (normalized === 'plantilla') {
+	        try { if (libraryCollapsed) applyLibraryCollapsed(false); } catch (e) { /* ignore */ }
+	        try { syncRosterPlacement(); } catch (e) { /* ignore */ }
+	        try { renderPlayerBank(); } catch (e) { /* ignore */ }
+	      }
         try { applyLibraryFilter(); } catch (e) { /* ignore */ }
 	    };
 	    resourceTabs.forEach((tab) => {
