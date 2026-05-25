@@ -1068,6 +1068,7 @@
 					    // Esto evita que la pizarra desaparezca aunque el CSS no se aplique a tiempo.
 					    const ensureTacticsPitchPlacement = (reason = '') => {
 					      if (!isTacticsMode) return;
+					      const wantsTopLayout = !!document.body?.classList?.contains?.('tactics-layout-top');
 					      const layout = document.querySelector('.pitch-layout');
 					      const main = document.querySelector('.pitch-main');
 					      const side = document.querySelector('.pitch-side');
@@ -1075,18 +1076,20 @@
 					      try {
 					        // Fallback de grid-placement (si por cualquier motivo el grid-area no se aplica).
 					        main.style.gridArea = 'main';
-					        main.style.gridColumn = '1 / 2';
-					        main.style.gridRow = '1';
+					        main.style.gridColumn = wantsTopLayout ? '1 / -1' : '1 / 2';
+					        main.style.gridRow = wantsTopLayout ? '2' : '1';
 					      } catch (e) { /* ignore */ }
 					      try {
 					        side.style.gridArea = 'side';
-					        side.style.gridColumn = '2 / 3';
+					        side.style.gridColumn = wantsTopLayout ? '1 / -1' : '2 / 3';
 					        side.style.gridRow = '1';
 					      } catch (e) { /* ignore */ }
 					      try {
 					        // Fallback por orden (auto-placement): main siempre primero.
-					        if (layout.firstElementChild && layout.firstElementChild !== main) {
-					          layout.insertBefore(main, layout.firstElementChild);
+					        const first = layout.firstElementChild;
+					        const desiredFirst = wantsTopLayout ? side : main;
+					        if (first && desiredFirst && first !== desiredFirst) {
+					          layout.insertBefore(desiredFirst, first);
 					        }
 					      } catch (e) { /* ignore */ }
 					      // Asegura que viewport/stage estén dentro de `.pitch-main`.
@@ -1104,8 +1107,8 @@
 					        const areas = String(cs?.gridTemplateAreas || '');
 					        if (!areas || !areas.includes('main')) {
 					          layout.style.display = 'grid';
-					          layout.style.gridTemplateAreas = '"main side"';
-					          layout.style.gridTemplateColumns = 'minmax(0, 1fr) minmax(280px, 360px)';
+					          layout.style.gridTemplateAreas = wantsTopLayout ? '"side" "main"' : '"main side"';
+					          layout.style.gridTemplateColumns = wantsTopLayout ? '1fr' : 'minmax(0, 1fr) minmax(280px, 360px)';
 					          layout.style.gap = '0.75rem';
 					        }
 					      } catch (e) { /* ignore */ }
@@ -1115,6 +1118,7 @@
 					    const tacticsToolsToggle = document.getElementById('task-tactics-tools-toggle');
 					    const tacticsSimOpen = document.getElementById('task-tactics-sim-open');
 					    const tacticsFullscreenBtn = document.getElementById('task-tactics-fullscreen');
+					    const tacticsLayoutToggle = document.getElementById('task-tactics-layout-toggle');
 				    // Táctica simple: ocultamos controles de tamaño/rotación/patrones que no aportan en pizarra rápida.
 				    try {
 				      if (isTacticsMode) {
@@ -1209,6 +1213,32 @@
 				      document.addEventListener('webkitfullscreenchange', syncTacticsFullscreenUi);
 				    } catch (e) { /* ignore */ }
 				    try { syncTacticsFullscreenUi(); } catch (e) { /* ignore */ }
+
+				    // Táctica: alterna layout (split derecha vs recursos arriba) sin romper nada.
+				    const TACTICS_LAYOUT_KEY = 'tpad_tactics_layout_v1';
+				    const applyTacticsLayout = (mode) => {
+				      const next = (mode === 'top') ? 'top' : 'split';
+				      try {
+				        document.body.classList.toggle('tactics-layout-top', next === 'top');
+				      } catch (e) { /* ignore */ }
+				      try { if (tacticsLayoutToggle) tacticsLayoutToggle.classList.toggle('is-active', next === 'top'); } catch (e) { /* ignore */ }
+				      try { if (tacticsLayoutToggle) tacticsLayoutToggle.setAttribute('aria-pressed', next === 'top' ? 'true' : 'false'); } catch (e) { /* ignore */ }
+				      try { window.localStorage.setItem(TACTICS_LAYOUT_KEY, next); } catch (e) { /* ignore */ }
+				      try { scheduleLayoutRecalc('layout_toggle'); } catch (e) { /* ignore */ }
+				      return next;
+				    };
+				    try {
+				      const storedLayout = safeText(window.localStorage.getItem(TACTICS_LAYOUT_KEY));
+				      if (storedLayout) applyTacticsLayout(storedLayout);
+				    } catch (e) { /* ignore */ }
+				    try {
+				      if (tacticsLayoutToggle) {
+				        tacticsLayoutToggle.addEventListener('click', () => {
+				          const isTop = !!document.body?.classList?.contains?.('tactics-layout-top');
+				          applyTacticsLayout(isTop ? 'split' : 'top');
+				        });
+				      }
+				    } catch (e) { /* ignore */ }
 
 				    // iPad/Safari (WebKit): `position: fixed` dentro de un contenedor con `overflow:auto`
 				    // se comporta como `absolute` y puede dejar la barra de comandos fuera de pantalla
