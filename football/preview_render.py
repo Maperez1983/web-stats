@@ -213,6 +213,68 @@ def render_task_preview_png(
     safe_state = json.loads(json.dumps(canvas_state, ensure_ascii=False))
     safe_state = _rewrite_urls_to_data_urls(safe_state)
 
+    # Export "PRO": si hay golpeo activo en un balón, añadimos un flash de impacto para que
+    # el PNG/PDF muestre claramente el momento del golpeo (como en reproducción).
+    def _inject_strike_flash(state: dict) -> dict:
+        if not isinstance(state, dict):
+            return state
+        objects = state.get("objects") if isinstance(state.get("objects"), list) else []
+        if not objects:
+            return state
+        out_objects = list(objects)
+
+        def _normalize_angle(value, fallback=0.0):
+            try:
+                num = float(value)
+            except Exception:
+                return float(fallback or 0.0)
+            num = num % 360.0
+            if num < 0:
+                num += 360.0
+            return num
+
+        def _point_for_angle_deg(deg, dist):
+            import math
+
+            a = (_normalize_angle(deg, 0.0) * math.pi) / 180.0
+            d = float(dist or 0.0)
+            return (math.sin(a) * d, -math.cos(a) * d)
+
+        for item in objects:
+            if not isinstance(item, dict):
+                continue
+            data = item.get("data") if isinstance(item.get("data"), dict) else {}
+            if str(data.get("kind") or "") != "ball":
+                continue
+            if not data.get("strike_visible"):
+                continue
+            left = float(item.get("left") or 0.0)
+            top = float(item.get("top") or 0.0)
+            scale = float(item.get("scaleX") or 1.0)
+            dist = 16.0 * scale
+            dx, dy = _point_for_angle_deg(data.get("strike_contact_deg"), dist)
+            ring = {
+                "type": "circle",
+                "left": left + dx,
+                "top": top + dy,
+                "originX": "center",
+                "originY": "center",
+                "radius": max(3.0, 10.0 * scale),
+                "fill": "",
+                "stroke": "rgba(250,204,21,0.95)",
+                "strokeWidth": 3,
+                "opacity": 0.95,
+                "selectable": False,
+                "evented": False,
+                "data": {"base": True, "kind": "fx", "role": "strike_export_flash"},
+            }
+            out_objects.append(ring)
+
+        state["objects"] = out_objects
+        return state
+
+    safe_state = _inject_strike_flash(safe_state)
+
     grass_tiles = {}
     if grass_style == "uefa_b":
         try:

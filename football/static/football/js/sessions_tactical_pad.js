@@ -18687,7 +18687,53 @@
 
 	      // Renderiza la capa Fabric en alta resolución (sin perder nitidez).
 	      let overlayUrl = '';
+	      const exportFlashObjects = [];
+	      const addStrikeFlashForExport = () => {
+	        try {
+	          const balls = (canvas.getObjects() || []).filter((obj) => isBallGroup(obj));
+	          balls.forEach((ball) => {
+	            if (!ball?.data?.strike_visible) return;
+	            const center = ball.getCenterPoint ? ball.getCenterPoint() : { x: Number(ball.left) || 0, y: Number(ball.top) || 0 };
+	            const deg = normalizeAngle(ball?.data?.strike_contact_deg, 0);
+	            const scale = clampScale(Number(ball.scaleX) || 1);
+	            const dist = 16 * scale;
+	            const p = pointForAngleDeg(deg, dist);
+	            const ring = new fabric.Circle({
+	              left: (Number(center.x) || 0) + p.x,
+	              top: (Number(center.y) || 0) + p.y,
+	              originX: 'center',
+	              originY: 'center',
+	              radius: 10 * scale,
+	              fill: '',
+	              stroke: 'rgba(250,204,21,0.95)',
+	              strokeWidth: 3,
+	              selectable: false,
+	              evented: false,
+	              opacity: 0.95,
+	              shadow: 'rgba(2,6,23,0.45) 0 4px 14px',
+	              data: { base: true, kind: 'fx', role: 'strike_export_flash' },
+	            });
+	            try { ring.strokeUniform = true; } catch (e) { /* ignore */ }
+	            try { ring.objectCaching = false; } catch (e) { /* ignore */ }
+	            try { ring.noScaleCache = true; } catch (e) { /* ignore */ }
+	            canvas.add(ring);
+	            exportFlashObjects.push(ring);
+	          });
+	          if (exportFlashObjects.length) canvas.requestRenderAll();
+	        } catch (e) { /* ignore */ }
+	      };
+	      const removeStrikeFlashAfterExport = () => {
+	        if (!exportFlashObjects.length) return;
+	        try {
+	          exportFlashObjects.forEach((obj) => {
+	            try { canvas.remove(obj); } catch (e) { /* ignore */ }
+	          });
+	          exportFlashObjects.length = 0;
+	          canvas.requestRenderAll();
+	        } catch (e) { /* ignore */ }
+	      };
 	      try {
+	        addStrikeFlashForExport();
 	        // Siempre generamos la capa como PNG para conservar transparencia (si la hacemos JPEG,
 	        // la pizarra pierde alpha y tapa el césped al componer).
 	        const format = 'png';
@@ -18699,6 +18745,8 @@
 	        });
 		      } catch (error) {
 		        overlayUrl = '';
+		      } finally {
+		        removeStrikeFlashAfterExport();
 		      }
 		      // Safari/iOS: a veces `toDataURL()` devuelve "data:," / "data:;" o URLs demasiado cortas
 		      // cuando el canvas es grande. Esto acaba generando previews "vacías" (solo césped).
