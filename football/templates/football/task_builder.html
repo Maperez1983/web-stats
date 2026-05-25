@@ -5687,6 +5687,27 @@
                           Giro
                           <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
                         </label>
+                        <label style="grid-column:1 / -1;" id="task-token-facing-row" hidden>
+                          Orientación (cuerpo)
+                          <input type="range" id="task-token-facing" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-token-facing-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Cuerpo</span>
+                          <button type="button" data-token-facing-step="-15" title="Girar orientación -15°">↺ 15°</button>
+                          <button type="button" data-token-facing-step="15" title="Girar orientación +15°">↻ 15°</button>
+                          <button type="button" data-token-facing-reset="1" title="Reset orientación">Reset</button>
+                        </div>
+                        <label style="grid-column:1 / -1;" id="task-ball-direction-row" hidden>
+                          Dirección del balón
+                          <input type="range" id="task-ball-direction" min="0" max="359" step="1" value="0" />
+                        </label>
+                        <div class="selection-actions" id="task-ball-direction-actions" hidden style="grid-column:1 / -1; justify-content:flex-start;">
+                          <span class="preset-label">Balón</span>
+                          <button type="button" data-ball-direction-toggle="1" title="Mostrar/ocultar dirección">Mostrar/ocultar</button>
+                          <button type="button" data-ball-direction-step="-15" title="Girar dirección -15°">↺ 15°</button>
+                          <button type="button" data-ball-direction-step="15" title="Girar dirección +15°">↻ 15°</button>
+                          <button type="button" data-ball-direction-reset="1" title="Reset dirección">Reset</button>
+                        </div>
                         <label style="grid-column:1 / -1;">
                           Color
                           <div style="display:flex; gap:0.6rem; align-items:center;">

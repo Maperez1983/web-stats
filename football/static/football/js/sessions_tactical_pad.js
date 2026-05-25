@@ -11,6 +11,13 @@
     return Number.isFinite(parsed) ? parsed : fallback;
   };
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+  const normalizeAngle = (value, fallback = 0) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return fallback;
+    let out = num % 360;
+    if (out < 0) out += 360;
+    return out;
+  };
   const runWhenIdle = (fn, timeout = 900) => {
     if (typeof window === 'undefined') return fn();
     if (typeof window.requestIdleCallback === 'function') {
@@ -978,6 +985,12 @@
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
 	    const rotationInput = document.getElementById('task-rotation');
+	    const tokenFacingRow = document.getElementById('task-token-facing-row');
+	    const tokenFacingInput = document.getElementById('task-token-facing');
+	    const tokenFacingActions = document.getElementById('task-token-facing-actions');
+	    const ballDirectionRow = document.getElementById('task-ball-direction-row');
+	    const ballDirectionInput = document.getElementById('task-ball-direction');
+	    const ballDirectionActions = document.getElementById('task-ball-direction-actions');
 	    const colorInput = document.getElementById('task-style-color');
 	    const colorHexInput = document.getElementById('task-style-color-hex');
 	    const scalePresetsRow = document.getElementById('task-scale-presets');
@@ -4791,6 +4804,10 @@
 	        if (tokenMetaRow) tokenMetaRow.hidden = true;
 	        if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = true;
 	        if (scalePresetsRow) scalePresetsRow.hidden = false;
+	        if (tokenFacingRow) tokenFacingRow.hidden = true;
+	        if (tokenFacingActions) tokenFacingActions.hidden = true;
+	        if (ballDirectionRow) ballDirectionRow.hidden = true;
+	        if (ballDirectionActions) ballDirectionActions.hidden = true;
 	        if (tokenNameInput) tokenNameInput.value = '';
 	        if (tokenNumberInput) tokenNumberInput.value = '';
 		        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
@@ -4868,9 +4885,22 @@
 		        curveActionsRow.hidden = !(k === 'arrow-curve' || k === 'line-curve');
 		      }
 			      const isToken = safeText(active?.data?.kind) === 'token';
+			      const isBall = safeText(active?.data?.kind) === 'ball';
 			      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
 			      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
 		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
+		      if (tokenFacingRow) tokenFacingRow.hidden = !isToken;
+		      if (tokenFacingActions) tokenFacingActions.hidden = !isToken;
+		      if (tokenFacingInput) {
+		        tokenFacingInput.disabled = !isToken;
+		        tokenFacingInput.value = isToken ? String(Math.round(normalizeAngle(active?.data?.facing_deg, 0))) : '0';
+		      }
+		      if (ballDirectionRow) ballDirectionRow.hidden = !isBall;
+		      if (ballDirectionActions) ballDirectionActions.hidden = !isBall;
+		      if (ballDirectionInput) {
+		        ballDirectionInput.disabled = !isBall;
+		        ballDirectionInput.value = isBall ? String(Math.round(normalizeAngle(active?.data?.ball_dir_deg, 0))) : '0';
+		      }
 		      if (tokenNameTagActions) {
 		        const hasNameTag = isToken ? tokenHasNameTagBg(active) : false;
 		        tokenNameTagActions.hidden = !hasNameTag;
@@ -4986,6 +5016,103 @@
 	        return objects.find((child) => fallbackFinder(child)) || null;
 	      }
 	      return null;
+	    };
+
+	    const isBallGroup = (object) => safeText(object?.data?.kind) === 'ball';
+	    const buildDirectionMarker = (radius, options = {}) => {
+	      const r = Math.max(10, Number(radius) || 22);
+	      const color = safeText(options.color, 'rgba(34,197,94,0.95)');
+	      const stroke = safeText(options.stroke, 'rgba(2,6,23,0.65)');
+	      const len = clamp(Number(options.len) || (r + 12), r + 8, r + 26);
+	      const strokeWidth = clamp(Number(options.strokeWidth) || 3, 2, 6);
+	      const line = new fabric.Line([0, 0, 0, -len], {
+	        stroke: color,
+	        strokeWidth,
+	        strokeLineCap: 'round',
+	        selectable: false,
+	        evented: false,
+	      });
+	      try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+	      const head = new fabric.Triangle({
+	        left: 0,
+	        top: -len,
+	        originX: 'center',
+	        originY: 'center',
+	        width: Math.max(10, Math.round(strokeWidth * 3.5)),
+	        height: Math.max(12, Math.round(strokeWidth * 4.2)),
+	        fill: color,
+	        stroke,
+	        strokeWidth: 1,
+	        angle: 0,
+	        selectable: false,
+	        evented: false,
+	        shadow: 'rgba(2,6,23,0.55) 0 2px 6px',
+	      });
+	      const group = new fabric.Group([line, head], {
+	        left: 0,
+	        top: 0,
+	        originX: 'center',
+	        originY: 'center',
+	        selectable: false,
+	        evented: false,
+	      });
+	      try { group.objectCaching = false; } catch (e) { /* ignore */ }
+	      try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+	      return group;
+	    };
+
+	    const ensureTokenFacingMarker = (group) => {
+	      if (!group || !isTokenGroup(group)) return null;
+	      const existing = findTokenChild(group, 'token_facing');
+	      if (existing) return existing;
+	      const radius = getTokenBaseRadius(group);
+	      const marker = buildDirectionMarker(radius, { color: 'rgba(34,197,94,0.95)', stroke: 'rgba(2,6,23,0.65)', len: radius + 14, strokeWidth: 3 });
+	      marker.data = { role: 'token_facing' };
+	      try { group.addWithUpdate(marker); } catch (e) { /* ignore */ }
+	      return marker;
+	    };
+	    const setTokenFacing = (group, facingDeg) => {
+	      if (!group || !isTokenGroup(group)) return false;
+	      const next = normalizeAngle(facingDeg, 0);
+	      group.data = group.data || {};
+	      group.data.facing_deg = next;
+	      const marker = ensureTokenFacingMarker(group);
+	      if (marker && typeof marker.set === 'function') marker.set('angle', next);
+	      try {
+	        if (typeof group._calcBounds === 'function') group._calcBounds();
+	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	      } catch (e) { /* ignore */ }
+	      return true;
+	    };
+
+	    const ensureBallDirectionMarker = (group) => {
+	      if (!group || !isBallGroup(group)) return null;
+	      const existing = findTokenChild(group, 'ball_direction');
+	      if (existing) return existing;
+	      const marker = buildDirectionMarker(12, { color: 'rgba(250,204,21,0.95)', stroke: 'rgba(2,6,23,0.65)', len: 24, strokeWidth: 3 });
+	      marker.data = { role: 'ball_direction' };
+	      try { marker.set({ visible: false, opacity: 0.0 }); } catch (e) { /* ignore */ }
+	      try { group.addWithUpdate(marker); } catch (e) { /* ignore */ }
+	      return marker;
+	    };
+	    const setBallDirection = (group, facingDeg, { visible } = {}) => {
+	      if (!group || !isBallGroup(group)) return false;
+	      const next = normalizeAngle(facingDeg, 0);
+	      const wantsVisible = visible == null ? !!group?.data?.ball_dir_visible : !!visible;
+	      group.data = group.data || {};
+	      group.data.ball_dir_deg = next;
+	      group.data.ball_dir_visible = wantsVisible;
+	      const marker = ensureBallDirectionMarker(group);
+	      if (marker && typeof marker.set === 'function') {
+	        marker.set('angle', next);
+	        marker.set('visible', wantsVisible);
+	        marker.set('opacity', wantsVisible ? 1 : 0);
+	      }
+	      try {
+	        if (typeof group._calcBounds === 'function') group._calcBounds();
+	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	      } catch (e) { /* ignore */ }
+	      return true;
 	    };
 		    const updateTokenAppearance = (group, { name, number }) => {
 		      if (!group || !isTokenGroup(group)) return;
@@ -5112,6 +5239,7 @@
 		        stripe: safeText(active?.data?.token_stripe_color) || safeText(active?.data?.color) || '#0f7a35',
 		        pattern: safeText(active?.data?.token_pattern) || 'striped',
 		        photoUrl: safeText(active?.data?.playerPhotoUrl) || safeText(player?.photo_url),
+		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
 		      if (typeof factory !== 'function') return;
@@ -5130,6 +5258,12 @@
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
 		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm') };
+		      // Respeta orientación corporal.
+		      try {
+		        const desiredFacing = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
+		        fresh.data.facing_deg = desiredFacing;
+		        setTokenFacing(fresh, desiredFacing);
+		      } catch (e) { /* ignore */ }
 		      // Respeta nombre/dorsal editados manualmente.
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
 		      applyTokenPalette(fresh, palette);
@@ -14620,7 +14754,7 @@
             const center = obj.getCenterPoint ? obj.getCenterPoint() : { x: Number(obj.left) || 0, y: Number(obj.top) || 0 };
             const legacyPlayer = resolvePlayerForLegacy(obj);
             if (typeof playerTokenFactory !== 'function') return;
-	            const factory = playerTokenFactory(tokenKind, legacyPlayer, { style: 'disk' });
+	            const factory = playerTokenFactory(tokenKind, legacyPlayer, { style: 'disk', facing_deg: obj?.data?.facing_deg });
 	            if (typeof factory !== 'function') return;
 	            const fresh = factory(center.x, center.y);
             if (!fresh) return;
@@ -14643,6 +14777,14 @@
           // ignore conversion errors
         }
 	        canvas.getObjects().forEach((item) => normalizeEditableObject(item));
+	        // Compat: garantiza marcadores de orientación (cuerpo / dirección de balón) en tareas antiguas.
+	        try {
+	          canvas.getObjects().forEach((item) => {
+	            if (!item) return;
+	            if (isTokenGroup(item)) setTokenFacing(item, item?.data?.facing_deg);
+	            if (isBallGroup(item)) setBallDirection(item, item?.data?.ball_dir_deg, { visible: !!item?.data?.ball_dir_visible });
+	          });
+	        } catch (e) { /* ignore */ }
 	        canvas.__loading = false;
 	        canvas.requestRenderAll();
 	        syncInspector();
@@ -16419,6 +16561,7 @@
 			          playerName,
 			          playerNumber: safeText(label),
 			          playerPhotoUrl: photoUrl,
+			          facing_deg: normalizeAngle(options?.facing_deg, 0),
 			        },
 			      });
 		      // Aplica patrón inicial (half/sash/solid) de forma consistente.
@@ -16438,6 +16581,7 @@
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
 			      }
+			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
 				      return group;
 				    };
 
@@ -16716,10 +16860,11 @@
 		            top,
 		            originX: 'center',
 		            originY: 'center',
-		            data: { kind: 'ball', color: '#ffffff' },
+		            data: { kind: 'ball', color: '#ffffff', ball_dir_deg: 0, ball_dir_visible: false },
 		          });
 		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
 		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
+		          try { setBallDirection(group, group?.data?.ball_dir_deg, { visible: !!group?.data?.ball_dir_visible }); } catch (e) { /* ignore */ }
 		          return group;
 		        };
 	      }
@@ -20667,6 +20812,46 @@
         active.rotate(Number(rotationInput.value) || 0);
       }, 'Orientación actualizada.');
     });
+	    tokenFacingInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isTokenGroup(active)) return;
+	        setTokenFacing(active, Number(tokenFacingInput.value) || 0);
+	      }, 'Orientación (cuerpo) actualizada.');
+	    });
+	    tokenFacingActions?.addEventListener('click', (event) => {
+	      const btn = event.target?.closest?.('button');
+	      if (!btn) return;
+	      const step = Number(btn.dataset.tokenFacingStep);
+	      const wantsReset = btn.dataset.tokenFacingReset === '1';
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isTokenGroup(active)) return;
+	        const current = normalizeAngle(active?.data?.facing_deg, 0);
+	        const next = wantsReset ? 0 : normalizeAngle(current + (Number.isFinite(step) ? step : 0), current);
+	        setTokenFacing(active, next);
+	        if (tokenFacingInput) tokenFacingInput.value = String(Math.round(next));
+	      }, 'Orientación (cuerpo) actualizada.');
+	    });
+	    ballDirectionInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isBallGroup(active)) return;
+	        setBallDirection(active, Number(ballDirectionInput.value) || 0, { visible: true });
+	      }, 'Dirección de balón actualizada.');
+	    });
+	    ballDirectionActions?.addEventListener('click', (event) => {
+	      const btn = event.target?.closest?.('button');
+	      if (!btn) return;
+	      const toggle = btn.dataset.ballDirectionToggle === '1';
+	      const step = Number(btn.dataset.ballDirectionStep);
+	      const wantsReset = btn.dataset.ballDirectionReset === '1';
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isBallGroup(active)) return;
+	        const current = normalizeAngle(active?.data?.ball_dir_deg, 0);
+	        const next = wantsReset ? 0 : normalizeAngle(current + (Number.isFinite(step) ? step : 0), current);
+	        const nextVisible = toggle ? !active?.data?.ball_dir_visible : true;
+	        setBallDirection(active, next, { visible: nextVisible });
+	        if (ballDirectionInput) ballDirectionInput.value = String(Math.round(next));
+	      }, 'Dirección de balón actualizada.');
+	    });
 		    colorInput?.addEventListener('input', () => {
 		      applyToActiveFlexibleObject((active) => {
 		        applyObjectColor(active, colorInput.value || '#22d3ee');
@@ -22213,6 +22398,29 @@
 				        event.preventDefault();
 				        toggleShadowSelection();
 				        return;
+				      }
+				      if (!isMod && (key === 'q' || key === 'e')) {
+				        const active = activeInspectableObject();
+				        if (active && isTokenGroup(active)) {
+				          event.preventDefault();
+				          const step = (key === 'e' ? 15 : -15) * (isShift ? 3 : 1);
+				          const current = normalizeAngle(active?.data?.facing_deg, 0);
+				          const next = normalizeAngle(current + step, current);
+				          setTokenFacing(active, next);
+				          if (tokenFacingInput) tokenFacingInput.value = String(Math.round(next));
+				          commitObjectChange('Orientación (cuerpo) actualizada.');
+				          return;
+				        }
+				        if (active && isBallGroup(active)) {
+				          event.preventDefault();
+				          const step = (key === 'e' ? 15 : -15) * (isShift ? 3 : 1);
+				          const current = normalizeAngle(active?.data?.ball_dir_deg, 0);
+				          const next = normalizeAngle(current + step, current);
+				          setBallDirection(active, next, { visible: true });
+				          if (ballDirectionInput) ballDirectionInput.value = String(Math.round(next));
+				          commitObjectChange('Dirección de balón actualizada.');
+				          return;
+				        }
 				      }
 				      if (isMod && key === 'g') {
 				        event.preventDefault();
