@@ -2068,14 +2068,26 @@
 			      return `webstats:tpad:clips_v1:${scope}`;
 			    })();
 	    let draftAlertTimer = 0;
-	    const setDraftAlert = (message) => {
-	      if (!draftAlert) return;
-	      const text = safeText(message);
-	      if (draftText) {
-	        draftText.textContent = text;
-	      } else {
-	        draftAlert.textContent = text;
-	      }
+		    const setDraftAlert = (message) => {
+		      if (!draftAlert) return;
+		      const text = safeText(message);
+		      // En modo táctica, no queremos banners de "borrador recuperado": solo mostramos avisos críticos.
+		      try {
+		        const isTacticsModeNow = !!document.body?.classList?.contains?.('tactics-mode');
+		        if (isTacticsModeNow && text) {
+		          const lower = text.toLowerCase();
+		          const isCritical = lower.includes('sesión caducada') || lower.includes('inicia sesión');
+		          if (!isCritical) {
+		            draftAlert.hidden = true;
+		            return;
+		          }
+		        }
+		      } catch (e) { /* ignore */ }
+		      if (draftText) {
+		        draftText.textContent = text;
+		      } else {
+		        draftAlert.textContent = text;
+		      }
 	      draftAlert.hidden = !text;
 	      // En modo táctica, el aviso de borrador es informativo: auto-ocultar para no ocupar UI.
 	      try {
@@ -4823,8 +4835,12 @@
 	        if (scalePresetsRow) scalePresetsRow.hidden = false;
 	        if (tokenFacingRow) tokenFacingRow.hidden = true;
 	        if (tokenFacingActions) tokenFacingActions.hidden = true;
+	        if (tokenFovRow) tokenFovRow.hidden = true;
 	        if (ballDirectionRow) ballDirectionRow.hidden = true;
 	        if (ballDirectionActions) ballDirectionActions.hidden = true;
+	        if (ballStrikeRow) ballStrikeRow.hidden = true;
+	        if (ballStrikeActions) ballStrikeActions.hidden = true;
+	        if (ballStrikeTimingRow) ballStrikeTimingRow.hidden = true;
 	        if (tokenNameInput) tokenNameInput.value = '';
 	        if (tokenNumberInput) tokenNumberInput.value = '';
 		        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
@@ -4912,11 +4928,28 @@
 		        tokenFacingInput.disabled = !isToken;
 		        tokenFacingInput.value = isToken ? String(Math.round(normalizeAngle(active?.data?.facing_deg, 0))) : '0';
 		      }
+		      if (tokenFovRow) tokenFovRow.hidden = !isToken;
+		      if (tokenFovWidthInput) {
+		        tokenFovWidthInput.disabled = !isToken;
+		        tokenFovWidthInput.value = isToken ? String(Math.round(clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160))) : '70';
+		      }
 		      if (ballDirectionRow) ballDirectionRow.hidden = !isBall;
 		      if (ballDirectionActions) ballDirectionActions.hidden = !isBall;
 		      if (ballDirectionInput) {
 		        ballDirectionInput.disabled = !isBall;
 		        ballDirectionInput.value = isBall ? String(Math.round(normalizeAngle(active?.data?.ball_dir_deg, 0))) : '0';
+		      }
+		      if (ballStrikeRow) ballStrikeRow.hidden = !isBall;
+		      if (ballStrikeActions) ballStrikeActions.hidden = !isBall;
+		      if (ballStrikeContactInput) {
+		        ballStrikeContactInput.disabled = !isBall;
+		        ballStrikeContactInput.value = isBall ? String(Math.round(normalizeAngle(active?.data?.strike_contact_deg, 0))) : '0';
+		      }
+		      if (ballStrikeTimingRow) ballStrikeTimingRow.hidden = !isBall;
+		      if (ballStrikeTimingInput) {
+		        ballStrikeTimingInput.disabled = !isBall;
+		        const pct = clamp(Number(active?.data?.strike_timing_pct) || 50, 0, 100);
+		        ballStrikeTimingInput.value = isBall ? String(Math.round(pct)) : '50';
 		      }
 		      if (tokenNameTagActions) {
 		        const hasNameTag = isToken ? tokenHasNameTagBg(active) : false;
