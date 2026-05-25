@@ -332,6 +332,10 @@
         align-items: center;
         justify-items: center;
         padding: 0;
+        /* Importante: `.pitch-viewport` es flex. Sin un ancho explícito, el grid puede colapsar la columna central
+           y auto-colocar todo “a la izquierda” (se ven los 4 lados apilados). */
+        width: 100%;
+        max-width: min(100%, var(--stage-max-fit, 1400px));
         border-radius: clamp(18px, 2.2vmin, 34px);
         /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
            sin soporte la declaración completa se ignora y “desaparece” la grada. */
