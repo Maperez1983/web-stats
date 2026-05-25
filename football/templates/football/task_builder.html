@@ -213,7 +213,9 @@
         overflow-x: hidden;
       }
       body.tactics-mode .page {
-        min-height: 100dvh;
+        min-height: 100vh;
+        /* iOS Safari: evitar “rubber resize” al aparecer/desaparecer barras al hacer scroll. */
+        min-height: 100svh;
         overflow: visible;
         display: flex;
         flex-direction: column;
@@ -241,7 +243,9 @@
       }
       body.tactics-mode.tactics-fullscreen .page {
         max-width: none;
-        height: 100dvh;
+        height: 100vh;
+        /* iOS Safari: altura estable (no crece/encoge al hacer scroll). */
+        height: 100svh;
         padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
       }
       body.tactics-mode.tactics-fullscreen .dragon-nav {
@@ -273,7 +277,9 @@
       body.tactics-mode .pitch-viewport {
         flex: 1 1 auto;
         /* Evita colapsos a 0px (Safari/WebKit) cuando el grid/flex calcula alturas “auto” con aspect-ratio. */
-        min-height: clamp(260px, 48dvh, 920px);
+        min-height: clamp(260px, 48vh, 920px);
+        /* iOS Safari: valor estable (no depende de la UI del navegador en scroll). */
+        min-height: clamp(260px, 48svh, 920px);
         min-width: 0;
         display: flex;
         align-items: center;
@@ -344,7 +350,7 @@
         justify-content: center;
         gap: 0.65rem;
         pointer-events: none;
-        z-index: 2;
+        z-index: 6;
         opacity: 0.92;
       }
       body.tactics-mode .tpad-stadium-header::before {
@@ -401,7 +407,7 @@
         right: 0;
         text-align: center;
         pointer-events: none;
-        z-index: 2;
+        z-index: 5;
         font-weight: 950;
         letter-spacing: 0.22em;
         text-transform: uppercase;
@@ -2254,7 +2260,9 @@
         position: sticky;
         top: 0.75rem;
         align-self: start;
-        max-height: calc(100dvh - 210px);
+        max-height: calc(100vh - 210px);
+        /* iOS Safari: evita resize por scroll (barra superior/inferior). */
+        max-height: calc(100svh - 210px);
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
@@ -2281,7 +2289,8 @@
         order: 0;
       }
       body.tactics-mode.tactics-fullscreen .pitch-side {
-        max-height: calc(100dvh - 130px);
+        max-height: calc(100vh - 130px);
+        max-height: calc(100svh - 130px);
       }
       /* Evita scroll lateral “fantasma” en el panel (iPad/Safari y sliders anchos). */
       body.tactics-mode .pitch-side .resource-details,
