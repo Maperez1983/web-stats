@@ -323,6 +323,12 @@
           0 0 0 4px rgba(0,0,0,0.28) inset;
         isolation: isolate;
       }
+      body.tactics-mode .tpad-stadium .pitch-stage {
+        /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        outline: 10px solid rgba(0, 0, 0, 0.20);
+        outline-offset: 0;
+      }
       body.tactics-mode .tpad-stadium::before {
         content: "";
         position: absolute;
@@ -349,6 +355,18 @@
           radial-gradient(circle at 50% 100%, rgba(0,0,0,0.20), rgba(0,0,0,0) 60%),
           repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.08) 0 1px, rgba(255,255,255,0) 1px 10px);
         mix-blend-mode: overlay;
+      }
+      /* Si el usuario activa “pantalla completa”, reforzamos el marco para que el estadio se vea
+         incluso cuando el campo ocupa gran parte del viewport. */
+      body.tactics-mode.tactics-fullscreen .tpad-stadium {
+        padding: clamp(22px, 3.8vmin, 58px);
+        box-shadow:
+          0 32px 90px rgba(0,0,0,0.62),
+          0 0 0 1px rgba(255,255,255,0.18) inset,
+          0 0 0 6px rgba(0,0,0,0.30) inset;
+      }
+      body.tactics-mode.tactics-fullscreen .tpad-stadium .pitch-stage {
+        outline: 14px solid rgba(0, 0, 0, 0.26);
       }
       body.tactics-mode .tpad-stadium-header {
         position: absolute;
@@ -2239,9 +2257,9 @@
 		        gap: 1rem;
 		        align-items: start;
 		      }
-      /* Táctica: evita scroll y evita que Recursos "tapen" el campo.
-         En vez de apilar (campo arriba + recursos abajo), mantenemos un split:
-         campo a la izquierda y Recursos a la derecha, con scroll interno solo en Recursos. */
+      /* Táctica: layout.
+         Por defecto usamos split (campo + recursos a la derecha). Si el usuario quiere el campo “a todo lo ancho”,
+         activamos `tactics-layout-top` y el panel de recursos pasa arriba, dejando el campo full-width. */
       body.tactics-mode .pitch-layout {
         /* Evita overflow horizontal: en pantallas estrechas, el panel lateral reduce ancho automáticamente. */
         width: 100%;
@@ -2251,6 +2269,12 @@
         grid-template-columns: minmax(0, 1fr) minmax(280px, min(var(--tactics-library-width, 360px), 36vw));
         grid-template-areas: "main side";
         gap: 0.75rem;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "side"
+          "main";
       }
       .pitch-main,
       .pitch-side {
@@ -2335,6 +2359,19 @@
         width: 24px;
         height: 24px;
       }
+      body.tactics-mode.tactics-layout-top .pitch-side {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        position: relative;
+        top: auto;
+        max-height: min(34svh, 320px);
+        max-height: min(34vh, 320px);
+        overflow-y: auto;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-main {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
 
       /* Hardening: en algunos navegadores/estados, el grid-area puede no aplicarse correctamente
          (y la pizarra acaba dentro del panel lateral, con viewport 0px de alto). Forzamos columnas/filas. */
@@ -2348,6 +2385,12 @@
         grid-column: 2 / 3;
         grid-row: 1;
         order: 0;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-main {
+        order: 0;
+      }
+      body.tactics-mode.tactics-layout-top .pitch-side {
+        order: -1;
       }
       body.tactics-mode.tactics-fullscreen .pitch-side {
         max-height: calc(100vh - 130px);
@@ -4494,10 +4537,11 @@
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_move" id="tactics-tool-route" title="Ruta de movimiento (Interactiva)" aria-label="Ruta de movimiento (Interactiva)">Ruta</button>
 	                    <button type="button" class="surface-trigger tactics-chip" data-tactics-only="interactive" data-tactics-tool="route_play" id="tactics-tool-route-play" title="Reproducir rutas (Interactiva)" aria-label="Reproducir rutas (Interactiva)">▶</button>
 	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-overlays-open" title="Overlays tácticos (carriles, sectores, half-spaces, etc)" aria-label="Overlays tácticos" onclick="try{window.__tpadOpenOverlaysPopover&&window.__tpadOpenOverlaysPopover();}catch(e){}">Overlays</button>
-	                    <button type="button" class="surface-trigger tactics-chip" id="tactics-zones-open" title="Zonas/carriles manuales + plantillas" aria-label="Zonas" onclick="try{window.__tpadOpenZonesPopover&&window.__tpadOpenZonesPopover();}catch(e){}">Zonas</button>
-	                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
-	                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
-	                        <span>Avanzado</span>
+	                  <button type="button" class="surface-trigger tactics-chip" id="tactics-zones-open" title="Zonas/carriles manuales + plantillas" aria-label="Zonas" onclick="try{window.__tpadOpenZonesPopover&&window.__tpadOpenZonesPopover();}catch(e){}">Zonas</button>
+	                  <button type="button" class="surface-trigger tactics-chip" id="task-tactics-layout-toggle" title="Alterna layout: recursos arriba / recursos a la derecha" aria-label="Alternar layout" aria-pressed="false">Layout</button>
+		                    <details class="tactics-menu" id="tactics-interactive-menu" data-tactics-only="interactive">
+		                      <summary class="surface-trigger" aria-label="Opciones de táctica interactiva">
+		                        <span>Avanzado</span>
 	                        <span class="current">Auto</span>
 	                      </summary>
                       <div class="tactics-menu-body" role="dialog" aria-label="Táctica interactiva">
