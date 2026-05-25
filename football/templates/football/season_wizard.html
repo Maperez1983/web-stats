@@ -417,6 +417,41 @@
                 </div>
               </div>
 
+              <div style="margin-top:0.9rem;">
+                <div class="section-title" style="margin-bottom:0.45rem;">Medidas (opcional)</div>
+                <div class="grid">
+                  <div>
+                    <label for="id_q_height_cm">Altura (cm)</label>
+                    <input
+                      id="id_q_height_cm"
+                      type="number"
+                      name="q_height_cm"
+                      min="80"
+                      max="230"
+                      step="1"
+                      value="{{ q_membership.questionnaire.height_cm|default_if_none:q_membership.player.height_cm|default:'' }}"
+                      placeholder="Ej: 175"
+                    />
+                  </div>
+                  <div>
+                    <label for="id_q_weight_kg">Peso (kg)</label>
+                    <input
+                      id="id_q_weight_kg"
+                      type="number"
+                      name="q_weight_kg"
+                      min="20"
+                      max="160"
+                      step="0.1"
+                      value="{{ q_membership.questionnaire.weight_kg|default_if_none:q_membership.player.weight_kg|default:'' }}"
+                      placeholder="Ej: 68.5"
+                    />
+                  </div>
+                </div>
+                <div class="muted" style="margin-top:0.4rem;">
+                  Si indicas medidas aquí, se guardan en el cuestionario de temporada y también se actualiza la ficha del jugador.
+                </div>
+              </div>
+
               <div style="margin-top:0.75rem;">
                 <label for="id_q_objective_main">Objetivo principal de temporada</label>
                 <textarea id="id_q_objective_main" name="q_objective_main" placeholder="Ej: mejorar finalización / mejorar salida de balón / consolidarme como titular...">{{ q_membership.questionnaire.objective_main|default:'' }}</textarea>

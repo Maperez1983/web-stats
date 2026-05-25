@@ -2219,7 +2219,7 @@ class ChunkedRivalVideoUpload(models.Model):
     Subida por chunks para vídeos largos (evita timeouts y límites de proxy).
     """
 
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='chunked_video_uploads')
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='chunked_video_uploads', null=True, blank=True)
     created_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='chunked_video_uploads')
     upload_id = models.CharField(max_length=64, unique=True, db_index=True)
     original_name = models.CharField(max_length=220, blank=True)
@@ -2235,10 +2235,11 @@ class ChunkedRivalVideoUpload(models.Model):
         ordering = ['-created_at', '-id']
         indexes = [
             models.Index(fields=['team', '-created_at']),
+            models.Index(fields=['created_by_user', '-created_at'], name='chu_user_created_idx'),
         ]
 
     def __str__(self):
-        return f'{self.team_id} · upload {self.upload_id}'
+        return f'{self.team_id or "-"} · upload {self.upload_id}'
 
 
 class RivalAnalysisReport(models.Model):
