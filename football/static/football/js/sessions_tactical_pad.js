@@ -3665,8 +3665,10 @@
 		    let surfacesRendered = false;
  	    let timeline = [];
  	    let activeStepIndex = -1;
- 	    let playbackTimer = null;
- 	    let playbackRestoreState = null;
+	    let playbackTimer = null;
+	    let playbackStrikeTimers = [];
+	    let playbackTransient = [];
+	    let playbackRestoreState = null;
  			    let pitchOrientation = safeText(orientationInput?.value, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    // Preset de superficie del campo (fuente de verdad).
 			    // Evita depender solo de `presetSelect.value`: durante prompts/modales o ciertos resizes puede quedar vacío
@@ -18527,6 +18529,18 @@
         window.clearTimeout(playbackTimer);
         playbackTimer = null;
       }
+      if (Array.isArray(playbackStrikeTimers) && playbackStrikeTimers.length) {
+        playbackStrikeTimers.forEach((id) => {
+          try { window.clearTimeout(id); } catch (e) { /* ignore */ }
+        });
+        playbackStrikeTimers = [];
+      }
+      if (Array.isArray(playbackTransient) && playbackTransient.length) {
+        playbackTransient.forEach((obj) => {
+          try { canvas?.remove?.(obj); } catch (e) { /* ignore */ }
+        });
+        playbackTransient = [];
+      }
       if (playStepButton) playStepButton.textContent = 'Reproducir';
       if (restore && playbackRestoreState) {
         const savedState = playbackRestoreState;
@@ -18551,6 +18565,68 @@
       playbackRestoreState = serializeState();
       let playIndex = 0;
       if (playStepButton) playStepButton.textContent = 'Detener';
+      const flashBallStrike = (ballObj) => {
+        if (!ballObj || !canvas) return;
+        const center = ballObj.getCenterPoint ? ballObj.getCenterPoint() : { x: Number(ballObj.left) || 0, y: Number(ballObj.top) || 0 };
+        const deg = normalizeAngle(ballObj?.data?.strike_contact_deg, 0);
+        const wantsStrike = !!ballObj?.data?.strike_visible;
+        const wantsDir = !!ballObj?.data?.ball_dir_visible;
+        if (!wantsStrike && !wantsDir) return;
+        const scale = clampScale(Number(ballObj.scaleX) || 1);
+        const dist = 16 * scale;
+        const p = pointForAngleDeg(deg, dist);
+        const x = (Number(center.x) || 0) + p.x;
+        const y = (Number(center.y) || 0) + p.y;
+        const ring = new fabric.Circle({
+          left: x,
+          top: y,
+          originX: 'center',
+          originY: 'center',
+          radius: 8 * scale,
+          fill: '',
+          stroke: 'rgba(250,204,21,0.95)',
+          strokeWidth: 3,
+          selectable: false,
+          evented: false,
+          opacity: 0.95,
+          data: { base: true, kind: 'fx', role: 'strike_flash' },
+          shadow: 'rgba(2,6,23,0.45) 0 4px 14px',
+        });
+        try { ring.strokeUniform = true; } catch (e) { /* ignore */ }
+        try { ring.objectCaching = false; } catch (e) { /* ignore */ }
+        try { ring.noScaleCache = true; } catch (e) { /* ignore */ }
+        canvas.add(ring);
+        playbackTransient.push(ring);
+        canvas.requestRenderAll();
+        const t1 = window.setTimeout(() => {
+          try { ring.set({ opacity: 0.0, scaleX: 1.5, scaleY: 1.5 }); } catch (e) { /* ignore */ }
+          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+        }, 120);
+        const t2 = window.setTimeout(() => {
+          try { canvas.remove(ring); } catch (e) { /* ignore */ }
+          playbackTransient = playbackTransient.filter((item) => item !== ring);
+          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+        }, 420);
+        playbackStrikeTimers.push(t1, t2);
+      };
+      const scheduleStrikeEventsForCurrentStep = (durationMs) => {
+        if (!canvas) return;
+        if (Array.isArray(playbackStrikeTimers) && playbackStrikeTimers.length) {
+          playbackStrikeTimers.forEach((id) => { try { window.clearTimeout(id); } catch (e) { /* ignore */ } });
+          playbackStrikeTimers = [];
+        }
+        const balls = (canvas.getObjects() || []).filter((obj) => isBallGroup(obj));
+        balls.forEach((ball) => {
+          if (!ball?.data) return;
+          if (!ball.data.strike_visible) return;
+          const pct = clamp(Number(ball.data.strike_timing_pct) || 50, 0, 100);
+          const delay = Math.round((durationMs * pct) / 100);
+          const id = window.setTimeout(() => {
+            try { flashBallStrike(ball); } catch (e) { /* ignore */ }
+          }, clamp(delay, 0, Math.max(0, durationMs)));
+          playbackStrikeTimers.push(id);
+        });
+      };
       const runNext = () => {
         if (playIndex >= timeline.length) {
           stopPlayback(true);
@@ -18561,10 +18637,12 @@
         loadCanvasSnapshot(timeline[playIndex].canvas_state, () => {
           renderTimeline();
           setStatus(`Reproduciendo ${timeline[playIndex].title}.`);
+          const durationMs = clamp(Number(timeline[playIndex].duration) || 3, 1, 20) * 1000;
+          scheduleStrikeEventsForCurrentStep(durationMs);
           playbackTimer = window.setTimeout(() => {
             playIndex += 1;
             runNext();
-          }, clamp(Number(timeline[playIndex].duration) || 3, 1, 20) * 1000);
+          }, durationMs);
         }, { sourceWidth: parseIntSafe(timeline[playIndex].canvas_width), sourceHeight: parseIntSafe(timeline[playIndex].canvas_height) });
       };
       runNext();
@@ -20868,6 +20946,12 @@
 	        setTokenFacing(active, Number(tokenFacingInput.value) || 0);
 	      }, 'Orientación (cuerpo) actualizada.');
 	    });
+	    tokenFovWidthInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isTokenGroup(active)) return;
+	        setTokenFov(active, { widthDeg: Number(tokenFovWidthInput.value) || 70, visible: true });
+	      }, 'Cono de visión actualizado.');
+	    });
 	    tokenFacingActions?.addEventListener('click', (event) => {
 	      const btn = event.target?.closest?.('button');
 	      if (!btn) return;
@@ -20878,6 +20962,10 @@
 	        const current = normalizeAngle(active?.data?.facing_deg, 0);
 	        const next = wantsReset ? 0 : normalizeAngle(current + (Number.isFinite(step) ? step : 0), current);
 	        setTokenFacing(active, next);
+	        if (btn.dataset.tokenFovToggle === '1') {
+	          const nextVisible = !active?.data?.fov_visible;
+	          setTokenFov(active, { visible: nextVisible, widthDeg: Number(tokenFovWidthInput?.value) || 70 });
+	        }
 	        if (tokenFacingInput) tokenFacingInput.value = String(Math.round(next));
 	      }, 'Orientación (cuerpo) actualizada.');
 	    });
@@ -20901,6 +20989,34 @@
 	        setBallDirection(active, next, { visible: nextVisible });
 	        if (ballDirectionInput) ballDirectionInput.value = String(Math.round(next));
 	      }, 'Dirección de balón actualizada.');
+	    });
+	    ballStrikeContactInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isBallGroup(active)) return;
+	        setBallStrike(active, Number(ballStrikeContactInput.value) || 0, { visible: true });
+	      }, 'Golpeo actualizado.');
+	    });
+	    ballStrikeTimingInput?.addEventListener('input', () => {
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isBallGroup(active)) return;
+	        setBallStrikeTiming(active, Number(ballStrikeTimingInput.value) || 0);
+	      }, 'Timing de golpeo actualizado.');
+	    });
+	    ballStrikeActions?.addEventListener('click', (event) => {
+	      const btn = event.target?.closest?.('button');
+	      if (!btn) return;
+	      const toggle = btn.dataset.ballStrikeToggle === '1';
+	      const wantsReset = btn.dataset.ballStrikeReset === '1';
+	      const foot = safeText(btn.dataset.ballStrikeFoot);
+	      applyToActiveFlexibleObject((active) => {
+	        if (!isBallGroup(active)) return;
+	        const current = normalizeAngle(active?.data?.strike_contact_deg, 0);
+	        const next = wantsReset ? 0 : current;
+	        const nextVisible = toggle ? !active?.data?.strike_visible : true;
+	        const nextFoot = foot === 'L' || foot === 'R' ? foot : safeText(active?.data?.strike_foot, 'R');
+	        setBallStrike(active, next, { visible: nextVisible, foot: nextFoot });
+	        if (ballStrikeContactInput) ballStrikeContactInput.value = String(Math.round(next));
+	      }, 'Golpeo actualizado.');
 	    });
 		    colorInput?.addEventListener('input', () => {
 		      applyToActiveFlexibleObject((active) => {
@@ -22469,6 +22585,28 @@
 				          setBallDirection(active, next, { visible: true });
 				          if (ballDirectionInput) ballDirectionInput.value = String(Math.round(next));
 				          commitObjectChange('Dirección de balón actualizada.');
+				          return;
+				        }
+				      }
+				      if (!isMod && key === 'f') {
+				        const active = activeInspectableObject();
+				        if (active && isTokenGroup(active)) {
+				          event.preventDefault();
+				          const nextVisible = !active?.data?.fov_visible;
+				          setTokenFov(active, { visible: nextVisible, widthDeg: Number(tokenFovWidthInput?.value) || 70 });
+				          syncInspector();
+				          commitObjectChange(nextVisible ? 'Cono de visión activado.' : 'Cono de visión desactivado.');
+				          return;
+				        }
+				      }
+				      if (!isMod && key === 'k') {
+				        const active = activeInspectableObject();
+				        if (active && isBallGroup(active)) {
+				          event.preventDefault();
+				          const nextVisible = !active?.data?.strike_visible;
+				          setBallStrike(active, normalizeAngle(active?.data?.strike_contact_deg, 0), { visible: nextVisible, foot: safeText(active?.data?.strike_foot, 'R') });
+				          syncInspector();
+				          commitObjectChange(nextVisible ? 'Golpeo activado.' : 'Golpeo desactivado.');
 				          return;
 				        }
 				      }
