@@ -2063,20 +2063,37 @@
 		      const base = safeText(draftKey) || safeText(draftNewKey) || 'webstats:tpad:draft:unknown';
 		      return `${base}:simsteps_v1`;
 		    })();
-		    const clipsStorageKey = (() => {
-		      const scope = safeText(form?.dataset?.scopeKey) || 'coach';
-		      return `webstats:tpad:clips_v1:${scope}`;
-		    })();
-    const setDraftAlert = (message) => {
-      if (!draftAlert) return;
-      const text = safeText(message);
-      if (draftText) {
-        draftText.textContent = text;
-      } else {
-        draftAlert.textContent = text;
-      }
-      draftAlert.hidden = !text;
-    };
+			    const clipsStorageKey = (() => {
+			      const scope = safeText(form?.dataset?.scopeKey) || 'coach';
+			      return `webstats:tpad:clips_v1:${scope}`;
+			    })();
+	    let draftAlertTimer = 0;
+	    const setDraftAlert = (message) => {
+	      if (!draftAlert) return;
+	      const text = safeText(message);
+	      if (draftText) {
+	        draftText.textContent = text;
+	      } else {
+	        draftAlert.textContent = text;
+	      }
+	      draftAlert.hidden = !text;
+	      // En modo táctica, el aviso de borrador es informativo: auto-ocultar para no ocupar UI.
+	      try {
+	        if (draftAlertTimer) window.clearTimeout(draftAlertTimer);
+	        draftAlertTimer = 0;
+	      } catch (e) { /* ignore */ }
+	      try {
+	        const isTacticsModeNow = !!document.body?.classList?.contains?.('tactics-mode');
+	        if (isTacticsModeNow && text) {
+	          const lower = text.toLowerCase();
+	          const isCritical = lower.includes('sesión caducada') || lower.includes('inicia sesión');
+	          const ms = isCritical ? 12000 : 4500;
+	          draftAlertTimer = window.setTimeout(() => {
+	            try { draftAlert.hidden = true; } catch (err) { /* ignore */ }
+	          }, ms);
+	        }
+	      } catch (e) { /* ignore */ }
+	    };
 
 	    const clearDraftKeys = () => {
 	      if (!canUseStorage) return;
