@@ -955,6 +955,18 @@
         align-items: center;
         margin-left: auto;
       }
+      /* Táctica: por defecto, cabecera compacta para ganar altura de campo.
+         Mostramos solo lo imprescindible; el resto vive en Recursos/Playbook/Simulador. */
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar .tactics-chip {
+        display: none;
+      }
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar .tactics-mode-toggle,
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar #task-tactics-layout-toggle {
+        display: inline-flex;
+      }
+      body.tactics-mode:not(.tactics-tools-open):not(.tactics-panel-open) .tactics-quickbar #task-tactics-layout-toggle {
+        padding: 0.58rem 0.78rem;
+      }
       body.tactics-mode .tactics-mode-toggle {
         display: inline-flex;
         border: 1px solid rgba(255,255,255,0.14);
