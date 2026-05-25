@@ -18,12 +18,6 @@
     if (out < 0) out += 360;
     return out;
   };
-  // Coordenadas en canvas: X derecha, Y abajo. Definimos 0° como "hacia arriba" (0,-d).
-  const pointForAngleDeg = (deg, distance) => {
-    const rad = (Number(deg) || 0) * (Math.PI / 180);
-    const d = Number(distance) || 0;
-    return { x: Math.sin(rad) * d, y: -Math.cos(rad) * d };
-  };
   const runWhenIdle = (fn, timeout = 900) => {
     if (typeof window === 'undefined') return fn();
     if (typeof window.requestIdleCallback === 'function') {
@@ -5085,30 +5079,6 @@
 	    };
 
 	    const isBallGroup = (object) => safeText(object?.data?.kind) === 'ball';
-	    const buildVisionCone = (options = {}) => {
-	      const widthDeg = clamp(Number(options.widthDeg) || 70, 20, 160);
-	      const length = clamp(Number(options.length) || 64, 26, 220);
-	      const half = (widthDeg / 2) * (Math.PI / 180);
-	      const halfW = Math.tan(half) * length;
-	      const fill = safeText(options.fill, 'rgba(34,197,94,0.14)');
-	      const stroke = safeText(options.stroke, 'rgba(34,197,94,0.28)');
-	      const path = `M 0 0 L ${halfW.toFixed(2)} ${(-length).toFixed(2)} L ${(-halfW).toFixed(2)} ${(-length).toFixed(2)} Z`;
-	      const wedge = new fabric.Path(path, {
-	        left: 0,
-	        top: 0,
-	        originX: 'center',
-	        originY: 'center',
-	        fill,
-	        stroke,
-	        strokeWidth: 2,
-	        selectable: false,
-	        evented: false,
-	      });
-	      try { wedge.strokeUniform = true; } catch (e) { /* ignore */ }
-	      try { wedge.objectCaching = false; } catch (e) { /* ignore */ }
-	      try { wedge.noScaleCache = true; } catch (e) { /* ignore */ }
-	      return wedge;
-	    };
 	    const buildDirectionMarker = (radius, options = {}) => {
 	      const r = Math.max(10, Number(radius) || 22);
 	      const color = safeText(options.color, 'rgba(34,197,94,0.95)');
@@ -5151,48 +5121,6 @@
 	      return group;
 	    };
 
-	    const ensureTokenVisionCone = (group) => {
-	      if (!group || !isTokenGroup(group)) return null;
-	      const existing = findTokenChild(group, 'token_fov');
-	      if (existing) return existing;
-	      const radius = getTokenBaseRadius(group);
-	      const widthDeg = clamp(Number(group?.data?.fov_width_deg) || 70, 20, 160);
-	      const length = clamp((radius * 2.4) + 18, 40, 140);
-	      const cone = buildVisionCone({ widthDeg, length });
-	      cone.data = { role: 'token_fov' };
-	      cone.set({ visible: false, opacity: 0, angle: normalizeAngle(group?.data?.facing_deg, 0) });
-	      try {
-	        if (typeof group.insertAt === 'function') group.insertAt(cone, 0, false);
-	        else group.addWithUpdate(cone);
-	        group.addWithUpdate();
-	      } catch (e) { /* ignore */ }
-	      return cone;
-	    };
-	    const setTokenFov = (group, { visible, widthDeg } = {}) => {
-	      if (!group || !isTokenGroup(group)) return false;
-	      group.data = group.data || {};
-	      if (visible != null) group.data.fov_visible = !!visible;
-	      if (widthDeg != null && Number.isFinite(Number(widthDeg))) group.data.fov_width_deg = clamp(Number(widthDeg) || 70, 20, 160);
-	      const wantsVisible = !!group.data.fov_visible;
-	      const existing = ensureTokenVisionCone(group);
-	      if (existing) {
-	        const radius = getTokenBaseRadius(group);
-	        const length = clamp((radius * 2.4) + 18, 40, 140);
-	        const next = buildVisionCone({ widthDeg: group.data.fov_width_deg || 70, length });
-	        next.data = { role: 'token_fov' };
-	        next.set({ visible: wantsVisible, opacity: wantsVisible ? 1 : 0, angle: normalizeAngle(group?.data?.facing_deg, 0) });
-	        try {
-	          const idx = Array.isArray(group._objects) ? group._objects.indexOf(existing) : -1;
-	          group.remove(existing);
-	          if (typeof group.insertAt === 'function' && idx >= 0) group.insertAt(next, Math.max(0, idx), false);
-	          else if (typeof group.insertAt === 'function') group.insertAt(next, 0, false);
-	          else group.addWithUpdate(next);
-	          group.addWithUpdate();
-	        } catch (e) { /* ignore */ }
-	      }
-	      return true;
-	    };
-
 	    const ensureTokenFacingMarker = (group) => {
 	      if (!group || !isTokenGroup(group)) return null;
 	      const existing = findTokenChild(group, 'token_facing');
@@ -5210,10 +5138,6 @@
 	      group.data.facing_deg = next;
 	      const marker = ensureTokenFacingMarker(group);
 	      if (marker && typeof marker.set === 'function') marker.set('angle', next);
-	      try {
-	        const cone = findTokenChild(group, 'token_fov');
-	        if (cone && typeof cone.set === 'function') cone.set('angle', next);
-	      } catch (e) { /* ignore */ }
 	      try {
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
@@ -5248,110 +5172,6 @@
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
 	      } catch (e) { /* ignore */ }
-	      return true;
-	    };
-
-	    const getBallBaseRadius = (group) => {
-	      const objects = Array.isArray(group?._objects) ? group._objects : (typeof group?.getObjects === 'function' ? group.getObjects() : []);
-	      let r = 10;
-	      objects.forEach((child) => {
-	        if (!child || child.type !== 'circle') return;
-	        const role = safeText(child?.data?.role);
-	        if (role !== 'ball_base') return;
-	        const candidate = Number(child.radius) || 0;
-	        if (candidate > 0) r = candidate;
-	      });
-	      return r;
-	    };
-	    const ensureBallStrikeMarker = (group) => {
-	      if (!group || !isBallGroup(group)) return null;
-	      const existing = findTokenChild(group, 'ball_strike_contact');
-	      if (existing) return existing;
-	      const dot = new fabric.Circle({
-	        left: 0,
-	        top: 0,
-	        originX: 'center',
-	        originY: 'center',
-	        radius: 2.8,
-	        fill: 'rgba(250,204,21,0.95)',
-	        stroke: 'rgba(2,6,23,0.65)',
-	        strokeWidth: 2,
-	        selectable: false,
-	        evented: false,
-	        opacity: 0,
-	        visible: false,
-	        shadow: 'rgba(2,6,23,0.45) 0 4px 12px',
-	      });
-	      dot.data = { role: 'ball_strike_contact' };
-	      try { dot.strokeUniform = true; } catch (e) { /* ignore */ }
-	      try { dot.objectCaching = false; } catch (e) { /* ignore */ }
-	      try { dot.noScaleCache = true; } catch (e) { /* ignore */ }
-
-	      const footText = new fabric.Text('R', {
-	        left: 0,
-	        top: 0,
-	        originX: 'center',
-	        originY: 'center',
-	        fontSize: 9,
-	        fontWeight: '700',
-	        fill: '#0b1220',
-	        selectable: false,
-	        evented: false,
-	        opacity: 0,
-	        visible: false,
-	      });
-	      footText.data = { role: 'ball_strike_foot' };
-	      try { footText.objectCaching = false; } catch (e) { /* ignore */ }
-	      try { footText.noScaleCache = true; } catch (e) { /* ignore */ }
-
-	      try { group.addWithUpdate(dot); } catch (e) { /* ignore */ }
-	      try { group.addWithUpdate(footText); } catch (e) { /* ignore */ }
-	      return dot;
-	    };
-	    const setBallStrike = (group, contactDeg, { visible, foot } = {}) => {
-	      if (!group || !isBallGroup(group)) return false;
-	      const next = normalizeAngle(contactDeg, 0);
-	      group.data = group.data || {};
-	      if (visible != null) group.data.strike_visible = !!visible;
-	      if (foot === 'L' || foot === 'R') group.data.strike_foot = foot;
-	      group.data.strike_contact_deg = next;
-	      const wantsVisible = !!group.data.strike_visible;
-	      const radius = getBallBaseRadius(group);
-	      const dist = radius + 3.8;
-	      const p = pointForAngleDeg(next, dist);
-
-	      const dot = ensureBallStrikeMarker(group);
-	      const footText = findTokenChild(group, 'ball_strike_foot', (child) => child?.type === 'text');
-	      if (dot && typeof dot.set === 'function') {
-	        dot.set({
-	          left: p.x,
-	          top: p.y,
-	          visible: wantsVisible,
-	          opacity: wantsVisible ? 1 : 0,
-	        });
-	      }
-	      if (footText && typeof footText.set === 'function') {
-	        const label = (group.data.strike_foot === 'L' || group.data.strike_foot === 'R') ? group.data.strike_foot : 'R';
-	        const offset = pointForAngleDeg(next, dist + 10);
-	        footText.set({
-	          text: label,
-	          left: offset.x,
-	          top: offset.y,
-	          visible: wantsVisible,
-	          opacity: wantsVisible ? 1 : 0,
-	        });
-	      }
-
-	      try {
-	        if (typeof group._calcBounds === 'function') group._calcBounds();
-	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
-	      } catch (e) { /* ignore */ }
-	      return true;
-	    };
-	    const setBallStrikeTiming = (group, timingPct) => {
-	      if (!group || !isBallGroup(group)) return false;
-	      group.data = group.data || {};
-	      group.data.strike_timing_pct = clamp(Number(timingPct) || 50, 0, 100);
 	      return true;
 	    };
 		    const updateTokenAppearance = (group, { name, number }) => {
@@ -5480,8 +5300,6 @@
 		        pattern: safeText(active?.data?.token_pattern) || 'striped',
 		        photoUrl: safeText(active?.data?.playerPhotoUrl) || safeText(player?.photo_url),
 		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
-		        fov_visible: !!active?.data?.fov_visible,
-		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
 		      };
 		      const factory = playerTokenFactory(tokenKind || 'player_local', player, { style: nextStyle, ...palette });
 		      if (typeof factory !== 'function') return;
@@ -5505,12 +5323,6 @@
 		        const desiredFacing = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
 		        fresh.data.facing_deg = desiredFacing;
 		        setTokenFacing(fresh, desiredFacing);
-		      } catch (e) { /* ignore */ }
-		      // Respeta cono de visión (si estaba activado).
-		      try {
-		        fresh.data.fov_visible = !!(prevData?.fov_visible ?? active?.data?.fov_visible);
-		        fresh.data.fov_width_deg = clamp(Number(prevData?.fov_width_deg ?? active?.data?.fov_width_deg) || 70, 20, 160);
-		        setTokenFov(fresh, { visible: !!fresh.data.fov_visible, widthDeg: fresh.data.fov_width_deg });
 		      } catch (e) { /* ignore */ }
 		      // Respeta nombre/dorsal editados manualmente.
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
@@ -15029,18 +14841,8 @@
 	        try {
 	          canvas.getObjects().forEach((item) => {
 	            if (!item) return;
-	            if (isTokenGroup(item)) {
-	              setTokenFov(item, { visible: !!item?.data?.fov_visible, widthDeg: item?.data?.fov_width_deg });
-	              setTokenFacing(item, item?.data?.facing_deg);
-	            }
-	            if (isBallGroup(item)) {
-	              setBallDirection(item, item?.data?.ball_dir_deg, { visible: !!item?.data?.ball_dir_visible });
-	              setBallStrikeTiming(item, item?.data?.strike_timing_pct);
-	              setBallStrike(item, item?.data?.strike_contact_deg, {
-	                visible: !!item?.data?.strike_visible,
-	                foot: safeText(item?.data?.strike_foot, 'R'),
-	              });
-	            }
+	            if (isTokenGroup(item)) setTokenFacing(item, item?.data?.facing_deg);
+	            if (isBallGroup(item)) setBallDirection(item, item?.data?.ball_dir_deg, { visible: !!item?.data?.ball_dir_visible });
 	          });
 	        } catch (e) { /* ignore */ }
 	        canvas.__loading = false;
@@ -16820,8 +16622,6 @@
 			          playerNumber: safeText(label),
 			          playerPhotoUrl: photoUrl,
 			          facing_deg: normalizeAngle(options?.facing_deg, 0),
-			          fov_visible: !!options?.fov_visible,
-			          fov_width_deg: clamp(Number(options?.fov_width_deg) || 70, 20, 160),
 			        },
 			      });
 		      // Aplica patrón inicial (half/sash/solid) de forma consistente.
@@ -16841,7 +16641,6 @@
 			      if (style === 'photo' && photoUrl) {
 			        try { loadPhotoIntoGroup(group, photoUrl, 19.2); } catch (e) { /* ignore */ }
 			      }
-			      try { setTokenFov(group, { visible: !!group?.data?.fov_visible, widthDeg: group?.data?.fov_width_deg }); } catch (e) { /* ignore */ }
 			      try { setTokenFacing(group, group?.data?.facing_deg); } catch (e) { /* ignore */ }
 				      return group;
 				    };
@@ -17121,22 +16920,11 @@
 		            top,
 		            originX: 'center',
 		            originY: 'center',
-		            data: {
-		              kind: 'ball',
-		              color: '#ffffff',
-		              ball_dir_deg: 0,
-		              ball_dir_visible: false,
-		              strike_contact_deg: 0,
-		              strike_visible: false,
-		              strike_foot: 'R',
-		              strike_timing_pct: 50,
-		            },
+		            data: { kind: 'ball', color: '#ffffff', ball_dir_deg: 0, ball_dir_visible: false },
 		          });
 		          try { group.objectCaching = false; } catch (e) { /* ignore */ }
 		          try { group.noScaleCache = true; } catch (e) { /* ignore */ }
 		          try { setBallDirection(group, group?.data?.ball_dir_deg, { visible: !!group?.data?.ball_dir_visible }); } catch (e) { /* ignore */ }
-		          try { setBallStrikeTiming(group, group?.data?.strike_timing_pct); } catch (e) { /* ignore */ }
-		          try { setBallStrike(group, group?.data?.strike_contact_deg, { visible: !!group?.data?.strike_visible, foot: safeText(group?.data?.strike_foot, 'R') }); } catch (e) { /* ignore */ }
 		          return group;
 		        };
 	      }
