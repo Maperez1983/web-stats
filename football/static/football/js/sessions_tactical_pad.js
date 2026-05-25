@@ -1779,26 +1779,125 @@
 			    const videoStudioCloseBtn = document.getElementById('task-video-studio-close');
 			    const videoStudioPlayer = document.getElementById('task-video-studio-player');
 			    const videoStudioCanvasEl = document.getElementById('task-video-studio-canvas');
+			    // Vista 3D (Pitch3D): en modo Táctica el template puede no traer el botón/modal.
+			    // Creamos DOM mínimo "on-demand" para que el visor 3D funcione igual en todas las vistas.
+			    try {
+			      const formEl = document.getElementById('task-builder-form');
+			      const isTacticsMode = String(formEl?.dataset?.tacticsMode || '').trim() === '1';
+			      if (isTacticsMode) {
+			        const ensurePitch3dButton = () => {
+			          try {
+			            if (document.getElementById('pitch-3d-open')) return;
+			            const menu = document.getElementById('pitch-view-menu');
+			            const body = menu ? menu.querySelector('.pitch-view-menu-body') : null;
+			            if (!body) return;
+			            const btn = document.createElement('button');
+			            btn.type = 'button';
+			            btn.className = 'surface-trigger';
+			            btn.id = 'pitch-3d-open';
+			            btn.title = 'Vista 3D (presentación)';
+			            btn.setAttribute('aria-label', 'Vista 3D');
+			            btn.innerHTML = '<span>Vista 3D</span><span class="current">Presentar</span>';
+			            body.appendChild(btn);
+			          } catch (e) { /* ignore */ }
+			        };
+			        const ensurePitch3dModal = () => {
+			          try {
+			            if (document.getElementById('task-pitch-3d-modal')) return;
+			            const wrap = document.createElement('div');
+			            wrap.innerHTML = [
+			              '<div class="sim-3d-modal" id="task-pitch-3d-modal" hidden>',
+			              '  <div class="sim-3d-card" role="dialog" aria-modal="true" aria-label="Vista 3D">',
+			              '    <div class="sim-3d-head">',
+			              '      <div style="display:flex; flex-direction:column; gap:0.1rem;">',
+			              '        <strong>Vista 3D · Presentación</strong>',
+			              '        <span class="meta" style="opacity:0.9;">Misma pizarra, en 3D. Útil para explicar profundidad y espacios.</span>',
+			              '      </div>',
+			              '      <button type="button" class="sim-3d-close" id="task-pitch-3d-close">Cerrar</button>',
+			              '    </div>',
+			              '    <div class="sim-3d-body">',
+			              '      <canvas class="sim-3d-canvas" id="task-pitch-3d-canvas"></canvas>',
+			              '      <div class="pitch3d-hud" id="task-pitch-3d-hud">',
+			              '        <div class="hud-left">',
+			              '          <div class="pitch3d-step" id="task-pitch-3d-step">',
+			              '            <strong id="task-pitch-3d-step-title">Pizarra</strong>',
+			              '            <span class="meta" id="task-pitch-3d-step-meta">—</span>',
+			              '          </div>',
+			              '          <div class="pitch3d-nav">',
+			              '            <button type="button" class="button" id="task-pitch-3d-prev" title="Paso anterior">‹</button>',
+			              '            <button type="button" class="button primary" id="task-pitch-3d-next" title="Siguiente paso">›</button>',
+			              '          </div>',
+			              '        </div>',
+			              '        <div class="hud-right">',
+			              '          <button type="button" class="button" id="task-pitch-3d-present" title="Modo presentación">Presentación</button>',
+			              '          <button type="button" class="button" id="task-pitch-3d-fullscreen" title="Pantalla completa (si el navegador lo permite)">⤢</button>',
+			              '        </div>',
+			              '      </div>',
+			              '    </div>',
+			              '    <div class="sim-3d-foot">',
+			              '      <div class="sim-3d-controls">',
+			              '        <label style="display:flex; gap:10px; align-items:center;">',
+			              '          Cámara',
+			              '          <select id="task-pitch-3d-camera">',
+			              '            <option value="normal" selected>Normal</option>',
+			              '            <option value="rotated">Rotada</option>',
+			              '            <option value="front">Frontal</option>',
+			              '            <option value="side">Lateral</option>',
+			              '            <option value="top_h">Top H</option>',
+			              '            <option value="top_v">Top V</option>',
+			              '          </select>',
+			              '        </label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;">',
+			              '          Seguimiento',
+			              '          <select id="task-pitch-3d-follow">',
+			              '            <option value="off" selected>Off</option>',
+			              '            <option value="ball">Balón</option>',
+			              '            <option value="selected">Jugador (tap)</option>',
+			              '          </select>',
+			              '        </label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-draw" checked /> Dibujos</label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-ghosts" checked /> Ghosts</label>',
+			              '        <label style="display:flex; gap:10px; align-items:center;"><input type="checkbox" id="task-pitch-3d-layer-trails" checked /> Trails</label>',
+			              '        <button type="button" class="button" id="task-pitch-3d-refresh" title="Sincroniza con la pizarra actual">Actualizar</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-play" title="Reproduce escenarios (si existen)">▶</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-snap" title="Guardar imagen PNG">PNG</button>',
+			              '        <button type="button" class="button" id="task-pitch-3d-record" title="Grabar WebM (beta)">REC</button>',
+			              '      </div>',
+			              '      <div class="sim-3d-note">Tip: arrastra para girar; pinch/rueda para zoom. En iPad, puedes grabar pantalla para MP4.</div>',
+			              '    </div>',
+			              '  </div>',
+			              '</div>',
+			            ].join('');
+			            const node = wrap.firstElementChild;
+			            if (!node) return;
+			            document.body.appendChild(node);
+			          } catch (e) { /* ignore */ }
+			        };
+			        ensurePitch3dButton();
+			        ensurePitch3dModal();
+			      }
+			    } catch (e) { /* ignore */ }
+
 			    const pitch3dOpenBtn = document.getElementById('pitch-3d-open');
-			    const pitch3dModal = document.getElementById('task-pitch-3d-modal');
-			    const pitch3dCloseBtn = document.getElementById('task-pitch-3d-close');
-			    const pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
-			    const pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
-			    const pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
-			    const pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
-			    const pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
-			    const pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
-			    const pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
-			    const pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
-			    const pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
-			    const pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
-			    const pitch3dHud = document.getElementById('task-pitch-3d-hud');
-			    const pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title');
-			    const pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
-			    const pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
-			    const pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
-			    const pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
-			    const pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
+			    let pitch3dModal = document.getElementById('task-pitch-3d-modal');
+			    let pitch3dCloseBtn = document.getElementById('task-pitch-3d-close');
+			    let pitch3dCanvasEl = document.getElementById('task-pitch-3d-canvas');
+			    let pitch3dCameraSelect = document.getElementById('task-pitch-3d-camera');
+			    let pitch3dFollowSelect = document.getElementById('task-pitch-3d-follow');
+			    let pitch3dLayerDrawInput = document.getElementById('task-pitch-3d-layer-draw');
+			    let pitch3dLayerGhostsInput = document.getElementById('task-pitch-3d-layer-ghosts');
+			    let pitch3dLayerTrailsInput = document.getElementById('task-pitch-3d-layer-trails');
+			    let pitch3dRefreshBtn = document.getElementById('task-pitch-3d-refresh');
+			    let pitch3dPlayBtn = document.getElementById('task-pitch-3d-play');
+			    let pitch3dSnapBtn = document.getElementById('task-pitch-3d-snap');
+			    let pitch3dRecordBtn = document.getElementById('task-pitch-3d-record');
+			    let pitch3dHud = document.getElementById('task-pitch-3d-hud');
+			    let pitch3dStepTitleEl = document.getElementById('task-pitch-3d-step-title');
+			    let pitch3dStepMetaEl = document.getElementById('task-pitch-3d-step-meta');
+			    let pitch3dPrevBtn = document.getElementById('task-pitch-3d-prev');
+			    let pitch3dNextBtn = document.getElementById('task-pitch-3d-next');
+			    let pitch3dPresentBtn = document.getElementById('task-pitch-3d-present');
+			    let pitch3dFullscreenBtn = document.getElementById('task-pitch-3d-fullscreen');
 			    const videoLoadBtn = document.getElementById('task-video-load');
 			    const videoClearBtn = document.getElementById('task-video-clear');
 			    const videoFileInput = document.getElementById('task-video-file');
@@ -24136,6 +24235,12 @@
 	            const rosterBank = document.getElementById('task-roster-bank');
 	            const rosterSlot = document.getElementById('task-roster-bank-slot');
 	            const rosterHome = rosterBank ? { parent: rosterBank.parentElement, next: rosterBank.nextSibling } : null;
+              const forceDockRosterBankForPlantilla = () => {
+                if (!rosterBank || !rosterSlot) return;
+                rosterSlot.hidden = false;
+                try { rosterBank.hidden = false; } catch (e) { /* ignore */ }
+                if (rosterBank.parentElement !== rosterSlot) rosterSlot.appendChild(rosterBank);
+              };
 	            const isTabletPortraitUi = () => {
 	              try {
 	                if (!document.body.classList.contains('ui-tablet')) return false;
@@ -24145,11 +24250,20 @@
 	                return false;
 	              }
 	            };
+              const isPlantillaPanelVisible = () => {
+                try {
+                  const panel = document.querySelector('.resource-panel[data-panel="plantilla"]');
+                  return !!panel && panel.hidden === false;
+                } catch (e) {
+                  return false;
+                }
+              };
 			            const syncRosterPlacement = () => {
 			              if (!rosterBank || !rosterSlot || !rosterHome || !rosterHome.parent) return;
 			              // En modo Táctica la Plantilla siempre debe vivir dentro de Recursos (pestaña “Plantilla”),
 			              // para que el campo quepa en una sola vista sin scroll.
-			              const wantInSlot = (isTacticsModeUi || isTabletPortraitUi()) && !document.body.classList.contains('library-collapsed');
+			              const wantInSlot = (isTacticsModeUi || isTabletPortraitUi())
+                      && (isPlantillaPanelVisible() || !document.body.classList.contains('library-collapsed'));
 			              try {
 			                if (wantInSlot) {
 			                  rosterSlot.hidden = false;
@@ -24304,6 +24418,9 @@
 	      // Plantilla: asegura que el banco de jugadores se reubica y se pinta al abrir la pestaña.
 	      if (normalized === 'plantilla') {
 	        try { if (libraryCollapsed) applyLibraryCollapsed(false); } catch (e) { /* ignore */ }
+          // Forzamos el dock aquí para que la Plantilla sea visible incluso si el estado "colapsado"
+          // o el orden de inicialización deja el banco fuera del slot.
+          try { forceDockRosterBankForPlantilla(); } catch (e) { /* ignore */ }
 	        try { syncRosterPlacement(); } catch (e) { /* ignore */ }
 	        try { renderPlayerBank(); } catch (e) { /* ignore */ }
 	      }
