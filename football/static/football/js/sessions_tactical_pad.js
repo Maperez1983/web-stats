@@ -16545,6 +16545,168 @@
 		          });
 		          nameText.data = { role: 'token_name' };
 		          tokenParts.push(nameText);
+			        } else if (style === 'sprite') {
+			          const tokenShadow = new fabric.Ellipse({
+			            rx: 18,
+			            ry: 6,
+			            fill: 'rgba(2,6,23,0.28)',
+			            originX: 'center',
+			            originY: 'center',
+			            left: 2,
+			            top: 18,
+			            selectable: false,
+			            evented: false,
+			          });
+			          tokenShadow.data = { role: 'token_shadow' };
+			          tokenParts.push(tokenShadow);
+
+			          const bodyParts = [];
+			          const head = new fabric.Circle({
+			            radius: 7.5,
+			            fill: 'rgba(248,250,252,0.92)',
+			            stroke: 'rgba(2,6,23,0.55)',
+			            strokeWidth: 2,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -18,
+			            selectable: false,
+			            evented: false,
+			          });
+			          head.data = { role: 'token_sprite_head' };
+			          bodyParts.push(head);
+
+			          const shirtFill = stripeColor;
+			          const shortsFill = darkenHex(shirtFill, 0.58);
+			          const socksFill = darkenHex(shirtFill, 0.42);
+			          const torso = new fabric.Rect({
+			            width: 22,
+			            height: 20,
+			            rx: 7,
+			            ry: 7,
+			            fill: shirtFill,
+			            stroke: 'rgba(255,255,255,0.22)',
+			            strokeWidth: 1.2,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -2,
+			            selectable: false,
+			            evented: false,
+			          });
+			          torso.data = { role: 'token_sprite_shirt' };
+			          bodyParts.push(torso);
+
+			          const shorts = new fabric.Rect({
+			            width: 20,
+			            height: 10,
+			            rx: 5,
+			            ry: 5,
+			            fill: shortsFill,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 10,
+			            selectable: false,
+			            evented: false,
+			          });
+			          shorts.data = { role: 'token_sprite_shorts' };
+			          bodyParts.push(shorts);
+
+			          const legL = new fabric.Rect({
+			            width: 6,
+			            height: 14,
+			            rx: 3,
+			            ry: 3,
+			            fill: socksFill,
+			            originX: 'center',
+			            originY: 'center',
+			            left: -6,
+			            top: 22,
+			            selectable: false,
+			            evented: false,
+			          });
+			          legL.data = { role: 'token_sprite_socks' };
+			          const legR = new fabric.Rect({
+			            width: 6,
+			            height: 14,
+			            rx: 3,
+			            ry: 3,
+			            fill: socksFill,
+			            originX: 'center',
+			            originY: 'center',
+			            left: 6,
+			            top: 22,
+			            selectable: false,
+			            evented: false,
+			          });
+			          legR.data = { role: 'token_sprite_socks' };
+			          bodyParts.push(legL, legR);
+
+			          const numberFill = contrastTextForFill(shirtFill);
+			          const numberStroke = numberFill === '#000000' ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.70)';
+			          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -2,
+			            fontSize: 12,
+			            fontWeight: '900',
+			            fill: numberFill,
+			            stroke: numberStroke,
+			            strokeWidth: 2,
+			            paintFirst: 'stroke',
+			            shadow: 'rgba(2,6,23,0.45) 0 1px 2px',
+			            selectable: false,
+			            evented: false,
+			          });
+			          numberText.data = { role: 'token_number' };
+			          bodyParts.push(numberText);
+
+			          const sprite = new fabric.Group(bodyParts, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: 0,
+			            selectable: false,
+			            evented: false,
+			            angle: snapAngle(options?.facing_deg, 45),
+			          });
+			          sprite.data = { role: 'token_sprite' };
+			          tokenParts.push(sprite);
+
+			          const nameBg = new fabric.Rect({
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -34,
+			            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
+			            height: 18,
+			            rx: 8,
+			            ry: 8,
+			            fill: 'rgba(2,6,23,0.68)',
+			            stroke: 'rgba(255,255,255,0.14)',
+			            strokeWidth: 1,
+			            selectable: false,
+			            evented: false,
+			            shadow: 'rgba(2,6,23,0.45) 0 8px 18px',
+			          });
+			          nameBg.data = { role: 'token_name_bg' };
+			          tokenParts.push(nameBg);
+			          const nameText = new fabric.Text(displayName, {
+			            originX: 'center',
+			            originY: 'center',
+			            left: 0,
+			            top: -34,
+			            fontSize: 10,
+			            fontWeight: '700',
+			            fill: '#e2e8f0',
+			            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
+			            selectable: false,
+			            evented: false,
+			          });
+			          nameText.data = { role: 'token_name' };
+			          tokenParts.push(nameText);
 			        } else {
 			          const tokenShadow = new fabric.Circle({
 			            radius: radius + 4,
