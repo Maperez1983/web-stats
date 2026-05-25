@@ -210,6 +210,11 @@ class WorkspaceSeasonPlayer(models.Model):
         on_delete=models.SET_NULL,
         related_name='season_player_confirmations',
     )
+    # Cuestionario básico de inicio de temporada (por jugador).
+    # Se guarda como JSON para poder añadir campos sin migraciones adicionales.
+    questionnaire_v = models.PositiveSmallIntegerField(default=1)
+    questionnaire = models.JSONField(default=dict, blank=True)
+    questionnaire_completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

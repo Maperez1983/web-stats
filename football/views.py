@@ -13398,7 +13398,7 @@ def club_season_wizard(request):
         return HttpResponse('No tienes permisos para cerrar la temporada de este club.', status=403)
 
     step = str(request.GET.get('step') or '').strip().lower() or 'close'
-    if step not in {'close', 'reports', 'new'}:
+    if step not in {'close', 'reports', 'new', 'questionnaire'}:
         step = 'close'
 
     # Temporada activa (si existe).
@@ -13526,6 +13526,79 @@ def club_season_wizard(request):
 
             if action == 'goto_new_season':
                 return redirect(f"{reverse('club-season-wizard')}?step=new")
+
+            if action in {'questionnaire_prev', 'questionnaire_next', 'questionnaire_skip'}:
+                state = dict(state or {})
+                idx = int(_parse_int(state.get('q_player_idx')) or 0)
+                ids = [int(pid) for pid in (state.get('q_player_ids') or []) if _parse_int(pid)]
+                total = len(ids)
+                if action == 'questionnaire_prev':
+                    idx = max(0, idx - 1)
+                else:
+                    idx = min(max(total - 1, 0), idx + 1) if total else 0
+                state['q_player_idx'] = idx
+                _save_state(state)
+                return redirect(f"{reverse('club-season-wizard')}?step=questionnaire")
+
+            if action in {'questionnaire_save', 'questionnaire_save_next', 'questionnaire_finish'}:
+                state = dict(state or {})
+                season_id = int(_parse_int(state.get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
+                if not season_id:
+                    raise ValueError('No hay temporada activa para guardar el cuestionario.')
+                membership_id = int(_parse_int(request.POST.get('membership_id')) or 0)
+                if not membership_id:
+                    raise ValueError('Falta el jugador de temporada para guardar el cuestionario.')
+                membership = WorkspaceSeasonPlayer.objects.filter(id=int(membership_id), season_id=int(season_id)).select_related('player').first()
+                if not membership:
+                    raise ValueError('No se encontró el jugador en la temporada seleccionada.')
+
+                def _clean_text(field, *, max_len=800):
+                    return _sanitize_task_text((request.POST.get(field) or '').strip(), multiline=True, max_len=max_len)
+
+                role_pref = str(request.POST.get('q_role_pref') or '').strip()
+                if role_pref and role_pref not in {'titular', 'rotacion', 'revulsivo', 'desarrollo', 'otro'}:
+                    role_pref = ''
+                foot = str(request.POST.get('q_foot') or '').strip()
+                if foot and foot not in {'der', 'izq', 'amb'}:
+                    foot = ''
+                motivation = _parse_int(request.POST.get('q_motivation'))
+                if motivation is not None:
+                    try:
+                        motivation = max(1, min(5, int(motivation)))
+                    except Exception:
+                        motivation = None
+
+                questionnaire = dict(getattr(membership, 'questionnaire', None) or {})
+                questionnaire.update({
+                    'role_pref': role_pref,
+                    'position_secondary': _clean_text('q_position_secondary', max_len=120),
+                    'foot': foot,
+                    'motivation_1_5': int(motivation) if motivation is not None else None,
+                    'strengths': _clean_text('q_strengths', max_len=700),
+                    'improve': _clean_text('q_improve', max_len=700),
+                    'objective_main': _clean_text('q_objective_main', max_len=700),
+                    'availability_notes': _clean_text('q_availability', max_len=500),
+                })
+                questionnaire = {k: v for k, v in questionnaire.items() if v not in (None, '', [])}
+                membership.questionnaire_v = int(getattr(membership, 'questionnaire_v', 1) or 1)
+                membership.questionnaire = questionnaire
+                membership.questionnaire_completed_at = timezone.now()
+                membership.save(update_fields=['questionnaire_v', 'questionnaire', 'questionnaire_completed_at', 'updated_at'])
+
+                if action == 'questionnaire_finish':
+                    _clear_state()
+                    return redirect(f"{reverse('club-onboarding')}?season_created=1")
+
+                if action == 'questionnaire_save_next':
+                    ids = [int(pid) for pid in (state.get('q_player_ids') or []) if _parse_int(pid)]
+                    idx = int(_parse_int(state.get('q_player_idx')) or 0)
+                    total = len(ids)
+                    idx = min(max(total - 1, 0), idx + 1) if total else 0
+                    state['q_player_idx'] = idx
+                    _save_state(state)
+                    return redirect(f"{reverse('club-season-wizard')}?step=questionnaire")
+
+                message = 'Cuestionario guardado.'
 
             if action == 'create_new_season':
                 season_label = _sanitize_task_text((request.POST.get('season_label') or '').strip(), multiline=False, max_len=32)
@@ -13657,8 +13730,15 @@ def club_season_wizard(request):
                 if phases:
                     WorkspaceSeasonPhase.objects.bulk_create(phases)
 
-                _clear_state()
-                return redirect(f"{reverse('club-onboarding')}?season_created=1")
+                # Estado para cuestionario (por jugador) en la nueva temporada.
+                # Nota: no borramos el estado hasta que el usuario termine/omita el cuestionario.
+                q_state = {
+                    'new_season_id': int(new_season.id),
+                    'q_player_ids': [int(pid) for pid in player_ids if pid],
+                    'q_player_idx': 0,
+                }
+                _save_state(q_state)
+                return redirect(f"{reverse('club-season-wizard')}?step=questionnaire")
 
         except ValueError as exc:
             error = str(exc)
@@ -13718,6 +13798,42 @@ def club_season_wizard(request):
     except Exception:
         pdf_url = ''
 
+    # Estado para step questionnaire (nueva temporada).
+    q_season = None
+    q_memberships = []
+    q_idx = 0
+    q_total = 0
+    q_membership = None
+    try:
+        q_season_id = int(_parse_int((state or {}).get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
+        if q_season_id:
+            q_season = WorkspaceSeason.objects.filter(id=int(q_season_id), workspace=workspace).first()
+        if q_season:
+            q_memberships = list(
+                WorkspaceSeasonPlayer.objects
+                .filter(season=q_season)
+                .select_related('player')
+                .order_by('player__number', 'player__name', 'player__id')
+            )
+            q_total = len(q_memberships)
+            ids_from_state = [int(pid) for pid in ((state or {}).get('q_player_ids') or []) if _parse_int(pid)]
+            if not ids_from_state:
+                ids_from_state = [int(m.player_id) for m in q_memberships if getattr(m, 'player_id', None)]
+                state = dict(state or {})
+                state['new_season_id'] = int(q_season.id)
+                state['q_player_ids'] = ids_from_state
+                state['q_player_idx'] = 0
+                _save_state(state)
+            q_idx = int(_parse_int((state or {}).get('q_player_idx')) or 0)
+            q_idx = max(0, min(q_idx, max(q_total - 1, 0))) if q_total else 0
+            q_membership = q_memberships[q_idx] if q_total else None
+    except Exception:
+        q_season = None
+        q_memberships = []
+        q_idx = 0
+        q_total = 0
+        q_membership = None
+
     return render(
         request,
         'football/season_wizard.html',
@@ -13734,6 +13850,10 @@ def club_season_wizard(request):
             'player_total': len(player_ids or []),
             'pdf_url': pdf_url,
             'season_form': season_form,
+            'q_season': q_season,
+            'q_membership': q_membership,
+            'q_idx': q_idx,
+            'q_total': q_total,
             'error': error,
             'message': message,
         },

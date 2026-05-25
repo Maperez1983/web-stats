@@ -48,7 +48,7 @@
       .subtitle { color: var(--muted); font-size: 0.95rem; }
       .steps {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.5rem;
         margin: 0.75rem 0 1rem;
       }
@@ -71,7 +71,7 @@
       .step.active .dot { background: var(--amber); border-color: rgba(255,255,255,0.25); }
       .grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       label { display: block; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 0.25rem; }
-      input, select {
+      input, select, textarea {
         width: 100%;
         padding: 0.7rem 0.85rem;
         border-radius: 12px;
@@ -80,6 +80,7 @@
         color: var(--ink);
         outline: none;
       }
+      textarea { min-height: 112px; resize: vertical; }
       .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.85rem; }
       .btn {
         display: inline-flex;
@@ -144,6 +145,7 @@
           <div class="step {% if step == 'close' %}active{% endif %}"><span class="dot"></span><strong>1)</strong> Cerrar temporada</div>
           <div class="step {% if step == 'reports' %}active{% endif %}"><span class="dot"></span><strong>2)</strong> Informes jugador</div>
           <div class="step {% if step == 'new' %}active{% endif %}"><span class="dot"></span><strong>3)</strong> Nueva temporada</div>
+          <div class="step {% if step == 'questionnaire' %}active{% endif %}"><span class="dot"></span><strong>4)</strong> Cuestionario</div>
         </div>
 
         {% if error %}
@@ -344,6 +346,115 @@
               <a class="btn btn-ghost" href="{% url 'club-season-wizard' %}?step=close">Volver</a>
             </div>
           </form>
+        {% endif %}
+
+        {% if step == 'questionnaire' %}
+          <p class="subtitle" style="margin:0.2rem 0 0.6rem;">
+            Cuestionario básico de inicio de temporada (por jugador). Se usa como referencia del staff y se puede completar más tarde.
+          </p>
+
+          {% if q_membership and q_membership.player %}
+            <div class="player-card">
+              <div class="player-meta">
+                <div class="player-name">
+                  {{ q_membership.player.name }}
+                  {% if q_membership.player.number %}<span class="badge" style="margin-left:0.4rem;">#{{ q_membership.player.number }}</span>{% endif %}
+                </div>
+                <div class="player-sub">
+                  {{ q_idx|add:1 }} / {{ q_total }} · {% if q_season %}{{ q_season.label }}{% endif %}
+                </div>
+              </div>
+            </div>
+
+            <form method="post" style="margin-top:0.85rem;">
+              {% csrf_token %}
+              <input type="hidden" name="membership_id" value="{{ q_membership.id }}" />
+
+              <div class="grid">
+                <div>
+                  <label for="id_q_role_pref">Rol preferido</label>
+                  <select id="id_q_role_pref" name="q_role_pref">
+                    {% with v=q_membership.questionnaire.role_pref %}
+                      <option value="" {% if not v %}selected{% endif %}>(sin especificar)</option>
+                      <option value="titular" {% if v == 'titular' %}selected{% endif %}>Titular</option>
+                      <option value="rotacion" {% if v == 'rotacion' %}selected{% endif %}>Rotación</option>
+                      <option value="revulsivo" {% if v == 'revulsivo' %}selected{% endif %}>Revulsivo</option>
+                      <option value="desarrollo" {% if v == 'desarrollo' %}selected{% endif %}>En desarrollo</option>
+                      <option value="otro" {% if v == 'otro' %}selected{% endif %}>Otro</option>
+                    {% endwith %}
+                  </select>
+                </div>
+
+                <div>
+                  <label for="id_q_foot">Pie dominante</label>
+                  <select id="id_q_foot" name="q_foot">
+                    {% with v=q_membership.questionnaire.foot %}
+                      <option value="" {% if not v %}selected{% endif %}>(sin especificar)</option>
+                      <option value="der" {% if v == 'der' %}selected{% endif %}>Derecho</option>
+                      <option value="izq" {% if v == 'izq' %}selected{% endif %}>Izquierdo</option>
+                      <option value="amb" {% if v == 'amb' %}selected{% endif %}>Ambidiestro</option>
+                    {% endwith %}
+                  </select>
+                </div>
+
+                <div>
+                  <label for="id_q_motivation">Motivación (1–5)</label>
+                  <select id="id_q_motivation" name="q_motivation">
+                    {% with v=q_membership.questionnaire.motivation_1_5 %}
+                      <option value="" {% if not v %}selected{% endif %}>(sin especificar)</option>
+                      <option value="1" {% if v == 1 %}selected{% endif %}>1</option>
+                      <option value="2" {% if v == 2 %}selected{% endif %}>2</option>
+                      <option value="3" {% if v == 3 %}selected{% endif %}>3</option>
+                      <option value="4" {% if v == 4 %}selected{% endif %}>4</option>
+                      <option value="5" {% if v == 5 %}selected{% endif %}>5</option>
+                    {% endwith %}
+                  </select>
+                </div>
+
+                <div>
+                  <label for="id_q_position_secondary">Posición secundaria (opcional)</label>
+                  <input id="id_q_position_secondary" type="text" name="q_position_secondary" value="{{ q_membership.questionnaire.position_secondary|default:'' }}" placeholder="Ej: lateral, mediapunta..." />
+                </div>
+              </div>
+
+              <div style="margin-top:0.75rem;">
+                <label for="id_q_objective_main">Objetivo principal de temporada</label>
+                <textarea id="id_q_objective_main" name="q_objective_main" placeholder="Ej: mejorar finalización / mejorar salida de balón / consolidarme como titular...">{{ q_membership.questionnaire.objective_main|default:'' }}</textarea>
+              </div>
+
+              <div class="grid" style="margin-top:0.75rem;">
+                <div>
+                  <label for="id_q_strengths">Fortalezas</label>
+                  <textarea id="id_q_strengths" name="q_strengths" placeholder="Ej: velocidad, 1v1, presión, lectura táctica...">{{ q_membership.questionnaire.strengths|default:'' }}</textarea>
+                </div>
+                <div>
+                  <label for="id_q_improve">A mejorar</label>
+                  <textarea id="id_q_improve" name="q_improve" placeholder="Ej: perfil corporal, pase tenso, toma de decisión...">{{ q_membership.questionnaire.improve|default:'' }}</textarea>
+                </div>
+              </div>
+
+              <div style="margin-top:0.75rem;">
+                <label for="id_q_availability">Disponibilidad / restricciones (opcional)</label>
+                <textarea id="id_q_availability" name="q_availability" placeholder="Ej: solo lunes-miércoles, exámenes, horario...">{{ q_membership.questionnaire.availability_notes|default:'' }}</textarea>
+              </div>
+
+              <div class="actions">
+                <button class="btn btn-ghost" type="submit" name="action" value="questionnaire_prev" {% if q_idx == 0 %}disabled{% endif %}>Anterior</button>
+                <button class="btn btn-primary" type="submit" name="action" value="questionnaire_save">Guardar</button>
+                <button class="btn btn-primary" type="submit" name="action" value="questionnaire_save_next">Guardar y siguiente</button>
+                <button class="btn btn-ghost" type="submit" name="action" value="questionnaire_skip">Saltar jugador</button>
+                <button class="btn btn-ghost" type="submit" name="action" value="questionnaire_finish" onclick="return confirm('¿Finalizar cuestionario y continuar?');">Finalizar</button>
+              </div>
+            </form>
+          {% else %}
+            <div class="alert" style="margin-top:0.75rem;">
+              No hay jugadores en la temporada seleccionada. Puedes continuar.
+            </div>
+            <form method="post" class="actions">
+              {% csrf_token %}
+              <button class="btn btn-primary" type="submit" name="action" value="questionnaire_finish">Continuar</button>
+            </form>
+          {% endif %}
         {% endif %}
       </div>
     </div>
