@@ -1,0 +1,71 @@
+<div class="section roster-bank" id="task-roster-bank" style="margin-top:0.9rem;">
+  <div class="player-bank-head">
+    <h3 style="margin:0;">Plantilla disponible</h3>
+    <div class="player-bank-tools">
+      <label class="chip-toggle" title="Oculta jugadores ya colocados en la pizarra (vuelven a aparecer al borrarlos).">
+        <input type="checkbox" id="task-hide-used-players" checked />
+        Ocultar usados
+      </label>
+      <label class="chip-toggle" id="task-only-confirmed-wrap" title="Muestra solo jugadores confirmados (Presente/Llega tarde) según la asistencia de la sesión seleccionada." {% if not confirmed_player_ids %}hidden{% endif %}>
+        <input type="checkbox" id="task-only-confirmed-players" {% if confirmed_only_default %}checked{% endif %} />
+        Solo confirmados
+      </label>
+    </div>
+    <div class="player-bank-nav" aria-label="Navegación de plantilla">
+      <button type="button" id="player-bank-prev" title="Anterior" aria-label="Anterior">‹</button>
+      <button type="button" id="player-bank-next" title="Siguiente" aria-label="Siguiente">›</button>
+    </div>
+  </div>
+  <div class="token-global-style" id="task-token-style-global" aria-label="Estilo global de fichas">
+    <span class="label">Estilo</span>
+    <button type="button" data-global-token-style="disk" title="Chapa" aria-label="Chapa">Chapa</button>
+    <button type="button" data-global-token-style="jersey" title="Camiseta" aria-label="Camiseta">Camiseta</button>
+    <button type="button" data-global-token-style="photo" title="Foto" aria-label="Foto">Foto</button>
+    <button type="button" data-global-token-style="sprite" title="Avatar (2.5D)" aria-label="Avatar (2.5D)">Avatar</button>
+    {% if tactics_mode %}
+      <span class="label">Color</span>
+      <span class="token-global-color" id="task-token-global-color-wrap" aria-label="Color de fichas">
+        <input type="color" id="task-token-global-color" value="#0f7a35" aria-label="Color de fichas" />
+        <input
+          type="text"
+          id="task-token-global-color-hex"
+          value="#0f7a35"
+          inputmode="text"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="#RRGGBB"
+          aria-label="Color de fichas (hex)"
+        />
+      </span>
+    {% endif %}
+  </div>
+  <div class="player-bank" id="task-player-bank">
+    {% if tactics_mode and tactical_player_catalog %}
+      {% for p in tactical_player_catalog %}
+        <button type="button" class="player-token-bank" data-player-id="{{ p.id }}" title="{{ p.name|default:'' }}">
+          <span class="token-name">{{ p.nickname|default:p.name|default:'' }}</span>
+          <span class="token-disk{% if p.position and p.position|upper == 'GK' %} is-goalkeeper{% endif %}">
+            <span class="token-number">{% if p.position and p.position|upper == 'GK' %}GK{% else %}{{ p.number|default:"J" }}{% endif %}</span>
+          </span>
+        </button>
+      {% endfor %}
+    {% elif available_players %}
+      {% for player in available_players %}
+        <button type="button" class="player-token-bank" data-player-id="{{ player.id }}" title="{{ player.name|default:'' }}">
+          <span class="token-name">{{ player.nickname|default:player.name|default:'' }}</span>
+          <span class="token-disk{% if player.position and player.position|upper == 'GK' %} is-goalkeeper{% endif %}">
+            <span class="token-number">{% if player.position and player.position|upper == 'GK' %}GK{% else %}{{ player.number|default:"J" }}{% endif %}</span>
+          </span>
+        </button>
+      {% endfor %}
+    {% endif %}
+  </div>
+  <div class="section" id="task-opponent-bank-section" hidden style="margin-top:0.9rem;">
+    <div class="player-bank-head">
+      <h3 style="margin:0;">Plantilla rival</h3>
+      <div class="meta" style="opacity:0.9;">Arrastra al campo o pulsa para activar inserción.</div>
+    </div>
+    <div class="player-bank is-opponent" id="task-opponent-token-bank" hidden></div>
+  </div>
+</div>
