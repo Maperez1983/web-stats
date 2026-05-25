@@ -1121,7 +1121,7 @@
 					          // NO lo movemos directamente a `viewportEl` porque rompe la composición:
 					          // la grada queda a un lado y el campo fuera. Si existe `.tpad-stadium-center`,
 					          // el stage debe vivir ahí.
-					          const stadiumCenter = viewportEl.querySelector?.('.tpad-stadium-center') || null;
+					          const stadiumCenter = document.querySelector?.('.tpad-stadium-center') || null;
 					          const desiredParent = stadiumCenter || viewportEl;
 					          if (stage.parentElement !== desiredParent) desiredParent.appendChild(stage);
 					        }
