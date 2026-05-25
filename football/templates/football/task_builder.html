@@ -329,39 +329,46 @@
         outline: 10px solid rgba(0, 0, 0, 0.20);
         outline-offset: 0;
       }
-      /* “Gradas” explícitas alrededor del rectángulo del campo (4 lados) */
-      body.tactics-mode .tpad-stadium .pitch-stage::after {
+      /* “Gradas” explícitas alrededor del campo (4 lados).
+         Ojo: debe vivir fuera de `.pitch-stage` porque ese contenedor tiene `overflow:hidden`
+         (si lo hacemos ahí, se recorta y parece que no existe). */
+      body.tactics-mode .tpad-stadium::before {
+        /* Mantenemos el viñeteado original, pero ampliamos para que actúe también como “anillo”. */
+        inset: clamp(10px, 1.2vmin, 18px);
+      }
+      body.tactics-mode .tpad-stadium::after {
         content: "";
         position: absolute;
-        inset: -44px;
-        border-radius: 34px;
+        inset: clamp(8px, 1.0vmin, 16px);
+        border-radius: inherit;
         pointer-events: none;
         z-index: 2;
+        opacity: 0.85;
         background:
-          /* vallas / borde interior */
-          linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)) padding-box,
-          /* asientos superior */
+          /* gradas superior e inferior */
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.12) 0 7px, rgba(255,255,255,0) 7px 20px),
           repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
-          /* asientos lateral izquierdo */
+          /* gradas laterales */
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.12) 0 7px, rgba(255,255,255,0) 7px 20px),
           repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
           /* glow equipo */
-          radial-gradient(60% 40% at 12% 18%, var(--tpad-team-primary-soft), transparent 65%),
-          radial-gradient(60% 40% at 88% 18%, var(--tpad-team-secondary-soft), transparent 70%);
+          radial-gradient(70% 55% at 10% 18%, var(--tpad-team-primary-soft), transparent 68%),
+          radial-gradient(70% 55% at 90% 18%, var(--tpad-team-secondary-soft), transparent 72%);
         background-repeat: no-repeat;
         background-size:
-          100% 100%,
-          100% 24px,
-          24px 100%,
-          60% 60%,
-          60% 60%;
+          100% 26px,
+          100% 26px,
+          26px 100%,
+          26px 100%,
+          70% 70%,
+          70% 70%;
         background-position:
           0 0,
+          0 100%,
           0 0,
-          0 0,
+          100% 0,
           0 0,
           100% 0;
-        opacity: 0.9;
-        filter: drop-shadow(0 18px 30px rgba(0,0,0,0.55));
         mix-blend-mode: overlay;
       }
       body.tactics-mode .tpad-stadium::before {
