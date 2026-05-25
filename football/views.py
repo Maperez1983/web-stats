@@ -17,7 +17,6 @@ import math
 import hashlib
 import random
 import threading
-from decimal import Decimal, InvalidOperation
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, time, date
 from html.parser import HTMLParser
@@ -13569,33 +13568,12 @@ def club_season_wizard(request):
                     except Exception:
                         motivation = None
 
-                height_cm = _parse_int(request.POST.get('q_height_cm'))
-                if height_cm is not None:
-                    try:
-                        height_cm = int(height_cm)
-                    except Exception:
-                        height_cm = None
-                if height_cm is not None and not (80 <= int(height_cm) <= 230):
-                    height_cm = None
-
-                weight_kg = None
-                weight_raw = str(request.POST.get('q_weight_kg') or '').strip().replace(',', '.')
-                if weight_raw:
-                    try:
-                        weight_kg = Decimal(weight_raw)
-                    except (InvalidOperation, ValueError):
-                        weight_kg = None
-                if weight_kg is not None and not (Decimal('20') <= weight_kg <= Decimal('160')):
-                    weight_kg = None
-
                 questionnaire = dict(getattr(membership, 'questionnaire', None) or {})
                 questionnaire.update({
                     'role_pref': role_pref,
                     'position_secondary': _clean_text('q_position_secondary', max_len=120),
                     'foot': foot,
                     'motivation_1_5': int(motivation) if motivation is not None else None,
-                    'height_cm': int(height_cm) if height_cm is not None else None,
-                    'weight_kg': float(weight_kg) if weight_kg is not None else None,
                     'strengths': _clean_text('q_strengths', max_len=700),
                     'improve': _clean_text('q_improve', max_len=700),
                     'objective_main': _clean_text('q_objective_main', max_len=700),
@@ -13606,37 +13584,6 @@ def club_season_wizard(request):
                 membership.questionnaire = questionnaire
                 membership.questionnaire_completed_at = timezone.now()
                 membership.save(update_fields=['questionnaire_v', 'questionnaire', 'questionnaire_completed_at', 'updated_at'])
-
-                # Si se introducen medidas, las reflejamos también en la ficha del jugador.
-                player = getattr(membership, 'player', None)
-                if player:
-                    player_update_fields = []
-                    if height_cm is not None and int(height_cm) != int(getattr(player, 'height_cm', 0) or 0):
-                        player.height_cm = int(height_cm)
-                        player_update_fields.append('height_cm')
-                    if weight_kg is not None:
-                        try:
-                            current_weight = getattr(player, 'weight_kg', None)
-                        except Exception:
-                            current_weight = None
-                        if current_weight != weight_kg:
-                            player.weight_kg = weight_kg
-                            player_update_fields.append('weight_kg')
-                            # Registro rápido de peso para histórico.
-                            try:
-                                PlayerPhysicalMetric.objects.create(
-                                    player=player,
-                                    recorded_on=timezone.localdate(),
-                                    weight_kg=weight_kg,
-                                    notes='Registro inicial (cuestionario temporada)',
-                                )
-                            except Exception:
-                                pass
-                    if player_update_fields:
-                        try:
-                            player.save(update_fields=sorted(set(player_update_fields)))
-                        except Exception:
-                            pass
 
                 if action == 'questionnaire_finish':
                     _clear_state()
