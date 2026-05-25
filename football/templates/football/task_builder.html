@@ -375,25 +375,62 @@
           0 0 0 4px rgba(0,0,0,0.28) inset;
         isolation: isolate;
       }
-      body.tactics-mode .tpad-stadium-center {
-        grid-area: center;
-        width: fit-content;
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: clamp(12px, 2vmin, 22px);
-      }
+	      body.tactics-mode .tpad-stadium-center {
+	        grid-area: center;
+	        position: relative;
+	        width: fit-content;
+	        min-width: 0;
+	        display: flex;
+	        align-items: center;
+	        justify-content: center;
+	        padding: clamp(12px, 2vmin, 22px);
+	      }
+	      /* “Base” bajo el campo: añade sensación de volumen sin tocar el canvas (ni coordenadas). */
+	      body.tactics-mode .tpad-stadium-center::before {
+	        content: "";
+	        position: absolute;
+	        inset: 8px;
+	        border-radius: clamp(22px, 2.6vmin, 42px);
+	        background:
+	          radial-gradient(closest-side at 50% 50%, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 62%),
+	          linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.14));
+	        filter: blur(0.2px);
+	        opacity: 0.95;
+	        pointer-events: none;
+	        z-index: 1;
+	      }
       body.tactics-mode .tpad-stadium-center > .pitch-stage {
         /* El estadio debe dimensionarse por el campo */
         width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
       }
-      body.tactics-mode .tpad-stadium .pitch-stage {
-        /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
-        border: 2px solid rgba(255, 255, 255, 0.16);
-        outline: 10px solid rgba(0, 0, 0, 0.20);
-        outline-offset: 0;
-      }
+	      body.tactics-mode .tpad-stadium .pitch-stage {
+	        /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
+	        border: 2px solid rgba(255, 255, 255, 0.16);
+	        outline: 10px solid rgba(0, 0, 0, 0.20);
+	        outline-offset: 0;
+	      }
+	      body.tactics-mode .tpad-stadium .pitch-stage {
+	        position: relative;
+	        background: rgba(2, 6, 23, 0.18);
+	        box-shadow:
+	          0 18px 55px rgba(0,0,0,0.52),
+	          inset 0 1px 0 rgba(255,255,255,0.10),
+	          inset 0 -18px 34px rgba(0,0,0,0.22),
+	          inset 0 0 0 1px rgba(255,255,255,0.10);
+	      }
+	      /* Bisel interno del marco (broadcast 3D). */
+	      body.tactics-mode .tpad-stadium .pitch-stage::before {
+	        content: "";
+	        position: absolute;
+	        inset: -12px;
+	        border-radius: 16px;
+	        pointer-events: none;
+	        background:
+	          linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 35%),
+	          linear-gradient(0deg, rgba(0,0,0,0.22), rgba(0,0,0,0.0) 45%);
+	        opacity: 0.75;
+	        z-index: -1;
+	      }
       /* Gradas (4 lados) como elementos del grid */
       body.tactics-mode .tpad-stand {
         width: 100%;
@@ -599,10 +636,10 @@
         user-select: none;
         padding: 0 1rem;
       }
-      body.tactics-mode .tpad-stand {
-        position: relative;
-        display: grid;
-        place-items: center;
+	      body.tactics-mode .tpad-stand {
+	        position: relative;
+	        display: grid;
+	        place-items: center;
         color: rgba(248, 250, 252, 0.86);
         text-transform: uppercase;
         letter-spacing: 0.28em;
@@ -612,10 +649,23 @@
           radial-gradient(circle at 50% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
           repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0 1px, rgba(255,255,255,0) 1px 10px),
           linear-gradient(180deg, rgba(2,6,23,0.76), rgba(2,6,23,0.35));
-        border: 1px solid rgba(255,255,255,0.10);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-      }
+	        border: 1px solid rgba(255,255,255,0.10);
+	        backdrop-filter: blur(6px);
+	        -webkit-backdrop-filter: blur(6px);
+	      }
+	      /* Luz/volumen: sombrea el borde interior de cada grada para que parezca inclinada. */
+	      body.tactics-mode .tpad-stand::after {
+	        content: "";
+	        position: absolute;
+	        inset: 0;
+	        pointer-events: none;
+	        opacity: 0.9;
+	        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.12));
+	      }
+	      body.tactics-mode .tpad-stand-top::after { background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.10)); }
+	      body.tactics-mode .tpad-stand-bottom::after { background: linear-gradient(0deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+	      body.tactics-mode .tpad-stand-left::after { background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+	      body.tactics-mode .tpad-stand-right::after { background: linear-gradient(270deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
       body.tactics-mode .tpad-stand-top,
       body.tactics-mode .tpad-stand-bottom {
         height: var(--tpad-stand);
@@ -626,10 +676,9 @@
       }
       /* Asegura que el campo quede por encima de las gradas. */
       body.tactics-mode .tpad-stadium .pitch-stage { z-index: 3; }
-      body.tactics-mode .tpad-stadium .pitch-stage {
-        z-index: 3;
-        box-shadow: 0 18px 55px rgba(0,0,0,0.50);
-      }
+	      body.tactics-mode .tpad-stadium .pitch-stage {
+	        z-index: 3;
+	      }
       .simple-hint {
         margin: 0.65rem 0 0;
         padding: 0.7rem 0.85rem;
