@@ -994,6 +994,8 @@
 	    const tokenFacingRow = document.getElementById('task-token-facing-row');
 	    const tokenFacingInput = document.getElementById('task-token-facing');
 	    const tokenFacingActions = document.getElementById('task-token-facing-actions');
+	    const tokenFovRow = document.getElementById('task-token-fov-row');
+	    const tokenFovWidthInput = document.getElementById('task-token-fov-width');
 	    const ballDirectionRow = document.getElementById('task-ball-direction-row');
 	    const ballDirectionInput = document.getElementById('task-ball-direction');
 	    const ballDirectionActions = document.getElementById('task-ball-direction-actions');
