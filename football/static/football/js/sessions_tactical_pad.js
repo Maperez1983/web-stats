@@ -14200,6 +14200,11 @@
 	    };
 	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
 	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
+	    // En iOS/Safari, el viewport puede variar mientras haces scroll (barras superior/inferior),
+	    // lo que provocaba que el cálculo "fit" encogiese/agrandase el campo dinámicamente.
+	    // Guardamos un baseline del offset superior para que el campo no “respire” al hacer scroll.
+	    let stageFitTopBaseline = null;
+	    let stageFitLayoutVhBaseline = null;
 	    const setStageUserMaxWidth = (valuePx) => {
 	      if (!stage) return;
 	      const maxW = Math.max(220, Math.round(Number(valuePx) || 0));
@@ -14232,10 +14237,34 @@
 	      const vw = Math.max(0, Number(mainRect.width) || Number(viewportRect.width) || 0);
 	      const layoutVh = Math.max(0, Number(window.innerHeight) || Number(document.documentElement?.clientHeight) || 0);
 	      const topRaw = Math.max(0, Number(viewportRect.top) || 0);
+	      const isTacticsModeNow = !!document.body?.classList?.contains?.('tactics-mode');
 	      // Cap del "header" para evitar shrink exagerado si el campo cae abajo por scroll/contenido.
-	      const headerCap = layoutVh < 720 ? 220 : 420;
-	      const top = Math.min(topRaw, headerCap);
-	      const vh = Math.max(0, layoutVh - top - 12);
+	      // En modo táctica, queremos aprovechar mejor el alto disponible (especialmente en desktop),
+	      // sin que el "fit" colapse cuando el usuario hace scroll y el campo queda más abajo.
+	      const headerCap = (() => {
+	        if (!isTacticsModeNow) return (layoutVh < 720 ? 220 : 420);
+	        const vwCss = Math.max(0, Number(window.innerWidth) || 0);
+	        if (layoutVh < 720) return 200;
+	        if (vwCss >= 1024) return 260; // desktop: evita dejar demasiado “aire” arriba
+	        return 320; // tablet/móvil: el topbar ocupa más
+	      })();
+	      const topCandidate = Math.min(topRaw, headerCap);
+	      // Reset del baseline solo cuando cambia de verdad el layout (rotación / resize real),
+	      // no cuando varía el viewport por scroll (Safari UI).
+	      try {
+	        const prevVh = Number(stageFitLayoutVhBaseline) || 0;
+	        if (!stageFitTopBaseline || !prevVh) {
+	          stageFitTopBaseline = topCandidate;
+	          stageFitLayoutVhBaseline = layoutVh;
+	        } else if (Math.abs(layoutVh - prevVh) > 240) {
+	          stageFitTopBaseline = topCandidate;
+	          stageFitLayoutVhBaseline = layoutVh;
+	        }
+	      } catch (e) { /* ignore */ }
+	      const top = (typeof stageFitTopBaseline === 'number' && stageFitTopBaseline >= 0) ? stageFitTopBaseline : topCandidate;
+	      // Igual que con `top`, congelamos también la altura base para evitar cambios por scroll UI (Safari).
+	      const baseVh = (typeof stageFitLayoutVhBaseline === 'number' && stageFitLayoutVhBaseline > 0) ? stageFitLayoutVhBaseline : layoutVh;
+	      const vh = Math.max(0, baseVh - top - 12);
 	      if (vw < 10 || vh < 10) return;
 	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
 	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height

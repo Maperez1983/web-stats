@@ -282,8 +282,10 @@
         min-height: clamp(260px, 48svh, 920px);
         min-width: 0;
         display: flex;
-        align-items: center;
+        /* En desktop suele quedar “aire” arriba cuando el fit reduce el stage; preferimos anclar el campo arriba. */
+        align-items: flex-start;
         justify-content: center;
+        padding-top: 0.35rem;
       }
       /* En táctica, el tamaño del campo lo gestiona el layoutManager (JS) para que quepa en una sola vista. */
       body.tactics-mode .pitch-stage {
@@ -561,16 +563,18 @@
 	      }
 	      /* Safari/iOS/desktop: el backdrop (con blur) puede “tapar” el dropdown de <details> por stacking context.
 	         Fix robusto: cuando el menú está abierto, lo mostramos como panel fijo por encima del backdrop. */
-	      .action-menu[open] .action-menu-body {
-	        position: fixed;
-	        top: calc(14px + env(safe-area-inset-top));
-	        left: calc(12px + env(safe-area-inset-left));
-	        right: calc(12px + env(safe-area-inset-right));
-	        width: auto;
-	        max-height: calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-	        overflow: auto;
-	        z-index: 1600;
-	      }
+		      .action-menu[open] .action-menu-body {
+		        position: fixed;
+		        top: calc(14px + env(safe-area-inset-top));
+		        left: calc(12px + env(safe-area-inset-left));
+		        right: calc(12px + env(safe-area-inset-right));
+		        width: auto;
+		        /* iOS Safari: `dvh` cambia durante el scroll (barras UI). Usamos `svh` para que el panel no “respire”. */
+		        max-height: calc(100vh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+		        max-height: calc(100svh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+		        overflow: auto;
+		        z-index: 1600;
+		      }
 	      /* Importante: `backdrop-filter` en `.topbar` (commercial.css) crea stacking context.
 	         Subimos el contenedor cuando Opciones está abierto para que el panel pueda quedar por encima del backdrop. */
 	      .action-menu[open] {
@@ -2274,6 +2278,55 @@
         -webkit-backdrop-filter: blur(12px);
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
       }
+      /* Táctica: rail de recursos más compacto (menos “aire” y más contenido útil). */
+      body.tactics-mode .pitch-side .library-head { margin-bottom: 0.45rem; }
+      body.tactics-mode .pitch-side .library-toggle {
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+      }
+      body.tactics-mode .pitch-side .library-filter {
+        padding: 0.54rem 0.7rem;
+        margin-bottom: 0.45rem;
+      }
+      body.tactics-mode .pitch-side .resource-tabs {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.35rem;
+      }
+      body.tactics-mode .pitch-side .resource-tab {
+        padding: 0.52rem 0.6rem;
+        border-radius: 14px;
+        font-size: 0.74rem;
+        gap: 0.5rem;
+      }
+      body.tactics-mode .pitch-side .resource-tab .lib-ico {
+        width: 26px;
+        height: 26px;
+        border-radius: 10px;
+      }
+      body.tactics-mode .pitch-side .resource-tab .lib-ico svg { width: 16px; height: 16px; }
+      body.tactics-mode .pitch-side .resource-tab .lib-label { letter-spacing: 0.08em; }
+      body.tactics-mode .pitch-side .resource-tab .lib-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+      body.tactics-mode .pitch-side .resource-tab-bar { gap: 0.55rem; margin-bottom: 0.55rem; }
+
+      /* Táctica: barra de comandos más pequeña (no “se come” el panel). */
+      body.tactics-mode .pitch-side .command-bar {
+        padding: 5px 6px;
+        gap: 0.3rem;
+      }
+      body.tactics-mode .pitch-side .icon-btn {
+        width: 50px;
+        height: 44px;
+      }
+      body.tactics-mode .pitch-side .icon-btn svg {
+        width: 24px;
+        height: 24px;
+      }
 
       /* Hardening: en algunos navegadores/estados, el grid-area puede no aplicarse correctamente
          (y la pizarra acaba dentro del panel lateral, con viewport 0px de alto). Forzamos columnas/filas. */
@@ -2362,22 +2415,25 @@
           grid-template-columns: 1fr;
           grid-template-areas: "main";
         }
-        /* El campo en portrait: que siempre quepa sin empujar UI. */
-        body.ui-tablet:not(.tactics-mode) .pitch-stage {
-          max-height: calc(100dvh - 420px);
-        }
+	        /* El campo en portrait: que siempre quepa sin empujar UI. */
+	        body.ui-tablet:not(.tactics-mode) .pitch-stage {
+	          /* iOS Safari: `dvh` varía con scroll; `svh` estabiliza el layout. */
+	          max-height: calc(100vh - 420px);
+	          max-height: calc(100svh - 420px);
+	        }
         /* Panel de Recursos como bottom sheet; se abre cuando NO está colapsado. */
-        body.ui-tablet:not(.tactics-mode) .pitch-side {
-          position: fixed;
-          left: calc(12px + env(safe-area-inset-left));
-          right: calc(12px + env(safe-area-inset-right));
-          bottom: calc(98px + env(safe-area-inset-bottom)); /* deja sitio al dock inferior */
-          height: min(46vh, 520px);
-          max-height: calc(100dvh - 140px - env(safe-area-inset-bottom));
-          overflow: hidden;
-          padding: 10px;
-          border-radius: 18px;
-          border: 1px solid rgba(148,163,184,0.22);
+	        body.ui-tablet:not(.tactics-mode) .pitch-side {
+	          position: fixed;
+	          left: calc(12px + env(safe-area-inset-left));
+	          right: calc(12px + env(safe-area-inset-right));
+	          bottom: calc(98px + env(safe-area-inset-bottom)); /* deja sitio al dock inferior */
+	          height: min(46vh, 520px);
+	          max-height: calc(100vh - 140px - env(safe-area-inset-bottom));
+	          max-height: calc(100svh - 140px - env(safe-area-inset-bottom));
+	          overflow: hidden;
+	          padding: 10px;
+	          border-radius: 18px;
+	          border: 1px solid rgba(148,163,184,0.22);
           background: rgba(15,23,42,0.92);
           backdrop-filter: blur(14px);
           z-index: 1500;
@@ -3235,17 +3291,18 @@
 	      .selection-toolbar .selection-dock-actions {
 	        display: none;
 	      }
-		      .selection-dock {
-		        position: fixed;
-		        left: calc(12px + env(safe-area-inset-left));
-		        bottom: calc(90px + env(safe-area-inset-bottom));
-		        width: min(460px, calc(100vw - 24px));
-		        max-height: min(62vh, calc(100dvh - 180px));
-		        overflow-x: hidden;
-		        overflow-y: auto;
-		        z-index: 1100;
-		        pointer-events: auto;
-		      }
+			      .selection-dock {
+			        position: fixed;
+			        left: calc(12px + env(safe-area-inset-left));
+			        bottom: calc(90px + env(safe-area-inset-bottom));
+			        width: min(460px, calc(100vw - 24px));
+			        max-height: min(62vh, calc(100vh - 180px));
+			        max-height: min(62vh, calc(100svh - 180px));
+			        overflow-x: hidden;
+			        overflow-y: auto;
+			        z-index: 1100;
+			        pointer-events: auto;
+			      }
 	      .selection-dock .selection-toolbar {
 	        margin: 0;
 	      }
@@ -6808,10 +6865,8 @@
 		    {{ confirmed_player_ids|json_script:"tpad-confirmed-player-ids" }}
 				    <script src="{% static 'football/js/ui_tour.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 				    {% if tactics_mode %}
-			    {# En modo Táctica el editor es el producto: cargamos Fabric+TPad de forma directa (sin lazy-load)
-			       para evitar quedarse con el campo “vacío” si el loader falla o si el navegador bloquea eventos. #}
-			    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
-			    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+				    <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
+				    <script src="{% static 'football/js/sessions_tactical_pad.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>
 					    <script>
 					      (function () {
 					        const report = (msg) => {
