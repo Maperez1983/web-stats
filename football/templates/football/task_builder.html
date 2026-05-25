@@ -329,6 +329,41 @@
         outline: 10px solid rgba(0, 0, 0, 0.20);
         outline-offset: 0;
       }
+      /* “Gradas” explícitas alrededor del rectángulo del campo (4 lados) */
+      body.tactics-mode .tpad-stadium .pitch-stage::after {
+        content: "";
+        position: absolute;
+        inset: -44px;
+        border-radius: 34px;
+        pointer-events: none;
+        z-index: 2;
+        background:
+          /* vallas / borde interior */
+          linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04)) padding-box,
+          /* asientos superior */
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
+          /* asientos lateral izquierdo */
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.10) 0 6px, rgba(255,255,255,0) 6px 18px),
+          /* glow equipo */
+          radial-gradient(60% 40% at 12% 18%, var(--tpad-team-primary-soft), transparent 65%),
+          radial-gradient(60% 40% at 88% 18%, var(--tpad-team-secondary-soft), transparent 70%);
+        background-repeat: no-repeat;
+        background-size:
+          100% 100%,
+          100% 24px,
+          24px 100%,
+          60% 60%,
+          60% 60%;
+        background-position:
+          0 0,
+          0 0,
+          0 0,
+          0 0,
+          100% 0;
+        opacity: 0.9;
+        filter: drop-shadow(0 18px 30px rgba(0,0,0,0.55));
+        mix-blend-mode: overlay;
+      }
       body.tactics-mode .tpad-stadium::before {
         content: "";
         position: absolute;
