@@ -7623,6 +7623,35 @@
 						        return plane;
 						      };
 
+						      const buildTokenFovGeometry3d = (radiusMeters, widthDeg) => {
+						        const width = clamp(Number(widthDeg) || 70, 20, 160);
+						        const half = (width / 2) * (Math.PI / 180);
+						        const segs = clamp(Math.round(width / 8), 8, 30);
+						        const positions = [];
+						        const indices = [];
+						        positions.push(0, 0.02, 0);
+						        for (let i = 0; i <= segs; i += 1) {
+						          const t = (-half) + ((2 * half) * (i / segs));
+						          const x = Math.sin(t) * radiusMeters;
+						          const z = -Math.cos(t) * radiusMeters;
+						          positions.push(x, 0.02, z);
+						        }
+						        for (let i = 1; i <= segs; i += 1) indices.push(0, i, i + 1);
+						        const geom = new THREE.BufferGeometry();
+						        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+						        geom.setIndex(indices);
+						        geom.computeVertexNormals();
+						        return geom;
+						      };
+						      const lerpAngleDeg3d = (a, b, t) => {
+						        const aN = normalizeAngle(Number(a), 0);
+						        const bN = normalizeAngle(Number(b), aN);
+						        let delta = bN - aN;
+						        if (delta > 180) delta -= 360;
+						        if (delta < -180) delta += 360;
+						        return normalizeAngle(aN + (delta * clamp(Number(t) || 0, 0, 1)), 0);
+						      };
+
 						      const addToken = (o) => {
 						        const data = o?.data || {};
 						        const tokenKind = safeText(data.token_kind);
@@ -7631,6 +7660,10 @@
 						        const stripe = safeText(data.token_stripe_color || data.color || fill);
 						        const key = tokenKind.includes('rival') ? stripe : stripe;
 						        const color = toColorInt(key, 0xffffff);
+						        const uid = safeText(data.playerId) || safeText(data.layer_uid) || safeText(data.playerNumber) || '';
+						        const facingDeg = normalizeAngle(Number(data.facing_deg), 0);
+						        const fovVisible = !!data.fov_visible;
+						        const fovWidthDeg = clamp(Number(data.fov_width_deg) || 70, 20, 160);
 						        const geo = new THREE.CylinderGeometry(0.75, 0.75, 0.26, 18);
 						        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.02 });
 						        const mesh = new THREE.Mesh(geo, mat);
@@ -7638,7 +7671,39 @@
 						        const pos = map2dToPitch(Number(o.left) || 0, Number(o.top) || 0, sourceW, sourceH, metersW, metersH, orientation);
 						        mesh.position.x = pos.x;
 						        mesh.position.z = pos.z;
-						        mesh.userData = { kind: 'token', uid: safeText(data.playerId) || safeText(data.layer_uid) || safeText(data.playerNumber) || '' };
+						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
+
+						        // Avatar low‑poly + orientación corporal.
+						        try {
+						          const bodyCol = toColorInt(stripe || fill, color);
+						          const bodyMat = new THREE.MeshStandardMaterial({ color: bodyCol, roughness: 0.7, metalness: 0.02 });
+						          const headMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.0 });
+						          const body = new THREE.Group();
+						          body.userData = { kind: 'token_body', facing_deg: facingDeg };
+						          const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 0.92, 14), bodyMat);
+						          torso.position.y = 0.75;
+						          body.add(torso);
+						          const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 12), headMat);
+						          head.position.y = 1.28;
+						          body.add(head);
+						          // Flecha verde (como en 2D): orienta el cuerpo.
+						          const arrowMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.55, metalness: 0.02, transparent: true, opacity: 0.92 });
+						          const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 10, 1), arrowMat);
+						          arrow.position.set(0, 0.34, -0.95);
+						          arrow.rotation.x = -Math.PI / 2;
+						          arrow.userData = { kind: 'token_facing' };
+						          body.add(arrow);
+						          body.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          mesh.add(body);
+
+						          const fovGeom = buildTokenFovGeometry3d(5.8, fovWidthDeg);
+						          const fovMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+						          const fov = new THREE.Mesh(fovGeom, fovMat);
+						          fov.userData = { kind: 'token_fov', facing_deg: facingDeg, width_deg: fovWidthDeg };
+						          fov.visible = !!fovVisible;
+						          fov.rotation.y = (Number(facingDeg) || 0) * (Math.PI / 180);
+						          mesh.add(fov);
+						        } catch (e) { /* ignore */ }
 						        root.add(mesh);
 						        const label = safeText(num);
 						        if (label) {
@@ -7912,10 +7977,46 @@
 						          return;
 						        }
 						        if (!b) b = a;
-						        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
-						        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
+							        const pA = map2dToPitch(Number(a.left) || 0, Number(a.top) || 0, wA, hA, metersW, metersH, orientation);
+							        const pB = map2dToPitch(Number(b.left) || 0, Number(b.top) || 0, wB, hB, metersW, metersH, orientation);
 							        node.position.x = pA.x + ((pB.x - pA.x) * alpha);
 							        node.position.z = pA.z + ((pB.z - pA.z) * alpha);
+
+							        // Interpola orientación corporal y actualiza el cono de visión (si existe).
+							        try {
+							          const aFacing = normalizeAngle(Number(a?.data?.facing_deg), Number(node.userData.facing_deg) || 0);
+							          const bFacing = normalizeAngle(Number(b?.data?.facing_deg), aFacing);
+							          const facing = lerpAngleDeg3d(aFacing, bFacing, alpha);
+							          node.userData.facing_deg = facing;
+							          const aFov = !!a?.data?.fov_visible;
+							          const bFov = !!b?.data?.fov_visible;
+							          const wantsFov = aFov || bFov;
+							          const widthA = clamp(Number(a?.data?.fov_width_deg) || 70, 20, 160);
+							          const widthB = clamp(Number(b?.data?.fov_width_deg) || widthA, 20, 160);
+							          const width = widthA + ((widthB - widthA) * clamp(Number(alpha) || 0, 0, 1));
+							          (node.children || []).forEach((child) => {
+							            if (!child || !child.userData) return;
+							            const k = safeText(child.userData.kind);
+							            if (k === 'token_body') {
+							              child.rotation.y = (Number(facing) || 0) * (Math.PI / 180);
+							              child.userData.facing_deg = facing;
+							              return;
+							            }
+							            if (k === 'token_fov') {
+							              child.visible = !!wantsFov;
+							              child.rotation.y = (Number(facing) || 0) * (Math.PI / 180);
+							              child.userData.facing_deg = facing;
+							              if (Math.abs((Number(child.userData.width_deg) || 0) - width) > 0.5) {
+							                try {
+							                  const next = buildTokenFovGeometry3d(5.8, width);
+							                  if (child.geometry) child.geometry.dispose();
+							                  child.geometry = next;
+							                  child.userData.width_deg = width;
+							                } catch (e) { /* ignore */ }
+							              }
+							            }
+							          });
+							        } catch (e) { /* ignore */ }
 							      });
 
 							      // Balón con “altura” (arco simple) si se mueve lo suficiente.
