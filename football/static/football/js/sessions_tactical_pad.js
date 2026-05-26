@@ -20027,9 +20027,10 @@
       try {
         const url = new URL(actionUrl, window.location.origin);
         url.searchParams.set('style', targetStyle || 'uefa');
-        if (wantOnePage) {
-          url.searchParams.set('one_page', '1');
-        }
+        // Importante: el backend asume one_page=true si NO llega parámetro.
+        // Para evitar “me falta texto” cuando el usuario edita consignas/reglas,
+        // siempre enviamos el flag explícito.
+        url.searchParams.set('one_page', wantOnePage ? '1' : '0');
         // Si el editor se está usando con ?workspace=... en la URL actual, lo propagamos
         // para que el PDF preview siempre resuelva el workspace correctamente.
         const current = new URL(window.location.href);
@@ -20040,7 +20041,7 @@
         resolvedAction = url.toString();
       } catch (error) {
         const sep = actionUrl.includes('?') ? '&' : '?';
-        resolvedAction = `${actionUrl}${sep}style=${encodeURIComponent(targetStyle || 'uefa')}${wantOnePage ? '&one_page=1' : ''}`;
+        resolvedAction = `${actionUrl}${sep}style=${encodeURIComponent(targetStyle || 'uefa')}&one_page=${wantOnePage ? '1' : '0'}`;
       }
 
       // iOS/Capacitor: `window.open` crea una vista sin navegación ("página en blanco" sin salida).
