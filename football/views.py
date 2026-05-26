@@ -41932,6 +41932,15 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         if raw_rules_html is not None
         else str(existing_task_sheet.get('rules_html') or '')
     )
+    # Compat: algunos flujos (p.ej. ediciones rápidas o fallos del editor rich en móvil) envían solo el
+    # texto plano y NO los campos `*_html`. Si preservamos el HTML antiguo, el PDF sigue imprimiendo el
+    # contenido previo porque prioriza `task_sheet.*_html`. En esos casos regeneramos HTML desde el texto.
+    if raw_description is not None and raw_description_html is None:
+        description_html = _sanitize_task_rich_html(_rich_html_from_plain_text(description))
+    if raw_coaching_points is not None and raw_coaching_html is None:
+        coaching_html = _sanitize_task_rich_html(_rich_html_from_plain_text(coaching_points))
+    if raw_confrontation_rules is not None and raw_rules_html is None:
+        rules_html = _sanitize_task_rich_html(_rich_html_from_plain_text(confrontation_rules))
     raw_players = request.POST.get('draw_task_players')
     players = (
         _sanitize_task_text(str(raw_players or '').strip(), multiline=False, max_len=120)
