@@ -26,6 +26,47 @@
       .button.danger { background: rgba(127,29,29,0.22); border-color: rgba(248,113,113,0.4); color:#fecaca; }
       .button.ghost { background: rgba(255,255,255,0.02); }
       .button:disabled { opacity:0.55; cursor:not-allowed; }
+      .vs-menu { position: relative; }
+      .vs-menu > summary { list-style: none; }
+      .vs-menu > summary::-webkit-details-marker { display: none; }
+      .vs-menu-body {
+        position: absolute;
+        top: calc(100% + 10px);
+        left: 0;
+        z-index: 120;
+        width: min(560px, 92vw);
+        padding: 0.75rem;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(8, 18, 30, 0.96);
+        box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
+        display: grid;
+        gap: 0.65rem;
+      }
+      .vs-menu-grid { display: grid; gap: 0.45rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+      .vs-chip {
+        border-radius: 999px;
+        padding: 0.62rem 0.82rem;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(255,255,255,0.05);
+        color: rgba(226,232,240,0.95);
+        cursor: pointer;
+        user-select: none;
+      }
+      .vs-chip:hover { border-color: rgba(34,211,238,0.42); background: rgba(34,211,238,0.10); }
+      .vs-chip .dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(148,163,184,0.9); }
+      .vs-chip[data-vs-kind="template"] .dot { background: rgba(34,211,238,0.95); }
+      .vs-chip[data-vs-kind="tool"] .dot { background: rgba(250,204,21,0.95); }
+      .vs-chip[data-vs-kind="fx"] .dot { background: rgba(244,63,94,0.95); }
+      .vs-menu-muted { color: rgba(226,232,240,0.72); font-weight: 800; font-size: 0.78rem; }
       .stage { position:relative; width:100%; border-radius: 18px; overflow:hidden; border: 1px solid rgba(148,163,184,0.18); background: rgba(0,0,0,0.22); }
       .stage video { display:block; width:100%; height:auto; position:relative; z-index: 1; }
       .stage #vs-freeze-bg { position:absolute; left:0; top:0; width:100%; height:100%; object-fit:contain; z-index: 1; display:none; pointer-events:none; }
@@ -207,6 +248,34 @@
 			              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
 			              <button type="button" class="button" id="vs-freeze" title="Congela para anotar encima (modo trabajo). También crea un freeze-frame para export.">Freeze</button>
 			              <button type="button" class="button" id="vs-track-auto" title="Tracking automático (beta): coloca marcadores Jugador, define IN/OUT y genera el seguimiento.">AutoTrack</button>
+			              <details class="vs-menu" id="vs-resources-menu">
+			                <summary class="button" title="Recursos rápidos (estilo Táctica): 1 clic para insertar guías o activar herramientas">Recursos</summary>
+			                <div class="vs-menu-body">
+			                  <div class="vs-menu-muted">Plantillas (1 clic)</div>
+			                  <div class="vs-menu-grid">
+			                    <button type="button" class="vs-chip" data-vs-resource="template:lanes_manual" data-vs-kind="template"><span class="dot"></span>Carriles manual</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="template:grid_manual" data-vs-kind="template"><span class="dot"></span>Cuadrícula manual</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="template:central_box" data-vs-kind="template"><span class="dot"></span>Caja central</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="template:final_third" data-vs-kind="template"><span class="dot"></span>Último tercio</button>
+			                  </div>
+			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Herramientas (1 clic)</div>
+			                  <div class="vs-menu-grid">
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:arrow" data-vs-kind="tool"><span class="dot"></span>Flecha</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:move" data-vs-kind="tool"><span class="dot"></span>Trayectoria</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:text" data-vs-kind="tool"><span class="dot"></span>Texto</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:player" data-vs-kind="tool"><span class="dot"></span>Jugador</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="tool:area" data-vs-kind="tool"><span class="dot"></span>Área</button>
+			                  </div>
+			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">FX (1 clic)</div>
+			                  <div class="vs-menu-grid">
+			                    <button type="button" class="vs-chip" data-vs-resource="fx:spot" data-vs-kind="fx"><span class="dot"></span>Spotlight</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="fx:blur" data-vs-kind="fx"><span class="dot"></span>Blur</button>
+			                    <button type="button" class="vs-chip" data-vs-resource="fx:freeze" data-vs-kind="fx"><span class="dot"></span>Freeze</button>
+			                  </div>
+			                  <div class="vs-menu-muted" style="margin-top:0.25rem;">Recientes</div>
+			                  <div class="vs-menu-grid" id="vs-resources-recent"></div>
+			                </div>
+			              </details>
             </div>
             <div class="right">
 	              <button type="button" class="button" id="vs-tool-select">Select</button>

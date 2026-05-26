@@ -334,6 +334,8 @@
 	    const templateSelect = document.getElementById('vs-template');
 	    const templateApplyBtn = document.getElementById('vs-template-apply');
 	    const templateClearBtn = document.getElementById('vs-template-clear');
+	    const resourcesMenu = document.getElementById('vs-resources-menu');
+	    const resourcesRecentWrap = document.getElementById('vs-resources-recent');
 	    const templateParamsWrap = document.getElementById('vs-template-params');
 	    const templateLanesCountInput = document.getElementById('vs-template-lanes-count');
 	    const templateLanesStrokeInput = document.getElementById('vs-template-lanes-stroke');
@@ -4127,8 +4129,8 @@
       setStatus('Plantilla aplicada.');
     };
 
-    templateApplyBtn?.addEventListener('click', applyTemplate);
-    templateClearBtn?.addEventListener('click', () => {
+	    templateApplyBtn?.addEventListener('click', applyTemplate);
+	    templateClearBtn?.addEventListener('click', () => {
       const ok = window.confirm('¿Quitar todas las plantillas?');
       if (!ok) return;
       clearTemplates();
@@ -4228,6 +4230,123 @@
 	      if (last) redo.push(last);
 	      restoreJson(history[history.length - 1]);
 	      setStatus('Undo.');
+	    });
+
+	    // Recursos rápidos (estilo Táctica): 1 clic para insertar plantillas o activar herramientas.
+	    const resourcesRecentsKey = () => `vs_resources_recents_v1:${videoId || 0}`;
+	    const readResourceRecents = () => {
+	      try {
+	        const raw = window.localStorage?.getItem?.(resourcesRecentsKey()) || '';
+	        const arr = JSON.parse(raw || '[]');
+	        return Array.isArray(arr) ? arr.map((x) => safeText(x, '')).filter(Boolean).slice(0, 12) : [];
+	      } catch (e) {
+	        return [];
+	      }
+	    };
+	    const writeResourceRecents = (items) => {
+	      try { window.localStorage?.setItem?.(resourcesRecentsKey(), JSON.stringify((items || []).slice(0, 12))); } catch (e) { /* ignore */ }
+	    };
+	    const labelForResourceKey = (key) => {
+	      const k = safeText(key, '');
+	      if (!k) return '';
+	      if (k === 'template:lanes_manual') return 'Carriles manual';
+	      if (k === 'template:grid_manual') return 'Cuadrícula manual';
+	      if (k === 'template:central_box') return 'Caja central';
+	      if (k === 'template:final_third') return 'Último tercio';
+	      if (k === 'tool:arrow') return 'Flecha';
+	      if (k === 'tool:move') return 'Trayectoria';
+	      if (k === 'tool:text') return 'Texto';
+	      if (k === 'tool:player') return 'Jugador';
+	      if (k === 'tool:area') return 'Área';
+	      if (k === 'fx:spot') return 'Spotlight';
+	      if (k === 'fx:blur') return 'Blur';
+	      if (k === 'fx:freeze') return 'Freeze';
+	      return k;
+	    };
+	    const kindForResourceKey = (key) => {
+	      const k = safeText(key, '');
+	      if (k.startsWith('template:')) return 'template';
+	      if (k.startsWith('tool:')) return 'tool';
+	      if (k.startsWith('fx:')) return 'fx';
+	      return '';
+	    };
+	    const renderResourceRecents = () => {
+	      if (!resourcesRecentWrap) return;
+	      const items = readResourceRecents();
+	      if (!items.length) {
+	        resourcesRecentWrap.innerHTML = '<div class="hint">—</div>';
+	        return;
+	      }
+	      const escapeHtml = (value) => safeText(value, '')
+	        .replaceAll('&', '&amp;')
+	        .replaceAll('<', '&lt;')
+	        .replaceAll('>', '&gt;')
+	        .replaceAll('"', '&quot;')
+	        .replaceAll("'", '&#39;');
+	      const html = items.map((k) => {
+	        const kind = kindForResourceKey(k);
+	        const label = labelForResourceKey(k);
+	        return `<button type="button" class="vs-chip" data-vs-resource="${k}" data-vs-kind="${kind}"><span class="dot"></span>${escapeHtml(label)}</button>`;
+	      }).join('');
+	      resourcesRecentWrap.innerHTML = html;
+	    };
+	    const pushResourceRecent = (key) => {
+	      const k = safeText(key, '');
+	      if (!k) return;
+	      const items = readResourceRecents();
+	      const next = [k, ...items.filter((x) => x !== k)].slice(0, 12);
+	      writeResourceRecents(next);
+	      renderResourceRecents();
+	    };
+	    const closeResourcesMenu = () => {
+	      try { if (resourcesMenu && resourcesMenu.tagName === 'DETAILS') resourcesMenu.open = false; } catch (e) { /* ignore */ }
+	    };
+	    const useResource = (key) => {
+	      const k = safeText(key, '');
+	      if (!k) return;
+	      // Plantillas
+	      if (k.startsWith('template:')) {
+	        const name = k.split(':').slice(1).join(':');
+	        if (!templateSelect || !templateApplyBtn) { setStatus('No se pudo aplicar plantilla.', true); return; }
+	        try { templateSelect.value = name; } catch (e) { /* ignore */ }
+	        templateApplyBtn.click();
+	        pushResourceRecent(k);
+	        closeResourcesMenu();
+	        return;
+	      }
+	      // Herramientas
+	      if (k.startsWith('tool:')) {
+	        const toolKey = k.split(':').slice(1).join(':');
+	        setTool(toolKey);
+	        pushResourceRecent(k);
+	        closeResourcesMenu();
+	        setStatus(`Tool: ${labelForResourceKey(k)}`);
+	        return;
+	      }
+	      // FX (son tools realmente)
+	      if (k === 'fx:spot') { setTool('spot'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Spotlight'); return; }
+	      if (k === 'fx:blur') { setTool('blur'); pushResourceRecent(k); closeResourcesMenu(); setStatus('FX: Blur'); return; }
+	      if (k === 'fx:freeze') { try { btnFreeze?.click?.(); } catch (e) { /* ignore */ } pushResourceRecent(k); closeResourcesMenu(); return; }
+	    };
+
+	    // Rehidrata recientes y cablea botones (incluye los generados dinámicamente).
+	    renderResourceRecents();
+	    const wireResourceButtons = (root) => {
+	      try {
+	        Array.from((root || document).querySelectorAll?.('[data-vs-resource]') || []).forEach((btn) => {
+	          if (btn.__vsResourceWired) return;
+	          btn.__vsResourceWired = true;
+	          btn.addEventListener('click', () => useResource(btn.getAttribute('data-vs-resource')));
+	        });
+	      } catch (e) { /* ignore */ }
+	    };
+	    wireResourceButtons(document);
+	    resourcesMenu?.addEventListener?.('toggle', () => {
+	      // Al abrir, re-cablea los "recientes" (se re-renderizan).
+	      if (resourcesMenu?.open) {
+	        renderResourceRecents();
+	        wireResourceButtons(resourcesMenu);
+	      }
 	    });
 	    btnRedo?.addEventListener('click', () => {
 	      if (!redo.length) { setStatus('Redo.', true); return; }
