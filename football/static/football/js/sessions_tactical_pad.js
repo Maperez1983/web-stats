@@ -7246,13 +7246,14 @@
 							    let pitch3dPresentation = false;
 							    let pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, 'off');
 							    let pitch3dSelectedUid = '';
-							    let pitch3dRaycaster = null;
-							    let pitch3dPointer = null;
-							    let pitch3dSpotlight = null;
-							    let pitch3dCurrentStep = 0;
-							    let pitch3dGhostsEnabled = true;
-							    let pitch3dTrailsEnabled = true;
-							    let pitch3dDrawablesEnabled = true;
+								    let pitch3dRaycaster = null;
+								    let pitch3dPointer = null;
+								    let pitch3dSpotlight = null;
+								    let pitch3dKickMarker = null;
+								    let pitch3dCurrentStep = 0;
+								    let pitch3dGhostsEnabled = true;
+								    let pitch3dTrailsEnabled = true;
+								    let pitch3dDrawablesEnabled = true;
 							    let pitch3dGhostRoot = null;
 							    let pitch3dTrailRoot = null;
 
@@ -7303,14 +7304,16 @@
 						          if (!node) return;
 						          try { if (node.geometry) node.geometry.dispose?.(); } catch (e) { /* ignore */ }
 						          try {
-						            if (node.material) {
-						              const mats = Array.isArray(node.material) ? node.material : [node.material];
-						              mats.forEach((m) => {
-						                try { m.map?.dispose?.(); } catch (e) { /* ignore */ }
-						                try { m.dispose?.(); } catch (e) { /* ignore */ }
-						              });
-						            }
-						          } catch (e) { /* ignore */ }
+							            if (node.material) {
+							              const mats = Array.isArray(node.material) ? node.material : [node.material];
+							              mats.forEach((m) => {
+							                const keep = safeText(m?.userData?.kind) === 'pitch3d_text_sprite';
+							                if (keep) return;
+							                try { m.map?.dispose?.(); } catch (e) { /* ignore */ }
+							                try { m.dispose?.(); } catch (e) { /* ignore */ }
+							              });
+							            }
+							          } catch (e) { /* ignore */ }
 						        });
 						      } catch (e) { /* ignore */ }
 						      pitch3dRoot = null;
@@ -7357,22 +7360,34 @@
 						      pitch3dCamera.updateProjectionMatrix();
 						    };
 
-						    const setCameraPreset = (presetKey, metersW, metersH) => {
-						      if (!pitch3dCamera) return;
-						      const k = safeText(presetKey, 'normal');
-						      const base = Math.max(30, metersW);
-						      const y = base * 0.92;
-						      const z = base * 0.78;
-						      const x = base * 0.72;
-						      if (k === 'top_h' || k === 'top_v') {
-						        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
-						        pitch3dOrbit.phi = 0.02;
-						        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
-						      } else if (k === 'front') {
-						        pitch3dOrbit.theta = 0;
-						        pitch3dOrbit.phi = 0.9;
-						        pitch3dOrbit.radius = Math.max(80, metersW * 1.15);
-						      } else if (k === 'side') {
+							    const setCameraPreset = (presetKey, metersW, metersH) => {
+							      if (!pitch3dCamera) return;
+							      const k = safeText(presetKey, 'normal');
+							      const base = Math.max(30, metersW);
+							      if (k === 'top_h' || k === 'top_v') {
+							        pitch3dOrbit.theta = k === 'top_h' ? 0 : (Math.PI / 2);
+							        pitch3dOrbit.phi = 0.02;
+							        pitch3dOrbit.radius = Math.max(70, Math.max(metersW, metersH) * 1.25);
+							      } else if (k === 'broadcast') {
+							        // “TV”: lateral, baja, con más profundidad.
+							        pitch3dOrbit.theta = Math.PI / 2;
+							        pitch3dOrbit.phi = 1.22;
+							        pitch3dOrbit.radius = Math.max(110, metersW * 1.45);
+							      } else if (k === 'broadcast_high') {
+							        // “TV alto”: ligeramente más cenital para explicar espacios.
+							        pitch3dOrbit.theta = Math.PI / 2;
+							        pitch3dOrbit.phi = 1.05;
+							        pitch3dOrbit.radius = Math.max(120, metersW * 1.55);
+							      } else if (k === 'drone') {
+							        // Drone/analista: alto y en diagonal.
+							        pitch3dOrbit.theta = 2.35;
+							        pitch3dOrbit.phi = 0.62;
+							        pitch3dOrbit.radius = Math.max(95, metersW * 1.28);
+							      } else if (k === 'front') {
+							        pitch3dOrbit.theta = 0;
+							        pitch3dOrbit.phi = 0.9;
+							        pitch3dOrbit.radius = Math.max(80, metersW * 1.15);
+							      } else if (k === 'side') {
 						        pitch3dOrbit.theta = Math.PI / 2;
 						        pitch3dOrbit.phi = 0.9;
 						        pitch3dOrbit.radius = Math.max(80, metersW * 1.15);
@@ -7500,20 +7515,63 @@
 						      addGoal3d(-1);
 						      addGoal3d(1);
 
-						      // Spotlight (halo) para seguimiento / selección.
-						      try {
-						        const ringGeo = new THREE.RingGeometry(1.05, 1.55, 48, 1);
-						        const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
-						        const ring = new THREE.Mesh(ringGeo, ringMat);
-						        ring.rotation.x = -Math.PI / 2;
-						        ring.position.y = 0.02;
-						        ring.visible = false;
-						        ring.userData = { kind: 'spotlight' };
-						        pitch3dSpotlight = ring;
-						        root.add(ring);
-						      } catch (e) { /* ignore */ }
+							      // Spotlight (halo) para seguimiento / selección.
+							      try {
+							        const ringGeo = new THREE.RingGeometry(1.05, 1.55, 48, 1);
+							        const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+							        const ring = new THREE.Mesh(ringGeo, ringMat);
+							        ring.rotation.x = -Math.PI / 2;
+							        ring.position.y = 0.02;
+							        ring.visible = false;
+							        ring.userData = { kind: 'spotlight' };
+							        pitch3dSpotlight = ring;
+							        root.add(ring);
+							      } catch (e) { /* ignore */ }
 
-						      const objects = Array.isArray(state?.objects) ? state.objects : [];
+							      // Indicador de golpeo/pase (se actualiza en playback).
+							      pitch3dKickMarker = null;
+							      try {
+							        const g = new THREE.Group();
+							        g.userData = { kind: 'kick_marker' };
+							        g.visible = false;
+							        const col = 0xfacc15;
+							        const ringGeo = new THREE.RingGeometry(0.46, 0.62, 48, 1);
+							        const ringMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+							        const ring = new THREE.Mesh(ringGeo, ringMat);
+							        ring.rotation.x = -Math.PI / 2;
+							        ring.position.y = 0.03;
+							        ring.userData = { kind: 'kick_marker_ring' };
+							        g.add(ring);
+
+							        const shaftGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.8, 8, 1, true);
+							        const shaftMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.82, depthWrite: false });
+							        const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+							        shaft.rotation.x = Math.PI / 2;
+							        shaft.position.set(0, 0.10, -0.95);
+							        shaft.userData = { kind: 'kick_marker_shaft' };
+							        g.add(shaft);
+
+							        const coneGeo = new THREE.ConeGeometry(0.12, 0.35, 10, 1);
+							        const coneMat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.82, depthWrite: false });
+							        const cone = new THREE.Mesh(coneGeo, coneMat);
+							        cone.rotation.x = -Math.PI / 2;
+							        cone.position.set(0, 0.10, -1.90);
+							        cone.userData = { kind: 'kick_marker_head' };
+							        g.add(cone);
+
+							        const footGeo = new THREE.BoxGeometry(0.28, 0.06, 0.44);
+							        const footMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc, transparent: true, opacity: 0.78, depthWrite: false });
+							        const foot = new THREE.Mesh(footGeo, footMat);
+							        foot.position.set(0.18, 0.055, 0.60);
+							        foot.rotation.y = 0.35;
+							        foot.userData = { kind: 'kick_marker_foot' };
+							        g.add(foot);
+
+							        root.add(g);
+							        pitch3dKickMarker = g;
+							      } catch (e) { /* ignore */ }
+
+							      const objects = Array.isArray(state?.objects) ? state.objects : [];
 						      const tokens = objects
 						        .filter((o) => safeText(o?.data?.kind) === 'token')
 						        .slice(0, 80);
@@ -7673,6 +7731,17 @@
 						        mesh.position.z = pos.z;
 						        mesh.userData = { kind: 'token', uid, facing_deg: facingDeg, fov_visible: fovVisible, fov_width_deg: fovWidthDeg };
 
+						        // Sombra “broadcast” simple (sin shadow maps).
+						        try {
+						          const shadowGeo = new THREE.CircleGeometry(0.92, 32);
+						          const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false });
+						          const shadow = new THREE.Mesh(shadowGeo, shadowMat);
+						          shadow.rotation.x = -Math.PI / 2;
+						          shadow.position.set(0, -0.12, 0);
+						          shadow.userData = { kind: 'token_shadow' };
+						          mesh.add(shadow);
+						        } catch (e) { /* ignore */ }
+
 						        // Avatar low‑poly + orientación corporal.
 						        try {
 						          const bodyCol = toColorInt(stripe || fill, color);
@@ -7709,8 +7778,9 @@
 						        if (label) {
 						          const spr = buildTextSprite(label, { fill: '#0b1220', bg: 'rgba(248,250,252,0.86)', size: 96 });
 						          if (spr) {
-						            spr.position.set(pos.x, 1.05, pos.z);
-						            root.add(spr);
+						            spr.position.set(0, 1.05, 0);
+						            spr.userData = { kind: 'token_label', base_scale: Number(spr.scale?.x) || 1.6 };
+						            mesh.add(spr);
 						          }
 						        }
 						      };
@@ -7725,6 +7795,16 @@
 						        mesh.position.set(pos.x, 0.35, pos.z);
 						        mesh.userData = { kind: 'ball' };
 						        root.add(mesh);
+						        // Sombra del balón (se ajusta con la altura en playback).
+						        try {
+						          const sGeo = new THREE.CircleGeometry(0.5, 32);
+						          const sMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.20, depthWrite: false });
+						          const s = new THREE.Mesh(sGeo, sMat);
+						          s.rotation.x = -Math.PI / 2;
+						          s.position.set(pos.x, 0.02, pos.z);
+						          s.userData = { kind: 'ball_shadow' };
+						          root.add(s);
+						        } catch (e) { /* ignore */ }
 						      };
 						      balls.forEach(addBall);
 
@@ -8019,27 +8099,60 @@
 							        } catch (e) { /* ignore */ }
 							      });
 
-							      // Balón con “altura” (arco simple) si se mueve lo suficiente.
-							      try {
-							        const ballNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball');
-							        if (ballNode) {
-							          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball') || null;
-							          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball') || aBall;
-							          if (aBall && bBall) {
-							            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
-							            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
-							            const dx = pB.x - pA.x;
-							            const dz = pB.z - pA.z;
-							            const dist = Math.hypot(dx, dz);
-							            const lift = dist > 6 ? Math.min(2.8, 0.22 * dist) : 0;
-							            const arc = lift ? (Math.sin(Math.PI * alpha) * lift) : 0;
-							            ballNode.position.x = pA.x + (dx * alpha);
-							            ballNode.position.z = pA.z + (dz * alpha);
-							            ballNode.position.y = 0.35 + arc;
-							          }
-							        }
-							      } catch (e) { /* ignore */ }
-						    };
+								      // Balón con “altura” (arco simple) si se mueve lo suficiente.
+								      try {
+								        const ballNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball');
+								        const ballShadowNode = pitch3dRoot.children.find((n) => safeText(n?.userData?.kind) === 'ball_shadow');
+								        if (ballNode) {
+								          const aBall = aObjs.find((o) => safeText(o?.data?.kind) === 'ball') || null;
+								          const bBall = bObjs.find((o) => safeText(o?.data?.kind) === 'ball') || aBall;
+								          if (aBall && bBall) {
+								            const pA = map2dToPitch(Number(aBall.left) || 0, Number(aBall.top) || 0, wA, hA, metersW, metersH, orientation);
+								            const pB = map2dToPitch(Number(bBall.left) || 0, Number(bBall.top) || 0, wB, hB, metersW, metersH, orientation);
+								            const dx = pB.x - pA.x;
+								            const dz = pB.z - pA.z;
+								            const dist = Math.hypot(dx, dz);
+								            const lift = dist > 6 ? Math.min(2.8, 0.22 * dist) : 0;
+								            const arc = lift ? (Math.sin(Math.PI * alpha) * lift) : 0;
+								            ballNode.position.x = pA.x + (dx * alpha);
+								            ballNode.position.z = pA.z + (dz * alpha);
+								            ballNode.position.y = 0.35 + arc;
+
+								            // Sombra del balón: en el suelo, ajusta tamaño/opacidad según la altura.
+								            if (ballShadowNode) {
+								              ballShadowNode.position.x = ballNode.position.x;
+								              ballShadowNode.position.z = ballNode.position.z;
+								              ballShadowNode.position.y = 0.02;
+								              const s = clamp(1.0 + (arc * 0.35), 1.0, 2.2);
+								              ballShadowNode.scale.set(s, s, 1);
+								              try {
+								                const mats = Array.isArray(ballShadowNode.material) ? ballShadowNode.material : [ballShadowNode.material];
+								                mats.forEach((m) => { if (m && typeof m.opacity === 'number') m.opacity = clamp(0.20 - (arc * 0.04), 0.07, 0.22); });
+								              } catch (e) { /* ignore */ }
+								              ballShadowNode.visible = true;
+								            }
+
+								            // Indicador de golpeo/pase: aparece al inicio si el balón recorre distancia.
+								            try {
+								              if (pitch3dKickMarker) {
+								                const showKick = dist > 1.8;
+								                const fade = showKick ? clamp(1 - ((Number(alpha) || 0) / 0.35), 0, 1) : 0;
+								                pitch3dKickMarker.visible = showKick && fade > 0.02;
+								                if (pitch3dKickMarker.visible) {
+								                  pitch3dKickMarker.position.set(pA.x, 0, pA.z);
+								                  pitch3dKickMarker.rotation.y = Math.atan2(dx, -dz);
+								                  const opacity = 0.86 * fade;
+								                  (pitch3dKickMarker.children || []).forEach((child) => {
+								                    const mats = child?.material ? (Array.isArray(child.material) ? child.material : [child.material]) : [];
+								                    mats.forEach((m) => { if (m && typeof m.opacity === 'number') m.opacity = opacity * (safeText(child?.userData?.kind) === 'kick_marker_foot' ? 0.92 : 1.0); });
+								                  });
+								                }
+								              }
+								            } catch (e) { /* ignore */ }
+								          }
+								        }
+								      } catch (e) { /* ignore */ }
+							    };
 
 						    const stopPitch3dPlayback = () => {
 						      pitch3dPlayback.playing = false;
@@ -8049,10 +8162,10 @@
 						      updatePitch3dPlaybackButton();
 						    };
 
-						    const startPitch3dPlayback = () => {
-						      const steps = preparePitch3dSteps();
-						      if (steps.length <= 1) return;
-						      pitch3dPlayback.steps = steps;
+							    const startPitch3dPlayback = () => {
+							      const steps = preparePitch3dSteps();
+							      if (steps.length <= 1) return;
+							      pitch3dPlayback.steps = steps;
 						      pitch3dPlayback.playing = true;
 						      pitch3dPlayback.index = clamp(Number(pitch3dCurrentStep) || Number(activeStepIndex) || 0, 0, steps.length - 1);
 						      pitch3dCurrentStep = pitch3dPlayback.index;
@@ -8063,14 +8176,57 @@
 						        setPitch3dHud(step.title, meta);
 						      } catch (e) { /* ignore */ }
 						      pitch3dPlayback.startAt = performance.now();
-						      pitch3dPlayback.duration = steps[pitch3dPlayback.index]?.duration || 3;
-						      updatePitch3dPlaybackButton();
-						    };
+							      pitch3dPlayback.duration = steps[pitch3dPlayback.index]?.duration || 3;
+							      updatePitch3dPlaybackButton();
+							    };
 
-							    const renderPitch3dFrame = (now) => {
-							      if (!pitch3dOpen || !pitch3dRenderer || !pitch3dScene || !pitch3dCamera) return;
-							      // Seguimiento (balón / jugador seleccionado) + spotlight.
+							    const updatePitch3dTokenLabels = () => {
+							      if (!pitch3dRoot || !pitch3dCamera || !pitch3dCanvasEl) return;
+							      const rect = pitch3dCanvasEl.getBoundingClientRect();
+							      const w = Math.max(1, rect.width || 0);
+							      const h = Math.max(1, rect.height || 0);
+							      const labels = [];
 							      try {
+							        (pitch3dRoot.children || []).forEach((node) => {
+							          if (!node || safeText(node?.userData?.kind) !== 'token') return;
+							          const spr = (node.children || []).find((c) => c && safeText(c?.userData?.kind) === 'token_label') || null;
+							          if (!spr) return;
+							          const base = Number(spr?.userData?.base_scale) || Number(spr.scale?.x) || 1.6;
+							          const dist = pitch3dCamera.position.distanceTo(node.position);
+							          labels.push({ spr, base, dist });
+							        });
+							      } catch (e) { /* ignore */ }
+							      if (!labels.length) return;
+
+							      labels.sort((a, b) => (Number(a.dist) || 0) - (Number(b.dist) || 0));
+							      const used = [];
+							      const tmp = new THREE.Vector3();
+							      labels.forEach((row) => {
+							        const spr = row.spr;
+							        if (!spr) return;
+							        try { spr.getWorldPosition(tmp); } catch (e) { return; }
+							        tmp.project(pitch3dCamera);
+							        const x = (tmp.x * 0.5 + 0.5) * w;
+							        const y = (-tmp.y * 0.5 + 0.5) * h;
+							        if (!Number.isFinite(x) || !Number.isFinite(y) || tmp.z < -1 || tmp.z > 1) {
+							          spr.visible = false;
+							          return;
+							        }
+							        const dist = Number(row.dist) || 120;
+							        const base = Number(row.base) || 1.6;
+							        const scaleMult = clamp(dist / 120, 0.75, 1.65);
+							        spr.scale.set(base * scaleMult, base * scaleMult, 1);
+							        const r = 18 * scaleMult;
+							        const hit = used.some((u) => ((x - u.x) ** 2 + (y - u.y) ** 2) < ((r + u.r) ** 2));
+							        spr.visible = !hit;
+							        if (!hit) used.push({ x, y, r });
+							      });
+							    };
+
+								    const renderPitch3dFrame = (now) => {
+								      if (!pitch3dOpen || !pitch3dRenderer || !pitch3dScene || !pitch3dCamera) return;
+								      // Seguimiento (balón / jugador seleccionado) + spotlight.
+								      try {
 							        pitch3dFollowMode = safeText(pitch3dFollowSelect?.value, pitch3dFollowMode || 'off');
 							        const mode = safeText(pitch3dFollowMode, 'off');
 							        let followNode = null;
@@ -8116,8 +8272,8 @@
 						      pitch3dCamera.lookAt(cx, cy, cz);
 
 						      // Playback (solo tokens).
-						      if (pitch3dPlayback.playing && pitch3dPlayback.steps.length > 1) {
-						        const steps = pitch3dPlayback.steps;
+								      if (pitch3dPlayback.playing && pitch3dPlayback.steps.length > 1) {
+								        const steps = pitch3dPlayback.steps;
 						        const idx = clamp(pitch3dPlayback.index, 0, steps.length - 1);
 						        const next = Math.min(steps.length - 1, idx + 1);
 						        const dur = Math.max(0.2, Number(steps[idx]?.duration) || 3) * 1000;
@@ -8141,12 +8297,15 @@
 							          if (next >= steps.length - 1) {
 							            stopPitch3dPlayback();
 							          }
-							        }
-						      }
+								        }
+								      }
 
-						      try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
-						      pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame);
-						    };
+								      // Ajusta escalado + evita solapes.
+								      try { updatePitch3dTokenLabels(); } catch (e) { /* ignore */ }
+
+								      try { pitch3dRenderer.render(pitch3dScene, pitch3dCamera); } catch (e) { /* ignore */ }
+								      pitch3dAnimFrame = window.requestAnimationFrame(renderPitch3dFrame);
+							    };
 
 						    const openPitch3d = () => {
 							      if (!canUsePitch3d()) {

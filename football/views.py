@@ -41715,7 +41715,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     # Para tareas existentes, si un campo NO viene en POST, conservamos su valor anterior.
     raw_objective = request.POST.get('draw_task_objective')
     objective = (
-        _sanitize_task_text(str(raw_objective or '').strip(), multiline=False, max_len=180)
+        _sanitize_task_text(str(raw_objective or '').strip(), multiline=True, max_len=8000)
         if raw_objective is not None
         else str(getattr(existing_task, 'objective', '') or '')
     )
@@ -43710,7 +43710,7 @@ def _build_task_studio_pdf_context(request, owner, task, tactical_layout, pdf_st
 
 def _build_task_studio_draft_pdf_context(request, owner, pdf_style='uefa'):
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160) or 'Tarea sin título'
-    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=True, max_len=8000)
     coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
     confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -66778,7 +66778,7 @@ def _assistant_create_blueprint_from_task_sheet(
     if not objective_bullets and 'objetivo' in raw_norm:
         objective_bullets = _assistant_extract_bullets(raw_all)
     objective_src = ' · '.join(objective_bullets[:2]).strip() or ' '.join(beh_lines[:2]).strip() or ' '.join(desc_lines[:2]).strip() or title
-    objective = _sanitize_task_text(objective_src, multiline=False, max_len=180)
+    objective = _sanitize_task_text(objective_src, multiline=False, max_len=8000)
 
     coaching_items = []
     # Variantes/consejos tienden a ser coaching; objetivos también ayudan.
