@@ -4593,8 +4593,8 @@
                 <div class="action-menu-group">
 	                  <div class="action-menu-title">PDF</div>
 	                  <div class="action-menu-row">
-		                  <button type="button" class="button" data-print-style="uefa">Imprimir UEFA</button>
-		                  <button type="button" class="button" data-print-style="club">Imprimir Club</button>
+		                  <button type="button" class="button" data-print-style="uefa" data-print-one-page="1">Imprimir UEFA</button>
+		                  <button type="button" class="button" data-print-style="club" data-print-one-page="1">Imprimir Club</button>
 		                  {% if task %}
 		                  <button type="button" class="button" id="share-pdf-uefa">Compartir PDF UEFA</button>
 		                  <button type="button" class="button" id="share-pdf-club">Compartir PDF Club</button>
@@ -7154,8 +7154,8 @@
 		                  </div>
 	                      {% if not tactics_mode %}
 			                  <div class="export-grid" style="margin-top:0.65rem;">
-			                    <button type="button" class="button" data-print-style="uefa">PDF UEFA</button>
-			                    <button type="button" class="button" data-print-style="club">PDF Club</button>
+			                    <button type="button" class="button" data-print-style="uefa" data-print-one-page="1">PDF UEFA</button>
+			                    <button type="button" class="button" data-print-style="club" data-print-one-page="1">PDF Club</button>
 			                  </div>
 	                      {% endif %}
 		                  <div class="export-note">
