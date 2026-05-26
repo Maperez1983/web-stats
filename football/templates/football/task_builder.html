@@ -332,7 +332,8 @@
       }
       /* En modo táctica, el campo va “enmarcado” con una grada/estadio (estilo broadcast) con el
          nombre del equipo activo. Solo es decorativo y no debe bloquear clicks. */
-      body.tactics-mode .tpad-stadium {
+      body.tactics-mode .tpad-stadium,
+      body.stadium-mode .tpad-stadium {
         --tpad-team-primary: var(--prod-primary, #2f7d32);
         --tpad-team-secondary: var(--prod-secondary, #f8fafc);
         --tpad-team-primary-soft: rgba(47, 125, 50, 0.22);
@@ -375,7 +376,8 @@
           0 0 0 4px rgba(0,0,0,0.28) inset;
         isolation: isolate;
       }
-	      body.tactics-mode .tpad-stadium-center {
+		      body.tactics-mode .tpad-stadium-center,
+		      body.stadium-mode .tpad-stadium-center {
 	        grid-area: center;
 	        position: relative;
 	        width: fit-content;
@@ -386,7 +388,8 @@
 	        padding: clamp(12px, 2vmin, 22px);
 	      }
 	      /* “Base” bajo el campo: añade sensación de volumen sin tocar el canvas (ni coordenadas). */
-	      body.tactics-mode .tpad-stadium-center::before {
+		      body.tactics-mode .tpad-stadium-center::before,
+		      body.stadium-mode .tpad-stadium-center::before {
 	        content: "";
 	        position: absolute;
 	        inset: 8px;
@@ -399,17 +402,20 @@
 	        pointer-events: none;
 	        z-index: 1;
 	      }
-      body.tactics-mode .tpad-stadium-center > .pitch-stage {
+      body.tactics-mode .tpad-stadium-center > .pitch-stage,
+      body.stadium-mode .tpad-stadium-center > .pitch-stage {
         /* El estadio debe dimensionarse por el campo */
         width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
       }
-	      body.tactics-mode .tpad-stadium .pitch-stage {
+		      body.tactics-mode .tpad-stadium .pitch-stage,
+		      body.stadium-mode .tpad-stadium .pitch-stage {
 	        /* Un “marco” visible ayuda a que se perciba la grada alrededor (y no como una mancha). */
 	        border: 2px solid rgba(255, 255, 255, 0.16);
 	        outline: 10px solid rgba(0, 0, 0, 0.20);
 	        outline-offset: 0;
 	      }
-	      body.tactics-mode .tpad-stadium .pitch-stage {
+		      body.tactics-mode .tpad-stadium .pitch-stage,
+		      body.stadium-mode .tpad-stadium .pitch-stage {
 	        position: relative;
 	        background: rgba(2, 6, 23, 0.18);
 	        box-shadow:
@@ -419,7 +425,8 @@
 	          inset 0 0 0 1px rgba(255,255,255,0.10);
 	      }
 	      /* Bisel interno del marco (broadcast 3D). */
-	      body.tactics-mode .tpad-stadium .pitch-stage::before {
+		      body.tactics-mode .tpad-stadium .pitch-stage::before,
+		      body.stadium-mode .tpad-stadium .pitch-stage::before {
 	        content: "";
 	        position: absolute;
 	        inset: -12px;
@@ -432,26 +439,38 @@
 	        z-index: -1;
 	      }
       /* Gradas (4 lados) como elementos del grid */
-      body.tactics-mode .tpad-stand {
+      body.tactics-mode .tpad-stand,
+      body.stadium-mode .tpad-stand {
         width: 100%;
         height: 100%;
       }
-      body.tactics-mode .tpad-stand-top { grid-area: top; }
-      body.tactics-mode .tpad-stand-bottom { grid-area: bottom; }
-      body.tactics-mode .tpad-stand-left { grid-area: left; }
-      body.tactics-mode .tpad-stand-right { grid-area: right; }
       body.tactics-mode .tpad-stand-top,
-      body.tactics-mode .tpad-stand-bottom {
+      body.stadium-mode .tpad-stand-top { grid-area: top; }
+      body.tactics-mode .tpad-stand-bottom,
+      body.stadium-mode .tpad-stand-bottom { grid-area: bottom; }
+      body.tactics-mode .tpad-stand-left,
+      body.stadium-mode .tpad-stand-left { grid-area: left; }
+      body.tactics-mode .tpad-stand-right,
+      body.stadium-mode .tpad-stand-right { grid-area: right; }
+      body.tactics-mode .tpad-stand-top,
+      body.tactics-mode .tpad-stand-bottom,
+      body.stadium-mode .tpad-stand-top,
+      body.stadium-mode .tpad-stand-bottom {
         writing-mode: horizontal-tb;
         transform: none;
       }
       body.tactics-mode .tpad-stand-left,
-      body.tactics-mode .tpad-stand-right {
+      body.tactics-mode .tpad-stand-right,
+      body.stadium-mode .tpad-stand-left,
+      body.stadium-mode .tpad-stand-right {
         writing-mode: vertical-rl;
       }
-      body.tactics-mode .tpad-stand-left { transform: rotate(180deg); }
-      body.tactics-mode .tpad-stand-right { transform: none; }
-	      body.tactics-mode .tpad-stand-label {
+      body.tactics-mode .tpad-stand-left,
+      body.stadium-mode .tpad-stand-left { transform: rotate(180deg); }
+      body.tactics-mode .tpad-stand-right,
+      body.stadium-mode .tpad-stand-right { transform: none; }
+		      body.tactics-mode .tpad-stand-label,
+		      body.stadium-mode .tpad-stand-label {
 	        display: inline-flex;
 	        align-items: center;
 	        justify-content: center;
@@ -460,21 +479,28 @@
 	        padding: 0.45rem 0.6rem;
 	        opacity: 0.95;
 	      }
-	      body.tactics-mode .tpad-stand-label--side { gap: 0.45rem; }
+		      body.tactics-mode .tpad-stand-label--side,
+		      body.stadium-mode .tpad-stand-label--side { gap: 0.45rem; }
 	      /* Gradas laterales:
 	         - El contenedor usa `writing-mode: vertical-rl` y en el lado izq hay rotación 180 (se invierte el escudo).
 	         - Rotamos el bloque de etiqueta para que se lea bien y mantenga el escudo “de pie”. */
-	      body.tactics-mode .tpad-stand-left .tpad-stand-label--side,
-	      body.tactics-mode .tpad-stand-right .tpad-stand-label--side {
+		      body.tactics-mode .tpad-stand-left .tpad-stand-label--side,
+		      body.tactics-mode .tpad-stand-right .tpad-stand-label--side,
+		      body.stadium-mode .tpad-stand-left .tpad-stand-label--side,
+		      body.stadium-mode .tpad-stand-right .tpad-stand-label--side {
 	        writing-mode: horizontal-tb;
 	        flex-direction: column;
 	        gap: 0.25rem;
 	        padding: 0.35rem 0.45rem;
 	      }
-	      body.tactics-mode .tpad-stand-right .tpad-stand-label--side { transform: rotate(-90deg); }
-	      body.tactics-mode .tpad-stand-left .tpad-stand-label--side { transform: rotate(90deg); }
-	      body.tactics-mode .tpad-stand-label--bottom { gap: 0.55rem; }
-      body.tactics-mode .tpad-stand-label--top {
+		      body.tactics-mode .tpad-stand-right .tpad-stand-label--side,
+		      body.stadium-mode .tpad-stand-right .tpad-stand-label--side { transform: rotate(-90deg); }
+		      body.tactics-mode .tpad-stand-left .tpad-stand-label--side,
+		      body.stadium-mode .tpad-stand-left .tpad-stand-label--side { transform: rotate(90deg); }
+		      body.tactics-mode .tpad-stand-label--bottom,
+		      body.stadium-mode .tpad-stand-label--bottom { gap: 0.55rem; }
+      body.tactics-mode .tpad-stand-label--top,
+      body.stadium-mode .tpad-stand-label--top {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -488,7 +514,8 @@
         box-shadow: 0 12px 30px rgba(0,0,0,0.28);
         max-width: min(92%, 860px);
       }
-	      body.tactics-mode .tpad-stand-crest {
+		      body.tactics-mode .tpad-stand-crest,
+		      body.stadium-mode .tpad-stand-crest {
 	        width: clamp(28px, 2.6vmin, 42px);
 	        height: clamp(28px, 2.6vmin, 42px);
         border-radius: 50%;
@@ -500,13 +527,15 @@
 	        box-shadow: 0 10px 22px rgba(0,0,0,0.38);
 	        flex: 0 0 auto;
 	      }
-	      body.tactics-mode .tpad-stand-crest--mini {
+		      body.tactics-mode .tpad-stand-crest--mini,
+		      body.stadium-mode .tpad-stand-crest--mini {
 	        width: clamp(18px, 2.0vmin, 26px);
 	        height: clamp(18px, 2.0vmin, 26px);
 	        box-shadow: 0 8px 18px rgba(0,0,0,0.34);
 	        opacity: 0.92;
 	      }
-	      body.tactics-mode .tpad-stand-name {
+		      body.tactics-mode .tpad-stand-name,
+		      body.stadium-mode .tpad-stand-name {
 	        font-weight: 950;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -519,18 +548,22 @@
 	        -webkit-box-orient: vertical;
 	        line-height: 1.05;
 	      }
-	      body.tactics-mode .tpad-stand-name--mini {
+		      body.tactics-mode .tpad-stand-name--mini,
+		      body.stadium-mode .tpad-stand-name--mini {
 	        font-size: clamp(0.62rem, 1.15vmin, 0.92rem);
 	        letter-spacing: 0.10em;
 	        -webkit-line-clamp: 1;
 	      }
-	      body.tactics-mode .tpad-stand-left .tpad-stand-name--mini,
-	      body.tactics-mode .tpad-stand-right .tpad-stand-name--mini {
+		      body.tactics-mode .tpad-stand-left .tpad-stand-name--mini,
+		      body.tactics-mode .tpad-stand-right .tpad-stand-name--mini,
+		      body.stadium-mode .tpad-stand-left .tpad-stand-name--mini,
+		      body.stadium-mode .tpad-stand-right .tpad-stand-name--mini {
 	        max-width: clamp(84px, 12vmin, 160px);
 	        letter-spacing: 0.08em;
 	        text-align: center;
 	      }
-      body.tactics-mode .tpad-stadium::before {
+      body.tactics-mode .tpad-stadium::before,
+      body.stadium-mode .tpad-stadium::before {
         content: "";
         position: absolute;
         inset: 6%;
@@ -540,7 +573,8 @@
         pointer-events: none;
         z-index: 0;
       }
-      body.tactics-mode .tpad-stadium::after {
+      body.tactics-mode .tpad-stadium::after,
+      body.stadium-mode .tpad-stadium::after {
         /* “Asientos” (patrón de puntos) para que se perciba como grada, no solo un shadow. */
         content: "";
         position: absolute;
@@ -569,7 +603,8 @@
       body.tactics-mode.tactics-fullscreen .tpad-stadium .pitch-stage {
         outline: 14px solid rgba(0, 0, 0, 0.26);
       }
-      body.tactics-mode .tpad-stadium-header {
+      body.tactics-mode .tpad-stadium-header,
+      body.stadium-mode .tpad-stadium-header {
         position: absolute;
         top: clamp(10px, 1.8vmin, 18px);
         left: clamp(10px, 1.8vmin, 18px);
@@ -582,7 +617,8 @@
         z-index: 6;
         opacity: 0.92;
       }
-      body.tactics-mode .tpad-stadium-header::before {
+      body.tactics-mode .tpad-stadium-header::before,
+      body.stadium-mode .tpad-stadium-header::before {
         content: "";
         position: absolute;
         inset: -0.35rem;
@@ -594,7 +630,8 @@
         box-shadow: 0 12px 30px rgba(0,0,0,0.28);
         z-index: -1;
       }
-      body.tactics-mode .tpad-stadium-crest {
+      body.tactics-mode .tpad-stadium-crest,
+      body.stadium-mode .tpad-stadium-crest {
         width: clamp(28px, 2.6vmin, 44px);
         height: clamp(28px, 2.6vmin, 44px);
         border-radius: 50%;
@@ -604,7 +641,8 @@
         padding: 2px;
         box-shadow: 0 10px 22px rgba(0,0,0,0.38);
       }
-      body.tactics-mode .tpad-stadium-title {
+      body.tactics-mode .tpad-stadium-title,
+      body.stadium-mode .tpad-stadium-title {
         font-weight: 950;
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -626,10 +664,12 @@
         line-height: 1.05;
         max-width: min(92%, 820px);
       }
-      body.tactics-mode .tpad-stadium-title strong {
+      body.tactics-mode .tpad-stadium-title strong,
+      body.stadium-mode .tpad-stadium-title strong {
         color: rgba(248,250,252,0.96);
       }
-      body.tactics-mode .tpad-stadium-accent {
+      body.tactics-mode .tpad-stadium-accent,
+      body.stadium-mode .tpad-stadium-accent {
         position: absolute;
         inset: 0;
         border-radius: inherit;
@@ -640,7 +680,8 @@
           radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--tpad-team-secondary) 22%, transparent), transparent 62%);
         opacity: 0.95;
       }
-      body.tactics-mode .tpad-stadium-banner {
+      body.tactics-mode .tpad-stadium-banner,
+      body.stadium-mode .tpad-stadium-banner {
         position: absolute;
         top: clamp(48px, 6.4vmin, 78px);
         left: 0;
@@ -657,7 +698,8 @@
         user-select: none;
         padding: 0 1rem;
       }
-	      body.tactics-mode .tpad-stand {
+		      body.tactics-mode .tpad-stand,
+		      body.stadium-mode .tpad-stand {
 	        position: relative;
 	        display: grid;
 	        place-items: center;
@@ -675,7 +717,8 @@
 	        -webkit-backdrop-filter: blur(6px);
 	      }
 	      /* Luz/volumen: sombrea el borde interior de cada grada para que parezca inclinada. */
-	      body.tactics-mode .tpad-stand::after {
+		      body.tactics-mode .tpad-stand::after,
+		      body.stadium-mode .tpad-stand::after {
 	        content: "";
 	        position: absolute;
 	        inset: 0;
@@ -683,21 +726,31 @@
 	        opacity: 0.9;
 	        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.12));
 	      }
-	      body.tactics-mode .tpad-stand-top::after { background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.10)); }
-	      body.tactics-mode .tpad-stand-bottom::after { background: linear-gradient(0deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
-	      body.tactics-mode .tpad-stand-left::after { background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
-	      body.tactics-mode .tpad-stand-right::after { background: linear-gradient(270deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+		      body.tactics-mode .tpad-stand-top::after,
+		      body.stadium-mode .tpad-stand-top::after { background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.10)); }
+		      body.tactics-mode .tpad-stand-bottom::after,
+		      body.stadium-mode .tpad-stand-bottom::after { background: linear-gradient(0deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+		      body.tactics-mode .tpad-stand-left::after,
+		      body.stadium-mode .tpad-stand-left::after { background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+		      body.tactics-mode .tpad-stand-right::after,
+		      body.stadium-mode .tpad-stand-right::after { background: linear-gradient(270deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
       body.tactics-mode .tpad-stand-top,
-      body.tactics-mode .tpad-stand-bottom {
+      body.tactics-mode .tpad-stand-bottom,
+      body.stadium-mode .tpad-stand-top,
+      body.stadium-mode .tpad-stand-bottom {
         height: var(--tpad-stand);
       }
       body.tactics-mode .tpad-stand-left,
-      body.tactics-mode .tpad-stand-right {
+      body.tactics-mode .tpad-stand-right,
+      body.stadium-mode .tpad-stand-left,
+      body.stadium-mode .tpad-stand-right {
         width: var(--tpad-stand);
       }
       /* Asegura que el campo quede por encima de las gradas. */
-      body.tactics-mode .tpad-stadium .pitch-stage { z-index: 3; }
-	      body.tactics-mode .tpad-stadium .pitch-stage {
+      body.tactics-mode .tpad-stadium .pitch-stage,
+      body.stadium-mode .tpad-stadium .pitch-stage { z-index: 3; }
+	      body.tactics-mode .tpad-stadium .pitch-stage,
+	      body.stadium-mode .tpad-stadium .pitch-stage {
 	        z-index: 3;
 	      }
       .simple-hint {
@@ -4556,10 +4609,10 @@
 	      }
 	    </style>
 	  </head>
-			  <body
-	        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %}"
-	        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
-	      >
+				  <body
+		        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %} stadium-mode"
+		        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
+		      >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
 			    <div id="task-selection-dock" class="selection-dock" hidden aria-label="Inspector flotante"></div>
 			    {% if tactics_mode %}
@@ -6342,9 +6395,8 @@
 				                  {% endif %}
 				              </div>
 
-		              <div class="pitch-main">
-		              <div class="pitch-viewport" id="task-pitch-viewport">
-                    {% if tactics_mode %}
+			              <div class="pitch-main">
+			              <div class="pitch-viewport" id="task-pitch-viewport">
                       <div
                         class="tpad-stadium"
                         style="
@@ -6356,13 +6408,13 @@
                       >
                         <div class="tpad-stand tpad-stand-top" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--top">
-	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
-	                                <img class="tpad-stand-crest" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
-	                              {% else %}
-	                                <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-	                              {% endif %}
-	                            {% endif %}
+		                            {% if tactics_team_crest_url %}
+		                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
+		                                <img class="tpad-stand-crest" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+		                              {% else %}
+		                                <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+		                              {% endif %}
+		                            {% endif %}
                             <span class="tpad-stand-name">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
@@ -6393,30 +6445,27 @@
                         </div>
                         <div class="tpad-stand tpad-stand-bottom" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--bottom">
-	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
-	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
-	                              {% else %}
-	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-	                              {% endif %}
-	                            {% endif %}
+		                            {% if tactics_team_crest_url %}
+		                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
+		                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+		                              {% else %}
+		                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+		                              {% endif %}
+		                            {% endif %}
                             <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stadium-center">
-                    {% endif %}
-		                <div class="pitch-stage" id="task-pitch-stage">
-		                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
-		                  <canvas id="create-task-canvas"></canvas>
-		                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
-		                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
-		                  </button>
-		                </div>
-                    {% if tactics_mode %}
+			                <div class="pitch-stage" id="task-pitch-stage">
+			                  <svg id="task-pitch-surface" viewBox="-2 -2 1054 684" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+			                  <canvas id="create-task-canvas"></canvas>
+			                  <button type="button" class="pitch-resize-handle" id="pitch-resize-handle" aria-label="Redimensionar campo">
+			                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3v6h-2V6.41l-6.29 6.3-1.42-1.42 6.3-6.29H15V3h6ZM5 21h6v-2H6.41l6.3-6.29-1.42-1.42-6.29 6.3V13H3v8h2Z"/></svg>
+			                  </button>
+			                </div>
                         </div>
                       </div>
-                    {% endif %}
-		              </div>
+			              </div>
 			              <div class="pitch-drills-strip" id="task-drills-strip" hidden></div>
 				              <p class="pitch-status" id="task-builder-status">Pizarra lista.</p>
 	                    {% if tactics_mode %}

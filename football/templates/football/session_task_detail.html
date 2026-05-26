@@ -70,17 +70,50 @@
         color: rgba(225, 236, 255, 0.78);
         font-size: 0.86rem;
       }
-      .preview {
-        width: 100%;
-        max-height: min(72vh, 680px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        object-fit: cover;
-        object-position: center;
-        background: rgba(255, 255, 255, 0.06);
-        cursor: zoom-in;
-        transition: object-fit 0.15s ease, background 0.15s ease;
-      }
+	      .preview {
+	        width: 100%;
+	        max-height: min(72vh, 680px);
+	        border-radius: 12px;
+	        border: 1px solid rgba(255, 255, 255, 0.16);
+	        object-fit: cover;
+	        object-position: center;
+	        background: rgba(255, 255, 255, 0.06);
+	        cursor: zoom-in;
+	        transition: object-fit 0.15s ease, background 0.15s ease;
+	      }
+	      .preview-stadium {
+	        position: relative;
+	        border-radius: 16px;
+	        padding: 14px;
+	        background-color: rgba(2, 6, 23, 0.96);
+	        background-image:
+	          radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.20), rgba(255,255,255,0.00) 55%),
+	          radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.42), rgba(0,0,0,0.00) 60%),
+	          linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96)),
+	          repeating-linear-gradient(0deg, rgba(255,255,255,0.070) 0 1px, rgba(255,255,255,0) 1px 12px),
+	          repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, rgba(255,255,255,0) 1px 14px);
+	        border: 1px solid rgba(255, 255, 255, 0.12);
+	        overflow: hidden;
+	        box-shadow: 0 18px 55px rgba(0,0,0,0.28);
+	      }
+	      .preview-stadium::before {
+	        content: "";
+	        position: absolute;
+	        inset: 10px;
+	        border-radius: 16px;
+	        pointer-events: none;
+	        background:
+	          linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 35%),
+	          linear-gradient(0deg, rgba(0,0,0,0.22), rgba(0,0,0,0.0) 45%);
+	        opacity: 0.75;
+	      }
+	      .preview-stadium .preview {
+	        position: relative;
+	        z-index: 1;
+	        border: 2px solid rgba(255, 255, 255, 0.16);
+	        outline: 10px solid rgba(0,0,0,0.18);
+	        outline-offset: 0;
+	      }
       .preview.is-contain {
         object-fit: contain;
         cursor: zoom-out;
@@ -552,7 +585,9 @@
         {% endif %}
         {% if original_preview_url %}
         <p style="margin:0.6rem 0 0.45rem;"><strong>Gráfico original</strong></p>
-        <img class="preview" src="{{ original_preview_url }}" alt="Gráfico original de {{ task.title }}" />
+        <div class="preview-stadium">
+          <img class="preview" src="{{ original_preview_url }}" alt="Gráfico original de {{ task.title }}" />
+        </div>
         {% endif %}
       </section>
       {% endif %}
@@ -671,7 +706,9 @@
       {% if task.task_preview_image %}
       <section class="panel">
         <h2>Vista previa</h2>
-      <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
+	      <div class="preview-stadium">
+	        <img class="preview" id="task-preview-image" src="{% url 'session-task-preview-file' task.id %}?hd=1&v={{ task.task_preview_image.name|urlencode }}" alt="Vista previa de {{ task.title }}" />
+	      </div>
       </section>
       {% endif %}
 
