@@ -461,6 +461,18 @@
 	        opacity: 0.95;
 	      }
 	      body.tactics-mode .tpad-stand-label--side { gap: 0.45rem; }
+	      /* Gradas laterales:
+	         - El contenedor usa `writing-mode: vertical-rl` y en el lado izq hay rotación 180 (se invierte el escudo).
+	         - Rotamos el bloque de etiqueta para que se lea bien y mantenga el escudo “de pie”. */
+	      body.tactics-mode .tpad-stand-left .tpad-stand-label--side,
+	      body.tactics-mode .tpad-stand-right .tpad-stand-label--side {
+	        writing-mode: horizontal-tb;
+	        flex-direction: column;
+	        gap: 0.25rem;
+	        padding: 0.35rem 0.45rem;
+	      }
+	      body.tactics-mode .tpad-stand-right .tpad-stand-label--side { transform: rotate(-90deg); }
+	      body.tactics-mode .tpad-stand-left .tpad-stand-label--side { transform: rotate(90deg); }
 	      body.tactics-mode .tpad-stand-label--bottom { gap: 0.55rem; }
       body.tactics-mode .tpad-stand-label--top {
         display: inline-flex;
@@ -483,6 +495,7 @@
         border: 1px solid rgba(255,255,255,0.24);
         background: rgba(2, 6, 23, 0.35);
         object-fit: cover;
+        filter: brightness(0) invert(1);
 	        box-shadow: 0 10px 22px rgba(0,0,0,0.38);
 	        flex: 0 0 auto;
 	      }
@@ -509,6 +522,11 @@
 	        font-size: clamp(0.62rem, 1.15vmin, 0.92rem);
 	        letter-spacing: 0.10em;
 	        -webkit-line-clamp: 1;
+	      }
+	      body.tactics-mode .tpad-stand-left .tpad-stand-name--mini,
+	      body.tactics-mode .tpad-stand-right .tpad-stand-name--mini {
+	        max-width: clamp(56px, 8vmin, 92px);
+	        text-align: center;
 	      }
       body.tactics-mode .tpad-stadium::before {
         content: "";
