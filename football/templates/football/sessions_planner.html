@@ -3605,13 +3605,13 @@
                 </select>
               </div>
               {% endif %}
-              <div class="task-media">
-                {% if t.task_preview_image or t.task_pdf %}
-	              <img src="{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
-              {% else %}
-              <div class="task-media-fallback">Sin representacion grafica<br />{{ t.get_block_display }}</div>
-              {% endif %}
-            </div>
+	              <div class="task-media">
+	                {% if t.task_preview_image or t.task_pdf or t.is_drawn %}
+		              <img src="{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}" alt="Representacion grafica de {{ t.title }}" loading="lazy" />
+	              {% else %}
+	              <div class="task-media-fallback">Sin representacion grafica<br />{{ t.get_block_display }}</div>
+	              {% endif %}
+	            </div>
             <div class="task-content">
               <h3 class="task-title">{{ t.title }}</h3>
               <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
@@ -3665,18 +3665,18 @@
                     title="{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}Quitar de favoritas{% else %}Marcar como favorita{% endif %}"
                     style="min-width:3.1rem;"
                   >{% if bookmarked_task_ids and t.id in bookmarked_task_ids %}★{% else %}☆{% endif %}</button>
-                  <button
-                    type="button"
-                    class="button secondary icon-btn small task-preview-btn"
-                    data-title="{{ t.title|escapejs }}"
-                    data-summary="{{ t.objective_summary|escapejs }}"
-                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
-	                    data-img-url="{% if t.task_preview_image or t.task_pdf %}{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}{% endif %}"
-                    data-open-url="{% url 'session-task-detail' t.id %}"
-                    data-related-url="{% url 'session-task-related' t.id %}"
-                    title="Vista previa"
-                    aria-label="Vista previa"
-                  >
+	                  <button
+	                    type="button"
+	                    class="button secondary icon-btn small task-preview-btn"
+	                    data-title="{{ t.title|escapejs }}"
+	                    data-summary="{{ t.objective_summary|escapejs }}"
+	                    data-meta="{{ t.get_block_display|escapejs }} · {{ t.duration_minutes }}' · {{ t.players_band|default:''|escapejs }}"
+		                    data-img-url="{% if t.task_preview_image or t.task_pdf or t.is_drawn %}{% url 'session-task-preview-file' t.id %}?hd=1&amp;v={% if t.task_preview_image %}{{ t.task_preview_image.name|urlencode }}{% else %}{{ t.id }}{% endif %}{% endif %}"
+	                    data-open-url="{% url 'session-task-detail' t.id %}"
+	                    data-related-url="{% url 'session-task-related' t.id %}"
+	                    title="Vista previa"
+	                    aria-label="Vista previa"
+	                  >
                     <span class="emoji" aria-hidden="true">👁️</span>
                     <span class="sr-only">Vista previa</span>
                   </button>
