@@ -274,10 +274,11 @@
 		    const lineStyleSelect = document.getElementById('vs-line-style');
 		    const arrowDoubleBtn = document.getElementById('vs-arrow-double');
 
-    const btnSelect = document.getElementById('vs-tool-select');
-    const btnPen = document.getElementById('vs-tool-pen');
-    const btnArrow = document.getElementById('vs-tool-arrow');
-    const btnCurve = document.getElementById('vs-tool-curve');
+	    const btnSelect = document.getElementById('vs-tool-select');
+	    const btnPen = document.getElementById('vs-tool-pen');
+	    const btnLine = document.getElementById('vs-tool-line');
+	    const btnArrow = document.getElementById('vs-tool-arrow');
+	    const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
     const btnPlayer = document.getElementById('vs-tool-player');
     const btnCallout = document.getElementById('vs-tool-callout');
@@ -1596,14 +1597,15 @@
       });
     };
 
-    const kindLabel = (obj) => {
-      const kind = safeText(obj?.data?.kind) || safeText(obj?.type);
-      if (kind === 'arrow') return 'Flecha';
-      if (kind === 'curve_arrow') return 'Flecha curva';
-      if (kind === 'movement_line') return 'Trayectoria';
-      if (kind === 'player_marker') return 'Jugador';
-      if (kind === 'base') return 'Base';
-      if (kind === 'surface_area') return 'Área';
+	    const kindLabel = (obj) => {
+	      const kind = safeText(obj?.data?.kind) || safeText(obj?.type);
+	      if (kind === 'arrow') return 'Flecha';
+	      if (kind === 'curve_arrow') return 'Flecha curva';
+	      if (kind === 'movement_line') return 'Trayectoria';
+	      if (kind === 'line') return 'Línea';
+	      if (kind === 'player_marker') return 'Jugador';
+	      if (kind === 'base') return 'Base';
+	      if (kind === 'surface_area') return 'Área';
       if (kind === 'template') return 'Plantilla';
       if (kind === 'callout') return `Callout ${safeText(obj?.data?.callout_n)}`;
       if (kind === 'path') return 'Trazo';
@@ -2017,12 +2019,13 @@
       try { fabricCanvas.freeDrawingBrush.width = strokeWidth(); } catch (e) { /* ignore */ }
     });
 
-	    let tool = 'select';
-	    let arrowStart = null;
-	    let moveStart = null;
-	    let lastArrowSig = '';
-	    let lastArrowAt = 0;
-	    let calloutSeq = 1;
+		    let tool = 'select';
+		    let arrowStart = null;
+		    let lineStart = null;
+		    let moveStart = null;
+		    let lastArrowSig = '';
+		    let lastArrowAt = 0;
+		    let calloutSeq = 1;
 	    // Tracking manual (player marker): auto-guardar keyframes mientras se mueve durante reproducción.
 	    let trackingAutoKeyframes = true;
 	    let trackingLastKfAtS = 0;
@@ -2051,11 +2054,12 @@
         }
       } catch (e) { /* ignore */ }
 
-	      Array.from([btnSelect, btnPen, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
-	      if (tool === 'select') btnSelect?.classList.add('primary');
-	      if (tool === 'pen') btnPen?.classList.add('primary');
-	      if (tool === 'arrow') btnArrow?.classList.add('primary');
-	      if (tool === 'curve') btnCurve?.classList.add('primary');
+		      Array.from([btnSelect, btnPen, btnLine, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+		      if (tool === 'select') btnSelect?.classList.add('primary');
+		      if (tool === 'pen') btnPen?.classList.add('primary');
+		      if (tool === 'line') btnLine?.classList.add('primary');
+		      if (tool === 'arrow') btnArrow?.classList.add('primary');
+		      if (tool === 'curve') btnCurve?.classList.add('primary');
 	      if (tool === 'text') btnText?.classList.add('primary');
 	      if (tool === 'player') btnPlayer?.classList.add('primary');
 	      if (tool === 'callout') btnCallout?.classList.add('primary');
@@ -2072,12 +2076,13 @@
 	          areaDraftPolyline = null;
           areaDraftPoints = [];
         }
-	      const toolLabel = (() => {
-	        if (tool === 'select') return 'Select';
-	        if (tool === 'pen') return 'Pen';
-	        if (tool === 'arrow') return 'Arrow';
-	        if (tool === 'curve') return 'Curve';
-	        if (tool === 'text') return 'Texto';
+		      const toolLabel = (() => {
+		        if (tool === 'select') return 'Select';
+		        if (tool === 'pen') return 'Pen';
+		        if (tool === 'line') return 'Línea';
+		        if (tool === 'arrow') return 'Arrow';
+		        if (tool === 'curve') return 'Curve';
+		        if (tool === 'text') return 'Texto';
 	        if (tool === 'player') return 'Jugador';
 	        if (tool === 'callout') return 'Callout';
 	        if (tool === 'base') return 'Base';
@@ -2147,19 +2152,20 @@
       if (layerFadeOutInput) layerFadeOutInput.value = String(Math.max(0, Number(obj.data.fade_out_ms) || 0));
       if (layerAnimSelect) layerAnimSelect.value = safeText(obj.data.anim, 'none');
       if (layerAnimSelect) layerAnimSelect.disabled = false;
-      if (fxForm) fxForm.style.display = 'none';
-      const kind = safeText(obj?.data?.kind, '');
-      const showArrowStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
-      if (layerStyleForm) layerStyleForm.style.display = '';
-      if (layerLineStyleSelect) {
-        const ls = safeText(obj?.data?.line_style, '');
-        layerLineStyleSelect.value = (ls === 'solid' || ls === 'dash' || ls === 'dot') ? ls : '';
-        layerLineStyleSelect.disabled = !showArrowStyle;
-      }
-      if (layerDoubleHeadToggle) {
-        layerDoubleHeadToggle.checked = Boolean(obj?.data?.double_head);
-        layerDoubleHeadToggle.disabled = !showArrowStyle;
-      }
+	      if (fxForm) fxForm.style.display = 'none';
+	      const kind = safeText(obj?.data?.kind, '');
+	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line');
+	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
+	      if (layerStyleForm) layerStyleForm.style.display = '';
+	      if (layerLineStyleSelect) {
+	        const ls = safeText(obj?.data?.line_style, '');
+	        layerLineStyleSelect.value = (ls === 'solid' || ls === 'dash' || ls === 'dot') ? ls : '';
+	        layerLineStyleSelect.disabled = !showLineStyle;
+	      }
+	      if (layerDoubleHeadToggle) {
+	        layerDoubleHeadToggle.checked = Boolean(obj?.data?.double_head);
+	        layerDoubleHeadToggle.disabled = !showDoubleHead;
+	      }
       if (layerLockedToggle) layerLockedToggle.checked = Boolean(obj?.data?.locked);
     };
 
@@ -2192,17 +2198,18 @@
     const applyLayerStyleEdits = () => {
       const target = currentLayerTarget();
       if (!target || target.type !== 'fabric') return;
-      const obj = target.obj;
-      ensureLayerData(obj);
+	      const obj = target.obj;
+	      ensureLayerData(obj);
 
-      const kind = safeText(obj?.data?.kind, '');
-      const showArrowStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
+	      const kind = safeText(obj?.data?.kind, '');
+	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line');
+	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
 
-      if (showArrowStyle && layerLineStyleSelect) {
-        const v = safeText(layerLineStyleSelect.value, '');
-        if (v === 'solid' || v === 'dash' || v === 'dot') obj.data.line_style = v;
-        else delete obj.data.line_style;
-        try {
+	      if (showLineStyle && layerLineStyleSelect) {
+	        const v = safeText(layerLineStyleSelect.value, '');
+	        if (v === 'solid' || v === 'dash' || v === 'dot') obj.data.line_style = v;
+	        else delete obj.data.line_style;
+	        try {
           const sw = Number(obj?._objects?.[0]?.strokeWidth) || Number(obj?.strokeWidth) || Number(strokeWidth()) || 6;
           if (obj.type === 'group' && Array.isArray(obj._objects)) {
             obj._objects.forEach((child) => {
@@ -2212,12 +2219,12 @@
             applyStrokeStyle(obj, safeText(obj.data.line_style, ''), sw);
           }
           obj.dirty = true;
-        } catch (e) { /* ignore */ }
-      }
+	        } catch (e) { /* ignore */ }
+	      }
 
-      if (showArrowStyle && layerDoubleHeadToggle) {
-        obj.data.double_head = Boolean(layerDoubleHeadToggle.checked);
-      }
+	      if (showDoubleHead && layerDoubleHeadToggle) {
+	        obj.data.double_head = Boolean(layerDoubleHeadToggle.checked);
+	      }
 
       if (layerLockedToggle) {
         const locked = Boolean(layerLockedToggle.checked);
@@ -2366,10 +2373,13 @@
       return true;
     };
 
-	    fabricCanvas.on('mouse:down', (opt) => {
-	      if (tool === 'arrow' || tool === 'curve') {
-	        arrowStart = fabricCanvas.getPointer(opt.e);
-	      }
+		    fabricCanvas.on('mouse:down', (opt) => {
+		      if (tool === 'line') {
+		        lineStart = fabricCanvas.getPointer(opt.e);
+		      }
+		      if (tool === 'arrow' || tool === 'curve') {
+		        arrowStart = fabricCanvas.getPointer(opt.e);
+		      }
 	      if (tool === 'move') {
 	        moveStart = fabricCanvas.getPointer(opt.e);
 	      }
@@ -2566,11 +2576,58 @@
         renderDrawLayers();
       }
 	    });
-    fabricCanvas.on('mouse:up', (opt) => {
-      if (tool === 'move' && moveStart) {
-        const end = fabricCanvas.getPointer(opt.e);
-        const sw = strokeWidth();
-        const color = strokeColor();
+	    fabricCanvas.on('mouse:up', (opt) => {
+	      if (tool === 'line' && lineStart) {
+	        const end0 = fabricCanvas.getPointer(opt.e);
+	        const sw = strokeWidth();
+	        const color = strokeColor();
+	        const style = getLineStyle();
+	        const start = lineStart;
+	        lineStart = null;
+	        let end = { x: end0.x, y: end0.y };
+	        try {
+	          if (opt?.e?.shiftKey) {
+	            const dx = end.x - start.x;
+	            const dy = end.y - start.y;
+	            if (Math.abs(dx) >= Math.abs(dy)) end.y = start.y;
+	            else end.x = start.x;
+	          }
+	        } catch (e) { /* ignore */ }
+	        const dx = end.x - start.x;
+	        const dy = end.y - start.y;
+	        if (Math.hypot(dx, dy) < 8) return;
+	        const line = new fabric.Line([start.x, start.y, end.x, end.y], {
+	          stroke: color,
+	          strokeWidth: clamp(sw, 2, 18),
+	          strokeLineCap: 'round',
+	          strokeDashArray: null,
+	          selectable: true,
+	          evented: true,
+	          objectCaching: false,
+	          shadow: 'rgba(0,0,0,0.25) 0 2px 6px',
+	          strokeUniform: true,
+	          perPixelTargetFind: true,
+	          padding: 0,
+	          cornerStyle: 'circle',
+	          cornerColor: 'rgba(250,204,21,0.95)',
+	          transparentCorners: false,
+	          cornerSize: 14,
+	        });
+	        applyStrokeStyle(line, style, sw);
+	        line.data = seedLayerDataNow({ kind: 'line', line_style: style });
+	        fabricCanvas.add(line);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(line); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        return;
+	      }
+	      if (tool === 'move' && moveStart) {
+	        const end = fabricCanvas.getPointer(opt.e);
+	        const sw = strokeWidth();
+	        const color = strokeColor();
         const style = getLineStyle();
         const doubleHead = isArrowDouble();
         const dx = end.x - moveStart.x;
@@ -2832,10 +2889,11 @@
     fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
     fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
 
-	    btnSelect?.addEventListener('click', () => setTool('select'));
-	    btnPen?.addEventListener('click', () => setTool('pen'));
-	    btnArrow?.addEventListener('click', () => setTool('arrow'));
-	    btnCurve?.addEventListener('click', () => setTool('curve'));
+		    btnSelect?.addEventListener('click', () => setTool('select'));
+		    btnPen?.addEventListener('click', () => setTool('pen'));
+		    btnLine?.addEventListener('click', () => setTool('line'));
+		    btnArrow?.addEventListener('click', () => setTool('arrow'));
+		    btnCurve?.addEventListener('click', () => setTool('curve'));
 	    btnText?.addEventListener('click', () => setTool('text'));
 	    btnPlayer?.addEventListener('click', () => setTool('player'));
 	    btnCallout?.addEventListener('click', () => setTool('callout'));
