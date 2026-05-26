@@ -261,14 +261,15 @@
 	    const btnOut = document.getElementById('vs-mark-out');
 	    const btnExportSeg = document.getElementById('vs-export-seg');
 	    const btnExportShare = document.getElementById('vs-export-share');
-	    const btnExportServer = document.getElementById('vs-export-server');
-	    const btnExportServerPlaylist = document.getElementById('vs-export-server-playlist');
-	    const btnExportRetry = document.getElementById('vs-export-retry');
-	    const btnRecord = document.getElementById('vs-record');
-		    const btnSnap = document.getElementById('vs-snap');
-		    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
-		    const btnFreeze = document.getElementById('vs-freeze');
-		    const btnTrackAuto = document.getElementById('vs-track-auto');
+		    const btnExportServer = document.getElementById('vs-export-server');
+		    const btnExportServerPlaylist = document.getElementById('vs-export-server-playlist');
+		    const btnExportRetry = document.getElementById('vs-export-retry');
+		    const btnRecord = document.getElementById('vs-record');
+		    const btnStillClip = document.getElementById('vs-still-clip');
+			    const btnSnap = document.getElementById('vs-snap');
+			    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
+			    const btnFreeze = document.getElementById('vs-freeze');
+			    const btnTrackAuto = document.getElementById('vs-track-auto');
 		    const btnDebug = document.getElementById('vs-debug');
 		    const lineStyleSelect = document.getElementById('vs-line-style');
 		    const arrowDoubleBtn = document.getElementById('vs-arrow-double');
@@ -501,13 +502,14 @@
 	    const tlLoadBtn = document.getElementById('vs-tl-load-project');
 	    const tlIncludeAudioToggle = document.getElementById('vs-tl-include-audio');
 	    const tlProjectSelect = document.getElementById('vs-tl-project-select');
-			    const tlItemsEl = document.getElementById('vs-tl-items');
-			    const tlTotalEl = document.getElementById('vs-tl-total');
-			    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
-			    const tlExportCancelBtn = document.getElementById('vs-tl-export-cancel');
-			    const tlJobWrap = document.getElementById('vs-tl-job-wrap');
-			    const tlJobMsg = document.getElementById('vs-tl-job-msg');
-			    const tlJobProgress = document.getElementById('vs-tl-job-progress');
+				    const tlItemsEl = document.getElementById('vs-tl-items');
+				    const tlTotalEl = document.getElementById('vs-tl-total');
+				    const tlExportBtn = document.getElementById('vs-tl-export-mp4');
+				    const tlExportOverlaysBtn = document.getElementById('vs-tl-export-overlays');
+				    const tlExportCancelBtn = document.getElementById('vs-tl-export-cancel');
+				    const tlJobWrap = document.getElementById('vs-tl-job-wrap');
+				    const tlJobMsg = document.getElementById('vs-tl-job-msg');
+				    const tlJobProgress = document.getElementById('vs-tl-job-progress');
 			    const tlTransitionInput = document.getElementById('vs-tl-transition');
     const tlItemDialog = document.getElementById('vs-tl-item-dialog');
 		    const tlItemInInput = document.getElementById('vs-tl-item-in');
@@ -3735,6 +3737,92 @@
 	      setStatus(`Freeze creado (${fmtTimeShort(inS)} → ${fmtTimeShort(outS)}).`);
 	    });
 
+	    btnStillClip?.addEventListener('click', async () => {
+	      if (!clipSaveUrl || !videoId) { setStatus('Foto→Clip no disponible.', true); return; }
+	      const wasPlaying = !video.paused;
+	      try { if (wasPlaying) video.pause(); } catch (e) { /* ignore */ }
+	      if (wasPlaying) await sleep(80);
+
+	      const hasDraw = (() => {
+	        try { return (fabricCanvas.getObjects?.() || []).length > 0; } catch (e) { return false; }
+	      })();
+	      const hasFx = (() => {
+	        try { return (Array.isArray(fxState.layers) ? fxState.layers : []).length > 0; } catch (e) { return false; }
+	      })();
+	      if (hasDraw || hasFx) {
+	        const ok = window.confirm('Esto creará un nuevo clip de foto y reemplazará las anotaciones/FX actuales.\n\n¿Continuar?');
+	        if (!ok) { if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } } return; }
+	      }
+
+	      const now = Math.max(0, Number(video.currentTime) || 0);
+	      const dur = Number.isFinite(Number(video.duration)) ? Number(video.duration) : 0;
+	      const defaultDur = 3.0;
+	      let inS = now;
+	      let outS = now + defaultDur;
+	      if (dur > 0) outS = Math.min(outS, dur);
+	      if (outS <= inS + 0.05) outS = inS + 0.25;
+
+	      setStatus('Foto→Clip: capturando…', false, { flash: false });
+	      const img = await captureVideoFrameDataUrl({ maxW: 1280 });
+	      if (!img) {
+	        setStatus('Foto→Clip: no se pudo capturar el frame.', true);
+	        if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } }
+	        return;
+	      }
+
+	      // Limpia overlays actuales para evitar “arrastrar” anotaciones anteriores.
+	      try {
+	        fabricCanvas.clear();
+	        pushHistory();
+	        fabricCanvas.renderAll();
+	      } catch (e) { /* ignore */ }
+	      try {
+	        fxState.layers = [];
+	        selectedFxId = 0;
+	        reseedFxSeq();
+	        renderFxList();
+	      } catch (e) { /* ignore */ }
+	      try { updateLayerPanel(); } catch (e) { /* ignore */ }
+	      try { renderDrawLayers(); } catch (e) { /* ignore */ }
+
+	      // Rango del clip still
+	      if (inInput) inInput.value = String(inS.toFixed(1));
+	      if (outInput) outInput.value = String(outS.toFixed(1));
+	      try { video.currentTime = inS; } catch (e) { /* ignore */ }
+
+	      const layer = {
+	        id: fxSeq++,
+	        ...seedLayerDataNow({ t_in_s: inS, t_out_s: outS, fade_in_ms: 0, fade_out_ms: 0 }),
+	        kind: 'freeze',
+	        image_data: img,
+	        mute: true,
+	      };
+	      fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
+	      selectedFxId = layer.id;
+	      renderFxList();
+	      updateLayerPanel();
+
+	      // Metadatos del clip
+	      try {
+	        if (clipTitleInput) clipTitleInput.value = `Foto · ${fmtTimeShort(inS)}`.slice(0, 180);
+	        if (clipTagsInput) clipTagsInput.value = '';
+	        if (clipNotesInput) clipNotesInput.value = '';
+	      } catch (e) { /* ignore */ }
+
+	      setFreezeHold(true);
+	      try { syncFreezeBackground(inS); } catch (e) { /* ignore */ }
+
+	      // Crea el clip en servidor (como iMovie: ya existe y luego se edita).
+	      try {
+	        await saveClip({ forceNew: true });
+	        setStatus('Foto→Clip creado. Edita encima y pulsa “Actualizar” para guardar cambios.');
+	      } catch (e) {
+	        setStatus('Foto→Clip: no se pudo crear el clip.', true);
+	      } finally {
+	        if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } }
+	      }
+	    });
+
     let recActive = false;
     let recMedia = null;
     let recStream = null;
@@ -3746,9 +3834,11 @@
     let recStartAt = null;
 	    let recDestination = 'download';
 	    let recUploadMeta = null;
-    let exportAudioCtx = null;
-    let exportAudioDest = null;
-    let exportAudioSource = null;
+	    let exportAudioCtx = null;
+	    let exportAudioDest = null;
+	    let exportAudioSource = null;
+	    let exportAudioGain = null;
+	    let exportAudioWired = false;
     let recLastProgressAt = 0;
 	    let lastExportAssetId = 0;
 	    let lastExportShareUrl = '';
@@ -3791,11 +3881,11 @@
         return false;
       };
 
-	    const stopRecording = async () => {
-      if (!recActive) return;
-      recActive = false;
-      try { if (recRaf) window.cancelAnimationFrame(recRaf); } catch (e) { /* ignore */ }
-      recRaf = null;
+		    const stopRecording = async () => {
+	      if (!recActive) return;
+	      recActive = false;
+	      try { if (recRaf) window.cancelAnimationFrame(recRaf); } catch (e) { /* ignore */ }
+	      recRaf = null;
       try { recMedia?.stop?.(); } catch (e) { /* ignore */ }
       try { recStream?.getTracks?.().forEach((t) => t.stop()); } catch (e) { /* ignore */ }
 	      recStream = null;
@@ -3805,13 +3895,14 @@
 	      stopAt = null;
 	      recStartAt = null;
 	      recLastProgressAt = 0;
-	      recDestination = 'download';
-	      recUploadMeta = null;
-	      if (btnRecord) btnRecord.textContent = 'Grabar';
-	      if (btnExportSeg) btnExportSeg.disabled = false;
-	      if (btnExportShare) btnExportShare.disabled = false;
-	      setStatus('Grabación finalizada.');
-	    };
+		      recDestination = 'download';
+		      recUploadMeta = null;
+		      try { if (exportAudioGain && exportAudioGain.gain) exportAudioGain.gain.value = 1; } catch (e) { /* ignore */ }
+		      if (btnRecord) btnRecord.textContent = 'Grabar';
+		      if (btnExportSeg) btnExportSeg.disabled = false;
+		      if (btnExportShare) btnExportShare.disabled = false;
+		      setStatus('Grabación finalizada.');
+		    };
 
 	    const uploadExportBlob = async (blob, { title = '', clipId = 0 } = {}) => {
 	      if (!exportUploadUrl) {
@@ -3917,36 +4008,40 @@
       recCtx = recCanvas.getContext('2d', { alpha: false });
       if (!recCtx) return;
 
-      const q = safeText(qualitySelect?.value, 'med');
-      let fps = Number(safeText(fpsSelect?.value, '')) || 0;
-      if (!fps) fps = q === 'low' ? 24 : 30;
-      fps = clamp(fps, 12, 60);
-      const bps = q === 'high' ? 8_000_000 : (q === 'low' ? 2_200_000 : 4_000_000);
+	      const q = safeText(qualitySelect?.value, 'med');
+	      let fps = Number(safeText(fpsSelect?.value, '')) || 0;
+	      if (!fps) fps = q === 'low' ? 24 : 30;
+	      fps = clamp(fps, 12, 60);
+	      const bps = q === 'high' ? 8_000_000 : (q === 'low' ? 2_200_000 : 4_000_000);
       const canvasStream = recCanvas.captureStream(fps);
-      let audioTracks = [];
-      const includeAudio = audioToggle ? Boolean(audioToggle.checked) : true;
-      if (includeAudio) {
-        try {
-          const vStream = typeof video.captureStream === 'function' ? video.captureStream() : (typeof video.mozCaptureStream === 'function' ? video.mozCaptureStream() : null);
-          audioTracks = vStream ? (vStream.getAudioTracks?.() || []) : [];
-        } catch (e) { audioTracks = []; }
-        if (!audioTracks.length) {
-          try {
-            const Ctx = window.AudioContext || window.webkitAudioContext;
-            if (Ctx) {
-              if (!exportAudioCtx) exportAudioCtx = new Ctx();
-              try { await exportAudioCtx.resume(); } catch (e) { /* ignore */ }
-              if (!exportAudioDest) exportAudioDest = exportAudioCtx.createMediaStreamDestination();
-              if (!exportAudioSource) {
-                exportAudioSource = exportAudioCtx.createMediaElementSource(video);
-                try { exportAudioSource.connect(exportAudioDest); } catch (e) { /* ignore */ }
-                try { exportAudioSource.connect(exportAudioCtx.destination); } catch (e) { /* ignore */ }
-              }
-              audioTracks = exportAudioDest.stream.getAudioTracks?.() || [];
-            }
-          } catch (e) { /* ignore */ }
-        }
-      }
+	      let audioTracks = [];
+	      const includeAudio = audioToggle ? Boolean(audioToggle.checked) : true;
+	      if (includeAudio) {
+	        try {
+	          const Ctx = window.AudioContext || window.webkitAudioContext;
+	          if (Ctx) {
+	            if (!exportAudioCtx) exportAudioCtx = new Ctx();
+	            try { await exportAudioCtx.resume(); } catch (e) { /* ignore */ }
+	            if (!exportAudioDest) exportAudioDest = exportAudioCtx.createMediaStreamDestination();
+	            if (!exportAudioSource) exportAudioSource = exportAudioCtx.createMediaElementSource(video);
+	            if (!exportAudioGain) exportAudioGain = exportAudioCtx.createGain();
+	            if (!exportAudioWired) {
+	              try { exportAudioSource.connect(exportAudioCtx.destination); } catch (e) { /* ignore */ }
+	              try { exportAudioSource.connect(exportAudioGain); } catch (e) { /* ignore */ }
+	              try { exportAudioGain.connect(exportAudioDest); } catch (e) { /* ignore */ }
+	              exportAudioWired = true;
+	            }
+	            try { exportAudioGain.gain.value = 1; } catch (e) { /* ignore */ }
+	            audioTracks = exportAudioDest.stream.getAudioTracks?.() || [];
+	          }
+	        } catch (e) { audioTracks = []; }
+	        if (!audioTracks.length) {
+	          try {
+	            const vStream = typeof video.captureStream === 'function' ? video.captureStream() : (typeof video.mozCaptureStream === 'function' ? video.mozCaptureStream() : null);
+	            audioTracks = vStream ? (vStream.getAudioTracks?.() || []) : [];
+	          } catch (e) { /* ignore */ }
+	        }
+	      }
 	      recStream = new MediaStream([...(canvasStream.getVideoTracks?.() || []), ...(audioTracks || [])]);
 
 	      recChunks = [];
@@ -3992,12 +4087,20 @@
 	        } catch (e) { /* ignore */ }
 	      };
 
-      const draw = () => {
-        if (!recActive || !recCtx || !recCanvas) return;
-        try {
-          recCtx.fillStyle = '#000';
-          recCtx.fillRect(0, 0, w, h);
-          try { recCtx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
+	      const draw = () => {
+	        if (!recActive || !recCtx || !recCanvas) return;
+	        try {
+	          if (includeAudio && exportAudioGain && exportAudioGain.gain) {
+	            const nowS = Number(video.currentTime) || 0;
+	            const fr = getActiveFreezeLayerAt(nowS);
+	            const wantMute = Boolean(fr && fr.mute);
+	            exportAudioGain.gain.value = wantMute ? 0 : 1;
+	          }
+	        } catch (e) { /* ignore */ }
+	        try {
+	          recCtx.fillStyle = '#000';
+	          recCtx.fillRect(0, 0, w, h);
+	          try { recCtx.drawImage(video, 0, 0, w, h); } catch (e) { /* ignore */ }
           try { renderFx(recCtx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
           try { recCtx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
         } catch (e) { /* ignore */ }
@@ -4910,12 +5013,189 @@
 		      } finally {
 		        tlExportBtn.disabled = false;
 		      }
-		    };
+			    };
 
-	    if (tlItemDialog) {
-	      tlItemDialog.addEventListener('close', () => {
-	        const action = safeText(tlItemDialog.returnValue, '');
-	        const idx = Number(tlEditingIdx);
+			    const tlExportOverlays = async () => {
+			      if (recActive) { setStatus('Ya hay una grabación en curso.', true); return; }
+			      if (!exportUploadUrl) { setStatus('No hay endpoint de subida para export.', true); return; }
+			      if (!tlItems.length) { setStatus('Timeline vacío.', true); return; }
+
+			      const steps = [];
+			      for (const it of tlItems.slice(0, 60)) {
+			        const clipId = Number(it?.clip_id) || 0;
+			        if (!clipId) continue;
+			        const c = clipById(clipId);
+			        if (!c) continue;
+			        const clipIn = Number(c?.in_s) || 0;
+			        const clipOut0 = Number(c?.out_s) || 0;
+			        const clipOut = clipOut0 > clipIn ? clipOut0 : (clipIn + 0.2);
+			        const inS = (it?.in_s != null) ? Math.max(0, Number(it.in_s) || 0) : clipIn;
+			        const outS0 = (it?.out_s != null) ? Math.max(0, Number(it.out_s) || 0) : clipOut;
+			        const outS = outS0 > inS + 0.05 ? outS0 : (inS + 0.25);
+			        const sp = tlClamp(tlNum(it?.speed_start, tlNum(it?.speed, 1)), 0.1, 4);
+			        steps.push({ clip: c, clipId, inS, outS, speed: sp });
+			      }
+			      if (!steps.length) { setStatus('Timeline sin clips válidos.', true); return; }
+
+			      const prevState = (() => {
+			        const snap = {};
+			        try { snap.activeClipId = Number(activeClipId) || 0; } catch (e) { snap.activeClipId = 0; }
+			        try { snap.inV = safeText(inInput?.value, ''); } catch (e) { snap.inV = ''; }
+			        try { snap.outV = safeText(outInput?.value, ''); } catch (e) { snap.outV = ''; }
+			        try { snap.title = safeText(clipTitleInput?.value, ''); } catch (e) { snap.title = ''; }
+			        try { snap.collection = safeText(clipCollectionInput?.value, ''); } catch (e) { snap.collection = ''; }
+			        try { snap.tags = safeText(clipTagsInput?.value, ''); } catch (e) { snap.tags = ''; }
+			        try { snap.notes = safeText(clipNotesInput?.value, ''); } catch (e) { snap.notes = ''; }
+			        try { snap.fx = (Array.isArray(fxState.layers) ? fxState.layers : []).map((l) => ({ ...l })); } catch (e) { snap.fx = []; }
+			        try { snap.selFx = Number(selectedFxId) || 0; } catch (e) { snap.selFx = 0; }
+			        try { snap.canvas = fabricCanvas.toDatalessJSON(['data']); } catch (e) { snap.canvas = null; }
+			        try { snap.playbackRate = Number(video.playbackRate) || 1; } catch (e) { snap.playbackRate = 1; }
+			        try { snap.time = Number(video.currentTime) || 0; } catch (e) { snap.time = 0; }
+			        try { snap.freezeHold = Boolean(freezeHoldOn); } catch (e) { snap.freezeHold = false; }
+			        return snap;
+			      })();
+
+			      const restoreJsonAsync = (json) => new Promise((resolve) => {
+			        if (!json) return resolve(false);
+			        try {
+			          fabricCanvas.loadFromJSON(json, () => {
+			            try { fabricCanvas.getObjects().forEach((o) => ensureLayerData(o)); } catch (e) { /* ignore */ }
+			            try { fabricCanvas.renderAll(); } catch (e) { /* ignore */ }
+			            try { updateLayerPanel(); } catch (e) { /* ignore */ }
+			            try { renderDrawLayers(); } catch (e) { /* ignore */ }
+			            resolve(true);
+			          });
+			        } catch (e) {
+			          resolve(false);
+			        }
+			      });
+
+			      const loadClipOverlay = async (clip) => {
+			        const overlay = clip?.overlay || {};
+			        if (overlay && typeof overlay === 'object' && Array.isArray(overlay?.objects)) {
+			          await restoreJsonAsync(overlay);
+			        } else {
+			          try { fabricCanvas.clear(); } catch (e) { /* ignore */ }
+			        }
+			        const fxPayload = overlay?.fx;
+			        if (fxPayload && typeof fxPayload === 'object' && Array.isArray(fxPayload?.layers)) {
+			          fxState.layers = fxPayload.layers.map((l) => ({ ...l }));
+			          selectedFxId = 0;
+			          reseedFxSeq();
+			          renderFxList();
+			        } else {
+			          fxState.layers = [];
+			          selectedFxId = 0;
+			          reseedFxSeq();
+			          renderFxList();
+			        }
+			      };
+
+			      const waitUntil = (pred, timeoutMs = 30000) => new Promise((resolve) => {
+			        const started = Date.now();
+			        const tick = () => {
+			          if (pred()) return resolve(true);
+			          if (Date.now() - started > timeoutMs) return resolve(false);
+			          window.requestAnimationFrame(tick);
+			        };
+			        tick();
+			      });
+
+			      const stopRecordingAndWait = async () => {
+			        const media = recMedia;
+			        if (!media) { try { await stopRecording(); } catch (e) { /* ignore */ } return; }
+			        await new Promise((resolve) => {
+			          const prevOnStop = media.onstop;
+			          media.onstop = async () => {
+			            try { if (prevOnStop) await prevOnStop(); } catch (e) { /* ignore */ }
+			            resolve(true);
+			          };
+			          stopRecording();
+			        });
+			      };
+
+			      const setUiBusy = (on) => {
+			        const busy = Boolean(on);
+			        try { if (tlExportOverlaysBtn) tlExportOverlaysBtn.disabled = busy; } catch (e) { /* ignore */ }
+			        try { if (tlExportBtn) tlExportBtn.disabled = busy; } catch (e) { /* ignore */ }
+			        try { if (btnExportShare) btnExportShare.disabled = busy; } catch (e) { /* ignore */ }
+			        try { if (btnExportSeg) btnExportSeg.disabled = busy; } catch (e) { /* ignore */ }
+			        try { if (btnRecord) btnRecord.disabled = busy; } catch (e) { /* ignore */ }
+			      };
+
+			      setUiBusy(true);
+			      playlistActive = false;
+			      playlistIds = [];
+			      playlistIndex = 0;
+			      clipBoundActive = false;
+
+			      const baseTitle = `Timeline · ${steps.length} clips · overlays`;
+			      setStatus('Export + overlays: preparando…');
+			      try { video.pause(); } catch (e) { /* ignore */ }
+
+			      try {
+			        const first = steps[0];
+			        await loadClipOverlay(first.clip);
+			        if (inInput) inInput.value = String(first.inS.toFixed(1));
+			        if (outInput) outInput.value = String(first.outS.toFixed(1));
+			        try { await seekTo(first.inS); } catch (e) { /* ignore */ }
+			        try { video.playbackRate = first.speed; } catch (e) { /* ignore */ }
+			        setFreezeHold(true);
+			        try { syncFreezeBackground(first.inS); } catch (e) { /* ignore */ }
+
+			        await startRecording({ from: first.inS, to: null, destination: 'upload', uploadTitle: baseTitle, uploadClipId: 0 });
+
+			        for (let i = 0; i < steps.length; i += 1) {
+			          const step = steps[i];
+			          setStatus(`Export + overlays: ${i + 1}/${steps.length}`);
+			          await loadClipOverlay(step.clip);
+			          if (inInput) inInput.value = String(step.inS.toFixed(1));
+			          if (outInput) outInput.value = String(step.outS.toFixed(1));
+			          try { video.playbackRate = step.speed; } catch (e) { /* ignore */ }
+			          try { await seekTo(step.inS); } catch (e) { /* ignore */ }
+			          try { syncFreezeBackground(step.inS); } catch (e) { /* ignore */ }
+			          try { await video.play(); } catch (e) { /* ignore */ }
+			          const ok = await waitUntil(() => (Number(video.currentTime) || 0) >= (step.outS - 0.03), 120000);
+			          try { video.pause(); } catch (e) { /* ignore */ }
+			          if (!ok) throw new Error('Timeout exportando un clip.');
+			          await sleep(80);
+			        }
+			        await stopRecordingAndWait();
+			        setStatus('Export + overlays: finalizando…');
+			      } catch (e) {
+			        try { await stopRecordingAndWait(); } catch (e2) { /* ignore */ }
+			        setStatus(safeText(e?.message, 'Error exportando.'), true);
+			      } finally {
+			        // Restaurar estado previo
+			        try { activeClipId = Number(prevState.activeClipId) || 0; } catch (e) { /* ignore */ }
+			        try { if (clipTitleInput) clipTitleInput.value = safeText(prevState.title, ''); } catch (e) { /* ignore */ }
+			        try { if (clipCollectionInput) clipCollectionInput.value = safeText(prevState.collection, ''); } catch (e) { /* ignore */ }
+			        try { if (clipTagsInput) clipTagsInput.value = safeText(prevState.tags, ''); } catch (e) { /* ignore */ }
+			        try { if (clipNotesInput) clipNotesInput.value = safeText(prevState.notes, ''); } catch (e) { /* ignore */ }
+			        try { if (inInput) inInput.value = safeText(prevState.inV, ''); } catch (e) { /* ignore */ }
+			        try { if (outInput) outInput.value = safeText(prevState.outV, ''); } catch (e) { /* ignore */ }
+			        try { video.playbackRate = Number(prevState.playbackRate) || 1; } catch (e) { /* ignore */ }
+			        try { await seekTo(Number(prevState.time) || 0); } catch (e) { /* ignore */ }
+			        try {
+			          if (prevState.canvas) await restoreJsonAsync(prevState.canvas);
+			        } catch (e) { /* ignore */ }
+			        try {
+			          fxState.layers = (Array.isArray(prevState.fx) ? prevState.fx : []).map((l) => ({ ...l }));
+			          selectedFxId = Number(prevState.selFx) || 0;
+			          reseedFxSeq();
+			          renderFxList();
+			          updateLayerPanel();
+			        } catch (e) { /* ignore */ }
+			        try { setFreezeHold(Boolean(prevState.freezeHold)); } catch (e) { /* ignore */ }
+			        try { syncFreezeBackground(); } catch (e) { /* ignore */ }
+			        setUiBusy(false);
+			      }
+			    };
+
+		    if (tlItemDialog) {
+		      tlItemDialog.addEventListener('close', () => {
+		        const action = safeText(tlItemDialog.returnValue, '');
+		        const idx = Number(tlEditingIdx);
 	        tlEditingIdx = -1;
 	        if (idx < 0 || idx >= tlItems.length) return;
 	        if (action === 'reset') {
@@ -5192,16 +5472,17 @@
 		      }
 		    });
 
-		    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
-		    tlClearBtn?.addEventListener('click', tlClear);
-		    tlSaveBtn?.addEventListener('click', tlSaveProject);
-		    tlLoadBtn?.addEventListener('click', tlLoadProject);
-		    tlExportBtn?.addEventListener('click', tlExportMp4);
-        if (!simpleUI) {
-		      refreshVoiceovers();
-		      refreshMusic();
-		      refreshProjects();
-        }
+			    tlFromSelectionBtn?.addEventListener('click', tlLoadFromSelection);
+			    tlClearBtn?.addEventListener('click', tlClear);
+			    tlSaveBtn?.addEventListener('click', tlSaveProject);
+			    tlLoadBtn?.addEventListener('click', tlLoadProject);
+			    tlExportBtn?.addEventListener('click', tlExportMp4);
+			    tlExportOverlaysBtn?.addEventListener('click', tlExportOverlays);
+	        if (!simpleUI) {
+			      refreshVoiceovers();
+			      refreshMusic();
+			      refreshProjects();
+	        }
 
 	    const setReviewed = async ({ kind, objectId, done }) => {
 	      if (!reviewUrl || !videoId) return false;

@@ -198,13 +198,14 @@
 		              <button type="button" class="button" id="vs-export-seg" data-vs-advanced="1">Export segmento</button>
 		              <button type="button" class="button primary" id="vs-export-share" data-vs-advanced="1">Export + compartir</button>
 		              <button type="button" class="button" id="vs-export-server" data-vs-advanced="1" title="Corta MP4 en servidor (rápido, sin grabación)">MP4 server</button>
-		              <button type="button" class="button" id="vs-export-server-playlist" data-vs-advanced="1" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
-		              <button type="button" class="button" id="vs-export-retry" data-vs-advanced="1" hidden>Reintentar upload</button>
-		              <button type="button" class="button" id="vs-record" data-vs-advanced="1">Grabar</button>
-	              <button type="button" class="button" id="vs-snap">PNG</button>
-		              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
-		              <button type="button" class="button" id="vs-freeze" title="Congela para anotar encima (modo trabajo). También crea un freeze-frame para export.">Freeze</button>
-		              <button type="button" class="button" id="vs-track-auto" title="Tracking automático (beta): coloca marcadores Jugador, define IN/OUT y genera el seguimiento.">AutoTrack</button>
+			              <button type="button" class="button" id="vs-export-server-playlist" data-vs-advanced="1" title="Concatena clips seleccionados en un MP4 (servidor)">MP4 playlist</button>
+			              <button type="button" class="button" id="vs-export-retry" data-vs-advanced="1" hidden>Reintentar upload</button>
+			              <button type="button" class="button" id="vs-record" data-vs-advanced="1">Grabar</button>
+		              <button type="button" class="button" id="vs-still-clip" title="Captura un frame y crea un clip de foto (3s) para montar después">Foto→Clip</button>
+		              <button type="button" class="button" id="vs-snap">PNG</button>
+			              <button type="button" class="button" id="vs-dorsal-ocr" data-vs-advanced="1" title="Detectar dorsal (marca el número en pantalla)">Dorsal</button>
+			              <button type="button" class="button" id="vs-freeze" title="Congela para anotar encima (modo trabajo). También crea un freeze-frame para export.">Freeze</button>
+			              <button type="button" class="button" id="vs-track-auto" title="Tracking automático (beta): coloca marcadores Jugador, define IN/OUT y genera el seguimiento.">AutoTrack</button>
             </div>
             <div class="right">
               <button type="button" class="button" id="vs-tool-select">Select</button>
@@ -694,11 +695,12 @@
                           </menu>
                         </form>
                       </dialog>
-                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
-                        <div class="hint" id="vs-tl-total" style="align-self:center;">—</div>
-                        <button type="button" class="button" id="vs-tl-export-mp4">Export MP4 timeline</button>
-                        <button type="button" class="button danger" id="vs-tl-export-cancel" style="display:none;">Cancelar</button>
-                      </div>
+	                      <div style="display:flex; gap:0.45rem; flex-wrap:wrap; align-items:center;">
+	                        <div class="hint" id="vs-tl-total" style="align-self:center;">—</div>
+	                        <button type="button" class="button" id="vs-tl-export-mp4">Export MP4 timeline</button>
+	                        <button type="button" class="button" id="vs-tl-export-overlays" title="Exporta el timeline grabando en el navegador (incluye freeze y anotaciones). Más lento.">Export + overlays</button>
+	                        <button type="button" class="button danger" id="vs-tl-export-cancel" style="display:none;">Cancelar</button>
+	                      </div>
                       <div id="vs-tl-job-wrap" style="display:none; margin-top:0.35rem;">
                         <div class="hint" id="vs-tl-job-msg">—</div>
                         <progress id="vs-tl-job-progress" value="0" max="100" style="width:100%; height: 10px; border-radius: 999px;"></progress>
