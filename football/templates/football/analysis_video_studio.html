@@ -213,6 +213,7 @@
 		              <button type="button" class="button" id="vs-tool-line" title="Línea recta: arrastra para dibujar. Mantén Shift para horizontal/vertical.">Línea</button>
 		              <button type="button" class="button" id="vs-tool-rect" title="Rectángulo: arrastra para dibujar. Shift=cuadrado.">Rect</button>
 		              <button type="button" class="button" id="vs-tool-circle" title="Círculo/elipse: arrastra para dibujar. Shift=círculo.">Círculo</button>
+		              <button type="button" class="button" id="vs-tool-measure" title="Medir distancia (requiere calibración para metros)">Medir</button>
 		              <button type="button" class="button" id="vs-tool-arrow">Arrow</button>
 		              <button type="button" class="button" id="vs-tool-curve" title="Flecha curva: arrastra para dibujar. Mantén Shift para curvar al lado contrario.">Curve</button>
 	              <button type="button" class="button" id="vs-tool-text">Texto</button>
@@ -618,6 +619,18 @@
 			              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
 			                <button type="button" class="button primary" id="vs-style-apply">Aplicar a selección</button>
 			              </div>
+	                  </div>
+			            </details>
+
+			            <details class="vs-acc">
+	                  <summary>Medición</summary>
+	                  <div class="vs-acc-body">
+			              <div class="hint">Calibra el campo (4 puntos) y mide en metros.</div>
+			              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+			                <button type="button" class="button" id="vs-calib-start">Calibrar campo</button>
+			                <button type="button" class="button danger" id="vs-calib-reset">Reset</button>
+			              </div>
+			              <div class="hint" id="vs-calib-status" style="margin-top:0.45rem;">Sin calibración.</div>
 	                  </div>
 			            </details>
 

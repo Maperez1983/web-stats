@@ -291,6 +291,7 @@
 	    const btnLine = document.getElementById('vs-tool-line');
 	    const btnRect = document.getElementById('vs-tool-rect');
 	    const btnCircle = document.getElementById('vs-tool-circle');
+	    const btnMeasure = document.getElementById('vs-tool-measure');
 	    const btnArrow = document.getElementById('vs-tool-arrow');
 	    const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
@@ -347,6 +348,9 @@
 	    const distHBtn = document.getElementById('vs-dist-h');
 	    const distVBtn = document.getElementById('vs-dist-v');
 	    const styleApplyBtn = document.getElementById('vs-style-apply');
+	    const calibStartBtn = document.getElementById('vs-calib-start');
+	    const calibResetBtn = document.getElementById('vs-calib-reset');
+	    const calibStatusEl = document.getElementById('vs-calib-status');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
 	    const uiMode = safeText(document.getElementById('vs-ui-mode')?.value || '').toLowerCase();
@@ -1704,6 +1708,7 @@
 	      if (kind === 'line') return 'Línea';
 	      if (kind === 'shape_rect' || kind === 'rect') return 'Rect';
 	      if (kind === 'shape_ellipse' || kind === 'ellipse') return 'Círculo';
+	      if (kind === 'measure') return 'Medición';
 	      if (kind === 'player_marker') return 'Jugador';
 	      if (kind === 'base') return 'Base';
 	      if (kind === 'surface_area') return 'Área';
@@ -2125,6 +2130,7 @@
 		    let lineStart = null;
 		    let shapeStart = null;
 		    let shapeDraft = null;
+		    let measureStart = null;
 		    let moveStart = null;
 		    let lastArrowSig = '';
 		    let lastArrowAt = 0;
@@ -2157,12 +2163,13 @@
         }
       } catch (e) { /* ignore */ }
 
-		      Array.from([btnSelect, btnPen, btnLine, btnRect, btnCircle, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+		      Array.from([btnSelect, btnPen, btnLine, btnRect, btnCircle, btnMeasure, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
 		      if (tool === 'select') btnSelect?.classList.add('primary');
 		      if (tool === 'pen') btnPen?.classList.add('primary');
 		      if (tool === 'line') btnLine?.classList.add('primary');
 		      if (tool === 'rect') btnRect?.classList.add('primary');
 		      if (tool === 'circle') btnCircle?.classList.add('primary');
+		      if (tool === 'measure') btnMeasure?.classList.add('primary');
 		      if (tool === 'arrow') btnArrow?.classList.add('primary');
 		      if (tool === 'curve') btnCurve?.classList.add('primary');
 	      if (tool === 'text') btnText?.classList.add('primary');
@@ -2187,6 +2194,7 @@
 		        if (tool === 'line') return 'Línea';
 		        if (tool === 'rect') return 'Rect';
 		        if (tool === 'circle') return 'Círculo';
+		        if (tool === 'measure') return 'Medir';
 		        if (tool === 'arrow') return 'Arrow';
 		        if (tool === 'curve') return 'Curve';
 		        if (tool === 'text') return 'Texto';
@@ -2519,6 +2527,48 @@
     };
 
 		    fabricCanvas.on('mouse:down', (opt) => {
+		      if (calibMode) {
+		        const p = fabricCanvas.getPointer(opt.e);
+		        calibPts.push({ x: p.x, y: p.y });
+		        const dot = new fabric.Circle({
+		          left: p.x,
+		          top: p.y,
+		          radius: 6,
+		          fill: 'rgba(250,204,21,0.95)',
+		          stroke: 'rgba(255,255,255,0.75)',
+		          strokeWidth: 1,
+		          originX: 'center',
+		          originY: 'center',
+		          selectable: false,
+		          evented: false,
+		          objectCaching: false,
+		        });
+		        dot.data = seedLayerDataNow({ kind: 'calib_point' });
+		        try { fabricCanvas.add(dot); fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		        setCalibStatus(`Calibración: ${calibPts.length}/4`);
+		        if (calibPts.length >= 4) {
+		          calibMode = false;
+		          const fieldW = 105;
+		          const fieldH = 68;
+		          const dst = [
+		            { x: 0, y: 0 },
+		            { x: fieldW, y: 0 },
+		            { x: fieldW, y: fieldH },
+		            { x: 0, y: fieldH },
+		          ];
+		          const H = computeHomography8(calibPts.slice(0, 4), dst);
+		          if (!H) {
+		            setCalibStatus('Calibración inválida (puntos colineales).', true);
+		            setStatus('Calibración inválida. Repite.', true);
+		          } else {
+		            pitchCalib = { pts: calibPts.slice(0, 4), H, w: fieldW, h: fieldH };
+		            savePitchCalib();
+		            setCalibStatus(`OK · Campo ${fieldW}×${fieldH}m`);
+		            setStatus('Calibración OK. Usa herramienta Medir.');
+		          }
+		        }
+		        return;
+		      }
 		      if (tool === 'line') {
 		        lineStart = fabricCanvas.getPointer(opt.e);
 		      }
@@ -2566,6 +2616,9 @@
 		          shapeDraft = e;
 		          fabricCanvas.add(e);
 		        }
+		      }
+		      if (tool === 'measure') {
+		        measureStart = fabricCanvas.getPointer(opt.e);
 		      }
 		      if (tool === 'arrow' || tool === 'curve') {
 		        arrowStart = fabricCanvas.getPointer(opt.e);
@@ -2767,6 +2820,67 @@
       }
 	    });
 	    fabricCanvas.on('mouse:up', (opt) => {
+	      if (tool === 'measure' && measureStart) {
+	        const end = fabricCanvas.getPointer(opt.e);
+	        const start = measureStart;
+	        measureStart = null;
+	        const dx = end.x - start.x;
+	        const dy = end.y - start.y;
+	        const px = Math.hypot(dx, dy);
+	        if (px < 8) return;
+	        const m = distMeters(start, end);
+	        const label = (m != null) ? `${m.toFixed(1)} m` : `${Math.round(px)} px`;
+	        const color = strokeColor();
+	        const sw = clamp(Number(strokeWidth()) || 6, 1, 18);
+	        const line = new fabric.Line([start.x, start.y, end.x, end.y], {
+	          stroke: color,
+	          strokeWidth: clamp(sw, 2, 14),
+	          strokeLineCap: 'round',
+	          strokeDashArray: [10, 8],
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        });
+	        const text = new fabric.Text(label, {
+	          left: (start.x + end.x) / 2,
+	          top: (start.y + end.y) / 2,
+	          originX: 'center',
+	          originY: 'center',
+	          fill: '#ffffff',
+	          fontSize: 18,
+	          fontWeight: '900',
+	          shadow: 'rgba(0,0,0,0.55) 0 2px 6px',
+	        });
+	        const padX = 10;
+	        const padY = 6;
+	        const bg = new fabric.Rect({
+	          left: text.left,
+	          top: text.top,
+	          originX: 'center',
+	          originY: 'center',
+	          width: (Number(text.width) || 60) + padX * 2,
+	          height: (Number(text.height) || 20) + padY * 2,
+	          rx: 12,
+	          ry: 12,
+	          fill: 'rgba(2,6,23,0.65)',
+	          stroke: 'rgba(255,255,255,0.18)',
+	          strokeWidth: 1,
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        });
+	        const group = new fabric.Group([line, bg, text], { selectable: true });
+	        group.data = seedLayerDataNow({ kind: 'measure', meters: (m != null) ? Number(m) : null });
+	        fabricCanvas.add(group);
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        setStatus(m != null ? `Medición: ${label}` : 'Medición: sin calibración (px).');
+	        return;
+	      }
 	      if ((tool === 'rect' || tool === 'circle') && shapeStart && shapeDraft) {
 	        const end0 = fabricCanvas.getPointer(opt.e);
 	        const start = shapeStart;
@@ -3141,6 +3255,7 @@
 		    btnLine?.addEventListener('click', () => setTool('line'));
 		    btnRect?.addEventListener('click', () => setTool('rect'));
 		    btnCircle?.addEventListener('click', () => setTool('circle'));
+		    btnMeasure?.addEventListener('click', () => setTool('measure'));
 		    btnArrow?.addEventListener('click', () => setTool('arrow'));
 		    btnCurve?.addEventListener('click', () => setTool('curve'));
 	    btnText?.addEventListener('click', () => setTool('text'));
@@ -3494,6 +3609,128 @@
 	        });
 	      });
 	    } catch (e) { /* ignore */ }
+
+	    // ---- Calibración 2D (campo) + medición ----
+	    const pitchKey = () => `vs_pitch_calib_v1:${videoId || 0}`;
+	    let pitchCalib = null; // { pts: [{x,y}*4], H: [8], w:105, h:68 }
+	    let calibMode = false;
+	    let calibPts = [];
+	    const setCalibStatus = (text, isError = false) => {
+	      if (!calibStatusEl) return;
+	      calibStatusEl.textContent = safeText(text, '—');
+	      calibStatusEl.style.color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+	    };
+	    const savePitchCalib = () => {
+	      try {
+	        if (!pitchCalib) { window.localStorage?.removeItem?.(pitchKey()); return; }
+	        window.localStorage?.setItem?.(pitchKey(), JSON.stringify(pitchCalib));
+	      } catch (e) { /* ignore */ }
+	    };
+	    const loadPitchCalib = () => {
+	      try {
+	        const raw = window.localStorage?.getItem?.(pitchKey()) || '';
+	        if (!raw) return null;
+	        const obj = JSON.parse(raw);
+	        if (!obj || !Array.isArray(obj.pts) || obj.pts.length !== 4 || !Array.isArray(obj.H) || obj.H.length !== 8) return null;
+	        return obj;
+	      } catch (e) {
+	        return null;
+	      }
+	    };
+	    pitchCalib = loadPitchCalib();
+	    if (pitchCalib) setCalibStatus(`OK · Campo ${pitchCalib.w || 105}×${pitchCalib.h || 68}m`);
+
+	    const solveLinearSystem = (A, b) => {
+	      // A: NxN, b: N
+	      const n = A.length;
+	      const M = A.map((row, i) => row.slice(0).concat([b[i]]));
+	      for (let col = 0; col < n; col += 1) {
+	        // pivot
+	        let pivot = col;
+	        let best = Math.abs(M[col][col] || 0);
+	        for (let r = col + 1; r < n; r += 1) {
+	          const v = Math.abs(M[r][col] || 0);
+	          if (v > best) { best = v; pivot = r; }
+	        }
+	        if (best < 1e-9) return null;
+	        if (pivot !== col) {
+	          const tmp = M[col]; M[col] = M[pivot]; M[pivot] = tmp;
+	        }
+	        const div = M[col][col];
+	        for (let c = col; c <= n; c += 1) M[col][c] /= div;
+	        for (let r = 0; r < n; r += 1) {
+	          if (r === col) continue;
+	          const f = M[r][col];
+	          if (!f) continue;
+	          for (let c = col; c <= n; c += 1) M[r][c] -= f * M[col][c];
+	        }
+	      }
+	      return M.map((row) => row[n]);
+	    };
+
+	    const computeHomography8 = (srcPts, dstPts) => {
+	      // src: [{x,y}*4], dst: [{x,y}*4] ; returns [h11,h12,h13,h21,h22,h23,h31,h32]
+	      const A = [];
+	      const b = [];
+	      for (let i = 0; i < 4; i += 1) {
+	        const x = Number(srcPts[i].x) || 0;
+	        const y = Number(srcPts[i].y) || 0;
+	        const X = Number(dstPts[i].x) || 0;
+	        const Y = Number(dstPts[i].y) || 0;
+	        A.push([x, y, 1, 0, 0, 0, -X * x, -X * y]); b.push(X);
+	        A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]); b.push(Y);
+	      }
+	      return solveLinearSystem(A, b);
+	    };
+	    const mapImageToField = (pt) => {
+	      if (!pitchCalib || !Array.isArray(pitchCalib.H) || pitchCalib.H.length !== 8) return null;
+	      const h = pitchCalib.H;
+	      const x = Number(pt?.x) || 0;
+	      const y = Number(pt?.y) || 0;
+	      const den = (h[6] * x) + (h[7] * y) + 1;
+	      if (!den) return null;
+	      const X = ((h[0] * x) + (h[1] * y) + h[2]) / den;
+	      const Y = ((h[3] * x) + (h[4] * y) + h[5]) / den;
+	      if (!Number.isFinite(X) || !Number.isFinite(Y)) return null;
+	      return { x: X, y: Y };
+	    };
+	    const distMeters = (a, b2) => {
+	      const pa = mapImageToField(a);
+	      const pb = mapImageToField(b2);
+	      if (!pa || !pb) return null;
+	      return Math.hypot(pb.x - pa.x, pb.y - pa.y);
+	    };
+
+	    const clearCalibrationMarks = () => {
+	      const toRemove = [];
+	      try {
+	        for (const obj of (fabricCanvas.getObjects?.() || [])) {
+	          if (safeText(obj?.data?.kind, '') === 'calib_point') toRemove.push(obj);
+	        }
+	      } catch (e) { /* ignore */ }
+	      toRemove.forEach((o) => { try { fabricCanvas.remove(o); } catch (e) { /* ignore */ } });
+	      if (toRemove.length) { try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ } }
+	    };
+
+	    const startCalibration = () => {
+	      calibMode = true;
+	      calibPts = [];
+	      clearCalibrationMarks();
+	      setTool('select');
+	      setStatus('Calibración: click 4 puntos (Esquina sup-izq, sup-der, inf-der, inf-izq).');
+	      setCalibStatus('Calibración: 0/4');
+	    };
+	    const resetCalibration = () => {
+	      calibMode = false;
+	      calibPts = [];
+	      pitchCalib = null;
+	      savePitchCalib();
+	      clearCalibrationMarks();
+	      setCalibStatus('Sin calibración.');
+	      setStatus('Calibración reseteada.');
+	    };
+	    calibStartBtn?.addEventListener('click', () => startCalibration());
+	    calibResetBtn?.addEventListener('click', () => resetCalibration());
 
 	    const updateTemplateParamsUi = () => {
 	      if (!templateParamsWrap) return;
@@ -3928,6 +4165,7 @@
 	      if (key === 'l' || key === 'L') { setTool('line'); return; }
 	      if (key === 'r' || key === 'R') { setTool('rect'); return; }
 	      if (key === 'o' || key === 'O') { setTool('circle'); return; }
+	      if (key === 'm' || key === 'M') { setTool('measure'); return; }
 	      if (key === 'a' || key === 'A') { setTool('arrow'); return; }
 	      if (key === 't' || key === 'T') { setTool('text'); return; }
 	      if (key === 'Escape') {
