@@ -1055,12 +1055,12 @@
         background: rgba(34, 211, 238, 0.12);
         border-color: rgba(34, 211, 238, 0.42);
       }
-      .pitch-view-menu-body {
-        position: absolute;
-        top: calc(100% + 10px);
-        left: 0;
-        z-index: 85;
-        width: min(720px, 92vw);
+	      .pitch-view-menu-body {
+	        position: absolute;
+	        top: calc(100% + 10px);
+	        left: 0;
+	        z-index: 85;
+	        width: min(720px, 92vw);
         padding: 0.75rem;
         border-radius: 18px;
         border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1068,14 +1068,63 @@
         box-shadow: 0 26px 56px rgba(2, 6, 23, 0.42);
         display: flex;
         flex-wrap: wrap;
-        gap: 0.55rem;
-        align-items: center;
-      }
-	      .pitch-toolbar button,
-	      .resource-strip button,
-	      .player-bank button {
-	        border-radius: 12px;
-	        text-transform: none;
+	        gap: 0.55rem;
+	        align-items: center;
+	      }
+	      /* Safari/iOS/desktop: el backdrop (con blur) puede “tapar” el dropdown de <details>
+	         por stacking context. Fix robusto: cuando el menú Vista está abierto (backdrop activo),
+	         lo mostramos como panel fijo por encima del backdrop. */
+	      body.overlay-backdrop-open .pitch-view-menu[open] .pitch-view-menu-body {
+	        position: fixed;
+	        top: calc(14px + env(safe-area-inset-top));
+	        left: calc(12px + env(safe-area-inset-left));
+	        right: calc(12px + env(safe-area-inset-right));
+	        width: auto;
+	        max-height: calc(100vh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+	        max-height: calc(100svh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+	        overflow: auto;
+	        z-index: 1600;
+	      }
+	      body.overlay-backdrop-open .pitch-view-menu[open] {
+	        position: relative;
+	        z-index: 1601;
+	      }
+	      .pitch-grass-select-wrap {
+	        position: relative;
+	        display: inline-flex;
+	        align-items: center;
+	      }
+	      .pitch-grass-select-wrap::after {
+	        content: "▾";
+	        position: absolute;
+	        right: 14px;
+	        top: 50%;
+	        transform: translateY(-50%);
+	        pointer-events: none;
+	        opacity: 0.75;
+	        font-weight: 900;
+	      }
+	      select.pitch-grass-select {
+	        min-width: 220px;
+	        border: 1px solid var(--line);
+	        background: rgba(255, 255, 255, 0.05);
+	        color: var(--ink);
+	        border-radius: 999px;
+	        padding: 0.62rem 2.2rem 0.62rem 0.92rem;
+	        font: inherit;
+	        font-size: 0.73rem;
+	        font-weight: 800;
+	        letter-spacing: 0.06em;
+	        text-transform: uppercase;
+	        cursor: pointer;
+	        appearance: none;
+	        -webkit-appearance: none;
+	      }
+		      .pitch-toolbar button,
+		      .resource-strip button,
+		      .player-bank button {
+		        border-radius: 12px;
+		        text-transform: none;
 	        letter-spacing: 0.02em;
 	        font-size: 0.8rem;
 	        font-weight: 700;
@@ -4952,26 +5001,42 @@
 	                      <span>Orientación</span>
 	                      <span class="current" id="pitch-orientation-label">{% if initial.pitch_orientation == 'portrait' %}Vertical{% else %}Horizontal{% endif %}</span>
 	                    </button>
-		                    <button type="button" class="surface-trigger" id="pitch-grass-toggle">
-		                      <span>Fondo</span>
-		                      <span class="current" id="pitch-grass-label">
-		                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
-		                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
-		                        {% elif initial.pitch_grass_style == 'pro' %}PRO
-		                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
-		                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
-		                        {% elif initial.pitch_grass_style == 'dry' %}Seco
-			                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
-			                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
-			                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
-			                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
-			                        {% else %}Césped{% endif %}
-			                      </span>
-			                    </button>
-		                    <div class="pitch-zoom">
-		                      <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
-		                      <span class="zoom-readout" id="pitch-zoom-label">100%</span>
-		                      <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
+			                    <button type="button" class="surface-trigger" id="pitch-grass-toggle" title="Cambiar fondo (clic para ir pasando estilos)">
+			                      <span>Fondo</span>
+			                      <span class="current" id="pitch-grass-label">
+			                        {% if initial.pitch_grass_style == 'broadcast' %}Broadcast
+			                        {% elif initial.pitch_grass_style == 'realistic' %}Realista
+			                        {% elif initial.pitch_grass_style == 'pro' %}PRO
+			                        {% elif initial.pitch_grass_style == 'uefa_b' %}UEFA B
+			                        {% elif initial.pitch_grass_style == 'artificial' %}Artificial
+			                        {% elif initial.pitch_grass_style == 'dry' %}Seco
+				                        {% elif initial.pitch_grass_style == 'wet' %}Mojado
+				                        {% elif initial.pitch_grass_style == 'coachboard' %}Tablero
+				                        {% elif initial.pitch_grass_style == 'whiteboard' %}Blanca
+				                        {% elif initial.pitch_grass_style == 'blackboard' %}Negra
+				                        {% else %}Césped{% endif %}
+				                      </span>
+				                    </button>
+		                    <span class="pitch-grass-select-wrap">
+		                      <label class="sr-only" for="pitch-grass-select">Tipo de fondo</label>
+		                      <select id="pitch-grass-select" class="pitch-grass-select" aria-label="Tipo de fondo">
+		                        <option value="classic" {% if initial.pitch_grass_style == 'classic' %}selected{% endif %}>Césped</option>
+		                        <option value="broadcast" {% if initial.pitch_grass_style == 'broadcast' %}selected{% endif %}>Broadcast</option>
+		                        <option value="realistic" {% if initial.pitch_grass_style == 'realistic' %}selected{% endif %}>Realista</option>
+		                        <option value="pro" {% if initial.pitch_grass_style == 'pro' %}selected{% endif %}>PRO</option>
+		                        <option value="uefa_b" {% if initial.pitch_grass_style == 'uefa_b' %}selected{% endif %}>UEFA B</option>
+		                        <option value="artificial" {% if initial.pitch_grass_style == 'artificial' %}selected{% endif %}>Artificial</option>
+		                        <option value="dry" {% if initial.pitch_grass_style == 'dry' %}selected{% endif %}>Seco</option>
+		                        <option value="wet" {% if initial.pitch_grass_style == 'wet' %}selected{% endif %}>Mojado</option>
+		                        <option value="coachboard" {% if initial.pitch_grass_style == 'coachboard' %}selected{% endif %}>Tablero</option>
+		                        <option value="whiteboard" {% if initial.pitch_grass_style == 'whiteboard' %}selected{% endif %}>Pizarra blanca</option>
+		                        <option value="blackboard" {% if initial.pitch_grass_style == 'blackboard' %}selected{% endif %}>Pizarra negra</option>
+		                      </select>
+		                    </span>
+			                    <div class="pitch-zoom">
+			                      <button type="button" id="pitch-zoom-out" title="Alejar">-</button>
+			                      <span class="zoom-readout" id="pitch-zoom-label">100%</span>
+			                      <button type="button" id="pitch-zoom-in" title="Acercar">+</button>
 		                      <button type="button" id="pitch-zoom-reset" title="Reset">↺</button>
 		                    </div>
 	                    <div class="pitch-size" title="Tamaño del campo en pantalla">

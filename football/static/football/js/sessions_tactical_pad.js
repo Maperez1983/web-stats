@@ -952,15 +952,16 @@
 	    const grassStyleInput = document.getElementById('draw-task-pitch-grass-style');
 	    const orientationToggle = document.getElementById('pitch-orientation-toggle');
 	    const orientationLabel = document.getElementById('pitch-orientation-label');
-	    const orientationToggleQuick = document.getElementById('pitch-orientation-toggle-quick');
-	    const orientationLabelQuick = document.getElementById('pitch-orientation-label-quick');
-	    const grassToggle = document.getElementById('pitch-grass-toggle');
-	    const grassLabel = document.getElementById('pitch-grass-label');
-    const viewportEl = document.getElementById('task-pitch-viewport');
-    const zoomInput = document.getElementById('draw-task-pitch-zoom');
-	    const zoomOutButton = document.getElementById('pitch-zoom-out');
-	    const zoomInButton = document.getElementById('pitch-zoom-in');
-	    const zoomResetButton = document.getElementById('pitch-zoom-reset');
+		    const orientationToggleQuick = document.getElementById('pitch-orientation-toggle-quick');
+		    const orientationLabelQuick = document.getElementById('pitch-orientation-label-quick');
+		    const grassToggle = document.getElementById('pitch-grass-toggle');
+		    const grassLabel = document.getElementById('pitch-grass-label');
+		    const grassSelect = document.getElementById('pitch-grass-select');
+	    const viewportEl = document.getElementById('task-pitch-viewport');
+	    const zoomInput = document.getElementById('draw-task-pitch-zoom');
+		    const zoomOutButton = document.getElementById('pitch-zoom-out');
+		    const zoomInButton = document.getElementById('pitch-zoom-in');
+		    const zoomResetButton = document.getElementById('pitch-zoom-reset');
 	    const zoomLabel = document.getElementById('pitch-zoom-label');
 	    const stageSizeDownButton = document.getElementById('pitch-size-down');
 	    const stageSizeUpButton = document.getElementById('pitch-size-up');
@@ -3810,26 +3811,28 @@
 			    // Evita depender solo de `presetSelect.value`: durante prompts/modales o ciertos resizes puede quedar vacío
 			    // y provocar un fallback a `full_pitch` inesperado (parece que "cambia la superficie" al guardar un clip).
 			    let pitchPreset = safeText(presetSelect?.value, 'full_pitch') || 'full_pitch';
-				    const GRASS_STYLE_LABEL = {
-				      classic: 'Césped',
-				      broadcast: 'Broadcast',
-				      realistic: 'Realista',
-				      pro: 'PRO',
-				      uefa_b: 'UEFA B',
-				      artificial: 'Artificial',
-				      dry: 'Seco',
-				      wet: 'Mojado',
-				      whiteboard: 'Blanca',
-				      blackboard: 'Negra',
-				    };
-				    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet', 'whiteboard', 'blackboard'];
-				    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
-				    if (!GRASS_STYLE_ORDER.includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
-				    const syncGrassUi = () => {
-				      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
-				      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
-				    };
-			    syncGrassUi();
+					    const GRASS_STYLE_LABEL = {
+					      classic: 'Césped',
+					      broadcast: 'Broadcast',
+					      realistic: 'Realista',
+					      pro: 'PRO',
+					      uefa_b: 'UEFA B',
+					      artificial: 'Artificial',
+					      dry: 'Seco',
+					      wet: 'Mojado',
+					      coachboard: 'Tablero',
+					      whiteboard: 'Blanca',
+					      blackboard: 'Negra',
+					    };
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet', 'coachboard', 'whiteboard', 'blackboard'];
+					    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
+					    if (!GRASS_STYLE_ORDER.includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
+					    const syncGrassUi = () => {
+					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
+					      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
+					      try { if (grassSelect) grassSelect.value = pitchGrassStyle; } catch (e) { /* ignore */ }
+					    };
+				    syncGrassUi();
 				    let pitchZoom = Number.parseFloat(String(zoomInput?.value || '').trim());
 				    let zoomTouched = false;
 		    // Tamaño del stage (solo UI): ajusta cuánto ocupa el campo en pantalla, sin tocar posiciones.
@@ -24487,21 +24490,29 @@
 	    };
 	    orientationToggle?.addEventListener('click', togglePitchOrientation);
 	    orientationToggleQuick?.addEventListener('click', togglePitchOrientation);
-			    grassToggle?.addEventListener('click', () => {
-			      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
-			      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
-			      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
-			      syncGrassUi();
-			      // Usamos `pitchPreset` como fuente de verdad (evita saltos a full_pitch si el <select> está vacío por DOM/resize).
-			      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
-			      refreshLivePreview();
-			      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
-			    });
-		    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
-		    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
-		    zoomResetButton?.addEventListener('click', () => {
-		      zoomTouched = false;
-		      applyPitchZoom(1.0, { silent: true });
+				    grassToggle?.addEventListener('click', () => {
+				      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
+				      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
+				      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
+				      syncGrassUi();
+				      // Usamos `pitchPreset` como fuente de verdad (evita saltos a full_pitch si el <select> está vacío por DOM/resize).
+				      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+				      refreshLivePreview();
+				      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+				    });
+				    grassSelect?.addEventListener('change', () => {
+				      const next = safeText(grassSelect.value, 'classic').trim().toLowerCase();
+				      pitchGrassStyle = GRASS_STYLE_ORDER.includes(next) ? next : 'classic';
+				      syncGrassUi();
+				      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
+				      refreshLivePreview();
+				      setStatus(`Césped: ${GRASS_STYLE_LABEL[pitchGrassStyle] || pitchGrassStyle}.`);
+				    });
+			    zoomOutButton?.addEventListener('click', () => applyPitchZoom(pitchZoom - 0.08));
+			    zoomInButton?.addEventListener('click', () => applyPitchZoom(pitchZoom + 0.08));
+			    zoomResetButton?.addEventListener('click', () => {
+			      zoomTouched = false;
+			      applyPitchZoom(1.0, { silent: true });
 		      setStatus('Zoom restablecido.');
 		    });
 	    stageSizeDownButton?.addEventListener('click', () => {
