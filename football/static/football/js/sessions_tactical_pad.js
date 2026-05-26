@@ -1421,7 +1421,7 @@
 					      }
 					    };
 
-				    // Backdrop global (evita “superposición” visual de popovers/modales).
+					    // Backdrop global (evita “superposición” visual de popovers/modales).
 				    // OJO: `task-resource-details` se usa como selector/tabs de recursos (no es un modal).
 				    // En iPad/Safari lo dejamos abierto por defecto para que se vean sus hijos; si lo
 				    // tratamos como overlay, el backdrop bloquea la UI (parece “difuminado sin opciones”).
@@ -1430,7 +1430,7 @@
 				    // mientras está abierto (mover fichas, dibujar, capturar pasos). Si lo tratamos como
 				    // "overlay", el backdrop tapa el canvas y parece que la pizarra se vuelve transparente
 				    // y "no marca nada".
-				    const __overlayFloatingIds = [
+					    const __overlayFloatingIds = [
 				      'task-command-menu',
 				      'task-pattern-popover',
 				      'task-formation-popover',
@@ -1438,10 +1438,29 @@
 				      'task-layers-popover',
 				      'task-scenarios-popover',
 				    ];
-						    let __backdropRaf = 0;
-							    const __syncBackdropNow = () => {
-							      const backdrop = document.getElementById('tpad-overlay-backdrop');
-							      if (!backdrop) return;
+					    let __backdropRaf = 0;
+					    let __docOutsideCloserBound = false;
+					    const __bindOutsideClosers = () => {
+					      if (__docOutsideCloserBound) return;
+					      __docOutsideCloserBound = true;
+					      // Click fuera: cuando el backdrop no recibe eventos (Safari + blur), cerramos igual.
+					      document.addEventListener('click', (ev) => {
+					        try {
+					          const viewMenu = document.getElementById('pitch-view-menu');
+					          if (!(viewMenu && viewMenu.tagName === 'DETAILS' && viewMenu.open)) return;
+					          const target = ev.target;
+					          if (!target || !(target instanceof Element)) return;
+					          // Si clicas dentro del menú o su summary, no cierres.
+					          if (target.closest('#pitch-view-menu')) return;
+					          // Cierra el menú Vista y sincroniza backdrop.
+					          try { viewMenu.open = false; } catch (e) { /* ignore */ }
+					          try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					        } catch (e) { /* ignore */ }
+					      }, true);
+					    };
+								    const __syncBackdropNow = () => {
+								      const backdrop = document.getElementById('tpad-overlay-backdrop');
+								      if (!backdrop) return;
 						      const isVisible = (el) => {
 					        if (!el) return false;
 					        try { if (el.hidden) return false; } catch (e) { /* ignore */ }
@@ -1484,13 +1503,26 @@
 						          });
 						        } catch (e) { /* ignore */ }
 						      }
-						      backdrop.hidden = !anyOpen;
-						      // Failsafe: si por CSS/stacking context el atributo [hidden] no oculta del todo,
-						      // evitamos que el backdrop “coma” clics cuando no hay overlays abiertos.
-						      try { backdrop.style.pointerEvents = anyOpen ? 'auto' : 'none'; } catch (e) { /* ignore */ }
-						      try { backdrop.style.opacity = anyOpen ? '' : '0'; } catch (e) { /* ignore */ }
-						      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
-						    };
+							      backdrop.hidden = !anyOpen;
+							      // Failsafe: si por CSS/stacking context el atributo [hidden] no oculta del todo,
+							      // evitamos que el backdrop “coma” clics cuando no hay overlays abiertos.
+							      //
+							      // Safari/WebKit: con `backdrop-filter`, a veces el hit-testing se queda “pegado” y el
+							      // backdrop intercepta clics aunque haya un menú por encima (ej. Vista -> Césped).
+							      // Solución: cuando el menú Vista está abierto, desactivamos pointer-events del backdrop
+							      // y cerramos el menú con un listener global de click-fuera.
+							      let wantsBackdropClicks = anyOpen;
+							      try {
+							        const viewMenu = document.getElementById('pitch-view-menu');
+							        if (viewMenu && viewMenu.tagName === 'DETAILS' && viewMenu.open) {
+							          wantsBackdropClicks = false;
+							          __bindOutsideClosers();
+							        }
+							      } catch (e) { /* ignore */ }
+							      try { backdrop.style.pointerEvents = wantsBackdropClicks ? 'auto' : 'none'; } catch (e) { /* ignore */ }
+							      try { backdrop.style.opacity = anyOpen ? '' : '0'; } catch (e) { /* ignore */ }
+							      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
+							    };
 					    const __scheduleBackdropSync = () => {
 				      try { if (__backdropRaf) cancelAnimationFrame(__backdropRaf); } catch (e) { /* ignore */ }
 				      try { __backdropRaf = requestAnimationFrame(() => { __backdropRaf = 0; __syncBackdropNow(); }); } catch (e) { __backdropRaf = 0; }
