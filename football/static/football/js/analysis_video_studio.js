@@ -2957,6 +2957,57 @@
 	        renderDrawLayers();
 	        setStatus('Carriles manual: usa Select y rota/mueve cada línea (o las 4 juntas).');
 	        return;
+	      } else if (name === 'grid') {
+	        const cols = 6;
+	        const rows = 4;
+	        for (let c = 1; c <= cols - 1; c += 1) {
+	          const x = (w * c) / cols;
+	          objs.push(new fabric.Line([x, 0, x, h], { stroke: 'rgba(255,255,255,0.30)', strokeWidth: 2, selectable: false, evented: false }));
+	        }
+	        for (let r = 1; r <= rows - 1; r += 1) {
+	          const y = (h * r) / rows;
+	          objs.push(new fabric.Line([0, y, w, y], { stroke: 'rgba(255,255,255,0.30)', strokeWidth: 2, selectable: false, evented: false }));
+	        }
+	      } else if (name === 'grid_manual') {
+	        const cols = 6;
+	        const rows = 4;
+	        const mkLine = (points, dataExtra) => {
+	          const line = new fabric.Line(points, {
+	            stroke: 'rgba(255,255,255,0.42)',
+	            strokeWidth: 2,
+	            selectable: true,
+	            evented: true,
+	            strokeUniform: true,
+	            perPixelTargetFind: true,
+	            padding: 0,
+	            cornerStyle: 'circle',
+	            cornerColor: 'rgba(250,204,21,0.95)',
+	            transparentCorners: false,
+	            cornerSize: 14,
+	          });
+	          line.data = seedLayerDataNow({ kind: 'template', template: name, ...dataExtra });
+	          return line;
+	        };
+	        for (let c = 1; c <= cols - 1; c += 1) {
+	          const x = (w * c) / cols;
+	          objs.push(mkLine([x, 0, x, h], { grid_axis: 'v', grid_i: c }));
+	        }
+	        for (let r = 1; r <= rows - 1; r += 1) {
+	          const y = (h * r) / rows;
+	          objs.push(mkLine([0, y, w, y], { grid_axis: 'h', grid_i: r }));
+	        }
+	        objs.forEach((o) => fabricCanvas.add(o));
+	        pushHistory();
+	        try {
+	          const sel = new fabric.ActiveSelection(objs, { canvas: fabricCanvas });
+	          fabricCanvas.setActiveObject(sel);
+	        } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        setStatus('Cuadrícula manual: usa Select y mueve/rota líneas (puedes seleccionar varias).');
+	        return;
 	      } else if (name === 'central_box') {
 	        const bw = w * 0.52;
 	        const bh = h * 0.52;
