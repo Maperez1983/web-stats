@@ -493,9 +493,10 @@
 	        height: clamp(28px, 2.6vmin, 42px);
         border-radius: 50%;
         border: 1px solid rgba(255,255,255,0.24);
-        background: rgba(2, 6, 23, 0.35);
-        object-fit: cover;
-        filter: brightness(0) invert(1);
+        background: rgba(255, 255, 255, 0.10);
+        object-fit: contain;
+        padding: 2px;
+        filter: none;
 	        box-shadow: 0 10px 22px rgba(0,0,0,0.38);
 	        flex: 0 0 auto;
 	      }
@@ -597,8 +598,9 @@
         height: clamp(28px, 2.6vmin, 44px);
         border-radius: 50%;
         border: 1px solid rgba(255,255,255,0.24);
-        background: rgba(2, 6, 23, 0.35);
-        object-fit: cover;
+        background: rgba(255, 255, 255, 0.10);
+        object-fit: contain;
+        padding: 2px;
         box-shadow: 0 10px 22px rgba(0,0,0,0.38);
       }
       body.tactics-mode .tpad-stadium-title {
@@ -6289,7 +6291,7 @@
                         <div class="tpad-stand tpad-stand-top" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--top">
 	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
 	                                <img class="tpad-stand-crest" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
 	                              {% else %}
 	                                <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
@@ -6301,7 +6303,7 @@
                         <div class="tpad-stand tpad-stand-left" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--side">
 	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
 	                              {% else %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
@@ -6314,7 +6316,7 @@
                         <div class="tpad-stand tpad-stand-right" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--side">
 	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
 	                              {% else %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
@@ -6326,7 +6328,7 @@
                         <div class="tpad-stand tpad-stand-bottom" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--bottom">
 	                            {% if tactics_team_crest_url %}
-	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast' in tactics_team_crest_url %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
 	                              {% else %}
 	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
