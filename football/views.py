@@ -36375,6 +36375,29 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
     task_sheet = dict(task_sheet)
 
+    def _sync_task_sheet_html(sheet_key: str, plain_value: str) -> bool:
+        """
+        Mantiene en `meta.analysis.task_sheet` los campos HTML coherentes cuando la edición
+        viene desde la ficha (textarea) y por tanto no envía `*_html`.
+
+        Devuelve True si se modificó el `task_sheet`.
+        """
+        key = str(sheet_key or '').strip()
+        if not key:
+            return False
+        text = str(plain_value or '').strip()
+        current = str(task_sheet.get(key) or '').strip()
+        if not text:
+            if current:
+                task_sheet[key] = ''
+                return True
+            return False
+        html_value = _sanitize_task_rich_html(_rich_html_from_plain_text(text))
+        if html_value == current:
+            return False
+        task_sheet[key] = html_value
+        return True
+
     sheet_field_map = {
         'task_sheet_description': 'description',
         'task_sheet_players': 'players',
@@ -36393,6 +36416,18 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
             task_sheet_touched = True
             if sheet_key == 'space':
                 touched_space = True
+
+    # Si la edición llega desde la ficha, sincronizamos también su HTML para que el PDF (UEFA/Club)
+    # muestre el texto actualizado (el renderer prioriza `*_html` cuando existe).
+    if 'task_sheet_description' in post_data:
+        if _sync_task_sheet_html('description_html', task_sheet.get('description')):
+            task_sheet_touched = True
+    if 'task_coaching_points' in post_data:
+        if _sync_task_sheet_html('coaching_html', task.coaching_points):
+            task_sheet_touched = True
+    if 'task_confrontation_rules' in post_data:
+        if _sync_task_sheet_html('rules_html', task.confrontation_rules):
+            task_sheet_touched = True
     if task_sheet_touched:
         analysis_meta['task_sheet'] = task_sheet
         if touched_space:
