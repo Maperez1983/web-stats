@@ -2983,37 +2983,65 @@
 	        }
 	        objs.push(new fabric.Rect({ left: 0, top: 0, width: w, height: h, fill: 'rgba(255,255,255,0.02)', selectable: false, evented: false }));
 	      } else if (name === 'lanes_manual') {
-	        for (let i = 1; i <= 4; i += 1) {
-	          const x = (w * i) / 5;
-	          const line = new fabric.Line([x, 0, x, h], {
+	        const laneCount = 5;
+	        const laneW = w / laneCount;
+	        for (let i = 0; i < laneCount; i += 1) {
+	          const fill = (i % 2 === 0) ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.018)';
+	          const rect = new fabric.Rect({
+	            left: i * laneW,
+	            top: 0,
+	            width: laneW,
+	            height: h,
+	            fill,
+	            selectable: false,
+	            evented: false,
+	            objectCaching: false,
+	          });
+	          objs.push(rect);
+	        }
+	        // Separadores entre carriles (4 líneas) + borde exterior
+	        for (let i = 1; i <= laneCount - 1; i += 1) {
+	          const x = (w * i) / laneCount;
+	          objs.push(new fabric.Line([x, 0, x, h], {
 	            stroke: 'rgba(255,255,255,0.42)',
 	            strokeWidth: 2,
-	            selectable: true,
-	            evented: true,
-	            strokeUniform: true,
-	            perPixelTargetFind: true,
-	            padding: 0,
-	            cornerStyle: 'circle',
-	            cornerColor: 'rgba(250,204,21,0.95)',
-	            transparentCorners: false,
-	            cornerSize: 14,
-	          });
-	          line.data = seedLayerDataNow({ kind: 'template', template: name, lane_i: i });
-	          objs.push(line);
+	            strokeDashArray: [10, 10],
+	            strokeLineCap: 'round',
+	            selectable: false,
+	            evented: false,
+	            objectCaching: false,
+	          }));
 	        }
-	        // En manual, añadimos líneas sueltas (seleccionables) para poder rotar/colocar cada carril.
-	        // Además, seleccionamos las 4 al aplicar para moverlas juntas si el usuario quiere.
-	        objs.forEach((o) => fabricCanvas.add(o));
+	        objs.push(new fabric.Rect({
+	          left: 0,
+	          top: 0,
+	          width: w,
+	          height: h,
+	          fill: 'rgba(0,0,0,0)',
+	          stroke: 'rgba(255,255,255,0.55)',
+	          strokeWidth: 2,
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        }));
+	        const group = new fabric.Group(objs, {
+	          selectable: true,
+	          subTargetCheck: false,
+	          objectCaching: false,
+	          cornerStyle: 'circle',
+	          cornerColor: 'rgba(250,204,21,0.95)',
+	          transparentCorners: false,
+	          cornerSize: 14,
+	        });
+	        group.data = seedLayerDataNow({ kind: 'template', template: name, lanes: laneCount });
+	        fabricCanvas.add(group);
 	        pushHistory();
-	        try {
-	          const sel = new fabric.ActiveSelection(objs, { canvas: fabricCanvas });
-	          fabricCanvas.setActiveObject(sel);
-	        } catch (e) { /* ignore */ }
+	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
 	        selectedFxId = 0;
 	        updateLayerPanel();
 	        renderFxList();
 	        renderDrawLayers();
-	        setStatus('Carriles manual: usa Select y rota/mueve cada línea (o las 4 juntas).');
+	        setStatus('Carriles manual (5): usa Select y mueve/rota/escala la plantilla.');
 	        return;
 	      } else if (name === 'grid') {
 	        const cols = 6;
