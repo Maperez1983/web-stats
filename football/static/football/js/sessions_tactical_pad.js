@@ -878,6 +878,8 @@
 			    try {
 			    const form = document.getElementById('task-builder-form');
 			    if (!form) return;
+			    // Nota: `data-tpad-diagnostics` solo activa UI/avisos. El atajo Cmd/Ctrl+Shift+D
+			    // se mantiene siempre disponible para poder depurar en producción sin exponer botones.
 			    const diagnosticsEnabled = safeText(document.body?.dataset?.tpadDiagnostics, '0') === '1';
 		    // Evita doble inicialización, pero PERMITE reintentos si la primera inicialización falló
 		    // (p.ej. Safari/iPad con scripts defer que tardan o DOM aún incompleto).
@@ -2534,34 +2536,34 @@
 				      }
 				      try { __safePrompt('Diagnóstico (cópialo y pégalo aquí):', text); } catch (e) { /* ignore */ }
 				    };
-						    if (diagnosticsEnabled) {
-						      // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
-						      const diagButtons = [
-						        document.getElementById('tpad-diag-copy'),
-						        document.getElementById('tpad-diag-copy-fab'),
-						      ].filter(Boolean);
-						      diagButtons.forEach((btn) => {
-						        try {
-						          btn.addEventListener('click', (event) => {
-						            event.preventDefault();
-						            void copyTacticsDiagnostics();
-						          });
-						        } catch (e) { /* ignore */ }
-						      });
-						      // Atajo de teclado (si algún overlay tapa botones): Cmd/Ctrl+Shift+D.
-						      try {
-						        if (isTacticsMode && !window.__WEBSTATS_TPAD_DIAG_SHORTCUT) {
-						          window.__WEBSTATS_TPAD_DIAG_SHORTCUT = true;
-						          window.addEventListener('keydown', (ev) => {
-						            const key = String(ev?.key || '').toLowerCase();
-						            if (key !== 'd') return;
-						            if (!(ev.metaKey || ev.ctrlKey) || !ev.shiftKey) return;
-						            ev.preventDefault();
-						            void copyTacticsDiagnostics();
-						          }, true);
-						        }
-						      } catch (e) { /* ignore */ }
-						    }
+							    // Nota: re-resolvemos el botón aquí para evitar que un error de scope bloquee la init.
+							    if (diagnosticsEnabled) {
+							      const diagButtons = [
+							        document.getElementById('tpad-diag-copy'),
+							        document.getElementById('tpad-diag-copy-fab'),
+							      ].filter(Boolean);
+							      diagButtons.forEach((btn) => {
+							        try {
+							          btn.addEventListener('click', (event) => {
+							            event.preventDefault();
+							            void copyTacticsDiagnostics();
+							          });
+							        } catch (e) { /* ignore */ }
+							      });
+							    }
+							    // Atajo de teclado (producción): Cmd/Ctrl+Shift+D.
+							    try {
+							      if (isTacticsMode && !window.__WEBSTATS_TPAD_DIAG_SHORTCUT) {
+							        window.__WEBSTATS_TPAD_DIAG_SHORTCUT = true;
+							        window.addEventListener('keydown', (ev) => {
+							          const key = String(ev?.key || '').toLowerCase();
+							          if (key !== 'd') return;
+							          if (!(ev.metaKey || ev.ctrlKey) || !ev.shiftKey) return;
+							          ev.preventDefault();
+							          void copyTacticsDiagnostics();
+							        }, true);
+							      }
+							    } catch (e) { /* ignore */ }
 
 				    let syncRichEditorsNow = () => {};
 			    const initRichEditors = () => {

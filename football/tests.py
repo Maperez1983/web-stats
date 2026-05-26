@@ -7434,6 +7434,47 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '&quot;left&quot;: 33')
 
+    def test_task_builder_coerces_timeline_canvas_state_when_stored_as_string(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión timeline string',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea timeline string',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={
+                'tokens': [],
+                'timeline': [
+                    {
+                        'title': 'Inicio',
+                        'duration': 3,
+                        'canvas_width': 1054,
+                        'canvas_height': 684,
+                        'canvas_state': json.dumps({'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 12, 'top': 13}]}, ensure_ascii=False),
+                    }
+                ],
+                'meta': {
+                    'scope': 'coach',
+                    'pitch_preset': 'full_pitch',
+                    'pitch_orientation': 'landscape',
+                    'graphic_editor': {
+                        'canvas_state': {'version': '5.3.0', 'objects': []},
+                        'canvas_width': 1054,
+                        'canvas_height': 684,
+                    },
+                },
+            },
+        )
+
+        response = self.client.get(reverse('sessions-task-edit', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '&quot;left&quot;: 12')
+
     def test_task_builder_prefills_surface_as_artificial_turf(self):
         response = self.client.get(reverse('sessions-task-create'))
 

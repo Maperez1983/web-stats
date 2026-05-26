@@ -41547,7 +41547,7 @@ def _task_builder_initial_values(task):
         if not isinstance(layout, dict):
             layout = {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        timeline = layout.get('timeline') if isinstance(layout.get('timeline'), list) else []
+    timeline = layout.get('timeline') if isinstance(layout.get('timeline'), list) else []
     meta = meta if isinstance(meta, dict) else {}
     analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
@@ -41558,6 +41558,35 @@ def _task_builder_initial_values(task):
         graphic_editor = {}
     canvas_state = _coerce_json_dict(graphic_editor.get('canvas_state')) or graphic_editor.get('canvas_state') or None
     fallback_canvas_size = None  # (w, h)
+
+    def _coerce_timeline_frames(raw):
+        """
+        `tactical_layout.timeline` soporta `canvas_state` como dict o string JSON (compat).
+        El frontend espera dict; si llega string, el JS descarta el frame y la pizarra queda vacía.
+        """
+        if not isinstance(raw, list):
+            return []
+        out = []
+        for index, frame in enumerate(raw[:24]):
+            if not isinstance(frame, dict):
+                continue
+            state = frame.get('canvas_state')
+            if isinstance(state, str):
+                state = _coerce_json_dict(state)
+            if not isinstance(state, dict):
+                continue
+            out.append(
+                {
+                    'title': str(frame.get('title') or f'Paso {index + 1}'),
+                    'duration': int(_parse_int(frame.get('duration')) or 3),
+                    'canvas_state': state,
+                    'canvas_width': int(_parse_int(frame.get('canvas_width')) or 0),
+                    'canvas_height': int(_parse_int(frame.get('canvas_height')) or 0),
+                }
+            )
+        return out
+
+    timeline = _coerce_timeline_frames(timeline)
 
     def _build_preview_background_state(task_obj, *, portrait: bool) -> dict:
         if not task_obj:
@@ -43136,6 +43165,22 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 is_performed = str(meta.get('source') or '').strip().lower() == 'performed' or bool(str(meta.get('performed_on') or '').strip())
                 origin_id = _parse_int(meta.get('performed_from_task_id'))
                 if is_performed and origin_id:
+                    def _timeline_has_objects(raw_timeline) -> bool:
+                        if not isinstance(raw_timeline, list):
+                            return False
+                        for frame in raw_timeline[:24]:
+                            if not isinstance(frame, dict):
+                                continue
+                            state = frame.get('canvas_state')
+                            if isinstance(state, str):
+                                state = _coerce_json_dict(state)
+                            if not isinstance(state, dict):
+                                continue
+                            objs = state.get('objects')
+                            if isinstance(objs, list) and objs:
+                                return True
+                        return False
+
                     graphic = meta.get('graphic_editor')
                     if isinstance(graphic, str):
                         graphic = _coerce_json_dict(graphic) or {}
@@ -43145,7 +43190,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                         graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
                     )
                     has_objects = bool(isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and canvas_state.get('objects'))
-                    has_timeline = bool(isinstance(layout.get('timeline'), list) and layout.get('timeline'))
+                    has_timeline = _timeline_has_objects(layout.get('timeline'))
                     if not (has_objects or has_timeline):
                         origin = (
                             SessionTask.objects
@@ -43172,7 +43217,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                             origin_tokens = origin_layout.get('tokens') if isinstance(origin_layout.get('tokens'), list) else []
                             if isinstance(origin_canvas, dict) and (
                                 (isinstance(origin_canvas.get('objects'), list) and origin_canvas.get('objects'))
-                                or (isinstance(origin_timeline, list) and origin_timeline)
+                                or _timeline_has_objects(origin_timeline)
                             ):
                                 meta['graphic_editor'] = origin_graphic
                                 layout['meta'] = meta
@@ -43234,7 +43279,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                                 origin_tokens = origin_layout.get('tokens') if isinstance(origin_layout.get('tokens'), list) else []
                                 if isinstance(origin_canvas, dict) and (
                                     (isinstance(origin_canvas.get('objects'), list) and origin_canvas.get('objects'))
-                                    or (isinstance(origin_timeline, list) and origin_timeline)
+                                    or _timeline_has_objects(origin_timeline)
                                 ):
                                     meta['performed_from_task_id'] = int(getattr(origin_task, 'id', 0) or 0)
                                     meta['graphic_editor'] = origin_graphic
