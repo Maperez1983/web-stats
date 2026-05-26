@@ -287,8 +287,9 @@
     const btnMove = document.getElementById('vs-tool-move');
     const btnSpot = document.getElementById('vs-tool-spot');
     const btnBlur = document.getElementById('vs-tool-blur');
-    const btnUndo = document.getElementById('vs-undo');
-    const btnClear = document.getElementById('vs-clear');
+	    const btnUndo = document.getElementById('vs-undo');
+	    const btnRedo = document.getElementById('vs-redo');
+	    const btnClear = document.getElementById('vs-clear');
     const colorInput = document.getElementById('vs-color');
     const widthInput = document.getElementById('vs-width');
 
@@ -1174,13 +1175,15 @@
 	    });
 
 	    const history = [];
+	    const redo = [];
 	    const pushHistory = () => {
-      try {
-        const json = fabricCanvas.toDatalessJSON(['data']);
-        history.push(json);
-        if (history.length > 40) history.shift();
-      } catch (e) { /* ignore */ }
-    };
+	      try {
+	        const json = fabricCanvas.toDatalessJSON(['data']);
+	        history.push(json);
+	        if (history.length > 40) history.shift();
+	        redo.length = 0;
+	      } catch (e) { /* ignore */ }
+	    };
 
     const newUid = () => {
       try {
@@ -2350,7 +2353,7 @@
       deleteCurrentLayer({ confirm: true });
     });
 
-    const deleteCurrentLayer = ({ confirm = false } = {}) => {
+	    const deleteCurrentLayer = ({ confirm = false } = {}) => {
       const target = currentLayerTarget();
       if (!target) return false;
       if (confirm) {
@@ -2972,6 +2975,67 @@
 	      }
 	    };
 
+	    // Portapapeles simple (copiar/pegar de objetos Fabric)
+	    let clipboardObj = null;
+	    const copyActiveObject = () => {
+	      const obj = activeObject();
+	      if (!obj) { setStatus('Nada que copiar.', true); return; }
+	      try {
+	        obj.clone((cloned) => {
+	          clipboardObj = cloned || null;
+	          setStatus(clipboardObj ? 'Copiado.' : 'No se pudo copiar.', !clipboardObj);
+	        });
+	      } catch (e) {
+	        setStatus('No se pudo copiar.', true);
+	      }
+	    };
+	    const pasteClipboardObject = () => {
+	      if (!clipboardObj) { setStatus('Portapapeles vacío.', true); return; }
+	      try {
+	        clipboardObj.clone((cloned) => {
+	          if (!cloned) { setStatus('No se pudo pegar.', true); return; }
+	          try { ensureLayerData(cloned); } catch (e) { /* ignore */ }
+	          try { cloned.data = { ...(cloned.data || {}), uid: newUid() }; } catch (e) { /* ignore */ }
+	          try {
+	            cloned.left = (Number(cloned.left) || 0) + 18;
+	            cloned.top = (Number(cloned.top) || 0) + 12;
+	          } catch (e) { /* ignore */ }
+	          try { fabricCanvas.add(cloned); } catch (e) { /* ignore */ }
+	          pushHistory();
+	          try { fabricCanvas.setActiveObject(cloned); } catch (e) { /* ignore */ }
+	          selectedFxId = 0;
+	          updateLayerPanel();
+	          renderDrawLayers();
+	          renderFxList();
+	          setStatus('Pegado.');
+	        });
+	      } catch (e) {
+	        setStatus('No se pudo pegar.', true);
+	      }
+	    };
+
+	    let nudgeTimer = 0;
+	    const nudgeActiveObject = (dx, dy) => {
+	      const obj = activeObject();
+	      if (!obj) return false;
+	      try { ensureLayerData(obj); } catch (e) { /* ignore */ }
+	      if (obj?.data?.locked) { setStatus('Capa bloqueada.', true); return false; }
+	      try {
+	        obj.left = (Number(obj.left) || 0) + dx;
+	        obj.top = (Number(obj.top) || 0) + dy;
+	        obj.setCoords?.();
+	        fabricCanvas.requestRenderAll?.();
+	        updateLayerPanel();
+	        renderDrawLayers();
+	      } catch (e) { /* ignore */ }
+	      if (nudgeTimer) window.clearTimeout(nudgeTimer);
+	      nudgeTimer = window.setTimeout(() => {
+	        nudgeTimer = 0;
+	        pushHistory();
+	      }, 240);
+	      return true;
+	    };
+
 	    const updateTemplateParamsUi = () => {
 	      if (!templateParamsWrap) return;
 	      const v = safeText(templateSelect?.value, '');
@@ -3305,27 +3369,99 @@
     fxEl.addEventListener('pointerup', endFx);
     fxEl.addEventListener('pointercancel', endFx);
 
-    btnUndo?.addEventListener('click', () => {
-      if (history.length <= 1) {
-        fabricCanvas.clear();
-        fabricCanvas.renderAll();
-        setStatus('Undo.');
-        return;
-      }
-      history.pop();
-      restoreJson(history[history.length - 1]);
-      setStatus('Undo.');
-    });
-    btnClear?.addEventListener('click', () => {
-      const ok = window.confirm('¿Limpiar dibujos?');
-      if (!ok) return;
-      fabricCanvas.clear();
-      pushHistory();
+	    btnUndo?.addEventListener('click', () => {
+	      if (history.length <= 1) {
+	        fabricCanvas.clear();
+	        fabricCanvas.renderAll();
+	        setStatus('Undo.');
+	        return;
+	      }
+	      const last = history.pop();
+	      if (last) redo.push(last);
+	      restoreJson(history[history.length - 1]);
+	      setStatus('Undo.');
+	    });
+	    btnRedo?.addEventListener('click', () => {
+	      if (!redo.length) { setStatus('Redo.', true); return; }
+	      const json = redo.pop();
+	      if (!json) { setStatus('Redo.', true); return; }
+	      history.push(json);
+	      restoreJson(json);
+	      setStatus('Redo.');
+	    });
+	    btnClear?.addEventListener('click', () => {
+	      const ok = window.confirm('¿Limpiar dibujos?');
+	      if (!ok) return;
+	      fabricCanvas.clear();
+	      pushHistory();
       fabricCanvas.renderAll();
       updateLayerPanel();
       renderDrawLayers();
-      setStatus('Lienzo limpio.');
-    });
+	      setStatus('Lienzo limpio.');
+	    });
+
+	    const isTextEntryEl = (el) => {
+	      const tag = safeText(el?.tagName, '').toLowerCase();
+	      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+	      try { if (el?.isContentEditable) return true; } catch (e) { /* ignore */ }
+	      return false;
+	    };
+
+	    // Atajos “premium”
+	    document.addEventListener('keydown', (ev) => {
+	      const key = safeText(ev?.key, '');
+	      if (!key) return;
+	      if (isTextEntryEl(document.activeElement)) return;
+
+	      const mod = Boolean(ev.metaKey || ev.ctrlKey);
+	      const shift = Boolean(ev.shiftKey);
+
+	      // Undo / Redo
+	      if (mod && (key === 'z' || key === 'Z')) {
+	        ev.preventDefault();
+	        if (shift) btnRedo?.click?.();
+	        else btnUndo?.click?.();
+	        return;
+	      }
+	      if (mod && (key === 'y' || key === 'Y')) {
+	        ev.preventDefault();
+	        btnRedo?.click?.();
+	        return;
+	      }
+
+	      // Copiar / Pegar / Duplicar
+	      if (mod && (key === 'c' || key === 'C')) { ev.preventDefault(); copyActiveObject(); return; }
+	      if (mod && (key === 'v' || key === 'V')) { ev.preventDefault(); pasteClipboardObject(); return; }
+	      if (mod && (key === 'd' || key === 'D')) { ev.preventDefault(); layerDuplicateBtn?.click?.(); return; }
+
+	      // Borrar
+	      if (key === 'Delete' || key === 'Backspace') {
+	        ev.preventDefault();
+	        deleteCurrentLayer({ confirm: false });
+	        return;
+	      }
+
+	      // Mover con flechas (nudge)
+	      const step = shift ? 10 : 1;
+	      if (key === 'ArrowLeft') { ev.preventDefault(); nudgeActiveObject(-step, 0); return; }
+	      if (key === 'ArrowRight') { ev.preventDefault(); nudgeActiveObject(step, 0); return; }
+	      if (key === 'ArrowUp') { ev.preventDefault(); nudgeActiveObject(0, -step); return; }
+	      if (key === 'ArrowDown') { ev.preventDefault(); nudgeActiveObject(0, step); return; }
+
+	      // Herramientas (atajos)
+	      if (key === 'v' || key === 'V') { setTool('select'); return; }
+	      if (key === 'b' || key === 'B') { setTool('pen'); return; }
+	      if (key === 'l' || key === 'L') { setTool('line'); return; }
+	      if (key === 'a' || key === 'A') { setTool('arrow'); return; }
+	      if (key === 't' || key === 'T') { setTool('text'); return; }
+	      if (key === 'Escape') {
+	        try { fabricCanvas.discardActiveObject?.(); fabricCanvas.requestRenderAll?.(); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	      }
+	    });
 
     const syncPlayButtons = () => {
       const playing = !video.paused && !video.ended;
