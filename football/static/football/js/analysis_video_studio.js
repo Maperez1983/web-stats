@@ -261,9 +261,10 @@
 	      }, 4500);
 	    } catch (e) { /* ignore */ }
 
-		    const miniTimeline = document.getElementById('vs-mini-timeline');
-		    const miniTrack = document.getElementById('vs-mini-track');
-		    const miniCursor = document.getElementById('vs-mini-cursor');
+			    const miniTimeline = document.getElementById('vs-mini-timeline');
+			    const miniTrack = document.getElementById('vs-mini-track');
+			    const miniRange = document.getElementById('vs-mini-range');
+			    const miniCursor = document.getElementById('vs-mini-cursor');
 
 	    const btnPlay = document.getElementById('vs-play');
 	    const btnPause = document.getElementById('vs-pause');
@@ -1130,6 +1131,33 @@
 	      let scrubTarget = null;
 	      let lastPointerAt = 0;
 	      let layerDrag = null;
+	      let clipRangeDrag = null;
+	      const setMiniRangeUi = (startS, endS) => {
+	        if (!miniRange) return;
+	        const dur = Number(video.duration) || 0;
+	        if (!dur || !Number.isFinite(dur)) { miniRange.style.display = 'none'; return; }
+	        const a = Math.max(0, Number(startS) || 0);
+	        const b = Math.max(0, Number(endS) || 0);
+	        const start = Math.min(a, b);
+	        const end = Math.max(a, b);
+	        if (!end || end <= start + 0.02) { miniRange.style.display = 'none'; return; }
+	        const left = clamp(start / dur, 0, 1) * 100;
+	        const width = Math.max(0.6, clamp((end - start) / dur, 0, 1) * 100);
+	        miniRange.style.display = '';
+	        miniRange.style.left = `${left}%`;
+	        miniRange.style.width = `${width}%`;
+	      };
+	      const setClipInOut = (startS, endS, { commit = false } = {}) => {
+	        const a = Math.max(0, Number(startS) || 0);
+	        const b = Math.max(0, Number(endS) || 0);
+	        const start = Math.min(a, b);
+	        const end = Math.max(a, b);
+	        try { if (inInput) inInput.value = String(start.toFixed(1)); } catch (e) { /* ignore */ }
+	        try { if (outInput) outInput.value = String(end.toFixed(1)); } catch (e) { /* ignore */ }
+	        if (commit) {
+	          try { setStatus(`IN/OUT: ${fmtTimeShort(start)} → ${fmtTimeShort(end)}`); } catch (e) { /* ignore */ }
+	        }
+	      };
 	      const setLayerRangeFromMini = (clientX, which, { commit = false } = {}) => {
 	        const dur = Number(video.duration) || 0;
 	        if (!dur || !Number.isFinite(dur)) return false;
@@ -1187,10 +1215,29 @@
         });
       };
 
-      try {
+	      try {
 	        miniTimeline.addEventListener('pointerdown', (ev) => {
 	          const dur = Number(video.duration) || 0;
 	          if (!dur || !Number.isFinite(dur)) return;
+	          // Shift+drag: seleccionar IN/OUT para crear recortes/clips rápido
+	          if (ev.shiftKey) {
+	            clipRangeDrag = { pointerId: ev.pointerId, rect: miniTimeline.getBoundingClientRect(), startX: Number(ev.clientX) || 0 };
+	            scrubActive = false;
+	            scrubPointerId = null;
+	            scrubRect = null;
+	            layerDrag = null;
+	            lastPointerAt = Date.now();
+	            try { miniTimeline.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+	            try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	            const x0 = Number(ev.clientX);
+	            const pct0 = clamp((x0 - clipRangeDrag.rect.left) / Math.max(1, clipRangeDrag.rect.width), 0, 1);
+	            const t0 = pct0 * dur;
+	            clipRangeDrag.t0 = t0;
+	            clipRangeDrag.t1 = t0;
+	            setMiniRangeUi(t0, t0 + 0.25);
+	            setClipInOut(t0, t0 + 0.25, { commit: false });
+	            return;
+	          }
 	          const handle = safeText(ev?.target?.getAttribute?.('data-vs-layer-handle'), '');
 	          if (handle === 'in' || handle === 'out') {
 	            layerDrag = { which: handle, pointerId: ev.pointerId, rect: miniTimeline.getBoundingClientRect() };
@@ -1213,6 +1260,20 @@
           seekFromMiniEvent(ev, { preferTargetSeek: true });
         });
 	        miniTimeline.addEventListener('pointermove', (ev) => {
+	          if (clipRangeDrag) {
+	            if (clipRangeDrag.pointerId != null && ev.pointerId !== clipRangeDrag.pointerId) return;
+	            lastPointerAt = Date.now();
+	            try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	            const dur = Number(video.duration) || 0;
+	            if (!dur || !Number.isFinite(dur)) return;
+	            const rect = clipRangeDrag.rect || miniTimeline.getBoundingClientRect();
+	            const pct = clamp((Number(ev.clientX) - rect.left) / Math.max(1, rect.width), 0, 1);
+	            const t = pct * dur;
+	            clipRangeDrag.t1 = t;
+	            setMiniRangeUi(clipRangeDrag.t0, clipRangeDrag.t1);
+	            setClipInOut(clipRangeDrag.t0, clipRangeDrag.t1, { commit: false });
+	            return;
+	          }
 	          if (layerDrag) {
 	            if (layerDrag.pointerId != null && ev.pointerId !== layerDrag.pointerId) return;
 	            lastPointerAt = Date.now();
@@ -1228,6 +1289,24 @@
           seekFromMiniEvent(ev, { preferTargetSeek: false });
         });
 	        const endScrub = (ev) => {
+	          if (clipRangeDrag) {
+	            if (clipRangeDrag.pointerId != null && ev && ev.pointerId != null && ev.pointerId !== clipRangeDrag.pointerId) return;
+	            const dur = Number(video.duration) || 0;
+	            if (dur && Number.isFinite(dur)) {
+	              const t0 = Number(clipRangeDrag.t0) || 0;
+	              const t1 = (ev && Number.isFinite(Number(ev.clientX))) ? (() => {
+	                const rect = clipRangeDrag.rect || miniTimeline.getBoundingClientRect();
+	                const pct = clamp((Number(ev.clientX) - rect.left) / Math.max(1, rect.width), 0, 1);
+	                return pct * dur;
+	              })() : (Number(clipRangeDrag.t1) || 0);
+	              setMiniRangeUi(t0, t1);
+	              setClipInOut(t0, t1, { commit: true });
+	              // Alt+soltar: guardar clip directamente
+	              try { if (ev && ev.altKey) clipSaveQuickBtn?.click?.(); } catch (e) { /* ignore */ }
+	            }
+	            clipRangeDrag = null;
+	            return;
+	          }
 	          if (layerDrag) {
 	            if (layerDrag.pointerId != null && ev && ev.pointerId != null && ev.pointerId !== layerDrag.pointerId) return;
 	            try { if (ev) setLayerRangeFromMini(ev.clientX, layerDrag.which, { commit: true }); } catch (e) { /* ignore */ }
@@ -1242,9 +1321,9 @@
           // En el final, un seek "commit" para fijar y mostrar feedback.
           try { if (ev) seekFromMiniEvent(ev, { commit: true, showLabel: true, preferTargetSeek: false }); } catch (e) { /* ignore */ }
         };
-        miniTimeline.addEventListener('pointerup', endScrub);
-        miniTimeline.addEventListener('pointercancel', endScrub);
-      } catch (e) {
+	        miniTimeline.addEventListener('pointerup', endScrub);
+	        miniTimeline.addEventListener('pointercancel', endScrub);
+	      } catch (e) {
         // Si no hay Pointer Events, el `click` seguirá funcionando.
       }
 
@@ -4118,7 +4197,7 @@
 	    };
 
 	    // Atajos “premium”
-	    document.addEventListener('keydown', (ev) => {
+		    document.addEventListener('keydown', (ev) => {
 	      const key = safeText(ev?.key, '');
 	      if (!key) return;
 	      if (isTextEntryEl(document.activeElement)) return;
@@ -4140,10 +4219,12 @@
 	        return;
 	      }
 
-	      // Copiar / Pegar / Duplicar
-	      if (mod && (key === 'c' || key === 'C')) { ev.preventDefault(); copyActiveObject(); return; }
-	      if (mod && (key === 'v' || key === 'V')) { ev.preventDefault(); pasteClipboardObject(); return; }
-	      if (mod && (key === 'd' || key === 'D')) { ev.preventDefault(); layerDuplicateBtn?.click?.(); return; }
+		      // Copiar / Pegar / Duplicar
+		      if (mod && (key === 'c' || key === 'C')) { ev.preventDefault(); copyActiveObject(); return; }
+		      if (mod && (key === 'v' || key === 'V')) { ev.preventDefault(); pasteClipboardObject(); return; }
+		      if (mod && (key === 'd' || key === 'D')) { ev.preventDefault(); layerDuplicateBtn?.click?.(); return; }
+		      // Clip: guardar rápido IN/OUT
+		      if (mod && (key === 'k' || key === 'K' || key === 'Enter')) { ev.preventDefault(); clipSaveQuickBtn?.click?.(); return; }
 
 	      // Borrar
 	      if (key === 'Delete' || key === 'Backspace') {
@@ -4152,14 +4233,14 @@
 	        return;
 	      }
 
-	      // Mover con flechas (nudge)
+		      // Mover con flechas (nudge)
 	      const step = shift ? 10 : 1;
 	      if (key === 'ArrowLeft') { ev.preventDefault(); nudgeActiveObject(-step, 0); return; }
 	      if (key === 'ArrowRight') { ev.preventDefault(); nudgeActiveObject(step, 0); return; }
 	      if (key === 'ArrowUp') { ev.preventDefault(); nudgeActiveObject(0, -step); return; }
 	      if (key === 'ArrowDown') { ev.preventDefault(); nudgeActiveObject(0, step); return; }
 
-	      // Herramientas (atajos)
+		      // Herramientas (atajos)
 	      if (key === 'v' || key === 'V') { setTool('select'); return; }
 	      if (key === 'b' || key === 'B') { setTool('pen'); return; }
 	      if (key === 'l' || key === 'L') { setTool('line'); return; }
@@ -4168,7 +4249,7 @@
 	      if (key === 'm' || key === 'M') { setTool('measure'); return; }
 	      if (key === 'a' || key === 'A') { setTool('arrow'); return; }
 	      if (key === 't' || key === 'T') { setTool('text'); return; }
-	      if (key === 'Escape') {
+		      if (key === 'Escape') {
 	        try { fabricCanvas.discardActiveObject?.(); fabricCanvas.requestRenderAll?.(); } catch (e) { /* ignore */ }
 	        selectedFxId = 0;
 	        updateLayerPanel();
@@ -6565,6 +6646,32 @@
 		        setStatus('Música guardada.');
 		      } catch (e) {
 		        setStatus(e?.message || 'No se pudo subir música.', true);
+		      }
+
+		      // Atajos de recorte/clips (tipo editor)
+		      if (key === '[') {
+		        ev.preventDefault();
+		        const t = Math.max(0, Number(video.currentTime) || 0);
+		        try { if (inInput) inInput.value = String(t.toFixed(1)); } catch (e) { /* ignore */ }
+		        setStatus(`IN = ${fmtTimeShort(t)}`);
+		        return;
+		      }
+		      if (key === ']') {
+		        ev.preventDefault();
+		        const t = Math.max(0, Number(video.currentTime) || 0);
+		        try { if (outInput) outInput.value = String(t.toFixed(1)); } catch (e) { /* ignore */ }
+		        setStatus(`OUT = ${fmtTimeShort(t)}`);
+		        return;
+		      }
+		      if (key === ',' || key === '<' || key === '.' || key === '>') {
+		        ev.preventDefault();
+		        const fps = clamp(Math.round(Number(fpsSelect?.value || 25) || 25), 10, 120);
+		        const dt = 1 / fps;
+		        const dir = (key === ',' || key === '<') ? -1 : 1;
+		        const t = Math.max(0, (Number(video.currentTime) || 0) + dir * dt);
+		        try { video.pause(); } catch (e) { /* ignore */ }
+		        try { video.currentTime = t; } catch (e) { /* ignore */ }
+		        setStatus(`Frame ${dir < 0 ? '←' : '→'} ${fmtTimeShort(t)}`);
 		      }
 		    });
 

@@ -287,10 +287,11 @@
 	                  </div>
 	                </div>
 			          </div>
-			          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color: transparent;">
-			            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
-			            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
-			          </div>
+		          <div id="vs-mini-timeline" style="margin-top:0.65rem; height:28px; position:relative; border-radius: 999px; border: 1px solid rgba(148,163,184,0.18); background: rgba(2,6,23,0.35); overflow:hidden; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color: transparent;">
+		            <div id="vs-mini-track" style="position:absolute; inset:0;"></div>
+		            <div id="vs-mini-range" title="Shift+arrastrar: seleccionar IN/OUT" style="position:absolute;top:2px;bottom:2px;left:0;width:0;border-radius:999px;background:rgba(34,211,238,0.14);border:1px solid rgba(34,211,238,0.55);display:none;pointer-events:none;"></div>
+		            <div id="vs-mini-cursor" style="position:absolute; top:0; bottom:0; width:2px; background: rgba(250, 204, 21, 0.95); left:0;"></div>
+		          </div>
 	          <div style="display:flex; align-items:center; gap:0.55rem; margin-top:0.4rem;">
 	            <div class="status" id="vs-status" style="flex:1 1 auto;">Listo.</div>
 	            <button type="button" class="button ghost" id="vs-debug" title="Diagnóstico (captura de frame, CORS, etc.)">Debug</button>
