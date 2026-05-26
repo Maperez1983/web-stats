@@ -6288,34 +6288,50 @@
                       >
                         <div class="tpad-stand tpad-stand-top" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--top">
-                            {% if tactics_team_crest_url %}
-                              <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-                            {% endif %}
+	                            {% if tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                                <img class="tpad-stand-crest" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+	                              {% else %}
+	                                <img class="tpad-stand-crest" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+	                              {% endif %}
+	                            {% endif %}
                             <span class="tpad-stand-name">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-left" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--side">
-                            {% if tactics_team_crest_url %}
-                              <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-                            {% endif %}
+	                            {% if tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+	                              {% else %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+	                              {% endif %}
+	                            {% endif %}
                             <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stadium-accent" aria-hidden="true"></div>
                         <div class="tpad-stand tpad-stand-right" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--side">
-                            {% if tactics_team_crest_url %}
-                              <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-                            {% endif %}
+	                            {% if tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+	                              {% else %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+	                              {% endif %}
+	                            {% endif %}
                             <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
                         <div class="tpad-stand tpad-stand-bottom" aria-hidden="true">
                           <div class="tpad-stand-label tpad-stand-label--bottom">
-                            {% if tactics_team_crest_url %}
-                              <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
-                            {% endif %}
+	                            {% if tactics_team_crest_url %}
+	                              {% if 'cdb-benagalbon-crest-contrast.png' in tactics_team_crest_url %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{% static 'football/images/cdb-benagalbon-crest.png' %}" alt="" loading="lazy" decoding="async" />
+	                              {% else %}
+	                                <img class="tpad-stand-crest tpad-stand-crest--mini" src="{{ tactics_team_crest_url|escape }}" alt="" loading="lazy" decoding="async" />
+	                              {% endif %}
+	                            {% endif %}
                             <span class="tpad-stand-name tpad-stand-name--mini">{{ tactics_team_name|default:"EQUIPO" }}</span>
                           </div>
                         </div>
