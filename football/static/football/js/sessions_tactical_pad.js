@@ -1436,11 +1436,11 @@
 				      'task-layers-popover',
 				      'task-scenarios-popover',
 				    ];
-					    let __backdropRaf = 0;
-						    const __syncBackdropNow = () => {
-						      const backdrop = document.getElementById('tpad-overlay-backdrop');
-						      if (!backdrop) return;
-					      const isVisible = (el) => {
+						    let __backdropRaf = 0;
+							    const __syncBackdropNow = () => {
+							      const backdrop = document.getElementById('tpad-overlay-backdrop');
+							      if (!backdrop) return;
+						      const isVisible = (el) => {
 					        if (!el) return false;
 					        try { if (el.hidden) return false; } catch (e) { /* ignore */ }
 					        try {
@@ -1453,13 +1453,27 @@
 					        } catch (e) { /* ignore */ }
 					        return true;
 					      };
-					      let anyOpen = false;
-					      try {
-					        anyOpen = __overlayDetailsIds.some((id) => {
-					          const el = document.getElementById(id);
-					          return !!(el && el.tagName === 'DETAILS' && el.open);
-					        });
-					      } catch (e) { /* ignore */ }
+						      let anyOpen = false;
+						      try {
+						        anyOpen = __overlayDetailsIds.some((id) => {
+						          const el = document.getElementById(id);
+						          if (!(el && el.tagName === 'DETAILS' && el.open)) return false;
+						          // Safari/WebKit: a veces el <details> queda abierto pero su contenido no es visible
+						          // (clipping/stacking). En ese caso, cerramos para evitar la pantalla "borrosa" sin menú.
+						          try {
+						            const body =
+						              el.querySelector('.pitch-view-menu-body')
+						              || el.querySelector('.action-menu-body')
+						              || el.querySelector('[role="menu"]')
+						              || el.querySelector('div');
+						            if (body && !isVisible(body)) {
+						              try { el.open = false; } catch (e) { /* ignore */ }
+						              return false;
+						            }
+						          } catch (e) { /* ignore */ }
+						          return true;
+						        });
+						      } catch (e) { /* ignore */ }
 						      if (!anyOpen) {
 						        try {
 						          anyOpen = __overlayFloatingIds.some((id) => {
@@ -1475,7 +1489,7 @@
 						      try { backdrop.style.opacity = anyOpen ? '' : '0'; } catch (e) { /* ignore */ }
 						      document.body.classList.toggle('overlay-backdrop-open', anyOpen);
 						    };
-				    const __scheduleBackdropSync = () => {
+					    const __scheduleBackdropSync = () => {
 				      try { if (__backdropRaf) cancelAnimationFrame(__backdropRaf); } catch (e) { /* ignore */ }
 				      try { __backdropRaf = requestAnimationFrame(() => { __backdropRaf = 0; __syncBackdropNow(); }); } catch (e) { __backdropRaf = 0; }
 				    };
@@ -6090,6 +6104,34 @@
 					      overlaysPopover.hidden = !open;
 					      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 					    };
+
+					    // Click en backdrop: cerrar overlays "modales" (details / popovers).
+					    // Esto evita quedar atrapado en un estado borroso si algún menú no se renderiza.
+					    (() => {
+					      const backdrop = document.getElementById('tpad-overlay-backdrop');
+					      if (!backdrop) return;
+					      if (backdrop.dataset.webstatsBound === '1') return;
+					      backdrop.dataset.webstatsBound = '1';
+					      backdrop.addEventListener('click', (ev) => {
+					        try { ev.preventDefault(); } catch (e) { /* ignore */ }
+					        try { ev.stopPropagation(); } catch (e) { /* ignore */ }
+					        try {
+					          __overlayDetailsIds.forEach((id) => {
+					            const el = document.getElementById(id);
+					            if (el && el.tagName === 'DETAILS') el.open = false;
+					          });
+					        } catch (e) { /* ignore */ }
+					        try {
+					          __overlayFloatingIds.forEach((id) => {
+					            const el = document.getElementById(id);
+					            if (!el) return;
+					            try { el.hidden = true; } catch (err) { /* ignore */ }
+					            try { el.style.display = 'none'; } catch (err) { /* ignore */ }
+					          });
+					        } catch (e) { /* ignore */ }
+					        try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
+					      }, { passive: false });
+					    })();
 				    const closeOverlaysPopover = () => setOverlaysPopoverOpen(false);
 
 					    const setZonesPopoverOpen = (open) => {
