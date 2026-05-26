@@ -12928,6 +12928,101 @@ def club_onboarding_page(request):
                 },
                 status=200,
             )
+        if action == 'brand_assets':
+            try:
+                if not workspace or not primary_team:
+                    raise ValueError('Primero crea el club y selecciona un equipo.')
+                uploaded_crest = request.FILES.get('crest_image')
+                uploaded_cover = request.FILES.get('cover_image')
+                clear_crest = str(request.POST.get('clear_crest') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+                clear_cover = str(request.POST.get('clear_cover') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+
+                update_fields = []
+                if clear_crest and not uploaded_crest:
+                    primary_team.crest_image = None
+                    update_fields.append('crest_image')
+                if uploaded_crest:
+                    primary_team.crest_image = uploaded_crest
+                    update_fields.append('crest_image')
+                if clear_cover and not uploaded_cover:
+                    primary_team.cover_image = None
+                    primary_team.cover_updated_at = timezone.now()
+                    update_fields.extend(['cover_image', 'cover_updated_at'])
+                if uploaded_cover:
+                    primary_team.cover_image = uploaded_cover
+                    primary_team.cover_updated_at = timezone.now()
+                    update_fields.extend(['cover_image', 'cover_updated_at'])
+                if update_fields:
+                    primary_team.save(update_fields=list(dict.fromkeys(update_fields)))
+                    try:
+                        _invalidate_team_dashboard_caches(primary_team)
+                    except Exception:
+                        pass
+
+                # Refresca previews.
+                try:
+                    crest_preview_url = resolve_team_crest_url(request, primary_team, sync=False) if primary_team else ''
+                except Exception:
+                    crest_preview_url = ''
+                try:
+                    if primary_team and getattr(primary_team, 'cover_image', None):
+                        updated_at = getattr(primary_team, 'cover_updated_at', None) or timezone.now()
+                        version = str(int(updated_at.timestamp()))
+                        cover_preview_url = f'{reverse("team-cover-image-file", args=[primary_team.id])}?v={version}&w=1600&h=900&q=72'
+                    else:
+                        cover_preview_url = ''
+                except Exception:
+                    cover_preview_url = ''
+
+                success = 'Branding guardado.'
+            except Exception as exc:
+                error = str(exc) or 'No se pudo guardar el branding.'
+            return _render_onboarding_page(status=200)
+        if action == 'kit_theme':
+            try:
+                if not workspace or not primary_team:
+                    raise ValueError('Primero crea el club y selecciona un equipo.')
+
+                def _clean_hex(value, fallback):
+                    raw = str(value or '').strip()
+                    if not raw:
+                        return fallback
+                    if raw.startswith('#') and len(raw) == 7:
+                        return raw.lower()
+                    return fallback
+
+                kit_payload = {
+                    'home_main': _clean_hex(request.POST.get('kit_home_main'), kit_form.get('home_main') or '#06814d'),
+                    'home_trim': _clean_hex(request.POST.get('kit_home_trim'), kit_form.get('home_trim') or '#ffffff'),
+                    'away_main': _clean_hex(request.POST.get('kit_away_main'), kit_form.get('away_main') or '#0b1220'),
+                    'away_trim': _clean_hex(request.POST.get('kit_away_trim'), kit_form.get('away_trim') or '#f4b400'),
+                    'gk_main': _clean_hex(request.POST.get('kit_gk_main'), kit_form.get('gk_main') or '#7c2d12'),
+                    'gk_trim': _clean_hex(request.POST.get('kit_gk_trim'), kit_form.get('gk_trim') or '#ffffff'),
+                }
+                use_as_default = str(request.POST.get('kit_use_as_default') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+
+                pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit_theme:v1').first()
+                raw = pref.value if pref and isinstance(pref.value, dict) else {}
+                raw = dict(raw) if isinstance(raw, dict) else {}
+                default = raw.get('default') if isinstance(raw.get('default'), dict) else {}
+                teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
+                default = dict(default)
+                teams = dict(teams)
+                if use_as_default:
+                    default.update(kit_payload)
+                teams[str(int(primary_team.id))] = kit_payload
+                raw['default'] = default
+                raw['teams'] = teams
+                WorkspacePreference.objects.update_or_create(
+                    workspace=workspace,
+                    key='kit_theme:v1',
+                    defaults={'value': raw},
+                )
+                kit_form.update(kit_payload)
+                success = 'Equipaciones guardadas.'
+            except Exception as exc:
+                error = str(exc) or 'No se pudo guardar la equipación.'
+            return _render_onboarding_page(status=200)
         workspace_name = _sanitize_task_text((request.POST.get('workspace_name') or '').strip(), multiline=False, max_len=160)
         team_name = _sanitize_task_text((request.POST.get('team_name') or '').strip(), multiline=False, max_len=150)
         preferente_url = str(request.POST.get('preferente_url') or '').strip()[:600]

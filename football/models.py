@@ -368,10 +368,12 @@ class WorkspaceCompetitionContext(models.Model):
     PROVIDER_MANUAL = 'manual'
     PROVIDER_RFAF = 'rfaf'
     PROVIDER_UNIVERSO = 'universo_rfaf'
+    PROVIDER_PREFERENTE = 'lapreferente'
     PROVIDER_CHOICES = [
         (PROVIDER_MANUAL, 'Manual / base local'),
         (PROVIDER_RFAF, 'RFAF'),
         (PROVIDER_UNIVERSO, 'Universo RFAF'),
+        (PROVIDER_PREFERENTE, 'La Preferente'),
     ]
 
     STATUS_PENDING = 'pending'
