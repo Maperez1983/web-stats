@@ -303,6 +303,7 @@
     const btnBlur = document.getElementById('vs-tool-blur');
 	    const btnUndo = document.getElementById('vs-undo');
 	    const btnRedo = document.getElementById('vs-redo');
+	    const btnViewReset = document.getElementById('vs-view-reset');
 	    const btnClear = document.getElementById('vs-clear');
     const colorInput = document.getElementById('vs-color');
     const widthInput = document.getElementById('vs-width');
@@ -3515,6 +3516,20 @@
 	      restoreJson(json);
 	      setStatus('Redo.');
 	    });
+
+	    const resetView = () => {
+	      try {
+	        if (!fabricCanvas) return false;
+	        fabricCanvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+	        fabricCanvas.setZoom?.(1);
+	        fabricCanvas.requestRenderAll?.();
+	        setStatus('Vista: 1:1');
+	        return true;
+	      } catch (e) {
+	        return false;
+	      }
+	    };
+	    btnViewReset?.addEventListener('click', () => resetView());
 	    btnClear?.addEventListener('click', () => {
 	      const ok = window.confirm('¿Limpiar dibujos?');
 	      if (!ok) return;
@@ -3549,6 +3564,7 @@
 	        else btnUndo?.click?.();
 	        return;
 	      }
+	      if (mod && (key === '0')) { ev.preventDefault(); resetView(); return; }
 	      if (mod && (key === 'y' || key === 'Y')) {
 	        ev.preventDefault();
 	        btnRedo?.click?.();
@@ -8713,6 +8729,73 @@
 	          fabricCanvas.zoomToPoint(new fabric.Point(p.x, p.y), next);
 	          try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
 	        }, { passive: false });
+	      }
+	    } catch (e) { /* ignore */ }
+
+	    // Pan “premium” (Space + arrastrar)
+	    try {
+	      if (stage && canTelestrate && fabricCanvas?.viewportTransform) {
+	        let spaceDown = false;
+	        let panActive = false;
+	        let panPointerId = null;
+	        let panStart = null;
+	        let vtStart = null;
+
+	        const setPanCursor = (mode) => {
+	          try {
+	            if (!stage) return;
+	            stage.style.cursor = mode === 'active' ? 'grabbing' : (mode === 'ready' ? 'grab' : '');
+	          } catch (e) { /* ignore */ }
+	        };
+
+	        window.addEventListener('keydown', (ev) => {
+	          const key = safeText(ev?.key, '');
+	          if (key !== ' ' && key !== 'Spacebar') return;
+	          if (isTextEntryEl(document.activeElement)) return;
+	          spaceDown = true;
+	          if (!panActive) setPanCursor('ready');
+	        });
+	        window.addEventListener('keyup', (ev) => {
+	          const key = safeText(ev?.key, '');
+	          if (key !== ' ' && key !== 'Spacebar') return;
+	          spaceDown = false;
+	          if (!panActive) setPanCursor('off');
+	        });
+
+	        stage.addEventListener('pointerdown', (ev) => {
+	          if (!spaceDown) return;
+	          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	          panActive = true;
+	          panPointerId = ev.pointerId;
+	          panStart = { x: ev.clientX, y: ev.clientY };
+	          vtStart = (fabricCanvas.viewportTransform || [1, 0, 0, 1, 0, 0]).slice(0);
+	          setPanCursor('active');
+	          try { stage.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+	        });
+	        stage.addEventListener('pointermove', (ev) => {
+	          if (!panActive) return;
+	          if (panPointerId != null && ev.pointerId !== panPointerId) return;
+	          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	          const dx = (ev.clientX - (panStart?.x || 0));
+	          const dy = (ev.clientY - (panStart?.y || 0));
+	          const vt = vtStart ? vtStart.slice(0) : [1, 0, 0, 1, 0, 0];
+	          vt[4] = (Number(vtStart?.[4]) || 0) + dx;
+	          vt[5] = (Number(vtStart?.[5]) || 0) + dy;
+	          try { fabricCanvas.setViewportTransform(vt); } catch (e) { /* ignore */ }
+	          try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        });
+	        const endPan = (ev) => {
+	          if (!panActive) return;
+	          if (panPointerId != null && ev && ev.pointerId != null && ev.pointerId !== panPointerId) return;
+	          panActive = false;
+	          panPointerId = null;
+	          panStart = null;
+	          vtStart = null;
+	          setPanCursor(spaceDown ? 'ready' : 'off');
+	        };
+	        stage.addEventListener('pointerup', endPan);
+	        stage.addEventListener('pointercancel', endPan);
+	        stage.addEventListener('lostpointercapture', endPan);
 	      }
 	    } catch (e) { /* ignore */ }
 	  };
