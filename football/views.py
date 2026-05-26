@@ -32047,6 +32047,7 @@ def initial_eleven_page(request):
             'dry',
             'wet',
             'uefa_b',
+            'coachboard',
             'whiteboard',
             'blackboard',
         }

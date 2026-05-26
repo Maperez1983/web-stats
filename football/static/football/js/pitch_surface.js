@@ -92,6 +92,7 @@
       'dry',
       'wet',
       'uefa_b',
+      'coachboard',
       'whiteboard',
       'blackboard',
     ].includes(normalizedGrass))
@@ -122,6 +123,7 @@
       artificial: ['#2fb46d', '#1f8d55'],
       dry: ['#7b9a45', '#6b8a3a'],
       wet: ['#1f5a46', '#163f35'],
+      coachboard: ['#0b1220', '#030712'],
       whiteboard: ['#f8fafc', '#e5e7eb'],
       blackboard: ['#0b1220', '#030712'],
       uefa_b: ['#2f6a3a', '#245934'],
@@ -152,6 +154,18 @@
         stroke: 'rgba(15,23,42,0.06)',
         'stroke-width': 1,
       }));
+      defs.appendChild(pattern);
+    } else if (grassStyle === 'coachboard') {
+      // Estilo "pizarra de entrenador": oscuro + micro-textura (solo SVG, sin <image>).
+      grassFillId = 'pitch-coachboard';
+      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 96, height: 96 });
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'url(#pitch-bg)' }));
+      pattern.appendChild(createSvgNode(doc, 'path', {
+        d: 'M 0 48 L 96 48 M 48 0 L 48 96',
+        stroke: 'rgba(248,250,252,0.06)',
+        'stroke-width': 1,
+      }));
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.05)' }));
       defs.appendChild(pattern);
     } else if (grassStyle !== 'classic') {
       const dataUrl = __buildGrassTextureDataUrl(grassStyle);
@@ -424,4 +438,3 @@
     applyToSvg,
   };
 }());
-
