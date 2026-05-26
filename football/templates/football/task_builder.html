@@ -4727,11 +4727,12 @@
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;capas&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Capas</button>
 	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
 	                    {% else %}
-	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha básica</button>
-	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;avanzado&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha avanzada</button>
-	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;assistant&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Asistente</button>
-	                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
-	                    {% endif %}
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;ficha&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha básica</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;avanzado&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Ficha avanzada</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;assistant&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Asistente</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;playbook&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Playbook</button>
+		                    <button type="button" class="button" onclick="try{var m=document.querySelector('#task-mode-tabs [data-task-mode=&quot;text&quot;]');if(m)m.click();var t=document.querySelector('#task-side-tabs [data-pane=&quot;exportar&quot;]');if(t)t.click();var d=document.getElementById('task-builder-actions-menu');if(d)d.open=false;}catch(e){};return false;">Exportar</button>
+		                    {% endif %}
 	                  </div>
 	                </div>
                 {% if not tactics_mode and task and can_restore_original %}
@@ -6596,16 +6597,17 @@
 					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
 					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
 					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
-	                        {% else %}
-					                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📝</span><span class="tab-label">Ficha básica</span></button>
-					                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📋</span><span class="tab-label">Ficha avanzada</span></button>
-                            <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🤖</span><span class="tab-label">Asistente</span></button>
-					                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
-					                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
-					                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
-					                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">👁️</span><span class="tab-label">Vista previa</span></button>
-	                        {% endif %}
-					              </div>
+		                        {% else %}
+						                <button type="button" class="side-tab is-active" data-pane="ficha" role="tab" aria-selected="true"><span class="tab-emoji" aria-hidden="true">📝</span><span class="tab-label">Ficha básica</span></button>
+						                <button type="button" class="side-tab" data-pane="avanzado" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📋</span><span class="tab-label">Ficha avanzada</span></button>
+	                            <button type="button" class="side-tab" data-pane="assistant" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🤖</span><span class="tab-label">Asistente</span></button>
+							                <button type="button" class="side-tab" data-pane="playbook" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📚</span><span class="tab-label">Playbook</span></button>
+						                <button type="button" class="side-tab" data-pane="animacion" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🎬</span><span class="tab-label">Escenarios</span></button>
+						                <button type="button" class="side-tab" data-pane="capas" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">🧩</span><span class="tab-label">Capas</span></button>
+						                <button type="button" class="side-tab" data-pane="exportar" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">📤</span><span class="tab-label">Exportar</span></button>
+						                <button type="button" class="side-tab" data-pane="preview" role="tab" aria-selected="false"><span class="tab-emoji" aria-hidden="true">👁️</span><span class="tab-label">Vista previa</span></button>
+		                        {% endif %}
+						              </div>
 
               {% if not tactics_mode %}
               <div class="side-pane is-active" data-pane="ficha" role="tabpanel">
@@ -7223,16 +7225,19 @@
               {% endif %}
               {% endif %}
 
-                  {% if tactics_mode %}
-		              <div class="side-pane is-active" data-pane="playbook" role="tabpanel">
-	                <div class="section">
-	                  <h3>Playbook</h3>
-	                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
-	                  <div class="export-grid" style="margin:0.75rem 0 0.35rem;">
-	                    <button
-                        type="button"
-                        class="button"
-                        id="task-playbook-open-sim"
+			              <div class="side-pane{% if tactics_mode %} is-active{% endif %}" data-pane="playbook" role="tabpanel">
+		                <div class="section">
+		                  <h3>Playbook</h3>
+		                  {% if tactics_mode %}
+		                  <p>Clips reutilizables del equipo: plantillas tácticas, favoritos, versiones, compartir y clonar.</p>
+		                  {% else %}
+		                  <p>Usa una táctica/clip como plantilla de pizarra para esta tarea. Pulsa <strong>Cargar</strong> para aplicarlo.</p>
+		                  {% endif %}
+		                  <div class="export-grid" style="margin:0.75rem 0 0.35rem;">
+		                    <button
+	                        type="button"
+	                        class="button"
+	                        id="task-playbook-open-sim"
                         onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto.';}catch(e){};return false;"
                       >Simulador</button>
 	                    <button
@@ -7254,12 +7259,11 @@
                         onclick="try{var p=document.getElementById('task-sim-popover');if(p)p.hidden=false;var s=document.getElementById('task-builder-status');if(s)s.textContent='Simulador: panel abierto (Pack).';}catch(e){};return false;"
                       >Pack</button>
 	                  </div>
-	                  <div id="task-playbook-pane">
-	                    <div class="timeline-empty">Cargando Playbook…</div>
-	                  </div>
-	                </div>
-		              </div>
-                  {% endif %}
+		                  <div id="task-playbook-pane">
+		                    <div class="timeline-empty">Cargando Playbook…</div>
+		                  </div>
+		                </div>
+			              </div>
 
 		              <div class="side-pane" data-pane="capas" role="tabpanel">
 		                <div class="section">
