@@ -7493,18 +7493,25 @@
 			                  };
 			                  try { existing.addEventListener('load', done, { once: true }); } catch (e) { /* ignore */ }
 			                  try { existing.addEventListener('error', fail, { once: true }); } catch (e) { /* ignore */ }
-			                  // Fallback: algunos WebViews no disparan load si ya ocurrió.
-			                  window.setTimeout(() => {
-			                    try {
-			                      // Si no podemos detectar readiness, asumimos que el script existente ya está OK.
-			                      if (typeof isReady !== 'function') { done(); return; }
-			                      if (isReady()) done();
-			                      else fail();
-			                    } catch (e) {
-			                      fail();
-			                    }
-			                  }, 2500);
-			                });
+				                  // Fallback: algunos WebViews no disparan load si ya ocurrió.
+				                  // Importante: en iPad/Safari (y JS grande) el parse puede tardar bastante.
+				                  // Si marcamos fail demasiado pronto, cacheamos una Promise rechazada y el editor
+				                  // queda "muerto" aunque el script termine de cargar después.
+				                  const startTs = Date.now();
+				                  const maxWaitMs = 12000;
+				                  const poll = () => {
+				                    try {
+				                      // Si no podemos detectar readiness, asumimos que el script existente ya está OK.
+				                      if (typeof isReady !== 'function') { done(); return; }
+				                      if (isReady()) { done(); return; }
+				                    } catch (e) {
+				                      // Seguimos esperando salvo que se agote el timeout.
+				                    }
+				                    if ((Date.now() - startTs) >= maxWaitMs) { fail(); return; }
+				                    window.setTimeout(poll, 450);
+				                  };
+				                  window.setTimeout(poll, 1200);
+				                });
 			                try { existing.__webstatsLoadOncePromise = p; } catch (e) { /* ignore */ }
 			                p.then(resolve).catch(reject);
 			                return;
