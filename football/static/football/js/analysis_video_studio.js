@@ -3,11 +3,56 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
 
-  const setStatus = (text, isError = false) => {
+  const setStatus = (text, isError = false, { flash = true } = {}) => {
     const el = document.getElementById('vs-status');
     if (!el) return;
     el.textContent = safeText(text, '');
     el.style.color = isError ? '#fecaca' : 'rgba(226,232,240,0.72)';
+    if (!flash) return;
+    try {
+      el.classList.remove('vs-flash');
+      void el.offsetWidth; // fuerza reflow
+      el.classList.add('vs-flash');
+      window.clearTimeout(setStatus._t);
+      setStatus._t = window.setTimeout(() => {
+        try { el.classList.remove('vs-flash'); } catch (e) { /* ignore */ }
+      }, 1800);
+    } catch (e) { /* ignore */ }
+  };
+
+  const canvasLooksBlank = (ctx, w, h) => {
+    if (!ctx || !w || !h) return false;
+    try {
+      const points = [
+        [0.1, 0.1], [0.5, 0.1], [0.9, 0.1],
+        [0.1, 0.5], [0.5, 0.5], [0.9, 0.5],
+        [0.1, 0.9], [0.5, 0.9], [0.9, 0.9],
+      ];
+      let minL = 255;
+      let maxL = 0;
+      let sumL = 0;
+      let n = 0;
+      for (const [ux, uy] of points) {
+        const x = Math.max(0, Math.min(w - 1, Math.floor(ux * w)));
+        const y = Math.max(0, Math.min(h - 1, Math.floor(uy * h)));
+        const d = ctx.getImageData(x, y, 1, 1).data;
+        const a = Number(d[3] || 0);
+        if (a < 6) continue;
+        const l = (Number(d[0] || 0) + Number(d[1] || 0) + Number(d[2] || 0)) / 3;
+        minL = Math.min(minL, l);
+        maxL = Math.max(maxL, l);
+        sumL += l;
+        n += 1;
+      }
+      if (!n) return true;
+      const avg = sumL / n;
+      if (maxL < 8) return true;
+      if (minL > 248) return true;
+      if ((maxL - minL) < 1.5 && (avg < 16 || avg > 240)) return true;
+      return false;
+    } catch (e) {
+      return false;
+    }
   };
 
   const downloadBlob = (blob, filename) => {
@@ -3149,40 +3194,56 @@
 	      }
 	    });
 
-	    const snapshotPng = async () => {
-	      const w = fabricCanvas.getWidth();
-	      const h = fabricCanvas.getHeight();
-	      const off = document.createElement('canvas');
-	      off.width = w;
-      off.height = h;
-	      const ctx = off.getContext('2d');
-	      if (!ctx) return;
-	      let baseDrawn = false;
-	      if (!compatNoCorsApplied && !isIOS) {
-	        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
-	      }
-	      if (!baseDrawn) {
-	        try {
-	          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
-	          if (dataUrl) {
-	            const img = await loadImageFromDataUrl(dataUrl);
-	            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
-	          }
-	        } catch (e) { /* ignore */ }
-	      }
-	      if (!baseDrawn) {
-	        try {
-	          ctx.fillStyle = '#000';
-	          ctx.fillRect(0, 0, w, h);
-	        } catch (e) { /* ignore */ }
-	      }
-	      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
-	      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
-	      off.toBlob((blob) => {
-	        if (!blob) return;
-        downloadBlob(blob, `telestracion-${videoId || 'video'}.png`);
-      }, 'image/png');
-    };
+		    const snapshotPng = async () => {
+		      const wasPlaying = !video.paused;
+		      setStatus('PNG: capturando…', false, { flash: false });
+		      try { if (wasPlaying) video.pause(); } catch (e) { /* ignore */ }
+		      if (wasPlaying) await sleep(80);
+		      const w = fabricCanvas.getWidth();
+		      const h = fabricCanvas.getHeight();
+		      const off = document.createElement('canvas');
+		      off.width = w;
+	      off.height = h;
+		      const ctx = off.getContext('2d');
+		      if (!ctx) return;
+		      let baseDrawn = false;
+		      if (!compatNoCorsApplied && !isIOS) {
+		        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+		        if (baseDrawn && canvasLooksBlank(ctx, w, h)) baseDrawn = false;
+		      }
+		      if (!baseDrawn) {
+		        try {
+		          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
+		          if (dataUrl) {
+		            const img = await loadImageFromDataUrl(dataUrl);
+		            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
+		          }
+		        } catch (e) { /* ignore */ }
+		        if (baseDrawn && canvasLooksBlank(ctx, w, h)) baseDrawn = false;
+		      }
+		      if (!baseDrawn) {
+		        try {
+		          ctx.fillStyle = '#000';
+		          ctx.fillRect(0, 0, w, h);
+		        } catch (e) { /* ignore */ }
+		        const msg = 'PNG: no se pudo capturar el frame del vídeo.\nSe exporta solo la pizarra (anotaciones).';
+		        setStatus(msg, true);
+		        try {
+		          if (btnSnap) {
+		            const old = safeText(btnSnap.textContent, 'PNG');
+		            btnSnap.textContent = 'PNG ⚠︎';
+		            window.setTimeout(() => { try { btnSnap.textContent = old; } catch (e2) { /* ignore */ } }, 1200);
+		          }
+		        } catch (e) { /* ignore */ }
+		      }
+		      try { renderFx(ctx, { width: w, height: h, nowS: Number(video.currentTime) || 0, forExport: true }); } catch (e) { /* ignore */ }
+		      try { ctx.drawImage(canvasEl, 0, 0, w, h); } catch (e) { /* ignore */ }
+		      off.toBlob((blob) => {
+		        if (!blob) return;
+	        downloadBlob(blob, `telestracion-${videoId || 'video'}.png`);
+	      }, 'image/png');
+	      if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } }
+	    };
     btnSnap?.addEventListener('click', snapshotPng);
 
     // --- OCR dorsal (asistido): el usuario marca una ROI sobre el dorsal.
@@ -3456,11 +3517,20 @@
 	            headers: { 'content-type': 'application/json' },
 	            body: JSON.stringify(payload),
 	          });
-	          if (!resp.ok) return null;
-	          const data = await resp.json();
+	          const data = await resp.json().catch(() => ({}));
+	          if (!resp.ok || !data?.ok) {
+	            const msg = safeText(data?.error, `HTTP ${resp.status || 0}`) || 'error';
+	            setStatus(`No se pudo capturar frame en servidor.\n${msg}`, true);
+	            return null;
+	          }
 	          const img = safeText(data?.image_data, '');
+	          if (!img || !img.startsWith('data:image/')) {
+	            setStatus('Captura servidor inválida (sin imagen).', true);
+	            return null;
+	          }
 	          return img || null;
 	        } catch (e) {
+	          setStatus(`No se pudo capturar frame en servidor.\n${safeText(e?.message, 'error')}`, true);
 	          return null;
 	        }
 	      };

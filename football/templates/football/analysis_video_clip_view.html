@@ -164,6 +164,7 @@
         <div id="vs-clip-count"></div>
       </div>
 
+      <input type="hidden" id="vs-ui-mode" value="simple" />
       <input type="hidden" id="vs-video-id" value="{{ video.id }}" />
       <input type="hidden" id="vs-initial-clip-id" value="{{ clip.id }}" />
       <input type="hidden" id="vs-projects-url" value="{% url 'analysis-video-studio-projects-api' %}" />
@@ -177,6 +178,8 @@
       <input type="hidden" id="vs-timeline-delete-url" value="{% url 'analysis-video-studio-timeline-delete-api' %}" />
       <input type="hidden" id="vs-export-pdf-url" value="{% url 'analysis-video-studio-export-pdf-api' %}" />
       <input type="hidden" id="vs-export-package-url" value="{% url 'analysis-video-studio-export-package-api' %}" />
+      <input type="hidden" id="vs-frame-capture-url" value="{% url 'analysis-video-studio-frame-capture-api' %}" />
+      <input type="hidden" id="vs-track-url" value="{% url 'analysis-video-studio-track-players-api' %}" />
       <form id="vs-csrf" style="display:none;">{% csrf_token %}</form>
 
       <script src="{% static 'vendor/fabric.min.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}" defer></script>

@@ -51420,9 +51420,6 @@ def analysis_video_studio_frame_capture_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
 
     try:
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}
@@ -51438,9 +51435,9 @@ def analysis_video_studio_frame_capture_api(request):
         time_s = 0.0
     time_s = max(0.0, float(time_s or 0.0))
 
-    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    video, _team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
-        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o sin permiso.'}, status=404)
     src = _video_studio_resolve_rival_video_input_ref(video)
     if not src:
         return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para captura.'}, status=400)
@@ -51462,7 +51459,7 @@ def analysis_video_studio_frame_capture_api(request):
             tmp_path = Path(tmpdir)
             out_path = tmp_path / 'frame.jpg'
             try:
-                subprocess.run(
+                proc = subprocess.run(
                     [
                         ffmpeg_path,
                         '-hide_banner',
@@ -51486,6 +51483,21 @@ def analysis_video_studio_frame_capture_api(request):
                 )
             except Exception:
                 return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
+            if getattr(proc, 'returncode', 0) not in (0, None):
+                try:
+                    raw_err = (proc.stderr or b'').decode('utf-8', errors='ignore')
+                except Exception:
+                    raw_err = ''
+                try:
+                    raw_err = re.sub(r'https?://\\S+', '<url>', raw_err or '')
+                except Exception:
+                    pass
+                tail = '\n'.join([ln for ln in (raw_err or '').splitlines() if ln.strip()][-3:])[:380].strip()
+                try:
+                    logger.warning('Video Studio frame capture: ffmpeg rc=%s err=%s', proc.returncode, tail or '—')
+                except Exception:
+                    pass
+                return JsonResponse({'ok': False, 'error': f'FFmpeg: {tail or "no pudo leer el vídeo"}'}, status=400)
             if not out_path.exists():
                 return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
             data_url = _image_file_as_small_data_uri(out_path, max_width=max_w, max_height=int(max_w * 0.7), quality=78)
@@ -51506,9 +51518,6 @@ def analysis_video_studio_track_players_api(request):
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
-    primary_team = _get_primary_team_for_request(request)
-    if not primary_team:
-        return JsonResponse({'ok': False, 'error': 'No hay equipo principal configurado'}, status=400)
 
     try:
         payload = json.loads(request.body.decode('utf-8')) if request.body else {}
@@ -51549,9 +51558,9 @@ def analysis_video_studio_track_players_api(request):
     if not markers:
         return JsonResponse({'ok': False, 'error': 'markers requerido.'}, status=400)
 
-    video = _video_studio_resolve_video(primary_team, video_id=int(video_id))
+    video, _team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
-        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado.'}, status=404)
+        return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o sin permiso.'}, status=404)
     src = _video_studio_resolve_rival_video_input_ref(video)
     if not src:
         return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para tracking.'}, status=400)
