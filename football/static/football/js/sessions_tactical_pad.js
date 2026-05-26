@@ -338,7 +338,7 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    const grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    const grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
@@ -381,6 +381,7 @@
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
 		      wet: ['#1f5a46', '#163f35'],
+		      coachboard: ['#0b1220', '#030712'],
 		      whiteboard: ['#f8fafc', '#e5e7eb'],
 		      blackboard: ['#0b1220', '#030712'],
 		      uefa_b: ['#2f6a3a', '#245934'],
