@@ -588,6 +588,7 @@
 		    const playlistCountEl = document.getElementById('vs-playlist-count');
 		    const clipSaveBtn = document.getElementById('vs-clip-save');
         const clipSaveQuickBtn = document.getElementById('vs-clip-save-quick');
+        const clipSaveMp4Btn = document.getElementById('vs-clip-save-mp4');
         const openMainCutBtn = document.getElementById('vs-open-main-cut');
 		    const clipDupBtn = document.getElementById('vs-clip-dup');
 		    const clipSplitBtn = document.getElementById('vs-clip-split');
@@ -5339,10 +5340,10 @@
 	      return await startRecording({ from: start, to: end, destination: 'upload', uploadTitle: t, uploadClipId: activeClipId || 0 });
 	    });
 
-	    btnExportServer?.addEventListener('click', async () => {
+	    const exportMp4ServerForCurrentSegment = async ({ disableEl = null } = {}) => {
 	      if (!exportServerUrl) {
 	        setStatus('No hay endpoint para MP4 server.', true);
-	        return;
+	        return null;
 	      }
 	      const a = Number(inInput?.value || 0) || 0;
 	      const b = Number(outInput?.value || 0) || 0;
@@ -5350,14 +5351,15 @@
 	      const end = Math.max(a, b);
 	      if (!end || end <= start) {
 	        setStatus('Define IN/OUT primero.', true);
-	        return;
+	        return null;
 	      }
 	      const baseTitle = safeText(clipTitleInput?.value, '').slice(0, 180);
 	      const coll = safeText(clipCollectionInput?.value, '').slice(0, 120);
 	      const t = baseTitle ? (coll ? `${baseTitle} · ${coll}` : baseTitle) : `Clip ${fmtTimeShort(start)}-${fmtTimeShort(end)}`;
 
 	      try {
-	        btnExportServer.disabled = true;
+	        if (disableEl) disableEl.disabled = true;
+	        if (btnExportServer) btnExportServer.disabled = true;
 	        setStatus('Generando MP4 en servidor…');
 	        const payload = { video_id: videoId || 0, in_s: start, out_s: end, title: t };
 	        if (activeClipId) payload.clip_id = activeClipId;
@@ -5370,22 +5372,44 @@
 	        const data = await resp.json().catch(() => ({}));
 	        if (!resp.ok || !data?.ok || !data?.url) {
 	          setStatus(data?.error || 'No se pudo exportar MP4 en servidor.', true);
-	          return;
+	          return null;
 	        }
 	        const url = String(data.url);
 	        const downloadUrl = String(data.download_url || url);
 	        lastExportAssetId = Number(data?.id) || lastExportAssetId || 0;
 	        lastExportShareUrl = url;
-          triggerDownload(downloadUrl);
-          try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
-          setStatus('MP4 listo. Descargando…');
+	        triggerDownload(downloadUrl);
+	        try { await tryCopy(downloadUrl); } catch (e) { /* ignore */ }
+	        setStatus('MP4 listo. Descargando…');
 	        refreshShareLinks();
+	        return data;
 	      } catch (e) {
 	        setStatus('Error exportando MP4 en servidor.', true);
+	        return null;
 	      } finally {
-	        btnExportServer.disabled = false;
+	        if (btnExportServer) btnExportServer.disabled = false;
+	        if (disableEl) disableEl.disabled = false;
 	      }
+	    };
+
+	    btnExportServer?.addEventListener('click', async () => {
+	      await exportMp4ServerForCurrentSegment({ disableEl: btnExportServer });
 	    });
+
+      clipSaveMp4Btn?.addEventListener('click', async () => {
+        try {
+          clipSaveMp4Btn.disabled = true;
+          setStatus('Guardando clip…');
+          const saved = await saveClip({ forceNew: true });
+          if (!saved) return;
+          // `saveClip` deja el clip recién guardado como activo (activeClipId), así el MP4 queda ligado al clip.
+          await exportMp4ServerForCurrentSegment({ disableEl: clipSaveMp4Btn });
+        } catch (e) {
+          setStatus('No se pudo completar Guardar+MP4.', true);
+        } finally {
+          clipSaveMp4Btn.disabled = false;
+        }
+      });
 
 	    const updatePlaylistExportAvailability = () => {
 	      if (!btnExportServerPlaylist) return;
@@ -7626,7 +7650,7 @@
 		    };
 
 	    const saveClip = async (opts = {}) => {
-	      if (!clipSaveUrl || !videoId) return;
+	      if (!clipSaveUrl || !videoId) return null;
 	      const forceNew = Boolean(opts?.forceNew);
 	      const title = safeText(clipTitleInput?.value, 'Clip').slice(0, 180);
 	      const ctxTeam = safeText(ctxTeamSelect?.value, '').toUpperCase();
@@ -7641,7 +7665,7 @@
 	      const outS = Number(outInput?.value || 0) || 0;
       if (!outS || outS <= inS) {
         setStatus('Define IN/OUT para el clip.', true);
-        return;
+        return null;
       }
 	      const overlay = { ...fabricCanvas.toDatalessJSON(['data']), fx: { layers: fxState.layers } };
 	      try {
@@ -7706,9 +7730,11 @@
           }
         } catch (e) { /* ignore */ }
         setStatus(`Clip guardado (#${activeClipId || ''}).`);
+        return savedId || null;
       } catch (e) {
         try { if (clipSavedMsg) clipSavedMsg.textContent = 'No se pudo guardar.'; } catch (e2) { /* ignore */ }
         setStatus('No se pudo guardar clip.', true);
+        return null;
       }
 	    };
 
