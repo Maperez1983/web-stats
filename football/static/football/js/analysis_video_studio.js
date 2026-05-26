@@ -2,6 +2,18 @@
   const safeText = (value, fallback = '') => String(value ?? '').trim() || fallback;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
+  const colorToRgba = (color, alpha, fallback = 'rgba(255,255,255,0.2)') => {
+    if (color && color.startsWith('#') && (color.length === 7 || color.length === 4)) {
+      const hex = color.length === 4
+        ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+        : color;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    return fallback;
+  };
 
   const waitNextVideoFrame = (videoEl, timeoutMs = 350) => new Promise((resolve) => {
     if (!videoEl) return resolve(false);
@@ -277,6 +289,8 @@
 	    const btnSelect = document.getElementById('vs-tool-select');
 	    const btnPen = document.getElementById('vs-tool-pen');
 	    const btnLine = document.getElementById('vs-tool-line');
+	    const btnRect = document.getElementById('vs-tool-rect');
+	    const btnCircle = document.getElementById('vs-tool-circle');
 	    const btnArrow = document.getElementById('vs-tool-arrow');
 	    const btnCurve = document.getElementById('vs-tool-curve');
     const btnText = document.getElementById('vs-tool-text');
@@ -1609,6 +1623,8 @@
 	      if (kind === 'curve_arrow') return 'Flecha curva';
 	      if (kind === 'movement_line') return 'Trayectoria';
 	      if (kind === 'line') return 'Línea';
+	      if (kind === 'shape_rect' || kind === 'rect') return 'Rect';
+	      if (kind === 'shape_ellipse' || kind === 'ellipse') return 'Círculo';
 	      if (kind === 'player_marker') return 'Jugador';
 	      if (kind === 'base') return 'Base';
 	      if (kind === 'surface_area') return 'Área';
@@ -2028,6 +2044,8 @@
 		    let tool = 'select';
 		    let arrowStart = null;
 		    let lineStart = null;
+		    let shapeStart = null;
+		    let shapeDraft = null;
 		    let moveStart = null;
 		    let lastArrowSig = '';
 		    let lastArrowAt = 0;
@@ -2060,10 +2078,12 @@
         }
       } catch (e) { /* ignore */ }
 
-		      Array.from([btnSelect, btnPen, btnLine, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
+		      Array.from([btnSelect, btnPen, btnLine, btnRect, btnCircle, btnArrow, btnCurve, btnText, btnPlayer, btnCallout, btnBase, btnArea, btnMove, btnSpot, btnBlur]).forEach((b) => b?.classList.remove('primary'));
 		      if (tool === 'select') btnSelect?.classList.add('primary');
 		      if (tool === 'pen') btnPen?.classList.add('primary');
 		      if (tool === 'line') btnLine?.classList.add('primary');
+		      if (tool === 'rect') btnRect?.classList.add('primary');
+		      if (tool === 'circle') btnCircle?.classList.add('primary');
 		      if (tool === 'arrow') btnArrow?.classList.add('primary');
 		      if (tool === 'curve') btnCurve?.classList.add('primary');
 	      if (tool === 'text') btnText?.classList.add('primary');
@@ -2086,6 +2106,8 @@
 		        if (tool === 'select') return 'Select';
 		        if (tool === 'pen') return 'Pen';
 		        if (tool === 'line') return 'Línea';
+		        if (tool === 'rect') return 'Rect';
+		        if (tool === 'circle') return 'Círculo';
 		        if (tool === 'arrow') return 'Arrow';
 		        if (tool === 'curve') return 'Curve';
 		        if (tool === 'text') return 'Texto';
@@ -2160,7 +2182,7 @@
       if (layerAnimSelect) layerAnimSelect.disabled = false;
 	      if (fxForm) fxForm.style.display = 'none';
 	      const kind = safeText(obj?.data?.kind, '');
-	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line');
+	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
 	      if (layerStyleForm) layerStyleForm.style.display = '';
 	      if (layerLineStyleSelect) {
@@ -2208,7 +2230,7 @@
 	      ensureLayerData(obj);
 
 	      const kind = safeText(obj?.data?.kind, '');
-	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line');
+	      const showLineStyle = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line' || kind === 'line' || kind === 'shape_rect' || kind === 'shape_ellipse');
 	      const showDoubleHead = (kind === 'arrow' || kind === 'curve_arrow' || kind === 'movement_line');
 
 	      if (showLineStyle && layerLineStyleSelect) {
@@ -2382,6 +2404,51 @@
 		    fabricCanvas.on('mouse:down', (opt) => {
 		      if (tool === 'line') {
 		        lineStart = fabricCanvas.getPointer(opt.e);
+		      }
+		      if (tool === 'rect' || tool === 'circle') {
+		        shapeStart = fabricCanvas.getPointer(opt.e);
+		        const sw = strokeWidth();
+		        const c = strokeColor();
+		        const fill = colorToRgba(c, 0.16, 'rgba(34,211,238,0.16)');
+		        if (tool === 'rect') {
+		          const r = new fabric.Rect({
+		            left: shapeStart.x,
+		            top: shapeStart.y,
+		            width: 1,
+		            height: 1,
+		            fill,
+		            stroke: c,
+		            strokeWidth: clamp(sw, 1, 18),
+		            strokeDashArray: null,
+		            rx: 10,
+		            ry: 10,
+		            selectable: false,
+		            evented: false,
+		            objectCaching: false,
+		            strokeUniform: true,
+		          });
+		          shapeDraft = r;
+		          fabricCanvas.add(r);
+		        } else {
+		          const e = new fabric.Ellipse({
+		            left: shapeStart.x,
+		            top: shapeStart.y,
+		            rx: 1,
+		            ry: 1,
+		            fill,
+		            stroke: c,
+		            strokeWidth: clamp(sw, 1, 18),
+		            strokeDashArray: null,
+		            originX: 'left',
+		            originY: 'top',
+		            selectable: false,
+		            evented: false,
+		            objectCaching: false,
+		            strokeUniform: true,
+		          });
+		          shapeDraft = e;
+		          fabricCanvas.add(e);
+		        }
 		      }
 		      if (tool === 'arrow' || tool === 'curve') {
 		        arrowStart = fabricCanvas.getPointer(opt.e);
@@ -2583,6 +2650,63 @@
       }
 	    });
 	    fabricCanvas.on('mouse:up', (opt) => {
+	      if ((tool === 'rect' || tool === 'circle') && shapeStart && shapeDraft) {
+	        const end0 = fabricCanvas.getPointer(opt.e);
+	        const start = shapeStart;
+	        const draft = shapeDraft;
+	        shapeStart = null;
+	        shapeDraft = null;
+
+	        let x0 = start.x;
+	        let y0 = start.y;
+	        let x1 = end0.x;
+	        let y1 = end0.y;
+	        // Shift = cuadrado/círculo perfecto
+	        try {
+	          if (opt?.e?.shiftKey) {
+	            const dx = x1 - x0;
+	            const dy = y1 - y0;
+	            const m = Math.max(Math.abs(dx), Math.abs(dy));
+	            x1 = x0 + (dx >= 0 ? m : -m);
+	            y1 = y0 + (dy >= 0 ? m : -m);
+	          }
+	        } catch (e) { /* ignore */ }
+	        const left = Math.min(x0, x1);
+	        const top = Math.min(y0, y1);
+	        const w = Math.max(1, Math.abs(x1 - x0));
+	        const h = Math.max(1, Math.abs(y1 - y0));
+	        if (Math.max(w, h) < 8) {
+	          try { fabricCanvas.remove(draft); } catch (e) { /* ignore */ }
+	          return;
+	        }
+	        try {
+	          if (draft.type === 'rect') {
+	            draft.set({ left, top, width: w, height: h });
+	            draft.data = seedLayerDataNow({ kind: 'shape_rect' });
+	          } else if (draft.type === 'ellipse') {
+	            draft.set({ left, top, rx: w / 2, ry: h / 2 });
+	            draft.data = seedLayerDataNow({ kind: 'shape_ellipse' });
+	          }
+	          draft.set({
+	            selectable: true,
+	            evented: true,
+	            perPixelTargetFind: true,
+	            padding: 0,
+	            cornerStyle: 'circle',
+	            cornerColor: 'rgba(250,204,21,0.95)',
+	            transparentCorners: false,
+	            cornerSize: 14,
+	          });
+	          draft.setCoords?.();
+	        } catch (e) { /* ignore */ }
+	        pushHistory();
+	        try { fabricCanvas.setActiveObject(draft); } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        return;
+	      }
 	      if (tool === 'line' && lineStart) {
 	        const end0 = fabricCanvas.getPointer(opt.e);
 	        const sw = strokeWidth();
@@ -2898,6 +3022,8 @@
 		    btnSelect?.addEventListener('click', () => setTool('select'));
 		    btnPen?.addEventListener('click', () => setTool('pen'));
 		    btnLine?.addEventListener('click', () => setTool('line'));
+		    btnRect?.addEventListener('click', () => setTool('rect'));
+		    btnCircle?.addEventListener('click', () => setTool('circle'));
 		    btnArrow?.addEventListener('click', () => setTool('arrow'));
 		    btnCurve?.addEventListener('click', () => setTool('curve'));
 	    btnText?.addEventListener('click', () => setTool('text'));
@@ -3452,6 +3578,8 @@
 	      if (key === 'v' || key === 'V') { setTool('select'); return; }
 	      if (key === 'b' || key === 'B') { setTool('pen'); return; }
 	      if (key === 'l' || key === 'L') { setTool('line'); return; }
+	      if (key === 'r' || key === 'R') { setTool('rect'); return; }
+	      if (key === 'o' || key === 'O') { setTool('circle'); return; }
 	      if (key === 'a' || key === 'A') { setTool('arrow'); return; }
 	      if (key === 't' || key === 'T') { setTool('text'); return; }
 	      if (key === 'Escape') {
@@ -8562,13 +8690,32 @@
 	    };
 	    btnTrackAuto?.addEventListener('click', () => { autoTrackPlayers(); });
 
-	    pushHistory();
-	    reseedFxSeq();
-	    renderFxList();
-    updateLayerPanel();
-    renderDrawLayers();
-    setStatus('Listo.');
-  };
+		    pushHistory();
+		    reseedFxSeq();
+		    renderFxList();
+	    updateLayerPanel();
+	    renderDrawLayers();
+	    setStatus('Listo.');
+
+	    // Zoom “premium” (Ctrl/Cmd + rueda)
+	    try {
+	      if (stage && canTelestrate && fabricCanvas?.zoomToPoint) {
+	        stage.addEventListener('wheel', (ev) => {
+	          const mod = Boolean(ev.ctrlKey || ev.metaKey);
+	          if (!mod) return;
+	          ev.preventDefault();
+	          const delta = Number(ev.deltaY) || 0;
+	          const current = Number(fabricCanvas.getZoom?.() || 1) || 1;
+	          // Sensibilidad suave
+	          let next = current * Math.pow(0.999, delta);
+	          next = clamp(next, 0.5, 4.0);
+	          const p = fabricCanvas.getPointer(ev);
+	          fabricCanvas.zoomToPoint(new fabric.Point(p.x, p.y), next);
+	          try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        }, { passive: false });
+	      }
+	    } catch (e) { /* ignore */ }
+	  };
 
   document.addEventListener('DOMContentLoaded', init);
 })();
