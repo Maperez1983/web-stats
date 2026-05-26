@@ -7090,6 +7090,19 @@ def _workspace_club_module_catalog():
             ],
         },
         {
+            'key': 'tactics',
+            'label': 'Táctica',
+            'description': 'Pizarra táctica y playbook: clips, escenarios y exportaciones.',
+            'deliverables': [
+                {
+                    'key': 'board_and_playbook',
+                    'label': 'Pizarra + Playbook',
+                    'description': 'Editor de pizarra (multipizarra) y biblioteca de clips tácticos.',
+                    'route_keys': ['tactics'],
+                },
+            ],
+        },
+        {
             'key': 'academy',
             'label': 'Academia',
             'description': 'Guías interactivas para jugadores: vídeo, recreaciones 2D/3D, quizzes y retos de campo.',
@@ -7385,6 +7398,18 @@ def _workspace_enabled_modules(workspace):
     for key, value in raw.items():
         if key in defaults or str(key).startswith('deliverable__') or str(key).startswith('module__'):
             normalized[key] = bool(value)
+    # Compat/backfill (Platform):
+    # Históricamente `tactics` no estaba en el catálogo de módulos del club, así que al guardar
+    # desde Platform se forzaba `tactics=False` y no había forma de reactivarlo.
+    # Si detectamos configuración basada en flags `module__*` pero falta `module__tactics`,
+    # restauramos `tactics=True` para evitar bloquear el módulo por un bug de catálogo.
+    try:
+        has_module_flags = any(str(k).startswith('module__') for k in raw.keys())
+        if has_module_flags and 'module__tactics' not in raw and 'tactics' in defaults and bool(defaults.get('tactics', False)):
+            if raw.get('tactics') is False or normalized.get('tactics') is False:
+                normalized['tactics'] = True
+    except Exception:
+        pass
     return normalized
 
 
