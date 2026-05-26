@@ -461,11 +461,21 @@
 		                    <option value="central_box">Caja central</option>
 		                    <option value="final_third">Último tercio</option>
 		                  </select>
-	                </label>
-	                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
-	                  <button type="button" class="button" id="vs-template-apply">Aplicar</button>
-	                  <button type="button" class="button danger" id="vs-template-clear">Quitar plantillas</button>
-	                </div>
+		                </label>
+		                <div id="vs-template-params" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.45rem; margin-top:0.45rem;">
+		                  <label style="margin:0;">
+		                    Carriles
+		                    <input type="number" id="vs-template-lanes-count" min="2" max="12" step="1" value="5" />
+		                  </label>
+		                  <label style="margin:0;">
+		                    Grosor (px)
+		                    <input type="number" id="vs-template-lanes-stroke" min="1" max="16" step="1" value="2" />
+		                  </label>
+		                </div>
+		                <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
+		                  <button type="button" class="button" id="vs-template-apply">Aplicar</button>
+		                  <button type="button" class="button danger" id="vs-template-clear">Quitar plantillas</button>
+		                </div>
                   </div>
 	              </details>
 

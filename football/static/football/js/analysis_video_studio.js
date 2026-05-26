@@ -313,9 +313,12 @@
     const exportPdfBtn = document.getElementById('vs-export-pdf');
     const exportPackageBtn = document.getElementById('vs-export-package');
     const reportPdfBtn = document.getElementById('vs-report-pdf');
-    const templateSelect = document.getElementById('vs-template');
-    const templateApplyBtn = document.getElementById('vs-template-apply');
-    const templateClearBtn = document.getElementById('vs-template-clear');
+	    const templateSelect = document.getElementById('vs-template');
+	    const templateApplyBtn = document.getElementById('vs-template-apply');
+	    const templateClearBtn = document.getElementById('vs-template-clear');
+	    const templateParamsWrap = document.getElementById('vs-template-params');
+	    const templateLanesCountInput = document.getElementById('vs-template-lanes-count');
+	    const templateLanesStrokeInput = document.getElementById('vs-template-lanes-stroke');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
 	    const uiMode = safeText(document.getElementById('vs-ui-mode')?.value || '').toLowerCase();
@@ -2952,11 +2955,11 @@
       playerNumberInput?.addEventListener('keydown', handlePlayerKey);
       playerNameInput?.addEventListener('keydown', handlePlayerKey);
 
-    const clearTemplates = () => {
-      const toRemove = [];
-      for (const obj of fabricCanvas.getObjects()) {
-        const kind = safeText(obj?.data?.kind, '');
-        if (kind === 'template') toRemove.push(obj);
+	    const clearTemplates = () => {
+	      const toRemove = [];
+	      for (const obj of fabricCanvas.getObjects()) {
+	        const kind = safeText(obj?.data?.kind, '');
+	        if (kind === 'template') toRemove.push(obj);
       }
       for (const obj of toRemove) {
         try { fabricCanvas.remove(obj); } catch (e) { /* ignore */ }
@@ -2966,12 +2969,128 @@
         updateLayerPanel();
         renderDrawLayers();
         setStatus('Plantillas eliminadas.');
-      }
-    };
+	      }
+	    };
 
-	    const applyTemplate = () => {
-	      const name = safeText(templateSelect?.value, '');
-	      if (!name) { setStatus('Elige una plantilla.', true); return; }
+	    const updateTemplateParamsUi = () => {
+	      if (!templateParamsWrap) return;
+	      const v = safeText(templateSelect?.value, '');
+	      templateParamsWrap.style.display = (v === 'lanes_manual') ? 'grid' : 'none';
+	    };
+	    updateTemplateParamsUi();
+	    templateSelect?.addEventListener('change', updateTemplateParamsUi);
+
+	    const buildManualLanesTemplate = ({ w, h, laneCount, strokeW }) => {
+	      const objs = [];
+	      const count = clamp(Math.round(Number(laneCount) || 5), 2, 12);
+	      const sw = clamp(Math.round(Number(strokeW) || 2), 1, 16);
+	      const laneW = w / count;
+	      for (let i = 0; i < count; i += 1) {
+	        const fill = (i % 2 === 0) ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.018)';
+	        objs.push(new fabric.Rect({
+	          left: i * laneW,
+	          top: 0,
+	          width: laneW,
+	          height: h,
+	          fill,
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        }));
+	      }
+	      const dash = 8 + sw * 2;
+	      for (let i = 1; i <= count - 1; i += 1) {
+	        const x = (w * i) / count;
+	        objs.push(new fabric.Line([x, 0, x, h], {
+	          stroke: 'rgba(255,255,255,0.42)',
+	          strokeWidth: sw,
+	          strokeDashArray: [dash, dash],
+	          strokeLineCap: 'round',
+	          selectable: false,
+	          evented: false,
+	          objectCaching: false,
+	        }));
+	      }
+	      objs.push(new fabric.Rect({
+	        left: 0,
+	        top: 0,
+	        width: w,
+	        height: h,
+	        fill: 'rgba(0,0,0,0)',
+	        stroke: 'rgba(255,255,255,0.55)',
+	        strokeWidth: sw,
+	        selectable: false,
+	        evented: false,
+	        objectCaching: false,
+	      }));
+	      const group = new fabric.Group(objs, {
+	        selectable: true,
+	        subTargetCheck: false,
+	        objectCaching: false,
+	        cornerStyle: 'circle',
+	        cornerColor: 'rgba(250,204,21,0.95)',
+	        transparentCorners: false,
+	        cornerSize: 14,
+	      });
+	      group.data = seedLayerDataNow({ kind: 'template', template: 'lanes_manual', lane_count: count, stroke_w: sw });
+	      return group;
+	    };
+
+	    const replaceTemplateInPlace = (oldObj, newObj) => {
+	      if (!oldObj || !newObj) return false;
+	      const idx = (() => {
+	        try { return (fabricCanvas.getObjects?.() || []).indexOf(oldObj); } catch (e) { return -1; }
+	      })();
+	      // Copia transform
+	      try {
+	        newObj.set({
+	          left: oldObj.left,
+	          top: oldObj.top,
+	          scaleX: oldObj.scaleX,
+	          scaleY: oldObj.scaleY,
+	          angle: oldObj.angle,
+	          flipX: oldObj.flipX,
+	          flipY: oldObj.flipY,
+	          originX: oldObj.originX,
+	          originY: oldObj.originY,
+	          skewX: oldObj.skewX,
+	          skewY: oldObj.skewY,
+	        });
+	      } catch (e) { /* ignore */ }
+	      // Preserva timing / flags (sin pisar parámetros nuevos)
+	      try {
+	        const prev = (oldObj.data && typeof oldObj.data === 'object') ? oldObj.data : {};
+	        const carry = {
+	          uid: safeText(prev.uid),
+	          t_in_s: Number(prev.t_in_s) || 0,
+	          t_out_s: Number(prev.t_out_s) || 0,
+	          fade_in_ms: Math.max(0, Number(prev.fade_in_ms) || 0),
+	          fade_out_ms: Math.max(0, Number(prev.fade_out_ms) || 0),
+	          anim: safeText(prev.anim, 'none'),
+	          locked: Boolean(prev.locked),
+	        };
+	        newObj.data = { ...carry, ...(newObj.data || {}), kind: 'template', template: safeText(newObj?.data?.template, 'lanes_manual') };
+	      } catch (e) { /* ignore */ }
+	      ensureLayerData(newObj);
+	      try { fabricCanvas.remove(oldObj); } catch (e) { /* ignore */ }
+	      try {
+	        if (idx >= 0 && typeof fabricCanvas.insertAt === 'function') fabricCanvas.insertAt(newObj, idx, false);
+	        else fabricCanvas.add(newObj);
+	      } catch (e) {
+	        try { fabricCanvas.add(newObj); } catch (e2) { /* ignore */ }
+	      }
+	      pushHistory();
+	      try { fabricCanvas.setActiveObject(newObj); } catch (e) { /* ignore */ }
+	      selectedFxId = 0;
+	      updateLayerPanel();
+	      renderFxList();
+	      renderDrawLayers();
+	      return true;
+	    };
+
+		    const applyTemplate = () => {
+		      const name = safeText(templateSelect?.value, '');
+		      if (!name) { setStatus('Elige una plantilla.', true); return; }
 	      const w = fabricCanvas.getWidth();
 	      const h = fabricCanvas.getHeight();
 	      if (!w || !h) return;
@@ -2983,65 +3102,22 @@
 	        }
 	        objs.push(new fabric.Rect({ left: 0, top: 0, width: w, height: h, fill: 'rgba(255,255,255,0.02)', selectable: false, evented: false }));
 	      } else if (name === 'lanes_manual') {
-	        const laneCount = 5;
-	        const laneW = w / laneCount;
-	        for (let i = 0; i < laneCount; i += 1) {
-	          const fill = (i % 2 === 0) ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.018)';
-	          const rect = new fabric.Rect({
-	            left: i * laneW,
-	            top: 0,
-	            width: laneW,
-	            height: h,
-	            fill,
-	            selectable: false,
-	            evented: false,
-	            objectCaching: false,
-	          });
-	          objs.push(rect);
+	        const lanes = clamp(Math.round(Number(templateLanesCountInput?.value || 5) || 5), 2, 12);
+	        const strokeW = clamp(Math.round(Number(templateLanesStrokeInput?.value || 2) || 2), 1, 16);
+	        const group = buildManualLanesTemplate({ w, h, laneCount: lanes, strokeW });
+	        const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
+	        const isSame = safeText(active?.data?.kind, '') === 'template' && safeText(active?.data?.template, '') === 'lanes_manual';
+	        if (isSame) replaceTemplateInPlace(active, group);
+	        else {
+	          fabricCanvas.add(group);
+	          pushHistory();
+	          try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	          selectedFxId = 0;
+	          updateLayerPanel();
+	          renderFxList();
+	          renderDrawLayers();
 	        }
-	        // Separadores entre carriles (4 líneas) + borde exterior
-	        for (let i = 1; i <= laneCount - 1; i += 1) {
-	          const x = (w * i) / laneCount;
-	          objs.push(new fabric.Line([x, 0, x, h], {
-	            stroke: 'rgba(255,255,255,0.42)',
-	            strokeWidth: 2,
-	            strokeDashArray: [10, 10],
-	            strokeLineCap: 'round',
-	            selectable: false,
-	            evented: false,
-	            objectCaching: false,
-	          }));
-	        }
-	        objs.push(new fabric.Rect({
-	          left: 0,
-	          top: 0,
-	          width: w,
-	          height: h,
-	          fill: 'rgba(0,0,0,0)',
-	          stroke: 'rgba(255,255,255,0.55)',
-	          strokeWidth: 2,
-	          selectable: false,
-	          evented: false,
-	          objectCaching: false,
-	        }));
-	        const group = new fabric.Group(objs, {
-	          selectable: true,
-	          subTargetCheck: false,
-	          objectCaching: false,
-	          cornerStyle: 'circle',
-	          cornerColor: 'rgba(250,204,21,0.95)',
-	          transparentCorners: false,
-	          cornerSize: 14,
-	        });
-	        group.data = seedLayerDataNow({ kind: 'template', template: name, lanes: laneCount });
-	        fabricCanvas.add(group);
-	        pushHistory();
-	        try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
-	        selectedFxId = 0;
-	        updateLayerPanel();
-	        renderFxList();
-	        renderDrawLayers();
-	        setStatus('Carriles manual (5): usa Select y mueve/rota/escala la plantilla.');
+	        setStatus(`Carriles manual: ${lanes} carriles · grosor ${strokeW}px`);
 	        return;
 	      } else if (name === 'grid') {
 	        const cols = 6;
