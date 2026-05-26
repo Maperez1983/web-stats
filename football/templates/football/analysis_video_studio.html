@@ -570,17 +570,44 @@
                   </div>
 		            </details>
 
-	              <details class="vs-acc">
-                  <summary>Capas (dibujos)</summary>
-                  <div class="vs-acc-body">
-	                <div class="hint">Acceso rápido a dibujos con timing. Útil para telestración por capas.</div>
-	                <div class="list" id="vs-draw-layers"></div>
-                  </div>
-	              </details>
+		              <details class="vs-acc">
+	                  <summary>Capas (dibujos)</summary>
+	                  <div class="vs-acc-body">
+		                <div class="hint">Acceso rápido a dibujos con timing. Útil para telestración por capas.</div>
+		                <div class="list" id="vs-draw-layers"></div>
+	                  </div>
+		              </details>
 
-		            <details class="vs-acc">
-                  <summary>Clips</summary>
-                  <div class="vs-acc-body">
+			            <details class="vs-acc">
+	                  <summary>Alinear</summary>
+	                  <div class="vs-acc-body">
+			              <div class="hint">Herramientas tipo “premium”: snap y alineación de objetos.</div>
+			              <label style="margin:0; display:flex; align-items:center; gap:0.5rem; text-transform:none; letter-spacing:0;">
+			                <input type="checkbox" id="vs-snap-grid" checked style="width:18px;height:18px;accent-color:#22d3ee;" />
+			                Snap a rejilla
+			              </label>
+			              <label style="margin:0;">
+			                Tamaño rejilla (px)
+			                <input type="number" id="vs-grid-size" min="2" max="80" step="1" value="10" />
+			              </label>
+			              <div style="display:flex; gap:0.45rem; flex-wrap:wrap; margin-top:0.35rem;">
+			                <button type="button" class="button" id="vs-align-left">Izq</button>
+			                <button type="button" class="button" id="vs-align-hcenter">Centro</button>
+			                <button type="button" class="button" id="vs-align-right">Der</button>
+			                <button type="button" class="button" id="vs-align-top">Arriba</button>
+			                <button type="button" class="button" id="vs-align-vcenter">Medio</button>
+			                <button type="button" class="button" id="vs-align-bottom">Abajo</button>
+			              </div>
+			              <div style="display:flex; gap:0.45rem; flex-wrap:wrap;">
+			                <button type="button" class="button" id="vs-dist-h">Distribuir H</button>
+			                <button type="button" class="button" id="vs-dist-v">Distribuir V</button>
+			              </div>
+	                  </div>
+			            </details>
+
+			            <details class="vs-acc">
+	                  <summary>Clips</summary>
+	                  <div class="vs-acc-body">
 		              <div style="display:grid; gap:0.45rem; margin-bottom:0.55rem;">
 	                <label style="margin:0;">
 	                  Buscar

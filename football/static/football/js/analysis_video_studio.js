@@ -328,13 +328,24 @@
     const slidesList = document.getElementById('vs-slides');
     const exportPdfBtn = document.getElementById('vs-export-pdf');
     const exportPackageBtn = document.getElementById('vs-export-package');
-    const reportPdfBtn = document.getElementById('vs-report-pdf');
+	    const reportPdfBtn = document.getElementById('vs-report-pdf');
 	    const templateSelect = document.getElementById('vs-template');
 	    const templateApplyBtn = document.getElementById('vs-template-apply');
 	    const templateClearBtn = document.getElementById('vs-template-clear');
 	    const templateParamsWrap = document.getElementById('vs-template-params');
 	    const templateLanesCountInput = document.getElementById('vs-template-lanes-count');
 	    const templateLanesStrokeInput = document.getElementById('vs-template-lanes-stroke');
+
+	    const snapGridToggle = document.getElementById('vs-snap-grid');
+	    const gridSizeInput = document.getElementById('vs-grid-size');
+	    const alignLeftBtn = document.getElementById('vs-align-left');
+	    const alignHCenterBtn = document.getElementById('vs-align-hcenter');
+	    const alignRightBtn = document.getElementById('vs-align-right');
+	    const alignTopBtn = document.getElementById('vs-align-top');
+	    const alignVCenterBtn = document.getElementById('vs-align-vcenter');
+	    const alignBottomBtn = document.getElementById('vs-align-bottom');
+	    const distHBtn = document.getElementById('vs-dist-h');
+	    const distVBtn = document.getElementById('vs-dist-v');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
 	    const uiMode = safeText(document.getElementById('vs-ui-mode')?.value || '').toLowerCase();
@@ -3162,6 +3173,136 @@
 	      }, 240);
 	      return true;
 	    };
+
+	    // Snap a rejilla (mientras mueves objetos)
+	    const gridSize = () => clamp(Math.round(Number(gridSizeInput?.value || 10) || 10), 2, 80);
+	    const snapEnabled = () => Boolean(snapGridToggle?.checked);
+	    const snapToGrid = (v, step) => Math.round(v / step) * step;
+	    try {
+	      fabricCanvas.on('object:moving', (opt) => {
+	        if (!snapEnabled()) return;
+	        const t = opt?.target;
+	        if (!t) return;
+	        try { ensureLayerData(t); } catch (e) { /* ignore */ }
+	        if (t?.data?.locked) return;
+	        const step = gridSize();
+	        const left0 = Number(t.left) || 0;
+	        const top0 = Number(t.top) || 0;
+	        const left = snapToGrid(left0, step);
+	        const top = snapToGrid(top0, step);
+	        if (left !== left0 || top !== top0) {
+	          t.set({ left, top });
+	          t.setCoords?.();
+	        }
+	      });
+	    } catch (e) { /* ignore */ }
+
+	    const selectedObjects = () => {
+	      const obj = activeObject();
+	      if (!obj) return [];
+	      if (obj.type === 'activeSelection' && Array.isArray(obj._objects)) return obj._objects.slice(0);
+	      return [obj];
+	    };
+	    const selectionBounds = () => {
+	      const obj = activeObject();
+	      if (!obj) return null;
+	      try { return obj.getBoundingRect(true, true); } catch (e) { /* ignore */ }
+	      return null;
+	    };
+	    const alignSelection = (mode) => {
+	      const items = selectedObjects();
+	      if (!items.length) { setStatus('No hay selección.', true); return; }
+	      const b = selectionBounds();
+	      if (!b) return;
+	      const bx = Number(b.left) || 0;
+	      const by = Number(b.top) || 0;
+	      const bw = Number(b.width) || 0;
+	      const bh = Number(b.height) || 0;
+	      if (!bw || !bh) return;
+	      for (const it of items) {
+	        try { ensureLayerData(it); } catch (e) { /* ignore */ }
+	        if (it?.data?.locked) continue;
+	        try {
+	          const ib = it.getBoundingRect(true, true);
+	          if (!ib) continue;
+	          const iw = Number(ib.width) || 0;
+	          const ih = Number(ib.height) || 0;
+	          if (!iw || !ih) continue;
+	          const dx = Number(it.left) || 0;
+	          const dy = Number(it.top) || 0;
+	          let nx = dx;
+	          let ny = dy;
+	          if (mode === 'left') nx = dx + (bx - (Number(ib.left) || 0));
+	          if (mode === 'right') nx = dx + ((bx + bw) - ((Number(ib.left) || 0) + iw));
+	          if (mode === 'hcenter') nx = dx + ((bx + bw / 2) - ((Number(ib.left) || 0) + iw / 2));
+	          if (mode === 'top') ny = dy + (by - (Number(ib.top) || 0));
+	          if (mode === 'bottom') ny = dy + ((by + bh) - ((Number(ib.top) || 0) + ih));
+	          if (mode === 'vcenter') ny = dy + ((by + bh / 2) - ((Number(ib.top) || 0) + ih / 2));
+	          it.set({ left: nx, top: ny });
+	          it.setCoords?.();
+	        } catch (e) { /* ignore */ }
+	      }
+	      pushHistory();
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      renderDrawLayers();
+	      setStatus('Alineado.');
+	    };
+	    const distributeSelection = (axis) => {
+	      const items = selectedObjects().filter((it) => it);
+	      if (items.length < 3) { setStatus('Selecciona 3+ objetos.', true); return; }
+	      const b = selectionBounds();
+	      if (!b) return;
+	      const bx = Number(b.left) || 0;
+	      const by = Number(b.top) || 0;
+	      const bw = Number(b.width) || 0;
+	      const bh = Number(b.height) || 0;
+	      const keyed = items.map((it) => {
+	        try {
+	          const ib = it.getBoundingRect(true, true);
+	          return { it, ib, key: axis === 'h' ? (Number(ib.left) || 0) : (Number(ib.top) || 0) };
+	        } catch (e) {
+	          return { it, ib: null, key: 0 };
+	        }
+	      }).filter((x) => x.ib);
+	      keyed.sort((a, b2) => a.key - b2.key);
+	      if (keyed.length < 3) return;
+	      // Mantén extremos; distribuye los intermedios por centro.
+	      const first = keyed[0];
+	      const last = keyed[keyed.length - 1];
+	      const span = axis === 'h'
+	        ? ((Number(last.ib.left) || 0) - (Number(first.ib.left) || 0))
+	        : ((Number(last.ib.top) || 0) - (Number(first.ib.top) || 0));
+	      if (!span) return;
+	      const step = span / (keyed.length - 1);
+	      for (let i = 1; i < keyed.length - 1; i += 1) {
+	        const { it, ib } = keyed[i];
+	        try { ensureLayerData(it); } catch (e) { /* ignore */ }
+	        if (it?.data?.locked) continue;
+	        if (axis === 'h') {
+	          const targetLeft = (Number(first.ib.left) || 0) + step * i;
+	          const delta = targetLeft - (Number(ib.left) || 0);
+	          it.left = (Number(it.left) || 0) + delta;
+	        } else {
+	          const targetTop = (Number(first.ib.top) || 0) + step * i;
+	          const delta = targetTop - (Number(ib.top) || 0);
+	          it.top = (Number(it.top) || 0) + delta;
+	        }
+	        it.setCoords?.();
+	      }
+	      pushHistory();
+	      try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      renderDrawLayers();
+	      setStatus('Distribuido.');
+	    };
+
+	    alignLeftBtn?.addEventListener('click', () => alignSelection('left'));
+	    alignHCenterBtn?.addEventListener('click', () => alignSelection('hcenter'));
+	    alignRightBtn?.addEventListener('click', () => alignSelection('right'));
+	    alignTopBtn?.addEventListener('click', () => alignSelection('top'));
+	    alignVCenterBtn?.addEventListener('click', () => alignSelection('vcenter'));
+	    alignBottomBtn?.addEventListener('click', () => alignSelection('bottom'));
+	    distHBtn?.addEventListener('click', () => distributeSelection('h'));
+	    distVBtn?.addEventListener('click', () => distributeSelection('v'));
 
 	    const updateTemplateParamsUi = () => {
 	      if (!templateParamsWrap) return;
