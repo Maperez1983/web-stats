@@ -1094,7 +1094,26 @@
 	        const color = safeText(ev?.color, '') || 'rgba(250,204,21,0.95)';
 	        return `<div data-seek="${t}" title="${safeText(ev?.label, safeText(ev?.kind, 'tag'))}" style="position:absolute;left:${left}%;top:50%;transform:translate(-50%,-50%);width:7px;height:7px;border-radius:999px;background:${color};border:1px solid rgba(255,255,255,0.35);"></div>`;
 	      }).join('');
-	      miniTrack.innerHTML = segHtml + evHtml;
+	      // Capa seleccionada (overlay) como barra editable (IN/OUT)
+	      const range = currentLayerRange();
+	      const rangeHtml = (() => {
+	        if (!range) return '';
+	        const a = Math.max(0, Number(range.tIn) || 0);
+	        const b = Math.max(0, Number(range.tOut) || 0);
+	        const start = Math.min(a, b);
+	        const end = Math.max(a, b);
+	        if (!end || end <= start + 0.02) return '';
+	        const left = clamp(start / dur, 0, 1) * 100;
+	        const width = Math.max(0.6, clamp((end - start) / dur, 0, 1) * 100);
+	        const title = safeText(range.kind, 'capa');
+	        return `
+	          <div data-vs-layer-range="1" title="IN/OUT de la capa seleccionada · arrastra los tiradores" style="position:absolute;left:${left}%;width:${width}%;top:2px;bottom:2px;border-radius:999px;background:rgba(250,204,21,0.14);border:1px solid rgba(250,204,21,0.55);">
+	            <div data-vs-layer-handle="in" title="IN · ${title}" style="position:absolute;left:-2px;top:-2px;bottom:-2px;width:12px;border-radius:999px;background:rgba(250,204,21,0.95);box-shadow:0 6px 18px rgba(0,0,0,0.35);cursor:ew-resize;"></div>
+	            <div data-vs-layer-handle="out" title="OUT · ${title}" style="position:absolute;right:-2px;top:-2px;bottom:-2px;width:12px;border-radius:999px;background:rgba(250,204,21,0.95);box-shadow:0 6px 18px rgba(0,0,0,0.35);cursor:ew-resize;"></div>
+	          </div>
+	        `;
+	      })();
+	      miniTrack.innerHTML = segHtml + evHtml + rangeHtml;
 	      updateMiniCursor();
 	    };
 
@@ -1103,12 +1122,32 @@
       let scrubActive = false;
       let scrubPointerId = null;
       let scrubRect = null;
-      let scrubRaf = null;
-      let scrubTarget = null;
-      let lastPointerAt = 0;
-      const seekFromMiniEvent = (ev, { commit = false, showLabel = false, preferTargetSeek = true } = {}) => {
-        const dur = Number(video.duration) || 0;
-        if (!dur || !Number.isFinite(dur)) return;
+	      let scrubRaf = null;
+	      let scrubTarget = null;
+	      let lastPointerAt = 0;
+	      let layerDrag = null;
+	      const setLayerRangeFromMini = (clientX, which, { commit = false } = {}) => {
+	        const dur = Number(video.duration) || 0;
+	        if (!dur || !Number.isFinite(dur)) return false;
+	        const rect = (layerDrag?.rect) || (scrubRect) || miniTimeline.getBoundingClientRect();
+	        const pct = clamp((Number(clientX) - rect.left) / Math.max(1, rect.width), 0, 1);
+	        const range = currentLayerRange();
+	        if (!range) return false;
+	        const t = pct * dur;
+	        const minDur = 0.2;
+	        let tIn = Number(range.tIn) || 0;
+	        let tOut = Number(range.tOut) || 0;
+	        if (which === 'in') tIn = Math.min(t, tOut - minDur);
+	        else tOut = Math.max(t, tIn + minDur);
+	        try { if (layerInInput) layerInInput.value = String((Number(tIn) || 0).toFixed(1)); } catch (e) { /* ignore */ }
+	        try { if (layerOutInput) layerOutInput.value = String((Number(tOut) || 0).toFixed(1)); } catch (e) { /* ignore */ }
+	        try { setCurrentLayerRange(tIn, tOut, { commit }); } catch (e) { /* ignore */ }
+	        try { renderMiniTimeline(); } catch (e) { /* ignore */ }
+	        return true;
+	      };
+	      const seekFromMiniEvent = (ev, { commit = false, showLabel = false, preferTargetSeek = true } = {}) => {
+	        const dur = Number(video.duration) || 0;
+	        if (!dur || !Number.isFinite(dur)) return;
         let t = null;
         if (preferTargetSeek) {
           try {
@@ -1145,31 +1184,56 @@
       };
 
       try {
-        miniTimeline.addEventListener('pointerdown', (ev) => {
-          const dur = Number(video.duration) || 0;
-          if (!dur || !Number.isFinite(dur)) return;
-          scrubActive = true;
-          scrubPointerId = ev.pointerId;
-          scrubRect = miniTimeline.getBoundingClientRect();
-          lastPointerAt = Date.now();
+	        miniTimeline.addEventListener('pointerdown', (ev) => {
+	          const dur = Number(video.duration) || 0;
+	          if (!dur || !Number.isFinite(dur)) return;
+	          const handle = safeText(ev?.target?.getAttribute?.('data-vs-layer-handle'), '');
+	          if (handle === 'in' || handle === 'out') {
+	            layerDrag = { which: handle, pointerId: ev.pointerId, rect: miniTimeline.getBoundingClientRect() };
+	            scrubActive = false;
+	            scrubPointerId = null;
+	            scrubRect = null;
+	            lastPointerAt = Date.now();
+	            try { miniTimeline.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+	            try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	            setLayerRangeFromMini(ev.clientX, handle, { commit: false });
+	            return;
+	          }
+	          scrubActive = true;
+	          scrubPointerId = ev.pointerId;
+	          scrubRect = miniTimeline.getBoundingClientRect();
+	          lastPointerAt = Date.now();
           try { miniTimeline.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
           try { ev.preventDefault(); } catch (e) { /* ignore */ }
           // Primer salto: si toca un clip/marker, permite "snap" al inicio.
           seekFromMiniEvent(ev, { preferTargetSeek: true });
         });
-        miniTimeline.addEventListener('pointermove', (ev) => {
-          if (!scrubActive) return;
-          if (scrubPointerId != null && ev.pointerId !== scrubPointerId) return;
-          lastPointerAt = Date.now();
-          try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	        miniTimeline.addEventListener('pointermove', (ev) => {
+	          if (layerDrag) {
+	            if (layerDrag.pointerId != null && ev.pointerId !== layerDrag.pointerId) return;
+	            lastPointerAt = Date.now();
+	            try { ev.preventDefault(); } catch (e) { /* ignore */ }
+	            setLayerRangeFromMini(ev.clientX, layerDrag.which, { commit: false });
+	            return;
+	          }
+	          if (!scrubActive) return;
+	          if (scrubPointerId != null && ev.pointerId !== scrubPointerId) return;
+	          lastPointerAt = Date.now();
+	          try { ev.preventDefault(); } catch (e) { /* ignore */ }
           // Durante el drag, ignora `data-seek` del target inicial (Pointer Events mantiene `target` fijo).
           seekFromMiniEvent(ev, { preferTargetSeek: false });
         });
-        const endScrub = (ev) => {
-          if (!scrubActive) return;
-          if (scrubPointerId != null && ev && ev.pointerId != null && ev.pointerId !== scrubPointerId) return;
-          scrubActive = false;
-          scrubPointerId = null;
+	        const endScrub = (ev) => {
+	          if (layerDrag) {
+	            if (layerDrag.pointerId != null && ev && ev.pointerId != null && ev.pointerId !== layerDrag.pointerId) return;
+	            try { if (ev) setLayerRangeFromMini(ev.clientX, layerDrag.which, { commit: true }); } catch (e) { /* ignore */ }
+	            layerDrag = null;
+	            return;
+	          }
+	          if (!scrubActive) return;
+	          if (scrubPointerId != null && ev && ev.pointerId != null && ev.pointerId !== scrubPointerId) return;
+	          scrubActive = false;
+	          scrubPointerId = null;
           scrubRect = null;
           // En el final, un seek "commit" para fijar y mostrar feedback.
           try { if (ev) seekFromMiniEvent(ev, { commit: true, showLabel: true, preferTargetSeek: false }); } catch (e) { /* ignore */ }
@@ -1597,13 +1661,14 @@
         btn.addEventListener('click', () => {
           const id = Number(btn.getAttribute('data-vs-fx-edit') || 0);
           if (!id) return;
-          selectedFxId = id;
-          try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
-          updateLayerPanel();
-          renderFxList();
-          renderDrawLayers();
-        });
-      });
+	          selectedFxId = id;
+	          try { fabricCanvas.discardActiveObject(); } catch (e) { /* ignore */ }
+	          updateLayerPanel();
+	          renderFxList();
+	          renderDrawLayers();
+	          renderMiniTimeline();
+	        });
+	      });
       Array.from(fxLayersList.querySelectorAll('[data-vs-fx-del]')).forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = Number(btn.getAttribute('data-vs-fx-del') || 0);
@@ -1612,12 +1677,13 @@
           if (!ok) return;
           fxState.layers = (Array.isArray(fxState.layers) ? fxState.layers : []).filter((x) => Number(x?.id) !== id);
           if (selectedFxId === id) selectedFxId = 0;
-          reseedFxSeq();
-          renderFxList();
-          updateLayerPanel();
-          renderDrawLayers();
-        });
-      });
+	          reseedFxSeq();
+	          renderFxList();
+	          updateLayerPanel();
+	          renderDrawLayers();
+	          renderMiniTimeline();
+	        });
+	      });
     };
 
     const restoreJson = (json) => {
@@ -2140,17 +2206,55 @@
     const activeObject = () => {
       try { return fabricCanvas.getActiveObject(); } catch (e) { return null; }
     };
-    const currentLayerTarget = () => {
-      const fx = selectedFxId ? getFxById(selectedFxId) : null;
-      if (fx) return { type: 'fx', fx };
-      const obj = activeObject();
-      if (obj) return { type: 'fabric', obj };
-      return null;
-    };
+	    const currentLayerTarget = () => {
+	      const fx = selectedFxId ? getFxById(selectedFxId) : null;
+	      if (fx) return { type: 'fx', fx };
+	      const obj = activeObject();
+	      if (obj) return { type: 'fabric', obj };
+	      return null;
+	    };
 
-    const updateLayerPanel = () => {
-      if (!layerEmpty || !layerForm) return;
-      const target = currentLayerTarget();
+	    const currentLayerRange = () => {
+	      const target = currentLayerTarget();
+	      if (!target) return null;
+	      if (target.type === 'fx') {
+	        const tIn = Math.max(0, Number(target.fx?.t_in_s) || 0);
+	        const tOut = Math.max(0, Number(target.fx?.t_out_s) || 0);
+	        return { tIn, tOut, type: 'fx', kind: safeText(target.fx?.kind, 'fx') };
+	      }
+	      const obj = target.obj;
+	      ensureLayerData(obj);
+	      const tIn = Math.max(0, Number(obj?.data?.t_in_s) || 0);
+	      const tOut = Math.max(0, Number(obj?.data?.t_out_s) || 0);
+	      return { tIn, tOut, type: 'fabric', kind: safeText(obj?.data?.kind, safeText(obj?.type, 'obj')) };
+	    };
+
+	    const setCurrentLayerRange = (tIn, tOut, { commit = true } = {}) => {
+	      const target = currentLayerTarget();
+	      if (!target) return false;
+	      const a = Math.max(0, Number(tIn) || 0);
+	      const b = Math.max(0, Number(tOut) || 0);
+	      const start = Math.min(a, b);
+	      const end = Math.max(a, b);
+	      if (target.type === 'fx') {
+	        target.fx.t_in_s = start;
+	        target.fx.t_out_s = end;
+	        renderFxList();
+	        updateLayerPanel();
+	        return true;
+	      }
+	      ensureLayerData(target.obj);
+	      target.obj.data.t_in_s = start;
+	      target.obj.data.t_out_s = end;
+	      if (commit) pushHistory();
+	      updateLayerPanel();
+	      if (commit) renderDrawLayers();
+	      return true;
+	    };
+
+	    const updateLayerPanel = () => {
+	      if (!layerEmpty || !layerForm) return;
+	      const target = currentLayerTarget();
       if (!target) {
         layerEmpty.style.display = '';
         layerForm.style.display = 'none';
@@ -2306,7 +2410,7 @@
     };
 
     [layerInInput, layerOutInput, layerFadeInInput, layerFadeOutInput, layerAnimSelect].forEach((el) => {
-      el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); });
+      el?.addEventListener('change', () => { applyLayerPanelEdits(); updateLayerPanel(); renderMiniTimeline(); });
     });
     [layerLineStyleSelect, layerDoubleHeadToggle, layerLockedToggle].forEach((el) => {
       el?.addEventListener('change', () => applyLayerStyleEdits());
@@ -3028,9 +3132,9 @@
 		        setStatus(`Jugador: posición guardada @ ${fmtTime(t)}`);
 		      } catch (e) { /* ignore */ }
 		    });
-    fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
-    fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); });
-    fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); });
+    fabricCanvas.on('selection:created', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); renderMiniTimeline(); });
+    fabricCanvas.on('selection:updated', () => { selectedFxId = 0; updateLayerPanel(); renderFxList(); renderDrawLayers(); renderMiniTimeline(); });
+    fabricCanvas.on('selection:cleared', () => { updateLayerPanel(); renderDrawLayers(); renderMiniTimeline(); });
 
 		    btnSelect?.addEventListener('click', () => setTool('select'));
 		    btnPen?.addEventListener('click', () => setTool('pen'));
