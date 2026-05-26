@@ -15712,7 +15712,7 @@ def admin_page(request):
                         title=title[:160],
                         block=block[:30],
                         duration_minutes=max(1, min(240, int(duration))),
-                        objective=objective[:180],
+                        objective=_sanitize_task_text(objective, multiline=True, max_len=8000),
                         coaching_points=coaching_points,
                         confrontation_rules=confrontation_rules,
                         notes=notes,
@@ -37539,7 +37539,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             title=task_title,
                             block=block,
                             duration_minutes=max(5, min(minutes, 90)),
-                            objective=objective[:180],
+                            objective=_sanitize_task_text(objective, multiline=True, max_len=8000),
                             coaching_points='',
                             confrontation_rules='',
                             tactical_layout=layout,
@@ -39846,7 +39846,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     title=title[:160],
                     block=block,
                     duration_minutes=minutes,
-                    objective=objective[:180],
+                    objective=objective,
                     coaching_points=coaching_points,
                     confrontation_rules=confrontation_rules,
                     tactical_layout={
@@ -40315,7 +40315,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                     title=title[:160],
                     block=block,
                     duration_minutes=max(5, min(minutes, 90)),
-                    objective=objective[:180],
+                    objective=objective,
                     coaching_points=coaching_points,
                     confrontation_rules=confrontation_rules,
                     tactical_layout={'meta': layout_meta},
@@ -42267,7 +42267,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
             title=title[:160],
             block=block,
             duration_minutes=minutes,
-            objective=objective[:180],
+            objective=objective,
             coaching_points=coaching_points,
             confrontation_rules=confrontation_rules,
             tactical_layout=tactical_layout,
@@ -42893,7 +42893,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
             title=title[:160],
             block=block,
             duration_minutes=minutes,
-            objective=objective[:180],
+            objective=objective,
             coaching_points=coaching_points,
             confrontation_rules=confrontation_rules,
             tactical_layout=tactical_layout,
@@ -45937,6 +45937,7 @@ def analysis_page(request):
     forbidden = _forbid_if_no_coach_access(request.user)
     if forbidden:
         return forbidden
+    # __ANALYSIS_VIDEO_ONLY_MARKER__
     forbidden = _forbid_if_workspace_module_disabled(request, 'analysis', label='análisis')
     if forbidden:
         return forbidden
@@ -51438,7 +51439,7 @@ def analysis_video_studio_frame_capture_api(request):
     video, _team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o sin permiso.'}, status=404)
-    src = _video_studio_resolve_rival_video_input_ref(video)
+    src = _video_studio_normalize_ffmpeg_input_ref(request, _video_studio_resolve_rival_video_input_ref(video))
     if not src:
         return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para captura.'}, status=400)
 
@@ -51561,7 +51562,7 @@ def analysis_video_studio_track_players_api(request):
     video, _team = _video_studio_resolve_video_for_request(request, video_id=int(video_id))
     if not video:
         return JsonResponse({'ok': False, 'error': 'Vídeo no encontrado o sin permiso.'}, status=404)
-    src = _video_studio_resolve_rival_video_input_ref(video)
+    src = _video_studio_normalize_ffmpeg_input_ref(request, _video_studio_resolve_rival_video_input_ref(video))
     if not src:
         return JsonResponse({'ok': False, 'error': 'Vídeo no disponible para tracking.'}, status=400)
 
@@ -54105,6 +54106,38 @@ def _video_studio_resolve_rival_video_input_ref(video) -> str:
     except Exception:
         u = ''
     return u
+
+
+def _video_studio_normalize_ffmpeg_input_ref(request, src: str) -> str:
+    """
+    Normaliza el input para FFmpeg cuando el storage devuelve URLs relativas.
+
+    Caso típico: `video.video.url` devuelve `/media/...` (MEDIA_URL relativa) pero el archivo
+    no existe en el FS del contenedor. FFmpeg interpreta `/media/...` como ruta local y falla.
+    En esos casos, convertimos a URL absoluta con `request.build_absolute_uri`.
+    """
+    raw = str(src or '').strip()
+    if not raw:
+        return ''
+
+    low = raw.lower()
+    if low.startswith('http://') or low.startswith('https://'):
+        return raw
+
+    try:
+        p = Path(raw)
+        if p.is_absolute() and p.exists():
+            return raw
+    except Exception:
+        pass
+
+    if raw.startswith('/') and request is not None:
+        try:
+            return request.build_absolute_uri(raw)
+        except Exception:
+            return raw
+
+    return raw
 
 
 def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tuple[float, float]], base_name: str = 'playlist'):

@@ -3228,6 +3228,12 @@
 		        } catch (e) { /* ignore */ }
 		        const msg = 'PNG: no se pudo capturar el frame del vídeo.\nSe exporta solo la pizarra (anotaciones).';
 		        setStatus(msg, true);
+		        const proceed = window.confirm('No se pudo capturar el frame del vídeo.\n\n¿Descargar igualmente? (saldrá solo la pizarra/anotaciones)');
+		        if (!proceed) {
+		          setStatus('PNG cancelado.', true);
+		          if (wasPlaying) { try { await video.play(); } catch (e) { /* ignore */ } }
+		          return;
+		        }
 		        try {
 		          if (btnSnap) {
 		            const old = safeText(btnSnap.textContent, 'PNG');
