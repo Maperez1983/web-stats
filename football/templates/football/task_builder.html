@@ -7179,22 +7179,24 @@
 			                </div>
 			              </div>
               {% endif %}
-		                  {% if task and task.task_pdf %}
+		                  {% if task %}
+		                  {% if task.task_preview_image or task.task_pdf %}
 	                  <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
 	                    <button
 	                      type="submit"
 	                      class="button"
 	                      formaction="{% url 'session-task-graphic-recreate' task.id %}"
 	                      formmethod="post"
-	                      title="Reconstruye la pizarra editable usando el gráfico del PDF (si la tarea se importó sin pizarra)."
+	                      title="Reconstruye la pizarra editable usando la previsualización (card) o el PDF original."
 	                    >
-	                      Reconstruir pizarra desde PDF
+	                      Reconstruir pizarra desde gráfico
 	                    </button>
 	                    <label style="display:flex; gap:8px; align-items:center; font-size:0.95rem; opacity:0.9;">
 	                      <input type="checkbox" name="force" value="1" />
 	                      Sobrescribir si ya hay elementos
 	                    </label>
 	                  </div>
+	                  {% endif %}
 	                  {% endif %}
 	                </div>
 	              </div>

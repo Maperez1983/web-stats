@@ -41543,7 +41543,33 @@ def _task_builder_initial_values(task):
     analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
     graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-    canvas_state = graphic_editor.get('canvas_state') or _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch'))
+    canvas_state = graphic_editor.get('canvas_state') or None
+    fallback_canvas_size = None  # (w, h)
+
+    # Compat/recuperación: algunas tareas antiguas (o importadas) guardaban el estado como lista de objetos
+    # en `tactical_layout.tokens` pero no persistían `meta.graphic_editor.canvas_state`. En ese caso,
+    # la card puede mostrar preview (porque se genera desde tokens) pero el editor queda vacío.
+    def _state_objects_count(state):
+        try:
+            objs = state.get('objects') if isinstance(state, dict) else None
+            return len(objs) if isinstance(objs, list) else 0
+        except Exception:
+            return 0
+
+    if (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0) and task and isinstance(task.tactical_layout, dict):
+        tokens = task.tactical_layout.get('tokens')
+        if isinstance(tokens, list) and tokens:
+            looks_like_fabric = False
+            try:
+                sample = next((item for item in tokens if isinstance(item, dict)), None)
+                looks_like_fabric = bool(sample and (sample.get('type') or sample.get('objects') or sample.get('_objects') or sample.get('left') is not None))
+            except Exception:
+                looks_like_fabric = False
+            if looks_like_fabric:
+                canvas_state = {'version': '5.3.0', 'objects': tokens}
+                orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+                fallback_canvas_size = (684, 1054) if orientation == 'portrait' else (1054, 684)
+
     if not isinstance(canvas_state, dict):
         canvas_state = _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch'))
     canvas_state = dict(canvas_state)
@@ -41551,6 +41577,8 @@ def _task_builder_initial_values(task):
         canvas_state['timeline'] = timeline
         canvas_state['active_step_index'] = 0
     drills_ids = normalize_drill_ids(meta.get('drills'))
+    canvas_width = int(graphic_editor.get('canvas_width') or 0) or (fallback_canvas_size[0] if fallback_canvas_size else 1280)
+    canvas_height = int(graphic_editor.get('canvas_height') or 0) or (fallback_canvas_size[1] if fallback_canvas_size else 720)
     return {
         'multi_board_enabled': bool(meta.get('multi_board') or meta.get('multi_board_enabled') or False),
         'target_session_id': str(getattr(task, 'session_id', '') or ''),
@@ -41604,8 +41632,8 @@ def _task_builder_initial_values(task):
         'assigned_player_ids': [int(value) for value in (meta.get('assigned_player_ids') or []) if _parse_int(value)],
         'constraints': [str(value) for value in (meta.get('constraints') or []) if str(value).strip()],
         'canvas_state': json.dumps(canvas_state, ensure_ascii=False),
-        'canvas_width': int(graphic_editor.get('canvas_width') or 1280),
-        'canvas_height': int(graphic_editor.get('canvas_height') or 720),
+        'canvas_width': canvas_width,
+        'canvas_height': canvas_height,
         'drills_ids': drills_ids,
         'drills_json': json.dumps(drills_ids, ensure_ascii=False),
         'drills_icon_color': str(meta.get('drills_icon_color') or '#0f7a35'),

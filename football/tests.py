@@ -7241,6 +7241,42 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'name="draw_task_age_group" value="Juvenil"')
 
+    def test_task_builder_loads_canvas_from_legacy_tokens_when_graphic_editor_missing(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión legacy tokens',
+            duration_minutes=90,
+        )
+        # Simula una tarea antigua: `tactical_layout.tokens` existe, pero falta `meta.graphic_editor.canvas_state`.
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea legacy',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={
+                'tokens': [
+                    {
+                        'type': 'circle',
+                        'left': 120,
+                        'top': 220,
+                        'radius': 18,
+                        'fill': '#22d3ee',
+                        'data': {'kind': 'token', 'label': 'A'},
+                    }
+                ],
+                'meta': {'scope': 'coach', 'pitch_preset': 'full_pitch', 'pitch_orientation': 'landscape'},
+            },
+        )
+
+        response = self.client.get(reverse('sessions-task-edit', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        # Debe rehidratar el estado inicial a partir de `tokens` (para que el editor no quede vacío).
+        self.assertContains(response, 'id="draw-canvas-state"')
+        self.assertContains(response, '&quot;left&quot;: 120')
+        self.assertContains(response, '&quot;kind&quot;: &quot;token&quot;')
+
     def test_task_builder_prefills_surface_as_artificial_turf(self):
         response = self.client.get(reverse('sessions-task-create'))
 
