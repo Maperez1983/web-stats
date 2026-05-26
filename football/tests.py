@@ -7302,6 +7302,55 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'preview-background')
         self.assertContains(response, f'/coach/sesiones/tarea/{task.id}/preview/')
 
+    def test_task_builder_rehydrates_performed_task_from_origin_graphic_state(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión origen performed',
+            duration_minutes=90,
+        )
+        origin = SessionTask.objects.create(
+            session=session,
+            title='Origen',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={
+                'tokens': [],
+                'timeline': [],
+                'meta': {
+                    'scope': 'coach',
+                    'pitch_preset': 'full_pitch',
+                    'pitch_orientation': 'landscape',
+                    'graphic_editor': {
+                        'canvas_state': {'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 50, 'top': 60}]},
+                        'canvas_width': 1054,
+                        'canvas_height': 684,
+                    },
+                },
+            },
+        )
+        performed = SessionTask.objects.create(
+            session=session,
+            title='Performed',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={
+                'tokens': [],
+                'timeline': [],
+                'meta': {
+                    'scope': 'coach',
+                    'source': 'performed',
+                    'performed_from_task_id': origin.id,
+                    # Sin graphic_editor (simula pérdida de estado)
+                },
+            },
+        )
+
+        response = self.client.get(reverse('sessions-task-edit', args=[performed.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '&quot;left&quot;: 50')
+
     def test_task_builder_prefills_surface_as_artificial_turf(self):
         response = self.client.get(reverse('sessions-task-create'))
 

@@ -41549,13 +41549,25 @@ def _task_builder_initial_values(task):
     def _build_preview_background_state(task_obj, *, portrait: bool) -> dict:
         if not task_obj:
             return {}
+        # Preferimos data URL embebida (evita problemas de cookies/crossOrigin en Fabric.loadFromJSON).
+        preview_src = ''
         try:
-            preview_name = str(getattr(getattr(task_obj, 'task_preview_image', None), 'name', '') or '').strip()
+            layout = task_obj.tactical_layout if isinstance(task_obj.tactical_layout, dict) else {}
+            meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+            embedded = str(meta.get('preview_data_embedded_v1') or '').strip()
+            if embedded.startswith('data:image/'):
+                preview_src = embedded
         except Exception:
-            preview_name = ''
-        v = quote(preview_name) if preview_name else str(int(getattr(task_obj, 'id', 0) or 0))
-        # Usamos URL relativa (misma origin) para que el canvas pueda cargar con cookies del usuario.
-        preview_src = f'/coach/sesiones/tarea/{int(getattr(task_obj, "id", 0) or 0)}/preview/?hd=1&v={v}'
+            preview_src = ''
+        if not preview_src:
+            # Fallback: URL relativa. Nota: Fabric fuerza `crossOrigin='anonymous'` en algunas rutas,
+            # así que esto puede fallar en entornos donde el endpoint requiere cookies.
+            try:
+                preview_name = str(getattr(getattr(task_obj, 'task_preview_image', None), 'name', '') or '').strip()
+            except Exception:
+                preview_name = ''
+            v = quote(preview_name) if preview_name else str(int(getattr(task_obj, 'id', 0) or 0))
+            preview_src = f'/coach/sesiones/tarea/{int(getattr(task_obj, "id", 0) or 0)}/preview/?hd=1&v={v}'
         world_w = 684 if portrait else 1054
         world_h = 1054 if portrait else 684
         # Escala 1.0: la imagen se ajustará al "mundo" al ser un export de ese mismo campo.
@@ -41574,14 +41586,14 @@ def _task_builder_initial_values(task):
                     'angle': 0,
                     'opacity': 1,
                     'src': preview_src,
-                    'selectable': False,
-                    'evented': False,
+                    # No usar selectable=false/evented=false: el loader limpia esos objetos por seguridad.
+                    'selectable': True,
+                    'evented': True,
                     'hasControls': False,
                     'hasBorders': False,
                     'objectCaching': False,
                     'data': {
                         'kind': 'preview-background',
-                        'base': True,
                         'locked': True,
                         'source': 'task_preview',
                     },
@@ -43064,6 +43076,52 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
             raise Http404('Tarea no encontrada')
         if _task_scope_for_item(task) != scope_key:
             return HttpResponse('La tarea no pertenece a este espacio.', status=403)
+
+        # Compat: las tareas del repositorio "realizadas" son clones. Si por algún motivo el clon perdió
+        # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
+        # para que "Editar pizarra" no abra en blanco.
+        try:
+            if isinstance(task.tactical_layout, dict):
+                layout = dict(task.tactical_layout)
+                meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+                meta = dict(meta) if isinstance(meta, dict) else {}
+                is_performed = str(meta.get('source') or '').strip().lower() == 'performed' or bool(str(meta.get('performed_on') or '').strip())
+                origin_id = _parse_int(meta.get('performed_from_task_id'))
+                if is_performed and origin_id:
+                    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+                    canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
+                    has_objects = bool(isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and canvas_state.get('objects'))
+                    has_timeline = bool(isinstance(layout.get('timeline'), list) and layout.get('timeline'))
+                    if not (has_objects or has_timeline):
+                        origin = (
+                            SessionTask.objects
+                            .select_related('session__microcycle')
+                            .filter(id=int(origin_id), session__microcycle__team=primary_team, deleted_at__isnull=True)
+                            .first()
+                        )
+                        if origin and isinstance(origin.tactical_layout, dict):
+                            origin_layout = dict(origin.tactical_layout)
+                            origin_meta = origin_layout.get('meta') if isinstance(origin_layout.get('meta'), dict) else {}
+                            origin_meta = dict(origin_meta) if isinstance(origin_meta, dict) else {}
+                            origin_graphic = origin_meta.get('graphic_editor') if isinstance(origin_meta.get('graphic_editor'), dict) else {}
+                            origin_canvas = origin_graphic.get('canvas_state') if isinstance(origin_graphic.get('canvas_state'), dict) else None
+                            origin_timeline = origin_layout.get('timeline') if isinstance(origin_layout.get('timeline'), list) else []
+                            origin_tokens = origin_layout.get('tokens') if isinstance(origin_layout.get('tokens'), list) else []
+                            if isinstance(origin_canvas, dict) and (
+                                (isinstance(origin_canvas.get('objects'), list) and origin_canvas.get('objects'))
+                                or (isinstance(origin_timeline, list) and origin_timeline)
+                            ):
+                                meta['graphic_editor'] = origin_graphic
+                                layout['meta'] = meta
+                                # Copia tokens/timeline para compat con PDF/preview y con el editor.
+                                if origin_tokens:
+                                    layout['tokens'] = origin_tokens
+                                if origin_timeline:
+                                    layout['timeline'] = origin_timeline
+                                task.tactical_layout = layout
+                                task.save(update_fields=['tactical_layout'])
+        except Exception:
+            pass
 
     feedback = ''
     error = ''
