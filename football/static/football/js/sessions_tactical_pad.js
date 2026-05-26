@@ -15877,7 +15877,18 @@
 
 		    const sanitizeLoadedState = (raw) => {
 		      if (!raw || typeof raw !== 'object') return { version: '5.3.0', objects: [] };
-		      const objects = Array.isArray(raw.objects) ? raw.objects.filter((item) => !(item?.data?.base) && !(item?.selectable === false && item?.evented === false)) : [];
+		      const keepBaseKinds = new Set(['pdf-background', 'preview-background']);
+		      const objects = Array.isArray(raw.objects)
+		        ? raw.objects.filter((item) => {
+		            const kind = safeText(item?.data?.kind);
+		            // Compat: no eliminamos fondos "base" (p.ej. recreados desde PDF/preview).
+		            if (item?.data?.base && keepBaseKinds.has(kind)) return true;
+		            // Por defecto eliminamos los objetos marcados como base (plantillas/auxiliares).
+		            if (item?.data?.base) return false;
+		            // No filtramos por `selectable/evented`: algunos objetos bloqueados legítimos usan eso.
+		            return true;
+		          })
+		        : [];
 		      const out = { version: raw.version || '5.3.0', objects };
 		      if (raw.pencilkit && typeof raw.pencilkit === 'object') out.pencilkit = raw.pencilkit;
 		      return out;
