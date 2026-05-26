@@ -556,12 +556,8 @@
             <td style="width:38%; vertical-align:top;">
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
                 <div style="padding:8px 12px; background:#eef6ef; color:{{ pdf_palette.accent }}; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Objetivo principal</div>
-	                <div style="padding:10px 12px; background:#fff; font-size:13px; font-weight:700; line-height:1.35;">
-	                  {% if pdf_one_page %}
-	                  {{ objective_lines|join:" " }}
-	                  {% else %}
-	                  {{ task.objective|default:"-" }}
-	                  {% endif %}
+	                <div class="text-block" style="padding:10px 12px; background:#fff; font-size:13px; font-weight:700; line-height:1.35;">
+	                  {{ task.objective|default:"-"|linebreaksbr }}
 	                </div>
               </div>
               <div style="border:1px solid #d5dde7; border-radius:14px; overflow:hidden; margin-bottom:10px;">
@@ -778,7 +774,7 @@
 	            <td style="width:18%;">Estrategia</td>
 	            <td style="width:32%;"><div class="uefa-value">{{ strategy_label }}</div></td>
 		            <td style="width:18%;">Objetivos</td>
-		            <td style="width:32%;"><div class="uefa-value">{% if pdf_one_page %}{{ objective_lines|join:" " }}{% else %}{{ task.objective|default:"-" }}{% endif %}</div></td>
+		            <td style="width:32%;"><div class="uefa-value text-block">{{ task.objective|default:"-"|linebreaksbr }}</div></td>
 	          </tr>
 	          <tr>
 	            <td>Espacio</td>

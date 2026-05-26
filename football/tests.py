@@ -7600,7 +7600,7 @@ class StaffUserLinkingTests(TestCase):
             title='Resumen 1 página',
             block=SessionTask.BLOCK_MAIN_1,
             duration_minutes=18,
-            objective='Objetivo largo que debe recortarse en modo compacto',
+            objective='Objetivo largo que debe mostrarse completo en el PDF',
             coaching_points='Consigna 1\nConsigna 2\nConsigna 3\nConsigna 4\nConsigna 5',
             confrontation_rules='Regla 1\nRegla 2\nRegla 3\nRegla 4\nRegla 5',
             tactical_layout={

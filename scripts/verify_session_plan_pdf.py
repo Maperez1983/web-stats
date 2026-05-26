@@ -211,7 +211,7 @@ def main() -> int:
                 title=title,
                 block=block,
                 duration_minutes=max(5, min(minutes, 90)),
-                objective=str(analysis.get("objective") or "")[:180],
+                objective=str(analysis.get("objective") or "")[:8000],
                 coaching_points=str(analysis.get("coaching_points") or ""),
                 confrontation_rules=str(analysis.get("confrontation_rules") or ""),
                 tactical_layout={

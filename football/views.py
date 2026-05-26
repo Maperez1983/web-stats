@@ -2058,7 +2058,7 @@ def _extract_ig_task_fields_from_text(full_text: str) -> dict:
         if raw:
             out[key] = _sanitize_task_rich_html(str(raw))
     if parsed.get('objective'):
-        out['objective'] = _sanitize_task_text(parsed.get('objective'), multiline=False, max_len=180)
+        out['objective'] = _sanitize_task_text(parsed.get('objective'), multiline=True, max_len=8000)
     return out
 
 
@@ -27118,7 +27118,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
             return clipped
 
         # Modo 1 página: fuerza versión compacta y evita saltos de página por texto/escenarios.
-        objective_lines = _clip_lines(objective_lines, 2)
+        # Nota: no recortamos el objetivo para evitar truncar contenido en el PDF.
         description_lines = _clip_lines(description_lines, 5)
         coaching_lines = _clip_lines(coaching_lines, 4)
         rules_lines = _clip_lines(rules_lines, 4)
@@ -27211,7 +27211,7 @@ def _build_task_pdf_context(request, team, session, microcycle, task, tactical_l
 
 def _build_task_draft_pdf_context(request, primary_team, pdf_style='uefa', one_page: bool = False):
     title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160) or 'Tarea sin título'
-    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+    objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=True, max_len=8000)
     coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
     confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
     block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
@@ -32462,7 +32462,7 @@ def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_i
             if any(tok in folded for tok in ('microciclo', 'mesociclo', 'fecha', 'hora', 'temporada', 'periodo', 'materialdeentrenamiento')):
                 continue
             if re.search(r'\b\d{1,3}\s*(?:min|mins|minutos|[\'’`´])\b', ln, re.IGNORECASE):
-                objective = ln[:180].strip()
+                objective = ln[:8000].strip()
                 break
     except Exception:
         objective = ''
@@ -34916,7 +34916,7 @@ def _learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: st
     sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
     tpl = {
         'title': name,
-        'objective': _sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=False, max_len=180),
+        'objective': _sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=True, max_len=8000),
         'minutes': int(analysis.get('minutes') or getattr(task, 'duration_minutes', 15) or 15),
         'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
         'player_count': _sanitize_task_text(str(sheet.get('players') or '').strip(), multiline=False, max_len=120),
@@ -35519,7 +35519,7 @@ def _suggest_task_from_pdf(pdf_text):
                     continue
                 if re.match(r'^\d+\s*bloques', folded):
                     continue
-                objective = candidate[:180]
+                objective = candidate[:8000]
                 break
 
     minutes = 15
@@ -35584,7 +35584,7 @@ def _suggest_task_from_pdf(pdf_text):
                 if len(' '.join(obj_candidates)) >= 140:
                     break
             if obj_candidates:
-                objective = ' '.join(obj_candidates)[:180]
+                objective = ' '.join(obj_candidates)[:8000]
     if not coaching_points or not confrontation_rules:
         # En plantillas compactas, solo rellenamos consignas/normas si hay cabecera explícita
         # (si no, nos llevamos "Dosificación" y otros bloques no deseados).
@@ -35630,7 +35630,7 @@ def _suggest_task_from_pdf(pdf_text):
 
     analysis = {
         'title': _polish_spanish_text(_repair_joined_words_text((title or 'Tarea desde PDF')[:220]), multiline=False, max_len=160),
-        'objective': _polish_spanish_text(_repair_joined_words_text(objective[:240]), multiline=False, max_len=180),
+        'objective': _polish_spanish_text(_repair_joined_words_text(objective), multiline=True, max_len=8000),
         'minutes': minutes,
         'coaching_points': _polish_spanish_text(_repair_joined_words_text(coaching_points), multiline=True),
         'confrontation_rules': _polish_spanish_text(_repair_joined_words_text(confrontation_rules), multiline=True),
@@ -35995,7 +35995,7 @@ def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
                 errors.append(f'Línea {idx}: bloque inválido ({candidate_block}).')
                 continue
         if len(parts) >= 4:
-            objective = _sanitize_task_text(parts[3] or '', multiline=False, max_len=180)
+            objective = _sanitize_task_text(parts[3] or '', multiline=True, max_len=8000)
         if len(parts) >= 5:
             coaching_points = _sanitize_task_text(parts[4] or '', multiline=True)
         if len(parts) >= 6:
@@ -36285,8 +36285,8 @@ def _refresh_task_from_pdf_analysis(task):
         task.duration_minutes = max(5, min((_parse_int(analysis.get('minutes')) or task.duration_minutes or 15), 90))
         task.objective = _sanitize_task_text(
             str(analysis.get('objective') or task.objective or ''),
-            multiline=False,
-            max_len=180,
+            multiline=True,
+            max_len=8000,
         )
         task.coaching_points = _sanitize_task_text(
             str(analysis.get('coaching_points') or task.coaching_points or ''),
@@ -36351,9 +36351,9 @@ def _update_library_task_from_post(task, post_data, scope_key=None):
     # En ese caso, NO debemos borrar campos existentes (objetivo/consignas/reglas).
     if 'task_objective' in post_data:
         task.objective = _polish_spanish_text(
-            _repair_joined_words_text((post_data.get('task_objective') or '').strip()[:260]),
-            multiline=False,
-            max_len=180,
+            _repair_joined_words_text((post_data.get('task_objective') or '').strip()),
+            multiline=True,
+            max_len=8000,
         )
     if 'task_coaching_points' in post_data:
         task.coaching_points = _polish_spanish_text(
@@ -36642,7 +36642,7 @@ def _import_library_tasks_from_pdf_advanced(
                 {
                     'analysis': {
                         'title': task_title[:160],
-                        'objective': objective[:180],
+                        'objective': objective[:8000],
                         'minutes': max(5, min(minutes, 90)),
                         'coaching_points': '',
                         'confrontation_rules': '',
@@ -36695,7 +36695,7 @@ def _import_library_tasks_from_pdf_advanced(
             title=first_title,
             block=(segment_blocks[0] if segment_blocks else block),
             duration_minutes=max(5, min((_parse_int(first_analysis.get('minutes')) or minutes), 90)),
-            objective=((first_analysis.get('objective') or objective or '')[:180]),
+            objective=((first_analysis.get('objective') or objective or '')[:8000]),
             coaching_points=(first_analysis.get('coaching_points') or ''),
             confrontation_rules=(first_analysis.get('confrontation_rules') or ''),
             tactical_layout={
@@ -36766,7 +36766,7 @@ def _import_library_tasks_from_pdf_advanced(
                     else block
                 ),
                 duration_minutes=max(5, min((_parse_int(extra_analysis.get('minutes')) or minutes), 90)),
-                objective=((extra_analysis.get('objective') or objective or '')[:180]),
+                objective=((extra_analysis.get('objective') or objective or '')[:8000]),
                 coaching_points=(extra_analysis.get('coaching_points') or ''),
                 confrontation_rules=(extra_analysis.get('confrontation_rules') or ''),
                 tactical_layout={
@@ -36859,7 +36859,7 @@ def _restore_task_from_original_snapshot(task, scope_key=None):
         block = SessionTask.BLOCK_MAIN_1
     task.block = block
     task.duration_minutes = max(5, min(_parse_int(original.get('duration_minutes')) or int(task.duration_minutes or 15), 90))
-    task.objective = str(original.get('objective') or '')[:180]
+    task.objective = str(original.get('objective') or '')[:8000]
     task.coaching_points = str(original.get('coaching_points') or '')
     task.confrontation_rules = str(original.get('confrontation_rules') or '')
 
@@ -37497,7 +37497,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
             if planner_action == 'library_upload_pdf':
                 import_mode = str(request.POST.get('pdf_import_mode') or '').strip().lower()
                 title = _sanitize_task_text((request.POST.get('pdf_task_title') or '').strip(), multiline=False, max_len=160)
-                objective = _sanitize_task_text((request.POST.get('pdf_task_objective') or '').strip(), multiline=False, max_len=180)
+                objective = _sanitize_task_text((request.POST.get('pdf_task_objective') or '').strip(), multiline=True, max_len=8000)
                 block = (request.POST.get('pdf_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('pdf_task_minutes')) or 15
                 recreate_board = str(request.POST.get('pdf_recreate_board') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -37863,7 +37863,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             title=title,
                             block=block,
                             duration_minutes=minutes,
-                            objective=str(analysis.get('objective') or '').strip()[:180],
+                            objective=str(analysis.get('objective') or '').strip()[:8000],
                             coaching_points=str(analysis.get('coaching_points') or ''),
                             confrontation_rules=str(analysis.get('confrontation_rules') or ''),
                             tactical_layout=extra_layout,
@@ -38063,7 +38063,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 )
                 task_minutes = _parse_int(suggested.get('minutes')) or minutes_hint
                 task_minutes = max(5, min(task_minutes, 90))
-                task_objective = _sanitize_task_text(str(suggested.get('objective') or '').strip(), multiline=False, max_len=180)
+                task_objective = _sanitize_task_text(str(suggested.get('objective') or '').strip(), multiline=True, max_len=8000)
                 player_count = _sanitize_task_text(str(suggested.get('player_count') or '').strip(), multiline=False, max_len=100)
                 dimensions = _sanitize_task_text(str(suggested.get('dimensions') or '').strip(), multiline=False, max_len=120)
                 description_plain = _sanitize_task_text(str(suggested.get('description') or '').strip(), multiline=True, max_len=1200)
@@ -39720,7 +39720,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 title = _sanitize_task_text((request.POST.get('draw_task_title') or '').strip(), multiline=False, max_len=160)
                 block = (request.POST.get('draw_task_block') or SessionTask.BLOCK_MAIN_1).strip()
                 minutes = _parse_int(request.POST.get('draw_task_minutes')) or 15
-                objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=False, max_len=180)
+                objective = _sanitize_task_text((request.POST.get('draw_task_objective') or '').strip(), multiline=True, max_len=8000)
                 coaching_points = _sanitize_task_text((request.POST.get('draw_task_coaching_points') or '').strip(), multiline=True)
                 confrontation_rules = _sanitize_task_text((request.POST.get('draw_task_confrontation_rules') or '').strip(), multiline=True)
                 description = _sanitize_task_text((request.POST.get('draw_task_description') or '').strip(), multiline=True, max_len=1200)
@@ -39762,7 +39762,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                 if not title:
                     title = _sanitize_task_text(str(template_values.get('task_title') or '').strip(), multiline=False, max_len=160)
                 if not objective:
-                    objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=False, max_len=180)
+                    objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=True, max_len=8000)
                 if not coaching_points:
                     coaching_points = _sanitize_task_text(str(template_values.get('task_coaching_points') or '').strip(), multiline=True)
                 if not confrontation_rules:
@@ -39998,7 +39998,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                     5,
                                     min((_parse_int(single_analysis.get('minutes')) or item.duration_minutes or 15), 90),
                                 )
-                                item.objective = (single_analysis.get('objective') or item.objective or '')[:180]
+                                item.objective = (single_analysis.get('objective') or item.objective or '')[:8000]
                                 item.coaching_points = single_analysis.get('coaching_points') or item.coaching_points or ''
                                 item.confrontation_rules = single_analysis.get('confrontation_rules') or item.confrontation_rules or ''
                             meta['pdf_segment_index'] = 1
@@ -40038,7 +40038,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                             5,
                             min((_parse_int(first_analysis.get('minutes')) or item.duration_minutes or 15), 90),
                         )
-                        item.objective = (first_analysis.get('objective') or item.objective or '')[:180]
+                        item.objective = (first_analysis.get('objective') or item.objective or '')[:8000]
                         item.coaching_points = first_analysis.get('coaching_points') or item.coaching_points or ''
                         item.confrontation_rules = first_analysis.get('confrontation_rules') or item.confrontation_rules or ''
                         meta['pdf_segment_index'] = 1
@@ -40087,7 +40087,7 @@ def _sessions_workspace_page(request, scope_key='coach', scope_title='Sesiones')
                                     5,
                                     min((_parse_int(extra_analysis.get('minutes')) or item.duration_minutes or 15), 90),
                                 ),
-                                objective=((extra_analysis.get('objective') or '')[:180]),
+                                objective=((extra_analysis.get('objective') or '')[:8000]),
                                 coaching_points=(extra_analysis.get('coaching_points') or ''),
                                 confrontation_rules=(extra_analysis.get('confrontation_rules') or ''),
                                 tactical_layout=extra_layout,
@@ -42000,7 +42000,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     if not title:
         title = _sanitize_task_text(str(template_values.get('task_title') or '').strip(), multiline=False, max_len=160)
     if not objective:
-        objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=False, max_len=180)
+        objective = _sanitize_task_text(str(template_values.get('task_objective') or '').strip(), multiline=True, max_len=8000)
     if not coaching_points:
         coaching_points = _sanitize_task_text(str(template_values.get('task_coaching_points') or '').strip(), multiline=True)
     if not confrontation_rules:
@@ -42255,7 +42255,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         task.title = title[:160]
         task.block = block
         task.duration_minutes = minutes
-        task.objective = objective[:180]
+        task.objective = objective
         task.coaching_points = coaching_points
         task.confrontation_rules = confrontation_rules
         task.tactical_layout = tactical_layout
@@ -42300,7 +42300,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
                     title=str(task.title or '')[:160],
                     block=str(task.block or SessionTask.BLOCK_MAIN_1),
                     duration_minutes=int(getattr(task, 'duration_minutes', 0) or 15),
-                    objective=str(getattr(task, 'objective', '') or '')[:180],
+                    objective=str(getattr(task, 'objective', '') or '')[:8000],
                     coaching_points=str(getattr(task, 'coaching_points', '') or ''),
                     confrontation_rules=str(getattr(task, 'confrontation_rules', '') or ''),
                     tactical_layout=template_layout,
@@ -42413,7 +42413,7 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
         graphic = layout_meta.get('graphic_editor') if isinstance(layout_meta.get('graphic_editor'), dict) else {}
         tpl = {
             'title': _safe_text(getattr(task, 'title', '') or '', max_len=160),
-            'objective': _safe_text(getattr(task, 'objective', '') or '', max_len=180),
+            'objective': _safe_text(getattr(task, 'objective', '') or '', max_len=8000),
             'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
             'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
             'player_count': _safe_text(layout_meta.get('player_count') or sheet.get('players') or '', max_len=120),
@@ -42538,7 +42538,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
 
     raw_objective = request.POST.get('draw_task_objective')
     objective = (
-        _sanitize_task_text(str(raw_objective or '').strip(), multiline=False, max_len=180)
+        _sanitize_task_text(str(raw_objective or '').strip(), multiline=True, max_len=8000)
         if raw_objective is not None
         else str(getattr(existing_task, 'objective', '') or '')
     )
@@ -42879,7 +42879,7 @@ def _save_task_studio_entry(request, owner, existing_task=None):
         task.title = title[:160]
         task.block = block
         task.duration_minutes = minutes
-        task.objective = objective[:180]
+        task.objective = objective
         task.coaching_points = coaching_points
         task.confrontation_rules = confrontation_rules
         task.tactical_layout = tactical_layout
@@ -44775,7 +44775,7 @@ def ai_trainer_page(request):
                 title=title,
                 block=SessionTask.BLOCK_MAIN_1,
                 duration_minutes=duration,
-                objective=str(selected.get('goal') or goal or '').strip()[:180],
+                objective=str(selected.get('goal') or goal or '').strip()[:8000],
                 coaching_points=coaching_points,
                 confrontation_rules=rules,
                 tactical_layout=tactical_layout,
@@ -66353,7 +66353,7 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
             if not name:
                 continue
             coaching_html = _assistant_html_list(picked)
-            objective = picked[0][:180] if picked else ''
+            objective = picked[0][:8000] if picked else ''
             tpl = {
                 'title': f'{label} · ideas clave',
                 'objective': objective,
