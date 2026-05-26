@@ -1805,6 +1805,7 @@
       const objs = (fabricCanvas.getObjects?.() || []).slice(0, 160);
       const rows = objs.slice().reverse().slice(0, 60).map((obj) => {
         ensureLayerData(obj);
+        if (obj?.data?.hidden_list) return '';
         const uid = safeText(obj?.data?.uid);
         if (!uid) return '';
         const tIn = Number(obj?.data?.t_in_s) || 0;
@@ -3821,13 +3822,26 @@
 	    templateSelect?.addEventListener('change', updateTemplateParamsUi);
 
 	    const buildManualLanesTemplate = ({ w, h, laneCount, strokeW }) => {
+	      // "Manual" debe significar editable. Devuelve objetos sueltos para poder ajustar
+	      // cada línea a mano (separación según jugadores/cámara).
 	      const objs = [];
 	      const count = clamp(Math.round(Number(laneCount) || 5), 2, 12);
 	      const sw = clamp(Math.round(Number(strokeW) || 2), 1, 16);
+	      const templateUid = newUid();
+
+	      const mkData = (extra) => seedLayerDataNow({
+	        kind: 'template',
+	        template: 'lanes_manual',
+	        template_uid: templateUid,
+	        lane_count: count,
+	        stroke_w: sw,
+	        ...(extra || {}),
+	      });
+
 	      const laneW = w / count;
 	      for (let i = 0; i < count; i += 1) {
 	        const fill = (i % 2 === 0) ? 'rgba(255,255,255,0.035)' : 'rgba(255,255,255,0.018)';
-	        objs.push(new fabric.Rect({
+	        const r = new fabric.Rect({
 	          left: i * laneW,
 	          top: 0,
 	          width: laneW,
@@ -3836,22 +3850,40 @@
 	          selectable: false,
 	          evented: false,
 	          objectCaching: false,
-	        }));
+	        });
+	        r.data = mkData({ lane_role: 'shade', lane_i: i, hidden_list: true });
+	        objs.push(r);
 	      }
+
 	      const dash = 8 + sw * 2;
-	      for (let i = 1; i <= count - 1; i += 1) {
-	        const x = (w * i) / count;
-	        objs.push(new fabric.Line([x, 0, x, h], {
+	      const mkLine = (points, extra) => {
+	        const line = new fabric.Line(points, {
 	          stroke: 'rgba(255,255,255,0.42)',
 	          strokeWidth: sw,
 	          strokeDashArray: [dash, dash],
 	          strokeLineCap: 'round',
-	          selectable: false,
-	          evented: false,
+	          strokeUniform: true,
+	          selectable: true,
+	          evented: true,
+	          perPixelTargetFind: true,
+	          padding: 6,
+	          cornerStyle: 'circle',
+	          cornerColor: 'rgba(250,204,21,0.95)',
+	          transparentCorners: false,
+	          cornerSize: 14,
 	          objectCaching: false,
-	        }));
+	          lockMovementY: true,
+	        });
+	        line.data = mkData({ lane_role: 'divider', ...(extra || {}) });
+	        return line;
+	      };
+
+	      for (let i = 1; i <= count - 1; i += 1) {
+	        const x = (w * i) / count;
+	        objs.push(mkLine([x, 0, x, h], { lane_divider_i: i }));
 	      }
-	      objs.push(new fabric.Rect({
+
+	      const border = new fabric.Rect({
 	        left: 0,
 	        top: 0,
 	        width: w,
@@ -3859,21 +3891,15 @@
 	        fill: 'rgba(0,0,0,0)',
 	        stroke: 'rgba(255,255,255,0.55)',
 	        strokeWidth: sw,
+	        strokeUniform: true,
 	        selectable: false,
 	        evented: false,
 	        objectCaching: false,
-	      }));
-	      const group = new fabric.Group(objs, {
-	        selectable: true,
-	        subTargetCheck: false,
-	        objectCaching: false,
-	        cornerStyle: 'circle',
-	        cornerColor: 'rgba(250,204,21,0.95)',
-	        transparentCorners: false,
-	        cornerSize: 14,
 	      });
-	      group.data = seedLayerDataNow({ kind: 'template', template: 'lanes_manual', lane_count: count, stroke_w: sw });
-	      return group;
+	      border.data = mkData({ lane_role: 'border', hidden_list: true });
+	      objs.push(border);
+
+	      return { objs, meta: { templateUid, count, sw } };
 	    };
 
 	    const replaceTemplateInPlace = (oldObj, newObj) => {
@@ -3944,20 +3970,66 @@
 	      } else if (name === 'lanes_manual') {
 	        const lanes = clamp(Math.round(Number(templateLanesCountInput?.value || 5) || 5), 2, 12);
 	        const strokeW = clamp(Math.round(Number(templateLanesStrokeInput?.value || 2) || 2), 1, 16);
-	        const group = buildManualLanesTemplate({ w, h, laneCount: lanes, strokeW });
-	        const active = (() => { try { return fabricCanvas.getActiveObject?.() || null; } catch (e) { return null; } })();
-	        const isSame = safeText(active?.data?.kind, '') === 'template' && safeText(active?.data?.template, '') === 'lanes_manual';
-	        if (isSame) replaceTemplateInPlace(active, group);
-	        else {
-	          fabricCanvas.add(group);
+	        const existing = (() => {
+	          try {
+	            return (fabricCanvas.getObjects?.() || []).filter((o) => safeText(o?.data?.kind, '') === 'template' && safeText(o?.data?.template, '') === 'lanes_manual');
+	          } catch (e) {
+	            return [];
+	          }
+	        })();
+	        const existingCount = existing.length ? (Number(existing[0]?.data?.lane_count) || 0) : 0;
+	        const hasLegacyGroup = existing.some((o) => safeText(o?.type, '') === 'group');
+	        const canUpdateInPlace = existing.length && !hasLegacyGroup && existingCount === lanes;
+
+	        if (canUpdateInPlace) {
+	          // Actualiza grosor/estilo sin destruir la colocación manual.
+	          const dash = 8 + strokeW * 2;
+	          existing.forEach((obj) => {
+	            try {
+	              ensureLayerData(obj);
+	              if (obj.type === 'line' && safeText(obj?.data?.lane_role, '') === 'divider') {
+	                obj.set({ strokeWidth: strokeW, strokeDashArray: [dash, dash], strokeUniform: true });
+	              } else if (obj.type === 'rect' && safeText(obj?.data?.lane_role, '') === 'border') {
+	                obj.set({ strokeWidth: strokeW, strokeUniform: true });
+	              }
+	              obj.data.lane_count = lanes;
+	              obj.data.stroke_w = strokeW;
+	              obj.dirty = true;
+	            } catch (e) { /* ignore */ }
+	          });
 	          pushHistory();
-	          try { fabricCanvas.setActiveObject(group); } catch (e) { /* ignore */ }
+	          try {
+	            const divs = existing.filter((o) => o?.type === 'line' && safeText(o?.data?.lane_role, '') === 'divider');
+	            const sel = new fabric.ActiveSelection(divs, { canvas: fabricCanvas });
+	            fabricCanvas.setActiveObject(sel);
+	          } catch (e) { /* ignore */ }
 	          selectedFxId = 0;
 	          updateLayerPanel();
 	          renderFxList();
 	          renderDrawLayers();
+	          try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	          setStatus(`Carriles manual actualizados: ${lanes} carriles · grosor ${strokeW}px.`);
+	          return;
 	        }
-	        setStatus(`Carriles manual: ${lanes} carriles · grosor ${strokeW}px`);
+
+	        // Reemplaza el set existente (evita "apilar" carriles) si cambia nº de carriles o no existe.
+	        try {
+	          existing.forEach((o) => { try { fabricCanvas.remove(o); } catch (e) { /* ignore */ } });
+	        } catch (e) { /* ignore */ }
+
+	        const built = buildManualLanesTemplate({ w, h, laneCount: lanes, strokeW });
+	        const created = Array.isArray(built?.objs) ? built.objs : [];
+	        created.forEach((o) => { try { fabricCanvas.add(o); } catch (e) { /* ignore */ } });
+	        pushHistory();
+	        try {
+	          const sel = new fabric.ActiveSelection(created.filter((o) => safeText(o?.data?.lane_role, '') === 'divider'), { canvas: fabricCanvas });
+	          fabricCanvas.setActiveObject(sel);
+	        } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        setStatus(`Carriles manual: ${lanes} carriles · grosor ${strokeW}px.\nTip: mueve cada línea (solo X). Selecciona 2+ y usa Distribuir (H) para igualar separaciones.`);
 	        return;
 	      } else if (name === 'grid') {
 	        const cols = 6;
