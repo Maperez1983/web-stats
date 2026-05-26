@@ -41534,16 +41534,29 @@ def _build_task_studio_player_catalog(request, owner):
 
 
 def _task_builder_initial_values(task):
+    layout = {}
     meta = {}
     timeline = []
-    if task and isinstance(task.tactical_layout, dict):
-        meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout.get('meta'), dict) else {}
-        timeline = task.tactical_layout.get('timeline') if isinstance(task.tactical_layout.get('timeline'), list) else []
+    if task:
+        try:
+            layout = getattr(task, 'tactical_layout', None)
+        except Exception:
+            layout = None
+        if isinstance(layout, str):
+            layout = _coerce_json_dict(layout) or {}
+        if not isinstance(layout, dict):
+            layout = {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        timeline = layout.get('timeline') if isinstance(layout.get('timeline'), list) else []
     meta = meta if isinstance(meta, dict) else {}
     analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
     task_sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
-    graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-    canvas_state = graphic_editor.get('canvas_state') or None
+    graphic_editor = meta.get('graphic_editor')
+    if isinstance(graphic_editor, str):
+        graphic_editor = _coerce_json_dict(graphic_editor) or {}
+    if not isinstance(graphic_editor, dict):
+        graphic_editor = {}
+    canvas_state = _coerce_json_dict(graphic_editor.get('canvas_state')) or graphic_editor.get('canvas_state') or None
     fallback_canvas_size = None  # (w, h)
 
     def _build_preview_background_state(task_obj, *, portrait: bool) -> dict:
@@ -41552,7 +41565,11 @@ def _task_builder_initial_values(task):
         # Preferimos data URL embebida (evita problemas de cookies/crossOrigin en Fabric.loadFromJSON).
         preview_src = ''
         try:
-            layout = task_obj.tactical_layout if isinstance(task_obj.tactical_layout, dict) else {}
+            layout = getattr(task_obj, 'tactical_layout', None)
+            if isinstance(layout, str):
+                layout = _coerce_json_dict(layout) or {}
+            if not isinstance(layout, dict):
+                layout = {}
             meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
             embedded = str(meta.get('preview_data_embedded_v1') or '').strip()
             if embedded.startswith('data:image/'):
@@ -41611,8 +41628,8 @@ def _task_builder_initial_values(task):
         except Exception:
             return 0
 
-    if (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0) and task and isinstance(task.tactical_layout, dict):
-        tokens = task.tactical_layout.get('tokens')
+    if (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0) and task and isinstance(layout, dict):
+        tokens = layout.get('tokens')
         if isinstance(tokens, list) and tokens:
             looks_like_fabric = False
             try:
@@ -42195,11 +42212,21 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
     # Si no llega canvas_state (o llega vacío por error), preservamos el existente para no "borrar" la pizarra.
     existing_canvas_state = None
     try:
-        if existing_task and isinstance(existing_task.tactical_layout, dict):
-            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
-            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-            if isinstance(graphic_editor.get('canvas_state'), dict):
-                existing_canvas_state = graphic_editor.get('canvas_state')
+        if existing_task:
+            existing_layout = getattr(existing_task, 'tactical_layout', None)
+            if isinstance(existing_layout, str):
+                existing_layout = _coerce_json_dict(existing_layout) or {}
+            if not isinstance(existing_layout, dict):
+                existing_layout = {}
+            meta = existing_layout.get('meta') if isinstance(existing_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor')
+            if isinstance(graphic_editor, str):
+                graphic_editor = _coerce_json_dict(graphic_editor) or {}
+            if not isinstance(graphic_editor, dict):
+                graphic_editor = {}
+            existing_canvas_state = _coerce_json_dict(graphic_editor.get('canvas_state')) or (
+                graphic_editor.get('canvas_state') if isinstance(graphic_editor.get('canvas_state'), dict) else None
+            )
     except Exception:
         existing_canvas_state = None
 
@@ -42231,17 +42258,35 @@ def _save_task_builder_entry(request, primary_team, scope_key, existing_task=Non
 
     raw_canvas_width = request.POST.get('draw_canvas_width')
     raw_canvas_height = request.POST.get('draw_canvas_height')
-    if raw_canvas_width is None and existing_task and isinstance(existing_task.tactical_layout, dict):
+    if raw_canvas_width is None and existing_task:
         try:
-            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
-            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            existing_layout = getattr(existing_task, 'tactical_layout', None)
+            if isinstance(existing_layout, str):
+                existing_layout = _coerce_json_dict(existing_layout) or {}
+            if not isinstance(existing_layout, dict):
+                existing_layout = {}
+            meta = existing_layout.get('meta') if isinstance(existing_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor')
+            if isinstance(graphic_editor, str):
+                graphic_editor = _coerce_json_dict(graphic_editor) or {}
+            if not isinstance(graphic_editor, dict):
+                graphic_editor = {}
             raw_canvas_width = graphic_editor.get('canvas_width')
         except Exception:
             raw_canvas_width = None
-    if raw_canvas_height is None and existing_task and isinstance(existing_task.tactical_layout, dict):
+    if raw_canvas_height is None and existing_task:
         try:
-            meta = existing_task.tactical_layout.get('meta') if isinstance(existing_task.tactical_layout.get('meta'), dict) else {}
-            graphic_editor = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
+            existing_layout = getattr(existing_task, 'tactical_layout', None)
+            if isinstance(existing_layout, str):
+                existing_layout = _coerce_json_dict(existing_layout) or {}
+            if not isinstance(existing_layout, dict):
+                existing_layout = {}
+            meta = existing_layout.get('meta') if isinstance(existing_layout.get('meta'), dict) else {}
+            graphic_editor = meta.get('graphic_editor')
+            if isinstance(graphic_editor, str):
+                graphic_editor = _coerce_json_dict(graphic_editor) or {}
+            if not isinstance(graphic_editor, dict):
+                graphic_editor = {}
             raw_canvas_height = graphic_editor.get('canvas_height')
         except Exception:
             raw_canvas_height = None
@@ -43081,15 +43126,24 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
         # `meta.graphic_editor.canvas_state` (pero la original lo tiene), rehidratamos desde el origen
         # para que "Editar pizarra" no abra en blanco.
         try:
-            if isinstance(task.tactical_layout, dict):
-                layout = dict(task.tactical_layout)
+            raw_layout = getattr(task, 'tactical_layout', None)
+            if isinstance(raw_layout, str):
+                raw_layout = _coerce_json_dict(raw_layout) or {}
+            if isinstance(raw_layout, dict):
+                layout = dict(raw_layout)
                 meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
                 meta = dict(meta) if isinstance(meta, dict) else {}
                 is_performed = str(meta.get('source') or '').strip().lower() == 'performed' or bool(str(meta.get('performed_on') or '').strip())
                 origin_id = _parse_int(meta.get('performed_from_task_id'))
                 if is_performed and origin_id:
-                    graphic = meta.get('graphic_editor') if isinstance(meta.get('graphic_editor'), dict) else {}
-                    canvas_state = graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
+                    graphic = meta.get('graphic_editor')
+                    if isinstance(graphic, str):
+                        graphic = _coerce_json_dict(graphic) or {}
+                    if not isinstance(graphic, dict):
+                        graphic = {}
+                    canvas_state = _coerce_json_dict(graphic.get('canvas_state')) or (
+                        graphic.get('canvas_state') if isinstance(graphic.get('canvas_state'), dict) else None
+                    )
                     has_objects = bool(isinstance(canvas_state, dict) and isinstance(canvas_state.get('objects'), list) and canvas_state.get('objects'))
                     has_timeline = bool(isinstance(layout.get('timeline'), list) and layout.get('timeline'))
                     if not (has_objects or has_timeline):
@@ -43099,12 +43153,21 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                             .filter(id=int(origin_id), session__microcycle__team=primary_team, deleted_at__isnull=True)
                             .first()
                         )
-                        if origin and isinstance(origin.tactical_layout, dict):
-                            origin_layout = dict(origin.tactical_layout)
+                        if origin:
+                            origin_raw_layout = getattr(origin, 'tactical_layout', None)
+                            if isinstance(origin_raw_layout, str):
+                                origin_raw_layout = _coerce_json_dict(origin_raw_layout) or {}
+                            origin_layout = dict(origin_raw_layout) if isinstance(origin_raw_layout, dict) else {}
                             origin_meta = origin_layout.get('meta') if isinstance(origin_layout.get('meta'), dict) else {}
                             origin_meta = dict(origin_meta) if isinstance(origin_meta, dict) else {}
-                            origin_graphic = origin_meta.get('graphic_editor') if isinstance(origin_meta.get('graphic_editor'), dict) else {}
-                            origin_canvas = origin_graphic.get('canvas_state') if isinstance(origin_graphic.get('canvas_state'), dict) else None
+                            origin_graphic = origin_meta.get('graphic_editor')
+                            if isinstance(origin_graphic, str):
+                                origin_graphic = _coerce_json_dict(origin_graphic) or {}
+                            if not isinstance(origin_graphic, dict):
+                                origin_graphic = {}
+                            origin_canvas = _coerce_json_dict(origin_graphic.get('canvas_state')) or (
+                                origin_graphic.get('canvas_state') if isinstance(origin_graphic.get('canvas_state'), dict) else None
+                            )
                             origin_timeline = origin_layout.get('timeline') if isinstance(origin_layout.get('timeline'), list) else []
                             origin_tokens = origin_layout.get('tokens') if isinstance(origin_layout.get('tokens'), list) else []
                             if isinstance(origin_canvas, dict) and (
@@ -43120,6 +43183,68 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                                     layout['timeline'] = origin_timeline
                                 task.tactical_layout = layout
                                 task.save(update_fields=['tactical_layout'])
+                # Fallback: si falta performed_from_task_id, intentamos resolverlo usando performed_session_id + orden/título.
+                # Esto ayuda en clones antiguos donde no se persistió el id de origen.
+                if is_performed and not origin_id:
+                    origin_session_id = _parse_int(meta.get('performed_session_id'))
+                    origin_team_id = int(getattr(primary_team, 'id', 0) or 0)
+                    if origin_session_id and origin_team_id:
+                        origin_session = (
+                            TrainingSession.objects
+                            .select_related('microcycle')
+                            .filter(id=int(origin_session_id), microcycle__team_id=origin_team_id)
+                            .first()
+                        )
+                        if origin_session:
+                            candidates = SessionTask.objects.filter(session=origin_session, deleted_at__isnull=True).exclude(id=int(getattr(task, 'id', 0) or 0))
+                            # Preferimos por `performed_from_task_id`, pero al faltar, usamos señales estables.
+                            try:
+                                performed_order = int(getattr(task, 'order', 0) or 0)
+                            except Exception:
+                                performed_order = 0
+                            performed_title = str(getattr(task, 'title', '') or '').strip()
+                            # Títulos performed llevan prefijo "dd/mm/YYYY · ...". Lo quitamos.
+                            try:
+                                performed_title_clean = re.sub(r'^\s*\d{2}/\d{2}/\d{4}\s*·\s*', '', performed_title).strip()
+                            except Exception:
+                                performed_title_clean = performed_title
+                            origin_task = None
+                            # 1) match por order si existe
+                            if performed_order:
+                                origin_task = candidates.filter(order=performed_order).order_by('-id').first()
+                            # 2) match por title limpio (iexact) si no encontramos
+                            if not origin_task and performed_title_clean:
+                                origin_task = candidates.filter(title__iexact=performed_title_clean).order_by('-id').first()
+                            if origin_task:
+                                origin_raw_layout = getattr(origin_task, 'tactical_layout', None)
+                                if isinstance(origin_raw_layout, str):
+                                    origin_raw_layout = _coerce_json_dict(origin_raw_layout) or {}
+                                origin_layout = dict(origin_raw_layout) if isinstance(origin_raw_layout, dict) else {}
+                                origin_meta = origin_layout.get('meta') if isinstance(origin_layout.get('meta'), dict) else {}
+                                origin_meta = dict(origin_meta) if isinstance(origin_meta, dict) else {}
+                                origin_graphic = origin_meta.get('graphic_editor')
+                                if isinstance(origin_graphic, str):
+                                    origin_graphic = _coerce_json_dict(origin_graphic) or {}
+                                if not isinstance(origin_graphic, dict):
+                                    origin_graphic = {}
+                                origin_canvas = _coerce_json_dict(origin_graphic.get('canvas_state')) or (
+                                    origin_graphic.get('canvas_state') if isinstance(origin_graphic.get('canvas_state'), dict) else None
+                                )
+                                origin_timeline = origin_layout.get('timeline') if isinstance(origin_layout.get('timeline'), list) else []
+                                origin_tokens = origin_layout.get('tokens') if isinstance(origin_layout.get('tokens'), list) else []
+                                if isinstance(origin_canvas, dict) and (
+                                    (isinstance(origin_canvas.get('objects'), list) and origin_canvas.get('objects'))
+                                    or (isinstance(origin_timeline, list) and origin_timeline)
+                                ):
+                                    meta['performed_from_task_id'] = int(getattr(origin_task, 'id', 0) or 0)
+                                    meta['graphic_editor'] = origin_graphic
+                                    layout['meta'] = meta
+                                    if origin_tokens:
+                                        layout['tokens'] = origin_tokens
+                                    if origin_timeline:
+                                        layout['timeline'] = origin_timeline
+                                    task.tactical_layout = layout
+                                    task.save(update_fields=['tactical_layout'])
         except Exception:
             pass
 

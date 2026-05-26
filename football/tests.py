@@ -7351,6 +7351,89 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '&quot;left&quot;: 50')
 
+    def test_task_builder_rehydrates_performed_task_when_origin_id_missing(self):
+        origin_session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión origen fallback',
+            duration_minutes=90,
+        )
+        origin = SessionTask.objects.create(
+            session=origin_session,
+            title='Tarea X',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            order=7,
+            tactical_layout={
+                'meta': {
+                    'scope': 'coach',
+                    'graphic_editor': {
+                        'canvas_state': {'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 77, 'top': 88}]},
+                        'canvas_width': 1054,
+                        'canvas_height': 684,
+                    },
+                },
+            },
+        )
+        performed = SessionTask.objects.create(
+            session=origin_session,
+            title='25/03/2026 · Tarea X',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            order=7,
+            tactical_layout={
+                'meta': {
+                    'scope': 'coach',
+                    'source': 'performed',
+                    'performed_on': '2026-03-25',
+                    'performed_session_id': origin_session.id,
+                    # performed_from_task_id missing
+                },
+            },
+        )
+
+        response = self.client.get(reverse('sessions-task-edit', args=[performed.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '&quot;left&quot;: 77')
+        performed.refresh_from_db()
+        meta = (performed.tactical_layout or {}).get('meta') or {}
+        self.assertEqual(int(meta.get('performed_from_task_id') or 0), origin.id)
+
+    def test_task_builder_loads_canvas_when_tactical_layout_is_json_string(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión layout string',
+            duration_minutes=90,
+        )
+        layout = {
+            'tokens': [],
+            'timeline': [],
+            'meta': {
+                'scope': 'coach',
+                'pitch_preset': 'full_pitch',
+                'pitch_orientation': 'landscape',
+                'graphic_editor': {
+                    'canvas_state': {'version': '5.3.0', 'objects': [{'type': 'circle', 'left': 33, 'top': 44}]},
+                    'canvas_width': 1054,
+                    'canvas_height': 684,
+                },
+            },
+        }
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea layout string',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout=json.dumps(layout, ensure_ascii=False),
+        )
+
+        response = self.client.get(reverse('sessions-task-edit', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '&quot;left&quot;: 33')
+
     def test_task_builder_prefills_surface_as_artificial_turf(self):
         response = self.client.get(reverse('sessions-task-create'))
 
