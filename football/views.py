@@ -41546,6 +41546,49 @@ def _task_builder_initial_values(task):
     canvas_state = graphic_editor.get('canvas_state') or None
     fallback_canvas_size = None  # (w, h)
 
+    def _build_preview_background_state(task_obj, *, portrait: bool) -> dict:
+        if not task_obj:
+            return {}
+        try:
+            preview_name = str(getattr(getattr(task_obj, 'task_preview_image', None), 'name', '') or '').strip()
+        except Exception:
+            preview_name = ''
+        v = quote(preview_name) if preview_name else str(int(getattr(task_obj, 'id', 0) or 0))
+        # Usamos URL relativa (misma origin) para que el canvas pueda cargar con cookies del usuario.
+        preview_src = f'/coach/sesiones/tarea/{int(getattr(task_obj, "id", 0) or 0)}/preview/?hd=1&v={v}'
+        world_w = 684 if portrait else 1054
+        world_h = 1054 if portrait else 684
+        # Escala 1.0: la imagen se ajustará al "mundo" al ser un export de ese mismo campo.
+        # Si la preview no coincide, el usuario puede re-centrar/zoom desde el editor.
+        return {
+            'version': '5.3.0',
+            'objects': [
+                {
+                    'type': 'image',
+                    'left': int(round(world_w / 2)),
+                    'top': int(round(world_h / 2)),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'scaleX': 1.0,
+                    'scaleY': 1.0,
+                    'angle': 0,
+                    'opacity': 1,
+                    'src': preview_src,
+                    'selectable': False,
+                    'evented': False,
+                    'hasControls': False,
+                    'hasBorders': False,
+                    'objectCaching': False,
+                    'data': {
+                        'kind': 'preview-background',
+                        'base': True,
+                        'locked': True,
+                        'source': 'task_preview',
+                    },
+                }
+            ],
+        }
+
     # Compat/recuperación: algunas tareas antiguas (o importadas) guardaban el estado como lista de objetos
     # en `tactical_layout.tokens` pero no persistían `meta.graphic_editor.canvas_state`. En ese caso,
     # la card puede mostrar preview (porque se genera desde tokens) pero el editor queda vacío.
@@ -41569,6 +41612,18 @@ def _task_builder_initial_values(task):
                 canvas_state = {'version': '5.3.0', 'objects': tokens}
                 orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
                 fallback_canvas_size = (684, 1054) if orientation == 'portrait' else (1054, 684)
+
+    # Si sigue vacío pero hay preview guardada, al menos mostramos el gráfico como "fondo" editable.
+    # (Evita entrar en el editor con el campo en blanco.)
+    if (
+        (not isinstance(canvas_state, dict) or _state_objects_count(canvas_state) == 0)
+        and task
+        and getattr(task, 'task_preview_image', None)
+    ):
+        orientation = str(meta.get('pitch_orientation') or 'landscape').strip().lower()
+        portrait = orientation == 'portrait'
+        canvas_state = _build_preview_background_state(task, portrait=portrait)
+        fallback_canvas_size = (684, 1054) if portrait else (1054, 684)
 
     if not isinstance(canvas_state, dict):
         canvas_state = _starter_canvas_state(str(meta.get('pitch_preset') or 'full_pitch'))

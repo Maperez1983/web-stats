@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.test import SimpleTestCase, TestCase, TransactionTestCase
@@ -7276,6 +7277,30 @@ class StaffUserLinkingTests(TestCase):
         self.assertContains(response, 'id="draw-canvas-state"')
         self.assertContains(response, '&quot;left&quot;: 120')
         self.assertContains(response, '&quot;kind&quot;: &quot;token&quot;')
+
+    def test_task_builder_falls_back_to_preview_background_when_no_canvas_state(self):
+        session = TrainingSession.objects.create(
+            microcycle=self.microcycle,
+            session_date=date(2026, 3, 25),
+            focus='Sesión preview background',
+            duration_minutes=90,
+        )
+        task = SessionTask.objects.create(
+            session=session,
+            title='Tarea preview',
+            block=SessionTask.BLOCK_MAIN_1,
+            duration_minutes=15,
+            tactical_layout={'meta': {'scope': 'coach', 'pitch_preset': 'full_pitch', 'pitch_orientation': 'landscape'}},
+        )
+        # Fuerza que exista preview guardada pero sin estado de pizarra.
+        task.task_preview_image.save('task-preview.png', ContentFile(b'fake-bytes'), save=True)
+
+        response = self.client.get(reverse('sessions-task-edit', args=[task.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="draw-canvas-state"')
+        self.assertContains(response, 'preview-background')
+        self.assertContains(response, f'/coach/sesiones/tarea/{task.id}/preview/')
 
     def test_task_builder_prefills_surface_as_artificial_turf(self):
         response = self.client.get(reverse('sessions-task-create'))
