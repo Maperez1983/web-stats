@@ -346,6 +346,7 @@
 	    const alignBottomBtn = document.getElementById('vs-align-bottom');
 	    const distHBtn = document.getElementById('vs-dist-h');
 	    const distVBtn = document.getElementById('vs-dist-v');
+	    const styleApplyBtn = document.getElementById('vs-style-apply');
 
 	    const videoId = Number(document.getElementById('vs-video-id')?.value || 0);
 	    const uiMode = safeText(document.getElementById('vs-ui-mode')?.value || '').toLowerCase();
@@ -3303,6 +3304,92 @@
 	    alignBottomBtn?.addEventListener('click', () => alignSelection('bottom'));
 	    distHBtn?.addEventListener('click', () => distributeSelection('h'));
 	    distVBtn?.addEventListener('click', () => distributeSelection('v'));
+
+	    const applyCurrentStyleToSelection = () => {
+	      const items = selectedObjects();
+	      if (!items.length) { setStatus('No hay selección.', true); return; }
+	      const color = strokeColor();
+	      const sw = clamp(Number(strokeWidth()) || 6, 1, 22);
+	      const style = getLineStyle();
+	      let applied = 0;
+	      const applyToObj = (obj) => {
+	        if (!obj) return;
+	        try { ensureLayerData(obj); } catch (e) { /* ignore */ }
+	        if (obj?.data?.locked) return;
+	        const kind = safeText(obj?.data?.kind, '');
+	        // Objetos simples con stroke
+	        if (obj.type === 'line' || obj.type === 'path' || obj.type === 'polyline') {
+	          try {
+	            obj.set({ stroke: color, strokeWidth: sw });
+	            applyStrokeStyle(obj, style, sw);
+	            obj.dirty = true;
+	            applied += 1;
+	          } catch (e) { /* ignore */ }
+	          return;
+	        }
+	        // Formas
+	        if (obj.type === 'rect' || obj.type === 'ellipse' || kind === 'shape_rect' || kind === 'shape_ellipse') {
+	          try {
+	            obj.set({ stroke: color, strokeWidth: sw, fill: colorToRgba(color, 0.16, obj.fill) });
+	            applyStrokeStyle(obj, style, sw);
+	            obj.dirty = true;
+	            applied += 1;
+	          } catch (e) { /* ignore */ }
+	          return;
+	        }
+	        // Grupos (flechas/trayectorias/callouts/markers)
+	        if (obj.type === 'group' && Array.isArray(obj._objects)) {
+	          obj._objects.forEach((child) => {
+	            if (!child) return;
+	            if (child.type === 'line' || child.type === 'path' || child.type === 'polyline') {
+	              try {
+	                child.set({ stroke: color, strokeWidth: sw });
+	                applyStrokeStyle(child, style, sw);
+	                child.dirty = true;
+	              } catch (e) { /* ignore */ }
+	            } else if (child.type === 'polygon') {
+	              // Arrow heads suelen ser polygons con fill
+	              try { child.set({ fill: color }); child.dirty = true; } catch (e) { /* ignore */ }
+	            } else if (child.type === 'circle' || child.type === 'ellipse' || child.type === 'rect') {
+	              try {
+	                if (child.stroke != null) child.set({ stroke: color, strokeWidth: clamp(sw, 1, 12) });
+	                if (kind === 'base' && child.fill != null) child.set({ fill: colorToRgba(color, 0.22, child.fill) });
+	                child.dirty = true;
+	              } catch (e) { /* ignore */ }
+	            }
+	          });
+	          try {
+	            obj.data = { ...(obj.data || {}), line_style: style };
+	            obj.dirty = true;
+	            applied += 1;
+	          } catch (e) { /* ignore */ }
+	        }
+	      };
+	      items.forEach(applyToObj);
+	      if (applied) {
+	        pushHistory();
+	        try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	        renderDrawLayers();
+	        updateLayerPanel();
+	        setStatus('Estilo aplicado.');
+	      } else {
+	        setStatus('No se pudo aplicar estilo a la selección.', true);
+	      }
+	    };
+
+	    styleApplyBtn?.addEventListener('click', () => applyCurrentStyleToSelection());
+	    // Presets rápidos: cambian el color global
+	    try {
+	      Array.from(document.querySelectorAll('[data-vs-style-preset]')).forEach((btn) => {
+	        btn.addEventListener('click', () => {
+	          const c = safeText(btn.getAttribute('data-vs-style-preset'), '');
+	          if (!c) return;
+	          if (colorInput) colorInput.value = c;
+	          try { fabricCanvas.freeDrawingBrush.color = strokeColor(); } catch (e) { /* ignore */ }
+	          setStatus(`Preset: ${c}`);
+	        });
+	      });
+	    } catch (e) { /* ignore */ }
 
 	    const updateTemplateParamsUi = () => {
 	      if (!templateParamsWrap) return;
