@@ -1487,6 +1487,134 @@
         align-items: center;
         position: relative;
       }
+      /* Estilo “gradas broadcast” (como en Táctica) aplicado al Registro de Acciones. */
+      .ma-stadium {
+        --ma-team-primary: var(--prod-primary, #2f7d32);
+        --ma-team-secondary: var(--prod-secondary, #f8fafc);
+        --ma-team-primary-soft: rgba(47, 125, 50, 0.18);
+        --ma-team-secondary-soft: rgba(248, 250, 252, 0.12);
+        --ma-stand: clamp(28px, 4.2vmin, 56px);
+        position: relative;
+        display: grid;
+        grid-template-areas:
+          "top top top"
+          "left center right"
+          "bottom bottom bottom";
+        grid-template-columns: var(--ma-stand) minmax(0, 1fr) var(--ma-stand);
+        grid-template-rows: var(--ma-stand) auto var(--ma-stand);
+        align-items: center;
+        justify-items: center;
+        width: 100%;
+        margin: 0 auto;
+        border-radius: clamp(20px, 2.2vmin, 32px);
+        background-color: rgba(2, 6, 23, 0.96);
+        background-image:
+          radial-gradient(120% 85% at 50% 0%, rgba(255,255,255,0.18), rgba(255,255,255,0.00) 55%),
+          radial-gradient(120% 85% at 50% 100%, rgba(0,0,0,0.42), rgba(0,0,0,0.00) 60%),
+          linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96)),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.070) 0 1px, rgba(255,255,255,0) 1px 12px),
+          repeating-linear-gradient(90deg, rgba(255,255,255,0.055) 0 1px, rgba(255,255,255,0) 1px 14px),
+          radial-gradient(circle at 14% 28%, var(--ma-team-primary-soft), transparent 58%),
+          radial-gradient(circle at 86% 28%, var(--ma-team-secondary-soft), transparent 64%);
+        box-shadow:
+          0 26px 70px rgba(0,0,0,0.55),
+          0 0 0 1px rgba(255,255,255,0.14) inset,
+          0 0 0 4px rgba(0,0,0,0.24) inset;
+        isolation: isolate;
+      }
+      .ma-stadium-center {
+        grid-area: center;
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(8px, 1.4vmin, 14px);
+      }
+      .ma-stadium-center::before {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: clamp(22px, 2.6vmin, 38px);
+        background:
+          radial-gradient(closest-side at 50% 50%, rgba(255,255,255,0.10), rgba(255,255,255,0.0) 62%),
+          linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.12));
+        opacity: 0.95;
+        pointer-events: none;
+        z-index: 1;
+      }
+      .ma-stand {
+        position: relative;
+        display: grid;
+        place-items: center;
+        color: rgba(248, 250, 252, 0.86);
+        text-transform: uppercase;
+        letter-spacing: 0.28em;
+        font-weight: 950;
+        text-shadow: 0 18px 40px rgba(0,0,0,0.65);
+        background:
+          radial-gradient(circle at 50% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0) 55%),
+          repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15) 0 1px, rgba(255,255,255,0) 1px 10px),
+          linear-gradient(180deg, rgba(2,6,23,0.76), rgba(2,6,23,0.35));
+        border: 1px solid rgba(255,255,255,0.10);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        pointer-events: none;
+        user-select: none;
+      }
+      .ma-stand::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.9;
+        background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.12));
+      }
+      .ma-stand-top::after { background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(0,0,0,0.10)); }
+      .ma-stand-bottom::after { background: linear-gradient(0deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+      .ma-stand-left::after { background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+      .ma-stand-right::after { background: linear-gradient(270deg, rgba(255,255,255,0.08), rgba(0,0,0,0.16)); }
+      .ma-stand-top { grid-area: top; height: var(--ma-stand); writing-mode: horizontal-tb; }
+      .ma-stand-bottom { grid-area: bottom; height: var(--ma-stand); writing-mode: horizontal-tb; }
+      .ma-stand-left { grid-area: left; width: var(--ma-stand); writing-mode: vertical-rl; transform: rotate(180deg); }
+      .ma-stand-right { grid-area: right; width: var(--ma-stand); writing-mode: vertical-rl; }
+      .ma-stand-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.35);
+        border: 1px solid rgba(255,255,255,0.14);
+        box-shadow: 0 16px 34px rgba(0,0,0,0.35);
+      }
+      .ma-crest {
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 18px rgba(0,0,0,0.55));
+      }
+      .ma-name {
+        max-width: 52ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.78rem;
+        color: rgba(248, 250, 252, 0.92);
+      }
+      .ma-stadium .field-surface {
+        margin: 0;
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        outline: 10px solid rgba(0, 0, 0, 0.20);
+        outline-offset: 0;
+        box-shadow:
+          0 18px 55px rgba(0,0,0,0.52),
+          inset 0 0 0 1px rgba(255,255,255,0.10);
+        position: relative;
+        z-index: 3;
+      }
       .field-surface {
         width: 100%;
         min-height: 420px;
@@ -3638,24 +3766,45 @@
 	          </div>
           <div class="field-wrapper">
             <div class="touch-field" id="touch-field">
-            <div class="field-surface" id="field-surface">
-              <img
-                id="field-image"
-                src="{% static 'football/campo-futbol.jpg' %}"
-                alt="Campo de fútbol"
-                loading="lazy"
-              />
-              <div class="field-overlay-lines" aria-hidden="true">
-                <span class="center-line"></span>
-                <span class="center-circle"></span>
-                <span class="penalty-box left"></span>
-                <span class="penalty-box right"></span>
-                <span class="penalty-area left"></span>
-                <span class="penalty-area right"></span>
-                <span class="goal-line left"></span>
-                <span class="goal-line right"></span>
+              <div class="ma-stadium" id="ma-stadium">
+                <div class="ma-stand ma-stand-top" aria-hidden="true">
+                  <div class="ma-stand-label">
+                    {% if team_crest_url %}
+                    <img src="{{ team_crest_url }}" alt="" class="ma-crest" loading="lazy" />
+                    {% endif %}
+                    <span class="ma-name">{{ team_name }}</span>
+                  </div>
+                </div>
+                <div class="ma-stand ma-stand-left" aria-hidden="true">
+                  <span>2J</span>
+                </div>
+                <div class="ma-stadium-center">
+                  <div class="field-surface" id="field-surface">
+                    <img
+                      id="field-image"
+                      src="{% static 'football/campo-futbol.jpg' %}"
+                      alt="Campo de fútbol"
+                      loading="lazy"
+                    />
+                    <div class="field-overlay-lines" aria-hidden="true">
+                      <span class="center-line"></span>
+                      <span class="center-circle"></span>
+                      <span class="penalty-box left"></span>
+                      <span class="penalty-box right"></span>
+                      <span class="penalty-area left"></span>
+                      <span class="penalty-area right"></span>
+                      <span class="goal-line left"></span>
+                      <span class="goal-line right"></span>
+                    </div>
+                  </div>
+                </div>
+                <div class="ma-stand ma-stand-right" aria-hidden="true">
+                  <span>LIVE</span>
+                </div>
+                <div class="ma-stand ma-stand-bottom" aria-hidden="true">
+                  <span>Registro acciones</span>
+                </div>
               </div>
-            </div>
             <div class="field-popup" id="field-popup" aria-hidden="true">
               <form
                 id="field-popup-form"
@@ -4302,17 +4451,21 @@
             y <= Number(z.top_pct ?? 0) + Number(z.height_pct ?? 0)
           );
           const findZone = (x, y) => zones.find((z) => inside(z, x, y)) || null;
-	          const showPopup = (x, y) => {
-	            const rect = surface.getBoundingClientRect();
-	            const w = popup.offsetWidth || 340;
-	            const h = popup.offsetHeight || 420;
-	            const left = clamp(x - w / 2, 8, rect.width - w - 8);
-	            let top = y - h - 12;
-	            if (top < 8) top = clamp(y + 12, 8, rect.height - h - 8);
-	            popup.style.left = `${left}px`;
-	            popup.style.top = `${top}px`;
-	            popup.classList.add('is-visible');
-	          };
+		          const showPopup = (x, y) => {
+		            const rect = surface.getBoundingClientRect();
+		            const parent = popup.offsetParent || surface.parentElement || document.body;
+		            const parentRect = parent.getBoundingClientRect();
+		            const offsetX = rect.left - parentRect.left;
+		            const offsetY = rect.top - parentRect.top;
+		            const w = popup.offsetWidth || 340;
+		            const h = popup.offsetHeight || 420;
+		            const left = clamp(x - w / 2, 8, rect.width - w - 8);
+		            let top = y - h - 12;
+		            if (top < 8) top = clamp(y + 12, 8, rect.height - h - 8);
+		            popup.style.left = `${offsetX + left}px`;
+		            popup.style.top = `${offsetY + top}px`;
+		            popup.classList.add('is-visible');
+		          };
           let lastAt = 0;
           const handleTap = (clientX, clientY, ev) => {
             try {

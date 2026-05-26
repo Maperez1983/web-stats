@@ -988,13 +988,17 @@ window.initMatchActionsLive = function initMatchActionsLive(options) {
     // Abriendo el popup desde el campo => modo creación, no edición (salvo que se indique lo contrario).
     if (!preserveEditing) setEditingEventId('');
     const rect = interactiveSurface.getBoundingClientRect();
+    const parentEl = fieldPopup.offsetParent || interactiveSurface.parentElement || document.body;
+    const parentRect = parentEl.getBoundingClientRect();
+    const offsetX = rect.left - parentRect.left;
+    const offsetY = rect.top - parentRect.top;
     const width = fieldPopup.offsetWidth;
     const height = fieldPopup.offsetHeight;
     const left = clamp(x - width / 2, 8, rect.width - width - 8);
     let top = y - height - 12;
     if (top < 8) top = clamp(y + 12, 8, rect.height - height - 8);
-    fieldPopup.style.left = `${left}px`;
-    fieldPopup.style.top = `${top}px`;
+    fieldPopup.style.left = `${offsetX + left}px`;
+    fieldPopup.style.top = `${offsetY + top}px`;
     fieldPopup.classList.add('is-visible');
     // UX iPad: no bloquear el flujo obligando a elegir "Resultado" cada vez.
     ensureResultSelected(String(actionInput?.value || '').trim());
