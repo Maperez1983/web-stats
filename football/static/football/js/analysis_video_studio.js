@@ -2911,24 +2911,57 @@
       }
     };
 
-    const applyTemplate = () => {
-      const name = safeText(templateSelect?.value, '');
-      if (!name) { setStatus('Elige una plantilla.', true); return; }
-      const w = fabricCanvas.getWidth();
-      const h = fabricCanvas.getHeight();
-      if (!w || !h) return;
-      const objs = [];
-      if (name === 'lanes') {
-        for (let i = 1; i <= 4; i += 1) {
-          const x = (w * i) / 5;
-          objs.push(new fabric.Line([x, 0, x, h], { stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2, selectable: false, evented: false }));
-        }
-        objs.push(new fabric.Rect({ left: 0, top: 0, width: w, height: h, fill: 'rgba(255,255,255,0.02)', selectable: false, evented: false }));
-      } else if (name === 'central_box') {
-        const bw = w * 0.52;
-        const bh = h * 0.52;
-        objs.push(new fabric.Rect({
-          left: (w - bw) / 2,
+	    const applyTemplate = () => {
+	      const name = safeText(templateSelect?.value, '');
+	      if (!name) { setStatus('Elige una plantilla.', true); return; }
+	      const w = fabricCanvas.getWidth();
+	      const h = fabricCanvas.getHeight();
+	      if (!w || !h) return;
+	      const objs = [];
+	      if (name === 'lanes') {
+	        for (let i = 1; i <= 4; i += 1) {
+	          const x = (w * i) / 5;
+	          objs.push(new fabric.Line([x, 0, x, h], { stroke: 'rgba(255,255,255,0.35)', strokeWidth: 2, selectable: false, evented: false }));
+	        }
+	        objs.push(new fabric.Rect({ left: 0, top: 0, width: w, height: h, fill: 'rgba(255,255,255,0.02)', selectable: false, evented: false }));
+	      } else if (name === 'lanes_manual') {
+	        for (let i = 1; i <= 4; i += 1) {
+	          const x = (w * i) / 5;
+	          const line = new fabric.Line([x, 0, x, h], {
+	            stroke: 'rgba(255,255,255,0.42)',
+	            strokeWidth: 2,
+	            selectable: true,
+	            evented: true,
+	            strokeUniform: true,
+	            perPixelTargetFind: true,
+	            padding: 0,
+	            cornerStyle: 'circle',
+	            cornerColor: 'rgba(250,204,21,0.95)',
+	            transparentCorners: false,
+	            cornerSize: 14,
+	          });
+	          line.data = seedLayerDataNow({ kind: 'template', template: name, lane_i: i });
+	          objs.push(line);
+	        }
+	        // En manual, añadimos líneas sueltas (seleccionables) para poder rotar/colocar cada carril.
+	        // Además, seleccionamos las 4 al aplicar para moverlas juntas si el usuario quiere.
+	        objs.forEach((o) => fabricCanvas.add(o));
+	        pushHistory();
+	        try {
+	          const sel = new fabric.ActiveSelection(objs, { canvas: fabricCanvas });
+	          fabricCanvas.setActiveObject(sel);
+	        } catch (e) { /* ignore */ }
+	        selectedFxId = 0;
+	        updateLayerPanel();
+	        renderFxList();
+	        renderDrawLayers();
+	        setStatus('Carriles manual: usa Select y rota/mueve cada línea (o las 4 juntas).');
+	        return;
+	      } else if (name === 'central_box') {
+	        const bw = w * 0.52;
+	        const bh = h * 0.52;
+	        objs.push(new fabric.Rect({
+	          left: (w - bw) / 2,
           top: (h - bh) / 2,
           width: bw,
           height: bh,
