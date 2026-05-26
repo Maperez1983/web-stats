@@ -4659,19 +4659,33 @@
 	                title="Guardar pizarra"
 	                onclick="try{var f=document.getElementById('task-builder-form');if(!f)return;var b=document.getElementById('task-submit-btn');if(f.requestSubmit){f.requestSubmit(b||undefined);}else if(b){b.click();}else{f.submit();}}catch(e){};return false;"
 	              >Guardar</button>
-		              {% elif tactics_mode %}
-		              <button
-		                type="button"
-		                class="button primary"
-		                id="tactics-save-top"
-		                title="Guardar táctica (fija) en Playbook"
-		              >Guardar táctica</button>
-		              <button
-		                type="button"
-		                class="button"
-		                id="tactics-save-clip-top"
-		                title="Guardar clip (simulación) en Playbook"
-		              >Guardar clip</button>
+			              {% elif tactics_mode %}
+			              <button
+			                type="button"
+			                class="button primary"
+			                id="tactics-save-top"
+			                title="Guardar táctica (fija) en Playbook"
+			              >Guardar táctica</button>
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-task-top"
+			                title="Guardar la pizarra como tarea en Biblioteca (Interactivas)"
+			              >Guardar como tarea</button>
+			              {% if request.user.is_superuser %}
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-task-system-top"
+			                title="Guardar la pizarra como tarea global (solo sistema)"
+			              >Guardar tarea (sistema)</button>
+			              {% endif %}
+			              <button
+			                type="button"
+			                class="button"
+			                id="tactics-save-clip-top"
+			                title="Guardar clip (simulación) en Playbook"
+			              >Guardar clip</button>
 		              {% elif not tactics_mode %}
 		              <button
 		                type="button"
@@ -4788,6 +4802,7 @@
 	        <input type="hidden" id="task-sim-share-url" value="{% url 'share-task-simulation-create' %}" />
 	        <input type="hidden" id="task-playbook-list-url" value="{% url 'tactical-playbook-clips-api' %}" />
 	        <input type="hidden" id="task-playbook-save-url" value="{% url 'tactical-playbook-clip-save-api' %}" />
+	        <input type="hidden" id="task-playbook-save-task-url" value="{% url 'tactical-playbook-task-save-api' %}" />
 	        <input type="hidden" id="task-playbook-delete-url" value="{% url 'tactical-playbook-clip-delete-api' %}" />
 	        <input type="hidden" id="task-playbook-favorite-url" value="{% url 'tactical-playbook-clip-favorite-api' %}" />
 	        <input type="hidden" id="task-playbook-clone-url" value="{% url 'tactical-playbook-clip-clone-api' %}" />
@@ -7742,6 +7757,8 @@
 			        hookClick('task-tactics-tools-toggle', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('task-tactics-sim-open', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('tactics-save-top', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('tactics-save-task-top', ensureEditorStack, 'webstatsEditorReady');
+			        hookClick('tactics-save-task-system-top', ensureEditorStack, 'webstatsEditorReady');
 			        hookClick('tactics-save-clip-top', ensureEditorStack, 'webstatsEditorReady');
 
 		        // Heurística: si el usuario está realmente en el editor (no solo leyendo),

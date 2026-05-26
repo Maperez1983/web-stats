@@ -65720,6 +65720,193 @@ def tactical_playbook_clip_save_api(request):
 @csrf_exempt
 @login_required
 @require_POST
+def tactical_playbook_task_save_api(request):
+    """
+    Guarda la pizarra actual como una tarea en Biblioteca (Interactivas).
+
+    JSON:
+    - scope: team|system (default team). system => solo superuser.
+    - name: str (título de la tarea)
+    - folder: str (opcional, se guarda en meta)
+    - tags: list[str] (opcional, se guarda en meta)
+    - steps: list (requerido; mismo formato que Playbook)
+    """
+    if not _can_access_sessions_workspace(request.user):
+        return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)
+    forbidden = _forbid_if_workspace_module_disabled(request, 'tactics', label='táctica')
+    if forbidden:
+        fallback = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+        if fallback:
+            return forbidden
+
+    data = None
+    try:
+        if request.content_type and 'application/json' in request.content_type.lower():
+            data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
+    except Exception:
+        data = None
+    if not isinstance(data, dict):
+        data = request.POST.dict() if hasattr(request, 'POST') else {}
+
+    scope = str(data.get('scope') or 'team').strip().lower()
+    name = _sanitize_task_text(str(data.get('name') or '').strip(), multiline=False, max_len=160)
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Nombre requerido.'}, status=400)
+    folder = _sanitize_task_text(str(data.get('folder') or '').strip(), multiline=False, max_len=80)
+
+    tags = data.get('tags')
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except Exception:
+            tags = [tags]
+    if not isinstance(tags, list):
+        tags = []
+    tags = [(_sanitize_task_text(str(t or '').strip(), multiline=False, max_len=32) or '') for t in tags[:12]]
+    tags = [t for t in tags if t]
+
+    steps = data.get('steps')
+    if isinstance(steps, str):
+        try:
+            steps = json.loads(steps)
+        except Exception:
+            steps = None
+    if not isinstance(steps, list) or not steps:
+        return JsonResponse({'ok': False, 'error': 'steps requerido.'}, status=400)
+    steps = steps[:24]
+    try:
+        raw = json.dumps(steps)
+        if len(raw) > 1_200_000:
+            return JsonResponse({'ok': False, 'error': 'Payload demasiado grande.'}, status=400)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'steps inválido.'}, status=400)
+
+    system_team = None
+    try:
+        system_team, _ = Team.objects.get_or_create(slug='pizarra', defaults={'name': 'PIZARRA'})
+    except Exception:
+        system_team = Team.objects.filter(slug='pizarra').first()
+
+    if scope == 'system':
+        if not bool(getattr(request.user, 'is_superuser', False)):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        primary_team = system_team
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'No se pudo resolver el equipo del sistema.'}, status=500)
+    else:
+        primary_team = _get_primary_team_for_request(request)
+        if not primary_team:
+            return JsonResponse({'ok': False, 'error': 'Equipo principal no configurado.'}, status=400)
+        workspace = _get_active_workspace(request)
+        membership = _workspace_membership_for_user(workspace, request.user) if workspace else None
+        if membership and membership.role == WorkspaceMembership.ROLE_VIEWER and not _can_manage_workspace(request.user, workspace):
+            return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+
+    clip_steps = steps
+    first_step = clip_steps[0] if clip_steps else {}
+    base_canvas_state = first_step.get('canvas_state') if isinstance(first_step, dict) else None
+    if not isinstance(base_canvas_state, dict):
+        base_canvas_state = _starter_canvas_state('full_pitch')
+    else:
+        base_canvas_state = dict(base_canvas_state)
+    canvas_width = _parse_int(first_step.get('canvas_width')) or 1054
+    canvas_height = _parse_int(first_step.get('canvas_height')) or 684
+    canvas_width = max(320, min(canvas_width, 3840))
+    canvas_height = max(180, min(canvas_height, 2160))
+
+    pitch_preset = str(first_step.get('preset') or 'full_pitch').strip() or 'full_pitch'
+    if pitch_preset not in {'full_pitch', 'half_pitch', 'attacking_third', 'middle_third', 'defensive_third', 'seven_side', 'seven_side_single', 'futsal', 'blank'}:
+        pitch_preset = 'full_pitch'
+    pitch_orientation = str(first_step.get('orientation') or 'landscape').strip().lower()
+    pitch_orientation = pitch_orientation if pitch_orientation in {'landscape', 'portrait'} else 'landscape'
+    pitch_grass_style = str(first_step.get('grass_style') or 'classic').strip().lower() or 'classic'
+    try:
+        pitch_zoom = float(first_step.get('zoom') or 1.0)
+    except Exception:
+        pitch_zoom = 1.0
+    pitch_zoom = max(0.8, min(pitch_zoom, 1.6))
+
+    base_canvas_state['simulation'] = {
+        'v': 1,
+        'updated_at': timezone.now().isoformat(),
+        'steps': clip_steps,
+    }
+
+    timeline = _normalize_animation_timeline(clip_steps)
+    tactical_layout = {
+        'tokens': base_canvas_state.get('objects') if isinstance(base_canvas_state.get('objects'), list) else [],
+        'timeline': timeline,
+        'meta': {
+            'scope': 'coach',
+            'source': 'tactics-playbook',
+            'repository': LIBRARY_REPOSITORY_INTERACTIVE,
+            'pitch_preset': pitch_preset,
+            'pitch_orientation': pitch_orientation,
+            'pitch_grass_style': pitch_grass_style,
+            'pitch_zoom': pitch_zoom,
+            'multi_board': bool(len(timeline) >= 2),
+            'tags': tags,
+            'folder': folder,
+            'graphic_editor': {
+                'canvas_state': base_canvas_state,
+                'canvas_width': canvas_width,
+                'canvas_height': canvas_height,
+            },
+            'analysis': {
+                'task_sheet': {
+                    'description': '',
+                    'description_html': '',
+                    'coaching_html': '',
+                    'rules_html': '',
+                    'players': '',
+                    'space': '',
+                    'dimensions': '',
+                    'materials': '',
+                },
+            },
+        },
+    }
+
+    try:
+        target_session = _get_or_create_library_session_with_repository(primary_team, 'coach', repository=LIBRARY_REPOSITORY_INTERACTIVE)
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo resolver Biblioteca.'}, status=500)
+
+    base_order = 0
+    try:
+        base_order = SessionTask.objects.filter(session=target_session).count()
+    except Exception:
+        base_order = 0
+
+    created_task = SessionTask.objects.create(
+        session=target_session,
+        title=name,
+        block=SessionTask.BLOCK_MAIN_1,
+        duration_minutes=15,
+        objective='',
+        coaching_points='',
+        confrontation_rules='',
+        tactical_layout=tactical_layout,
+        status=SessionTask.STATUS_PLANNED,
+        order=base_order + 1,
+        notes='Guardada desde Táctica (Playbook).',
+    )
+    try:
+        _ensure_library_task_preview(created_task, force=False, prefer_render=True)
+    except Exception:
+        pass
+
+    try:
+        edit_route = _task_builder_edit_route_name('coach')
+        url = f"{reverse(edit_route, args=[int(created_task.id)])}?repo=interactive&created_from=tactics"
+    except Exception:
+        url = ''
+    return JsonResponse({'ok': True, 'id': int(created_task.id), 'url': url})
+
+
+@csrf_exempt
+@login_required
+@require_POST
 def tactical_playbook_clip_delete_api(request):
     if not _can_access_sessions_workspace(request.user):
         return JsonResponse({'ok': False, 'error': 'No tienes permisos.'}, status=403)

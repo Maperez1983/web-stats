@@ -551,6 +551,41 @@ class TacticsLandingModalFallbackTests(TestCase):
         self.assertTrue(payload.get('ok'))
         self.assertIn('items', payload)
 
+    def test_tactics_can_be_saved_as_library_task_when_sessions_disabled(self):
+        self.workspace.enabled_modules = {'sessions': False, 'tactics': True}
+        self.workspace.save(update_fields=['enabled_modules'])
+        self.client.force_login(self.user)
+        url = f"{reverse('tactical-playbook-task-save-api')}?workspace={self.workspace.id}&team={self.team.id}"
+        payload = {
+            'scope': 'team',
+            'name': 'Tarea táctica test',
+            'folder': 'Tácticas',
+            'tags': ['tactica'],
+            'steps': [
+                {
+                    'title': 'Táctica',
+                    'duration': 6,
+                    'canvas_state': {'version': '5.3.0', 'objects': []},
+                    'canvas_width': 1054,
+                    'canvas_height': 684,
+                    'moves': [],
+                    'routes': {},
+                    'ball_follow_uid': '',
+                    'preset': 'full_pitch',
+                    'orientation': 'landscape',
+                    'grass_style': 'classic',
+                    'zoom': 1.0,
+                }
+            ],
+        }
+        response = self.client.post(url, data=json.dumps(payload), content_type='application/json', secure=True)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data.get('ok'))
+        task_id = int(data.get('id') or 0)
+        self.assertTrue(task_id)
+        self.assertTrue(SessionTask.objects.filter(id=task_id).exists())
+
 
 class KPIExplorerWorkspacePresetsTests(TestCase):
     def setUp(self):

@@ -11990,13 +11990,76 @@
 				        setStatus(canUpdateActive ? 'Táctica actualizada en Playbook.' : 'Táctica guardada en Playbook (equipo).');
 					      } catch (e) {
 					        setStatus(e?.message || 'No se pudo guardar la táctica.', true);
+						      } finally {
+						        __blockResizesFor(2500);
+						        try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
+						      }
+						    };
+
+					    const saveCurrentTacticSnapshotToLibraryTask = async (scopeHint = 'team') => {
+					      if (!isTacticsMode) return;
+					      if (!playbookSaveTaskUrl) {
+					        setStatus('Guardar como tarea no disponible.', true);
+					        return;
+					      }
+					      const metaBefore = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
+					      const defaultName = safeText(form.querySelector('[name="draw_task_title"]')?.value, 'Tarea táctica').slice(0, 160);
+					      const modal = await __openMetaModal({
+					        heading: scopeHint === 'system' ? 'Guardar como tarea (sistema)' : 'Guardar como tarea',
+					        nameLabel: 'Título de la tarea',
+					        folderLabel: 'Carpeta (opcional)',
+					        tagsLabel: 'Tags (coma separada)',
+					        defaultName,
+					        defaultFolder: 'Tácticas',
+					        defaultTags: '',
+					        folders: Array.from(new Set((playbookClips || []).map((c) => safeText(c?.folder)).filter(Boolean))).slice(0, 24),
+					        hint: 'Se guarda como tarea en Biblioteca (Interactivas). Luego podrás abrirla desde Sesiones > Biblioteca.',
+					      });
+					      if (!modal?.ok) return;
+					      const name = safeText(modal.name).slice(0, 160);
+					      if (!name) return;
+					      const folder = safeText(modal.folder).slice(0, 80);
+					      const tagsRaw = safeText(modal.tagsRaw).slice(0, 200);
+					      const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+
+					      __blockResizesFor(8000);
+					      const { w, h } = worldSize();
+					      ensureLayerUidsOnCanvas();
+					      const pitchMeta = (() => { try { return capturePitchMetaForStep(); } catch (e) { return null; } })();
+					      const nextState = serializeCanvasOnly();
+					      const steps = [
+					        {
+					          title: 'Táctica',
+					          duration: 6,
+					          canvas_state: nextState,
+					          canvas_width: Math.round(w || 0),
+					          canvas_height: Math.round(h || 0),
+					          moves: [],
+					          routes: {},
+					          ball_follow_uid: '',
+					          preset: safeText(pitchMeta?.preset),
+					          orientation: safeText(pitchMeta?.orientation),
+					          grass_style: safeText(pitchMeta?.grass_style),
+					          zoom: Number.isFinite(Number(pitchMeta?.zoom)) ? Number(pitchMeta.zoom) : undefined,
+					        },
+					      ];
+					      try {
+					        const res = await savePlaybookAsLibraryTask({ scope: safeText(scopeHint, 'team'), name, folder, tags, steps });
+					        setStatus(scopeHint === 'system' ? 'Tarea guardada en Biblioteca (sistema).' : 'Tarea guardada en Biblioteca (equipo).');
+					        const url = safeText(res?.url);
+					        if (url) {
+					          const okOpen = __safeConfirm('Tarea creada. ¿Abrir ahora para editar ficha/guardar más detalles?');
+					          if (okOpen) window.location.href = url;
+					        }
+					      } catch (e) {
+					        setStatus(e?.message || 'No se pudo guardar como tarea.', true);
 					      } finally {
 					        __blockResizesFor(2500);
 					        try { if (metaBefore) applyPitchMetaFromStep(metaBefore); } catch (e) { /* ignore */ }
 					      }
 					    };
 
-				    const openSimulatorForClipSave = () => {
+					    const openSimulatorForClipSave = () => {
 				      if (!isTacticsMode) return;
 				      try {
 				        const playbookTab = document.querySelector('#task-side-tabs [data-pane="playbook"]');
@@ -12024,14 +12087,22 @@
 				      } catch (e) { /* ignore */ }
 				    };
 
-				    tacticsSaveTopBtn?.addEventListener('click', (event) => {
-				      event.preventDefault();
-				      void saveCurrentTacticSnapshotToPlaybook();
-				    });
-				    tacticsSaveClipTopBtn?.addEventListener('click', (event) => {
-				      event.preventDefault();
-				      openSimulatorForClipSave();
-				    });
+					    tacticsSaveTopBtn?.addEventListener('click', (event) => {
+					      event.preventDefault();
+					      void saveCurrentTacticSnapshotToPlaybook();
+					    });
+					    tacticsSaveTaskTopBtn?.addEventListener('click', (event) => {
+					      event.preventDefault();
+					      void saveCurrentTacticSnapshotToLibraryTask('team');
+					    });
+					    tacticsSaveSystemTaskTopBtn?.addEventListener('click', (event) => {
+					      event.preventDefault();
+					      void saveCurrentTacticSnapshotToLibraryTask('system');
+					    });
+					    tacticsSaveClipTopBtn?.addEventListener('click', (event) => {
+					      event.preventDefault();
+					      openSimulatorForClipSave();
+					    });
 
 				    const togglePlaybookFavorite = async (id) => {
 				      if (!playbookFavoriteUrl) throw new Error('Favoritos no disponible.');

@@ -175,6 +175,7 @@ urlpatterns = [
     path('api/task-assistant/knowledge/upload/', views.task_assistant_knowledge_upload_api, name='task-assistant-knowledge-upload-api'),
     path('api/tactical-playbook/clips/', views.tactical_playbook_clips_api, name='tactical-playbook-clips-api'),
     path('api/tactical-playbook/clips/save/', views.tactical_playbook_clip_save_api, name='tactical-playbook-clip-save-api'),
+    path('api/tactical-playbook/tasks/save/', views.tactical_playbook_task_save_api, name='tactical-playbook-task-save-api'),
     path('api/tactical-playbook/clips/delete/', views.tactical_playbook_clip_delete_api, name='tactical-playbook-clip-delete-api'),
     path('api/tactical-playbook/clips/favorite/', views.tactical_playbook_clip_favorite_api, name='tactical-playbook-clip-favorite-api'),
     path('api/tactical-playbook/clips/clone/', views.tactical_playbook_clip_clone_api, name='tactical-playbook-clip-clone-api'),
