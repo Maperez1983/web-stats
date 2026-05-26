@@ -3,6 +3,49 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
 
+  const waitNextVideoFrame = (videoEl, timeoutMs = 350) => new Promise((resolve) => {
+    if (!videoEl) return resolve(false);
+    try {
+      if (typeof videoEl.requestVideoFrameCallback === 'function') {
+        let done = false;
+        const t = window.setTimeout(() => {
+          if (done) return;
+          done = true;
+          resolve(false);
+        }, Math.max(60, Number(timeoutMs) || 350));
+        videoEl.requestVideoFrameCallback(() => {
+          if (done) return;
+          done = true;
+          try { window.clearTimeout(t); } catch (e) { /* ignore */ }
+          resolve(true);
+        });
+        return;
+      }
+    } catch (e) { /* ignore */ }
+    window.requestAnimationFrame(() => resolve(false));
+  });
+
+  const drawVideoFrameSmart = async (ctx, videoEl, w, h) => {
+    if (!ctx || !videoEl || !w || !h) return false;
+    try {
+      const rs = Number(videoEl.readyState) || 0;
+      const vw = Number(videoEl.videoWidth) || 0;
+      const vh = Number(videoEl.videoHeight) || 0;
+      if (rs < 2 || !vw || !vh) return false;
+    } catch (e) { /* ignore */ }
+    try { await waitNextVideoFrame(videoEl, 350); } catch (e) { /* ignore */ }
+    // En Safari/iOS, `drawImage(video)` puede devolver negro. `createImageBitmap(video)` suele ser más fiable.
+    try {
+      if (typeof createImageBitmap === 'function') {
+        const bmp = await createImageBitmap(videoEl);
+        try { ctx.drawImage(bmp, 0, 0, w, h); } finally { try { bmp.close?.(); } catch (e) { /* ignore */ } }
+        return true;
+      }
+    } catch (e) { /* ignore */ }
+    try { ctx.drawImage(videoEl, 0, 0, w, h); return true; } catch (e) { /* ignore */ }
+    return false;
+  };
+
   const setStatus = (text, isError = false, { flash = true } = {}) => {
     const el = document.getElementById('vs-status');
     if (!el) return;
@@ -70,13 +113,14 @@
     } catch (e) { /* ignore */ }
   };
 
-	  const init = () => {
-	    const video = document.getElementById('vs-video');
-	    const canvasEl = document.getElementById('vs-canvas');
-	    const fxEl = document.getElementById('vs-fx');
-		    const stage = document.getElementById('vs-stage');
-	    const resetCacheBtn = document.getElementById('vs-reset-cache');
-		    if (!video) return;
+		  const init = () => {
+		    const video = document.getElementById('vs-video');
+		    const canvasEl = document.getElementById('vs-canvas');
+		    const fxEl = document.getElementById('vs-fx');
+			    const stage = document.getElementById('vs-stage');
+			    const freezeBgEl = document.getElementById('vs-freeze-bg');
+		    const resetCacheBtn = document.getElementById('vs-reset-cache');
+			    if (!video) return;
 
 	    // Botón de emergencia: reinicia cachés offline/SW (Safari/PWA) para forzar a cargar JS/CSS nuevos tras deploys.
 	    try {
@@ -225,6 +269,7 @@
 		    const btnDorsalOcr = document.getElementById('vs-dorsal-ocr');
 		    const btnFreeze = document.getElementById('vs-freeze');
 		    const btnTrackAuto = document.getElementById('vs-track-auto');
+		    const btnDebug = document.getElementById('vs-debug');
 		    const lineStyleSelect = document.getElementById('vs-line-style');
 		    const arrowDoubleBtn = document.getElementById('vs-arrow-double');
 
@@ -3204,18 +3249,18 @@
 		      const off = document.createElement('canvas');
 		      off.width = w;
 	      off.height = h;
-		      const ctx = off.getContext('2d');
-		      if (!ctx) return;
-		      let baseDrawn = false;
-		      if (!compatNoCorsApplied && !isIOS) {
-		        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
-		        if (baseDrawn && canvasLooksBlank(ctx, w, h)) baseDrawn = false;
-		      }
-		      if (!baseDrawn) {
-		        try {
-		          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
-		          if (dataUrl) {
-		            const img = await loadImageFromDataUrl(dataUrl);
+			      const ctx = off.getContext('2d');
+			      if (!ctx) return;
+			      let baseDrawn = false;
+			      if (!compatNoCorsApplied) {
+			        try { baseDrawn = await drawVideoFrameSmart(ctx, video, w, h); } catch (e) { /* ignore */ }
+			        if (baseDrawn && canvasLooksBlank(ctx, w, h)) baseDrawn = false;
+			      }
+			      if (!baseDrawn) {
+			        try {
+			          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
+			          if (dataUrl) {
+			            const img = await loadImageFromDataUrl(dataUrl);
 		            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
 		          }
 		        } catch (e) { /* ignore */ }
@@ -3488,30 +3533,32 @@
       }
     }, { passive: false });
 
-	    const captureVideoFrameDataUrl = async ({ maxW } = {}) => {
-	      const tryLocal = () => {
-	        try {
-	          const w = fabricCanvas.getWidth();
-	          const h = fabricCanvas.getHeight();
-	          if (!w || !h) return null;
-	          const off = document.createElement('canvas');
-	          off.width = w;
-	          off.height = h;
-	          const ctx = off.getContext('2d');
-	          if (!ctx) return null;
-	          ctx.fillStyle = '#000';
-	          ctx.fillRect(0, 0, w, h);
-	          ctx.drawImage(video, 0, 0, w, h);
-	          return off.toDataURL('image/png');
-	        } catch (e) {
-	          return null;
-	        }
-	      };
+			    const captureVideoFrameDataUrl = async ({ maxW } = {}) => {
+		      const tryLocal = async () => {
+		        try {
+		          const w = fabricCanvas.getWidth();
+		          const h = fabricCanvas.getHeight();
+		          if (!w || !h) return null;
+		          const off = document.createElement('canvas');
+		          off.width = w;
+		          off.height = h;
+		          const ctx = off.getContext('2d');
+		          if (!ctx) return null;
+		          ctx.fillStyle = '#000';
+		          ctx.fillRect(0, 0, w, h);
+		          const ok = await drawVideoFrameSmart(ctx, video, w, h);
+		          if (!ok) return null;
+		          if (canvasLooksBlank(ctx, w, h)) return null;
+		          return off.toDataURL('image/png');
+		        } catch (e) {
+		          return null;
+		        }
+		      };
 
-	      const tryServer = async () => {
-	        try {
-	          if (!frameCaptureUrl || !videoId) return null;
-	          const timeS = Math.max(0, Number(video.currentTime) || 0);
+		      const tryServer = async () => {
+		        try {
+		          if (!frameCaptureUrl || !videoId) return null;
+		          const timeS = Math.max(0, Number(video.currentTime) || 0);
 	          const w = Number(fabricCanvas.getWidth?.()) || 0;
 	          const hint = Number(maxW) || 0;
 	          const desired = hint || (w ? Math.round(w) : 1280);
@@ -3523,43 +3570,102 @@
 	            headers: { 'content-type': 'application/json' },
 	            body: JSON.stringify(payload),
 	          });
-	          const data = await resp.json().catch(() => ({}));
-	          if (!resp.ok || !data?.ok) {
-	            const msg = safeText(data?.error, `HTTP ${resp.status || 0}`) || 'error';
-	            setStatus(`No se pudo capturar frame en servidor.\n${msg}`, true);
-	            return null;
-	          }
-	          const img = safeText(data?.image_data, '');
-	          if (!img || !img.startsWith('data:image/')) {
-	            setStatus('Captura servidor inválida (sin imagen).', true);
-	            return null;
-	          }
-	          return img || null;
-	        } catch (e) {
-	          setStatus(`No se pudo capturar frame en servidor.\n${safeText(e?.message, 'error')}`, true);
-	          return null;
-	        }
-	      };
+		          const data = await resp.json().catch(() => ({}));
+		          if (!resp.ok || !data?.ok) {
+		            const msg = safeText(data?.error, `HTTP ${resp.status || 0}`) || 'error';
+		            setStatus(`No se pudo capturar frame en servidor.\n${msg}`, true);
+		            try {
+		              window.__vsLastFrameCapture = { ok: false, status: resp.status || 0, error: msg, at: Date.now(), payload };
+		            } catch (e) { /* ignore */ }
+		            return null;
+		          }
+		          const img = safeText(data?.image_data, '');
+		          if (!img || !img.startsWith('data:image/')) {
+		            setStatus('Captura servidor inválida (sin imagen).', true);
+		            try {
+		              window.__vsLastFrameCapture = { ok: false, status: resp.status || 200, error: 'sin imagen', at: Date.now(), payload, dataKeys: Object.keys(data || {}) };
+		            } catch (e) { /* ignore */ }
+		            return null;
+		          }
+		          try {
+		            window.__vsLastFrameCapture = { ok: true, status: resp.status || 200, at: Date.now(), payload, len: img.length, prefix: img.slice(0, 28) };
+		          } catch (e) { /* ignore */ }
+		          return img || null;
+		        } catch (e) {
+		          setStatus(`No se pudo capturar frame en servidor.\n${safeText(e?.message, 'error')}`, true);
+		          try {
+		            window.__vsLastFrameCapture = { ok: false, status: 0, error: safeText(e?.message, 'error'), at: Date.now() };
+		          } catch (e2) { /* ignore */ }
+		          return null;
+		        }
+		      };
 
-	      // iOS/Safari: prioriza captura en servidor (evita frames negros).
-	      if (isIOS) {
-	        const server = await tryServer();
-	        if (server) return server;
+		      // iOS/Safari: prioriza captura en servidor (evita frames negros).
+		      if (isIOS) {
+		        const server = await tryServer();
+		        if (server) return server;
+		      }
+		      const local = await tryLocal();
+		      if (local) return local;
+		      return await tryServer();
+		    };
+
+	    // Freeze "modo trabajo": bloquea la reproducción/click-to-play para poder dibujar encima sin que el vídeo arranque
+	    // (especialmente en Safari, donde al tocar el <video> se reanuda).
+	    let freezeHoldOn = false;
+	    let freezeHoldPrevControls = null;
+
+	    let stageFreezeSrc = '';
+	    let stageFreezeOn = false;
+	    const getActiveFreezeLayerAt = (nowS) => {
+	      const t = Number.isFinite(nowS) ? Number(nowS) : (Number(video.currentTime) || 0);
+	      const layers = Array.isArray(fxState.layers) ? fxState.layers : [];
+	      let found = null;
+	      for (const layer of layers) {
+	        if (safeText(layer?.kind) !== 'freeze') continue;
+	        const alpha = computeTimedAlpha(layer, t);
+	        if (alpha <= 0.001) continue;
+	        found = layer;
 	      }
-	      const local = tryLocal();
-	      if (local) return local;
-	      return await tryServer();
+	      return found;
 	    };
-
-    // Freeze "modo trabajo": bloquea la reproducción/click-to-play para poder dibujar encima sin que el vídeo arranque
-    // (especialmente en Safari, donde al tocar el <video> se reanuda).
-    let freezeHoldOn = false;
-    let freezeHoldPrevControls = null;
-    const setFreezeHold = (on) => {
-      freezeHoldOn = Boolean(on);
-      try {
-        btnFreeze?.classList?.toggle?.('primary', freezeHoldOn);
-        if (btnFreeze) btnFreeze.textContent = freezeHoldOn ? 'Freeze ✓' : 'Freeze';
+	    const setStageFreezeBackground = (dataUrl) => {
+	      if (!freezeBgEl) return;
+	      const src = safeText(dataUrl, '');
+	      const on = Boolean(src);
+	      if (on === stageFreezeOn && (!on || src === stageFreezeSrc)) return;
+	      stageFreezeOn = on;
+	      stageFreezeSrc = src;
+	      try {
+	        if (on) {
+	          freezeBgEl.src = src;
+	          freezeBgEl.style.display = 'block';
+	        } else {
+	          try { freezeBgEl.removeAttribute('src'); } catch (e) { /* ignore */ }
+	          freezeBgEl.style.display = 'none';
+	        }
+	      } catch (e) { /* ignore */ }
+	      try {
+	        if (on) {
+	          video.style.opacity = '0';
+	          video.style.pointerEvents = 'none';
+	        } else {
+	          video.style.opacity = '';
+	          if (!freezeHoldOn) video.style.pointerEvents = '';
+	        }
+	      } catch (e) { /* ignore */ }
+	    };
+	    const syncFreezeBackground = (nowS) => {
+	      if (!freezeBgEl) return;
+	      const active = getActiveFreezeLayerAt(nowS);
+	      const src = safeText(active?.image_data, '');
+	      setStageFreezeBackground(src);
+	    };
+	    const setFreezeHold = (on) => {
+	      freezeHoldOn = Boolean(on);
+	      try {
+	        btnFreeze?.classList?.toggle?.('primary', freezeHoldOn);
+	        if (btnFreeze) btnFreeze.textContent = freezeHoldOn ? 'Freeze ✓' : 'Freeze';
       } catch (e) { /* ignore */ }
       try {
         if (freezeHoldOn) {
@@ -3575,11 +3681,11 @@
       } catch (e) { /* ignore */ }
     };
 
-    try {
-      video.addEventListener('play', () => {
-        if (!freezeHoldOn) return;
-        try { video.pause?.(); } catch (e) { /* ignore */ }
-      }, { passive: true });
+	    try {
+	      video.addEventListener('play', () => {
+	        if (!freezeHoldOn) return;
+	        try { video.pause?.(); } catch (e) { /* ignore */ }
+	      }, { passive: true });
       video.addEventListener('click', (ev) => {
         if (!freezeHoldOn) return;
         try { ev.preventDefault?.(); } catch (e) { /* ignore */ }
@@ -3588,31 +3694,46 @@
       }, { passive: false });
     } catch (e) { /* ignore */ }
 
-	    btnFreeze?.addEventListener('click', async () => {
-	      if (freezeHoldOn) {
-	        setFreezeHold(false);
-	        setStatus('Freeze desactivado.');
-	        return;
-	      }
-	      const img = await captureVideoFrameDataUrl({ maxW: 1280 });
-	      if (!img) {
-	        setStatus('No se pudo capturar freeze.', true);
-	        return;
-	      }
-      const now = Number(video.currentTime) || 0;
-      const layer = {
-        id: fxSeq++,
-        ...seedLayerDataNow({ t_in_s: now, t_out_s: now + 1.2, fade_in_ms: 150, fade_out_ms: 150 }),
-        kind: 'freeze',
-        image_data: img,
-      };
-      fxState.layers = [...(Array.isArray(fxState.layers) ? fxState.layers : []), layer].slice(0, 80);
-      selectedFxId = layer.id;
-      renderFxList();
-      updateLayerPanel();
-      setFreezeHold(true);
-      setStatus(`Freeze creado en ${fmtTimeShort(now)}.`);
-    });
+		    btnFreeze?.addEventListener('click', async () => {
+		      if (freezeHoldOn) {
+		        setFreezeHold(false);
+		        try { syncFreezeBackground(); } catch (e) { /* ignore */ }
+		        setStatus('Freeze desactivado.');
+		        return;
+		      }
+		      const inS = Number(inInput?.value || 0) || 0;
+		      const outS = Number(outInput?.value || 0) || 0;
+		      if (!outS || outS <= inS + 0.05) {
+		        setStatus('Freeze: define IN/OUT (rango del clip).', true);
+		        return;
+		      }
+		      const img = await captureVideoFrameDataUrl({ maxW: 1280 });
+		      if (!img) {
+		        setStatus('No se pudo capturar freeze.', true);
+		        return;
+		      }
+	      const now = Number(video.currentTime) || 0;
+	      const layer = {
+	        id: fxSeq++,
+	        ...seedLayerDataNow({ t_in_s: inS, t_out_s: outS, fade_in_ms: 120, fade_out_ms: 120 }),
+	        kind: 'freeze',
+	        image_data: img,
+	      };
+	      const prevLayers = Array.isArray(fxState.layers) ? fxState.layers : [];
+	      const cleaned = prevLayers.filter((x) => {
+	        if (safeText(x?.kind) !== 'freeze') return true;
+	        const a = Number(x?.t_in_s) || 0;
+	        const b = Number(x?.t_out_s) || 0;
+	        return !(Math.abs(a - inS) < 0.02 && Math.abs(b - outS) < 0.02);
+	      });
+	      fxState.layers = [...cleaned, layer].slice(0, 80);
+	      selectedFxId = layer.id;
+	      renderFxList();
+	      updateLayerPanel();
+	      setFreezeHold(true);
+	      try { syncFreezeBackground(now); } catch (e) { /* ignore */ }
+	      setStatus(`Freeze creado (${fmtTimeShort(inS)} → ${fmtTimeShort(outS)}).`);
+	    });
 
     let recActive = false;
     let recMedia = null;
@@ -4305,6 +4426,46 @@
 		        fade_out: fadeOut,
 		      };
 		    };
+
+		    const showDebug = async () => {
+		      const info = [];
+		      try { info.push(`videoId=${Number(videoId) || 0}`); } catch (e) { /* ignore */ }
+		      try { info.push(`t=${(Number(video.currentTime) || 0).toFixed(3)}s`); } catch (e) { /* ignore */ }
+		      try { info.push(`readyState=${Number(video.readyState) || 0}`); } catch (e) { /* ignore */ }
+		      try { info.push(`dur=${Number.isFinite(video.duration) ? video.duration.toFixed(3) : 'n/a'}`); } catch (e) { /* ignore */ }
+		      try { info.push(`vw×vh=${Number(video.videoWidth) || 0}×${Number(video.videoHeight) || 0}`); } catch (e) { /* ignore */ }
+		      try { info.push(`stage=${Math.round(stage?.getBoundingClientRect?.().width || 0)}×${Math.round(stage?.getBoundingClientRect?.().height || 0)}`); } catch (e) { /* ignore */ }
+		      try { info.push(`iOS=${Boolean(isIOS)}`); } catch (e) { /* ignore */ }
+		      try { info.push(`compatNoCors=${Boolean(compatNoCorsApplied)}`); } catch (e) { /* ignore */ }
+		      try {
+		        const src = safeText(video.querySelector('source')?.getAttribute?.('src') || video.currentSrc || '');
+		        info.push(`src=${src.slice(0, 180)}${src.length > 180 ? '…' : ''}`);
+		      } catch (e) { /* ignore */ }
+		      try {
+		        const last = window.__vsLastFrameCapture;
+		        if (last) info.push(`lastFrameCapture=${JSON.stringify(last).slice(0, 420)}`);
+		      } catch (e) { /* ignore */ }
+
+		      const wantOpen = window.confirm(`${info.join('\\n')}\n\n¿Probar captura de frame en servidor y abrirla en una pestaña?`);
+		      if (!wantOpen) return;
+		      const dataUrl = await captureVideoFrameDataUrl({ maxW: 1280 });
+		      if (!dataUrl) {
+		        window.alert('No se pudo capturar el frame (mira el status y vuelve a pulsar Debug).');
+		        return;
+		      }
+		      try {
+		        const w = window.open('', '_blank');
+		        if (w) {
+		          w.document.write(`<img src="${dataUrl}" style="max-width:100%;height:auto;"/>`);
+		          w.document.title = 'Frame debug';
+		        } else {
+		          window.location.href = dataUrl;
+		        }
+		      } catch (e) {
+		        try { window.location.href = dataUrl; } catch (e2) { /* ignore */ }
+		      }
+		    };
+		    btnDebug?.addEventListener('click', showDebug);
 	    const tlDefaultItem = (clipId) => tlNormalizeItem({ clip_id: clipId, speed: 1, speed_start: 1, speed_end: 1, fade_in: 0, fade_out: 0 });
 
 	    const isTimelineProject = (p) => {
@@ -7258,23 +7419,24 @@
     // Slides + Export Pro
     let slides = [];
 
-	    const captureFrameDataUrl = async () => {
-	      const w = fabricCanvas.getWidth();
-	      const h = fabricCanvas.getHeight();
-	      const off = document.createElement('canvas');
-	      off.width = w;
-	      off.height = h;
-	      const ctx = off.getContext('2d');
-	      if (!ctx) return '';
-	      let baseDrawn = false;
-	      if (!compatNoCorsApplied && !isIOS) {
-	        try { ctx.drawImage(video, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
-	      }
-	      if (!baseDrawn) {
-	        try {
-	          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
-	          if (dataUrl) {
-	            const img = await loadImageFromDataUrl(dataUrl);
+		    const captureFrameDataUrl = async () => {
+		      const w = fabricCanvas.getWidth();
+		      const h = fabricCanvas.getHeight();
+		      const off = document.createElement('canvas');
+		      off.width = w;
+		      off.height = h;
+		      const ctx = off.getContext('2d');
+		      if (!ctx) return '';
+		      let baseDrawn = false;
+		      if (!compatNoCorsApplied) {
+		        try { baseDrawn = await drawVideoFrameSmart(ctx, video, w, h); } catch (e) { /* ignore */ }
+		        if (baseDrawn && canvasLooksBlank(ctx, w, h)) baseDrawn = false;
+		      }
+		      if (!baseDrawn) {
+		        try {
+		          const dataUrl = await captureVideoFrameDataUrl({ maxW: Math.max(480, Math.min(1920, Math.round(w || 1280))) });
+		          if (dataUrl) {
+		            const img = await loadImageFromDataUrl(dataUrl);
 	            try { ctx.drawImage(img, 0, 0, w, h); baseDrawn = true; } catch (e) { /* ignore */ }
 	          }
 	        } catch (e) { /* ignore */ }
@@ -7614,11 +7776,12 @@
       if (!video.paused && activeObj && activeAlpha < 0.35) {
         try { fabricCanvas.discardActiveObject?.(); } catch (e) { /* ignore */ }
       }
-      if (!video.paused || anyAnim) {
-        try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
-      }
-      try { renderFx(fxCtx, { width: fxEl.width, height: fxEl.height, nowS, forExport: false }); } catch (e) { /* ignore */ }
-    };
+	      if (!video.paused || anyAnim) {
+	        try { fabricCanvas.requestRenderAll(); } catch (e) { /* ignore */ }
+	      }
+	      try { syncFreezeBackground(nowS); } catch (e) { /* ignore */ }
+	      try { renderFx(fxCtx, { width: fxEl.width, height: fxEl.height, nowS, forExport: false }); } catch (e) { /* ignore */ }
+	    };
 
     const tick = () => {
       try { applyTimedLayers(); } catch (e) { /* ignore */ }
