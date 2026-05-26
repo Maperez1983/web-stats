@@ -7314,13 +7314,14 @@
 				              .filter((src) => src && (!needle || src.includes(needle)));
 				          } catch (e) { return []; }
 				        };
-					        const buildDiag = async () => {
-					          const form = document.getElementById('task-builder-form');
-					          const canvas = document.getElementById('create-task-canvas');
-					          const stage = document.getElementById('task-pitch-stage');
-					          const viewport = document.getElementById('task-pitch-viewport');
-					          const statusEl = document.getElementById('task-builder-status');
-					          const lines = [];
+						        const buildDiag = async () => {
+						          const form = document.getElementById('task-builder-form');
+						          const canvas = document.getElementById('create-task-canvas');
+						          const stage = document.getElementById('task-pitch-stage');
+						          const viewport = document.getElementById('task-pitch-viewport');
+						          const statusEl = document.getElementById('task-builder-status');
+						          const backdrop = document.getElementById('tpad-overlay-backdrop');
+						          const lines = [];
 					          // Asegura carga + init antes de capturar tamaños.
 					          let ensureOk = null;
 					          try {
@@ -7332,10 +7333,32 @@
 					          }
 					          lines.push(`url=${String(location.href || '').slice(0, 240)}`);
 					          lines.push(`ua=${String(navigator.userAgent || '').slice(0, 240)}`);
-					          lines.push(`tactics_mode=1`);
-					          lines.push(`status=${String(statusEl && statusEl.textContent ? statusEl.textContent : '').trim()}`);
-					          lines.push(`fabric=${typeof window.fabric}`);
-					          lines.push(`initSessionsTacticalPad=${typeof window.initSessionsTacticalPad}`);
+						          lines.push(`tactics_mode=1`);
+						          lines.push(`status=${String(statusEl && statusEl.textContent ? statusEl.textContent : '').trim()}`);
+						          try { lines.push(`body.overlay_backdrop_open=${document.body.classList.contains('overlay-backdrop-open') ? '1' : '0'}`); } catch (e) {}
+						          try { lines.push(`backdrop.hidden=${backdrop ? String(!!backdrop.hidden) : 'n/a'}`); } catch (e) {}
+						          try { lines.push(`backdrop.pointerEvents=${backdrop ? String((window.getComputedStyle(backdrop) || {}).pointerEvents || '') : 'n/a'}`); } catch (e) {}
+						          try {
+						            const openDetails = ['task-builder-actions-menu', 'pitch-view-menu'].map((id) => {
+						              const el = document.getElementById(id);
+						              return { id, open: !!(el && el.tagName === 'DETAILS' && el.open) };
+						            });
+						            lines.push(`overlay.details=${JSON.stringify(openDetails)}`);
+						          } catch (e) {}
+						          try {
+						            const floatIds = ['task-command-menu','task-pattern-popover','task-formation-popover','task-overlays-popover','task-layers-popover','task-scenarios-popover'];
+						            const visibles = floatIds.map((id) => {
+						              const el = document.getElementById(id);
+						              if (!el) return { id, visible: false };
+						              const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+						              const rect = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+						              const visible = !el.hidden && style && style.display !== 'none' && style.visibility !== 'hidden' && rect && rect.width > 1 && rect.height > 1;
+						              return { id, visible: !!visible, hidden: !!el.hidden, display: style ? style.display : '', rect: rect ? { w: Math.round(rect.width), h: Math.round(rect.height) } : null };
+						            });
+						            lines.push(`overlay.float=${JSON.stringify(visibles)}`);
+						          } catch (e) {}
+						          lines.push(`fabric=${typeof window.fabric}`);
+						          lines.push(`initSessionsTacticalPad=${typeof window.initSessionsTacticalPad}`);
 					          lines.push(`last_error=${String(window.__webstatsTpadLastError || '').trim()}`);
 					          try { lines.push(`tpad_ready=${String(form?.dataset?.webstatsTpadReady || '')}`); } catch (e) {}
 					          try { lines.push(`tpad_init=${String(form?.dataset?.webstatsTpadInit || '')}`); } catch (e) {}
