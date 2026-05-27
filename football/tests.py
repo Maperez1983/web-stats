@@ -680,6 +680,17 @@ class KPIExplorerWorkspacePresetsTests(TestCase):
         self.assertTrue(payload.get('ok'))
         self.assertEqual(payload.get('value', {}).get('a'), 1)
 
+    def test_workspace_preference_errors_include_stable_code(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('workspace-pref-get')}?workspace={self.workspace.id}",
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload.get('ok'))
+        self.assertEqual(payload.get('code'), 'key_required')
+
     def test_kpi_explorer_page_includes_shared_preset_ui(self):
         self.client.force_login(self.user)
         url = f"{reverse('kpi-explorer')}?workspace={self.workspace.id}"
@@ -1868,6 +1879,7 @@ class ClubSeasonWizardQuestionnaireTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Media global / 5')
         self.assertContains(response, 'id="season-radar"')
+        self.assertContains(response, 'season_wizard_ratings.js')
         self.assertContains(response, 'data-values="4.5|3.0|2.0|0.0"')
         self.assertContains(response, 'Categoría actual consolidada')
 
@@ -1931,6 +1943,42 @@ class SeasonWizardRatingHelperTests(SimpleTestCase):
         self.assertEqual(summary['overall'], 3.0)
         self.assertEqual(summary['category'], 'Categoría actual consolidada')
         self.assertEqual(summary['chart_values'], [2.5, 0.0, 0.0, 4.0])
+
+
+class WorkspaceAccessPolicyTests(TestCase):
+    def test_workspace_owner_can_manage_without_membership(self):
+        from football.access_policy import can_manage_workspace, can_view_workspace
+
+        user = get_user_model().objects.create_user(username='policy-owner', password='pass-1234')
+        workspace = Workspace.objects.create(
+            name='Policy Club',
+            slug='policy-club',
+            kind=Workspace.KIND_CLUB,
+            owner_user=user,
+            is_active=True,
+        )
+
+        self.assertTrue(can_view_workspace(user, workspace))
+        self.assertTrue(can_manage_workspace(user, workspace))
+
+    def test_workspace_member_can_view_but_not_manage(self):
+        from football.access_policy import can_manage_workspace, can_view_workspace
+
+        user = get_user_model().objects.create_user(username='policy-member', password='pass-1234')
+        workspace = Workspace.objects.create(
+            name='Policy Member Club',
+            slug='policy-member-club',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=user,
+            role=WorkspaceMembership.ROLE_MEMBER,
+        )
+
+        self.assertTrue(can_view_workspace(user, workspace))
+        self.assertFalse(can_manage_workspace(user, workspace))
 
 
 class TrialPaywallTests(TestCase):

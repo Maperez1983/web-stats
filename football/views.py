@@ -61,6 +61,11 @@ from django.views.decorators.csrf import csrf_exempt
 from .task_backups import write_task_backup
 from .preview_render import render_html_selector_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
+from .access_policy import can_manage_workspace as policy_can_manage_workspace
+from .access_policy import can_view_workspace as policy_can_view_workspace
+from .access_policy import workspace_membership_for_user as policy_workspace_membership_for_user
+from .api_utils import api_error, api_ok
+from .ops_logging import log_exception
 from .season_wizard import build_questionnaire_rating_summary, parse_questionnaire_ratings
 
 try:
@@ -7579,22 +7584,11 @@ def _workspace_entry_url(workspace, *, user=None):
 
 
 def _workspace_membership_for_user(workspace, user):
-    if not workspace or not user or not user.is_authenticated:
-        return None
-    return WorkspaceMembership.objects.filter(workspace=workspace, user=user).first()
+    return policy_workspace_membership_for_user(workspace, user)
 
 
 def _can_view_workspace(user, workspace):
-    if _can_access_platform(user):
-        return True
-    if workspace and user and getattr(user, 'is_authenticated', False):
-        try:
-            if int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
-                return True
-        except Exception:
-            pass
-    membership = _workspace_membership_for_user(workspace, user)
-    return bool(membership)
+    return policy_can_view_workspace(user, workspace, platform_access=_can_access_platform(user))
 
 
 def _workspace_pref_key(raw_key: str) -> str:
@@ -7607,14 +7601,14 @@ def _workspace_pref_key(raw_key: str) -> str:
 def workspace_preference_get_api(request):
     workspace = _get_active_workspace(request)
     if not workspace:
-        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+        return api_error('Workspace no configurado.', status=400, code='workspace_missing')
     if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        return api_error('No autorizado.', status=403, code='forbidden')
     key = _workspace_pref_key(request.GET.get('key') or '')
     if not key:
-        return JsonResponse({'ok': False, 'error': 'key requerido.'}, status=400)
+        return api_error('key requerido.', status=400, code='key_required')
     pref = WorkspacePreference.objects.filter(workspace=workspace, key=key).first()
-    return JsonResponse({'ok': True, 'key': key, 'value': pref.value if pref else None, 'updated_at': pref.updated_at if pref else None})
+    return api_ok({'key': key, 'value': pref.value if pref else None, 'updated_at': pref.updated_at if pref else None})
 
 
 @login_required
@@ -7622,16 +7616,16 @@ def workspace_preference_get_api(request):
 def workspace_preference_set_api(request):
     workspace = _get_active_workspace(request)
     if not workspace:
-        return JsonResponse({'ok': False, 'error': 'Workspace no configurado.'}, status=400)
+        return api_error('Workspace no configurado.', status=400, code='workspace_missing')
     if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
-        return JsonResponse({'ok': False, 'error': 'No autorizado.'}, status=403)
+        return api_error('No autorizado.', status=403, code='forbidden')
     try:
         data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
     except Exception:
         data = {}
     key = _workspace_pref_key(data.get('key') or '')
     if not key:
-        return JsonResponse({'ok': False, 'error': 'key requerido.'}, status=400)
+        return api_error('key requerido.', status=400, code='key_required')
     value = data.get('value')
     if value is None:
         value = {}
@@ -7641,26 +7635,17 @@ def workspace_preference_set_api(request):
     except Exception:
         raw_size = 0
     if raw_size > 150_000:
-        return JsonResponse({'ok': False, 'error': 'Preferencia demasiado grande.'}, status=400)
+        return api_error('Preferencia demasiado grande.', status=400, code='payload_too_large')
     obj, _ = WorkspacePreference.objects.update_or_create(
         workspace=workspace,
         key=key,
         defaults={'value': value},
     )
-    return JsonResponse({'ok': True, 'key': key, 'updated_at': obj.updated_at})
+    return api_ok({'key': key, 'updated_at': obj.updated_at})
 
 
 def _can_manage_workspace(user, workspace):
-    if _can_access_platform(user):
-        return True
-    if workspace and user and getattr(user, 'is_authenticated', False):
-        try:
-            if int(getattr(workspace, 'owner_user_id', 0) or 0) == int(getattr(user, 'id', 0) or 0):
-                return True
-        except Exception:
-            pass
-    membership = _workspace_membership_for_user(workspace, user)
-    return bool(membership and membership.role in {WorkspaceMembership.ROLE_OWNER, WorkspaceMembership.ROLE_ADMIN})
+    return policy_can_manage_workspace(user, workspace, platform_access=_can_access_platform(user))
 
 
 def _workspace_links_for_user(user):
@@ -13867,6 +13852,7 @@ def club_season_wizard(request):
         except ValueError as exc:
             error = str(exc)
         except Exception:
+            log_exception(logger, 'No se pudo completar el cierre de temporada.', request, workspace=workspace, team=active_team, action=action)
             error = 'No se pudo completar el cierre de temporada.'
 
     # Defaults para formulario de nueva temporada.
