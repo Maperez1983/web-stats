@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from . import season_wizard_views
 from . import kit2d_views
 from . import academy_views
 from . import pwa as pwa_views
@@ -12,7 +13,7 @@ urlpatterns = [
     path('2j/', views.product_landing_page, name='product-landing'),
     path('signup/', views.public_signup_page, name='signup'),
     path('onboarding/', views.club_onboarding_page, name='club-onboarding'),
-    path('onboarding/season/', views.club_season_wizard, name='club-season-wizard'),
+    path('onboarding/season/', season_wizard_views.club_season_wizard, name='club-season-wizard'),
     path('team/<int:team_id>/crest.svg', views.team_crest_svg, name='team-crest-svg'),
     path('', views.dashboard_page, name='dashboard-home'),
     path('partido/', views.match_hub_page, name='match-hub'),
