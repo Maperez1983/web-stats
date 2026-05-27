@@ -2042,6 +2042,19 @@ class BillingViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Billing Club')
 
+    @patch('football.billing_views.stripe', None)
+    def test_stripe_webhook_uses_extracted_view(self):
+        response = self.client.post(
+            reverse('stripe-webhook'),
+            data=b'{}',
+            content_type='application/json',
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 501)
+        payload = response.json()
+        self.assertFalse(payload.get('ok'))
+
 class UniversoSyncWithoutGroupTests(TestCase):
     @patch('football.views._sync_team_crest_from_sources')
     @patch('football.views._find_universo_next_match_for_context', return_value={})
