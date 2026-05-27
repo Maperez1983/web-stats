@@ -330,6 +330,15 @@
       body.tactics-mode .pitch-stage {
         max-height: 100%;
       }
+      /* El markup del estadio existe en todo el editor para compartir estructura. Fuera de táctica
+         debe ser transparente al layout: sin gradas, sin overlays y sin alterar el campo. */
+      .tpad-stadium,
+      .tpad-stadium-center {
+        display: contents;
+      }
+      .tpad-stand {
+        display: none;
+      }
       /* En modo táctica, el campo va “enmarcado” con una grada/estadio (estilo broadcast) con el
          nombre del equipo activo. Solo es decorativo y no debe bloquear clicks. */
       body.tactics-mode .tpad-stadium,
@@ -4629,7 +4638,7 @@
 	    </style>
 	  </head>
 				  <body
-		        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %} stadium-mode"
+		        class="prod-commercial{% if tactics_mode %} tactics-mode stadium-mode{% endif %}"
 		        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
 		      >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
