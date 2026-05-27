@@ -1,5 +1,10 @@
+import io
 import re
+import shutil
+import subprocess
+import tempfile
 from datetime import datetime, time, timedelta
+from pathlib import Path
 
 from django.db.models import Max
 from django.utils.module_loading import import_string
@@ -13,7 +18,27 @@ from .library_repositories import (
 )
 from .models import SessionTask, TrainingMicrocycle
 from .session_plan_fields import serialize_session_plan_fields
-from .task_library_services import ensure_library_task_preview
+from .task_library_services import (
+    _split_joined_upper_token,
+    ensure_library_task_preview,
+    polish_spanish_text,
+    repair_joined_words_text,
+)
+
+try:
+    from PIL import Image
+except Exception:  # pragma: no cover
+    Image = None
+
+try:
+    import pytesseract
+except Exception:  # pragma: no cover
+    pytesseract = None
+
+try:
+    from pypdf import PdfReader
+except Exception:  # pragma: no cover
+    PdfReader = None
 
 
 def _views_func(name):
@@ -24,8 +49,177 @@ def apply_analysis_to_task(*args, **kwargs):
     return _views_func('_apply_analysis_to_task')(*args, **kwargs)
 
 
+def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
+    if not pdf_bytes:
+        return ''
+    if shutil.which('pdftotext') is not None:
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=True) as tmp:
+            tmp.write(pdf_bytes)
+            tmp.flush()
+            try:
+                proc = subprocess.run(
+                    ['pdftotext', '-layout', '-enc', 'UTF-8', tmp.name, '-'],
+                    check=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=45,
+                )
+            except Exception:
+                proc = None
+            if proc and proc.returncode == 0:
+                try:
+                    text = (proc.stdout or b'').decode('utf-8', errors='ignore')
+                except Exception:
+                    text = ''
+                if text and len(text.strip()) >= 40:
+                    return text
+
+    if PdfReader is None:
+        return ''
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+    except Exception:
+        return ''
+    out = []
+    for page in (getattr(reader, 'pages', None) or [])[:180]:
+        try:
+            chunk = page.extract_text() or ''
+        except Exception:
+            chunk = ''
+        if chunk:
+            out.append(chunk)
+    return '\n'.join(out).strip()
+
+
 def extract_pdf_text(pdf_file, max_chars=12000):
-    return _views_func('_extract_pdf_text')(pdf_file, max_chars=max_chars)
+    if PdfReader is None:
+        raise ValueError('Falta dependencia de lectura PDF. Instala `pypdf`.')
+
+    def _ocr_text_from_image_bytes(raw_bytes):
+        if not raw_bytes or Image is None or pytesseract is None:
+            return ''
+        try:
+            with Image.open(io.BytesIO(raw_bytes)) as img:
+                rgb = img.convert('RGB')
+                return (pytesseract.image_to_string(rgb, lang='spa+eng') or '').strip()
+        except Exception:
+            return ''
+
+    def _needs_ocr_boost(parsed_text):
+        compact_hits = re.findall(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', str(parsed_text or ''))
+        joined_hits = 0
+        for token in compact_hits[:120]:
+            repaired = _split_joined_upper_token(token)
+            if repaired == token:
+                joined_hits += 1
+        return len(str(parsed_text or '')) < 500 or joined_hits >= 2
+
+    def _looks_like_broken_table_layout(parsed_text):
+        try:
+            lines = [ln.strip() for ln in str(parsed_text or '').splitlines() if ln.strip()]
+        except Exception:
+            return False
+        if len(lines) < 8:
+            return False
+        weird_lines = 0
+        for ln in lines[:220]:
+            alpha_tokens = re.findall(r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+', ln)
+            if len(alpha_tokens) < 4:
+                continue
+            one_letter = sum(1 for t in alpha_tokens if len(t) == 1)
+            avg_len = sum(len(t) for t in alpha_tokens) / float(max(1, len(alpha_tokens)))
+            if one_letter >= 3 and avg_len < 2.3:
+                weird_lines += 1
+        return weird_lines >= 2
+
+    def _ocr_pdf_pages_with_pdftoppm(local_pdf_file, max_pages=4):
+        if pytesseract is None or Image is None:
+            return ''
+        pdftoppm_bin = shutil.which('pdftoppm')
+        if not pdftoppm_bin:
+            return ''
+        try:
+            if hasattr(local_pdf_file, 'seek'):
+                local_pdf_file.seek(0)
+            pdf_bytes = local_pdf_file.read()
+            if not pdf_bytes:
+                return ''
+            with tempfile.TemporaryDirectory(prefix='task-ocr-') as tmpdir:
+                tmp_path = Path(tmpdir)
+                source_pdf = tmp_path / 'source.pdf'
+                source_pdf.write_bytes(pdf_bytes)
+                ocr_chunks = []
+                page_limit = max(1, int(max_pages or 1))
+                for page_no in range(1, page_limit + 1):
+                    out_base = tmp_path / f'page-{page_no}'
+                    subprocess.run(
+                        [
+                            pdftoppm_bin,
+                            '-jpeg',
+                            '-r',
+                            '170',
+                            '-f',
+                            str(page_no),
+                            '-singlefile',
+                            str(source_pdf),
+                            str(out_base),
+                        ],
+                        check=True,
+                        capture_output=True,
+                        timeout=35,
+                    )
+                    page_img = tmp_path / f'page-{page_no}.jpg'
+                    if not page_img.exists():
+                        continue
+                    raw = page_img.read_bytes()
+                    ocr_text = _ocr_text_from_image_bytes(raw)
+                    if ocr_text:
+                        ocr_chunks.append(ocr_text)
+                    if sum(len(c) for c in ocr_chunks) >= 9000:
+                        break
+                return '\n'.join(ocr_chunks).strip()
+        except Exception:
+            return ''
+
+    try:
+        if hasattr(pdf_file, 'seek'):
+            pdf_file.seek(0)
+        pdf_bytes = pdf_file.read() if hasattr(pdf_file, 'read') else b''
+        if not pdf_bytes:
+            raise ValueError('PDF vacío.')
+
+        text = str(extract_pdf_text_via_pdftotext(pdf_bytes) or '').strip()
+        if _looks_like_broken_table_layout(text):
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            chunks = []
+            for page in reader.pages:
+                chunks.append((page.extract_text() or '').strip())
+            text = '\n'.join([item for item in chunks if item]).strip()
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        if len(text) < 180:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
+            ocr_chunks = []
+            for page in reader.pages[:5]:
+                images = getattr(page, 'images', []) or []
+                for image in images[:3]:
+                    image_bytes = getattr(image, 'data', b'') or b''
+                    ocr_text = _ocr_text_from_image_bytes(image_bytes)
+                    if ocr_text:
+                        ocr_chunks.append(ocr_text)
+                if sum(len(c) for c in ocr_chunks) >= 5000:
+                    break
+            if ocr_chunks:
+                text = '\n'.join([text, '\n'.join(ocr_chunks)]).strip() if text else '\n'.join(ocr_chunks)
+                text = re.sub(r'\n{3,}', '\n\n', text)
+        if _needs_ocr_boost(text):
+            ocr_rendered = _ocr_pdf_pages_with_pdftoppm(io.BytesIO(pdf_bytes), max_pages=5)
+            if ocr_rendered:
+                merged = '\n'.join([text, ocr_rendered]).strip() if text else ocr_rendered
+                text = re.sub(r'\n{3,}', '\n\n', merged)
+        text = polish_spanish_text(repair_joined_words_text(text), multiline=True)
+        return text[:max_chars]
+    except Exception:
+        raise ValueError('No se pudo leer el PDF. Verifica que no esté protegido o corrupto.')
 
 
 def extract_preview_images_from_pdf(*args, **kwargs):
