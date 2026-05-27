@@ -6034,6 +6034,7 @@ def normalize_next_match_payload(payload):
             'name': clean_name,
             'full_name': clean_name,
             'crest_url': '',
+            'kit2d_url': '',
             'team_code': '',
         }
     elif isinstance(opponent, dict):
@@ -6043,6 +6044,7 @@ def normalize_next_match_payload(payload):
             'name': name or 'Rival por confirmar',
             'full_name': full_name or name or 'Rival por confirmar',
             'crest_url': str(opponent.get('crest_url') or '').strip(),
+            'kit2d_url': str(opponent.get('kit2d_url') or '').strip(),
             'team_code': str(opponent.get('team_code') or '').strip(),
         }
     else:
@@ -6051,17 +6053,85 @@ def normalize_next_match_payload(payload):
             'name': fallback or 'Rival por confirmar',
             'full_name': fallback or 'Rival por confirmar',
             'crest_url': '',
+            'kit2d_url': '',
             'team_code': '',
         }
     return payload
 
 
-def _enrich_standings_rows_with_crests(rows):
+def _is_valid_kit2d_url(value):
+    raw = str(value or '').strip()
+    return raw if raw.startswith('data:image/') or raw.startswith('/') or raw.startswith('http') else ''
+
+
+def _workspace_home_kit2d_url(workspace):
+    if not workspace:
+        return ''
+    try:
+        pref = WorkspacePreference.objects.filter(workspace=workspace, key='kit2d.tokens').only('value').first()
+    except Exception:
+        pref = None
+    value = getattr(pref, 'value', None) if pref else None
+    if not isinstance(value, dict):
+        return ''
+    for key in ('home_club_data_url', 'club_data_url', 'home_editor_data_url', 'editor_data_url'):
+        url = _is_valid_kit2d_url(value.get(key))
+        if url:
+            return url
+    return ''
+
+
+@lru_cache(maxsize=512)
+def _generated_team_kit2d_svg_url(team_name):
+    label = str(team_name or '').strip() or 'Rival'
+    digest = hashlib.sha1(label.lower().encode('utf-8')).hexdigest()
+    hue = int(digest[:2], 16) % 360
+    hue_2 = (hue + 34 + (int(digest[2:4], 16) % 80)) % 360
+    main = f'hsl({hue} 62% 43%)'
+    trim = f'hsl({hue_2} 72% 88%)'
+    shadow = f'hsl({hue} 50% 22%)'
+    initials = ''.join(part[:1] for part in re.findall(r'[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+', label)[:2]).upper() or 'R'
+    initials = html.escape(initials[:2])
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <path filter="url(#s)" d="M34 20 50 12h28l16 8 18 20-18 16-9-10v55c0 8-5 12-13 12H56c-8 0-13-4-13-12V46l-9 10-18-16 18-20z" fill="{main}"/>
+  <path d="M50 12c3 9 7 14 14 14s11-5 14-14" fill="none" stroke="{trim}" stroke-width="7" stroke-linecap="round"/>
+  <path d="M43 46v56M64 27v84M85 46v56" stroke="{trim}" stroke-width="8" opacity=".62"/>
+  <path d="M34 20 16 40l18 16 9-10M94 20l18 20-18 16-9-10" fill="none" stroke="{shadow}" stroke-width="4" opacity=".35"/>
+  <text x="64" y="83" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="800" fill="{trim}" stroke="{shadow}" stroke-width="1.5">{initials}</text>
+</svg>"""
+    return 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode('utf-8')).decode('ascii')
+
+
+def _team_name_matches_primary(row_name, primary_team):
+    if not primary_team:
+        return False
+    row_key = _normalize_team_lookup_key(row_name)
+    names = [
+        getattr(primary_team, 'name', ''),
+        getattr(primary_team, 'short_name', ''),
+        getattr(primary_team, 'slug', ''),
+    ]
+    return any(row_key and row_key == _normalize_team_lookup_key(name) for name in names)
+
+
+def _kit2d_url_for_team_name(team_name, *, workspace=None, primary_team=None, own_kit2d_url=''):
+    if _team_name_matches_primary(team_name, primary_team):
+        return _is_valid_kit2d_url(own_kit2d_url) or _generated_team_kit2d_svg_url(str(team_name or 'Equipo'))
+    return _generated_team_kit2d_svg_url(str(team_name or 'Rival'))
+
+
+def _enrich_standings_rows_with_crests(rows, *, workspace=None, primary_team=None):
     if not isinstance(rows, list):
         return []
     snapshot_lookup = _build_universo_standings_lookup(load_universo_snapshot())
     capture_lookup = _build_universo_capture_team_lookup()
     crest_lookup = _build_team_crest_lookup()
+    own_kit2d_url = _workspace_home_kit2d_url(workspace)
     enriched = []
     for row in rows:
         if not isinstance(row, dict):
@@ -6081,11 +6151,17 @@ def _enrich_standings_rows_with_crests(rows):
         row_copy['crest_url'] = _sanitize_universo_external_image(
             _absolute_universo_url(row_copy.get('crest_url'))
         )
+        row_copy['kit2d_url'] = _is_valid_kit2d_url(row_copy.get('kit2d_url')) or _kit2d_url_for_team_name(
+            team_name,
+            workspace=workspace,
+            primary_team=primary_team,
+            own_kit2d_url=own_kit2d_url,
+        )
         enriched.append(row_copy)
     return enriched
 
 
-def _enrich_next_match_payload_with_crests(next_match, standings_rows=None):
+def _enrich_next_match_payload_with_crests(next_match, standings_rows=None, *, workspace=None, primary_team=None):
     if not isinstance(next_match, dict):
         return {}
     payload = normalize_next_match_payload(dict(next_match))
@@ -6107,13 +6183,23 @@ def _enrich_next_match_payload_with_crests(next_match, standings_rows=None):
                 crest_url = _absolute_universo_url(row.get('crest_url'))
                 if crest_url:
                     opponent['crest_url'] = crest_url
+                if row.get('kit2d_url') and not opponent.get('kit2d_url'):
+                    opponent['kit2d_url'] = row.get('kit2d_url')
                 if not opponent.get('full_name') and row.get('full_name'):
                     opponent['full_name'] = str(row.get('full_name')).strip()
                 break
+    if opponent_name and not _is_valid_kit2d_url(opponent.get('kit2d_url')):
+        opponent['kit2d_url'] = _kit2d_url_for_team_name(
+            opponent_name,
+            workspace=workspace,
+            primary_team=primary_team,
+            own_kit2d_url=_workspace_home_kit2d_url(workspace),
+        )
     payload['opponent'] = {
         'name': str(opponent.get('name') or opponent.get('full_name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
         'full_name': str(opponent.get('full_name') or opponent.get('name') or opponent_name or 'Rival por confirmar').strip() or 'Rival por confirmar',
         'crest_url': _sanitize_universo_external_image(_absolute_universo_url(opponent.get('crest_url'))),
+        'kit2d_url': _is_valid_kit2d_url(opponent.get('kit2d_url')),
         'team_code': str(opponent.get('team_code') or '').strip(),
     }
     return payload
@@ -9702,12 +9788,21 @@ def _dashboard_data_impl(request, *, _json):
     except Exception:
         standings_last_updated = ''
     try:
-        standings = _enrich_standings_rows_with_crests((competition_payload or {}).get('standings') or [])
+        standings = _enrich_standings_rows_with_crests(
+            (competition_payload or {}).get('standings') or [],
+            workspace=workspace,
+            primary_team=primary_team,
+        )
     except Exception:
         logger.exception('dashboard_data: no se pudo enriquecer standings')
         standings = []
     try:
-        next_match = _enrich_next_match_payload_with_crests((competition_payload or {}).get('next_match') or {}, standings) or {}
+        next_match = _enrich_next_match_payload_with_crests(
+            (competition_payload or {}).get('next_match') or {},
+            standings,
+            workspace=workspace,
+            primary_team=primary_team,
+        ) or {}
     except Exception:
         logger.exception('dashboard_data: no se pudo enriquecer next_match')
         next_match = {}
@@ -9717,6 +9812,8 @@ def _dashboard_data_impl(request, *, _json):
                 load_preferred_next_match_payload(primary_team=primary_team)
                 or get_next_match(primary_team, group, allow_external_fetch=False),
                 standings,
+                workspace=workspace,
+                primary_team=primary_team,
             )
         except Exception:
             next_match = {}
@@ -9730,7 +9827,12 @@ def _dashboard_data_impl(request, *, _json):
     convocation_next_match = _build_next_match_from_convocation(primary_team)
     # Product rule: Home prioritizes Convocatoria only when it provides a reliable scheduled match.
     if _next_match_payload_is_reliable(convocation_next_match):
-        next_match = _enrich_next_match_payload_with_crests(convocation_next_match, standings)
+        next_match = _enrich_next_match_payload_with_crests(
+            convocation_next_match,
+            standings,
+            workspace=workspace,
+            primary_team=primary_team,
+        )
     # Guardrail anti-mezcla: si el próximo rival NO viene de convocatoria manual y no existe en la
     # clasificación visible, evitamos mostrarlo (Senior vs Prebenjamín con IDs cruzados).
     try:
@@ -28721,6 +28823,7 @@ def initial_eleven_page(request):
     rival_lineup_seed = {'starters': [], 'bench': []}
     rival_team_name = ''
     rival_team_crest_url = ''
+    rival_team_kit2d_url = ''
     try:
         rival_record = (
             RivalConvocationRecord.objects
@@ -28767,6 +28870,15 @@ def initial_eleven_page(request):
                 rival_team_crest_url = _absolute_universo_url(_resolve_rival_identity(rival_team_name)[1]) if rival_team_name else ''
             except Exception:
                 rival_team_crest_url = ''
+        try:
+            rival_team_kit2d_url = _kit2d_url_for_team_name(
+                rival_team_name or 'Rival',
+                workspace=workspace,
+                primary_team=primary_team,
+                own_kit2d_url=_workspace_home_kit2d_url(workspace),
+            )
+        except Exception:
+            rival_team_kit2d_url = ''
 
     # Superficie del campo (mismo render que en Táctica).
     lineup_pitch_preset = ''
@@ -28819,6 +28931,7 @@ def initial_eleven_page(request):
             'selected_match_id': selected_match_id,
             'rival_team_name': rival_team_name,
             'rival_team_crest_url': rival_team_crest_url,
+            'rival_team_kit2d_url': rival_team_kit2d_url,
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
             'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),

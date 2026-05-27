@@ -939,6 +939,7 @@
       const KIT2D_PREF_KEY = 'kit2d.tokens';
       let lineupKit2dDataUrl = '';
       const lineupKit2dDataUrls = { home: '', away: '', gk: '' };
+      const rivalKit2dDataUrl = '{{ rival_team_kit2d_url|default_if_none:""|escapejs }}';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
       const presentationToggleBtn = document.getElementById('presentation-toggle');
@@ -1356,11 +1357,20 @@
               wrap.dataset.playerCode = code;
               wrap.style.left = `${x}%`;
               wrap.style.top = `${y}%`;
+              const rivalKitSafe = rivalKit2dDataUrl ? String(rivalKit2dDataUrl).replace(/'/g, '%27') : '';
+              const rivalKitHtml = rivalKitSafe ? `
+                <span class="token-kit2d" aria-hidden="true">
+                  <img class="token-kit2d-img" src='${rivalKitSafe}' alt="" loading="lazy" />
+                </span>
+              ` : '';
               wrap.innerHTML = `
-                <div class="token token--mid">
-                  <span class="token-num">${num === '--' ? '--' : num}</span>
+                <div class="token token--mid${rivalKitSafe ? ' has-kit2d' : ''}">
+                  ${rivalKitHtml || `<span class="token-num">${num === '--' ? '--' : num}</span>`}
                   <span>
-                    <span class="token-name">${String(player.name || '').toUpperCase()}</span>
+                    <span class="token-name-row">
+                      ${rivalKitSafe ? `<span class="token-name-num">${num === '--' ? '--' : num}</span>` : ''}
+                      <span class="token-name">${String(player.name || '').toUpperCase()}</span>
+                    </span>
                     <span class="token-role">${String(role || 'RIVAL').toUpperCase()}</span>
                   </span>
                 </div>

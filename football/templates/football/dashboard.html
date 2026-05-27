@@ -635,6 +635,14 @@
         background: rgba(255, 255, 255, 0.9);
         padding: 2px;
       }
+      .next-match-opponent .team-kit2d {
+        width: 34px;
+        height: 34px;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+        filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.24));
+      }
       .team-cell {
         display: flex;
         align-items: center;
@@ -647,6 +655,14 @@
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.9);
         padding: 1px;
+      }
+      .team-cell img.team-kit2d {
+        width: 24px;
+        height: 24px;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+        filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.20));
       }
 
       .main-grid {
@@ -1851,13 +1867,20 @@
 
         const rows = visibleRows
           .map(
-            (standing) => `
+            (standing) => {
+              const teamLabel = standing.full_name || standing.team || 'Equipo';
+              const kitUrl = String(standing.kit2d_url || '').trim();
+              const crestUrl = String(standing.crest_url || '').trim();
+              const visual = kitUrl
+                ? `<img class="team-kit2d" src="${escapeHtml(kitUrl)}" alt="Camiseta ${escapeHtml(teamLabel)}" loading="lazy">`
+                : (crestUrl ? `<img src="${escapeHtml(crestUrl)}" alt="Escudo ${escapeHtml(teamLabel)}" loading="lazy">` : '');
+              return `
             <tr>
               <td><strong>${standing.rank}</strong></td>
               <td>
                 <div class="team-cell">
-                  ${standing.crest_url ? `<img src="${standing.crest_url}" alt="Escudo ${standing.full_name || standing.team}" loading="lazy">` : ''}
-                  <span>${standing.full_name || standing.team}</span>
+                  ${visual}
+                  <span>${escapeHtml(teamLabel)}</span>
                 </div>
               </td>
               <td>${standing.played}</td>
@@ -1867,7 +1890,8 @@
               <td>${standing.points}</td>
               <td>${standing.goal_difference >= 0 ? '+' : ''}${standing.goal_difference}</td>
             </tr>
-          `
+          `;
+            }
           )
           .join('');
         container.innerHTML = `
@@ -2025,14 +2049,21 @@
           nextMatch.opponent?.crest_url ||
           opponentStanding?.crest_url ||
           '';
+        const opponentKit =
+          nextMatch.opponent?.kit2d_url ||
+          opponentStanding?.kit2d_url ||
+          '';
+        const opponentVisual = opponentKit
+          ? `<img class="team-kit2d" src="${escapeHtml(opponentKit)}" alt="Camiseta ${escapeHtml(opponentName)}" loading="lazy">`
+          : (opponentCrest ? `<img src="${escapeHtml(opponentCrest)}" alt="Escudo ${escapeHtml(opponentName)}" loading="lazy">` : '');
         const dateLabel = formatDate(nextMatch.date);
         const timeLabel = nextMatch.time ? ` · ${nextMatch.time}` : '';
         const roundLabel = formatRound(nextMatch.round);
         container.innerHTML = `
           <p><strong>Próximo rival</strong></p>
           <div class="next-match-opponent">
-            ${opponentCrest ? `<img src="${opponentCrest}" alt="Escudo ${opponentName}" loading="lazy">` : ''}
-            <p>${opponentName}</p>
+            ${opponentVisual}
+            <p>${escapeHtml(opponentName)}</p>
           </div>
           <p>${dateLabel}${timeLabel}${roundLabel ? ` · ${roundLabel}` : ''}</p>
           <p>${nextMatch.location || 'Campo por confirmar'}</p>
