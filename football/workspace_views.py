@@ -72,6 +72,17 @@ def _workspace_pref_key(raw_key: str) -> str:
     return key[:80]
 
 
+WORKSPACE_PREF_DEFAULT_MAX_BYTES = 150_000
+WORKSPACE_PREF_MAX_BYTES_BY_KEY = {
+    # Seis kits 2D guardan preview de club y editor en base64; 150 KB se queda corto.
+    'kit2d.tokens': 2_500_000,
+}
+
+
+def _workspace_pref_max_bytes(key: str) -> int:
+    return WORKSPACE_PREF_MAX_BYTES_BY_KEY.get(key, WORKSPACE_PREF_DEFAULT_MAX_BYTES)
+
+
 @login_required
 def workspace_preference_get_api(request):
     workspace = workspace_context.get_active_workspace(request)
@@ -108,8 +119,13 @@ def workspace_preference_set_api(request):
         raw_size = len(json.dumps(value, ensure_ascii=False).encode('utf-8'))
     except Exception:
         raw_size = 0
-    if raw_size > 150_000:
-        return api_error('Preferencia demasiado grande.', status=400, code='payload_too_large')
+    max_size = _workspace_pref_max_bytes(key)
+    if raw_size > max_size:
+        return api_error(
+            f'Preferencia demasiado grande ({raw_size} bytes, máximo {max_size}).',
+            status=400,
+            code='payload_too_large',
+        )
     obj, _ = WorkspacePreference.objects.update_or_create(
         workspace=workspace,
         key=key,

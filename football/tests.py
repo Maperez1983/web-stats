@@ -529,6 +529,35 @@ class KPIExplorerWorkspacePresetsTests(TestCase):
         self.assertTrue(payload.get('ok'))
         self.assertEqual(payload.get('value', {}).get('a'), 1)
 
+    def test_workspace_preference_rejects_large_generic_payload(self):
+        self.client.force_login(self.user)
+        set_url = f"{reverse('workspace-pref-set')}?workspace={self.workspace.id}"
+        response = self.client.post(
+            set_url,
+            data=json.dumps({'key': 'test.large', 'value': {'blob': 'x' * 170_000}}),
+            content_type='application/json',
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertFalse(payload.get('ok'))
+        self.assertEqual(payload.get('code'), 'payload_too_large')
+
+    def test_workspace_preference_allows_large_kit2d_payload(self):
+        self.client.force_login(self.user)
+        set_url = f"{reverse('workspace-pref-set')}?workspace={self.workspace.id}"
+        response = self.client.post(
+            set_url,
+            data=json.dumps({'key': 'kit2d.tokens', 'value': {'blob': 'x' * 700_000}}),
+            content_type='application/json',
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload.get('ok'))
+        pref = WorkspacePreference.objects.get(workspace=self.workspace, key='kit2d.tokens')
+        self.assertEqual(len(pref.value.get('blob', '')), 700_000)
+
     def test_workspace_preference_errors_include_stable_code(self):
         self.client.force_login(self.user)
         response = self.client.get(

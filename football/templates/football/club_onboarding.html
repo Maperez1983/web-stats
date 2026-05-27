@@ -1472,8 +1472,13 @@
             })
           })
             .then(function (response) {
-              if (!response.ok) throw new Error('HTTP ' + response.status);
-              return response.json();
+              return response.json().catch(function () { return null; }).then(function (data) {
+                if (!response.ok) {
+                  var message = data && (data.error || data.message || data.detail);
+                  throw new Error(message || ('HTTP ' + response.status));
+                }
+                return data;
+              });
             })
             .then(function (data) {
               if (!data || data.ok === false) throw new Error(data && data.error ? data.error : 'save_failed');
@@ -1481,8 +1486,9 @@
               kit2dPrepared = {};
               setKit2dStatus('Kits 2D guardados. En la pizarra, tareas y 11 inicial se usará la camiseta correspondiente.', false);
             })
-            .catch(function () {
-              setKit2dStatus('No se pudo guardar el kit 2D. Vuelve a intentarlo.', true);
+            .catch(function (error) {
+              var message = error && error.message ? error.message : 'No se pudo guardar el kit 2D. Vuelve a intentarlo.';
+              setKit2dStatus(message, true);
               kit2dSave.disabled = false;
             });
         }
