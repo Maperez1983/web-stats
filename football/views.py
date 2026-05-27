@@ -31462,130 +31462,15 @@ def _split_joined_alpha_token(token):
 
 
 def _repair_joined_words_text(value):
-    text = str(value or '')
-    if not text:
-        return ''
-    cleaned = text.replace('\r\n', '\n').replace('\r', '\n')
-    # PDFs: a veces parten una palabra en varias líneas dentro de una tabla ("Sesi\nÓn", "Pet\no").
-    # Solo unimos líneas MUY cortas (1-3 letras) cuando parecen ser la continuación de la línea anterior.
-    try:
-        raw_lines = cleaned.split('\n')
-        repaired_lines = []
-        short_piece = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{1,3}$')
-        for raw in raw_lines:
-            piece = str(raw or '').strip()
-            if repaired_lines and piece and short_piece.match(piece):
-                prev = repaired_lines[-1]
-                prev_stripped = str(prev or '').rstrip()
-                # Solo pegamos si la línea anterior parece un "fragmento" de palabra (una sola palabra corta),
-                # no un texto normal con espacios (evita "Entrenamiento" + "Pet" -> "EntrenamientoPet").
-                allow_join = False
-                if prev_stripped and prev_stripped[-1:].isalpha():
-                    # Caso común: el último carácter cae solo en la siguiente línea ("Escalera" + "s").
-                    if len(piece) == 1:
-                        allow_join = True
-                    elif (' ' not in prev_stripped) and (len(prev_stripped) <= 14):
-                        allow_join = True
-                    else:
-                        try:
-                            tail = prev_stripped.split()[-1]
-                        except Exception:
-                            tail = ''
-                        if tail and tail.isalpha() and len(tail) <= 6:
-                            allow_join = True
-                if allow_join:
-                    repaired_lines[-1] = prev_stripped + piece
-                    continue
-            repaired_lines.append(raw)
-        cleaned = '\n'.join(repaired_lines)
-    except Exception:
-        pass
-    # Normaliza mayúsculas internas en palabras (p.ej. "SesiÓn" -> "Sesión", "PetO" -> "Peto").
-    cleaned = re.sub(
-        r'(?<=[a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])(?=[a-záéíóúüñ])',
-        lambda m: m.group(1).lower(),
-        cleaned,
-    )
-    cleaned = re.sub(r'(?<=\d)(?=[A-Za-zÁÉÍÓÚÜÑ])', ' ', cleaned)
-    cleaned = re.sub(r'(?<=[A-Za-zÁÉÍÓÚÜÑ])(?=\d)', ' ', cleaned)
-    cleaned = re.sub(r'(?<=\d)\s*[xX×]\s*(?=\d)', ' x ', cleaned)
-    cleaned = re.sub(r'([,:;])(?=\S)', r'\1 ', cleaned)
-    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
-    cleaned = re.sub(r' *\n *', '\n', cleaned)
-
-    def _replace_upper_token(match):
-        token = match.group(0)
-        return _split_joined_upper_token(token)
-
-    def _replace_alpha_token(match):
-        token = match.group(0)
-        return _split_joined_alpha_token(token)
-
-    cleaned = re.sub(r'\b[A-ZÁÉÍÓÚÜÑ]{10,}\b', _replace_upper_token, cleaned)
-    cleaned = re.sub(r'\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{8,}\b', _replace_alpha_token, cleaned)
-    cleaned = re.sub(r'([\.!?])(?=[A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 ', cleaned)
-    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
-    cleaned = re.sub(r' *\n *', '\n', cleaned)
-    return cleaned.strip()
+    return task_library_services.repair_joined_words_text(value)
 
 
 def _polish_spanish_text(value, multiline=True, max_len=None):
-    text = str(value or '')
-    if not text:
-        return ''
-    text = text.replace('\r\n', '\n').replace('\r', '\n')
-    text = text.replace('’', "'").replace('`', "'")
-    text = re.sub(r'[ \t]+', ' ', text)
-    text = re.sub(r'\s+([,.;:!?])', r'\1', text)
-    text = re.sub(r'([,.;:!?])(?=[^\s\n])', r'\1 ', text)
-    text = re.sub(r'\(\s+', '(', text)
-    text = re.sub(r'\s+\)', ')', text)
-    text = re.sub(r'[ \t]{2,}', ' ', text)
-    text = re.sub(r' *\n *', '\n', text)
-    if not multiline:
-        text = text.replace('\n', ' ')
-    lines = [ln.strip() for ln in text.split('\n')]
-    acronym_words = {
-        'ABP', 'RPE', 'GPS', 'TRX', 'MD', 'SSG', 'UEFA',
-        '1V1', '2V2', '3V3', '4V4', '5V5', '6V6', '7V7', '8V8', '9V9', '11V11',
-    }
-    polished_lines = []
-    for line in lines:
-        if not line:
-            continue
-        bullet_prefix = ''
-        bullet_match = re.match(r'^([\-•\*]\s+)', line)
-        if bullet_match:
-            bullet_prefix = bullet_match.group(1)
-            line = line[len(bullet_prefix):].strip()
-        if len(line) >= 10 and line.isupper():
-            words = line.lower().split()
-            fixed = []
-            for idx, token in enumerate(words):
-                upper_token = token.upper()
-                if upper_token in acronym_words:
-                    fixed.append(upper_token)
-                    continue
-                if idx == 0:
-                    fixed.append(token.capitalize())
-                else:
-                    fixed.append(token)
-            line = ' '.join(fixed)
-        line = re.sub(r'([.!?])([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])', r'\1 \2', line)
-        line = line[:1].upper() + line[1:] if line else line
-        polished_lines.append(f'{bullet_prefix}{line}'.strip())
-    result = '\n'.join(polished_lines).strip()
-    if max_len:
-        result = result[:int(max_len)]
-    return result
+    return task_library_services.polish_spanish_text(value, multiline=multiline, max_len=max_len)
 
 
 def _sanitize_task_text(value, multiline=True, max_len=None):
-    return _polish_spanish_text(
-        _repair_joined_words_text(value),
-        multiline=multiline,
-        max_len=max_len,
-    )
+    return task_library_services.sanitize_task_text(value, multiline=multiline, max_len=max_len)
 
 
 _RICH_ALLOWED_TAGS = {
@@ -33390,67 +33275,7 @@ def _get_or_create_library_session_with_repository(team, scope_key, *, repositor
 
 
 def _cleanup_task_joined_text_fields(task):
-    if not task:
-        return False
-    changed = False
-
-    def _clean_attr(attr_name, max_len=None):
-        nonlocal changed
-        current = str(getattr(task, attr_name, '') or '')
-        cleaned = _polish_spanish_text(_repair_joined_words_text(current), multiline=(attr_name in {'coaching_points', 'confrontation_rules'}))
-        if max_len:
-            cleaned = cleaned[:max_len]
-        if cleaned != current:
-            setattr(task, attr_name, cleaned)
-            changed = True
-
-    _clean_attr('title', 160)
-    _clean_attr('objective', 180)
-    _clean_attr('coaching_points')
-    _clean_attr('confrontation_rules')
-
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    if layout:
-        layout_copy = dict(layout)
-        meta = layout_copy.get('meta') if isinstance(layout_copy.get('meta'), dict) else {}
-        meta = dict(meta)
-        analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-        analysis_meta = dict(analysis_meta)
-        summary_raw = str(analysis_meta.get('summary') or '')
-        summary_clean = _polish_spanish_text(_repair_joined_words_text(summary_raw), multiline=True, max_len=900)
-        if summary_clean != summary_raw:
-            analysis_meta['summary'] = summary_clean
-            changed = True
-        task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-        if task_sheet:
-            task_sheet_copy = dict(task_sheet)
-            for key in ('description', 'players', 'space', 'dimensions', 'materials'):
-                raw_val = str(task_sheet_copy.get(key) or '')
-                clean_val = _polish_spanish_text(
-                    _repair_joined_words_text(raw_val),
-                    multiline=(key == 'description'),
-                )
-                if clean_val != raw_val:
-                    task_sheet_copy[key] = clean_val
-                    changed = True
-            analysis_meta['task_sheet'] = task_sheet_copy
-        meta['analysis'] = analysis_meta
-        layout_copy['meta'] = meta
-        if layout_copy != layout:
-            task.tactical_layout = layout_copy
-            changed = True
-
-    if changed:
-        task.save(
-            update_fields=[
-                'title',
-                'objective',
-                'coaching_points',
-                'confrontation_rules',
-                'tactical_layout',
-            ]
-        )
-    return changed
+    return task_library_services.cleanup_task_joined_text_fields(task)
 
 
 def _task_analysis_needs_refresh(task):
@@ -52454,20 +52279,9 @@ def analysis_video_studio_export_server_api(request):
 
 
 def _video_studio_autocut_enabled() -> bool:
-    """
-    Controla si AutoCut se ejecuta automáticamente tras subir un MP4.
+    from .video_studio_services import autocut_enabled
 
-    Env:
-    - `ANALYSIS_AUTOCUT_ON_UPLOAD`: si se define y NO es truthy, deshabilita.
-      Si no se define, queda habilitado por defecto.
-    """
-    try:
-        raw = str(os.getenv('ANALYSIS_AUTOCUT_ON_UPLOAD') or '').strip().lower()
-    except Exception:
-        raw = ''
-    if raw and raw not in {'1', 'true', 'yes', 'on'}:
-        return False
-    return True
+    return autocut_enabled()
 
 
 def _video_studio_apply_autocut_suggestions(
@@ -52653,133 +52467,15 @@ def _video_studio_apply_autocut_suggestions(
 
 
 def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = '') -> None:
-    """
-    Ejecuta AutoCut en background al subir un MP4 (sin bloquear el request).
-    """
-    if not _video_studio_autocut_enabled():
-        return
+    from .video_studio_services import schedule_autocut_after_upload
 
-    def _runner():
-        try:
-            entry = RivalVideo.objects.filter(id=int(video_id)).first()
-            if not entry or not getattr(entry, 'video', None):
-                return
-            scope_team = Team.objects.filter(id=int(team_id)).first() if team_id else None
-            owner_user = User.objects.filter(id=int(owner_user_id)).first() if owner_user_id else None
-            ws = Workspace.objects.filter(id=int(workspace_id)).first() if workspace_id else None
-            job_event = None
-            try:
-                job_event = VideoTimelineEvent.objects.create(
-                    team=scope_team if scope_team else None,
-                    owner_user=owner_user if owner_user else None,
-                    video=entry,
-                    time_ms=0,
-                    kind=VideoTimelineEvent.KIND_NOTE,
-                    label='AutoCut: analizando…',
-                    color='#f4b400',
-                    payload={'autocut': True, 'autocut_job': True, 'state': 'running'},
-                    created_by=str(created_by or '')[:80],
-                )
-            except Exception:
-                job_event = None
-
-            # Si hay preferencias aprendidas (workspace), aplicarlas para el AutoCut inicial.
-            pack = 'rival' if int(getattr(entry, 'rival_team_id', 0) or 0) else 'own'
-            learned_pre = None
-            learned_post = None
-            learned_min_gap = None
-            try:
-                if ws:
-                    key = _video_studio_autoclip_pref_key(team_id=int(getattr(scope_team, 'id', 0) or 0) if scope_team else 0, pack=pack)
-                    pref = WorkspacePreference.objects.filter(workspace=ws, key=key).first()
-                    val = pref.value if pref and isinstance(pref.value, dict) else {}
-                    if isinstance(val, dict):
-                        if str(val.get('pre') or '').strip():
-                            learned_pre = float(val.get('pre') or 0)
-                        if str(val.get('post') or '').strip():
-                            learned_post = float(val.get('post') or 0)
-            except Exception:
-                learned_pre = None
-                learned_post = None
-
-            # Aprende gap típico si hay suficientes clips manuales (timeline) recientes.
-            try:
-                clip_qs = VideoClip.objects.all()
-                if scope_team:
-                    clip_qs = clip_qs.filter(team=scope_team)
-                else:
-                    clip_qs = clip_qs.filter(team__isnull=True, owner_user=owner_user) if owner_user else clip_qs.none()
-                clip_rows = list(
-                    clip_qs.only('in_ms', 'out_ms', 'tags', 'collection', 'updated_at')
-                    .order_by('-updated_at', '-id')[:260]
-                )
-                mids = []
-                for c in clip_rows:
-                    tags = getattr(c, 'tags', None)
-                    if not isinstance(tags, list):
-                        continue
-                    tags_norm = {str(t or '').strip().lower() for t in tags[:60] if str(t or '').strip()}
-                    if 'autocut' in tags_norm:
-                        continue
-                    if 'timeline' not in tags_norm:
-                        continue
-                    inferred_pack = _video_studio_autoclip_pack_from_clip(clip=c)
-                    if inferred_pack and inferred_pack != pack:
-                        continue
-                    a = int(getattr(c, 'in_ms', 0) or 0)
-                    b = int(getattr(c, 'out_ms', 0) or 0)
-                    if b <= a:
-                        continue
-                    mids.append(int((a + b) / 2))
-                mids = sorted(mids)[:2400]
-                gaps = []
-                for i in range(1, len(mids)):
-                    gap_s = float(mids[i] - mids[i - 1]) / 1000.0
-                    if gap_s <= 0:
-                        continue
-                    gaps.append(gap_s)
-                if gaps and len(gaps) >= 6:
-                    learned_min_gap = float(round(_median(gaps)))
-            except Exception:
-                learned_min_gap = None
-
-            res = _video_studio_apply_autocut_suggestions(
-                video=entry,
-                scope_team=scope_team,
-                owner_user=owner_user,
-                created_by=str(created_by or '')[:80],
-                profile=str(os.environ.get('ANALYSIS_AUTOCUT_PROFILE') or 'balanced'),
-                max_moments=18,
-                min_gap_s=float(learned_min_gap) if learned_min_gap is not None else 25.0,
-                pre_s=float(learned_pre) if learned_pre is not None else 8.0,
-                post_s=float(learned_post) if learned_post is not None else 8.0,
-                max_scan_s=None,
-                replace=True,
-            )
-            if job_event:
-                try:
-                    if res.get('ok'):
-                        job_event.delete()
-                    else:
-                        job_event.label = 'AutoCut: error'
-                        job_event.payload = {'autocut': True, 'autocut_job': True, 'state': 'error'}
-                        job_event.save(update_fields=['label', 'payload', 'updated_at'])
-                except Exception:
-                    pass
-        except Exception:
-            logger.exception('AutoCut after upload failed', extra={'video_id': video_id})
-
-    def _start():
-        try:
-            t = threading.Thread(target=_runner, name=f'autocut-video-{int(video_id)}', daemon=True)
-            t.start()
-        except Exception:
-            pass
-
-    try:
-        transaction.on_commit(_start)
-    except Exception:
-        _start()
+    return schedule_autocut_after_upload(
+        video_id=video_id,
+        team_id=team_id,
+        owner_user_id=owner_user_id,
+        workspace_id=workspace_id,
+        created_by=created_by,
+    )
 
 
 @login_required
@@ -59311,69 +59007,13 @@ def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=Non
 
 
 def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):
-    if not primary_team:
-        return []
-    dashboard_rows = compute_player_dashboard(
+    return stats_services.compute_player_cards(
         primary_team,
-        force_refresh=bool(force_refresh),
+        force_refresh=force_refresh,
         scope=scope,
         tournament_name=tournament_name,
         request=request,
     )
-    cards = []
-    for row in dashboard_rows:
-        total_actions = int(row.get('total_actions', 0) or 0)
-        minutes = int(row.get('minutes', 0) or 0)
-        actions_per90 = round((total_actions / minutes) * 90, 1) if minutes > 0 else 0.0
-        goals = int(row.get('goals', 0) or 0)
-        assists = int(row.get('assists', 0) or 0)
-        cards.append(
-            {
-                'player_id': row.get('player_id'),
-                'name': row.get('name'),
-                'nickname': row.get('nickname') or '',
-                'number': row.get('number'),
-                'photo_url': row.get('photo_url', ''),
-                'profile_label': row.get('profile_label') or row.get('profile') or '',
-                'pj': int(row.get('pj', 0) or 0),
-                'minutes': minutes,
-                'goals': goals,
-                'assists': assists,
-                'goal_contrib': goals + assists,
-                'yellow_cards': int(row.get('yellow_cards', 0) or 0),
-                'red_cards': int(row.get('red_cards', 0) or 0),
-                # Compat frontend (dashboard.html): históricamente se consumía `actions` y no `total_actions`.
-                # Mantener ambos evita que las cards muestren "—" tras cambios de backend.
-                'actions': total_actions,
-                'total_actions': total_actions,
-                'actions_per90': actions_per90,
-                'successes': int(row.get('successes', 0) or 0),
-                'shot_attempts': int(row.get('shot_attempts', 0) or 0),
-                'shots_on_target': int(row.get('shots_on_target', 0) or 0),
-                'duels_total': int(row.get('duels_total', 0) or 0),
-                'duels_won': int(row.get('duels_won', 0) or 0),
-                'aerial_duels_total': int(row.get('aerial_duels_total', 0) or 0),
-                'aerial_duels_won': int(row.get('aerial_duels_won', 0) or 0),
-                'passes_completed': int(row.get('passes_completed', 0) or 0),
-                'pass_attempts': int(row.get('pass_attempts', 0) or 0),
-                'key_passes_completed': int(row.get('key_passes_completed', 0) or 0),
-                'goalkeeper_saves': int(row.get('goalkeeper_saves', 0) or 0),
-                'success_rate': float(row.get('success_rate', 0) or 0),
-                'duel_rate': float(row.get('duel_rate', 0) or 0),
-                'passes_accuracy': float(row.get('passes_accuracy', 0) or 0),
-                'shots_accuracy': float(row.get('shots_accuracy', 0) or 0),
-                'participation_pct': float(row.get('participation_pct', 0) or 0),
-                'availability_pct': float(row.get('availability_pct', 0) or 0),
-                'importance_score': float(row.get('importance_score', 0) or 0),
-                'influence_score': float(row.get('influence_score', 0) or 0),
-                'has_active_injury': bool(row.get('has_active_injury')),
-                'is_sanctioned': bool(row.get('is_sanctioned')),
-                'is_apercibido': bool(row.get('is_apercibido')),
-                'position': row.get('position') or '',
-                'matches': row.get('matches') if isinstance(row.get('matches'), list) else [],
-            }
-        )
-    return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
 
 
 def compute_player_dashboard(

@@ -4,7 +4,6 @@ from collections import Counter
 from django.core.cache import cache
 from django.db.models import Count, Q
 from django.templatetags.static import static
-from django.utils.module_loading import import_string
 
 from .dashboard_cache import player_metrics_cache_key, team_metrics_cache_key
 from .event_signatures import event_signature, is_manual_event_source
@@ -273,10 +272,67 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
 
-def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None):
-    return import_string('football.views.compute_player_cards')(
+def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):
+    from .dashboard_services import compute_player_dashboard
+
+    if not primary_team:
+        return []
+    dashboard_rows = compute_player_dashboard(
         primary_team,
-        force_refresh=force_refresh,
+        force_refresh=bool(force_refresh),
         scope=scope,
         tournament_name=tournament_name,
+        request=request,
     )
+    cards = []
+    for row in dashboard_rows:
+        total_actions = int(row.get('total_actions', 0) or 0)
+        minutes = int(row.get('minutes', 0) or 0)
+        actions_per90 = round((total_actions / minutes) * 90, 1) if minutes > 0 else 0.0
+        goals = int(row.get('goals', 0) or 0)
+        assists = int(row.get('assists', 0) or 0)
+        cards.append(
+            {
+                'player_id': row.get('player_id'),
+                'name': row.get('name'),
+                'nickname': row.get('nickname') or '',
+                'number': row.get('number'),
+                'photo_url': row.get('photo_url', ''),
+                'profile_label': row.get('profile_label') or row.get('profile') or '',
+                'pj': int(row.get('pj', 0) or 0),
+                'minutes': minutes,
+                'goals': goals,
+                'assists': assists,
+                'goal_contrib': goals + assists,
+                'yellow_cards': int(row.get('yellow_cards', 0) or 0),
+                'red_cards': int(row.get('red_cards', 0) or 0),
+                'actions': total_actions,
+                'total_actions': total_actions,
+                'actions_per90': actions_per90,
+                'successes': int(row.get('successes', 0) or 0),
+                'shot_attempts': int(row.get('shot_attempts', 0) or 0),
+                'shots_on_target': int(row.get('shots_on_target', 0) or 0),
+                'duels_total': int(row.get('duels_total', 0) or 0),
+                'duels_won': int(row.get('duels_won', 0) or 0),
+                'aerial_duels_total': int(row.get('aerial_duels_total', 0) or 0),
+                'aerial_duels_won': int(row.get('aerial_duels_won', 0) or 0),
+                'passes_completed': int(row.get('passes_completed', 0) or 0),
+                'pass_attempts': int(row.get('pass_attempts', 0) or 0),
+                'key_passes_completed': int(row.get('key_passes_completed', 0) or 0),
+                'goalkeeper_saves': int(row.get('goalkeeper_saves', 0) or 0),
+                'success_rate': float(row.get('success_rate', 0) or 0),
+                'duel_rate': float(row.get('duel_rate', 0) or 0),
+                'passes_accuracy': float(row.get('passes_accuracy', 0) or 0),
+                'shots_accuracy': float(row.get('shots_accuracy', 0) or 0),
+                'participation_pct': float(row.get('participation_pct', 0) or 0),
+                'availability_pct': float(row.get('availability_pct', 0) or 0),
+                'importance_score': float(row.get('importance_score', 0) or 0),
+                'influence_score': float(row.get('influence_score', 0) or 0),
+                'has_active_injury': bool(row.get('has_active_injury')),
+                'is_sanctioned': bool(row.get('is_sanctioned')),
+                'is_apercibido': bool(row.get('is_apercibido')),
+                'position': row.get('position') or '',
+                'matches': row.get('matches') if isinstance(row.get('matches'), list) else [],
+            }
+        )
+    return sorted(cards, key=lambda entry: (-entry['goals'], -entry['pj'], entry['name']))
