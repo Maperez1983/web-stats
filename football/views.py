@@ -29883,17 +29883,7 @@ def _default_task_preview_payload():
 
 
 def _ensure_task_preview_image(task, prefer_render=False):
-    if not task or not getattr(task, 'task_pdf', None):
-        return False
-    preview_payload = _extract_preview_image_from_pdf(task.task_pdf, prefer_render=prefer_render)
-    if not preview_payload:
-        return False
-    preview_name, preview_content = preview_payload
-    try:
-        task.task_preview_image.save(preview_name, preview_content, save=True)
-        return bool(task.task_preview_image)
-    except Exception:
-        return False
+    return task_library_services.ensure_task_preview_image(task, prefer_render=prefer_render)
 
 
 def _task_preview_needs_refresh(task):
@@ -29901,42 +29891,7 @@ def _task_preview_needs_refresh(task):
 
 
 def _ensure_library_task_preview(task, force=False, prefer_render=False):
-    if not task:
-        return False
-    current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-    # Si ya existe un preview, evitamos sobreescribirlo salvo que tengamos una fuente mejor (PDF).
-    # Esto previene "degradar" previews reales (capturados del editor) a un placeholder genérico.
-    if current_name and not getattr(task, 'task_pdf', None):
-        try:
-            if default_storage.exists(current_name):
-                return True
-        except Exception:
-            return True
-    if current_name and not force:
-        try:
-            if default_storage.exists(current_name):
-                return True
-        except Exception:
-            pass
-    if getattr(task, 'task_pdf', None):
-        if _ensure_task_preview_image(task, prefer_render=prefer_render):
-            return True
-    # Si no hay PDF, pero sí hay pizarra guardada, intentamos renderizar desde `canvas_state`
-    # para evitar degradar a placeholder cuando el storage es efímero (Render/free).
-    try:
-        if _maybe_render_task_preview_server_side(task, force=True):
-            return True
-    except Exception:
-        pass
-    fallback = _default_task_preview_payload()
-    if not fallback:
-        return False
-    fallback_name, fallback_content = fallback
-    try:
-        task.task_preview_image.save(fallback_name, fallback_content, save=True)
-        return bool(task.task_preview_image)
-    except Exception:
-        return False
+    return task_library_services.ensure_library_task_preview(task, force=force, prefer_render=prefer_render)
 
 
 def _ensure_imported_session_preview(doc, force=False, prefer_render=True):
@@ -32366,24 +32321,7 @@ def _decode_canvas_data_url(data_url):
 
 
 def _build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:
-    """
-    Build a small, DB-embeddable preview data URL from PNG/JPEG/WEBP bytes.
-
-    Motivation: on some hosts (Render free/ephemeral FS), ImageField-backed previews can disappear.
-    Storing a compact data URL inside `tactical_layout.meta` keeps cards/PDFs stable.
-    """
-    if Image is None or not raw_bytes:
-        return ''
-    try:
-        with Image.open(io.BytesIO(raw_bytes)) as img:
-            rgb = img.convert('RGB')
-            rgb.thumbnail((max(320, int(max_w)), max(180, int(max_h))))
-            out = io.BytesIO()
-            rgb.save(out, format='JPEG', quality=82, optimize=True, progressive=True)
-            payload = base64.b64encode(out.getvalue()).decode('ascii')
-            return 'data:image/jpeg;base64,' + payload
-    except Exception:
-        return ''
+    return task_library_services.build_embedded_preview_data_url(raw_bytes, max_w=max_w, max_h=max_h)
 
 
 def _embedded_preview_bytes_from_task(task_obj):
@@ -32413,139 +32351,15 @@ def _embedded_preview_bytes_from_task(task_obj):
 
 
 def _coerce_json_dict(value):
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        raw = value.strip()
-        if not raw:
-            return None
-        try:
-            parsed = json.loads(raw)
-        except Exception:
-            return None
-        return parsed if isinstance(parsed, dict) else None
-    return None
+    return task_library_services.coerce_json_dict(value)
 
 
 def _extract_canvas_state_for_preview(task):
-    """
-    Best-effort extraction of a Fabric canvas_state dict from a task.
-
-    Older/newer versions may store the graphic state in different places:
-    - meta.graphic_editor.canvas_state (dict or JSON string)
-    - timeline[0].canvas_state (multi-board / multi-step)
-    """
-    if not task:
-        return None, 0, 0
-    layout = task.tactical_layout
-    if isinstance(layout, str):
-        layout = _coerce_json_dict(layout) or {}
-    if not isinstance(layout, dict):
-        layout = {}
-    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
-
-    canvas_state = _coerce_json_dict(graphic.get("canvas_state"))
-    world_w = _parse_int(graphic.get("canvas_width")) or 0
-    world_h = _parse_int(graphic.get("canvas_height")) or 0
-    if isinstance(canvas_state, dict) and isinstance(canvas_state.get("objects"), list) and canvas_state.get("objects"):
-        return canvas_state, world_w, world_h
-
-    timeline = layout.get("timeline") if isinstance(layout.get("timeline"), list) else []
-    for frame in timeline[:20]:
-        if not isinstance(frame, dict):
-            continue
-        frame_state = _coerce_json_dict(frame.get("canvas_state"))
-        if not (isinstance(frame_state, dict) and isinstance(frame_state.get("objects"), list) and frame_state.get("objects")):
-            continue
-        fw = _parse_int(frame.get("canvas_width")) or 0
-        fh = _parse_int(frame.get("canvas_height")) or 0
-        return frame_state, fw, fh
-
-    return None, 0, 0
+    return task_library_services.extract_canvas_state_for_preview(task)
 
 
 def _maybe_render_task_preview_server_side(task, *, force=False):
-    """
-    Replace/refresh task.task_preview_image using Playwright WYSIWYG rendering.
-    Safe fallback: if Playwright/browsers aren't available, leaves the existing preview.
-    """
-    if not task:
-        return False
-    if not force:
-        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW", False):
-            return False
-        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW_FORCE", False):
-            # Evita re-render innecesario si ya hay una preview con calidad aceptable.
-            try:
-                if not _task_preview_needs_refresh(task):
-                    return False
-            except Exception:
-                # Si no podemos evaluar, intentamos renderizar (mejor tener HD que nada).
-                pass
-    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
-    if isinstance(layout, str):
-        layout = _coerce_json_dict(layout) or {}
-    if not isinstance(layout, dict):
-        layout = {}
-    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-    canvas_state, world_w, world_h = _extract_canvas_state_for_preview(task)
-    if not isinstance(canvas_state, dict):
-        return False
-    if not world_w:
-        world_w = 1280
-    if not world_h:
-        world_h = 720
-    pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
-    pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
-    pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
-    if pitch_grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
-        pitch_grass_style = "classic"
-    pitch_zoom = meta.get("pitch_zoom") or 1.0
-    try:
-        pitch_zoom = float(pitch_zoom)
-    except Exception:
-        pitch_zoom = 1.0
-    png_bytes = render_task_preview_png(
-        canvas_state=canvas_state,
-        pitch_preset=pitch_preset,
-        pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
-        pitch_grass_style=pitch_grass_style,
-        pitch_zoom=pitch_zoom,
-        world_width=world_w,
-        world_height=world_h,
-        max_side=4096,
-    )
-    if not png_bytes:
-        return False
-    try:
-        update_fields = []
-        if getattr(task, "task_preview_image", None):
-            try:
-                task.task_preview_image.delete(save=False)
-            except Exception:
-                pass
-        filename = f"task-{task.id}-graphic-hd-{uuid.uuid4().hex[:10]}.png"
-        task.task_preview_image.save(filename, ContentFile(png_bytes), save=False)
-        update_fields.append("task_preview_image")
-        # Persistir una copia compacta en BD para hosts con filesystem efímero (Render/free).
-        try:
-            layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
-            layout = dict(layout) if isinstance(layout, dict) else {}
-            meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
-            meta = dict(meta) if isinstance(meta, dict) else {}
-            embedded = _build_embedded_preview_data_url(png_bytes, max_w=1100, max_h=1100)
-            if embedded:
-                meta["preview_data_embedded_v1"] = embedded
-                layout["meta"] = meta
-                task.tactical_layout = layout
-                update_fields.append("tactical_layout")
-        except Exception:
-            pass
-        task.save(update_fields=sorted(set(update_fields)))
-        return True
-    except Exception:
-        return False
+    return task_library_services.maybe_render_task_preview_server_side(task, force=force)
 
 
 def _sessions_tab_from_action(action):

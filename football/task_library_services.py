@@ -1,11 +1,16 @@
+import base64
 import io
+import json
 import re
 import unicodedata
+import uuid
 
+from django.conf import settings
 from django.core.cache import cache
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.utils.module_loading import import_string
 
+from .preview_render import render_task_preview_png
 from .services import _parse_int
 
 try:
@@ -62,10 +67,6 @@ from .library_repositories import (
     library_repository_for_task,
     normalize_library_repository,
 )
-
-
-def _views_func(name):
-    return import_string(f'football.views.{name}')
 
 
 def _normalize_upper_compact(value):
@@ -358,11 +359,196 @@ def text_has_quality_issues(value):
 
 
 def ensure_library_task_preview(task, force=False, prefer_render=False):
-    return _views_func('_ensure_library_task_preview')(task, force=force, prefer_render=prefer_render)
+    if not task:
+        return False
+    current_name = str(getattr(task, 'task_preview_image', '') or '').strip()
+    if current_name and not getattr(task, 'task_pdf', None):
+        try:
+            if default_storage.exists(current_name):
+                return True
+        except Exception:
+            return True
+    if current_name and not force:
+        try:
+            if default_storage.exists(current_name):
+                return True
+        except Exception:
+            pass
+    if getattr(task, 'task_pdf', None):
+        if ensure_task_preview_image(task, prefer_render=prefer_render):
+            return True
+    try:
+        if maybe_render_task_preview_server_side(task, force=True):
+            return True
+    except Exception:
+        pass
+    from . import session_import_services
+
+    fallback = session_import_services.default_task_preview_payload()
+    if not fallback:
+        return False
+    fallback_name, fallback_content = fallback
+    try:
+        task.task_preview_image.save(fallback_name, fallback_content, save=True)
+        return bool(task.task_preview_image)
+    except Exception:
+        return False
+
+
+def ensure_task_preview_image(task, prefer_render=False):
+    if not task or not getattr(task, 'task_pdf', None):
+        return False
+    from . import session_import_services
+
+    preview_payload = session_import_services.extract_preview_image_from_pdf(
+        task.task_pdf,
+        prefer_render=prefer_render,
+    )
+    if not preview_payload:
+        return False
+    preview_name, preview_content = preview_payload
+    try:
+        task.task_preview_image.save(preview_name, preview_content, save=True)
+        return bool(task.task_preview_image)
+    except Exception:
+        return False
 
 
 def maybe_render_task_preview_server_side(task, *, force=False):
-    return _views_func('_maybe_render_task_preview_server_side')(task, force=force)
+    if not task:
+        return False
+    if not force:
+        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW", False):
+            return False
+        if not getattr(settings, "TPAD_SERVER_RENDER_PREVIEW_FORCE", False):
+            try:
+                if not task_preview_needs_refresh(task):
+                    return False
+            except Exception:
+                pass
+    layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+    if isinstance(layout, str):
+        layout = coerce_json_dict(layout) or {}
+    if not isinstance(layout, dict):
+        layout = {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    canvas_state, world_w, world_h = extract_canvas_state_for_preview(task)
+    if not isinstance(canvas_state, dict):
+        return False
+    if not world_w:
+        world_w = 1280
+    if not world_h:
+        world_h = 720
+    pitch_preset = str(meta.get("pitch_preset") or "full_pitch").strip() or "full_pitch"
+    pitch_orientation = str(meta.get("pitch_orientation") or "landscape").strip().lower()
+    pitch_grass_style = str(meta.get("pitch_grass_style") or "classic").strip().lower()
+    if pitch_grass_style not in {"classic", "broadcast", "realistic", "pro", "artificial", "dry", "wet", "uefa_b", "whiteboard", "blackboard"}:
+        pitch_grass_style = "classic"
+    pitch_zoom = meta.get("pitch_zoom") or 1.0
+    try:
+        pitch_zoom = float(pitch_zoom)
+    except Exception:
+        pitch_zoom = 1.0
+    png_bytes = render_task_preview_png(
+        canvas_state=canvas_state,
+        pitch_preset=pitch_preset,
+        pitch_orientation="portrait" if pitch_orientation == "portrait" else "landscape",
+        pitch_grass_style=pitch_grass_style,
+        pitch_zoom=pitch_zoom,
+        world_width=world_w,
+        world_height=world_h,
+        max_side=4096,
+    )
+    if not png_bytes:
+        return False
+    try:
+        update_fields = []
+        if getattr(task, "task_preview_image", None):
+            try:
+                task.task_preview_image.delete(save=False)
+            except Exception:
+                pass
+        filename = f"task-{task.id}-graphic-hd-{uuid.uuid4().hex[:10]}.png"
+        task.task_preview_image.save(filename, ContentFile(png_bytes), save=False)
+        update_fields.append("task_preview_image")
+        try:
+            layout = task.tactical_layout if isinstance(getattr(task, "tactical_layout", None), dict) else {}
+            layout = dict(layout) if isinstance(layout, dict) else {}
+            meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+            meta = dict(meta) if isinstance(meta, dict) else {}
+            embedded = build_embedded_preview_data_url(png_bytes, max_w=1100, max_h=1100)
+            if embedded:
+                meta["preview_data_embedded_v1"] = embedded
+                layout["meta"] = meta
+                task.tactical_layout = layout
+                update_fields.append("tactical_layout")
+        except Exception:
+            pass
+        task.save(update_fields=sorted(set(update_fields)))
+        return True
+    except Exception:
+        return False
+
+
+def build_embedded_preview_data_url(raw_bytes: bytes, *, max_w: int = 1280, max_h: int = 800) -> str:
+    if Image is None or not raw_bytes:
+        return ''
+    try:
+        with Image.open(io.BytesIO(raw_bytes)) as img:
+            rgb = img.convert('RGB')
+            rgb.thumbnail((max(320, int(max_w)), max(180, int(max_h))))
+            out = io.BytesIO()
+            rgb.save(out, format='JPEG', quality=82, optimize=True, progressive=True)
+            payload = base64.b64encode(out.getvalue()).decode('ascii')
+            return 'data:image/jpeg;base64,' + payload
+    except Exception:
+        return ''
+
+
+def coerce_json_dict(value):
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            parsed = json.loads(raw)
+        except Exception:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+def extract_canvas_state_for_preview(task):
+    if not task:
+        return None, 0, 0
+    layout = task.tactical_layout
+    if isinstance(layout, str):
+        layout = coerce_json_dict(layout) or {}
+    if not isinstance(layout, dict):
+        layout = {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+
+    canvas_state = coerce_json_dict(graphic.get("canvas_state"))
+    world_w = _parse_int(graphic.get("canvas_width")) or 0
+    world_h = _parse_int(graphic.get("canvas_height")) or 0
+    if isinstance(canvas_state, dict) and isinstance(canvas_state.get("objects"), list) and canvas_state.get("objects"):
+        return canvas_state, world_w, world_h
+
+    timeline = layout.get("timeline") if isinstance(layout.get("timeline"), list) else []
+    for frame in timeline[:20]:
+        if not isinstance(frame, dict):
+            continue
+        frame_state = coerce_json_dict(frame.get("canvas_state"))
+        if not (isinstance(frame_state, dict) and isinstance(frame_state.get("objects"), list) and frame_state.get("objects")):
+            continue
+        fw = _parse_int(frame.get("canvas_width")) or 0
+        fh = _parse_int(frame.get("canvas_height")) or 0
+        return frame_state, fw, fh
+
+    return None, 0, 0
 
 
 def analyze_preview_image_bytes(raw_bytes):
