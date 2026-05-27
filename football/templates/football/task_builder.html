@@ -340,6 +340,7 @@
         --tpad-team-primary-soft: rgba(47, 125, 50, 0.22);
         --tpad-team-secondary-soft: rgba(248, 250, 252, 0.14);
         --tpad-stand: clamp(54px, 8vmin, 92px);
+        --tpad-center-pad: clamp(12px, 2vmin, 22px);
         position: relative;
         /* Grid para que las gradas rodeen el campo (no “debajo”). */
         display: grid;
@@ -356,8 +357,8 @@
            y auto-colocar todo “a la izquierda” (se ven los 4 lados apilados). */
         /* La grada debe envolver al campo, no ocupar todo el viewport (si ocupa todo,
            el “center” se estira y el campo parece quedar “fuera” a la derecha). */
-        width: fit-content;
-        max-width: 100%;
+	        width: 100%;
+	        max-width: 100%;
         border-radius: clamp(18px, 2.2vmin, 34px);
         /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
            sin soporte la declaración completa se ignora y “desaparece” la grada. */
@@ -379,15 +380,16 @@
       }
 		      body.tactics-mode .tpad-stadium-center,
 		      body.stadium-mode .tpad-stadium-center {
-	        grid-area: center;
-	        position: relative;
-	        width: fit-content;
-	        min-width: 0;
-	        display: flex;
-	        align-items: center;
+		        grid-area: center;
+		        position: relative;
+		        width: 100%;
+		        box-sizing: border-box;
+		        min-width: 0;
+		        display: flex;
+		        align-items: center;
 	        justify-content: center;
-	        padding: clamp(12px, 2vmin, 22px);
-	      }
+		        padding: var(--tpad-center-pad);
+		      }
 	      /* “Base” bajo el campo: añade sensación de volumen sin tocar el canvas (ni coordenadas). */
 		      body.tactics-mode .tpad-stadium-center::before,
 		      body.stadium-mode .tpad-stadium-center::before {
@@ -406,7 +408,12 @@
       body.tactics-mode .tpad-stadium-center > .pitch-stage,
       body.stadium-mode .tpad-stadium-center > .pitch-stage {
         /* El estadio debe dimensionarse por el campo */
-        width: min(var(--stage-max-user, 1500px), var(--stage-max-fit, 9999px));
+        width: min(
+          100%,
+          var(--stage-max-user, 1500px),
+          var(--stage-max-fit, 9999px),
+          calc(100vw - (var(--tpad-stand) * 2) - (var(--tpad-center-pad) * 2) - 28px)
+        );
       }
 		      body.tactics-mode .tpad-stadium .pitch-stage,
 		      body.stadium-mode .tpad-stadium .pitch-stage {
