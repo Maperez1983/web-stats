@@ -19,7 +19,7 @@ from django.test import SimpleTestCase, TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceTeam
+from football.models import AnalystVideoFolder, AnalysisVideoReport, Competition, ConvocationRecord, Group, Match, MatchEvent, MatchReport, Player, PlayerCommunication, PlayerFine, PlayerStatistic, RivalAnalysisReport, RivalVideo, Season, SessionTask, StaffMember, TaskStudioProfile, TaskStudioRosterPlayer, TaskStudioTask, Team, TeamStanding, TrainingMicrocycle, TrainingSession, TrainingSessionAttendance, UserInvitation, VideoClip, VideoTimelineEvent, VideoTelestrationProject, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot, WorkspaceMembership, WorkspacePreference, WorkspaceSeason, WorkspaceSeasonPlayer, WorkspaceTeam
 from football import views as football_views
 from football.bootstrap import ensure_bootstrap_admin_from_env
 from football.event_taxonomy import (
@@ -1806,6 +1806,108 @@ class WorkspaceOwnerPermissionTests(TestCase):
         )
         self.assertTrue(football_views._can_manage_workspace(user, workspace))
         self.assertTrue(football_views._can_view_workspace(user, workspace))
+
+
+class ClubSeasonWizardQuestionnaireTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='season-owner',
+            email='season-owner@example.com',
+            password='pass-1234',
+        )
+        AppUserRole.objects.create(user=self.user, role=AppUserRole.ROLE_COACH)
+        self.team = Team.objects.create(
+            name='Equipo Temporada',
+            slug='equipo-temporada',
+            short_name='Temporada',
+            is_primary=True,
+        )
+        self.workspace = Workspace.objects.create(
+            name='Club Temporada',
+            slug='club-temporada',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            owner_user=self.user,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=self.workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=self.workspace, team=self.team, is_default=True)
+        self.season = WorkspaceSeason.objects.create(
+            workspace=self.workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        self.workspace.active_season = self.season
+        self.workspace.save(update_fields=['active_season', 'updated_at'])
+        self.player = Player.objects.create(team=self.team, name='Jugador Cuestionario', number=7)
+        self.membership = WorkspaceSeasonPlayer.objects.create(
+            season=self.season,
+            player=self.player,
+            questionnaire={
+                'ratings': {
+                    'ball_control': 4,
+                    'pass_control': 5,
+                    'game_knowledge': 3,
+                    'speed': 2,
+                },
+            },
+        )
+        self.client.force_login(self.user)
+        session = self.client.session
+        session['active_workspace_id'] = int(self.workspace.id)
+        session.save()
+
+    def test_questionnaire_page_renders_rating_summary_and_radar(self):
+        response = self.client.get(f"{reverse('club-season-wizard')}?step=questionnaire", secure=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Media global / 5')
+        self.assertContains(response, 'id="season-radar"')
+        self.assertContains(response, 'data-values="4.5|3.0|2.0|0.0"')
+        self.assertContains(response, 'Categoría actual consolidada')
+
+    def test_questionnaire_save_persists_rating_average_and_category(self):
+        response = self.client.post(
+            f"{reverse('club-season-wizard')}?step=questionnaire",
+            data={
+                'action': 'questionnaire_save',
+                'membership_id': str(self.membership.id),
+                'q_role_pref': 'titular',
+                'q_foot': 'der',
+                'q_motivation': '5',
+                'q_rating_ball_control': '5',
+                'q_rating_pass_control': '5',
+                'q_rating_pass_distance': '4',
+                'q_rating_coordination': '4',
+                'q_rating_dribbling': '5',
+                'q_rating_game_knowledge': '4',
+                'q_rating_order': '4',
+                'q_rating_positioning': '4',
+                'q_rating_striking': '3',
+                'q_rating_body_contact': '3',
+                'q_rating_endurance': '4',
+                'q_rating_speed': '4',
+                'q_rating_behavior': '5',
+                'q_rating_bravery': '4',
+                'q_rating_extroversion': '4',
+                'q_rating_obedience': '5',
+            },
+            secure=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.membership.refresh_from_db()
+        questionnaire = self.membership.questionnaire
+        self.assertEqual(self.membership.questionnaire_v, 2)
+        self.assertIsNotNone(self.membership.questionnaire_completed_at)
+        self.assertEqual(questionnaire['ratings']['ball_control'], 5)
+        self.assertEqual(questionnaire['ratings_average'], 4.19)
+        self.assertEqual(questionnaire['ratings_category'], 'Categoría alta')
 
 
 class TrialPaywallTests(TestCase):
