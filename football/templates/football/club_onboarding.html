@@ -1066,6 +1066,19 @@
           };
         }
 
+        function colorLuminance(rgb) {
+          var r = (rgb && Number.isFinite(rgb.r) ? rgb.r : 0) / 255;
+          var g = (rgb && Number.isFinite(rgb.g) ? rgb.g : 0) / 255;
+          var b = (rgb && Number.isFinite(rgb.b) ? rgb.b : 0) / 255;
+          return (r * 0.299) + (g * 0.587) + (b * 0.114);
+        }
+
+        function contrastDetailRgb(baseRgb) {
+          return colorLuminance(baseRgb) < 0.54
+            ? { r: 255, g: 255, b: 255, hex: '#ffffff' }
+            : { r: 12, g: 18, b: 32, hex: '#0c1220' };
+        }
+
         function loadKit2dImage(dataUrl, onLoad, onError) {
           var img = new Image();
           img.onload = function () { onLoad(img); };
@@ -1100,6 +1113,57 @@
             data[i] = Math.max(0, Math.min(255, Math.round(rgb.r * shade)));
             data[i + 1] = Math.max(0, Math.min(255, Math.round(rgb.g * shade)));
             data[i + 2] = Math.max(0, Math.min(255, Math.round(rgb.b * shade)));
+          }
+          ctx.putImageData(imageData, 0, 0);
+          return canvas.toDataURL('image/png');
+        }
+
+        function renderGoalkeeperKit2dDataUrl(sourceImage, size, colorHex) {
+          var canvas = document.createElement('canvas');
+          var ctx = canvas.getContext('2d');
+          var sourceWidth = sourceImage.naturalWidth || sourceImage.width || size;
+          var sourceHeight = sourceImage.naturalHeight || sourceImage.height || size;
+          var scale = Math.min(size / sourceWidth, size / sourceHeight);
+          var width = Math.max(1, Math.round(sourceWidth * scale));
+          var height = Math.max(1, Math.round(sourceHeight * scale));
+          var x = Math.round((size - width) / 2);
+          var y = Math.round((size - height) / 2);
+          var baseRgb = hexToRgb(colorHex);
+          var detailRgb = contrastDetailRgb(baseRgb);
+          canvas.width = size;
+          canvas.height = size;
+          ctx.clearRect(0, 0, size, size);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(sourceImage, x, y, width, height);
+          var imageData = ctx.getImageData(0, 0, size, size);
+          var data = imageData.data;
+          for (var i = 0; i < data.length; i += 4) {
+            var alpha = data[i + 3];
+            if (!alpha) continue;
+            var r = data[i];
+            var g = data[i + 1];
+            var b = data[i + 2];
+            var max = Math.max(r, g, b);
+            var min = Math.min(r, g, b);
+            var luminance = ((r * 0.299) + (g * 0.587) + (b * 0.114)) / 255;
+            var saturation = max ? (max - min) / max : 0;
+            var isLikelyDetail = luminance < 0.20
+              || luminance > 0.82
+              || (saturation < 0.18 && (luminance < 0.42 || luminance > 0.62));
+            if (isLikelyDetail) {
+              var detailShade = detailRgb.hex === '#ffffff'
+                ? 0.78 + (luminance * 0.22)
+                : 0.38 + ((1 - luminance) * 0.28);
+              data[i] = Math.max(0, Math.min(255, Math.round(detailRgb.r * detailShade)));
+              data[i + 1] = Math.max(0, Math.min(255, Math.round(detailRgb.g * detailShade)));
+              data[i + 2] = Math.max(0, Math.min(255, Math.round(detailRgb.b * detailShade)));
+            } else {
+              var shade = 0.62 + (luminance * 0.52);
+              data[i] = Math.max(0, Math.min(255, Math.round(baseRgb.r * shade)));
+              data[i + 1] = Math.max(0, Math.min(255, Math.round(baseRgb.g * shade)));
+              data[i + 2] = Math.max(0, Math.min(255, Math.round(baseRgb.b * shade)));
+            }
           }
           ctx.putImageData(imageData, 0, 0);
           return canvas.toDataURL('image/png');
@@ -1308,8 +1372,9 @@
           loadKit2dImage(sourceDataUrl, function (img) {
             var recolorInput = document.getElementById('id_kit2d_' + targetSlot + '_recolor');
             var color = (recolorInput && recolorInput.value) || kit2dColorsForSlot(targetSlot).main || '#1d4ed8';
-            var clubDataUrl = renderRecoloredKit2dDataUrl(img, 128, color);
-            var editorDataUrl = renderRecoloredKit2dDataUrl(img, 64, color);
+            var detailColor = contrastDetailRgb(hexToRgb(color)).hex;
+            var clubDataUrl = renderGoalkeeperKit2dDataUrl(img, 128, color);
+            var editorDataUrl = renderGoalkeeperKit2dDataUrl(img, 64, color);
             kit2dPrepared[targetSlot] = {
               club_data_url: clubDataUrl,
               editor_data_url: editorDataUrl,
@@ -1319,11 +1384,12 @@
               base_slot: sourceSlot,
               file_name: targetSlot + '_desde_' + sourceSlot + '.png',
               color: color,
+              detail_color: detailColor,
               saved_at: new Date().toISOString()
             };
             setKit2dPreview(targetSlot, clubDataUrl);
             if (kit2dSave) kit2dSave.disabled = false;
-            setKit2dStatus(kit2dSlotLabel(targetSlot) + ' generado. Pulsa guardar para aplicarlo.', false);
+            setKit2dStatus(kit2dSlotLabel(targetSlot) + ' generado con detalles en ' + (detailColor === '#ffffff' ? 'blanco' : 'negro') + '. Pulsa guardar para aplicarlo.', false);
           }, function () {
             setKit2dStatus('No se pudo generar ' + kit2dSlotLabel(targetSlot) + ' desde la ' + kit2dSlotLabel(sourceSlot) + '.', true);
           });
