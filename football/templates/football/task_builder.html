@@ -1126,13 +1126,51 @@
       body.tactics-mode .pitch-toolbar {
         width: 100%;
         grid-column: 1 / -1;
-        gap: 0.34rem;
+        display: grid;
+        grid-template-columns: minmax(420px, 1fr) auto auto;
+        gap: 0.4rem;
         margin-bottom: 0.35rem;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: stretch;
       }
       body.tactics-mode .panel-head > div:first-child {
         display: none;
+      }
+      body.tactics-mode .tactics-toolbar-group {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.32rem;
+      }
+      body.tactics-mode .tactics-toolbar-primary {
+        justify-content: flex-start;
+      }
+      body.tactics-mode .tactics-toolbar-surface,
+      body.tactics-mode .tactics-toolbar-output {
+        justify-content: flex-end;
+      }
+      body.tactics-mode .tactics-toolbar-surface {
+        flex-wrap: nowrap;
+      }
+      body.tactics-mode .tactics-toolbar-output {
+        flex-wrap: nowrap;
+      }
+      @media (max-width: 1640px) {
+        body.tactics-mode .pitch-toolbar {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+        body.tactics-mode .tactics-toolbar-primary {
+          grid-column: 1 / -1;
+        }
+      }
+      @media (max-width: 1120px) {
+        body.tactics-mode .pitch-toolbar {
+          grid-template-columns: 1fr;
+        }
+        body.tactics-mode .tactics-toolbar-group {
+          justify-content: flex-start;
+          flex-wrap: wrap;
+        }
       }
       .pitch-view-menu {
         position: relative;
@@ -4121,7 +4159,7 @@
       body.tactics-mode .pitch-side .selection-note {
         display: none;
       }
-      @media (max-width: 1320px) {
+      @media (max-width: 1100px) {
         body.tactics-mode .pitch-layout {
           grid-template-columns: 1fr !important;
           grid-template-areas:
@@ -5205,6 +5243,7 @@
 	                </div>
                 <div class="pitch-toolbar">
                   {% if tactics_mode %}
+                  <div class="tactics-toolbar-group tactics-toolbar-primary" aria-label="Área de trabajo táctico">
                   <button type="button" class="surface-trigger" id="task-tactics-panel-toggle" title="Abrir/cerrar Playbook" aria-label="Abrir/cerrar Playbook">Playbook</button>
                   <button type="button" class="surface-trigger" id="task-tactics-tools-toggle" title="Mostrar/ocultar herramientas" aria-label="Mostrar/ocultar herramientas">Herramientas</button>
                   <button type="button" class="surface-trigger" id="task-tactics-sim-open" title="Abrir simulador" aria-label="Abrir simulador">Simulador</button>
@@ -5298,6 +5337,8 @@
                     <button type="button" class="surface-trigger tactics-chip" id="tactics-export-png" title="Exportar PNG" aria-label="Exportar PNG">PNG</button>
                     <button type="button" class="surface-trigger tactics-chip" id="tactics-export-pdf" title="Exportar PDF" aria-label="Exportar PDF">PDF</button>
                   </div>
+                  </div>
+                  <div class="tactics-toolbar-group tactics-toolbar-surface" aria-label="Superficie y vista">
                   {% endif %}
                   <div class="surface-picker" id="surface-picker">
                     <button type="button" class="surface-trigger" id="surface-trigger">
@@ -5426,9 +5467,14 @@
                       {% endif %}
                     </div>
                   </details>
+                  {% if tactics_mode %}
+                  </div>
+                  <div class="tactics-toolbar-group tactics-toolbar-output" aria-label="Presentación">
+                  {% endif %}
                   <button type="button" class="surface-trigger" id="task-focus-toggle" title="Modo presentación" aria-label="Modo presentación">Presentación</button>
                   {% if tactics_mode %}
                   <button type="button" class="surface-trigger" id="task-tactics-fullscreen" title="Pantalla completa" aria-label="Pantalla completa">Pantalla completa</button>
+                  </div>
                   {% endif %}
 	                </div>
 	              </div>
