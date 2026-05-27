@@ -16,7 +16,7 @@ from django.utils.text import slugify
 from . import task_choices, workspace_context
 from .team_media_services import resolve_team_crest_url
 from .drills import drill_cards, normalize_drill_ids
-from . import pdf_services
+from . import pdf_services, session_access_services
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
 from .preview_render import render_task_preview_png
 from .services import _parse_int
@@ -40,15 +40,9 @@ SESSION_PDF_DELEGATED_VIEW_NAMES = (
 
 
 def session_plan_pdf(request, session_id):
-    from . import views as core_views
-    from .views import (
-        _can_access_sessions_workspace,
-        _forbid_if_workspace_module_disabled,
-    )
-
-    if not _can_access_sessions_workspace(request.user):
+    if not session_access_services.can_access_sessions_workspace(request.user):
         return HttpResponse('No tienes permisos para acceder a sesiones.', status=403)
-    forbidden = _forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
+    forbidden = session_access_services.forbid_if_workspace_module_disabled(request, 'sessions', label='sesiones')
     if forbidden:
         return forbidden
     session = (
@@ -69,10 +63,6 @@ def session_plan_pdf(request, session_id):
     context = build_session_pdf_context(request, session.microcycle.team, session, pdf_style=pdf_style)
     html = render_to_string('football/session_plan_pdf.html', context)
     filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
-    if getattr(core_views, 'weasyprint', pdf_services.weasyprint) is None:
-        if force_pdf:
-            return HttpResponse('PDF no disponible en este servidor.', status=503)
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
     return pdf_services.build_pdf_response_or_html_fallback(request, html, filename, inline=inline, force_pdf=force_pdf)
 
 

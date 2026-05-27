@@ -7565,7 +7565,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertNotContains(response, 'Secuencia animada')
         self.assertNotContains(response, 'Paso 1')
 
-    @patch('football.views.weasyprint', None)
+    @patch('football.pdf_services.weasyprint', None)
     def test_session_plan_pdf_renders_uefa_and_club_styles(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
