@@ -938,7 +938,7 @@
         || '';
       const KIT2D_PREF_KEY = 'kit2d.tokens';
       let lineupKit2dDataUrl = '';
-      const lineupKit2dDataUrls = { home: '', away: '', gk: '' };
+      const lineupKit2dDataUrls = { home: '', away: '', third: '', gk: '', gk2: '', gk3: '' };
       const rivalKit2dDataUrl = '{{ rival_team_kit2d_url|default_if_none:""|escapejs }}';
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
@@ -957,11 +957,17 @@
           const validUrl = (url) => url && (url.startsWith('data:image/') || url.startsWith('/') || url.startsWith('http'));
           const homeUrl = String(value.home_club_data_url || value.club_data_url || value.home_editor_data_url || value.editor_data_url || '').trim();
           const awayUrl = String(value.away_club_data_url || value.away_editor_data_url || '').trim();
+          const thirdUrl = String(value.third_club_data_url || value.third_editor_data_url || '').trim();
           const gkUrl = String(value.gk_club_data_url || value.gk_editor_data_url || value.goalkeeper_club_data_url || '').trim();
+          const gk2Url = String(value.gk2_club_data_url || value.gk2_editor_data_url || '').trim();
+          const gk3Url = String(value.gk3_club_data_url || value.gk3_editor_data_url || '').trim();
           if (validUrl(homeUrl)) lineupKit2dDataUrls.home = homeUrl;
           if (validUrl(awayUrl)) lineupKit2dDataUrls.away = awayUrl;
+          if (validUrl(thirdUrl)) lineupKit2dDataUrls.third = thirdUrl;
           if (validUrl(gkUrl)) lineupKit2dDataUrls.gk = gkUrl;
-          lineupKit2dDataUrl = lineupKit2dDataUrls.home || lineupKit2dDataUrls.away || lineupKit2dDataUrls.gk || '';
+          if (validUrl(gk2Url)) lineupKit2dDataUrls.gk2 = gk2Url;
+          if (validUrl(gk3Url)) lineupKit2dDataUrls.gk3 = gk3Url;
+          lineupKit2dDataUrl = lineupKit2dDataUrls.home || lineupKit2dDataUrls.away || lineupKit2dDataUrls.third || lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || '';
           if (!lineupKit2dDataUrl) return;
           renderField();
         } catch (_) {
@@ -971,7 +977,7 @@
       loadLineupKit2dPreference();
       function kit2dUrlForLineupRole(role) {
         const normalized = String(role || '').toLowerCase();
-        if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
+        if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.gk2 || lineupKit2dDataUrls.gk3 || lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
         return lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
       }
       const formationsF11 = {

@@ -3006,14 +3006,20 @@
 		    let kit2dEditorDataUrl = '';
 		    let kit2dClubDataUrl = '';
 		    let kit2dEditorImageEl = null;
-		    const kit2dEditorDataUrlsBySlot = { home: '', away: '', gk: '' };
-		    const kit2dEditorImagesBySlot = { home: null, away: null, gk: null };
-		    const kit2dCanvasDataUrlsBySlot = { home: '', away: '', gk: '' };
-		    const kit2dCanvasImagesBySlot = { home: null, away: null, gk: null };
+		    const kit2dSlots = ['home', 'away', 'third', 'gk', 'gk2', 'gk3'];
+		    const kit2dEditorDataUrlsBySlot = { home: '', away: '', third: '', gk: '', gk2: '', gk3: '' };
+		    const kit2dEditorImagesBySlot = { home: null, away: null, third: null, gk: null, gk2: null, gk3: null };
+		    const kit2dCanvasDataUrlsBySlot = { home: '', away: '', third: '', gk: '', gk2: '', gk3: '' };
+		    const kit2dCanvasImagesBySlot = { home: null, away: null, third: null, gk: null, gk2: null, gk3: null };
 		    let kit2dPrefLoadStarted = false;
 		    const normalizeKit2dSlot = (value) => {
 		      const slot = safeText(value).toLowerCase();
-		      if (slot === 'home' || slot === 'away' || slot === 'gk') return slot;
+		      if (slot === 'home' || slot === 'local' || slot === '1' || slot === 'first' || slot === 'primary') return 'home';
+		      if (slot === 'away' || slot === 'visitor' || slot === 'visitante' || slot === '2' || slot === 'second' || slot === 'alternate') return 'away';
+		      if (slot === 'third' || slot === 'tercera' || slot === '3' || slot === 'third_kit') return 'third';
+		      if (slot === 'gk' || slot === 'goalkeeper' || slot === 'portero' || slot === 'keeper' || slot === 'gk1' || slot === 'portero1') return 'gk';
+		      if (slot === 'gk2' || slot === 'goalkeeper2' || slot === 'portero2' || slot === 'keeper2') return 'gk2';
+		      if (slot === 'gk3' || slot === 'goalkeeper3' || slot === 'portero3' || slot === 'keeper3') return 'gk3';
 		      return '';
 		    };
 		    const kit2dSlotForTokenKind = (kind, overrideSlot = '') => {
@@ -3071,25 +3077,30 @@
 		        const club = safeText(value.club_data_url || value.club_png_data_url || value.club_png || value.club || '');
 		        const homeEditor = safeText(value.home_editor_data_url || editor);
 		        const awayEditor = safeText(value.away_editor_data_url || value.alternate_editor_data_url || '');
+		        const thirdEditor = safeText(value.third_editor_data_url || '');
 		        const gkEditor = safeText(value.gk_editor_data_url || value.goalkeeper_editor_data_url || '');
+		        const gk2Editor = safeText(value.gk2_editor_data_url || '');
+		        const gk3Editor = safeText(value.gk3_editor_data_url || '');
 		        const homeCanvas = safeText(value.home_club_data_url || club || homeEditor);
 		        const awayCanvas = safeText(value.away_club_data_url || awayEditor);
+		        const thirdCanvas = safeText(value.third_club_data_url || thirdEditor);
 		        const gkCanvas = safeText(value.gk_club_data_url || value.goalkeeper_club_data_url || gkEditor);
-		        if (homeEditor.startsWith('data:image/') || homeEditor.startsWith('/') || homeEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.home = homeEditor;
-		        if (awayEditor.startsWith('data:image/') || awayEditor.startsWith('/') || awayEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.away = awayEditor;
-		        if (gkEditor.startsWith('data:image/') || gkEditor.startsWith('/') || gkEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.gk = gkEditor;
-		        if (homeCanvas.startsWith('data:image/') || homeCanvas.startsWith('/') || homeCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.home = homeCanvas;
-		        if (awayCanvas.startsWith('data:image/') || awayCanvas.startsWith('/') || awayCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.away = awayCanvas;
-		        if (gkCanvas.startsWith('data:image/') || gkCanvas.startsWith('/') || gkCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.gk = gkCanvas;
-		        kit2dEditorDataUrl = kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrlsBySlot.away || kit2dEditorDataUrlsBySlot.gk || kit2dCanvasDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot.away || kit2dCanvasDataUrlsBySlot.gk || '';
+		        const gk2Canvas = safeText(value.gk2_club_data_url || gk2Editor);
+		        const gk3Canvas = safeText(value.gk3_club_data_url || gk3Editor);
+		        const validKit2dUrl = (url) => url.startsWith('data:image/') || url.startsWith('/') || url.startsWith('http');
+		        const editorBySlot = { home: homeEditor, away: awayEditor, third: thirdEditor, gk: gkEditor, gk2: gk2Editor, gk3: gk3Editor };
+		        const canvasBySlot = { home: homeCanvas, away: awayCanvas, third: thirdCanvas, gk: gkCanvas, gk2: gk2Canvas, gk3: gk3Canvas };
+		        kit2dSlots.forEach((slot) => {
+		          if (validKit2dUrl(editorBySlot[slot])) kit2dEditorDataUrlsBySlot[slot] = editorBySlot[slot];
+		          if (validKit2dUrl(canvasBySlot[slot])) kit2dCanvasDataUrlsBySlot[slot] = canvasBySlot[slot];
+		        });
+		        kit2dEditorDataUrl = kit2dSlots.map((slot) => kit2dEditorDataUrlsBySlot[slot]).find(Boolean) || kit2dSlots.map((slot) => kit2dCanvasDataUrlsBySlot[slot]).find(Boolean) || '';
 		        if (club.startsWith('data:image/') || club.startsWith('/') || club.startsWith('http')) kit2dClubDataUrl = club;
 		        if (!kit2dEditorDataUrl) return;
-		        loadKit2dSlotImage('home', kit2dEditorDataUrlsBySlot.home);
-		        loadKit2dSlotImage('away', kit2dEditorDataUrlsBySlot.away);
-		        loadKit2dSlotImage('gk', kit2dEditorDataUrlsBySlot.gk);
-		        loadKit2dSlotImage('home', kit2dCanvasDataUrlsBySlot.home, 'canvas');
-		        loadKit2dSlotImage('away', kit2dCanvasDataUrlsBySlot.away, 'canvas');
-		        loadKit2dSlotImage('gk', kit2dCanvasDataUrlsBySlot.gk, 'canvas');
+		        kit2dSlots.forEach((slot) => {
+		          loadKit2dSlotImage(slot, kit2dEditorDataUrlsBySlot[slot]);
+		          loadKit2dSlotImage(slot, kit2dCanvasDataUrlsBySlot[slot], 'canvas');
+		        });
 		      } catch (e) {
 		        // ignore
 		      }
@@ -4736,7 +4747,10 @@
 	    const tokenKitSlotLabel = (slotRaw) => {
 	      const slot = normalizeKit2dSlot(slotRaw);
 	      if (slot === 'away') return '2ª equipación';
-	      if (slot === 'gk') return 'portero';
+	      if (slot === 'third') return '3ª equipación';
+	      if (slot === 'gk') return 'portero 1';
+	      if (slot === 'gk2') return 'portero 2';
+	      if (slot === 'gk3') return 'portero 3';
 	      return '1ª equipación';
 	    };
 

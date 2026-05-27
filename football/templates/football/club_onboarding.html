@@ -666,21 +666,62 @@
                 <button class="btn btn-ghost" type="button" data-kit2d-template-slot="away" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
               </div>
               <div>
-                <label for="id_kit2d_gk_file">Portero</label>
+                <label for="id_kit2d_third_file">3ª equipación</label>
+                <input id="id_kit2d_third_file" data-kit2d-slot="third" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-third-preview" alt="Vista previa 3ª equipación" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-third-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="third" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+              </div>
+              <div>
+                <label for="id_kit2d_gk_file">Portero 1</label>
                 <input id="id_kit2d_gk_file" data-kit2d-slot="gk" type="file" accept="image/png,image/webp,image/*" />
                 <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-gk-preview" alt="Vista previa portero" style="display:none;max-width:96px;max-height:96px;" />
+                  <img id="kit2d-gk-preview" alt="Vista previa portero 1" style="display:none;max-width:96px;max-height:96px;" />
                   <span id="kit2d-gk-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
                 </div>
-                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto 1fr;gap:0.45rem;align-items:center;">
+                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
                   <input id="id_kit2d_gk_recolor" type="color" value="{{ kit_form.gk_main|default:'#1d4ed8' }}" aria-label="Color kit portero generado" />
-                  <button class="btn btn-ghost" type="button" id="kit2d-gk-generate" style="padding:0.45rem 0.6rem;">Generar desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
                 </div>
                 <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
               </div>
+              <div>
+                <label for="id_kit2d_gk2_file">Portero 2</label>
+                <input id="id_kit2d_gk2_file" data-kit2d-slot="gk2" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-gk2-preview" alt="Vista previa portero 2" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-gk2-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
+                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
+                  <input id="id_kit2d_gk2_recolor" type="color" value="{{ kit_form.away_main|default:'#f4b400' }}" aria-label="Color kit portero 2 generado" />
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
+                </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk2" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+              </div>
+              <div>
+                <label for="id_kit2d_gk3_file">Portero 3</label>
+                <input id="id_kit2d_gk3_file" data-kit2d-slot="gk3" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-gk3-preview" alt="Vista previa portero 3" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-gk3-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
+                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
+                  <input id="id_kit2d_gk3_recolor" type="color" value="{{ kit_form.home_trim|default:'#ffffff' }}" aria-label="Color kit portero 3 generado" />
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
+                </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk3" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+              </div>
             </div>
             <p id="kit2d-direct-status" style="margin:0.75rem 0 0;color:rgba(226,232,240,0.76);font-size:0.9rem;">
-              Sube PNGs con fondo transparente si es posible. La 1ª se usa para local, la 2ª para rival/alternativa y portero para los guardametas.
+              Sube PNGs con fondo transparente si es posible. Puedes guardar 3 kits de jugador y 3 de portero.
             </p>
             <div class="actions" style="margin-top:0.7rem;">
               <button class="btn btn-primary" type="button" id="kit2d-direct-save" disabled>Guardar kits 2D cargados</button>
@@ -932,8 +973,8 @@
         var kit2dFileInputs = Array.prototype.slice.call(document.querySelectorAll('input[data-kit2d-slot]') || []);
         var kit2dSave = document.getElementById('kit2d-direct-save');
         var kit2dStatus = document.getElementById('kit2d-direct-status');
-        var kit2dGkGenerate = document.getElementById('kit2d-gk-generate');
-        var kit2dGkRecolor = document.getElementById('id_kit2d_gk_recolor');
+        var kit2dSlots = ['home', 'away', 'third', 'gk', 'gk2', 'gk3'];
+        var kit2dGkGenerateButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-kit2d-gk-target][data-kit2d-gk-source]') || []);
         var kit2dTemplateButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-kit2d-template-slot]') || []);
         var kit2dExistingValue = {};
         var kit2dPrepared = {};
@@ -1143,7 +1184,25 @@
               trim: (document.getElementById('id_kit_away_trim') || {}).value || '#f4b400'
             };
           }
-          if (slot === 'gk') {
+          if (slot === 'third') {
+            return {
+              main: (document.getElementById('id_kit_away_trim') || {}).value || '#f4b400',
+              trim: (document.getElementById('id_kit_home_main') || {}).value || '#06814d'
+            };
+          }
+          if (slot === 'gk' || slot === 'gk2' || slot === 'gk3') {
+            if (slot === 'gk2') {
+              return {
+                main: (document.getElementById('id_kit_away_main') || {}).value || '#f4b400',
+                trim: (document.getElementById('id_kit_away_trim') || {}).value || '#111827'
+              };
+            }
+            if (slot === 'gk3') {
+              return {
+                main: (document.getElementById('id_kit_home_trim') || {}).value || '#ffffff',
+                trim: (document.getElementById('id_kit_home_main') || {}).value || '#06814d'
+              };
+            }
             return {
               main: (document.getElementById('id_kit_gk_main') || {}).value || '#1d4ed8',
               trim: (document.getElementById('id_kit_gk_trim') || {}).value || '#ffffff'
@@ -1157,8 +1216,24 @@
 
         function kit2dSlotLabel(slot) {
           if (slot === 'away') return '2ª equipación';
-          if (slot === 'gk') return 'portero';
+          if (slot === 'third') return '3ª equipación';
+          if (slot === 'gk') return 'portero 1';
+          if (slot === 'gk2') return 'portero 2';
+          if (slot === 'gk3') return 'portero 3';
           return '1ª equipación';
+        }
+
+        function normalizeKit2dSlot(slot) {
+          slot = String(slot || '').trim().toLowerCase();
+          return kit2dSlots.indexOf(slot) >= 0 ? slot : 'home';
+        }
+
+        function kit2dClubDataUrlForSlot(slot) {
+          slot = normalizeKit2dSlot(slot);
+          return (kit2dPrepared[slot] && kit2dPrepared[slot].club_data_url)
+            || kit2dExistingValue[slot + '_club_data_url']
+            || (slot === 'home' ? kit2dExistingValue.club_data_url : '')
+            || '';
         }
 
         function setKit2dPreview(slot, dataUrl) {
@@ -1178,7 +1253,7 @@
         }
 
         function prepareKit2dUpload(file, slot) {
-          slot = slot === 'away' || slot === 'gk' ? slot : 'home';
+          slot = normalizeKit2dSlot(slot);
           if (!file || !String(file.type || '').startsWith('image/')) {
             delete kit2dPrepared[slot];
             if (kit2dSave) kit2dSave.disabled = !hasPreparedKit2d();
@@ -1219,40 +1294,43 @@
           reader.readAsDataURL(file);
         }
 
-        function generateGoalkeeperKitFromHome() {
-          var sourceDataUrl = (kit2dPrepared.home && kit2dPrepared.home.club_data_url)
-            || kit2dExistingValue.home_club_data_url
-            || kit2dExistingValue.club_data_url
-            || '';
+        function generateGoalkeeperKitFromSource(targetSlot, sourceSlot) {
+          targetSlot = normalizeKit2dSlot(targetSlot);
+          sourceSlot = normalizeKit2dSlot(sourceSlot);
+          if (targetSlot !== 'gk' && targetSlot !== 'gk2' && targetSlot !== 'gk3') targetSlot = 'gk';
+          if (sourceSlot !== 'home' && sourceSlot !== 'away' && sourceSlot !== 'third') sourceSlot = 'home';
+          var sourceDataUrl = kit2dClubDataUrlForSlot(sourceSlot);
           if (!sourceDataUrl) {
-            setKit2dStatus('Carga primero la 1ª equipación para generar el kit de portero.', true);
+            setKit2dStatus('Carga primero la ' + kit2dSlotLabel(sourceSlot) + ' para generar el kit de ' + kit2dSlotLabel(targetSlot) + '.', true);
             return;
           }
-          setKit2dStatus('Generando kit de portero desde la 1ª equipación...', false);
+          setKit2dStatus('Generando ' + kit2dSlotLabel(targetSlot) + ' desde la ' + kit2dSlotLabel(sourceSlot) + '...', false);
           loadKit2dImage(sourceDataUrl, function (img) {
-            var color = (kit2dGkRecolor && kit2dGkRecolor.value) || '#1d4ed8';
+            var recolorInput = document.getElementById('id_kit2d_' + targetSlot + '_recolor');
+            var color = (recolorInput && recolorInput.value) || kit2dColorsForSlot(targetSlot).main || '#1d4ed8';
             var clubDataUrl = renderRecoloredKit2dDataUrl(img, 128, color);
             var editorDataUrl = renderRecoloredKit2dDataUrl(img, 64, color);
-            kit2dPrepared.gk = {
+            kit2dPrepared[targetSlot] = {
               club_data_url: clubDataUrl,
               editor_data_url: editorDataUrl,
               club_size: 128,
               editor_size: 64,
-              source: 'generated_from_home',
-              file_name: 'portero_desde_primera.png',
+              source: 'generated_from_' + sourceSlot,
+              base_slot: sourceSlot,
+              file_name: targetSlot + '_desde_' + sourceSlot + '.png',
               color: color,
               saved_at: new Date().toISOString()
             };
-            setKit2dPreview('gk', clubDataUrl);
+            setKit2dPreview(targetSlot, clubDataUrl);
             if (kit2dSave) kit2dSave.disabled = false;
-            setKit2dStatus('Kit de portero generado. Pulsa guardar para aplicarlo.', false);
+            setKit2dStatus(kit2dSlotLabel(targetSlot) + ' generado. Pulsa guardar para aplicarlo.', false);
           }, function () {
-            setKit2dStatus('No se pudo generar el kit de portero desde la 1ª equipación.', true);
+            setKit2dStatus('No se pudo generar ' + kit2dSlotLabel(targetSlot) + ' desde la ' + kit2dSlotLabel(sourceSlot) + '.', true);
           });
         }
 
         function generateTemplateKit(slot) {
-          slot = slot === 'away' || slot === 'gk' ? slot : 'home';
+          slot = normalizeKit2dSlot(slot);
           var colors = kit2dColorsForSlot(slot);
           var clubDataUrl = renderTemplateKit2dDataUrl(128, colors.main, colors.trim, slot);
           var editorDataUrl = renderTemplateKit2dDataUrl(64, colors.main, colors.trim, slot);
@@ -1274,7 +1352,7 @@
 
         function buildKit2dPreferenceValue() {
           var value = Object.assign({}, kit2dExistingValue || {});
-          ['home', 'away', 'gk'].forEach(function (slot) {
+          kit2dSlots.forEach(function (slot) {
             var prepared = kit2dPrepared[slot];
             if (!prepared || !prepared.editor_data_url) return;
             value[slot + '_club_data_url'] = prepared.club_data_url;
@@ -1303,7 +1381,10 @@
               kit2dExistingValue = value || {};
               setKit2dPreview('home', value.home_club_data_url || value.club_data_url || '');
               setKit2dPreview('away', value.away_club_data_url || '');
-              setKit2dPreview('gk', value.gk_club_data_url || '');
+              setKit2dPreview('third', value.third_club_data_url || '');
+              setKit2dPreview('gk', value.gk_club_data_url || value.goalkeeper_club_data_url || '');
+              setKit2dPreview('gk2', value.gk2_club_data_url || '');
+              setKit2dPreview('gk3', value.gk3_club_data_url || '');
             })
             .catch(function () {});
         }
@@ -1432,8 +1513,12 @@
           kit2dSave.addEventListener('click', saveKit2dUpload);
         }
 
-        if (kit2dGkGenerate) {
-          kit2dGkGenerate.addEventListener('click', generateGoalkeeperKitFromHome);
+        if (kit2dGkGenerateButtons.length) {
+          kit2dGkGenerateButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+              generateGoalkeeperKitFromSource(button.dataset.kit2dGkTarget, button.dataset.kit2dGkSource);
+            });
+          });
         }
 
         if (kit2dTemplateButtons.length) {
