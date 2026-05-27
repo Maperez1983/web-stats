@@ -19,6 +19,7 @@
 		      // Safari/WebKit puede dar `ReferenceError: Can't find variable: isTacticsMode` si un bloque
 		      // asume ese identificador en otro <script>. Lo declaramos UNA sola vez en el head.
 		      window.__WEBSTATS_TACTICS_MODE = {% if tactics_mode %}true{% else %}false{% endif %};
+		      window.__WEBSTATS_SUPPRESS_AUTO_TOUR = true;
 		      // `var` crea binding global accesible por nombre en scripts posteriores.
 		      // Ojo: no usar `const/let` aquí porque en otros scripts puede redeclararse localmente.
 		      var isTacticsMode = window.__WEBSTATS_TACTICS_MODE;
@@ -4651,7 +4652,7 @@
 	    </style>
 	  </head>
 				  <body
-		        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %} stadium-mode"
+		        class="prod-commercial{% if tactics_mode %} tactics-mode{% endif %} stadium-mode suppress-auto-tour"
 		        data-tpad-diagnostics="{% if tactics_mode and request.GET.diag == '1' %}1{% else %}0{% endif %}"
 		      >
 			    <div id="tpad-overlay-backdrop" class="overlay-backdrop" hidden></div>
@@ -7980,6 +7981,25 @@
 	              // Nota: `isTacticsMode` ya está declarado en el head como `var` global para evitar
 	              // `ReferenceError` en Safari cuando hay múltiples <script> tags.
 	              try { isTacticsMode = window.__WEBSTATS_TACTICS_MODE === true; } catch (e) { /* ignore */ }
+	              try {
+	                window.__WEBSTATS_SUPPRESS_AUTO_TOUR = true;
+	                document.body.classList.add('suppress-auto-tour');
+	              } catch (e) { /* ignore */ }
+	              try {
+	                const closeTourForPitchControls = (event) => {
+	                  try {
+	                    const target = event?.target;
+	                    if (!target || !target.closest) return;
+	                    if (!target.closest('#pitch-view-menu,#surface-picker,#pitch-orientation-toggle,#pitch-orientation-toggle-quick,#pitch-zoom-out,#pitch-zoom-in,#pitch-zoom-reset,#pitch-size-down,#pitch-size-up,#pitch-size-fit,#pitch-grass-toggle,#pitch-grass-select')) return;
+	                    if (window.WebstatsTour && typeof window.WebstatsTour.close === 'function') window.WebstatsTour.close();
+	                    document.body.classList.remove('ui-tour-open');
+	                    const root = document.getElementById('ui-tour-root');
+	                    if (root) root.style.display = 'none';
+	                  } catch (e) { /* ignore */ }
+	                };
+	                document.addEventListener('pointerdown', closeTourForPitchControls, true);
+	                document.addEventListener('click', closeTourForPitchControls, true);
+	              } catch (e) { /* ignore */ }
 
 				        // Tutorial rápido (nuevos usuarios).
 				        try {

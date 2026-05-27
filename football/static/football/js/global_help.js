@@ -117,6 +117,10 @@
   };
 
   const autoStartOnce = () => {
+    try {
+      if (window.__WEBSTATS_SUPPRESS_AUTO_TOUR === true) return;
+      if (document.body?.classList?.contains('suppress-auto-tour')) return;
+    } catch (e) { /* ignore */ }
     const tour = window.WebstatsTour;
     if (!tour) return;
     const key = 'webstats:tour:global_nav_v1:done';

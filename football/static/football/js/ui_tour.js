@@ -234,6 +234,12 @@
       const urlForce = (() => {
         try { return new URLSearchParams(window.location.search).get('tour') === '1'; } catch (e) { return false; }
       })();
+      if (!urlForce) {
+        try {
+          if (window.__WEBSTATS_SUPPRESS_AUTO_TOUR === true) return false;
+          if (document.body?.classList?.contains('suppress-auto-tour')) return false;
+        } catch (e) { /* ignore */ }
+      }
       const autoEnabled = (() => {
         try { return safeText(window.localStorage?.getItem('webstats:ui_tour:auto')) === '1'; } catch (e) { return false; }
       })();
