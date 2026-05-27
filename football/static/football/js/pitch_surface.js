@@ -123,7 +123,7 @@
       artificial: ['#2fb46d', '#1f8d55'],
       dry: ['#7b9a45', '#6b8a3a'],
       wet: ['#1f5a46', '#163f35'],
-      coachboard: ['#0b1220', '#030712'],
+      coachboard: ['#315f34', '#214a2c'],
       whiteboard: ['#f8fafc', '#e5e7eb'],
       blackboard: ['#0b1220', '#030712'],
       uefa_b: ['#2f6a3a', '#245934'],
@@ -156,7 +156,7 @@
       }));
       defs.appendChild(pattern);
     } else if (grassStyle === 'coachboard') {
-      // Estilo "pizarra de entrenador": oscuro + micro-textura (solo SVG, sin <image>).
+      // Estilo "pizarra de entrenador": verde táctico + micro-textura (solo SVG, sin <image>).
       grassFillId = 'pitch-coachboard';
       const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 96, height: 96 });
       pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'url(#pitch-bg)' }));
@@ -165,7 +165,7 @@
         stroke: 'rgba(248,250,252,0.06)',
         'stroke-width': 1,
       }));
-      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.05)' }));
+      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
       defs.appendChild(pattern);
     } else if (grassStyle !== 'classic') {
       const dataUrl = __buildGrassTextureDataUrl(grassStyle);

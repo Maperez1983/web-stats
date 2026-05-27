@@ -381,7 +381,7 @@
 		      artificial: ['#2fb46d', '#1f8d55'],
 		      dry: ['#7b9a45', '#6b8a3a'],
 		      wet: ['#1f5a46', '#163f35'],
-		      coachboard: ['#0b1220', '#030712'],
+		      coachboard: ['#315f34', '#214a2c'],
 		      whiteboard: ['#f8fafc', '#e5e7eb'],
 		      blackboard: ['#0b1220', '#030712'],
 		      uefa_b: ['#2f6a3a', '#245934'],
@@ -411,7 +411,7 @@
 			      pattern.appendChild(createSvgNode(doc, 'path', { d: 'M 0 40 L 80 40 M 40 0 L 40 80', stroke: 'rgba(15,23,42,0.08)', 'stroke-width': 1 }));
 			      defs.appendChild(pattern);
 			    } else if (grassStyle === 'coachboard') {
-			      // Estilo "pizarra de entrenador": verde más plano con micro-textura.
+			      // Estilo "pizarra de entrenador": verde táctico con micro-textura.
 			      // Todo en SVG (sin <image>) para evitar problemas de renderizado/caché en Safari.
 			      grassFillId = 'pitch-coachboard';
 			      const pattern = createSvgNode(doc, 'pattern', { id: grassFillId, patternUnits: 'userSpaceOnUse', width: 96, height: 96 });
@@ -421,7 +421,7 @@
 			        stroke: 'rgba(248,250,252,0.06)',
 			        'stroke-width': 1,
 			      }));
-			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.05)' }));
+			      pattern.appendChild(createSvgNode(doc, 'rect', { x: 0, y: 0, width: 96, height: 96, fill: 'rgba(0,0,0,0.04)' }));
 			      defs.appendChild(pattern);
 			    } else if (grassStyle !== 'classic') {
 			      const dataUrl = __buildGrassTextureDataUrl(grassStyle);
@@ -2993,6 +2993,14 @@
 		      selection: true,
 		      enableRetinaScaling: true,
 		    });
+		    try {
+		      canvas.backgroundColor = '';
+		      if (canvas.lowerCanvasEl && canvas.lowerCanvasEl.style) canvas.lowerCanvasEl.style.background = 'transparent';
+		      if (canvas.upperCanvasEl && canvas.upperCanvasEl.style) canvas.upperCanvasEl.style.background = 'transparent';
+		      if (canvas.wrapperEl && canvas.wrapperEl.style) canvas.wrapperEl.style.background = 'transparent';
+		    } catch (error) {
+		      // ignore
+		    }
 	    // iPad/Safari: si el canvas no tiene touch-action:none, el navegador intercepta el gesto
 	    // y Fabric no recibe bien los eventos (parece que "no se puede mover nada").
 	    try {

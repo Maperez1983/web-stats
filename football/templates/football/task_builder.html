@@ -2524,7 +2524,21 @@
         border-radius: 18px;
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, 0.14);
-        background: linear-gradient(180deg, #0b1725, #08111d);
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.05) 0 8.33%, rgba(0,0,0,0.04) 8.33% 16.66%),
+          linear-gradient(180deg, #5f8f42, #557f3c);
+      }
+      .pitch-stage .canvas-container {
+        position: absolute !important;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 2;
+        background: transparent !important;
+      }
+      #task-pitch-surface {
+        z-index: 1;
+        background: transparent;
       }
       .pitch-stage::before {
         content: "";
@@ -2904,10 +2918,15 @@
 	        width: 100%;
 	        height: 100%;
 	        display: block;
+	        background: transparent !important;
 	        touch-action: none;
 	        -webkit-user-select: none;
 	        user-select: none;
 	      }
+      .pitch-stage canvas.lower-canvas,
+      .pitch-stage canvas.upper-canvas {
+        background: transparent !important;
+      }
 	      .pitch-resize-handle {
 	        position: absolute;
 	        right: 10px;
