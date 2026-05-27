@@ -13,7 +13,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
-from . import workspace_context
+from . import task_choices, workspace_context
+from .team_media_services import resolve_team_crest_url
 from .drills import drill_cards, normalize_drill_ids
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
 from .preview_render import render_task_preview_png
@@ -68,12 +69,6 @@ def session_plan_pdf(request, session_id):
     html = render_to_string('football/session_plan_pdf.html', context)
     filename = slugify(f'sesion-{session.session_date}-{session.focus}') or f'sesion-{session.id}'
     return _build_pdf_response_or_html_fallback(request, html, filename, inline=inline, force_pdf=force_pdf)
-
-
-def _views():
-    from . import views
-
-    return views
 
 
 def _build_pdf_nav_urls(request):
@@ -386,10 +381,6 @@ def _team_pdf_palette(team_obj, style_key='uefa'):
     }
 
 
-def resolve_team_crest_url(request, team, *, sync=False):
-    return _views().resolve_team_crest_url(request, team, sync=sync)
-
-
 def _normalize_task_pdf_meta(meta):
     def _normalize_meta_key(raw_key):
         text = str(raw_key or '').strip()
@@ -442,19 +433,18 @@ def _normalize_task_pdf_meta(meta):
             return mapping.get(normalized_key, raw)
         return raw
 
-    views = _views()
-    surface_map = {key: label for key, label in views.TASK_SURFACE_CHOICES}
-    pitch_map = {key: label for key, label in views.TASK_PITCH_FORMAT_CHOICES}
-    phase_map = {key: label for key, label in views.TASK_GAME_PHASE_CHOICES}
-    methodology_map = {key: label for key, label in views.TASK_METHODOLOGY_CHOICES}
-    complexity_map = {key: label for key, label in views.TASK_COMPLEXITY_CHOICES}
-    constraint_map = {key: label for key, label in views.TASK_CONSTRAINT_CHOICES}
-    strategy_map = {key: label for key, label in views.TASK_STRATEGY_CHOICES}
-    coordination_map = {key: label for key, label in views.TASK_COORDINATION_CHOICES}
-    coord_skills_map = {key: label for key, label in views.TASK_COORDINATION_SKILLS_CHOICES}
-    tactical_intent_map = {key: label for key, label in views.TASK_TACTICAL_INTENT_CHOICES}
-    dynamics_map = {key: label for key, label in views.TASK_DYNAMICS_CHOICES}
-    structure_map = {key: label for key, label in views.TASK_STRUCTURE_CHOICES}
+    surface_map = {key: label for key, label in task_choices.TASK_SURFACE_CHOICES}
+    pitch_map = {key: label for key, label in task_choices.TASK_PITCH_FORMAT_CHOICES}
+    phase_map = {key: label for key, label in task_choices.TASK_GAME_PHASE_CHOICES}
+    methodology_map = {key: label for key, label in task_choices.TASK_METHODOLOGY_CHOICES}
+    complexity_map = {key: label for key, label in task_choices.TASK_COMPLEXITY_CHOICES}
+    constraint_map = {key: label for key, label in task_choices.TASK_CONSTRAINT_CHOICES}
+    strategy_map = {key: label for key, label in task_choices.TASK_STRATEGY_CHOICES}
+    coordination_map = {key: label for key, label in task_choices.TASK_COORDINATION_CHOICES}
+    coord_skills_map = {key: label for key, label in task_choices.TASK_COORDINATION_SKILLS_CHOICES}
+    tactical_intent_map = {key: label for key, label in task_choices.TASK_TACTICAL_INTENT_CHOICES}
+    dynamics_map = {key: label for key, label in task_choices.TASK_DYNAMICS_CHOICES}
+    structure_map = {key: label for key, label in task_choices.TASK_STRUCTURE_CHOICES}
     meta = _normalize_meta_dict(meta or {})
     # Compat: algunas importaciones/analíticas guardan claves en castellano.
     # Unificamos para que el PDF siempre muestre etiquetas correctas.

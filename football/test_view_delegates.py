@@ -1,7 +1,7 @@
 from django.test import SimpleTestCase
 from types import SimpleNamespace
 
-from football import dashboard_services, session_pdf, tactical_views, video_studio_views, views
+from football import dashboard_services, session_pdf, tactical_views, team_media_services, video_studio_views, views
 from football.view_delegates import resolve_view, view_delegate
 
 
@@ -37,3 +37,25 @@ class ViewDelegateTests(SimpleTestCase):
         imported = SimpleNamespace(tactical_layout={'meta': {'source': 'manual-studio', 'pdf_source_name': 'a.pdf'}}, task_pdf=None, notes='')
         self.assertFalse(session_pdf._is_imported_task(manual))
         self.assertTrue(session_pdf._is_imported_task(imported))
+
+    def test_team_media_services_normalize_universo_paths(self):
+        self.assertEqual(
+            team_media_services.absolute_universo_url('/pnfg/pimg/escudo.png'),
+            'https://www.universorfaf.es/pnfg/pimg/escudo.png',
+        )
+        self.assertEqual(team_media_services.absolute_universo_url('/media/local.png'), '/media/local.png')
+
+    def test_team_media_services_block_universo_external_images_by_default(self):
+        self.assertEqual(
+            team_media_services.sanitize_universo_external_image(
+                'https://www.universorfaf.es/pnfg/pimg/escudo.png'
+            ),
+            '',
+        )
+
+    def test_session_pdf_uses_extracted_crest_service(self):
+        team = SimpleNamespace(id=7, crest_image=None, crest_url='', is_primary=False, slug='demo', name='Demo', short_name='DM')
+        self.assertEqual(
+            session_pdf.resolve_team_crest_url(None, team, fallback_static=None, sync=False),
+            '/team/7/crest.svg',
+        )
