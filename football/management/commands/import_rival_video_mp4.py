@@ -247,9 +247,9 @@ class Command(BaseCommand):
 
                 if do_autocut:
                     try:
-                        from football.views import _video_studio_schedule_autocut_after_upload  # noqa: WPS433
+                        from football.video_studio_services import schedule_autocut_after_upload
 
-                        _video_studio_schedule_autocut_after_upload(
+                        schedule_autocut_after_upload(
                             video_id=int(entry.id),
                             team_id=int(team.id),
                             owner_user_id=None,
@@ -265,4 +265,3 @@ class Command(BaseCommand):
                     tmp_out_path.unlink(missing_ok=True)
                 except Exception:
                     pass
-

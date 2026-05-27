@@ -1,14 +1,14 @@
 from django.core.management.base import BaseCommand
 
 from football.models import SessionTask, Team
-from football.views import (
-    _cleanup_task_joined_text_fields,
-    _ensure_library_task_preview,
-    _learn_task_blueprint_from_task,
-    _refresh_task_from_pdf_analysis,
-    _task_analysis_needs_refresh,
-    _task_scope_for_item,
-    _task_preview_needs_refresh,
+from football.task_library_services import (
+    cleanup_task_joined_text_fields,
+    ensure_library_task_preview,
+    learn_task_blueprint_from_task,
+    refresh_task_from_pdf_analysis,
+    task_analysis_needs_refresh,
+    task_preview_needs_refresh,
+    task_scope_for_item,
 )
 
 
@@ -41,7 +41,7 @@ class Command(BaseCommand):
             .filter(session__microcycle__team=team, task_pdf__isnull=False)
             .order_by("-id")[:limit]
         )
-        tasks = [item for item in tasks if _task_scope_for_item(item) == scope]
+        tasks = [item for item in tasks if task_scope_for_item(item) == scope]
         self.stdout.write(f"Tareas candidatas: {len(tasks)} · scope={scope} · force={force}")
 
         refreshed = 0
@@ -52,14 +52,14 @@ class Command(BaseCommand):
 
         for task in tasks:
             try:
-                should_refresh = force or _task_analysis_needs_refresh(task)
+                should_refresh = force or task_analysis_needs_refresh(task)
                 task_changed = False
                 if should_refresh:
-                    if _refresh_task_from_pdf_analysis(task):
+                    if refresh_task_from_pdf_analysis(task):
                         refreshed += 1
                         task_changed = True
                         try:
-                            _learn_task_blueprint_from_task(
+                            learn_task_blueprint_from_task(
                                 team=team,
                                 task=task,
                                 scope_key=scope,
@@ -67,11 +67,11 @@ class Command(BaseCommand):
                             )
                         except Exception:
                             pass
-                if _cleanup_task_joined_text_fields(task):
+                if cleanup_task_joined_text_fields(task):
                     text_fixed += 1
                     task_changed = True
-                if _task_preview_needs_refresh(task):
-                    if _ensure_library_task_preview(task, force=True, prefer_render=True):
+                if task_preview_needs_refresh(task):
+                    if ensure_library_task_preview(task, force=True, prefer_render=True):
                         preview_fixed += 1
                         task_changed = True
                 if not task_changed:

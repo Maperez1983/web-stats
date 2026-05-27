@@ -43,22 +43,21 @@ class Command(BaseCommand):
         if not team:
             raise CommandError("No se encontró equipo. Usa --team-id.")
 
-        # Reutiliza helpers del importador (views) para mantener el comportamiento consistente con la UI.
-        from football.views import (  # noqa: WPS433
+        from football.session_import_services import (
             INBOX_MICROCYCLE_WEEK_START,
             LIBRARY_REPOSITORY_TRADITIONAL,
-            _apply_analysis_to_task,
-            _extract_pdf_text,
-            _extract_preview_images_from_pdf,
-            _extract_tasks_from_pdf_text,
-            _get_or_create_inbox_microcycle,
-            _get_or_create_week_microcycle,
-            _learn_task_blueprint_from_pdf_import,
-            _next_session_task_order,
-            _parse_pdf_session_header_fields,
-            _serialize_session_plan_fields,
-            _suggest_blocks_for_session_pdf_segments,
-            _suggest_session_plan_fields_from_pdf_text,
+            apply_analysis_to_task,
+            extract_pdf_text,
+            extract_preview_images_from_pdf,
+            extract_tasks_from_pdf_text,
+            get_or_create_inbox_microcycle,
+            get_or_create_week_microcycle,
+            learn_task_blueprint_from_pdf_import,
+            next_session_task_order,
+            parse_pdf_session_header_fields,
+            serialize_session_plan_fields,
+            suggest_blocks_for_session_pdf_segments,
+            suggest_session_plan_fields_from_pdf_text,
         )
 
         resolved_title = title or pdf_path.stem
@@ -66,12 +65,12 @@ class Command(BaseCommand):
 
         with open(pdf_path, "rb") as fh:
             upload = File(fh, name=pdf_path.name)
-            extracted_text = _extract_pdf_text(upload, max_chars=60000)
-            header = _parse_pdf_session_header_fields(extracted_text) if extracted_text else {}
+            extracted_text = extract_pdf_text(upload, max_chars=60000)
+            header = parse_pdf_session_header_fields(extracted_text) if extracted_text else {}
 
             session_date = (header.get("date") if isinstance(header, dict) else None) or timezone.localdate()
-            plan_fields = _suggest_session_plan_fields_from_pdf_text(extracted_text, imported_doc_id=None)
-            content = _serialize_session_plan_fields(plan_fields)
+            plan_fields = suggest_session_plan_fields_from_pdf_text(extracted_text, imported_doc_id=None)
+            content = serialize_session_plan_fields(plan_fields)
 
             md = header.get("md") if isinstance(header, dict) else None
             sess_no = header.get("session_number") if isinstance(header, dict) else None
@@ -85,7 +84,7 @@ class Command(BaseCommand):
                 focus = resolved_title
             focus = focus.strip()[:140] or resolved_title[:140] or "Sesión importada"
 
-            parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=focus) or []
+            parsed_tasks = extract_tasks_from_pdf_text(extracted_text, fallback_title=focus) or []
             duration_minutes = 90
             if parsed_tasks:
                 total = 0
@@ -113,7 +112,7 @@ class Command(BaseCommand):
                     mc_num = 0
                 if mc_num:
                     title_hint = f"Microciclo Nº{mc_num}"
-                microcycle = _get_or_create_week_microcycle(team, session_date, title_hint=title_hint) or _get_or_create_inbox_microcycle(team)
+                microcycle = get_or_create_week_microcycle(team, session_date, title_hint=title_hint) or get_or_create_inbox_microcycle(team)
             if not microcycle:
                 raise CommandError("No se pudo preparar el microciclo destino.")
 
@@ -172,9 +171,9 @@ class Command(BaseCommand):
                 except Exception:
                     pass
 
-                preview_payloads = _extract_preview_images_from_pdf(doc.pdf, max_images=max(1, len(parsed_tasks)), prefer_render=True)
-                segment_blocks = _suggest_blocks_for_session_pdf_segments(parsed_tasks, SessionTask.BLOCK_MAIN_1)
-                base_order = _next_session_task_order(session) - 1
+                preview_payloads = extract_preview_images_from_pdf(doc.pdf, max_images=max(1, len(parsed_tasks)), prefer_render=True)
+                segment_blocks = suggest_blocks_for_session_pdf_segments(parsed_tasks, SessionTask.BLOCK_MAIN_1)
+                base_order = next_session_task_order(session) - 1
                 shared_pdf_name = str(getattr(doc.pdf, "name", "") or "").strip()
 
                 for idx, segment in enumerate(parsed_tasks, start=1):
@@ -215,11 +214,11 @@ class Command(BaseCommand):
                     )
                     if isinstance(analysis, dict) and analysis:
                         try:
-                            _apply_analysis_to_task(task, analysis)
+                            apply_analysis_to_task(task, analysis)
                         except Exception:
                             pass
                         try:
-                            _learn_task_blueprint_from_pdf_import(team=team, task=task, analysis=analysis, scope_key="coach", actor_username="")
+                            learn_task_blueprint_from_pdf_import(team=team, task=task, analysis=analysis, scope_key="coach", actor_username="")
                         except Exception:
                             pass
 
@@ -236,4 +235,3 @@ class Command(BaseCommand):
                             pass
 
         self.stdout.write(self.style.SUCCESS(f"OK doc={doc.id} session={session.id}"))
-

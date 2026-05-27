@@ -7,6 +7,8 @@ from pathlib import Path
 from django.core.cache import cache
 from django.urls import reverse
 
+from . import permissions, workspace_context
+
 
 @lru_cache(maxsize=1)
 def _static_build_id() -> str:
@@ -99,7 +101,6 @@ def brand_theme(request):
     }
     """
     try:
-        from football.views import _get_active_workspace, _get_active_team_for_request  # noqa: WPS433 (lazy import)
         from football.models import WorkspacePreference  # noqa: WPS433 (lazy import)
     except Exception:
         return {}
@@ -110,11 +111,11 @@ def brand_theme(request):
     workspace = None
     team = None
     try:
-        workspace = _get_active_workspace(request)
+        workspace = workspace_context.get_active_workspace(request)
     except Exception:
         workspace = None
     try:
-        team = _get_active_team_for_request(request)
+        team = workspace_context.get_active_team_for_request(request)
     except Exception:
         team = None
     if not workspace:
@@ -372,9 +373,7 @@ def workspace_access(request):
         is_admin = bool(_is_admin_user(request.user))
         # Staff (cuerpo técnico) debe ser accesible para perfiles técnicos aunque el workspace o el menú varíen.
         # Usamos la misma lógica que el backend para permitir/denegar el acceso.
-        from football.views import _can_access_coach_workspace  # noqa: WPS433 (lazy import)
-
-        can_access_staff = bool(_can_access_coach_workspace(request.user))
+        can_access_staff = bool(permissions.can_access_coach_workspace(request.user))
     except Exception:
         can_manage = False
         is_admin = False

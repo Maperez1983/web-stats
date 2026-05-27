@@ -13,8 +13,8 @@ class Command(BaseCommand):
         parser.add_argument('--limit', type=int, default=2000, help='Máximo de ejemplos')
 
     def handle(self, *args, **options):
+        from football.library_repositories import LIBRARY_REPOSITORY_AI_TRAINER
         from football.models import SessionTask, Team
-        from football.views import LIBRARY_REPOSITORY_AI_TRAINER
 
         team_id = int(options.get('team_id') or 0)
         limit = max(1, min(int(options.get('limit') or 2000), 20000))
@@ -76,4 +76,3 @@ class Command(BaseCommand):
                 exported += 1
 
         self.stdout.write(f'IA‑Trainer finetune export: team={team.id} exported={exported} out={str(out_path)}')
-

@@ -13,7 +13,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 
 from football.models import Player, Team
-from football.views import save_player_license
+from football.player_documents import save_player_license
 
 try:
     from PIL import Image, ImageOps

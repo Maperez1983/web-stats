@@ -76,14 +76,13 @@ class Command(BaseCommand):
         if not team:
             raise CommandError("No se encontró equipo. Usa --team-id.")
 
-        # Importamos helpers desde views para no duplicar lógica de Biblioteca.
-        from football.views import (  # noqa: WPS433
-            _ensure_library_task_preview,
-            _get_or_create_library_session_with_repository,
-            _import_library_tasks_from_pdf_advanced,
+        from football.session_import_services import (
+            ensure_library_task_preview,
+            get_or_create_library_session_with_repository,
+            import_library_tasks_from_pdf_advanced,
         )
 
-        target_session = _get_or_create_library_session_with_repository(team, scope_key, repository=repository)
+        target_session = get_or_create_library_session_with_repository(team, scope_key, repository=repository)
         if not target_session:
             raise CommandError("No se pudo resolver la sesión interna de Biblioteca.")
 
@@ -113,7 +112,7 @@ class Command(BaseCommand):
                         fh = open(p, "rb")
                         handles.append(fh)
                         pdf_files.append(File(fh, name=p.name))
-                    result = _import_library_tasks_from_pdf_advanced(
+                    result = import_library_tasks_from_pdf_advanced(
                         primary_team=team,
                         scope_key=scope_key,
                         target_session=target_session,
@@ -168,7 +167,7 @@ class Command(BaseCommand):
                             notes="Importada desde PDF (CLI).",
                         )
                         try:
-                            _ensure_library_task_preview(task, force=True, prefer_render=True)
+                            ensure_library_task_preview(task, force=True, prefer_render=True)
                         except Exception:
                             pass
                         created += 1
@@ -182,4 +181,3 @@ class Command(BaseCommand):
                 f"processed={processed} created={created}"
             )
         )
-

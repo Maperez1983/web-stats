@@ -10,7 +10,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.test import RequestFactory
 
 from football.models import TrainingSession
-from football.views import session_plan_pdf
+from football.session_pdf import session_plan_pdf
 
 
 class Command(BaseCommand):
@@ -71,4 +71,3 @@ class Command(BaseCommand):
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_bytes(body)
         self.stdout.write(self.style.SUCCESS(f"OK: {out_path} ({len(body)} bytes)"))
-

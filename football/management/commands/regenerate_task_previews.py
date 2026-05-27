@@ -7,16 +7,16 @@ from django.core.management.base import BaseCommand
 
 from football.models import SessionTask, TaskStudioTask, Team
 from football.preview_render import shutdown_preview_renderer
-from football.views import (
-    _analyze_preview_image_bytes,
-    _ensure_library_task_preview,
-    _maybe_render_task_preview_server_side,
-    _task_scope_for_item,
+from football.task_library_services import (
+    analyze_preview_image_bytes,
+    ensure_library_task_preview,
+    maybe_render_task_preview_server_side,
+    task_scope_for_item,
 )
 
 
 def _looks_like_pitch_only_preview(raw_bytes: bytes) -> bool:
-    metrics = _analyze_preview_image_bytes(raw_bytes)
+    metrics = analyze_preview_image_bytes(raw_bytes)
     if not metrics:
         return False
     green_ratio = float(metrics.get("green_ratio") or 0.0)
@@ -93,13 +93,13 @@ class Command(BaseCommand):
                     qs = qs.filter(session__microcycle__team_id=team_id)
                 qs = qs.order_by("-id")[:limit]
                 for task in qs:
-                    if scope != "any" and _task_scope_for_item(task) != scope:
+                    if scope != "any" and task_scope_for_item(task) != scope:
                         continue
                     yield "sessions", task
             if only in {"all", "task_studio"}:
                 qs = TaskStudioTask.objects.filter(deleted_at__isnull=True).order_by("-id")[:limit]
                 for task in qs:
-                    if scope != "any" and _task_scope_for_item(task) != scope:
+                    if scope != "any" and task_scope_for_item(task) != scope:
                         continue
                     yield "task_studio", task
 
@@ -161,7 +161,7 @@ class Command(BaseCommand):
 
                 if not playwright_error:
                     try:
-                        ok = bool(_maybe_render_task_preview_server_side(task, force=True))
+                        ok = bool(maybe_render_task_preview_server_side(task, force=True))
                     except Exception as exc:
                         render_err = exc
                         ok = False
@@ -173,7 +173,7 @@ class Command(BaseCommand):
 
                 if not ok and getattr(task, "task_pdf", None):
                     try:
-                        ok = bool(_ensure_library_task_preview(task, force=True, prefer_render=True))
+                        ok = bool(ensure_library_task_preview(task, force=True, prefer_render=True))
                     except Exception as exc:
                         if verbosity >= 2:
                             self.stdout.write(self.style.WARNING(f"  pdf fallback error: {exc!r}"))

@@ -10,7 +10,7 @@ class PdfImportRecreateCanvasTests(SimpleTestCase):
         except Exception:  # pragma: no cover
             self.skipTest("Pillow no disponible")
 
-        from football.views import _recreate_canvas_state_from_preview_image_bytes
+        from football.session_pdf import recreate_canvas_state_from_preview_image_bytes
 
         # Green background + a grey rectangle outline + a grey arrow.
         img = Image.new("RGB", (900, 600), (40, 120, 40))
@@ -23,10 +23,9 @@ class PdfImportRecreateCanvasTests(SimpleTestCase):
         img.save(buf, format="PNG")
         raw = buf.getvalue()
 
-        state = _recreate_canvas_state_from_preview_image_bytes(raw, canvas_width=1054, canvas_height=684) or {}
+        state = recreate_canvas_state_from_preview_image_bytes(raw, canvas_width=1054, canvas_height=684) or {}
         objects = state.get("objects") or []
         kinds = {((obj.get("data") or {}).get("kind") if isinstance(obj, dict) else None) for obj in objects}
 
         self.assertIn("shape-rect", kinds)
         self.assertIn("arrow", kinds)
-

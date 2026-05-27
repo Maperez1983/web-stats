@@ -13,7 +13,7 @@ from football.event_taxonomy import (
 )
 from football.models import TeamStanding
 from football.query_helpers import _team_match_queryset, confirmed_events_queryset
-from football.views import _filter_stats_events, compute_player_cards, preferred_event_source_by_match
+from football.stats_services import compute_player_cards, filter_stats_events, preferred_event_source_by_match
 
 
 def _normalized_match_key(match, primary_team):
@@ -42,7 +42,7 @@ def run_stats_audit(primary_team):
         }
 
     preferred_sources = preferred_event_source_by_match(primary_team)
-    events = _filter_stats_events(
+    events = filter_stats_events(
         confirmed_events_queryset()
         .filter(player__team=primary_team)
         .select_related('player', 'match', 'match__home_team', 'match__away_team')

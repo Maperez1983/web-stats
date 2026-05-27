@@ -76,6 +76,28 @@ from .event_signatures import event_signature, event_signature_canon_text, is_ma
 from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from . import universo_client
+from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
+from .library_repositories import (
+    INBOX_MICROCYCLE_WEEK_END,
+    INBOX_MICROCYCLE_WEEK_START,
+    INBOX_MICROCYCLE_TITLE,
+    LIBRARY_MICROCYCLE_MARKER,
+    LIBRARY_REPOSITORY_AI_TRAINER,
+    LIBRARY_REPOSITORY_CHOICES,
+    LIBRARY_REPOSITORY_INTERACTIVE,
+    LIBRARY_REPOSITORY_TRADITIONAL,
+    TRASH_MICROCYCLE_MARKER,
+    TRASH_MICROCYCLE_WEEK_END,
+    TRASH_MICROCYCLE_WEEK_START,
+    TRASH_MICROCYCLE_TITLE,
+    TRASH_SESSION_REASON_PREFIX,
+    exclude_library_sessions_qs,
+    is_library_microcycle,
+    is_library_session,
+    library_repository_for_session,
+    library_repository_for_task,
+    normalize_library_repository,
+)
 
 try:
     from PIL import Image, ImageFilter, ImageOps
@@ -902,26 +924,6 @@ TASK_MATERIAL_LIBRARY = [
 ]
 TASK_MATERIAL_PPT_DIR = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'task-materials' / 'ppt'
 
-# Sesiones "sueltas" (sin microciclo): internamente viven en un microciclo especial
-# para no romper el modelo actual (TrainingSession -> TrainingMicrocycle).
-# Este microciclo funciona como bandeja de entrada y NO debe mostrarse en la UI de microciclos.
-INBOX_MICROCYCLE_WEEK_START = date(2000, 1, 1)
-INBOX_MICROCYCLE_WEEK_END = date(2099, 12, 31)
-INBOX_MICROCYCLE_TITLE = 'Sesiones sueltas (sin microciclo)'
-
-# Microciclos/sesiones de biblioteca (internos). No deberían aparecer en los selectores
-# de planificación para no confundir con sesiones reales.
-LIBRARY_MICROCYCLE_MARKER = '[2J_LIBRARY_MICROCYCLE]'
-
-# Papelera (interno): nunca borramos físicamente sesiones/tareas.
-# Las sesiones movidas aquí quedan fuera de la UI estándar pero se pueden restaurar.
-TRASH_MICROCYCLE_WEEK_START = date(1970, 1, 1)
-TRASH_MICROCYCLE_WEEK_END = date(1970, 1, 7)
-TRASH_MICROCYCLE_TITLE = 'Papelera (sistema)'
-TRASH_MICROCYCLE_MARKER = '[2J_TRASH_MICROCYCLE]'
-TRASH_SESSION_REASON_PREFIX = '[2J_TRASH_SESSION]'
-
-
 def _is_inbox_microcycle(microcycle):
     if not microcycle:
         return False
@@ -932,53 +934,15 @@ def _is_inbox_microcycle(microcycle):
 
 
 def _is_library_microcycle(microcycle):
-    if not microcycle:
-        return False
-    try:
-        notes = str(getattr(microcycle, 'notes', '') or '')
-        if LIBRARY_MICROCYCLE_MARKER in notes:
-            return True
-        # Legacy marker.
-        if 'microciclo tecnico generado automaticamente para biblioteca' in notes.lower():
-            return True
-        objective = str(getattr(microcycle, 'objective', '') or '')
-        if objective.strip().lower() == 'repositorio de tareas en pdf':
-            return True
-        title = str(getattr(microcycle, 'title', '') or '')
-        if title.strip().lower().startswith('biblioteca '):
-            return True
-        return False
-    except Exception:
-        return False
+    return is_library_microcycle(microcycle)
 
 
 def _is_library_session(session):
-    if not session:
-        return False
-    try:
-        return _is_library_microcycle(getattr(session, 'microcycle', None))
-    except Exception:
-        return False
+    return is_library_session(session)
 
 
 def _exclude_library_sessions_qs(qs):
-    """
-    Las sesiones internas (Biblioteca y Papelera) no deben aparecer en selectores/UI normal.
-    Si aparecen en selectores o como sesión por defecto, el usuario puede
-    editarlas por error y las tareas "desaparecen" (por confusión o por borrado).
-    """
-    try:
-        return qs.exclude(
-            Q(microcycle__notes__icontains=LIBRARY_MICROCYCLE_MARKER)
-            | Q(microcycle__notes__icontains='microciclo tecnico generado automaticamente para biblioteca')
-            | Q(microcycle__objective__iexact='Repositorio de tareas en pdf')
-            | Q(microcycle__title__istartswith='Biblioteca ')
-            | Q(microcycle__week_start=TRASH_MICROCYCLE_WEEK_START)
-            | Q(microcycle__notes__icontains=TRASH_MICROCYCLE_MARKER)
-            | Q(microcycle__title__istartswith='Papelera')
-        )
-    except Exception:
-        return qs
+    return exclude_library_sessions_qs(qs)
 
 
 def _is_trash_microcycle(microcycle):
@@ -1139,49 +1103,16 @@ def _restore_training_session_from_trash(session_obj) -> None:
     session_obj.save(update_fields=['microcycle', 'workflow_reason', 'status', 'focus', 'updated_at'])
 
 
-LIBRARY_REPOSITORY_TRADITIONAL = 'traditional'
-LIBRARY_REPOSITORY_INTERACTIVE = 'interactive'
-LIBRARY_REPOSITORY_AI_TRAINER = 'ai_trainer'
-LIBRARY_REPOSITORY_CHOICES = {LIBRARY_REPOSITORY_TRADITIONAL, LIBRARY_REPOSITORY_INTERACTIVE, LIBRARY_REPOSITORY_AI_TRAINER}
-
-
 def _normalize_library_repository(value, *, fallback=LIBRARY_REPOSITORY_TRADITIONAL):
-    raw = str(value or '').strip().lower()
-    if raw in {'tradicional', 'tradicionales', 'pdf'}:
-        return LIBRARY_REPOSITORY_TRADITIONAL
-    if raw in {'interactiva', 'interactivas'}:
-        return LIBRARY_REPOSITORY_INTERACTIVE
-    if raw in {'ia', 'ai', 'iatrainer', 'ia-trainer', 'ia_trainer'}:
-        return LIBRARY_REPOSITORY_AI_TRAINER
-    if raw in LIBRARY_REPOSITORY_CHOICES:
-        return raw
-    return fallback
+    return normalize_library_repository(value, fallback=fallback)
 
 
 def _library_repository_for_session(session):
-    if not session:
-        return LIBRARY_REPOSITORY_TRADITIONAL
-    focus = str(getattr(session, 'focus', '') or '').strip().lower()
-    if 'biblioteca interactiva' in focus:
-        return LIBRARY_REPOSITORY_INTERACTIVE
-    if 'biblioteca ia' in focus or 'biblioteca ai' in focus:
-        return LIBRARY_REPOSITORY_AI_TRAINER
-    return LIBRARY_REPOSITORY_TRADITIONAL
+    return library_repository_for_session(session)
 
 
 def _library_repository_for_task(task):
-    if not task:
-        return LIBRARY_REPOSITORY_TRADITIONAL
-    try:
-        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        raw_repo = meta.get('repository') or meta.get('library_repo') or meta.get('library_repository')
-        repo = _normalize_library_repository(raw_repo, fallback='')
-        if repo in LIBRARY_REPOSITORY_CHOICES:
-            return repo
-    except Exception:
-        pass
-    return _library_repository_for_session(getattr(task, 'session', None))
+    return library_repository_for_task(task)
 
 
 def _extract_ig_task_fields_from_text(full_text: str) -> dict:
@@ -42219,48 +42150,11 @@ _AI_TRAINER_COACH_DICT_CACHE = None
 
 
 def _ai_trainer_normalize_text(value: str) -> str:
-    raw = str(value or '')
-    if not raw:
-        return ''
-    raw = unicodedata.normalize('NFKD', raw)
-    raw = ''.join([c for c in raw if not unicodedata.combining(c)])
-    raw = raw.lower()
-    raw = raw.replace('_', ' ').replace('-', ' ')
-    raw = ' '.join([chunk for chunk in raw.split() if chunk])
-    return raw
+    return normalize_ai_trainer_text(value)
 
 
 def _ai_trainer_tokenize(text_norm: str, *, limit: int = 96) -> list:
-    text = str(text_norm or '').strip().lower()
-    if not text:
-        return []
-    try:
-        parts = re.split(r'[^a-z0-9áéíóúüñ]+', text, flags=re.IGNORECASE)
-    except Exception:
-        parts = text.split()
-    stop = {
-        'para', 'pero', 'porque', 'como', 'cuando', 'donde', 'desde', 'hasta',
-        'con', 'sin', 'sobre', 'entre', 'tras', 'ante', 'por', 'del', 'de', 'la', 'el', 'los', 'las', 'un', 'una',
-        'y', 'o', 'u', 'a', 'en', 'al', 'se', 'su', 'sus', 'que', 'qué',
-        'trabajar', 'mejorar', 'hacer', 'quiero', 'hoy',
-    }
-    out = []
-    seen = set()
-    for raw in parts:
-        tok = str(raw or '').strip().lower()
-        if not tok or len(tok) < 3:
-            continue
-        if tok in stop:
-            continue
-        if tok.isdigit():
-            continue
-        if tok in seen:
-            continue
-        seen.add(tok)
-        out.append(tok)
-        if len(out) >= max(8, int(limit or 96)):
-            break
-    return out
+    return ai_trainer_tokenize(text_norm, limit=limit)
 
 
 def _ai_trainer_log_event(request, team, *, event_type: str, meta: dict = None):
@@ -42295,49 +42189,7 @@ def _ai_trainer_log_event(request, team, *, event_type: str, meta: dict = None):
 
 
 def _ai_trainer_index_task(task, *, team=None):
-    if not task:
-        return None
-    team = team or getattr(getattr(getattr(task, 'session', None), 'microcycle', None), 'team', None)
-    if not team:
-        return None
-    try:
-        repo = _library_repository_for_task(task)
-    except Exception:
-        repo = ''
-
-    chunks = [
-        str(getattr(task, 'title', '') or ''),
-        str(getattr(task, 'objective', '') or ''),
-        str(getattr(task, 'coaching_points', '') or ''),
-        str(getattr(task, 'confrontation_rules', '') or ''),
-    ]
-    try:
-        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        analysis = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-        summary = str(analysis.get('summary') or '')
-        if summary:
-            chunks.append(summary)
-    except Exception:
-        pass
-
-    content = ' '.join([c for c in chunks if str(c or '').strip()]).strip()[:20000]
-    content_norm = _ai_trainer_normalize_text(content)[:20000]
-    tokens = _ai_trainer_tokenize(content_norm, limit=128)
-    try:
-        idx, _ = AiTrainerTaskIndex.objects.update_or_create(
-            task=task,
-            defaults={
-                'team': team,
-                'repository': str(repo or '')[:32],
-                'content': content,
-                'content_norm': content_norm,
-                'tokens': tokens,
-            },
-        )
-        return idx
-    except Exception:
-        return None
+    return ai_trainer_index_task(task, team=team)
 
 
 def _ai_trainer_adjust_token_weights(team, *, workspace=None, tokens=None, delta: float = 1.0):

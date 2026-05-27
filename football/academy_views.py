@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .event_taxonomy import normalize_label
-from . import workspace_context
+from . import permissions, workspace_context
 from .models import (
     AcademyAssignment,
     AcademyLesson,
@@ -70,10 +70,7 @@ def _lesson_matches_team(lesson: AcademyLesson, team) -> bool:
 
 
 def _forbid_if_academy_disabled(request):
-    # Lazy import para evitar dependencias circulares con `football.views`.
-    from football.views import _forbid_if_workspace_module_disabled  # noqa: WPS433 (lazy import)
-
-    return _forbid_if_workspace_module_disabled(request, "academy", label="academia")
+    return permissions.forbid_if_workspace_module_disabled(request, "academy", label="academia")
 
 
 def _active_scope(request):
