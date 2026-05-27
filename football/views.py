@@ -12187,54 +12187,7 @@ def club_onboarding_page(request):
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar el tema.'
 
-            # Render normal (sin tocar configuración de competición).
-            if workspace and primary_team and not competition_context:
-                competition_context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
-            setup_checklist = []
-            setup_progress = {'required_total': 0, 'required_done': 0}
-            try:
-                if workspace and primary_team:
-                    active_match = None
-                    try:
-                        active_match = get_active_match(primary_team)
-                    except Exception:
-                        active_match = None
-                    convocation_record = None
-                    try:
-                        convocation_record = get_current_convocation_record(primary_team)
-                    except Exception:
-                        convocation_record = None
-                    setup_checklist = _build_team_setup_checklist(
-                        request,
-                        workspace,
-                        primary_team,
-                        match=active_match,
-                        convocation_record=convocation_record,
-                    )
-                    if isinstance(setup_checklist, list) and setup_checklist:
-                        required_items = [item for item in setup_checklist if bool(item.get('required'))]
-                        setup_progress['required_total'] = len(required_items)
-                        setup_progress['required_done'] = len([item for item in required_items if bool(item.get('ok'))])
-            except Exception:
-                setup_checklist = []
-            return render(
-                request,
-                'football/club_onboarding.html',
-                {
-                    'workspace': workspace or SimpleNamespace(slug='(nuevo)'),
-                    'competition_context': competition_context,
-                    'provider_choices': WorkspaceCompetitionContext.PROVIDER_CHOICES,
-                    'universo_candidates': universo_candidates,
-                    'auto_notice': ' '.join([part for part in auto_notice_parts if part]).strip(),
-                    'form': form,
-                    'theme_form': theme_form,
-                    'setup_checklist': setup_checklist or [],
-                    'setup_progress': setup_progress,
-                    'error': error,
-                    'success': success,
-                },
-                status=200,
-            )
+            return _render_onboarding_page(status=200)
         if action == 'brand_assets':
             try:
                 if not workspace or not primary_team:

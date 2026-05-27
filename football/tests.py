@@ -8770,6 +8770,53 @@ class ClubOnboardingImportTests(TestCase):
         self.assertEqual(team.group.external_id, '45030656')
         self.assertEqual(context.group_id, team.group_id)
 
+    def test_club_onboarding_brand_theme_post_renders_full_context(self):
+        team = Team.objects.create(name='Equipo Tema', slug='equipo-tema')
+        workspace = Workspace.objects.create(
+            name='Club Tema',
+            slug='club-tema',
+            kind=Workspace.KIND_CLUB,
+            primary_team=team,
+            owner_user=self.user,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('club-onboarding'),
+            {
+                'action': 'brand_theme',
+                'theme_primary': '#123456',
+                'theme_secondary': '#abcdef',
+                'theme_bg': '#08111d',
+                'theme_text': '#f5f7fa',
+                'theme_button_bg': '#0f172a',
+                'theme_button_text': '#ffffff',
+                'theme_panel_flat': '#101827',
+                'theme_line': '#90a1b9',
+                'theme_shadow': 'soft',
+                'theme_system_image_mode': 'both',
+                'theme_font': 'avenir',
+                'theme_ui': 'dark',
+                'theme_bg_light': '#f4f7fb',
+                'theme_text_light': '#0f172a',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Identidad corporativa guardada.')
+        self.assertContains(response, 'Vista previa de página')
+        pref = WorkspacePreference.objects.get(workspace=workspace, key='brand_theme:v1')
+        saved = pref.value['teams'][str(team.id)]
+        self.assertEqual(saved['font'], 'avenir')
+        self.assertEqual(saved['system_image_mode'], 'both')
+
 
 class SessionPlanFieldsSerializationTests(TestCase):
     def test_parse_and_serialize_supports_session_extras(self):
