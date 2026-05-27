@@ -1,4 +1,5 @@
 from django.test import SimpleTestCase
+from types import SimpleNamespace
 
 from football import dashboard_services, session_pdf, tactical_views, video_studio_views, views
 from football.view_delegates import resolve_view, view_delegate
@@ -27,3 +28,12 @@ class ViewDelegateTests(SimpleTestCase):
         delegated = view_delegate('kpi_audit')
         self.assertEqual(delegated.__name__, 'kpi_audit')
         self.assertEqual(delegated.__qualname__, 'kpi_audit')
+
+    def test_session_pdf_folded_text_normalizes_accents(self):
+        self.assertEqual(session_pdf._normalize_folded_text('Presión tras pérdida'), 'presion tras perdida')
+
+    def test_session_pdf_imported_task_detection_keeps_manual_tasks_out(self):
+        manual = SimpleNamespace(tactical_layout={'meta': {'source': 'manual-studio'}}, task_pdf=None, notes='')
+        imported = SimpleNamespace(tactical_layout={'meta': {'source': 'manual-studio', 'pdf_source_name': 'a.pdf'}}, task_pdf=None, notes='')
+        self.assertFalse(session_pdf._is_imported_task(manual))
+        self.assertTrue(session_pdf._is_imported_task(imported))

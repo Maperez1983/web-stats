@@ -1,6 +1,7 @@
 import base64
 import html
 import re
+import unicodedata
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -12,6 +13,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
+from . import workspace_context
 from .drills import drill_cards, normalize_drill_ids
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
 from .preview_render import render_task_preview_png
@@ -163,7 +165,13 @@ def _file_field_as_data_url(file_field):
 
 
 def _get_primary_team_for_request(request):
-    return _views()._get_primary_team_for_request(request)
+    team = workspace_context.get_active_team_for_request(request)
+    if team:
+        return team
+    try:
+        return workspace_context.team_from_request_param(request)
+    except Exception:
+        return None
 
 
 def _is_benagalbon_team(team):
@@ -178,11 +186,44 @@ def _is_benagalbon_team(team):
 
 
 def _is_imported_task(task):
-    return _views()._is_imported_task(task)
+    if not task:
+        return False
+    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    source = str(meta.get('source') or '').strip().lower()
+    if source in {'manual-studio', 'manual', 'studio'}:
+        if bool(getattr(task, 'task_pdf', None)) or str(meta.get('pdf_source_name') or '').strip() or bool(meta.get('import_mode')):
+            return True
+        return False
+    if source in {'pdf_analysis', 'pdf_import', 'pdf'}:
+        return True
+    if str(meta.get('pdf_source_name') or '').strip():
+        return True
+    try:
+        notes = str(getattr(task, 'notes', '') or '').strip().lower()
+    except Exception:
+        notes = ''
+    if bool(getattr(task, 'task_pdf', None)):
+        if any(
+            token in notes
+            for token in (
+                'cargada desde biblioteca pdf',
+                'importada desde pdf',
+                'extraída automáticamente desde pdf',
+                'importada desde captura',
+            )
+        ):
+            return True
+        return True
+    return False
 
 
 def _normalize_folded_text(value):
-    return _views()._normalize_folded_text(value)
+    raw = str(value or '').strip().lower()
+    if not raw:
+        return ''
+    normalized = unicodedata.normalize('NFKD', raw)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
 def _parse_session_plan_fields(raw_content):
