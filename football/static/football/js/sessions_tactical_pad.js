@@ -12716,6 +12716,115 @@
 				        simClipsList.hidden = false;
 				      }
 				    } catch (e) { /* ignore */ }
+				    const applyClipProFromPlaybook = (clip) => {
+				      simulationProTracks = {};
+				      simulationProEnabled = false;
+				      simulationProLoop = true;
+				      simulationProTimeMs = 0;
+				      simulationProUpdatedAt = Date.now();
+				      simulationProCaches = new Map();
+				      const pro = clip?.pro && typeof clip.pro === 'object' ? clip.pro : null;
+				      if (pro) {
+				        simulationProEnabled = pro.enabled !== false;
+				        simulationProLoop = pro.loop !== false;
+				        const tracks = pro.tracks && typeof pro.tracks === 'object' ? pro.tracks : {};
+				        const safeTracks = {};
+				        Object.entries(tracks).slice(0, 240).forEach(([uid, list]) => {
+				          if (!uid) return;
+				          if (!Array.isArray(list)) return;
+				          const cleaned = list
+				            .map((kf) => {
+				              const t_ms = clamp(Number(kf?.t_ms) || 0, 0, 3_600_000);
+				              const props = kf?.props && typeof kf.props === 'object' ? kf.props : null;
+				              if (!props) return null;
+				              return {
+				                t_ms,
+				                easing: normalizeEasing(kf?.easing),
+				                props: {
+				                  left: Number(props.left) || 0,
+				                  top: Number(props.top) || 0,
+				                  angle: Number(props.angle) || 0,
+				                  scaleX: clampScale(Number(props.scaleX) || 1),
+				                  scaleY: clampScale(Number(props.scaleY) || 1),
+				                  opacity: props.opacity == null ? 1 : Number(props.opacity),
+				                },
+				              };
+				            })
+				            .filter(Boolean)
+				            .sort((a, b) => (a.t_ms - b.t_ms))
+				            .slice(0, 240);
+				          if (cleaned.length) safeTracks[uid] = cleaned;
+				        });
+				        simulationProTracks = safeTracks;
+				      }
+				      try { persistSimulationProToStorage(); } catch (e) { /* ignore */ }
+				    };
+				    let playbookLoadInFlight = false;
+				    const loadPlaybookClipById = async (id) => {
+				      if (playbookLoadInFlight) return;
+				      playbookLoadInFlight = true;
+				      try {
+				        setStatus('Cargando táctica del Playbook…');
+				        const clip = (playbookClips || []).find((it) => Number(it?.id) === Number(id));
+				        if (!clip) {
+				          setStatus('No se encontró esta táctica en el Playbook. Pulsa Actualizar e inténtalo de nuevo.', true);
+				          return;
+				        }
+				        const steps = Array.isArray(clip?.steps) ? clip.steps : [];
+				        if (!steps.length) {
+				          setStatus('No se puede cargar: esta táctica no tiene pasos guardados.', true);
+				          return;
+				        }
+				        playbookActiveClip = clip || null;
+				        if (simulationPlaying) stopSimulationPlayback();
+				        try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
+				        simulationSavedUpdatedAt = Date.now();
+				        try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				        applyClipProFromPlaybook(clip);
+				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
+				        const shouldOpenSimulator = steps.length > 1 || !!(clip?.pro && typeof clip.pro === 'object');
+				        try {
+				          if (isTacticsMode) {
+				            setTacticsToolsOpen(false);
+				            setTacticsPanelOpen(true);
+				          }
+				        } catch (e) { /* ignore */ }
+				        if (shouldOpenSimulator) {
+				          try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
+				          try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				          try { window.setTimeout(() => simPopover?.scrollIntoView?.({ block: 'nearest' }), 60); } catch (e) { /* ignore */ }
+				        }
+				        renderSimulationSteps();
+				        await selectSimulationStep(simulationActiveIndex);
+				        try { applyStageSizeUi({ noFit: true }); } catch (e) { /* ignore */ }
+				        try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+				        try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+				        try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				        try {
+				          if (simulationProEnabled) {
+				            renderSimulationAtTimeMs(0);
+				            syncSimProUi();
+				          }
+				        } catch (e) { /* ignore */ }
+				        syncSimUi();
+				        setStatus(`${shouldOpenSimulator ? 'Clip' : 'Táctica'} cargado (Playbook): ${safeText(clip?.name, '')}`);
+				      } catch (e) {
+				        setStatus(e?.message || 'No se pudo cargar la táctica.', true);
+				      } finally {
+				        playbookLoadInFlight = false;
+				      }
+				    };
+				    try {
+				      simClipsList?.addEventListener('click', (event) => {
+				        const target = event.target;
+				        const btn = target?.closest ? target.closest('[data-playbook-load]') : null;
+				        if (!btn || !simClipsList.contains(btn)) return;
+				        event.preventDefault();
+				        event.stopPropagation();
+				        if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+				        void loadPlaybookClipById(Number(btn.getAttribute('data-playbook-load') || 0));
+				      }, true);
+				    } catch (e) { /* ignore */ }
 					    const renderClipsLibrary = () => {
 					      if (!simClipsList) return;
 					      const clips = readClipsLibrary();
