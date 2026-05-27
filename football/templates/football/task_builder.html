@@ -1128,24 +1128,6 @@
 	        gap: 0.55rem;
 	        align-items: center;
 	      }
-	      /* Safari/iOS/desktop: el backdrop (con blur) puede “tapar” el dropdown de <details>
-	         por stacking context. Fix robusto: cuando el menú Vista está abierto (backdrop activo),
-	         lo mostramos como panel fijo por encima del backdrop. */
-	      body.overlay-backdrop-open .pitch-view-menu[open] .pitch-view-menu-body {
-	        position: fixed;
-	        top: calc(14px + env(safe-area-inset-top));
-	        left: calc(12px + env(safe-area-inset-left));
-	        right: calc(12px + env(safe-area-inset-right));
-	        width: auto;
-	        max-height: calc(100vh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-	        max-height: calc(100svh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-	        overflow: auto;
-	        z-index: 1600;
-	      }
-	      body.overlay-backdrop-open .pitch-view-menu[open] {
-	        position: relative;
-	        z-index: 1601;
-	      }
 	      .pitch-grass-select-wrap {
 	        position: relative;
 	        display: inline-flex;
