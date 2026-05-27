@@ -5470,6 +5470,17 @@
 	      }
 	      return null;
 	    };
+	    const removeTokenChild = (group, role) => {
+	      const child = findTokenChild(group, role);
+	      if (!group || !child) return false;
+	      try {
+	        group.remove(child);
+	        group.addWithUpdate();
+	        return true;
+	      } catch (e) {
+	        return false;
+	      }
+	    };
 
 	    const isBallGroup = (object) => safeText(object?.data?.kind) === 'ball';
 	    const buildVisionCone = (options = {}) => {
@@ -5561,6 +5572,11 @@
 	      if (visible != null) group.data.fov_visible = !!visible;
 	      if (widthDeg != null && Number.isFinite(Number(widthDeg))) group.data.fov_width_deg = clamp(Number(widthDeg) || 70, 20, 160);
 	      const wantsVisible = !!group.data.fov_visible;
+	      if (!wantsVisible) {
+	        removeTokenChild(group, 'token_fov');
+	        try { group.setCoords(); } catch (e) { /* ignore */ }
+	        return true;
+	      }
 	      const existing = ensureTokenVisionCone(group);
 	      if (existing) {
 	        const radius = getTokenBaseRadius(group);
@@ -5595,8 +5611,12 @@
 	      const next = normalizeAngle(facingDeg, 0);
 	      group.data = group.data || {};
 	      group.data.facing_deg = next;
-	      const marker = ensureTokenFacingMarker(group);
-	      if (marker && typeof marker.set === 'function') marker.set('angle', next);
+	      const showMarker = !!group.data.facing_marker_visible;
+	      const marker = showMarker ? ensureTokenFacingMarker(group) : findTokenChild(group, 'token_facing');
+	      if (marker && typeof marker.set === 'function') {
+	        if (showMarker) marker.set({ angle: next, visible: true, opacity: 1 });
+	        else removeTokenChild(group, 'token_facing');
+	      }
 	      try {
 	        const cone = findTokenChild(group, 'token_fov');
 	        if (cone && typeof cone.set === 'function') cone.set('angle', next);
