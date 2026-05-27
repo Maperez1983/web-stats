@@ -1,5 +1,6 @@
 import io
 import hashlib
+import logging
 import re
 import shutil
 import subprocess
@@ -37,6 +38,8 @@ from .task_library_services import (
     polish_spanish_text,
     repair_joined_words_text,
 )
+
+logger = logging.getLogger(__name__)
 
 try:
     from PIL import Image
@@ -1080,7 +1083,12 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
         try:
             extracted_text = extract_pdf_text(pdf_file, max_chars=60000)
         except Exception:
-            pass
+            logger.exception(
+                'No se pudo extraer texto del PDF de biblioteca. pdf=%s team_id=%s scope=%s',
+                raw_name,
+                int(getattr(primary_team, 'id', 0) or 0) or None,
+                scope_key,
+            )
         parsed_tasks = extract_tasks_from_pdf_text(extracted_text, fallback_title=task_title)
         if not parsed_tasks:
             parsed_tasks = [
@@ -1129,7 +1137,12 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
                 max_assets=80,
             )
         except Exception:
-            pass
+            logger.exception(
+                'No se pudieron guardar assets gráficos del PDF. pdf=%s team_id=%s scope=%s',
+                raw_name,
+                int(getattr(primary_team, 'id', 0) or 0) or None,
+                scope_key,
+            )
 
         first = parsed_tasks[0]
         first_analysis = first.get('analysis') or {}
@@ -1175,11 +1188,19 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
             try:
                 first_task.task_preview_image.save(preview_name, preview_content, save=True)
             except Exception:
-                pass
+                logger.exception(
+                    'No se pudo guardar preview de la primera tarea importada desde PDF. task_id=%s pdf=%s',
+                    int(getattr(first_task, 'id', 0) or 0) or None,
+                    raw_name,
+                )
         try:
             apply_analysis_to_task(first_task, first_analysis)
         except Exception:
-            pass
+            logger.exception(
+                'No se pudo aplicar análisis a la primera tarea importada desde PDF. task_id=%s pdf=%s',
+                int(getattr(first_task, 'id', 0) or 0) or None,
+                raw_name,
+            )
         try:
             learn_task_blueprint_from_pdf_import(
                 team=primary_team,
@@ -1189,7 +1210,11 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
                 actor_username='pdf_import',
             )
         except Exception:
-            pass
+            logger.exception(
+                'No se pudo aprender blueprint de la primera tarea importada desde PDF. task_id=%s pdf=%s',
+                int(getattr(first_task, 'id', 0) or 0) or None,
+                raw_name,
+            )
         if recreate_board and preview_bytes:
             maybe_recreate_board_from_preview_bytes(first_task, preview_bytes)
         created_count += 1
@@ -1250,14 +1275,24 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
                 try:
                     extra_task.task_preview_image.save(extra_preview_name, extra_preview_content, save=True)
                 except Exception:
-                    pass
+                    logger.exception(
+                        'No se pudo guardar preview de tarea extra importada desde PDF. task_id=%s pdf=%s segment=%s',
+                        int(getattr(extra_task, 'id', 0) or 0) or None,
+                        raw_name,
+                        segment_index,
+                    )
             elif shared_preview_name:
                 extra_task.task_preview_image = shared_preview_name
                 extra_task.save(update_fields=['task_preview_image'])
             try:
                 apply_analysis_to_task(extra_task, extra_analysis)
             except Exception:
-                pass
+                logger.exception(
+                    'No se pudo aplicar análisis a tarea extra importada desde PDF. task_id=%s pdf=%s segment=%s',
+                    int(getattr(extra_task, 'id', 0) or 0) or None,
+                    raw_name,
+                    segment_index,
+                )
             try:
                 learn_task_blueprint_from_pdf_import(
                     team=primary_team,
@@ -1267,7 +1302,12 @@ def import_library_tasks_from_pdf_advanced(*args, **kwargs):
                     actor_username='pdf_import',
                 )
             except Exception:
-                pass
+                logger.exception(
+                    'No se pudo aprender blueprint de tarea extra importada desde PDF. task_id=%s pdf=%s segment=%s',
+                    int(getattr(extra_task, 'id', 0) or 0) or None,
+                    raw_name,
+                    segment_index,
+                )
             if recreate_board and extra_preview_bytes:
                 maybe_recreate_board_from_preview_bytes(extra_task, extra_preview_bytes)
             created_count += 1
