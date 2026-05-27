@@ -354,7 +354,7 @@
           "top top top"
           "left center right"
           "bottom bottom bottom";
-        grid-template-columns: var(--tpad-side-stand) minmax(0, 1fr) var(--tpad-side-stand);
+        grid-template-columns: var(--tpad-side-stand) minmax(0, auto) var(--tpad-side-stand);
         grid-template-rows: var(--tpad-stand) auto var(--tpad-stand);
         align-items: center;
         justify-items: center;
@@ -363,9 +363,12 @@
            y auto-colocar todo “a la izquierda” (se ven los 4 lados apilados). */
         /* La grada debe envolver al campo, no ocupar todo el viewport (si ocupa todo,
            el “center” se estira y el campo parece quedar “fuera” a la derecha). */
-	        width: 100%;
+	        width: fit-content;
 	        max-width: 100%;
 	        min-width: 0;
+        justify-self: center;
+        margin-inline: auto;
+        box-sizing: border-box;
         border-radius: clamp(18px, 2.2vmin, 34px);
         /* Importante: evitamos `color-mix()` en el shorthand `background:` porque en navegadores
            sin soporte la declaración completa se ignora y “desaparece” la grada. */
@@ -389,7 +392,7 @@
 		      body.stadium-mode .tpad-stadium-center {
 		        grid-area: center;
 		        position: relative;
-		        width: 100%;
+		        width: auto;
 		        box-sizing: border-box;
 		        min-width: 0;
 		        max-width: 100%;
@@ -417,11 +420,11 @@
       body.stadium-mode .tpad-stadium-center > .pitch-stage {
         /* El estadio debe dimensionarse por el campo */
         width: min(
-          100%,
           var(--stage-max-user, 1500px),
           var(--stage-max-fit, 9999px),
           calc(100vw - (var(--tpad-side-stand) * 2) - (var(--tpad-center-pad) * 2) - 28px)
         );
+        max-width: 100%;
       }
 		      body.tactics-mode .tpad-stadium .pitch-stage,
 		      body.stadium-mode .tpad-stadium .pitch-stage {
