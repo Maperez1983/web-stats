@@ -3621,27 +3621,9 @@ def _static_svg_asset_as_recolored_data_uri(static_path: str, stroke_color: str)
 
 
 def _task_drills_for_pdf(meta: dict) -> list:
-    if not isinstance(meta, dict):
-        return []
-    drill_ids = normalize_drill_ids(meta.get('drills'))
-    if not drill_ids:
-        return []
-    cards = []
-    drills_color = _normalize_hex_color(meta.get('drills_icon_color') or '', '#0f7a35')
-    for card in drill_cards(drill_ids):
-        icon_path = card.get('icon_static_path')
-        icon_uri = _static_svg_asset_as_recolored_data_uri(icon_path, drills_color)
-        if not icon_uri:
-            icon_uri = _static_asset_as_data_uri(icon_path)
-        cards.append(
-            {
-                'id': card.get('id'),
-                'label': card.get('label'),
-                'category': card.get('category'),
-                'icon_url': icon_uri,
-            }
-        )
-    return cards
+    from . import session_pdf
+
+    return session_pdf._task_drills_for_pdf(meta)
 
 def _image_bytes_as_small_data_uri(raw_bytes: bytes, *, mime_type: str = 'image/jpeg', max_width=600, max_height=600, quality=75) -> str:
     if not raw_bytes:

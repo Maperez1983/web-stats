@@ -12,11 +12,15 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
+from .drills import drill_cards, normalize_drill_ids
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
 from .preview_render import render_task_preview_png
 from .services import _parse_int
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
-from .session_import_services import extract_pdf_text as import_extract_pdf_text
+from .session_import_services import (
+    extract_pdf_text as import_extract_pdf_text,
+    extract_preview_image_from_pdf as import_extract_preview_image_from_pdf,
+)
 from .session_canvas_recreate import recreate_canvas_state_from_preview_image_bytes
 from .task_library_services import coerce_json_dict, extract_canvas_state_for_preview
 
@@ -133,7 +137,7 @@ def _extract_canvas_state_for_preview(task):
 
 
 def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
-    return _views()._extract_preview_image_from_pdf(pdf_file, prefer_render=prefer_render)
+    return import_extract_preview_image_from_pdf(pdf_file, prefer_render=prefer_render)
 
 
 def _file_field_as_data_url(file_field):
@@ -185,8 +189,103 @@ def _parse_session_plan_fields(raw_content):
     return parse_session_plan_fields(raw_content)
 
 
+def _file_as_data_uri(file_path):
+    try:
+        path = Path(file_path)
+        if not path.exists() or not path.is_file():
+            return ''
+        ext = path.suffix.lower()
+        mime_type = {
+            '.svg': 'image/svg+xml',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+        }.get(ext, 'application/octet-stream')
+        encoded = base64.b64encode(path.read_bytes()).decode('ascii')
+        return f'data:{mime_type};base64,{encoded}'
+    except Exception:
+        return ''
+
+
+def _static_asset_as_data_uri(static_path: str) -> str:
+    static_path = str(static_path or '').lstrip('/').strip()
+    if not static_path:
+        return ''
+    try:
+        source = Path(settings.BASE_DIR) / 'static' / static_path
+    except Exception:
+        return ''
+    return _file_as_data_uri(source)
+
+
+def _normalize_hex_color(value: object, fallback: str = '#0f7a35') -> str:
+    raw = str(value or '').strip()
+    if not raw:
+        return fallback
+    if not raw.startswith('#'):
+        return fallback
+    if len(raw) == 4:
+        raw = '#' + ''.join(ch * 2 for ch in raw[1:])
+    if len(raw) != 7:
+        return fallback
+    try:
+        int(raw[1:], 16)
+    except Exception:
+        return fallback
+    return raw.lower()
+
+
+def _static_svg_asset_as_recolored_data_uri(static_path: str, stroke_color: str) -> str:
+    static_path = str(static_path or '').lstrip('/').strip()
+    if not static_path:
+        return ''
+    try:
+        source = Path(settings.BASE_DIR) / 'static' / static_path
+    except Exception:
+        return ''
+    if not source.exists() or not source.is_file():
+        return ''
+    try:
+        raw_bytes = source.read_bytes()
+    except Exception:
+        return ''
+    if not stroke_color or not static_path.lower().endswith('.svg'):
+        return _file_as_data_uri(source)
+    try:
+        svg_text = raw_bytes.decode('utf-8', errors='ignore')
+        color = _normalize_hex_color(stroke_color, '#0f7a35')
+        svg_text = re.sub(r'stroke=(["\'])(#[0-9a-fA-F]{3,6})\1', f'stroke="{color}"', svg_text)
+        svg_text = re.sub(r'fill=(["\'])(#[0-9a-fA-F]{3,6})\1', f'fill="{color}"', svg_text)
+        encoded = base64.b64encode(svg_text.encode('utf-8')).decode('ascii')
+        return f'data:image/svg+xml;base64,{encoded}'
+    except Exception:
+        return _file_as_data_uri(source)
+
+
 def _task_drills_for_pdf(meta):
-    return _views()._task_drills_for_pdf(meta)
+    if not isinstance(meta, dict):
+        return []
+    drill_ids = normalize_drill_ids(meta.get('drills'))
+    if not drill_ids:
+        return []
+    cards = []
+    drills_color = _normalize_hex_color(meta.get('drills_icon_color') or '', '#0f7a35')
+    for card in drill_cards(drill_ids):
+        icon_path = card.get('icon_static_path')
+        icon_uri = _static_svg_asset_as_recolored_data_uri(icon_path, drills_color)
+        if not icon_uri:
+            icon_uri = _static_asset_as_data_uri(icon_path)
+        cards.append(
+            {
+                'id': card.get('id'),
+                'label': card.get('label'),
+                'category': card.get('category'),
+                'icon_url': icon_uri,
+            }
+        )
+    return cards
+
 
 
 def _team_color_seed(team):
