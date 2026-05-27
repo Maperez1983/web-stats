@@ -12,11 +12,11 @@ class Command(BaseCommand):
         parser.add_argument('--group-id', default=os.getenv('RIVAL_ROSTER_GROUP_ID', '').strip())
 
     def handle(self, *args, **options):
-        from football.views import (
-            _fetch_universo_access_token_via_login,
-            _load_universo_access_token,
-            _load_universo_access_token_expires,
-            _universo_api_post,
+        from football.universo_client import (
+            fetch_universo_access_token_via_login,
+            load_universo_access_token,
+            load_universo_access_token_expires,
+            universo_api_post,
         )
 
         group_id = str(options.get('group_id') or '').strip()
@@ -28,9 +28,9 @@ class Command(BaseCommand):
         self.stdout.write(f'RFAF_PASS set (legacy name): {bool(str(os.getenv("RFAF_PASS", "") or "").strip())}')
         self.stdout.write(f'RFAF_ACCESS_TOKEN set (legacy name): {bool(str(os.getenv("RFAF_ACCESS_TOKEN", "") or "").strip())}')
 
-        token = _load_universo_access_token()
-        memo = getattr(_load_universo_access_token, '_memo', None)
-        expires = _load_universo_access_token_expires()
+        token = load_universo_access_token()
+        memo = getattr(load_universo_access_token, '_memo', None)
+        expires = load_universo_access_token_expires()
         self.stdout.write(f'Token loaded: {bool(token)}')
         if isinstance(memo, dict) and memo.get('error'):
             self.stdout.write(f'Token error: {memo.get("error")}')
@@ -45,7 +45,7 @@ class Command(BaseCommand):
         if not group_id:
             self.stdout.write('No group-id provided. Use --group-id 45030656')
             # Igual mostramos el diagnóstico de login.
-        login_token, login_exp, login_error = _fetch_universo_access_token_via_login()
+        login_token, login_exp, login_error = fetch_universo_access_token_via_login()
         if login_error:
             self.stdout.write(f'Login error: {login_error}')
         else:
@@ -59,7 +59,7 @@ class Command(BaseCommand):
         if not group_id:
             return
 
-        payload = _universo_api_post('competition/get-classification', {'id_group': group_id})
+        payload = universo_api_post('competition/get-classification', {'id_group': group_id})
         ok = bool(payload and isinstance(payload, dict) and str(payload.get('estado') or '').strip() == '1')
         rows = payload.get('clasificacion') if isinstance(payload, dict) else None
         self.stdout.write(f'Classification ok: {ok}')

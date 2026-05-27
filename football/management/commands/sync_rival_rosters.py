@@ -107,8 +107,8 @@ class Command(BaseCommand):
                 provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
             else:
                 try:
-                    from football.views import _fetch_universo_live_classification
-                    payload = _fetch_universo_live_classification(group_id)
+                    from football.universo_client import fetch_universo_live_classification
+                    payload = fetch_universo_live_classification(group_id)
                     rows = payload.get('clasificacion') if isinstance(payload, dict) else None
                     if not isinstance(rows, list) or not rows:
                         provider = TeamRosterSnapshot.PROVIDER_PREFERENTE
@@ -260,8 +260,7 @@ class Command(BaseCommand):
                 )
             _update_group_external_id(group_id)
 
-            # Import tardío para evitar cargar `football.views` en cada comando.
-            from football.views import _fetch_universo_live_classification, fetch_universo_team_roster
+            from football.universo_client import fetch_universo_live_classification, fetch_universo_team_roster
 
             def _roster_stats_rows(items):
                 if not isinstance(items, list):
@@ -285,7 +284,7 @@ class Command(BaseCommand):
             min_players = max(1, int(os.getenv('RIVAL_ROSTER_MIN_PLAYERS', '10') or 10))
             prefer_preferente = str(os.getenv('RIVAL_ROSTER_PREFER_PREFERENTE', 'true') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
-            payload = _fetch_universo_live_classification(group_id)
+            payload = fetch_universo_live_classification(group_id)
             rows = payload.get('clasificacion') if isinstance(payload, dict) else None
             if not isinstance(rows, list) or not rows:
                 raise CommandError(

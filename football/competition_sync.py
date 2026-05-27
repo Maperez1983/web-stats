@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
 from .models import Match, Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
+from .universo_client import fetch_universo_live_classification
 
 
 def sync_workspace_competition_context(workspace, primary_team=None):
@@ -11,7 +12,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _bootstrap_workspace_competition_context = core_views._bootstrap_workspace_competition_context
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
     _sync_team_crest_from_sources = core_views._sync_team_crest_from_sources
-    _fetch_universo_live_classification = core_views._fetch_universo_live_classification
     _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
     _build_universo_competition_catalog = core_views._build_universo_competition_catalog
     _ensure_universo_group_models_from_candidate = core_views._ensure_universo_group_models_from_candidate
@@ -51,7 +51,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         group_key = str(getattr(context, 'external_group_key', '') or '').strip()
         if group_key:
             try:
-                live_classification = _fetch_universo_live_classification(group_key)
+                live_classification = fetch_universo_live_classification(group_key)
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
                     _ensure_universo_group_models_from_live(
                         group_key=group_key,
@@ -102,7 +102,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         group_key = str(getattr(context, 'external_group_key', '') or '').strip() or str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
         if group_key:
             try:
-                live_classification = _fetch_universo_live_classification(group_key)
+                live_classification = fetch_universo_live_classification(group_key)
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
                     # Guardrail: si la categoría no coincide, no aceptamos la clasificación (evita mezclar Senior/Prebenjamín).
                     team_category = str(getattr(primary_team, 'category', '') or '').strip()

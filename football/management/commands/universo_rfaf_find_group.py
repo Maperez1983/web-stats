@@ -47,13 +47,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from football.models import Team
-        from football.views import (
-            _fetch_universo_live_classification,
-            _fetch_universo_live_competitions,
-            _fetch_universo_live_delegations,
-            _fetch_universo_live_groups,
-            _fetch_universo_live_seasons,
-            _load_universo_access_token,
+        from football.universo_client import (
+            fetch_universo_live_classification,
+            fetch_universo_live_competitions,
+            fetch_universo_live_delegations,
+            fetch_universo_live_groups,
+            fetch_universo_live_seasons,
+            load_universo_access_token,
         )
 
         team_id = int(options.get('team_id') or 0)
@@ -86,7 +86,7 @@ class Command(BaseCommand):
         if not team_code and not team_name:
             raise CommandError('Indica --team-id o bien --team-code/--team-name.')
 
-        token = _load_universo_access_token()
+        token = load_universo_access_token()
         if not token:
             raise CommandError('No hay sesión/token de Universo RFAF. Revisa UNIVERSO_RFAF_* en env.')
 
@@ -102,7 +102,7 @@ class Command(BaseCommand):
         if group_contains:
             self.stdout.write(f'Group filter: {group_contains}')
 
-        seasons = _fetch_universo_live_seasons() or []
+        seasons = fetch_universo_live_seasons() or []
         if not seasons:
             raise CommandError('No se pudieron listar temporadas desde Universo.')
 
@@ -122,7 +122,7 @@ class Command(BaseCommand):
             raise CommandError('No se pudo resolver el id de temporada.')
         self.stdout.write(f'Using season: {season_label} (id={season_id})')
 
-        delegations = _fetch_universo_live_delegations() or []
+        delegations = fetch_universo_live_delegations() or []
         if not delegations:
             raise CommandError('No se pudieron listar delegaciones desde Universo.')
 
@@ -150,7 +150,7 @@ class Command(BaseCommand):
                 continue
             delegation_label = _deleg_name(delegation) or delegation_id
 
-            competitions = _fetch_universo_live_competitions(delegation_id, season_id) or []
+            competitions = fetch_universo_live_competitions(delegation_id, season_id) or []
             if normalized_competition_filter:
                 competitions = [
                     c for c in competitions
@@ -165,7 +165,7 @@ class Command(BaseCommand):
                     continue
                 comp_label = str(comp.get('nombre') or comp.get('competicion') or comp.get('name') or '').strip() or comp_id
 
-                groups = _fetch_universo_live_groups(comp_id) or []
+                groups = fetch_universo_live_groups(comp_id) or []
                 if normalized_group_filter:
                     groups = [
                         g for g in groups
@@ -182,7 +182,7 @@ class Command(BaseCommand):
                     if candidates_seen > limit_groups:
                         raise CommandError(f'Se alcanzó el límite de grupos ({limit_groups}). Ajusta filtros o sube --limit-groups.')
 
-                    payload = _fetch_universo_live_classification(group_id)
+                    payload = fetch_universo_live_classification(group_id)
                     rows = payload.get('clasificacion') if isinstance(payload, dict) else None
                     if not isinstance(rows, list) or not rows:
                         continue

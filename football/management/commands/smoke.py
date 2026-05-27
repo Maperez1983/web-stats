@@ -28,7 +28,7 @@ class Command(BaseCommand):
             'football.test_workspace_views.WorkspaceActiveSelectionTests',
         ]
         if not fast:
-            labels.append('football.tests.LoginNextRedirectTests')
+            labels.append('football.test_auth_middleware.LoginNextRedirectTests')
 
         self.stdout.write('Running smoke tests…')
         TestRunner = get_runner(settings)

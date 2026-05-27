@@ -75,6 +75,7 @@ from .dashboard_cache import (
 from .event_signatures import event_signature, event_signature_canon_text, is_manual_event_source
 from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
+from . import universo_client
 
 try:
     from PIL import Image, ImageFilter, ImageOps
@@ -7456,234 +7457,31 @@ def load_universo_capture():
 
 
 def _jwt_exp_timestamp(token: str) -> float:
-    raw = str(token or '').strip()
-    if not raw or '.' not in raw:
-        return 0.0
-    try:
-        parts = raw.split('.')
-        if len(parts) < 2:
-            return 0.0
-        payload_b64 = parts[1]
-        payload_b64 += '=' * (-len(payload_b64) % 4)
-        decoded = base64.urlsafe_b64decode(payload_b64.encode('utf-8'))
-        payload = json.loads(decoded.decode('utf-8'))
-        exp = payload.get('exp')
-        return float(exp or 0.0) if exp else 0.0
-    except Exception:
-        return 0.0
+    return universo_client.jwt_exp_timestamp(token)
 
 
 def _load_universo_access_token_from_storage_state() -> tuple[str, float]:
-    storage_path = UNIVERSO_STORAGE_STATE_PATH
-    if not storage_path.exists():
-        return '', 0.0
-    try:
-        payload = json.loads(storage_path.read_text(encoding='utf-8'))
-    except Exception:
-        return '', 0.0
-    for cookie in payload.get('cookies') or []:
-        if not isinstance(cookie, dict):
-            continue
-        if str(cookie.get('name') or '').strip() != 'access_token':
-            continue
-        token = str(cookie.get('value') or '').strip()
-        try:
-            expires = float(cookie.get('expires') or 0.0) or 0.0
-        except Exception:
-            expires = 0.0
-        return token, expires
-    return '', 0.0
+    return universo_client.load_universo_access_token_from_storage_state()
 
 
 def _fetch_universo_access_token_via_login() -> tuple[str, float, str]:
-    if requests is None:
-        return '', 0.0, 'requests no disponible'
-    # Naming: aunque históricamente usamos RFAF_*, estas credenciales son de Universo RFAF (universorfaf.es).
-    username = str(os.getenv('UNIVERSO_RFAF_USER', '') or os.getenv('RFAF_USER', '') or '').strip()
-    password = str(os.getenv('UNIVERSO_RFAF_PASS', '') or os.getenv('RFAF_PASS', '') or '').strip()
-    if not username or not password:
-        return '', 0.0, 'Faltan UNIVERSO_RFAF_USER/UNIVERSO_RFAF_PASS (o RFAF_USER/RFAF_PASS)'
-    url = 'https://www.universorfaf.es/api/login'
-    headers = {
-        'Accept': 'application/json',
-        'User-Agent': (
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        ),
-        'Origin': 'https://www.universorfaf.es',
-        'Referer': 'https://www.universorfaf.es/login',
-    }
-    # Universo usa FormData() en frontend -> multipart/form-data.
-    # Si enviamos x-www-form-urlencoded, a veces no devuelve token.
-    response = None
-    try:
-        response = requests.post(
-            url,
-            headers=headers,
-            files={'email': (None, username), 'password': (None, password)},
-            timeout=UNIVERSO_API_TIMEOUT_SECONDS,
-        )
-    except Exception:
-        response = None
-    if response is None:
-        try:
-            response = requests.post(
-                url,
-                headers=headers,
-                data={'email': username, 'password': password},
-                timeout=UNIVERSO_API_TIMEOUT_SECONDS,
-            )
-        except Exception:
-            return '', 0.0, 'Error de red al hacer login'
-    if not getattr(response, 'ok', False):
-        try:
-            details = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
-        except Exception:
-            details = ''
-        return '', 0.0, f'Login HTTP {getattr(response, "status_code", "")} {details}'.strip()
-    try:
-        payload = response.json()
-    except Exception:
-        return '', 0.0, 'Login no devolvió JSON'
-    if not isinstance(payload, dict):
-        return '', 0.0, 'Login devolvió formato inesperado'
-    token = str(payload.get('token') or payload.get('access_token') or '').strip()
-    if not token:
-        return '', 0.0, 'Login OK pero sin token'
-    exp_ts = _jwt_exp_timestamp(token)
-    return token, exp_ts, ''
+    return universo_client.fetch_universo_access_token_via_login()
 
 
 def _load_universo_access_token():
-    memo = getattr(_load_universo_access_token, '_memo', None)
-    now_ts = timezone.now().timestamp()
-    if isinstance(memo, dict):
-        token = str(memo.get('token') or '').strip()
-        exp_ts = float(memo.get('expires') or 0.0) if memo.get('expires') else 0.0
-        if token and (not exp_ts or exp_ts - 60 > now_ts):
-            return token
-
-    token, exp_ts = _load_universo_access_token_from_storage_state()
-    if token and (not exp_ts or exp_ts - 60 > now_ts):
-        try:
-            _load_universo_access_token._memo = {
-                'token': token,
-                'expires': exp_ts,
-                'source': 'storage_state',
-                'error': '',
-            }
-        except Exception:
-            pass
-        return token
-
-    # Naming: aunque históricamente usamos RFAF_ACCESS_TOKEN, el valor es el access_token de Universo RFAF.
-    env_token = str(os.getenv('UNIVERSO_RFAF_ACCESS_TOKEN', '') or os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
-    if env_token:
-        env_exp = _jwt_exp_timestamp(env_token)
-        if not env_exp or env_exp - 60 > now_ts:
-            try:
-                _load_universo_access_token._memo = {
-                    'token': env_token,
-                    'expires': env_exp,
-                    'source': 'env',
-                    'error': '',
-                }
-            except Exception:
-                pass
-            return env_token
-
-    token, exp_ts, error = _fetch_universo_access_token_via_login()
-    if token:
-        try:
-            _load_universo_access_token._memo = {
-                'token': token,
-                'expires': exp_ts,
-                'source': 'api_login',
-                'error': '',
-            }
-        except Exception:
-            pass
-        return token
-    if error:
-        try:
-            _load_universo_access_token._memo = {'token': '', 'expires': 0.0, 'source': 'api_login', 'error': error}
-        except Exception:
-            pass
-    return ''
+    return universo_client.load_universo_access_token()
 
 
 def _load_universo_access_token_expires() -> float:
-    memo = getattr(_load_universo_access_token, '_memo', None)
-    if isinstance(memo, dict) and memo.get('token'):
-        try:
-            return float(memo.get('expires') or 0.0) or 0.0
-        except Exception:
-            return 0.0
-    _, exp_ts = _load_universo_access_token_from_storage_state()
-    if exp_ts:
-        return float(exp_ts) or 0.0
-    env_token = str(os.getenv('UNIVERSO_RFAF_ACCESS_TOKEN', '') or os.getenv('RFAF_ACCESS_TOKEN', '') or '').strip()
-    if env_token:
-        return _jwt_exp_timestamp(env_token)
-    return 0.0
+    return universo_client.load_universo_access_token_expires()
 
 
 def _universo_api_post(endpoint, data=None):
-    if requests is None:
-        return {}
-    token = _load_universo_access_token()
-    if not token:
-        return {}
-    url = f'https://www.universorfaf.es/api/novanet/{endpoint.lstrip("/")}'
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Accept': 'application/json',
-        'User-Agent': '2j-football-intelligence/1.0',
-    }
-    try:
-        response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
-        if getattr(response, 'status_code', None) in (401, 403):
-            # Token caducado: limpia memo y reintenta una vez (login por API).
-            try:
-                _load_universo_access_token._memo = None
-            except Exception:
-                pass
-            token = _load_universo_access_token()
-            if not token:
-                return {}
-            headers['Authorization'] = f'Bearer {token}'
-            response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
-        response.raise_for_status()
-        payload = response.json()
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return universo_client.universo_api_post(endpoint, data=data)
 
 
 def _universo_internal_post(endpoint, data=None):
-    """
-    Llama a endpoints `api/internal-data/...` de Universo RFAF.
-    - Requiere access_token (se lee del storage_state).
-    - Devuelve dict o {} en caso de error.
-    """
-    if requests is None:
-        return {}
-    token = _load_universo_access_token()
-    if not token:
-        return {}
-    url = f'https://www.universorfaf.es/api/internal-data/{endpoint.lstrip("/")}'
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Accept': 'application/json',
-        'User-Agent': '2j-football-intelligence/1.0',
-    }
-    try:
-        response = requests.post(url, headers=headers, data=data or {}, timeout=UNIVERSO_API_TIMEOUT_SECONDS)
-        response.raise_for_status()
-        payload = response.json()
-    except Exception:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+    return universo_client.universo_internal_post(endpoint, data=data)
 
 
 def _parse_universo_team_code_from_url(value: str) -> str:
@@ -7899,114 +7697,27 @@ def fetch_universo_team_roster(team_code: str) -> list[dict]:
 
 
 def _fetch_universo_live_seasons():
-    payload = _universo_api_post('competition/get-seassons')
-    rows = payload.get('temporadas') if isinstance(payload, dict) else None
-    if not isinstance(rows, list) or not rows:
-        # Variantes observadas en algunos entornos.
-        payload = _universo_api_post('competition/get-seasons')
-        rows = payload.get('temporadas') if isinstance(payload, dict) else None
-    return [row for row in (rows or []) if isinstance(row, dict)]
+    return universo_client.fetch_universo_live_seasons()
 
 
 def _fetch_universo_live_delegations():
-    payload = _universo_api_post('competition/get-delegations')
-    rows = payload.get('delegaciones') if isinstance(payload, dict) else None
-    if not isinstance(rows, list) or not rows:
-        payload = _universo_api_post('competition/get-delegation')
-        rows = payload.get('delegaciones') if isinstance(payload, dict) else None
-    return [row for row in (rows or []) if isinstance(row, dict)]
+    return universo_client.fetch_universo_live_delegations()
 
 
 def _fetch_universo_live_competitions(delegation_id, season_id):
-    delegation_id = str(delegation_id or '').strip()
-    season_id = str(season_id or '').strip()
-    if not delegation_id or not season_id:
-        return []
-    attempts = [
-        {'id_delegacion': delegation_id, 'id_season': season_id},
-        # Variantes que aparecen en algunos payloads/capturas.
-        {'cod_delegacion': delegation_id, 'cod_temporada': season_id},
-        {'id_delegacion': delegation_id, 'cod_temporada': season_id},
-        {'cod_delegacion': delegation_id, 'id_season': season_id},
-        {'id_delegation': delegation_id, 'id_season': season_id},
-        {'id_delegation': delegation_id, 'season_id': season_id},
-    ]
-    payload = {}
-    for data in attempts:
-        payload = _universo_api_post('competition/get-competitions', data)
-        if isinstance(payload, dict) and payload.get('competiciones'):
-            break
-    return [row for row in (payload.get('competiciones') or []) if isinstance(row, dict)]
+    return universo_client.fetch_universo_live_competitions(delegation_id, season_id)
 
 
 def _fetch_universo_live_groups(competition_id):
-    competition_id = str(competition_id or '').strip()
-    if not competition_id:
-        return []
-    attempts = [
-        {'id_competition': competition_id},
-        {'id_competicion': competition_id},
-        {'cod_competicion': competition_id},
-        {'codigo_competicion': competition_id},
-        {'competition_id': competition_id},
-    ]
-    payload = {}
-    for data in attempts:
-        payload = _universo_api_post('competition/get-groups', data)
-        if isinstance(payload, dict) and payload.get('grupos'):
-            break
-    return [row for row in (payload.get('grupos') or []) if isinstance(row, dict)]
+    return universo_client.fetch_universo_live_groups(competition_id)
 
 
 def _fetch_universo_live_classification(group_id):
-    group_id = str(group_id or '').strip()
-    if not group_id:
-        return {}
-    payload = _universo_api_post(
-        'competition/get-classification',
-        {'id_group': group_id},
-    )
-    if isinstance(payload, dict) and payload.get('clasificacion'):
-        return payload
-    # En algunas competiciones (sobre todo base), el endpoint requiere `id_round`.
-    try:
-        results = _fetch_universo_live_results(group_id)
-    except Exception:
-        results = {}
-    round_id = str((results or {}).get('jornada') or '').strip()
-    if not round_id:
-        # Fallback: en algunas respuestas `jornada` viene vacío pero se listan jornadas disponibles.
-        try:
-            for bucket in (results or {}).get('listado_jornadas') or []:
-                if not isinstance(bucket, dict):
-                    continue
-                for row in bucket.get('jornadas') or []:
-                    if not isinstance(row, dict):
-                        continue
-                    rid = str(row.get('codjornada') or row.get('codigo') or '').strip()
-                    if rid:
-                        round_id = rid
-                        break
-                if round_id:
-                    break
-        except Exception:
-            round_id = round_id
-    if round_id:
-        payload = _universo_api_post(
-            'competition/get-classification',
-            {'id_group': group_id, 'id_round': round_id},
-        )
-        if isinstance(payload, dict) and payload.get('clasificacion'):
-            return payload
-    return payload if isinstance(payload, dict) else {}
+    return universo_client.fetch_universo_live_classification(group_id)
 
 
 def _fetch_universo_live_results(group_id, round_id=''):
-    payload = _universo_api_post(
-        'match/get-results',
-        {'id_group': str(group_id or '').strip(), 'id_round': str(round_id or '').strip()},
-    )
-    return payload if isinstance(payload, dict) else {}
+    return universo_client.fetch_universo_live_results(group_id, round_id=round_id)
 
 
 def _universo_category_hints(category: str) -> list[str]:
