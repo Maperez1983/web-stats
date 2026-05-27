@@ -30653,95 +30653,19 @@ def _infer_blueprint_category_for_task(task, scope_key: str = '') -> str:
 
 
 def _learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: str = '', actor_username: str = '') -> bool:
-    """
-    "Aprendizaje" mínimo: crea/actualiza una TaskBlueprint desde el OCR/parseo del PDF importado.
-
-    Importante: NO modifica el PDF (solo metadatos para recomendador).
-    """
-    if not team or not task or not isinstance(analysis, dict):
-        return False
-    try:
-        name = _sanitize_task_text(str(analysis.get('title') or getattr(task, 'title', '') or '').strip(), multiline=False, max_len=160)
-    except Exception:
-        name = ''
-    if not name:
-        return False
-
-    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
-    tpl = {
-        'title': name,
-        'objective': _sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=True, max_len=8000),
-        'minutes': int(analysis.get('minutes') or getattr(task, 'duration_minutes', 15) or 15),
-        'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
-        'player_count': _sanitize_task_text(str(sheet.get('players') or '').strip(), multiline=False, max_len=120),
-        'dimensions': _sanitize_task_text(str(sheet.get('dimensions') or '').strip(), multiline=False, max_len=120),
-        'materials': _sanitize_task_text(str(sheet.get('materials') or '').strip(), multiline=False, max_len=180),
-        'space': _sanitize_task_text(str(sheet.get('space') or '').strip(), multiline=False, max_len=120),
-        'training_type': '',
-        'strategy': '',
-        'dynamics': '',
-        'structure': '',
-        'coordination': '',
-        'coordination_skills': '',
-        'tactical_intent': '',
-        'organization_html': '',
-        'description_html': str(sheet.get('description_html') or ''),
-        'coaching_html': str(sheet.get('coaching_html') or ''),
-        'rules_html': str(sheet.get('rules_html') or ''),
-        'progression_html': '',
-        'regression_html': '',
-        'success_criteria_html': '',
-        'drills': [],
-        'canvas_state': {},
-        'canvas_width': 0,
-        'canvas_height': 0,
-        'source_name': 'PDF importado (OCR)',
-    }
-
-    meta = {
-        'goal': _infer_blueprint_goal_from_pdf_analysis(task, analysis),
-        'subphase': 'pdf_import',
-        'approach': 'auto',
-    }
-
-    try:
-        TaskBlueprint.objects.update_or_create(
-            team=team,
-            name=name[:160],
-            defaults={
-                'category': _infer_blueprint_category_for_task(task, scope_key=scope_key),
-                'description': _sanitize_task_text(str(tpl.get('objective') or '').strip(), multiline=False, max_len=220),
-                'payload': {'meta': meta, 'tpl': tpl},
-                'created_by': str(actor_username or '').strip()[:80],
-            },
-        )
-        return True
-    except Exception:
-        return False
-
-
-def _learn_task_blueprint_from_task(*, team, task, scope_key: str = '', actor_username: str = '') -> bool:
-    """
-    Variante para mantenimiento: genera una blueprint usando los campos ya guardados en la tarea
-    (objetivo/consignas/reglas + task_sheet dentro de meta['analysis'] si existe).
-    """
-    if not team or not task:
-        return False
-    layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    analysis = {
-        'title': str(getattr(task, 'title', '') or '').strip(),
-        'objective': str(getattr(task, 'objective', '') or '').strip(),
-        'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
-        'summary': str(analysis_meta.get('summary') or '').strip(),
-        'task_sheet': task_sheet,
-    }
-    return _learn_task_blueprint_from_pdf_import(
+    return task_library_services.learn_task_blueprint_from_pdf_import(
         team=team,
         task=task,
         analysis=analysis,
+        scope_key=scope_key,
+        actor_username=actor_username,
+    )
+
+
+def _learn_task_blueprint_from_task(*, team, task, scope_key: str = '', actor_username: str = '') -> bool:
+    return task_library_services.learn_task_blueprint_from_task(
+        team=team,
+        task=task,
         scope_key=scope_key,
         actor_username=actor_username,
     )

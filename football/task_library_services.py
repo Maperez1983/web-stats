@@ -563,12 +563,152 @@ def refresh_task_from_pdf_analysis(task):
 
 
 def learn_task_blueprint_from_task(*, team, task, scope_key: str = '', actor_username: str = ''):
-    return _views_func('_learn_task_blueprint_from_task')(
+    layout = task.tactical_layout if task and isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
+    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
+    analysis = {
+        'title': str(getattr(task, 'title', '') or '').strip(),
+        'objective': str(getattr(task, 'objective', '') or '').strip(),
+        'minutes': int(getattr(task, 'duration_minutes', 15) or 15),
+        'summary': str(analysis_meta.get('summary') or '').strip(),
+        'task_sheet': task_sheet,
+    }
+    return learn_task_blueprint_from_pdf_import(
         team=team,
         task=task,
+        analysis=analysis,
         scope_key=scope_key,
         actor_username=actor_username,
     )
+
+
+def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
+    from .models import SessionTask
+
+    try:
+        block = str(getattr(task, 'block', '') or '').strip()
+    except Exception:
+        block = ''
+    if block in {SessionTask.BLOCK_ACTIVATION, SessionTask.BLOCK_RECOVERY}:
+        return 'warmup'
+    if block == SessionTask.BLOCK_SET_PIECES:
+        return 'set_pieces'
+    if block == SessionTask.BLOCK_CONDITIONING:
+        return 'warmup'
+
+    contexts = analysis.get('work_contexts') if isinstance(analysis, dict) else []
+    phase_tags = analysis.get('phase_tags') if isinstance(analysis, dict) else []
+    try:
+        contexts_set = {str(x).strip().lower() for x in (contexts or []) if str(x).strip()}
+    except Exception:
+        contexts_set = set()
+    try:
+        phase_set = {str(x).strip().lower() for x in (phase_tags or []) if str(x).strip()}
+    except Exception:
+        phase_set = set()
+
+    if 'salida_balon' in contexts_set:
+        return 'build_up'
+    if 'finalizacion' in contexts_set:
+        return 'final_third'
+    if 'presion_alta' in contexts_set:
+        return 'pressing'
+    if 'transicion_ofensiva' in contexts_set:
+        return 'transition_dta'
+    if 'transicion_defensiva' in contexts_set:
+        return 'transition_atd'
+    if 'abp' in contexts_set or 'abp' in phase_set:
+        return 'set_pieces'
+    if 'defensa' in phase_set:
+        return 'defending'
+    if 'transicion' in phase_set:
+        return 'transition_atd'
+    return 'progression'
+
+
+def _infer_blueprint_category_for_task(task, scope_key: str = '') -> str:
+    from .models import SessionTask, TaskBlueprint
+
+    try:
+        scope = str(scope_key or '').strip().lower()
+    except Exception:
+        scope = ''
+    if scope == 'goalkeeper':
+        return TaskBlueprint.CATEGORY_GK
+    try:
+        block = str(getattr(task, 'block', '') or '').strip()
+    except Exception:
+        block = ''
+    if block == SessionTask.BLOCK_SET_PIECES:
+        return TaskBlueprint.CATEGORY_ABP
+    if block == SessionTask.BLOCK_CONDITIONING:
+        return TaskBlueprint.CATEGORY_PHYSICAL
+    return TaskBlueprint.CATEGORY_OTHER
+
+
+def learn_task_blueprint_from_pdf_import(*, team, task, analysis, scope_key: str = '', actor_username: str = '') -> bool:
+    from .models import SessionTask, TaskBlueprint
+
+    if not team or not task or not isinstance(analysis, dict):
+        return False
+    try:
+        name = sanitize_task_text(str(analysis.get('title') or getattr(task, 'title', '') or '').strip(), multiline=False, max_len=160)
+    except Exception:
+        name = ''
+    if not name:
+        return False
+
+    sheet = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
+    tpl = {
+        'title': name,
+        'objective': sanitize_task_text(str(analysis.get('objective') or getattr(task, 'objective', '') or '').strip(), multiline=True, max_len=8000),
+        'minutes': int(analysis.get('minutes') or getattr(task, 'duration_minutes', 15) or 15),
+        'block': str(getattr(task, 'block', '') or SessionTask.BLOCK_MAIN_1),
+        'player_count': sanitize_task_text(str(sheet.get('players') or '').strip(), multiline=False, max_len=120),
+        'dimensions': sanitize_task_text(str(sheet.get('dimensions') or '').strip(), multiline=False, max_len=120),
+        'materials': sanitize_task_text(str(sheet.get('materials') or '').strip(), multiline=False, max_len=180),
+        'space': sanitize_task_text(str(sheet.get('space') or '').strip(), multiline=False, max_len=120),
+        'training_type': '',
+        'strategy': '',
+        'dynamics': '',
+        'structure': '',
+        'coordination': '',
+        'coordination_skills': '',
+        'tactical_intent': '',
+        'organization_html': '',
+        'description_html': str(sheet.get('description_html') or ''),
+        'coaching_html': str(sheet.get('coaching_html') or ''),
+        'rules_html': str(sheet.get('rules_html') or ''),
+        'progression_html': '',
+        'regression_html': '',
+        'success_criteria_html': '',
+        'drills': [],
+        'canvas_state': {},
+        'canvas_width': 0,
+        'canvas_height': 0,
+        'source_name': 'PDF importado (OCR)',
+    }
+    meta = {
+        'goal': _infer_blueprint_goal_from_pdf_analysis(task, analysis),
+        'subphase': 'pdf_import',
+        'approach': 'auto',
+    }
+
+    try:
+        TaskBlueprint.objects.update_or_create(
+            team=team,
+            name=name[:160],
+            defaults={
+                'category': _infer_blueprint_category_for_task(task, scope_key=scope_key),
+                'description': sanitize_task_text(str(tpl.get('objective') or '').strip(), multiline=False, max_len=220),
+                'payload': {'meta': meta, 'tpl': tpl},
+                'created_by': str(actor_username or '').strip()[:80],
+            },
+        )
+        return True
+    except Exception:
+        return False
 
 
 def ensure_library_task_preview_legacy(task, force=False, prefer_render=False):

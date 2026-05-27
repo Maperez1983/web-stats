@@ -26,6 +26,7 @@ from .library_repositories import (
 from .models import SessionTask, TrainingMicrocycle, TrainingSession
 from .session_plan_fields import serialize_session_plan_fields
 from . import session_task_pdf_parser
+from . import task_library_services
 from .task_library_services import (
     _split_joined_upper_token,
     analyze_preview_image_bytes,
@@ -664,7 +665,7 @@ def get_or_create_week_microcycle(*args, **kwargs):
 
 
 def learn_task_blueprint_from_pdf_import(*args, **kwargs):
-    return _views_func('_learn_task_blueprint_from_pdf_import')(*args, **kwargs)
+    return task_library_services.learn_task_blueprint_from_pdf_import(*args, **kwargs)
 
 
 def next_session_task_order(*args, **kwargs):
