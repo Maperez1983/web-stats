@@ -1,19 +1,24 @@
 import base64
 import html
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
 from .preview_render import render_task_preview_png
+from .services import _parse_int
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from .session_import_services import extract_pdf_text as import_extract_pdf_text
 from .session_canvas_recreate import recreate_canvas_state_from_preview_image_bytes
+from .task_library_services import coerce_json_dict, extract_canvas_state_for_preview
 
 try:
     from PIL import Image
@@ -66,7 +71,34 @@ def _views():
 
 
 def _build_pdf_nav_urls(request):
-    return _views()._build_pdf_nav_urls(request)
+    platform_path = reverse('platform-overview')
+    try:
+        platform_url = request.build_absolute_uri(platform_path)
+    except Exception:
+        platform_url = platform_path
+
+    raw_return = (request.GET.get('return') or '').strip() or (request.META.get('HTTP_REFERER') or '').strip()
+    if not raw_return:
+        return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+    if raw_return.startswith('/'):
+        try:
+            return_url = request.build_absolute_uri(raw_return)
+        except Exception:
+            return_url = raw_return
+        return {'platform_url': platform_url, 'pdf_return_url': return_url}
+
+    parsed = urlparse(raw_return)
+    if parsed.scheme in {'http', 'https'}:
+        try:
+            current_host = (request.get_host() or '').split(':', 1)[0].lower()
+            target_host = (parsed.netloc or '').split(':', 1)[0].lower()
+            if current_host and target_host and current_host != target_host:
+                return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+        except Exception:
+            return {'platform_url': platform_url, 'pdf_return_url': platform_url}
+        return {'platform_url': platform_url, 'pdf_return_url': raw_return}
+
+    return {'platform_url': platform_url, 'pdf_return_url': platform_url}
 
 
 def _build_session_task_sheet(task):
@@ -74,15 +106,34 @@ def _build_session_task_sheet(task):
 
 
 def _coerce_json_dict(value):
-    return _views()._coerce_json_dict(value)
+    return coerce_json_dict(value)
 
 
 def _decode_canvas_data_url(data_url):
-    return _views()._decode_canvas_data_url(data_url)
+    value = str(data_url or '').strip()
+    if not value or ';base64,' not in value:
+        return None, None
+    header, encoded = value.split(';base64,', 1)
+    mime = header.replace('data:', '').strip().lower()
+    allowed_mimes = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/webp': '.webp',
+    }
+    extension = allowed_mimes.get(mime)
+    if not extension:
+        return None, None
+    try:
+        raw_bytes = base64.b64decode(encoded)
+    except Exception:
+        return None, None
+    if not raw_bytes:
+        return None, None
+    return raw_bytes, extension
 
 
 def _extract_canvas_state_for_preview(task):
-    return _views()._extract_canvas_state_for_preview(task)
+    return extract_canvas_state_for_preview(task)
 
 
 def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
@@ -90,7 +141,25 @@ def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
 
 
 def _file_field_as_data_url(file_field):
-    return _views()._file_field_as_data_url(file_field)
+    if not file_field:
+        return ''
+    try:
+        file_field.open('rb')
+        raw = file_field.read()
+        file_field.close()
+    except Exception:
+        return ''
+    if not raw:
+        return ''
+    ext = Path(getattr(file_field, 'name', '') or '').suffix.lower()
+    mime = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+    }.get(ext, 'image/jpeg')
+    return f"data:{mime};base64,{base64.b64encode(raw).decode('utf-8')}"
 
 
 def _get_primary_team_for_request(request):
@@ -98,7 +167,14 @@ def _get_primary_team_for_request(request):
 
 
 def _is_benagalbon_team(team):
-    return _views()._is_benagalbon_team(team)
+    if not team:
+        return False
+    if bool(getattr(team, 'is_primary', False)):
+        return True
+    slug = str(getattr(team, 'slug', '') or '').strip().lower()
+    name = str(getattr(team, 'name', '') or '').strip().lower()
+    short_name = str(getattr(team, 'short_name', '') or '').strip().lower()
+    return 'benagalbon' in slug or 'benagalbon' in name or 'benagalbon' in short_name
 
 
 def _is_imported_task(task):
@@ -107,10 +183,6 @@ def _is_imported_task(task):
 
 def _normalize_folded_text(value):
     return _views()._normalize_folded_text(value)
-
-
-def _parse_int(value):
-    return _views()._parse_int(value)
 
 
 def _parse_session_plan_fields(raw_content):
@@ -122,15 +194,60 @@ def _task_drills_for_pdf(meta):
 
 
 def _team_color_seed(team):
-    return _views()._team_color_seed(team)
+    base = str(getattr(team, 'slug', '') or getattr(team, 'name', '') or '').strip().lower()
+    if not base:
+        base = str(getattr(team, 'id', '') or 'team')
+    total = 0
+    for ch in base:
+        total = (total * 31 + ord(ch)) % 360
+    return total
 
 
 def _team_initials(label):
-    return _views()._team_initials(label)
+    text = ' '.join(str(label or '').split()).strip()
+    if not text:
+        return '??'
+    tokens = [tok for tok in re.split(r'[^A-Za-z0-9]+', text) if tok]
+    if not tokens:
+        return (text[:2] if len(text) >= 2 else text).upper()
+    if len(tokens) == 1:
+        return (tokens[0][:2] if len(tokens[0]) >= 2 else tokens[0]).upper()
+    return (tokens[0][0] + tokens[1][0]).upper()
 
 
-def _team_pdf_palette(team, pdf_style):
-    return _views()._team_pdf_palette(team, pdf_style)
+def _team_pdf_palette(team_obj, style_key='uefa'):
+    primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
+    secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
+    accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
+    if style_key in {'club', 'hybrid'}:
+        if _is_benagalbon_team(team_obj):
+            return {
+                'primary': '#007050',
+                'secondary': '#008048',
+                'accent': '#063b31',
+                'panel': '#eff7f4',
+                'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
+                'ink': '#0b1f1a',
+                'muted': '#3b5a54',
+            }
+        return {
+            'primary': primary,
+            'secondary': secondary,
+            'accent': accent,
+            'panel': '#f5fbf6',
+            'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
+            'ink': '#102734',
+            'muted': '#51606f',
+        }
+    return {
+        'primary': '#0e7490',
+        'secondary': '#dbeafe',
+        'accent': '#102734',
+        'panel': '#f8fafc',
+        'sheet': '#ffffff',
+        'ink': '#111827',
+        'muted': '#64748b',
+    }
 
 
 def resolve_team_crest_url(request, team, *, sync=False):
