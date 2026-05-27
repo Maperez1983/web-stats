@@ -478,7 +478,7 @@ class WorkspaceActiveSelectionTests(TestCase):
         active_teams = self.client.session.get('active_team_by_workspace') or {}
         self.assertEqual(int(active_teams.get(str(workspace.id)) or 0), team.id)
 
-    @patch('football.workspace_views.core_views._sync_workspace_competition_context')
+    @patch('football.views._sync_workspace_competition_context')
     def test_workspace_sync_route_uses_active_workspace_context(self, mock_sync):
         user = get_user_model().objects.create_user(username='workspace-syncer', password='pass-1234')
         team = Team.objects.create(name='Equipo sync', slug='equipo-sync', short_name='SYN', is_primary=True)

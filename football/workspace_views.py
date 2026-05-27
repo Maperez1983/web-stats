@@ -8,10 +8,10 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from . import views as core_views
 from .api_utils import api_error, api_ok
 from .models import Workspace, WorkspacePreference
 from .services import _parse_int
+from . import workspace_context
 
 
 @login_required
@@ -24,7 +24,7 @@ def workspace_set_active_team(request):
     - No modifica `workspace.primary_team` (equipo "principal" legacy del cliente).
     - Valida que el equipo pertenezca al workspace mediante WorkspaceTeam.
     """
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return redirect(next_url)
@@ -33,7 +33,7 @@ def workspace_set_active_team(request):
     if not team_id:
         return redirect(next_url)
 
-    links = core_views._workspace_team_links_for_user(workspace, request.user)
+    links = workspace_context.workspace_team_links_for_user(workspace, request.user)
     allowed_team_ids = {int(link.team_id) for link in links if getattr(link, 'team_id', None)}
     if int(team_id) not in allowed_team_ids:
         return redirect(next_url)
@@ -57,7 +57,7 @@ def workspace_set_active_workspace(request):
     next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
     if not desired_id:
         return redirect(next_url)
-    available = core_views._available_workspaces_for_user(request.user)
+    available = workspace_context.available_workspaces_for_user(request.user)
     workspace = available.filter(id=desired_id, is_active=True).first()
     if not workspace:
         return redirect(next_url)
@@ -73,10 +73,10 @@ def _workspace_pref_key(raw_key: str) -> str:
 
 @login_required
 def workspace_preference_get_api(request):
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace:
         return api_error('Workspace no configurado.', status=400, code='workspace_missing')
-    if not core_views._can_view_workspace(request.user, workspace) and not core_views._can_access_platform(request.user):
+    if not workspace_context.can_view_workspace(request.user, workspace) and not workspace_context.can_access_platform(request.user):
         return api_error('No autorizado.', status=403, code='forbidden')
     key = _workspace_pref_key(request.GET.get('key') or '')
     if not key:
@@ -88,10 +88,10 @@ def workspace_preference_get_api(request):
 @login_required
 @require_POST
 def workspace_preference_set_api(request):
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace:
         return api_error('Workspace no configurado.', status=400, code='workspace_missing')
-    if not core_views._can_view_workspace(request.user, workspace) and not core_views._can_access_platform(request.user):
+    if not workspace_context.can_view_workspace(request.user, workspace) and not workspace_context.can_access_platform(request.user):
         return api_error('No autorizado.', status=403, code='forbidden')
     try:
         data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
@@ -124,12 +124,12 @@ def workspace_sync_competition_api(request):
     Sincroniza el contexto competitivo del workspace club actual (owner/admin).
     Útil para onboarding/autoservicio sin depender de Platform.
     """
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return JsonResponse({'status': 'error', 'message': 'No hay workspace club activo.'}, status=400)
-    if not core_views._can_manage_workspace(request.user, workspace):
+    if not workspace_context.can_manage_workspace(request.user, workspace):
         return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
-    primary_team = core_views._get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
+    primary_team = workspace_context.get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
     if not primary_team:
         return JsonResponse({'status': 'error', 'message': 'No hay equipo configurado.'}, status=400)
 
@@ -137,6 +137,7 @@ def workspace_sync_competition_api(request):
     if not cache.add(lock_key, '1', timeout=180):
         return JsonResponse({'status': 'error', 'message': 'Ya hay una sincronización en curso.'}, status=429)
     try:
+        from . import views as core_views
         context, sync_error = core_views._sync_workspace_competition_context(workspace, primary_team=primary_team)
         if sync_error:
             return JsonResponse({'status': 'error', 'message': sync_error}, status=500)
