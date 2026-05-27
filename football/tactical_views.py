@@ -1,13 +1,15 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from django.utils.module_loading import import_string
 
 from . import permissions, workspace_context
 from .models import TacticalPlaybookClip
 
+
 def _legacy_view(name):
     def _wrapped(request, *args, **kwargs):
-        view = import_string(f'football.views.{name}')
+        from . import views
+
+        view = getattr(views, name)
         return view(request, *args, **kwargs)
 
     return _wrapped
