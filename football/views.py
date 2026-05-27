@@ -31795,60 +31795,11 @@ def _get_or_create_library_session(team, scope_key):
 
 
 def _get_or_create_library_session_with_repository(team, scope_key, *, repository=LIBRARY_REPOSITORY_TRADITIONAL):
-    today = timezone.localdate()
-    week_start = today - timedelta(days=today.weekday())
-    week_end = week_start + timedelta(days=6)
-    scope_label = {
-        'coach': 'Entrenador',
-        'goalkeeper': 'Porteros',
-        'fitness': 'Preparacion fisica',
-    }.get(scope_key, 'Staff')
-    repository = _normalize_library_repository(repository, fallback=LIBRARY_REPOSITORY_TRADITIONAL)
-    repo_label = {
-        LIBRARY_REPOSITORY_TRADITIONAL: 'PDF',
-        LIBRARY_REPOSITORY_INTERACTIVE: 'Interactiva',
-        LIBRARY_REPOSITORY_AI_TRAINER: 'IA‑Trainer',
-    }.get(repository, 'PDF')
-
-    microcycle, _ = TrainingMicrocycle.objects.get_or_create(
+    return session_import_services.get_or_create_library_session_with_repository(
         team=team,
-        week_start=week_start,
-        defaults={
-            'week_end': week_end,
-            'title': f'Biblioteca {scope_label}',
-            'objective': 'Repositorio de tareas (tradicionales, interactivas e IA‑Trainer)',
-            'status': TrainingMicrocycle.STATUS_DRAFT,
-            'notes': f'{LIBRARY_MICROCYCLE_MARKER} Microciclo tecnico generado automaticamente para biblioteca.',
-        },
+        scope_key=scope_key,
+        repository=repository,
     )
-    try:
-        # Asegura marker incluso en microciclos legacy.
-        notes = str(getattr(microcycle, 'notes', '') or '')
-        if LIBRARY_MICROCYCLE_MARKER not in notes:
-            microcycle.notes = (notes + '\n' if notes else '') + f'{LIBRARY_MICROCYCLE_MARKER}'
-            microcycle.save(update_fields=['notes'])
-    except Exception:
-        pass
-    # Legacy: si existe la sesión antigua "Biblioteca PDF", úsala como Tradicional.
-    if repository == LIBRARY_REPOSITORY_TRADITIONAL:
-        legacy_focus = f'Biblioteca PDF · {scope_label}'
-        legacy = TrainingSession.objects.filter(microcycle=microcycle, focus__iexact=legacy_focus).order_by('-session_date', '-id').first()
-        if legacy:
-            return legacy
-
-    focus = f'Biblioteca {repo_label} · {scope_label}'
-    session, _ = TrainingSession.objects.get_or_create(
-        microcycle=microcycle,
-        session_date=today,
-        focus=focus,
-        defaults={
-            'duration_minutes': 90,
-            'intensity': TrainingSession.INTENSITY_LOW,
-            'content': 'Sesion tecnica para almacenar tareas subidas a biblioteca.',
-            'order': 0,
-        },
-    )
-    return session
 
 
 def _cleanup_task_joined_text_fields(task):
