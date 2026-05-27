@@ -338,9 +338,14 @@
 			    const preset = String(presetKey || 'full_pitch').trim();
 			    const orientation = safeText(orientationKey, 'landscape') === 'portrait' ? 'portrait' : 'landscape';
 			    const normalizedGrass = safeText(grassStyleKey, 'classic').toLowerCase();
-			    const grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
+			    let grassStyle = (['classic', 'realistic', 'pro', 'broadcast', 'artificial', 'dry', 'wet', 'uefa_b', 'coachboard', 'whiteboard', 'blackboard'].includes(normalizedGrass))
 			      ? normalizedGrass
 			      : 'classic';
+			    try {
+			      if (window.__WEBSTATS_TACTICS_MODE === true && ['coachboard', 'whiteboard', 'blackboard'].includes(grassStyle)) {
+			        grassStyle = 'classic';
+			      }
+			    } catch (e) { /* ignore */ }
 		    // Lienzo con proporción real 105x68 (escalado) y un pequeño "bleed" para que el trazo
 		    // del borde no se recorte incluso con overflow hidden.
 		    const stageW = orientation === 'portrait' ? 680 : 1050;
@@ -3866,8 +3871,15 @@
 					      blackboard: 'Negra',
 					    };
 					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet', 'coachboard', 'whiteboard', 'blackboard'];
-					    let pitchGrassStyle = safeText(grassStyleInput?.value, 'classic').toLowerCase();
-					    if (!GRASS_STYLE_ORDER.includes(pitchGrassStyle)) pitchGrassStyle = 'classic';
+					    const normalizeGrassStyleForMode = (value) => {
+					      const next = safeText(value, 'classic').toLowerCase();
+					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
+					      // En modo Táctica el usuario espera campo con césped. Evitamos que borradores
+					      // locales o estados antiguos restauren fondos de pizarra negra/blanca.
+					      if (isTacticsMode && ['coachboard', 'whiteboard', 'blackboard'].includes(next)) return 'classic';
+					      return next;
+					    };
+					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
 					    const syncGrassUi = () => {
 					      if (grassStyleInput) grassStyleInput.value = pitchGrassStyle;
 					      if (grassLabel) grassLabel.textContent = GRASS_STYLE_LABEL[pitchGrassStyle] || 'Clásico';
@@ -13308,9 +13320,7 @@
 					      const metaOrientationRaw = safeText(meta.orientation);
 					      const metaOrientation = (metaOrientationRaw === 'portrait') ? 'portrait' : ((metaOrientationRaw === 'landscape') ? 'landscape' : '');
 					      const metaGrassRaw = safeText(meta.grass_style || meta.grassStyle).toLowerCase();
-					      const metaGrass = (typeof GRASS_STYLE_ORDER !== 'undefined' && Array.isArray(GRASS_STYLE_ORDER) && GRASS_STYLE_ORDER.includes(metaGrassRaw))
-					        ? metaGrassRaw
-					        : '';
+					      const metaGrass = normalizeGrassStyleForMode(metaGrassRaw);
 					      const metaZoom = Number(meta.zoom);
 					      let needsSurface = false;
 					      if (metaGrass && metaGrass !== pitchGrassStyle) {
@@ -24605,7 +24615,7 @@
 				    grassToggle?.addEventListener('click', () => {
 				      const idx = GRASS_STYLE_ORDER.indexOf(pitchGrassStyle);
 				      const nextIdx = idx >= 0 ? (idx + 1) % GRASS_STYLE_ORDER.length : 0;
-				      pitchGrassStyle = GRASS_STYLE_ORDER[nextIdx] || 'classic';
+				      pitchGrassStyle = normalizeGrassStyleForMode(GRASS_STYLE_ORDER[nextIdx] || 'classic');
 				      syncGrassUi();
 				      // Usamos `pitchPreset` como fuente de verdad (evita saltos a full_pitch si el <select> está vacío por DOM/resize).
 				      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
@@ -24614,7 +24624,7 @@
 				    });
 				    grassSelect?.addEventListener('change', () => {
 				      const next = safeText(grassSelect.value, 'classic').trim().toLowerCase();
-				      pitchGrassStyle = GRASS_STYLE_ORDER.includes(next) ? next : 'classic';
+				      pitchGrassStyle = normalizeGrassStyleForMode(next);
 				      syncGrassUi();
 				      try { applyPitchSurface(pitchPreset || presetSelect.value || 'full_pitch', pitchOrientation, pitchGrassStyle); } catch (e) { /* ignore */ }
 				      refreshLivePreview();
