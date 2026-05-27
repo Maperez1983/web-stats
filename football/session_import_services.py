@@ -1,4 +1,5 @@
 import io
+import hashlib
 import re
 import shutil
 import subprocess
@@ -6,11 +7,12 @@ import tempfile
 import uuid
 from datetime import datetime, time, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db.models import Max
-from django.utils.module_loading import import_string
+from django.urls import reverse
 from django.utils import timezone
 
 from .library_repositories import (
@@ -23,10 +25,11 @@ from .library_repositories import (
     LIBRARY_REPOSITORY_TRADITIONAL,
     normalize_library_repository,
 )
-from .models import SessionTask, TrainingMicrocycle, TrainingSession
+from .models import PdfGraphicAsset, SessionTask, TrainingMicrocycle, TrainingSession
 from .session_plan_fields import serialize_session_plan_fields
 from . import session_task_pdf_parser
 from . import task_library_services
+from .services import _parse_int
 from .task_library_services import (
     _split_joined_upper_token,
     analyze_preview_image_bytes,
@@ -49,10 +52,6 @@ try:
     from pypdf import PdfReader
 except Exception:  # pragma: no cover
     PdfReader = None
-
-
-def _views_func(name):
-    return import_string(f'football.views.{name}')
 
 
 def apply_analysis_to_task(*args, **kwargs):
@@ -589,6 +588,216 @@ def default_task_preview_payload():
         return None
 
 
+def extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
+    if PdfReader is None or pdf_file is None:
+        return []
+    try:
+        limit = max(1, min(int(max_assets or 1), 240))
+    except Exception:
+        limit = 60
+    if hasattr(pdf_file, 'seek'):
+        try:
+            pdf_file.seek(0)
+        except Exception:
+            pass
+    try:
+        reader = PdfReader(pdf_file)
+    except Exception:
+        return []
+    seen = set()
+    assets = []
+    seq = 0
+    for page_idx, page in enumerate(reader.pages):
+        images = getattr(page, 'images', []) or []
+        for image in images:
+            seq += 1
+            raw = getattr(image, 'data', b'') or b''
+            if not raw or len(raw) < 512:
+                continue
+            sha = hashlib.sha256(raw).hexdigest()
+            if sha in seen:
+                continue
+            seen.add(sha)
+            ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
+            name_hint = str(getattr(image, 'name', '') or '').rsplit('/', 1)[-1]
+            if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
+                ext = 'png'
+            metrics = analyze_preview_image_bytes(raw)
+            if metrics:
+                width = int(metrics.get('width') or 0)
+                height = int(metrics.get('height') or 0)
+                area = int(metrics.get('area') or 0)
+                green_ratio = float(metrics.get('green_ratio') or 0.0)
+                white_ratio = float(metrics.get('white_ratio') or 0.0)
+                if width <= 0 or height <= 0:
+                    continue
+                if area < 18 * 18:
+                    continue
+                if max(width, height) > 1200 or area > (1200 * 1200):
+                    continue
+                if green_ratio > 0.22 and area > (520 * 380) and white_ratio < 0.55:
+                    continue
+            assets.append(
+                {
+                    'sha256': sha,
+                    'raw': raw,
+                    'ext': ext,
+                    'name_hint': name_hint,
+                    'page_idx': page_idx,
+                    'seq': seq,
+                    'width': int(metrics.get('width') or 0) if metrics else 0,
+                    'height': int(metrics.get('height') or 0) if metrics else 0,
+                }
+            )
+            if len(assets) >= limit:
+                return assets
+    return assets
+
+
+def save_pdf_graphic_assets_to_library(*, team=None, owner=None, pdf_file=None, source_pdf_name='', max_assets=60):
+    if not pdf_file:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    if not team and not owner:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    extracted = extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=max_assets)
+    if not extracted:
+        return {'saved': 0, 'skipped': 0, 'errors': 0}
+    saved = 0
+    skipped = 0
+    errors = 0
+    for item in extracted:
+        sha = str(item.get('sha256') or '').strip()
+        if not sha:
+            continue
+        ext = str(item.get('ext') or 'png').lower().strip() or 'png'
+        name_hint = str(item.get('name_hint') or '').strip()
+        raw = item.get('raw') or b''
+        if not raw:
+            continue
+        filename = f'pdf-asset-{sha[:16]}.{ext if ext != "jpeg" else "jpg"}'
+        embedded = ''
+        try:
+            embedded = task_library_services.build_embedded_preview_data_url(raw, max_w=1100, max_h=1100)
+            obj = PdfGraphicAsset(
+                team=team,
+                owner=owner,
+                sha256=sha,
+                title=(Path(name_hint).stem if name_hint else '')[:160],
+                source_pdf_name=str(source_pdf_name or '')[:220],
+                embedded_data_url=embedded,
+                width=int(item.get('width') or 0) or None,
+                height=int(item.get('height') or 0) or None,
+            )
+            obj.file.save(filename, ContentFile(raw), save=False)
+            obj.save()
+            saved += 1
+        except Exception:
+            try:
+                existing = PdfGraphicAsset.objects.filter(sha256=sha)
+                if team:
+                    existing = existing.filter(team=team)
+                if owner:
+                    existing = existing.filter(owner=owner)
+                if existing.exists():
+                    try:
+                        if embedded and existing.filter(embedded_data_url='').exists():
+                            existing.filter(embedded_data_url='').update(embedded_data_url=embedded)
+                    except Exception:
+                        pass
+                    skipped += 1
+                    continue
+            except Exception:
+                pass
+            errors += 1
+    return {'saved': saved, 'skipped': skipped, 'errors': errors}
+
+
+def maybe_recreate_board_from_preview_bytes(task, preview_bytes):
+    if not task or not preview_bytes or Image is None:
+        return False
+    try:
+        portrait = False
+        img_w = 0
+        img_h = 0
+        try:
+            with Image.open(io.BytesIO(preview_bytes)) as im:
+                img_w = int(getattr(im, 'width', 0) or 0)
+                img_h = int(getattr(im, 'height', 0) or 0)
+                portrait = bool(img_h > img_w) if img_w and img_h else False
+        except Exception:
+            portrait = False
+
+        world_w = 684 if portrait else 1054
+        world_h = 1054 if portrait else 684
+        if img_w <= 0 or img_h <= 0:
+            img_w = world_w
+            img_h = world_h
+        scale = min(float(world_w) / float(img_w or 1), float(world_h) / float(img_h or 1))
+        try:
+            scale = float(scale)
+        except Exception:
+            scale = 1.0
+        scale = max(0.05, min(scale, 4.0))
+
+        preview_src = ''
+        try:
+            preview_src = reverse('session-task-preview-file', args=[task.id])
+            preview_name = str(getattr(getattr(task, 'task_preview_image', None), 'name', '') or '').strip()
+            if preview_name:
+                preview_src = f'{preview_src}?hd=1&v={quote(preview_name)}'
+            else:
+                preview_src = f"{preview_src}?hd=1&v={int(getattr(task, 'id', 0) or 0)}"
+        except Exception:
+            preview_src = ''
+        if not preview_src:
+            return False
+
+        recreated = {
+            'version': '5.3.0',
+            'objects': [
+                {
+                    'type': 'image',
+                    'left': int(round(world_w / 2)),
+                    'top': int(round(world_h / 2)),
+                    'originX': 'center',
+                    'originY': 'center',
+                    'scaleX': scale,
+                    'scaleY': scale,
+                    'angle': 0,
+                    'opacity': 1,
+                    'src': preview_src,
+                    'selectable': False,
+                    'evented': False,
+                    'hasControls': False,
+                    'hasBorders': False,
+                    'objectCaching': False,
+                    'data': {
+                        'kind': 'pdf-background',
+                        'base': True,
+                        'locked': True,
+                        'source': 'pdf_preview',
+                    },
+                }
+            ],
+        }
+        layout = task.tactical_layout if isinstance(getattr(task, 'tactical_layout', None), dict) else {}
+        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
+        meta = dict(meta)
+        meta.setdefault('pitch_preset', 'full_pitch')
+        meta['pitch_orientation'] = 'portrait' if portrait else 'landscape'
+        meta['graphic_editor'] = {
+            'canvas_state': recreated,
+            'canvas_width': world_w,
+            'canvas_height': world_h,
+        }
+        layout['meta'] = meta
+        task.tactical_layout = layout
+        task.save(update_fields=['tactical_layout'])
+        return True
+    except Exception:
+        return False
+
+
 def extract_tasks_from_pdf_text(*args, **kwargs):
     return session_task_pdf_parser._extract_tasks_from_pdf_text(*args, **kwargs)
 
@@ -847,4 +1056,229 @@ def get_or_create_library_session_with_repository(*args, **kwargs):
 
 
 def import_library_tasks_from_pdf_advanced(*args, **kwargs):
-    return _views_func('_import_library_tasks_from_pdf_advanced')(*args, **kwargs)
+    primary_team = kwargs.get('primary_team')
+    scope_key = kwargs.get('scope_key')
+    target_session = kwargs.get('target_session')
+    pdf_files = kwargs.get('pdf_files') or []
+    title = kwargs.get('title') or ''
+    objective = kwargs.get('objective') or ''
+    block = kwargs.get('block')
+    minutes = int(kwargs.get('minutes') or 15)
+    recreate_board = bool(kwargs.get('recreate_board'))
+    base_order = int(kwargs.get('base_order') or 0)
+
+    created_count = 0
+    processed_pdfs = 0
+    for idx, pdf_file in enumerate(pdf_files, start=1):
+        raw_name = str(getattr(pdf_file, 'name', '') or '').rsplit('/', 1)[-1]
+        file_stem = raw_name.rsplit('.', 1)[0].strip() or f'Tarea PDF {idx}'
+        task_title = title or file_stem
+        if title and len(pdf_files) > 1:
+            task_title = f'{title} · {file_stem}'
+
+        extracted_text = ''
+        try:
+            extracted_text = extract_pdf_text(pdf_file, max_chars=60000)
+        except Exception:
+            pass
+        parsed_tasks = extract_tasks_from_pdf_text(extracted_text, fallback_title=task_title)
+        if not parsed_tasks:
+            parsed_tasks = [
+                {
+                    'analysis': {
+                        'title': task_title[:160],
+                        'objective': objective[:8000],
+                        'minutes': max(5, min(minutes, 90)),
+                        'coaching_points': '',
+                        'confrontation_rules': '',
+                        'summary': '',
+                        'work_contexts': [],
+                        'objective_tags': [],
+                        'exercise_types': [],
+                        'phase_tags': [],
+                        'players_count_estimate': None,
+                        'players_band': '',
+                        'duration_band': session_task_pdf_parser._duration_band_label(max(5, min(minutes, 90))),
+                        'detected_materials': [],
+                        'quality_score': 0,
+                    },
+                    'raw_text': '',
+                    'segment_index': 1,
+                    'segment_total': 1,
+                }
+            ]
+
+        segment_blocks = suggest_blocks_for_session_pdf_segments(parsed_tasks, block)
+
+        if hasattr(pdf_file, 'seek'):
+            try:
+                pdf_file.seek(0)
+            except Exception:
+                pass
+        preview_payloads = extract_preview_images_from_pdf(
+            pdf_file,
+            max_images=max(1, len(parsed_tasks)),
+            prefer_render=recreate_board,
+        )
+        try:
+            save_pdf_graphic_assets_to_library(
+                team=primary_team,
+                owner=None,
+                pdf_file=pdf_file,
+                source_pdf_name=raw_name,
+                max_assets=80,
+            )
+        except Exception:
+            pass
+
+        first = parsed_tasks[0]
+        first_analysis = first.get('analysis') or {}
+        first_title = (first_analysis.get('title') or task_title or 'Tarea desde PDF')[:160]
+        first_task = SessionTask.objects.create(
+            session=target_session,
+            title=first_title,
+            block=(segment_blocks[0] if segment_blocks else block),
+            duration_minutes=max(5, min((_parse_int(first_analysis.get('minutes')) or minutes), 90)),
+            objective=((first_analysis.get('objective') or objective or '')[:8000]),
+            coaching_points=(first_analysis.get('coaching_points') or ''),
+            confrontation_rules=(first_analysis.get('confrontation_rules') or ''),
+            tactical_layout={
+                'meta': {
+                    'scope': scope_key,
+                    'pdf_source_name': raw_name,
+                    'pdf_segment_index': first.get('segment_index') or 1,
+                    'pdf_segments_total': first.get('segment_total') or 1,
+                    'pdf_segment_excerpt': (first.get('raw_text') or '')[:1200],
+                    'pdf_split_done': True,
+                }
+            },
+            task_pdf=pdf_file,
+            status=SessionTask.STATUS_PLANNED,
+            order=base_order + created_count + 1,
+            notes='Cargada desde Biblioteca PDF',
+        )
+        preview_bytes = b''
+        if preview_payloads:
+            preview_name, preview_content = preview_payloads[0]
+            try:
+                preview_content.seek(0)
+            except Exception:
+                pass
+            try:
+                preview_bytes = preview_content.read() or b''
+            except Exception:
+                preview_bytes = b''
+            try:
+                preview_content.seek(0)
+            except Exception:
+                pass
+            try:
+                first_task.task_preview_image.save(preview_name, preview_content, save=True)
+            except Exception:
+                pass
+        try:
+            apply_analysis_to_task(first_task, first_analysis)
+        except Exception:
+            pass
+        try:
+            learn_task_blueprint_from_pdf_import(
+                team=primary_team,
+                task=first_task,
+                analysis=first_analysis,
+                scope_key=scope_key,
+                actor_username='pdf_import',
+            )
+        except Exception:
+            pass
+        if recreate_board and preview_bytes:
+            maybe_recreate_board_from_preview_bytes(first_task, preview_bytes)
+        created_count += 1
+        processed_pdfs += 1
+
+        shared_pdf_name = first_task.task_pdf.name if first_task.task_pdf else ''
+        shared_preview_name = first_task.task_preview_image.name if first_task.task_preview_image else ''
+        for extra in parsed_tasks[1:]:
+            extra_analysis = extra.get('analysis') or {}
+            extra_title = (extra_analysis.get('title') or f'{task_title} · Tarea {extra.get("segment_index") or 0}')[:160]
+            segment_index = max(1, int(extra.get('segment_index') or 1))
+            extra_task = SessionTask.objects.create(
+                session=target_session,
+                title=extra_title,
+                block=(
+                    segment_blocks[min(segment_index - 1, len(segment_blocks) - 1)]
+                    if segment_blocks
+                    else block
+                ),
+                duration_minutes=max(5, min((_parse_int(extra_analysis.get('minutes')) or minutes), 90)),
+                objective=((extra_analysis.get('objective') or objective or '')[:8000]),
+                coaching_points=(extra_analysis.get('coaching_points') or ''),
+                confrontation_rules=(extra_analysis.get('confrontation_rules') or ''),
+                tactical_layout={
+                    'meta': {
+                        'scope': scope_key,
+                        'pdf_source_name': raw_name,
+                        'pdf_segment_index': extra.get('segment_index') or 1,
+                        'pdf_segments_total': extra.get('segment_total') or 1,
+                        'pdf_segment_excerpt': (extra.get('raw_text') or '')[:1200],
+                        'pdf_split_done': True,
+                    }
+                },
+                task_pdf=shared_pdf_name or None,
+                task_preview_image=shared_preview_name or None,
+                status=SessionTask.STATUS_PLANNED,
+                order=base_order + created_count + 1,
+                notes='Extraída automáticamente desde PDF multi-tarea',
+            )
+            extra_preview_bytes = b''
+            extra_preview_payload = None
+            if preview_payloads:
+                extra_preview_payload = preview_payloads[min(segment_index - 1, len(preview_payloads) - 1)]
+            if extra_preview_payload:
+                extra_preview_name, extra_preview_content = extra_preview_payload
+                try:
+                    extra_preview_content.seek(0)
+                except Exception:
+                    pass
+                try:
+                    extra_preview_bytes = extra_preview_content.read() or b''
+                except Exception:
+                    extra_preview_bytes = b''
+                try:
+                    extra_preview_content.seek(0)
+                except Exception:
+                    pass
+                try:
+                    extra_task.task_preview_image.save(extra_preview_name, extra_preview_content, save=True)
+                except Exception:
+                    pass
+            elif shared_preview_name:
+                extra_task.task_preview_image = shared_preview_name
+                extra_task.save(update_fields=['task_preview_image'])
+            try:
+                apply_analysis_to_task(extra_task, extra_analysis)
+            except Exception:
+                pass
+            try:
+                learn_task_blueprint_from_pdf_import(
+                    team=primary_team,
+                    task=extra_task,
+                    analysis=extra_analysis,
+                    scope_key=scope_key,
+                    actor_username='pdf_import',
+                )
+            except Exception:
+                pass
+            if recreate_board and extra_preview_bytes:
+                maybe_recreate_board_from_preview_bytes(extra_task, extra_preview_bytes)
+            created_count += 1
+
+    feedback = (
+        f'Se procesó 1 PDF y se creó 1 tarea.'
+        if created_count == 1 and processed_pdfs == 1
+        else f'Se procesaron {processed_pdfs} PDFs y se crearon {created_count} tareas.'
+    )
+    return {
+        'created_count': created_count,
+        'processed_pdfs': processed_pdfs,
+        'feedback': feedback,
+    }
