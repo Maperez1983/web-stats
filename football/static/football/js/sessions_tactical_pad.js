@@ -12814,15 +12814,123 @@
 				        playbookLoadInFlight = false;
 				      }
 				    };
+				    const exportPlaybookClipById = (id) => {
+				      const clip = (playbookClips || []).find((it) => Number(it?.id) === Number(id));
+				      const steps = clip?.steps || [];
+				      if (!Array.isArray(steps) || !steps.length) {
+				        setStatus('No se puede exportar: esta táctica no tiene pasos guardados.', true);
+				        return;
+				      }
+				      const payload = { v: 1, name: safeText(clip?.name), created_at: safeText(clip?.created_at), updated_at: safeText(clip?.updated_at), steps };
+				      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+				      downloadBlob(blob, `${fileSafeSlug(payload.name || 'clip')}.json`);
+				      setStatus(`Exportado: ${safeText(clip?.name, 'Playbook')}`);
+				    };
+				    const dispatchPlaybookButton = async (btn) => {
+				      if (!btn) return false;
+				      const id = Number(
+				        btn.getAttribute('data-playbook-load')
+				        || btn.getAttribute('data-playbook-export')
+				        || btn.getAttribute('data-playbook-fav')
+				        || btn.getAttribute('data-playbook-share')
+				        || btn.getAttribute('data-playbook-clone')
+				        || btn.getAttribute('data-playbook-edit')
+				        || btn.getAttribute('data-playbook-delete')
+				        || 0
+				      );
+				      if (btn.hasAttribute('data-playbook-load')) {
+				        await loadPlaybookClipById(id);
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-export')) {
+				        exportPlaybookClipById(id);
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-fav')) {
+				        try {
+				          const res = await togglePlaybookFavorite(id);
+				          const isFav = !!res?.is_favorite;
+				          playbookClips = (playbookClips || []).map((c) => (Number(c?.id) === id ? { ...(c || {}), is_favorite: isFav } : c));
+				          renderClipsLibrary();
+				          setStatus(isFav ? 'Añadido a favoritos.' : 'Quitado de favoritos.');
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo actualizar favorito.', true);
+				        }
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-share')) {
+				        try {
+				          const res = await createPlaybookShareLink(id);
+				          const url = safeText(res?.url);
+				          try { await navigator.clipboard?.writeText(url); } catch (e) { /* ignore */ }
+				          __safePrompt('Enlace de solo lectura (copiado si es posible):', url);
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo crear enlace.', true);
+				        }
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-clone')) {
+				        try {
+				          const teams = await fetchPlaybookTeams({ force: false, silent: true });
+				          const list = (teams || []).map((t) => `${Number(t?.id) || ''}: ${safeText(t?.name)}`).filter(Boolean).join('\n');
+				          const defId = Number((teams || []).find((t) => !!t?.is_default)?.id) || Number((teams || [])[0]?.id) || 0;
+				          const raw = __safePrompt(`Clonar a equipo (id):\n${list}`, defId ? String(defId) : '');
+				          const toId = Number(raw || 0);
+				          if (!toId) return true;
+				          const res = await clonePlaybookClip(id, toId, {});
+				          if (res?.canceled) return true;
+				          setStatus('Clip clonado.');
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo clonar.', true);
+				        }
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-edit')) {
+				        const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				        if (!clip) {
+				          setStatus('No se encontró esta táctica en el Playbook.', true);
+				          return true;
+				        }
+				        const folder = safeText(__safePrompt('Carpeta (opcional)', safeText(clip?.folder))).slice(0, 80);
+				        const tagsRaw = safeText(__safePrompt('Tags (coma separada)', (Array.isArray(clip?.tags) ? clip.tags.join(', ') : ''))).slice(0, 160);
+				        const tags = tagsRaw.split(',').map((t) => safeText(t).trim()).filter(Boolean).slice(0, 12);
+				        try {
+				          await savePlaybookClip({ scope: safeText(clip?.scope || 'team'), id, name: safeText(clip?.name).slice(0, 160), folder, tags, steps: clip?.steps || [] });
+				          await fetchPlaybookClips({ force: true, silent: true });
+				          renderClipsLibrary();
+				          setStatus('Clip actualizado.');
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo actualizar.', true);
+				        }
+				        return true;
+				      }
+				      if (btn.hasAttribute('data-playbook-delete')) {
+				        const scope = safeText(btn.getAttribute('data-playbook-scope') || 'team');
+				        const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
+				        const name = safeText(clip?.name);
+				        const ok = __safeConfirm(`¿Borrar el clip del Playbook “${name || id}”?`);
+				        if (!ok) return true;
+				        try {
+				          await deletePlaybookClip(id, scope);
+				          await fetchPlaybookClips({ force: true, silent: true });
+				          renderClipsLibrary();
+				          setStatus('Clip borrado (Playbook).');
+				        } catch (e) {
+				          setStatus(e?.message || 'No se pudo borrar.', true);
+				        }
+				        return true;
+				      }
+				      return false;
+				    };
 				    try {
 				      simClipsList?.addEventListener('click', (event) => {
 				        const target = event.target;
-				        const btn = target?.closest ? target.closest('[data-playbook-load]') : null;
+				        const btn = target?.closest ? target.closest('[data-playbook-load],[data-playbook-export],[data-playbook-fav],[data-playbook-share],[data-playbook-clone],[data-playbook-edit],[data-playbook-delete]') : null;
 				        if (!btn || !simClipsList.contains(btn)) return;
 				        event.preventDefault();
 				        event.stopPropagation();
 				        if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
-				        void loadPlaybookClipById(Number(btn.getAttribute('data-playbook-load') || 0));
+				        void dispatchPlaybookButton(btn);
 				      }, true);
 				    } catch (e) { /* ignore */ }
 					    const renderClipsLibrary = () => {
