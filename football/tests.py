@@ -2580,6 +2580,33 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(payload['opponent']['name'], 'Rival real')
         mocked_provider_next.assert_called_once()
 
+    def test_preferred_next_match_can_skip_context_binding_for_fast_pages(self):
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=Workspace.objects.create(
+                name='Cliente fast',
+                slug='cliente-fast',
+                kind=Workspace.KIND_CLUB,
+                primary_team=self.team,
+            ),
+            team=self.team,
+            group=self.team.group,
+            season=self.team.group.season,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+        )
+
+        with patch('football.views._ensure_universo_context_binding') as mocked_bind, \
+            patch('football.views._find_universo_next_match_for_context', return_value={}), \
+            patch('football.views.load_universo_snapshot', return_value={}), \
+            patch('football.views.load_cached_next_match', return_value=None):
+            payload = football_views.load_preferred_next_match_payload(
+                primary_team=self.team,
+                competition_context=context,
+                bind_context=False,
+            )
+
+        self.assertIsNone(payload)
+        mocked_bind.assert_not_called()
+
     @patch('football.views.load_universo_snapshot', return_value={})
     @patch('football.views._find_universo_next_match_for_context')
     def test_competition_payload_resyncs_unreliable_snapshot_next_match(

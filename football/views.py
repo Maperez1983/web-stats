@@ -9089,7 +9089,7 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
     return rival_full_name, rival_crest_url
 
 
-def load_preferred_next_match_payload(primary_team=None, competition_context=None):
+def load_preferred_next_match_payload(primary_team=None, competition_context=None, *, bind_context=True):
     competition_context = competition_context or (
         WorkspaceCompetitionContext.objects
         .filter(Q(team=primary_team) | Q(workspace__primary_team=primary_team))
@@ -9109,7 +9109,8 @@ def load_preferred_next_match_payload(primary_team=None, competition_context=Non
             return None
         if not (_single_club_fallback_enabled() and bool(getattr(primary_team, 'is_primary', False))):
             return None
-    competition_context = _ensure_universo_context_binding(competition_context, primary_team)
+    if bind_context:
+        competition_context = _ensure_universo_context_binding(competition_context, primary_team)
     provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
     if _next_match_payload_is_reliable(provider_next):
         return provider_next
@@ -28765,7 +28766,7 @@ def coach_tactics_page(request):
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
                 max_items=80,
             ),
-            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team, bind_context=False) or {}),
             'rival_roster_api_url': reverse('rival-roster-api'),
             'library_repository': LIBRARY_REPOSITORY_TRADITIONAL,
             'back_url': back_url,
@@ -41871,7 +41872,7 @@ def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones 
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
                 max_items=80,
             ),
-            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team, bind_context=False) or {}),
             'rival_roster_api_url': reverse('rival-roster-api'),
             'library_repository': library_repository,
                 'back_url': back_url,
@@ -48132,7 +48133,7 @@ def analysis_video_report_item_tactical_page(request, item_id):
                 cache_days=int(os.getenv('RIVAL_ROSTER_CACHE_DAYS', '14') or '14'),
                 max_items=80,
             ),
-            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team) or {}),
+            'preferred_rival_name': _payload_opponent_name(load_preferred_next_match_payload(primary_team=primary_team, bind_context=False) or {}),
             'rival_roster_api_url': reverse('rival-roster-api'),
             'library_repository': LIBRARY_REPOSITORY_TRADITIONAL,
             'back_url': back_url,
