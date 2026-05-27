@@ -1910,6 +1910,29 @@ class ClubSeasonWizardQuestionnaireTests(TestCase):
         self.assertEqual(questionnaire['ratings_category'], 'Categoría alta')
 
 
+class SeasonWizardRatingHelperTests(SimpleTestCase):
+    def test_rating_summary_clamps_values_and_ignores_empty_inputs(self):
+        from football.season_wizard import build_questionnaire_rating_summary, parse_questionnaire_ratings
+
+        ratings = parse_questionnaire_ratings({
+            'q_rating_ball_control': '8',
+            'q_rating_pass_control': '-2',
+            'q_rating_speed': '',
+            'q_rating_behavior': 'bad',
+            'q_rating_bravery': '4',
+        })
+        self.assertEqual(ratings, {
+            'ball_control': 5,
+            'pass_control': 0,
+            'bravery': 4,
+        })
+
+        summary = build_questionnaire_rating_summary({'ratings': ratings})
+        self.assertEqual(summary['overall'], 3.0)
+        self.assertEqual(summary['category'], 'Categoría actual consolidada')
+        self.assertEqual(summary['chart_values'], [2.5, 0.0, 0.0, 4.0])
+
+
 class TrialPaywallTests(TestCase):
     def test_trial_expired_redirects_to_billing_for_html_pages(self):
         user = get_user_model().objects.create_user(username='trial-owner', password='pass-1234')
