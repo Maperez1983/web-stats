@@ -80,6 +80,7 @@ from .competition_sync import sync_workspace_competition_context
 from . import permissions
 from . import player_documents
 from . import player_media
+from . import pdf_services
 from . import stats_services
 from . import task_library_services
 from . import team_media_services
@@ -1457,230 +1458,29 @@ def _canonical_action_value(value):
 
 
 def _build_pdf_response_or_html_fallback(request, html: str, filename: str, *, inline: bool = False, force_pdf: bool = False):
-    def _parse_version_tuple(raw_version: str):
-        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
-        while len(parts) < 3:
-            parts.append(0)
-        return tuple(parts)
-
-    def _pydyf_compat_status():
-        """
-        WeasyPrint 57.x requiere pydyf 0.10.x.
-
-        Si pydyf es 0.11+ (firma PDF() sin args), WeasyPrint 57.x falla con:
-        `TypeError: PDF.__init__() takes 1 positional argument but 3 were given`.
-        """
-        try:
-            import pydyf  # noqa: WPS433
-            import inspect  # noqa: WPS433
-
-            version = str(getattr(pydyf, '__version__', '') or '')
-            parsed = _parse_version_tuple(version)
-            ok = (0, 10, 0) <= parsed < (0, 11, 0)
-            # Guardrail extra: en entornos cacheados puede quedar un pydyf incompatible aunque la
-            # versión reportada sea errónea. Preferimos chequear la firma real.
-            try:
-                pdf_cls = getattr(pydyf, 'PDF', None)
-                sig = inspect.signature(pdf_cls) if pdf_cls else None
-                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
-                # En pydyf 0.11+, PDF() no acepta args; en 0.10.x acepta (version, identifier).
-                if len(params) < 2:
-                    ok = False
-            except Exception:
-                pass
-            return ok, version or 'unknown'
-        except Exception:
-            return False, 'not installed'
-
-    if not weasyprint:
+    if weasyprint is None:
         if force_pdf:
             return HttpResponse('PDF no disponible en este servidor.', status=503)
         return HttpResponse(html, content_type='text/html; charset=utf-8')
-    pydyf_ok, pydyf_version = _pydyf_compat_status()
-    if not pydyf_ok:
-        message = f'PDF no disponible: servidor desactualizado (pydyf {pydyf_version}).'
-        if force_pdf:
-            return HttpResponse(message, status=503, content_type='text/plain; charset=utf-8')
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
-    # Nota: usamos el helper con error para poder mostrar detalle con `?debug=1` a admins del club.
-    pdf_file, pdf_error = _render_pdf_bytes_with_error(request, html)
-    if pdf_file:
-        response = HttpResponse(pdf_file, content_type='application/pdf')
-        disposition = 'inline' if inline else 'attachment'
-        response['Content-Disposition'] = f'{disposition}; filename="{filename}.pdf"'
-        # PDFs: evitar que Safari / Service Worker reutilicen un PDF antiguo tras cambios en la sesión.
-        # (caso real: el usuario añade tareas y el PDF sigue saliendo “vacío” por caché).
-        response['Cache-Control'] = 'no-store, max-age=0'
-        response['Pragma'] = 'no-cache'
-        response['Expires'] = '0'
-        # Ayuda a depurar despliegues/cachés (Safari/SW): permite ver el build activo.
-        try:
-            build_id = (
-                os.getenv('RENDER_GIT_COMMIT')
-                or os.getenv('RENDER_DEPLOY_ID')
-                or os.getenv('SOURCE_VERSION')
-                or os.getenv('GIT_SHA')
-                or ''
-            ).strip()
-            if build_id:
-                response['X-2J-Build'] = build_id
-        except Exception:
-            pass
-        return response
-    logger.exception('WeasyPrint: error generando PDF (response): %s', pdf_error or 'unknown')
-    if force_pdf:
-        debug = str(request.GET.get('debug') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-        # Para depurar PDFs en producción: el detalle solo se muestra si el usuario está autenticado.
-        # (Las vistas de PDF ya hacen checks de permisos por módulo/rol).
-        debug_allowed = bool(getattr(getattr(request, 'user', None), 'is_authenticated', False))
-        if debug and debug_allowed:
-            detail = (pdf_error or '').strip() or 'unknown'
-            resp = HttpResponse(
-                f'No se pudo generar el PDF. {detail}',
-                status=503,
-                content_type='text/plain; charset=utf-8',
-            )
-            resp['Cache-Control'] = 'no-store'
-            return resp
-        resp = HttpResponse('No se pudo generar el PDF.', status=503, content_type='text/plain; charset=utf-8')
-        resp['Cache-Control'] = 'no-store'
-        return resp
-    return HttpResponse(html, content_type='text/html; charset=utf-8')
+    return pdf_services.build_pdf_response_or_html_fallback(
+        request,
+        html,
+        filename,
+        inline=inline,
+        force_pdf=force_pdf,
+    )
 
 
 def _render_pdf_bytes(request, html: str):
-    def _parse_version_tuple(raw_version: str):
-        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
-        while len(parts) < 3:
-            parts.append(0)
-        return tuple(parts)
-
-    def _pydyf_ok():
-        try:
-            import pydyf  # noqa: WPS433
-            import inspect  # noqa: WPS433
-
-            version = str(getattr(pydyf, '__version__', '') or '')
-            parsed = _parse_version_tuple(version)
-            ok = (0, 10, 0) <= parsed < (0, 11, 0)
-            try:
-                pdf_cls = getattr(pydyf, 'PDF', None)
-                sig = inspect.signature(pdf_cls) if pdf_cls else None
-                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
-                if len(params) < 2:
-                    ok = False
-            except Exception:
-                pass
-            return ok
-        except Exception:
-            return False
-
-    if not weasyprint:
+    if weasyprint is None:
         return None
-    if not _pydyf_ok():
-        return None
-    try:
-        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
-            # Soporte explícito para data URLs (evita que el fetcher "seguro"
-            # degrade imágenes embebidas a vacío).
-            try:
-                raw_url = str(url or '').strip()
-                if raw_url.startswith('data:') and ',' in raw_url:
-                    import urllib.parse  # noqa: WPS433
-
-                    header, payload = raw_url.split(',', 1)
-                    mime = header[5:].split(';', 1)[0].strip() or 'application/octet-stream'
-                    if ';base64' in header:
-                        content = base64.b64decode(payload.encode('ascii'))
-                    else:
-                        content = urllib.parse.unquote_to_bytes(payload)
-                    return {'string': content, 'mime_type': mime}
-            except Exception:
-                pass
-            try:
-                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
-                if callable(default_fetcher):
-                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
-            except Exception:
-                pass
-            return {'string': b'', 'mime_type': 'text/plain'}
-
-        return weasyprint.HTML(
-            string=html,
-            base_url=request.build_absolute_uri('/'),
-            url_fetcher=_safe_url_fetcher,
-        ).write_pdf()
-    except Exception:
-        logger.exception('WeasyPrint: error generando PDF')
-        return None
+    return pdf_services.render_pdf_bytes(request, html)
 
 
 def _render_pdf_bytes_with_error(request, html: str):
-    def _parse_version_tuple(raw_version: str):
-        parts = [int(p) for p in re.findall(r'\d+', str(raw_version or ''))[:3]]
-        while len(parts) < 3:
-            parts.append(0)
-        return tuple(parts)
-
-    def _pydyf_compat_status():
-        try:
-            import pydyf  # noqa: WPS433
-            import inspect  # noqa: WPS433
-
-            version = str(getattr(pydyf, '__version__', '') or '')
-            parsed = _parse_version_tuple(version)
-            ok = (0, 10, 0) <= parsed < (0, 11, 0)
-            try:
-                pdf_cls = getattr(pydyf, 'PDF', None)
-                sig = inspect.signature(pdf_cls) if pdf_cls else None
-                params = list(getattr(sig, 'parameters', {}).values()) if sig else []
-                if len(params) < 2:
-                    ok = False
-            except Exception:
-                pass
-            return ok, version or 'unknown'
-        except Exception:
-            return False, 'not installed'
-
-    if not weasyprint:
+    if weasyprint is None:
         return None, 'weasyprint not available'
-    pydyf_ok, pydyf_version = _pydyf_compat_status()
-    if not pydyf_ok:
-        return None, f'pydyf incompatible ({pydyf_version}); requires 0.10.x for weasyprint 57.x'
-    try:
-        def _safe_url_fetcher(url, timeout=4, ssl_context=None):
-            # Soporte explícito para data URLs (escudos, previews, SVGs embebidos).
-            try:
-                raw_url = str(url or '').strip()
-                if raw_url.startswith('data:') and ',' in raw_url:
-                    import urllib.parse  # noqa: WPS433
-
-                    header, payload = raw_url.split(',', 1)
-                    mime = header[5:].split(';', 1)[0].strip() or 'application/octet-stream'
-                    if ';base64' in header:
-                        content = base64.b64decode(payload.encode('ascii'))
-                    else:
-                        content = urllib.parse.unquote_to_bytes(payload)
-                    return {'string': content, 'mime_type': mime}
-            except Exception:
-                pass
-            try:
-                default_fetcher = getattr(weasyprint, 'default_url_fetcher', None)
-                if callable(default_fetcher):
-                    return default_fetcher(url, timeout=timeout, ssl_context=ssl_context)
-            except Exception:
-                pass
-            return {'string': b'', 'mime_type': 'text/plain'}
-
-        pdf_bytes = weasyprint.HTML(
-            string=html,
-            base_url=request.build_absolute_uri('/'),
-            url_fetcher=_safe_url_fetcher,
-        ).write_pdf()
-        return pdf_bytes, ''
-    except Exception as exc:
-        logger.exception('WeasyPrint: error generando PDF (debug)')
-        return None, f'{exc.__class__.__name__}: {exc}'
+    return pdf_services.render_pdf_bytes_with_error(request, html)
 
 
 def pdf_view_guard(view_func):
