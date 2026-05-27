@@ -64,6 +64,7 @@ from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
 from . import player_documents
+from . import player_media
 from . import stats_services
 from . import task_library_services
 from . import workspace_context
@@ -1888,188 +1889,7 @@ def _build_pdf_nav_urls(request):
 
 
 def resolve_player_photo_static_path(player):
-    if not player:
-        return ''
-    players_dir = Path(settings.BASE_DIR) / 'static' / 'football' / 'images' / 'players'
-    if not players_dir.exists():
-        return ''
-
-    team_obj = getattr(player, 'team', None)
-    team_id = getattr(team_obj, 'id', None)
-    team_slug = str(getattr(team_obj, 'slug', '') or '').strip()
-    team_category = ''
-    try:
-        team_category = normalize_label(getattr(team_obj, 'category', '') or '')
-    except Exception:
-        team_category = ''
-    try:
-        is_primary_team = bool(getattr(team_obj, 'is_primary', False))
-    except Exception:
-        is_primary_team = False
-    is_youth_category = False
-    if team_category:
-        # Producto: en categorías base los dorsales se repiten con más frecuencia y es peor
-        # mostrar una foto incorrecta (p.ej. del Senior) que no mostrar ninguna.
-        youth_tokens = {
-            'prebenjamin',
-            'pre benjamin',
-            'benjamin',
-            'alevin',
-            'infantil',
-            'cadete',
-            'juvenil',
-        }
-        is_youth_category = any(token in team_category for token in youth_tokens)
-
-    # Multicategoría: evita mezclar fotos entre equipos con el mismo dorsal.
-    # Si existen carpetas por equipo, las usamos para desambiguar:
-    #   static/football/images/players/team-<id>/
-    #   static/football/images/players/<team_slug>/
-    team_dirs = []
-    try:
-        if team_id:
-            team_dirs.append(players_dir / f'team-{int(team_id)}')
-        if team_slug:
-            team_dirs.append(players_dir / team_slug)
-    except Exception:
-        team_dirs = []
-    team_dirs = [d for d in team_dirs if d and d.exists()]
-
-    name_slug = slugify(player.name or '')
-    number_value = player.number if player.number is not None else ''
-    id_candidates = [
-        f'player-{player.id}.png',
-        f'player-{player.id}.jpg',
-        f'player-{player.id}.jpeg',
-        f'player-{player.id}.webp',
-    ]
-    candidates = []
-    if name_slug and number_value != '':
-        candidates.extend(
-            [
-                f'{name_slug}-n{number_value}-final.png',
-                f'{name_slug}-n{number_value}.png',
-                f'{name_slug}-{number_value}.png',
-            ]
-        )
-    if name_slug:
-        candidates.extend(
-            [
-                f'{name_slug}-final.png',
-                f'{name_slug}.png',
-                f'{name_slug}.jpg',
-                f'{name_slug}.jpeg',
-            ]
-        )
-    if number_value != '':
-        candidates.extend(
-            [
-                f'n{number_value}-{name_slug}.png',
-                f'{name_slug}-n{number_value}-cut.png',
-                f'{name_slug}-n{number_value}-crop.png',
-            ]
-        )
-
-    def _resolve_in_dirs(filename: str, dirs: list) -> str:
-        for base_dir in dirs:
-            file_path = base_dir / filename
-            if file_path.exists():
-                try:
-                    rel_dir = base_dir.relative_to(players_dir)
-                    if str(rel_dir) == '.':
-                        return f'football/images/players/{filename}'
-                    return f'football/images/players/{rel_dir.as_posix()}/{filename}'
-                except Exception:
-                    return f'football/images/players/{filename}'
-        return ''
-
-    # 1) Siempre intentamos primero candidatos por ID (únicos globalmente).
-    for filename in id_candidates:
-        resolved = _resolve_in_dirs(filename, team_dirs + [players_dir])
-        if resolved:
-            return resolved
-
-    # 2) El resto (nombre/dorsal) solo se busca en:
-    # - equipo principal (carpeta global), o
-    # - carpetas por equipo si existen.
-    allow_global_dir = bool(is_primary_team and not is_youth_category)
-    name_dirs = team_dirs + ([players_dir] if allow_global_dir else [])
-    seen = set()
-    for filename in candidates:
-        if filename in seen:
-            continue
-        seen.add(filename)
-        resolved = _resolve_in_dirs(filename, name_dirs)
-        if resolved:
-            return resolved
-    # Fallback por dorsal (wildcard):
-    # - Legacy: en el equipo principal funcionaba bien porque el set de fotos era único.
-    # - Multicategoría: el dorsal se repite y puede mezclar fotos entre equipos.
-    # Para mantener UX (y evitar "desaparecer" fotos), permitimos wildcard cuando:
-    #   - es equipo principal, o
-    #   - SOLO hay una coincidencia para ese dorsal, o
-    #   - podemos desambiguar por tokens del nombre (mejor esfuerzo).
-    if number_value != '':
-        wildcard_patterns = [
-            f'*-n{number_value}-final.*',
-            f'*-n{number_value}-cut.*',
-            f'*-n{number_value}-crop.*',
-            f'*-n{number_value}.*',
-        ]
-        wildcard_dirs = [players_dir] if allow_global_dir else []
-        wildcard_dirs = team_dirs + wildcard_dirs
-        wildcard_matches = []
-        try:
-            seen_matches = set()
-            for pattern in wildcard_patterns:
-                for base_dir in wildcard_dirs:
-                    for file_path in base_dir.glob(pattern):
-                        if not file_path.is_file():
-                            continue
-                        signature = f'{base_dir}:{file_path.name}'
-                        if signature in seen_matches:
-                            continue
-                        seen_matches.add(signature)
-                        wildcard_matches.append(file_path)
-        except Exception:
-            wildcard_matches = []
-        if len(wildcard_matches) == 1:
-            chosen = wildcard_matches[0]
-            try:
-                rel_dir = chosen.parent.relative_to(players_dir)
-                if str(rel_dir) == '.':
-                    return f'football/images/players/{chosen.name}'
-                return f'football/images/players/{rel_dir.as_posix()}/{chosen.name}'
-            except Exception:
-                return f'football/images/players/{chosen.name}'
-        if wildcard_matches:
-            # Si hay varias, intentamos elegir la que más "se parece" al nombre del jugador.
-            try:
-                tokens = [t for t in str(name_slug or '').split('-') if t]
-                def _score(path_obj):
-                    fname = str(path_obj.name or '').lower()
-                    return sum(1 for t in tokens if t and t in fname)
-                scored = sorted(((int(_score(p)), p) for p in wildcard_matches), key=lambda it: (-it[0], it[1].name))
-                best_score, best_path = scored[0]
-                if is_primary_team or best_score > 0:
-                    try:
-                        rel_dir = best_path.parent.relative_to(players_dir)
-                        if str(rel_dir) == '.':
-                            return f'football/images/players/{best_path.name}'
-                        return f'football/images/players/{rel_dir.as_posix()}/{best_path.name}'
-                    except Exception:
-                        return f'football/images/players/{best_path.name}'
-            except Exception:
-                if is_primary_team:
-                    chosen = wildcard_matches[0]
-                    try:
-                        rel_dir = chosen.parent.relative_to(players_dir)
-                        if str(rel_dir) == '.':
-                            return f'football/images/players/{chosen.name}'
-                        return f'football/images/players/{rel_dir.as_posix()}/{chosen.name}'
-                    except Exception:
-                        return f'football/images/players/{chosen.name}'
-    return ''
+    return player_media.resolve_player_photo_static_path(player)
 
 
 def _player_photo_storage_candidates(player):
@@ -59450,91 +59270,15 @@ def _normalize_excel_header(value):
 
 
 def _active_club_season_date_bounds_from_request(request):
-    if request is None:
-        return None, None
-    try:
-        workspace = _get_active_workspace(request)
-        active_club_season = getattr(workspace, 'active_season', None) if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB else None
-        if active_club_season and bool(getattr(active_club_season, 'is_active', True)):
-            return (
-                getattr(active_club_season, 'start_date', None),
-                getattr(active_club_season, 'end_date', None),
-            )
-    except Exception:
-        pass
-    return None, None
+    return stats_services.active_club_season_date_bounds_from_request(request)
 
 
 def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
-    if not primary_team:
-        return {'total_events': 0, 'top_event_types': [], 'top_results': []}
-    scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
-    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-        scope_value = Match.CONTEXT_LEAGUE
-    date_start, date_end = _active_club_season_date_bounds_from_request(request)
-    cache_key = f'{_team_metrics_cache_key(primary_team.id)}:{scope_value}'
-    if not date_start and not date_end:
-        cached = cache.get(cache_key)
-        if isinstance(cached, dict) and cached:
-            return cached
-    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
-    events_qs = (
-        confirmed_events_queryset()
-        .filter(player__team=primary_team)
-        .select_related('match')
-        .order_by('match_id', 'minute', 'id')
-    )
-    if scope_value != 'all':
-        if scope_value == Match.CONTEXT_LEAGUE:
-            # Compat: partidos legacy pueden venir con `context=''` y se consideran Liga.
-            events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
-        else:
-            events_qs = events_qs.filter(match__context=scope_value)
-    if date_start:
-        events_qs = events_qs.filter(match__date__gte=date_start)
-    if date_end:
-        events_qs = events_qs.filter(match__date__lte=date_end)
-    events = _filter_stats_events(
-        events_qs,
-        preferred_sources=preferred_sources,
-    )
-    total_events = len(events)
-    event_counter = Counter(event.event_type for event in events)
-    result_counter = Counter(event.result for event in events)
-
-    top_events = [{'event': etype, 'count': count} for etype, count in event_counter.most_common(5)]
-    top_results = [{'result': result, 'count': count} for result, count in result_counter.most_common(5)]
-
-    payload = {
-        'total_events': total_events,
-        'top_event_types': top_events,
-        'top_results': top_results,
-    }
-    if not date_start and not date_end:
-        cache.set(cache_key, payload, TEAM_METRICS_CACHE_SECONDS)
-    return payload
+    return stats_services.compute_team_metrics(primary_team, scope=scope, request=request)
 
 
 def compute_team_metrics_for_match(match, primary_team=None):
-    events_qs = confirmed_events_queryset().filter(match=match)
-    preferred_sources = None
-    if primary_team:
-        events_qs = events_qs.filter(player__team=primary_team)
-        preferred_sources = preferred_event_source_by_match(primary_team)
-    events = _filter_stats_events(
-        events_qs.select_related('player', 'match').order_by('minute', 'id'),
-        preferred_sources=preferred_sources,
-    )
-    total_events = len(events)
-    event_counter = Counter(event.event_type for event in events)
-    result_counter = Counter(event.result for event in events)
-    top_events = [{'event': etype, 'count': count} for etype, count in event_counter.most_common(6)]
-    top_results = [{'result': result, 'count': count} for result, count in result_counter.most_common(6)]
-    return {
-        'total_events': total_events,
-        'top_event_types': top_events,
-        'top_results': top_results,
-    }
+    return stats_services.compute_team_metrics_for_match(match, primary_team=primary_team)
 
 
 def _event_signature(event):
@@ -59560,97 +59304,10 @@ def _match_action_dedupe_signature(event):
 
 
 def compute_player_cards_for_match(match, primary_team, source_file=None):
-    events = confirmed_events_queryset().filter(match=match, player__team=primary_team)
-    if source_file:
-        events = events.filter(source_file=source_file)
-        preferred_sources = None
-    else:
-        preferred_sources = preferred_event_source_by_match(primary_team)
-    rows = _filter_stats_events(
-        events.select_related('player', 'match').order_by('minute', 'id'),
-        preferred_sources=preferred_sources,
-    )
-    per_player = {}
-    for event in rows:
-        player = event.player
-        if not player:
-            continue
-        photo_path = resolve_player_photo_static_path(player)
-        data = per_player.setdefault(
-            player.id,
-            {
-                'player_id': player.id,
-                'name': player.name,
-                'number': player.number or '--',
-                'photo_url': static(photo_path) if photo_path else '',
-                'actions': 0,
-                'successes': 0,
-            },
-        )
-        data['actions'] += 1
-        if result_is_success(event.result):
-            data['successes'] += 1
-    cards = list(per_player.values())
-    for item in cards:
-        total_actions = item['actions']
-        success = item['successes']
-        item['success_rate'] = round((success / total_actions) * 100, 1) if total_actions else 0
-    return sorted(cards, key=lambda item: item['actions'], reverse=True)
+    return stats_services.compute_player_cards_for_match(match, primary_team, source_file=source_file)
 
 def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
-    if not primary_team:
-        return []
-    scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
-    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
-        scope_value = Match.CONTEXT_LEAGUE
-    date_start, date_end = _active_club_season_date_bounds_from_request(request)
-    cache_key = f'{_player_metrics_cache_key(primary_team.id)}:{scope_value}'
-    if not date_start and not date_end:
-        cached = cache.get(cache_key)
-        if isinstance(cached, list) and cached:
-            return cached
-    preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
-    events_qs = (
-        confirmed_events_queryset()
-        .filter(player__team=primary_team)
-        .select_related('player', 'match')
-        .order_by('match_id', 'minute', 'id')
-    )
-    if scope_value != 'all':
-        if scope_value == Match.CONTEXT_LEAGUE:
-            # Compat: partidos legacy pueden venir con `context=''` y se consideran Liga.
-            events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
-        else:
-            events_qs = events_qs.filter(match__context=scope_value)
-    if date_start:
-        events_qs = events_qs.filter(match__date__gte=date_start)
-    if date_end:
-        events_qs = events_qs.filter(match__date__lte=date_end)
-    events = _filter_stats_events(
-        events_qs,
-        preferred_sources=preferred_sources,
-    )
-    per_player = {}
-    for event in events:
-        player = event.player
-        if not player:
-            continue
-        item = per_player.setdefault(
-            player.id,
-            {
-                'player_id': player.id,
-                'player': player.name,
-                'actions': 0,
-                'successes': 0,
-            },
-        )
-        item['actions'] += 1
-        if result_is_success(event.result):
-            item['successes'] += 1
-    result = sorted(per_player.values(), key=lambda item: (-item['actions'], item['player']))
-    if not date_start and not date_end:
-        cache.set(cache_key, result, PLAYER_METRICS_CACHE_SECONDS)
-    return result
+    return stats_services.compute_player_metrics(primary_team, scope=scope, request=request)
 
 
 def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):

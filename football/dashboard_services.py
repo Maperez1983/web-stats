@@ -1,5 +1,7 @@
 from django.utils.module_loading import import_string
 
+from . import stats_services
+
 
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
 
@@ -9,15 +11,15 @@ def _views_func(name):
 
 
 def compute_team_metrics_for_match(*args, **kwargs):
-    return _views_func('compute_team_metrics_for_match')(*args, **kwargs)
+    return stats_services.compute_team_metrics_for_match(*args, **kwargs)
 
 
 def compute_player_cards_for_match(*args, **kwargs):
-    return _views_func('compute_player_cards_for_match')(*args, **kwargs)
+    return stats_services.compute_player_cards_for_match(*args, **kwargs)
 
 
 def compute_player_metrics(*args, **kwargs):
-    return _views_func('compute_player_metrics')(*args, **kwargs)
+    return stats_services.compute_player_metrics(*args, **kwargs)
 
 
 def compute_player_dashboard(*args, **kwargs):
