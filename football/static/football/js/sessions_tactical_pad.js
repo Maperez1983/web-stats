@@ -1072,6 +1072,7 @@
 		    const tokenStripeColorInput = document.getElementById('task-token-stripe-color');
 		    const tokenStripeColorHexInput = document.getElementById('task-token-stripe-color-hex');
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
+		    const tokenKitActions = document.getElementById('task-token-kit-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
 		    const tokenDisplayPresets = document.getElementById('task-token-display-presets');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
@@ -1209,6 +1210,7 @@
 				        try { rotationInput?.closest('label')?.setAttribute('hidden', ''); } catch (e) { /* ignore */ }
 				        try { tokenColorGrid && (tokenColorGrid.hidden = true); } catch (e) { /* ignore */ }
 				        try { tokenPatternActions && (tokenPatternActions.hidden = true); } catch (e) { /* ignore */ }
+				        try { tokenKitActions && (tokenKitActions.hidden = true); } catch (e) { /* ignore */ }
 				        try { tokenNameTagActions && (tokenNameTagActions.hidden = true); } catch (e) { /* ignore */ }
 				        try { zoneStyleActions && (zoneStyleActions.hidden = true); } catch (e) { /* ignore */ }
 				      }
@@ -3010,17 +3012,24 @@
 		    const kit2dCanvasDataUrlsBySlot = { home: '', away: '', gk: '' };
 		    const kit2dCanvasImagesBySlot = { home: null, away: null, gk: null };
 		    let kit2dPrefLoadStarted = false;
-		    const kit2dSlotForTokenKind = (kind) => {
+		    const normalizeKit2dSlot = (value) => {
+		      const slot = safeText(value).toLowerCase();
+		      if (slot === 'home' || slot === 'away' || slot === 'gk') return slot;
+		      return '';
+		    };
+		    const kit2dSlotForTokenKind = (kind, overrideSlot = '') => {
+		      const chosen = normalizeKit2dSlot(overrideSlot);
+		      if (chosen) return chosen;
 		      if (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') return 'gk';
 		      if (kind === 'player_rival' || kind === 'player_away') return 'away';
 		      return 'home';
 		    };
-		    const kit2dDataUrlForTokenKind = (kind) => {
-		      const slot = kit2dSlotForTokenKind(kind);
+		    const kit2dDataUrlForTokenKind = (kind, overrideSlot = '') => {
+		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot.home || kit2dEditorDataUrl || '';
 		    };
-		    const kit2dImageForTokenKind = (kind) => {
-		      const slot = kit2dSlotForTokenKind(kind);
+		    const kit2dImageForTokenKind = (kind, overrideSlot = '') => {
+		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
@@ -4725,6 +4734,12 @@
 	      applyTokenPalette(group, palette);
 	      return true;
 	    };
+	    const tokenKitSlotLabel = (slotRaw) => {
+	      const slot = normalizeKit2dSlot(slotRaw);
+	      if (slot === 'away') return '2ª equipación';
+	      if (slot === 'gk') return 'portero';
+	      return '1ª equipación';
+	    };
 
 	    const normalizeZoneStyle = (value) => {
 	      const v = safeText(value).toLowerCase();
@@ -5222,6 +5237,7 @@
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
 			        if (tokenColorGrid) tokenColorGrid.hidden = true;
 			        if (tokenPatternActions) tokenPatternActions.hidden = true;
+			        if (tokenKitActions) tokenKitActions.hidden = true;
 			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
 			        if (tokenDisplayPresets) tokenDisplayPresets.hidden = true;
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
@@ -5856,6 +5872,7 @@
 		        base: safeText(active?.data?.token_base_color) || '#ffffff',
 		        stripe: safeText(active?.data?.token_stripe_color) || safeText(active?.data?.color) || '#0f7a35',
 		        pattern: safeText(active?.data?.token_pattern) || 'striped',
+		        kit_slot: normalizeKit2dSlot(active?.data?.token_kit_slot || ''),
 		        photoUrl: safeText(active?.data?.playerPhotoUrl) || safeText(player?.photo_url),
 		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
 		        fov_visible: !!active?.data?.fov_visible,
@@ -5895,6 +5912,59 @@
 		      applyTokenPalette(fresh, palette);
 		      canvas.setActiveObject(fresh);
 		      commitObjectChange(`Token: ${nextStyle === 'disk' ? 'chapa' : (nextStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
+		    };
+
+		    const setActiveTokenKitSlot = (rawSlot) => {
+		      const active = activeInspectableObject();
+		      if (!active || !isTokenGroup(active)) return;
+		      if (active?.data?.locked) {
+		        setStatus('Elemento bloqueado. Usa “Desbloquear” para editarlo.', true);
+		        return;
+		      }
+		      const nextSlot = normalizeKit2dSlot(rawSlot);
+		      if (!nextSlot) return;
+		      const tokenKind = safeText(active?.data?.token_kind);
+		      const center = active.getCenterPoint ? active.getCenterPoint() : { x: Number(active.left) || 0, y: Number(active.top) || 0 };
+		      const player = resolvePlayerForToken(active);
+		      const options = {
+		        style: normalizeTokenStyle(active?.data?.token_style || 'jersey'),
+		        base: safeText(active?.data?.token_base_color) || '#ffffff',
+		        stripe: safeText(active?.data?.token_stripe_color) || safeText(active?.data?.color) || '#0f7a35',
+		        pattern: safeText(active?.data?.token_pattern) || 'striped',
+		        kit_slot: nextSlot,
+		        photoUrl: safeText(active?.data?.playerPhotoUrl) || safeText(player?.photo_url),
+		        facing_deg: normalizeAngle(active?.data?.facing_deg, 0),
+		        fov_visible: !!active?.data?.fov_visible,
+		        fov_width_deg: clamp(Number(active?.data?.fov_width_deg) || 70, 20, 160),
+		      };
+		      const factory = playerTokenFactory(tokenKind || 'player_local', player, options);
+		      if (typeof factory !== 'function') return;
+		      const fresh = factory(center.x, center.y);
+		      if (!fresh) return;
+		      const prevData = active.data || {};
+		      const objects = canvas.getObjects() || [];
+		      const index = objects.indexOf(active);
+		      canvas.remove(active);
+		      canvas.insertAt(fresh, index >= 0 ? index : objects.length, false);
+		      fresh.set({
+		        angle: Number(active.angle) || 0,
+		        scaleX: clampScale(Number(active.scaleX) || 1),
+		        scaleY: clampScale(Number(active.scaleY) || 1),
+		        opacity: active.opacity == null ? 1 : active.opacity,
+		      });
+		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot };
+		      try {
+		        fresh.data.facing_deg = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
+		        setTokenFacing(fresh, fresh.data.facing_deg);
+		      } catch (e) { /* ignore */ }
+		      try {
+		        fresh.data.fov_visible = !!(prevData?.fov_visible ?? active?.data?.fov_visible);
+		        fresh.data.fov_width_deg = clamp(Number(prevData?.fov_width_deg ?? active?.data?.fov_width_deg) || 70, 20, 160);
+		        setTokenFov(fresh, { visible: !!fresh.data.fov_visible, widthDeg: fresh.data.fov_width_deg });
+		      } catch (e) { /* ignore */ }
+		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
+		      canvas.setActiveObject(fresh);
+		      commitObjectChange(`Camiseta: ${tokenKitSlotLabel(nextSlot)}.`);
 		    };
 
 	    const getSelectionObjects = () => {
@@ -17205,6 +17275,7 @@
 		      const baseColor = parseColorToHex(options?.base, parseColorToHex(player?.token_base_color, defaultBase)) || defaultBase;
 		      const stripeColor = parseColorToHex(options?.stripe, parseColorToHex(player?.token_stripe_color, defaultStripe)) || defaultStripe;
 		      const photoUrl = resolvePlayerPhotoUrl(options?.photoUrl || player?.photo_url);
+		      const tokenKitSlot = normalizeKit2dSlot(options?.kit_slot || player?.token_kit_slot || player?.kit_slot || '');
 		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
@@ -17308,7 +17379,7 @@
 		          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
 				        } else if (style === 'jersey') {
-				          const kit2dImageEl = kit2dImageForTokenKind(kind);
+				          const kit2dImageEl = kit2dImageForTokenKind(kind, tokenKitSlot);
 				          const canUseKit2d = kit2dImageEl && (kit2dImageEl.naturalWidth || kit2dImageEl.width);
 				          if (canUseKit2d) {
 				            const naturalW = Number(kit2dImageEl.naturalWidth || kit2dImageEl.width || 1);
@@ -17883,6 +17954,7 @@
 			          token_size: 'm',
 			          token_style: style,
 			          token_pattern: pattern,
+			          token_kit_slot: tokenKitSlot,
 			          token_name_tag: 'solid',
 			          token_base_color: baseColor,
 			          token_stripe_color: stripeColor,
@@ -22505,6 +22577,11 @@
 			        }, `Patrón: ${TOKEN_PATTERN_LABEL[normalizeTokenPattern(tokenPattern)] || normalizeTokenPattern(tokenPattern)}.`);
 			        return;
 			      }
+			      const tokenKitSlot = safeText(button.dataset.tokenKitSlot);
+			      if (tokenKitSlot) {
+			        setActiveTokenKitSlot(tokenKitSlot);
+			        return;
+			      }
 			      const tokenNameTag = safeText(button.dataset.tokenNameTag);
 			      if (tokenNameTag) {
 			        applyToActiveFlexibleObject((active) => {
@@ -24298,8 +24375,17 @@
 		          });
 		        }
 		        const hasStripes = tokenHasStripeRoles(active);
-		        if (tokenColorGrid) tokenColorGrid.hidden = !hasStripes || style === 'photo';
+		        if (tokenColorGrid) tokenColorGrid.hidden = style === 'photo';
 		        if (tokenPatternActions) tokenPatternActions.hidden = !hasStripes || style === 'photo';
+		        if (tokenKitActions) {
+		          tokenKitActions.hidden = style !== 'jersey';
+		          const currentKitSlot = normalizeKit2dSlot(active?.data?.token_kit_slot || '') || kit2dSlotForTokenKind(safeText(active?.data?.token_kind));
+		          Array.from(tokenKitActions.querySelectorAll('button[data-token-kit-slot]') || []).forEach((btn) => {
+		            const btnSlot = normalizeKit2dSlot(btn.dataset.tokenKitSlot);
+		            btn.classList.toggle('is-active', btnSlot === currentKitSlot);
+		            try { btn.setAttribute('aria-pressed', btnSlot === currentKitSlot ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
 		        if (tokenBaseColorInput) {
 		          try { tokenBaseColorInput.value = parseColorToHex(active?.data?.token_base_color, '#ffffff'); } catch (e) { /* ignore */ }
 		        }
@@ -24324,6 +24410,7 @@
 		        if (tokenStyleActions) tokenStyleActions.hidden = true;
 		        if (tokenColorGrid) tokenColorGrid.hidden = true;
 		        if (tokenPatternActions) tokenPatternActions.hidden = true;
+		        if (tokenKitActions) tokenKitActions.hidden = true;
 		      }
 		    };
 
