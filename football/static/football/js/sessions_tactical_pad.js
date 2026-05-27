@@ -1030,6 +1030,8 @@
 			    const targetSessionSelect = document.getElementById('draw-target-session');
 			    const libraryPane = document.querySelector('.side-pane[data-pane="biblioteca"]');
 			    const selectionToolbar = document.getElementById('task-selection-toolbar');
+    const selectionPreview = document.getElementById('task-selection-preview');
+    const inspectorAdvanced = document.getElementById('task-inspector-advanced');
     const selectionSummary = document.getElementById('task-selection-summary');
     const scaleXInput = document.getElementById('task-scale-x');
     const scaleYInput = document.getElementById('task-scale-y');
@@ -1071,9 +1073,10 @@
 		    const tokenStripeColorHexInput = document.getElementById('task-token-stripe-color-hex');
 		    const tokenPatternActions = document.getElementById('task-token-pattern-actions');
 		    const tokenNameTagActions = document.getElementById('task-token-name-tag-actions');
+		    const tokenDisplayPresets = document.getElementById('task-token-display-presets');
 		    const zoneStyleActions = document.getElementById('task-zone-style-actions');
 		    const backgroundEditActions = document.getElementById('task-background-edit-actions');
-				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global');
+				    const tokenGlobalStyleActions = document.getElementById('task-token-style-global') || document.getElementById('task-token-style-global-tactics');
 				    const commandBar = document.getElementById('task-command-bar');
 				    const commandMoreBtn = document.getElementById('task-command-more');
 				    const commandMenu = document.getElementById('task-command-menu');
@@ -2080,6 +2083,7 @@
 		    const layersPopover = document.getElementById('task-layers-popover');
 		    const layersCloseBtn = document.getElementById('task-layers-close');
 		    const scenariosBtn = document.getElementById('task-scenarios-btn');
+		    const zonesBtn = document.getElementById('task-zones-btn');
 		    const scenariosPopover = document.getElementById('task-scenarios-popover');
 		    const scenariosCloseBtn = document.getElementById('task-scenarios-close');
 		    const scenarioAddBtn = document.getElementById('task-scenario-add');
@@ -2932,6 +2936,21 @@
 	    };
 	    syncTokenGlobalStyleUi();
 			    tokenGlobalStyleActions?.addEventListener('click', (event) => {
+			      const teamPresetBtn = event.target.closest('button[data-token-team-preset]');
+			      if (teamPresetBtn) {
+			        event.preventDefault();
+			        const preset = safeText(teamPresetBtn.dataset.tokenTeamPreset);
+			        const active = activeInspectableObject();
+			        if (active && isTokenGroup(active)) {
+			          applyToActiveFlexibleObject((object) => {
+			            if (!isTokenGroup(object)) return;
+			            applyTokenTeamPreset(object, preset);
+			          }, `Chapa: ${preset}.`);
+			        } else {
+			          setStatus('Selecciona una chapa para aplicar ese preset.');
+			        }
+			        return;
+			      }
 			      const btn = event.target.closest('button[data-global-token-style]');
 			      if (!btn) return;
 			      event.preventDefault();
@@ -4618,6 +4637,40 @@
 	      group.dirty = true;
 	      return true;
 	    };
+	    const applyTokenDisplayPreset = (group, modeRaw) => {
+	      if (!group || safeText(group?.data?.kind) !== 'token') return false;
+	      const mode = safeText(modeRaw, 'name_number') === 'number_only' ? 'number_only' : 'name_number';
+	      setObjectData(group, { token_display: mode });
+	      const showName = mode !== 'number_only';
+	      walkTokenObjects(group, (child) => {
+	        if (!child) return;
+	        const role = safeText(child?.data?.role);
+	        if (role === 'token_name') {
+	          try { child.set({ visible: showName, opacity: showName ? 1 : 0 }); } catch (e) { /* ignore */ }
+	        }
+	        if (role === 'token_name_bg') {
+	          try { child.set({ visible: showName, opacity: showName ? 1 : 0 }); } catch (e) { /* ignore */ }
+	        }
+	      });
+	      if (showName) applyTokenNameTagMode(group, normalizeTokenNameTagMode(group?.data?.token_name_tag));
+	      group.dirty = true;
+	      return true;
+	    };
+	    const tokenTeamPresetPalette = (presetRaw) => {
+	      const preset = safeText(presetRaw, 'local').toLowerCase();
+	      const local = parseColorToHex(tokenGlobalColorLocalInput?.value, '#0f7a35') || '#0f7a35';
+	      const rival = parseColorToHex(tokenGlobalColorRivalInput?.value, '#ef4444') || '#ef4444';
+	      if (preset === 'rival') return { base: rival, stripe: '#ffffff', pattern: 'solid' };
+	      if (preset === 'goalkeeper') return { base: '#1d4ed8', stripe: '#0ea5e9', pattern: 'solid' };
+	      if (preset === 'neutral') return { base: '#f8fafc', stripe: '#64748b', pattern: 'solid' };
+	      return { base: '#ffffff', stripe: local, pattern: 'striped' };
+	    };
+	    const applyTokenTeamPreset = (group, presetRaw) => {
+	      if (!group || safeText(group?.data?.kind) !== 'token') return false;
+	      const palette = tokenTeamPresetPalette(presetRaw);
+	      applyTokenPalette(group, palette);
+	      return true;
+	    };
 
 	    const normalizeZoneStyle = (value) => {
 	      const v = safeText(value).toLowerCase();
@@ -5094,6 +5147,8 @@
 	        if (ballStrikeTimingRow) ballStrikeTimingRow.hidden = true;
 	        if (tokenNameInput) tokenNameInput.value = '';
 	        if (tokenNumberInput) tokenNumberInput.value = '';
+	        if (selectionPreview) selectionPreview.textContent = '•';
+	        if (inspectorAdvanced) inspectorAdvanced.hidden = true;
 		        selectionSummary.textContent = 'Selecciona un recurso para ajustarlo.';
 		        try {
 		          if (scaleXInput) scaleXInput.max = '260';
@@ -5114,6 +5169,7 @@
 			        if (tokenColorGrid) tokenColorGrid.hidden = true;
 			        if (tokenPatternActions) tokenPatternActions.hidden = true;
 			        if (tokenNameTagActions) tokenNameTagActions.hidden = true;
+			        if (tokenDisplayPresets) tokenDisplayPresets.hidden = true;
 			        if (zoneStyleActions) zoneStyleActions.hidden = true;
 			        if (backgroundEditActions) backgroundEditActions.hidden = true;
 			        selectionDockDismissed = false;
@@ -5140,6 +5196,20 @@
 			      try { if (selectionDockEl) selectionDockEl.hidden = !shouldDockSelectionInspector(); } catch (e) { /* ignore */ }
 			      const canColor = isColorizableObject(active);
 	      selectionToolbar.querySelectorAll('input,button').forEach((node) => { node.disabled = false; });
+	      if (selectionPreview) {
+	        const kind = safeText(active?.data?.kind);
+	        const label = objectLabel(active);
+	        let previewText = (label || kind || '•').slice(0, 1).toUpperCase();
+	        if (kind === 'token') previewText = safeText(active?.data?.playerNumber, '') || safeText(active?.data?.playerName, 'J').slice(0, 1).toUpperCase();
+	        if (kind === 'ball') previewText = '⚽';
+	        if (kind === 'zone') previewText = '▧';
+	        if (kind === 'text') previewText = 'T';
+	        selectionPreview.textContent = previewText || '•';
+	        try {
+	          const color = objectPreferredColor(active);
+	          selectionPreview.style.background = `radial-gradient(circle at 30% 20%, rgba(255,255,255,0.24), transparent 42%), linear-gradient(135deg, ${color}, rgba(15,23,42,0.92))`;
+	        } catch (e) { /* ignore */ }
+	      }
 	      colorInput.disabled = !canColor;
 	      if (colorHexInput) colorHexInput.disabled = !canColor;
 	      selectionToolbar.querySelectorAll('button[data-color]').forEach((node) => { node.disabled = !canColor; });
@@ -5170,6 +5240,7 @@
 		      }
 			      const isToken = safeText(active?.data?.kind) === 'token';
 			      const isBall = safeText(active?.data?.kind) === 'ball';
+			      if (inspectorAdvanced) inspectorAdvanced.hidden = !(isToken || isBall);
 			      if (tokenSizePresetsRow) tokenSizePresetsRow.hidden = !isToken;
 			      if (scalePresetsRow) scalePresetsRow.hidden = !!isToken;
 		      if (tokenStyleActions) tokenStyleActions.hidden = !isToken;
@@ -5209,6 +5280,17 @@
 		          const mode = normalizeTokenNameTagMode(active?.data?.token_name_tag);
 		          Array.from(tokenNameTagActions.querySelectorAll('button[data-token-name-tag]') || []).forEach((btn) => {
 		            const btnMode = normalizeTokenNameTagMode(btn.dataset.tokenNameTag);
+		            btn.classList.toggle('is-active', btnMode === mode);
+		            try { btn.setAttribute('aria-pressed', btnMode === mode ? 'true' : 'false'); } catch (e) { /* ignore */ }
+		          });
+		        }
+		      }
+		      if (tokenDisplayPresets) {
+		        tokenDisplayPresets.hidden = !isToken;
+		        if (isToken) {
+		          const mode = safeText(active?.data?.token_display, 'name_number') === 'number_only' ? 'number_only' : 'name_number';
+		          Array.from(tokenDisplayPresets.querySelectorAll('button[data-token-display-preset]') || []).forEach((btn) => {
+		            const btnMode = safeText(btn.dataset.tokenDisplayPreset, 'name_number') === 'number_only' ? 'number_only' : 'name_number';
 		            btn.classList.toggle('is-active', btnMode === mode);
 		            try { btn.setAttribute('aria-pressed', btnMode === mode ? 'true' : 'false'); } catch (e) { /* ignore */ }
 		          });
@@ -6342,6 +6424,98 @@
 				        .filter((item) => zoneLikeKinds(item?.data?.kind));
 				      return json;
 				    };
+				    const hasActiveTacticalZoneOverlay = () => !!(
+				      tacticalLanesVisible
+				      || tacticalSectorsVisible
+				      || tacticalHalfspacesVisible
+				      || tacticalOffsideVisible
+				      || tacticalZone14Visible
+				      || tacticalGridVisible
+				    );
+				    const serializeActiveTacticalZoneOverlay = () => {
+				      const { w, h } = worldSize();
+				      if (!w || !h) return null;
+				      if (!hasActiveTacticalZoneOverlay()) return null;
+				      const tmpEl = document.createElement('canvas');
+				      tmpEl.width = Math.max(2, Math.round(w));
+				      tmpEl.height = Math.max(2, Math.round(h));
+				      const tmp = new fabric.StaticCanvas(tmpEl, { width: tmpEl.width, height: tmpEl.height });
+				      const addDivider = (axis, pos, opts = {}) => {
+				        const isVertical = axis === 'v';
+				        const line = new fabric.Line(
+				          isVertical ? [pos, 0, pos, h] : [0, pos, w, pos],
+				          {
+				            stroke: opts.stroke || 'rgba(226,232,240,0.70)',
+				            strokeWidth: opts.strokeWidth || 2,
+				            strokeDashArray: opts.dash || [10, 10],
+				            selectable: true,
+				            evented: true,
+				            excludeFromExport: false,
+				          },
+				        );
+				        line.data = { kind: isVertical ? 'shape-lane-divider-v' : 'shape-lane-divider-h', axis };
+				        try { line.strokeUniform = true; } catch (e) { /* ignore */ }
+				        tmp.add(line);
+				      };
+				      const addZoneRect = (x, y, width, height, opts = {}) => {
+				        const rect = new fabric.Rect({
+				          left: x,
+				          top: y,
+				          originX: 'left',
+				          originY: 'top',
+				          width,
+				          height,
+				          fill: opts.fill || 'rgba(99,102,241,0.12)',
+				          stroke: opts.stroke || 'rgba(99,102,241,0.45)',
+				          strokeWidth: opts.strokeWidth || 2,
+				          strokeDashArray: opts.dash || [10, 8],
+				          selectable: true,
+				          evented: true,
+				          excludeFromExport: false,
+				        });
+				        rect.data = { kind: 'zone', from_overlay: true };
+				        try { rect.objectCaching = false; } catch (e) { /* ignore */ }
+				        tmp.add(rect);
+				      };
+				      if (tacticalLanesVisible) {
+				        for (let i = 1; i <= 4; i += 1) addDivider('h', (h * i) / 5);
+				      }
+				      if (tacticalSectorsVisible) {
+				        for (let i = 1; i <= 2; i += 1) addDivider('v', (w * i) / 3);
+				      }
+				      if (tacticalGridVisible) {
+				        const rows = clamp(Number.parseInt(String(tacticalGridRows || 4), 10) || 4, 2, 12);
+				        const cols = clamp(Number.parseInt(String(tacticalGridCols || 6), 10) || 6, 2, 12);
+				        for (let r = 1; r < rows; r += 1) addDivider('h', (h * r) / rows, { stroke: 'rgba(226,232,240,0.44)', strokeWidth: 1 });
+				        for (let c = 1; c < cols; c += 1) addDivider('v', (w * c) / cols, { stroke: 'rgba(226,232,240,0.44)', strokeWidth: 1 });
+				      }
+				      if (tacticalHalfspacesVisible) {
+				        const laneH = h / 5;
+				        addZoneRect(0, laneH, w, laneH);
+				        addZoneRect(0, laneH * 3, w, laneH);
+				      }
+				      if (tacticalOffsideVisible) {
+				        const dx = 13 * (w / 105);
+				        if (dx > 0 && dx < (w / 2)) {
+				          addDivider('v', dx, { stroke: 'rgba(250,204,21,0.78)', strokeWidth: 3 });
+				          addDivider('v', w - dx, { stroke: 'rgba(250,204,21,0.78)', strokeWidth: 3 });
+				        }
+				      }
+				      if (tacticalZone14Visible) {
+				        const sx = w / 105;
+				        const sy = h / 68;
+				        const penaltyDepth = 16.5 * sx;
+				        const zoneLen = 10 * sx;
+				        const zoneWidth = 20 * sy;
+				        const y = (h / 2) - (zoneWidth / 2);
+				        addZoneRect(Math.max(0, penaltyDepth), y, zoneLen, zoneWidth, { fill: 'rgba(245,158,11,0.12)', stroke: 'rgba(245,158,11,0.70)' });
+				        addZoneRect(Math.max(0, w - penaltyDepth - zoneLen), y, zoneLen, zoneWidth, { fill: 'rgba(245,158,11,0.12)', stroke: 'rgba(245,158,11,0.70)' });
+				      }
+				      const json = tmp.toJSON(['data']);
+				      try { tmp.dispose(); } catch (e) { /* ignore */ }
+				      json.objects = (json.objects || []).filter((item) => zoneLikeKinds(item?.data?.kind));
+				      return json.objects.length ? json : null;
+				    };
 				    const clearZonesOnCanvas = () => {
 				      const targets = collectZoneObjectsForTemplate();
 				      if (!targets.length) {
@@ -6738,6 +6912,10 @@
 				    // Exponer un helper global: en modo "Táctica" algunos usuarios no ven el botón de "Más acciones (⋯)"
 				    // dependiendo del layout/zoom. Esto permite abrir Overlays desde un botón dedicado en la barra superior.
 				    try { window.__tpadOpenOverlaysPopover = openOverlaysPopover; } catch (e) { /* ignore */ }
+				    zonesBtn?.addEventListener('click', (event) => {
+				      event.preventDefault();
+				      openZonesPopover();
+				    });
 				    zonesCloseBtn?.addEventListener('click', (event) => {
 				      event.preventDefault();
 				      closeZonesPopover();
@@ -6768,8 +6946,9 @@
 				        return;
 				      }
 				      const zones = collectZoneObjectsForTemplate();
-				      if (!zones.length) {
-				        setStatus('No hay zonas/carriles para guardar.', true);
+				      const overlayJson = zones.length ? null : serializeActiveTacticalZoneOverlay();
+				      if (!zones.length && !overlayJson) {
+				        setStatus('No hay zonas/carriles para guardar. Activa carriles/sectores en Overlays o dibuja zonas manuales.', true);
 				        return;
 				      }
 				      const { w, h } = worldSize();
@@ -6781,12 +6960,12 @@
 				        created_at: new Date().toISOString(),
 				        sourceWidth: Math.round(w || 0),
 				        sourceHeight: Math.round(h || 0),
-				        json: serializeZonesOnly(),
+				        json: overlayJson || serializeZonesOnly(),
 				      });
 				      writeZonesTemplates(templates.slice(0, 30));
 				      fillZonesTemplateSelect();
 				      try { zonesTemplateSelect.value = id; } catch (e) { /* ignore */ }
-				      setStatus(`Plantilla guardada: ${name}.`);
+				      setStatus(`Plantilla guardada: ${name}${overlayJson ? ' (desde overlays)' : ''}.`);
 				    });
 				    zonesApplyBtn?.addEventListener('click', async (event) => {
 				      event.preventDefault();
@@ -6832,6 +7011,7 @@
 			      else if (command === 'grid_size') cycleGridSize();
 			      else if (command === 'formation') openFormationPopover();
 			      else if (command === 'tactical_overlays') openOverlaysPopover();
+			      else if (command === 'zones') openZonesPopover();
 			      else if (command === 'lane_snap_toggle') {
 			        tacticalSnapEnabled = !tacticalSnapEnabled;
 			        persistTacticalPrefs();
@@ -22215,6 +22395,11 @@
 		        }, willEnable ? 'Fondo: modo edición.' : 'Fondo: modo “pasar a través”.');
 		        return;
 		      }
+		      const commandProxy = safeText(button.dataset.commandProxy);
+		      if (commandProxy) {
+		        handleCanvasAction(commandProxy);
+		        return;
+		      }
 			      const tokenSize = safeText(button.dataset.tokenSize);
 			      if (tokenSize) {
 			        applyToActiveFlexibleObject((active) => {
@@ -22242,6 +22427,22 @@
 			          if (!isTokenGroup(active)) return;
 			          applyTokenNameTagMode(active, tokenNameTag);
 			        }, `Nombre: ${normalizeTokenNameTagMode(tokenNameTag) === 'none' ? 'sin fondo' : 'fondo'}.`);
+			        return;
+			      }
+			      const tokenDisplayPreset = safeText(button.dataset.tokenDisplayPreset);
+			      if (tokenDisplayPreset) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          applyTokenDisplayPreset(active, tokenDisplayPreset);
+			        }, tokenDisplayPreset === 'number_only' ? 'Chapa: solo dorsal.' : 'Chapa: nombre y dorsal.');
+			        return;
+			      }
+			      const tokenTeamPreset = safeText(button.dataset.tokenTeamPreset);
+			      if (tokenTeamPreset) {
+			        applyToActiveFlexibleObject((active) => {
+			          if (!isTokenGroup(active)) return;
+			          applyTokenTeamPreset(active, tokenTeamPreset);
+			        }, `Chapa: ${tokenTeamPreset}.`);
 			        return;
 			      }
 			      const zoneStyle = safeText(button.dataset.zoneStyle);

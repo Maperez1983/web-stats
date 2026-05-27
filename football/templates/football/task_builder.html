@@ -3909,6 +3909,94 @@
       body.tactics-mode .pitch-side .selection-actions button {
         padding: 0.42rem 0.62rem;
       }
+      .resource-quick-title,
+      .inspector-section-title {
+        margin: 0.35rem 0 0.25rem;
+        color: rgba(226, 232, 240, 0.62);
+        font-size: 0.68rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      body.tactics-mode .resource-quick-title {
+        margin-top: 0.7rem;
+      }
+      body.tactics-mode .resource-strip.resource-strip-primary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      body.tactics-mode .resource-strip.resource-strip-primary button.tool-icon {
+        width: 100%;
+        height: 58px;
+        border-radius: 16px;
+        flex-direction: column;
+        gap: 0.18rem;
+      }
+      body.tactics-mode .resource-strip.resource-strip-primary .tool-label {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.64rem;
+        line-height: 1;
+        color: rgba(226, 232, 240, 0.78);
+      }
+      .selection-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.7rem;
+        align-items: center;
+      }
+      .selection-preview {
+        width: 48px;
+        height: 48px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255,255,255,0.14);
+        background:
+          radial-gradient(circle at 30% 20%, rgba(255,255,255,0.20), transparent 42%),
+          linear-gradient(135deg, rgba(34,211,238,0.22), rgba(15,23,42,0.88));
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: 900;
+        box-shadow: 0 12px 28px rgba(2,6,23,0.24);
+      }
+      .selection-toolbar .selection-actions.is-primary {
+        gap: 0.35rem;
+      }
+      .selection-toolbar .selection-actions.is-primary button {
+        min-width: 42px;
+        padding: 0.45rem 0.58rem;
+      }
+      .selection-toolbar .selection-actions.is-danger button {
+        border-color: rgba(248,113,113,0.22);
+        color: rgba(254,226,226,0.95);
+      }
+      .inspector-advanced {
+        grid-column: 1 / -1;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 0.45rem 0.6rem;
+        background: rgba(255,255,255,0.025);
+      }
+      .inspector-advanced summary {
+        cursor: pointer;
+        color: rgba(226,232,240,0.72);
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .inspector-advanced[open] {
+        display: grid;
+        gap: 0.65rem;
+      }
+      body.tactics-mode .pitch-side .selection-note {
+        display: none;
+      }
       @media (max-width: 1320px) {
         body.tactics-mode .pitch-layout {
           grid-template-columns: 1fr !important;
@@ -5251,11 +5339,11 @@
 		                      <div class="resource-tabs" aria-label="Categorías de recursos">
 		                        <button type="button" class="resource-tab" data-resource="base" title="Base">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7a3 3 0 0 1 3-3h2V3h6v1h2a3 3 0 0 1 3 3v2H4V7Zm0 4h20v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8Zm7-7h2v1h-2V4Z"/></svg></span>
-		                          <span class="lib-label">Base</span>
+		                          <span class="lib-label">Elementos</span>
 		                        </button>
 		                        <button type="button" class="resource-tab" data-resource="pro" title="PRO">
 		                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.3 21l1.7-7L2.7 9.6 10 9l2-7Z"/></svg></span>
-		                          <span class="lib-label">PRO</span>
+		                          <span class="lib-label">Porterías</span>
 		                        </button>
 		                        {% if tactics_mode %}
 		                        <button type="button" class="resource-tab" data-resource="plantilla" title="Plantilla">
@@ -5265,15 +5353,15 @@
 	                        {% endif %}
 	                        <button type="button" class="resource-tab" data-resource="importados" title="Importados">
 	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3 1.4 1.42L12 16.4 7.3 11.7l1.4-1.42 2.3 2.3V4a1 1 0 0 1 1-1Zm-7 15h14v2H5v-2Z"/></svg></span>
-	                          <span class="lib-label">Importados</span>
+	                          <span class="lib-label">Assets</span>
 	                        </button>
                         <button type="button" class="resource-tab" data-resource="trazos" title="Trazos y flechas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12.17l-3.58-3.59L14 7l7 7-7 7-1.41-1.41L16.17 14H4v-2Z"/></svg></span>
-                          <span class="lib-label">Trazos</span>
+                          <span class="lib-label">Flechas</span>
                         </button>
                         <button type="button" class="resource-tab" data-resource="figuras" title="Figuras geométricas">
                           <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 7h6v6H7V7Zm10 1a4 4 0 1 1-4 4 4 4 0 0 1 4-4ZM5 19h14v2H5v-2Z"/></svg></span>
-                          <span class="lib-label">Figuras</span>
+                          <span class="lib-label">Zonas</span>
                         </button>
 	                        <button type="button" class="resource-tab" data-resource="emoji" title="Recursos emoji">
 	                          <span class="lib-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm-3 9a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 9 11Zm6 0a1.5 1.5 0 1 1 1.5-1.5A1.5 1.5 0 0 1 15 11Zm-3 8a5.5 5.5 0 0 1-4.7-2.7l1.7-1a3.5 3.5 0 0 0 6 0l1.7 1A5.5 5.5 0 0 1 12 19Z"/></svg></span>
@@ -5309,6 +5397,7 @@
 				                    <button type="button" class="icon-btn" id="task-scenarios-btn" title="Escenarios" aria-label="Escenarios">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1h2v2h-2v2h2v2h-2v2h2v2h-2v1a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Zm2 0v12h10V6H6Z"/></svg>
 				                    </button>
+				                    <button type="button" class="button" id="task-zones-btn" title="Zonas / carriles y plantillas">Zonas</button>
 				                    <button type="button" class="icon-btn" id="task-sim-btn" title="Simular (no guarda)" aria-label="Simular">
 				                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7v10l10-5-10-5Z"/></svg>
 				                    </button>
@@ -5332,6 +5421,7 @@
 			                      <button type="button" data-command="grid_size">Tamaño rejilla <span class="shortcut">S/M/L</span></button>
 			                      <button type="button" data-command="formation">Formación / patrón</button>
 			                      <button type="button" data-command="tactical_overlays">Overlays tácticos</button>
+			                      <button type="button" data-command="zones">Zonas / plantillas</button>
 			                      <button type="button" data-command="lane_snap_toggle">Snap carriles/sectores <span class="shortcut">⇧</span></button>
 			                      <button type="button" data-command="group">Agrupar <span class="shortcut">⌘G</span></button>
 			                      <button type="button" data-command="ungroup">Desagrupar <span class="shortcut">⌘⇧G</span></button>
@@ -6050,7 +6140,7 @@
 			                </div>
 		                {% endif %}
 				                <div class="resource-panel is-visible" data-panel="base">
-			                  <h3 class="tool-group-title">Recursos base</h3>
+			                  <h3 class="tool-group-title">Elementos rápidos</h3>
 			                  {% if tactics_mode %}
 			                  <div class="token-global-style" id="task-token-style-global-tactics" aria-label="Colores rápidos de fichas">
 			                    <span class="label">Colores</span>
@@ -6064,17 +6154,22 @@
 			                      <input type="color" id="task-token-global-color-rival" value="#ef4444" aria-label="Color rival" />
 			                      <input type="text" id="task-token-global-color-rival-hex" value="#ef4444" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="#RRGGBB" aria-label="Color rival (hex)" />
 			                    </span>
+			                    <button type="button" data-token-team-preset="local">Local</button>
+			                    <button type="button" data-token-team-preset="rival">Rival</button>
+			                    <button type="button" data-token-team-preset="goalkeeper">Portero</button>
+			                    <button type="button" data-token-team-preset="neutral">Neutral</button>
 			                  </div>
 			                  <div class="resource-strip" id="tactics-quick-recents" hidden aria-label="Recientes y favoritos"></div>
-			                  <div class="resource-strip" id="task-basic-tools">
-			                    <button type="button" class="tool-icon" data-add="player_local" title="Chapa local" aria-label="Chapa local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="sr-only">Chapa local</span></button>
-			                    <button type="button" class="tool-icon" data-add="player_rival" title="Chapa rival" aria-label="Chapa rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="sr-only">Chapa rival</span></button>
-			                    <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero local" aria-label="Portero local"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero local</span></button>
-			                    <button type="button" class="tool-icon" data-add="goalkeeper_rival" title="Portero rival" aria-label="Portero rival"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="sr-only">Portero rival</span></button>
-			                    <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="sr-only">Balón</span></button>
-			                    <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="sr-only">Cono</span></button>
-			                    <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha" aria-label="Flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="sr-only">Flecha</span></button>
-			                    <button type="button" class="tool-icon" data-add="arrow_curve" title="Flecha curva" aria-label="Flecha curva"><span class="tool-emoji" aria-hidden="true">↪️</span><span class="sr-only">Flecha curva</span></button>
+			                  <div class="resource-quick-title">Jugadores y básicos</div>
+			                  <div class="resource-strip resource-strip-primary" id="task-basic-tools">
+			                    <button type="button" class="tool-icon" data-add="player_local" title="Chapa local" aria-label="Chapa local"><span class="tool-emoji" aria-hidden="true">🔵</span><span class="tool-label">Local</span></button>
+			                    <button type="button" class="tool-icon" data-add="player_rival" title="Chapa rival" aria-label="Chapa rival"><span class="tool-emoji" aria-hidden="true">🔴</span><span class="tool-label">Rival</span></button>
+			                    <button type="button" class="tool-icon" data-add="goalkeeper_local" title="Portero local" aria-label="Portero local"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="tool-label">Portero L</span></button>
+			                    <button type="button" class="tool-icon" data-add="goalkeeper_rival" title="Portero rival" aria-label="Portero rival"><span class="tool-emoji" aria-hidden="true">🧤</span><span class="tool-label">Portero R</span></button>
+			                    <button type="button" class="tool-icon" data-add="ball" title="Balón" aria-label="Balón"><span class="tool-emoji" aria-hidden="true">⚽</span><span class="tool-label">Balón</span></button>
+			                    <button type="button" class="tool-icon" data-add="cone" title="Cono" aria-label="Cono"><span class="tool-emoji" aria-hidden="true">🔺</span><span class="tool-label">Cono</span></button>
+			                    <button type="button" class="tool-icon" data-add="arrow_solid" title="Flecha" aria-label="Flecha"><span class="tool-emoji" aria-hidden="true">➡️</span><span class="tool-label">Flecha</span></button>
+			                    <button type="button" class="tool-icon" data-add="zone" title="Zona" aria-label="Zona"><span class="tool-emoji" aria-hidden="true">🟩</span><span class="tool-label">Zona</span></button>
 			                  </div>
 			                  {% else %}
 				                  <div class="resource-strip" id="task-basic-tools">
@@ -6112,13 +6207,23 @@
 		                {% endif %}
                   <div data-inspector-slot="base">
 	                    <div class="selection-toolbar" id="task-selection-toolbar" hidden>
-	                      <div>
+	                      <div class="selection-header">
+	                        <div class="selection-preview" id="task-selection-preview" aria-hidden="true">•</div>
+	                        <div>
 	                        <div class="selection-dock-actions">
 	                          <button type="button" id="task-selection-dock-close" aria-label="Cerrar inspector" title="Cerrar">✕</button>
 	                        </div>
 	                        <h3>Elemento seleccionado</h3>
 	                        <p id="task-selection-summary">Selecciona un recurso para ajustarlo.</p>
+	                        </div>
 	                      </div>
+	                      <div class="selection-actions is-primary" aria-label="Acciones rápidas">
+	                        <button type="button" data-inspector-action="duplicate" title="Duplicar">Duplicar</button>
+	                        <button type="button" data-command-proxy="front" title="Traer delante">Delante</button>
+	                        <button type="button" data-command-proxy="back" title="Enviar detrás">Detrás</button>
+	                        <button type="button" data-command-proxy="lock" title="Bloquear o desbloquear">Bloquear</button>
+	                      </div>
+	                      <div class="inspector-section-title">Ajuste</div>
 	                      <div class="selection-grid">
 	                        <div class="token-meta" id="task-token-meta" hidden>
 	                          <label>
@@ -6142,6 +6247,8 @@
                           Giro
                           <input type="range" id="task-rotation" min="0" max="359" step="1" value="0" />
                         </label>
+                        <details class="inspector-advanced" id="task-inspector-advanced">
+                          <summary>Avanzado</summary>
                         <label style="grid-column:1 / -1;" id="task-token-facing-row" hidden>
                           Orientación (cuerpo)
                           <input type="range" id="task-token-facing" min="0" max="359" step="1" value="0" />
@@ -6183,6 +6290,7 @@
                           Golpeo (timing)
                           <input type="range" id="task-ball-strike-timing" min="0" max="100" step="5" value="50" />
                         </label>
+                        </details>
                         <label style="grid-column:1 / -1;">
                           Color
                           <div style="display:flex; gap:0.6rem; align-items:center;">
@@ -6212,6 +6320,7 @@
 		                      </div>
 	                      <div class="selection-actions" id="task-scale-presets">
 	                        <span class="preset-label">Tamaño</span>
+	                        <button type="button" data-scale-preset="65">Pequeño</button>
 	                        <button type="button" data-scale-preset="80">S</button>
 	                        <button type="button" data-scale-preset="100">M</button>
 	                        <button type="button" data-scale-preset="125">L</button>
@@ -6219,9 +6328,9 @@
 	                      </div>
 	                      <div class="selection-actions" id="task-token-size-presets" hidden>
 	                        <span class="preset-label">Chapa</span>
-	                        <button type="button" data-token-size="s">S</button>
-	                        <button type="button" data-token-size="m">M</button>
-	                        <button type="button" data-token-size="l">L</button>
+	                        <button type="button" data-token-size="s">Pequeña</button>
+	                        <button type="button" data-token-size="m">Normal</button>
+	                        <button type="button" data-token-size="l">Grande</button>
 	                      </div>
 	                      <div class="selection-actions" id="task-stroke-presets" hidden>
 	                        <span class="preset-label">Grosor</span>
@@ -6240,9 +6349,7 @@
 	                        <button type="button" data-color="#000000">Negro</button>
 	                        <button type="button" data-color="#a855f7">Morado</button>
 	                      </div>
-                    <div class="selection-actions">
-	                        <button type="button" data-inspector-action="duplicate">Duplicar</button>
-	                      </div>
+	                      <div class="inspector-section-title">Ficha</div>
 	                      <div class="selection-actions" id="task-token-style-actions" hidden>
 	                        <span class="preset-label">Token</span>
 	                        <button type="button" data-token-style="disk">Chapa</button>
@@ -6299,6 +6406,14 @@
 	                        <span class="preset-label">Nombre</span>
 	                        <button type="button" data-token-name-tag="solid">Fondo</button>
 	                        <button type="button" data-token-name-tag="none">Sin fondo</button>
+	                      </div>
+	                      <div class="selection-actions" id="task-token-display-presets" hidden>
+	                        <span class="preset-label">Vista</span>
+	                        <button type="button" data-token-display-preset="name_number">Nombre + nº</button>
+	                        <button type="button" data-token-display-preset="number_only">Solo nº</button>
+	                        <button type="button" data-token-team-preset="local">Local</button>
+	                        <button type="button" data-token-team-preset="rival">Rival</button>
+	                        <button type="button" data-token-team-preset="neutral">Neutral</button>
 	                      </div>
 	                      <div class="selection-actions" id="task-zone-style-actions" hidden>
 	                        <span class="preset-label">Zona</span>
