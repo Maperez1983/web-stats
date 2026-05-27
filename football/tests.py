@@ -3023,6 +3023,61 @@ class PlatformWorkspaceTests(TestCase):
         self.assertEqual(response.json()['team']['name'], self.alt_team.name)
         self.assertEqual(response.json()['team']['crest_url'], 'https://example.com/cliente-alternativo.png')
 
+    def test_dashboard_data_uses_active_club_season_for_home_metrics(self):
+        workspace = Workspace.objects.create(
+            name='Cliente temporada home',
+            slug='cliente-temporada-home',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            is_active=True,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        active_season = WorkspaceSeason.objects.create(
+            workspace=workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        workspace.active_season = active_season
+        workspace.save(update_fields=['active_season'])
+        player = Player.objects.create(team=self.team, name='Jugador Home', number=8)
+        rival = Team.objects.create(name='Rival Home', slug='rival-home', group=self.team.group)
+        old_match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            home_team=self.team,
+            away_team=rival,
+            date=date(2026, 3, 1),
+        )
+        MatchEvent.objects.create(
+            match=old_match,
+            player=player,
+            event_type='Pase',
+            result='OK',
+            zone='Medio',
+            minute=12,
+            system='touch-field-final',
+            source_file='registro-acciones',
+        )
+        football_views._invalidate_team_dashboard_caches(self.team)
+        self.client.force_login(self.admin_user)
+        session = self.client.session
+        session['active_workspace_id'] = workspace.id
+        session.save()
+
+        response = self.client.get(reverse('dashboard-data'), {'team': self.team.id})
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload['team_metrics']['total_events'], 0)
+        self.assertEqual(payload['player_metrics'], [])
+        player_card = next(
+            item for item in payload['player_cards']
+            if int(item.get('player_id') or 0) == int(player.id)
+        )
+        self.assertEqual(player_card['total_actions'], 0)
+        self.assertEqual(player_card['pj'], 0)
+
     def test_dashboard_data_accepts_team_id_param_and_persists_active_team_mapping(self):
         workspace = Workspace.objects.create(
             name='Cliente multicategoria',

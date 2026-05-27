@@ -9720,7 +9720,7 @@ def _dashboard_data_impl(request, *, _json):
                     },
                     'team_metrics': {},
                     'player_metrics': [],
-                    'player_cards': compute_player_cards(primary_team),
+                    'player_cards': compute_player_cards(primary_team, request=request),
                     'player_cards_scope': {'type': 'global', 'label': 'Jugador · datos La Preferente'},
                     'setup_required': True,
                     'setup_url': fix_url,
@@ -9781,7 +9781,7 @@ def _dashboard_data_impl(request, *, _json):
     if not group:
         # En multicategoría, una categoría puede existir sin grupo todavía.
         # Devolvemos payload vacío para que la UI no se rompa y el admin pueda completar la configuración.
-        player_cards = compute_player_cards(primary_team)
+        player_cards = compute_player_cards(primary_team, request=request)
         payload = {
             'team': {
                 'id': int(getattr(primary_team, 'id', 0) or 0),
@@ -10061,17 +10061,17 @@ def _dashboard_data_impl(request, *, _json):
     if not _next_match_payload_is_reliable(next_match):
         next_match = None
     try:
-        team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
+        team_metrics = compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
     except Exception:
         logger.exception('dashboard_data: compute_team_metrics falló')
         team_metrics = {'total_events': 0, 'top_event_types': [], 'top_results': []}
     try:
-        player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE)
+        player_metrics = compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=request)
     except Exception:
         logger.exception('dashboard_data: compute_player_metrics falló')
         player_metrics = []
     try:
-        player_cards = compute_player_cards(primary_team)
+        player_cards = compute_player_cards(primary_team, request=request)
     except Exception:
         logger.exception('dashboard_data: compute_player_cards falló')
         player_cards = []
@@ -27434,7 +27434,7 @@ def coach_role_trainer_page(request):
 
     # Lectura de plantilla (tarjetas) respetando el ámbito seleccionado.
     player_cards = (
-        compute_player_cards(primary_team, scope=stats_scope, tournament_name=tournament_filter)
+        compute_player_cards(primary_team, scope=stats_scope, tournament_name=tournament_filter, request=request)
         if primary_team
         else []
     )
@@ -28440,6 +28440,7 @@ def coach_roster_page(request):
                 force_refresh=force_refresh,
                 scope=scope_value,
                 tournament_name=tournament_filter,
+                request=request,
             )
         except Exception:
             player_cards = []
@@ -59810,16 +59811,34 @@ def _normalize_excel_header(value):
     return ''.join(ch.lower() for ch in str(value).strip() if ch.isalnum())
 
 
-def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
+def _active_club_season_date_bounds_from_request(request):
+    if request is None:
+        return None, None
+    try:
+        workspace = _get_active_workspace(request)
+        active_club_season = getattr(workspace, 'active_season', None) if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB else None
+        if active_club_season and bool(getattr(active_club_season, 'is_active', True)):
+            return (
+                getattr(active_club_season, 'start_date', None),
+                getattr(active_club_season, 'end_date', None),
+            )
+    except Exception:
+        pass
+    return None, None
+
+
+def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
     if not primary_team:
         return {'total_events': 0, 'top_event_types': [], 'top_results': []}
     scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
     if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
         scope_value = Match.CONTEXT_LEAGUE
+    date_start, date_end = _active_club_season_date_bounds_from_request(request)
     cache_key = f'{_team_metrics_cache_key(primary_team.id)}:{scope_value}'
-    cached = cache.get(cache_key)
-    if isinstance(cached, dict) and cached:
-        return cached
+    if not date_start and not date_end:
+        cached = cache.get(cache_key)
+        if isinstance(cached, dict) and cached:
+            return cached
     preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
     events_qs = (
         confirmed_events_queryset()
@@ -59833,6 +59852,10 @@ def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
             events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
         else:
             events_qs = events_qs.filter(match__context=scope_value)
+    if date_start:
+        events_qs = events_qs.filter(match__date__gte=date_start)
+    if date_end:
+        events_qs = events_qs.filter(match__date__lte=date_end)
     events = _filter_stats_events(
         events_qs,
         preferred_sources=preferred_sources,
@@ -59849,7 +59872,8 @@ def compute_team_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
         'top_event_types': top_events,
         'top_results': top_results,
     }
-    cache.set(cache_key, payload, TEAM_METRICS_CACHE_SECONDS)
+    if not date_start and not date_end:
+        cache.set(cache_key, payload, TEAM_METRICS_CACHE_SECONDS)
     return payload
 
 
@@ -59935,16 +59959,18 @@ def compute_player_cards_for_match(match, primary_team, source_file=None):
         item['success_rate'] = round((success / total_actions) * 100, 1) if total_actions else 0
     return sorted(cards, key=lambda item: item['actions'], reverse=True)
 
-def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
+def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE, request=None):
     if not primary_team:
         return []
     scope_value = str(scope or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
     if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all'}:
         scope_value = Match.CONTEXT_LEAGUE
+    date_start, date_end = _active_club_season_date_bounds_from_request(request)
     cache_key = f'{_player_metrics_cache_key(primary_team.id)}:{scope_value}'
-    cached = cache.get(cache_key)
-    if isinstance(cached, list) and cached:
-        return cached
+    if not date_start and not date_end:
+        cached = cache.get(cache_key)
+        if isinstance(cached, list) and cached:
+            return cached
     preferred_sources = preferred_event_source_by_match(primary_team, scope=scope_value)
     events_qs = (
         confirmed_events_queryset()
@@ -59958,6 +59984,10 @@ def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
             events_qs = events_qs.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
         else:
             events_qs = events_qs.filter(match__context=scope_value)
+    if date_start:
+        events_qs = events_qs.filter(match__date__gte=date_start)
+    if date_end:
+        events_qs = events_qs.filter(match__date__lte=date_end)
     events = _filter_stats_events(
         events_qs,
         preferred_sources=preferred_sources,
@@ -59980,11 +60010,12 @@ def compute_player_metrics(primary_team, scope=Match.CONTEXT_LEAGUE):
         if result_is_success(event.result):
             item['successes'] += 1
     result = sorted(per_player.values(), key=lambda item: (-item['actions'], item['player']))
-    cache.set(cache_key, result, PLAYER_METRICS_CACHE_SECONDS)
+    if not date_start and not date_end:
+        cache.set(cache_key, result, PLAYER_METRICS_CACHE_SECONDS)
     return result
 
 
-def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None):
+def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None, request=None):
     if not primary_team:
         return []
     dashboard_rows = compute_player_dashboard(
@@ -59992,6 +60023,7 @@ def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tourn
         force_refresh=bool(force_refresh),
         scope=scope,
         tournament_name=tournament_name,
+        request=request,
     )
     cards = []
     for row in dashboard_rows:
