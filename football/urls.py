@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from . import billing_views
 from . import season_wizard_views
 from . import kit2d_views
 from . import academy_views
@@ -27,9 +28,9 @@ urlpatterns = [
     path('build/', views.public_build_info, name='public-build-info-short'),
     path('api/search/', views.search_api, name='search-api'),
     path('api/rivals/roster/', views.rival_roster_api, name='rival-roster-api'),
-    path('billing/', views.billing_page, name='billing'),
-    path('api/billing/checkout/', views.billing_checkout_session_api, name='billing-checkout-session'),
-    path('api/billing/portal/', views.billing_portal_session_api, name='billing-portal-session'),
+    path('billing/', billing_views.billing_page, name='billing'),
+    path('api/billing/checkout/', billing_views.billing_checkout_session_api, name='billing-checkout-session'),
+    path('api/billing/portal/', billing_views.billing_portal_session_api, name='billing-portal-session'),
     path('stripe/webhook/', views.stripe_webhook, name='stripe-webhook'),
     path('api/workspace/active/', views.workspace_set_active_workspace, name='workspace-active'),
     path('api/workspace/active-team/', views.workspace_set_active_team, name='workspace-active-team'),
