@@ -22929,12 +22929,15 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
         n = max(3, len(axes))
         pts = []
         labels = []
+        axis_svg = []
         for i, axis in enumerate(axes):
             angle = (-math.pi / 2.0) + (i * 2.0 * math.pi / n)
             rr = rmax * (_clamp(axis.get('value', 0.0)) / 100.0)
             x = cx + math.cos(angle) * rr
             y = cy + math.sin(angle) * rr
             pts.append((x, y))
+            ax_x = cx + math.cos(angle) * rmax
+            ax_y = cy + math.sin(angle) * rmax
             # Extra margen para que etiquetas no se monten ni se recorten.
             lr = 154.0
             lx = cx + math.cos(angle) * lr
@@ -22973,12 +22976,24 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
                     'full': str(axis.get('key') or ''),
                 }
             )
+            axis_svg.append(
+                {
+                    'axis_x': round(float(ax_x), 1),
+                    'axis_y': round(float(ax_y), 1),
+                    'label_x': round(float(lx), 1),
+                    'label_y': round(float(ly), 1),
+                    'text': str(axis.get('key') or ''),
+                    'anchor': anchor,
+                    'baseline': baseline,
+                }
+            )
         d = ' '.join([('M' if idx == 0 else 'L') + f' {x:.1f} {y:.1f}' for idx, (x, y) in enumerate(pts)]) + ' Z'
         return {
             'axes': axes,
             'path_d': d,
             'points': [{'x': round(x, 1), 'y': round(y, 1)} for (x, y) in pts],
             'labels': labels,
+            'axis_svg': axis_svg,
         }
     except Exception:
         return {'axes': axes, 'path_d': '', 'points': [], 'labels': []}

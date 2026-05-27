@@ -494,33 +494,32 @@
       .radar-right { display: table-cell; width: 50%; vertical-align: top; padding-left: 14px; }
       .radar-figure { text-align: center; }
       /* Deja margen para chips dentro del wrap (evita que invadan paneles de abajo). */
-      .radar-figure-wrap { position: relative; width: 320px; height: 320px; margin: 6px auto 0; }
+      .radar-figure-wrap { position: relative; width: 320px; height: 320px; margin: 6px auto 0; overflow: hidden; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
       .radar-figure svg {
-        display: inline-block;
-        width: 300px;
-        height: 300px;
+        display: block;
+        width: 320px;
+        height: 320px;
         max-width: 100%;
-        overflow: visible;
       }
       .radar-axis-tags { position: absolute; inset: 0; pointer-events: none; }
       .radar-axis-tag {
         position: absolute;
-        padding: 4px 10px;
+        padding: 3px 8px;
         border-radius: 999px;
-        background: rgba(11,18,32,0.06);
+        background: rgba(255,255,255,0.94);
         border: 1px solid rgba(11,18,32,0.14);
         color: rgba(11,18,32,0.82);
-        font-size: 10.2px;
+        font-size: 9.2px;
         font-weight: 1000;
         white-space: nowrap;
       }
       /* Chips siempre dentro del wrap (sin valores negativos que se recortan / pisan). */
-      .radar-axis-tag.top { top: 4px; left: 50%; transform: translateX(-50%); }
-      .radar-axis-tag.right { top: 50%; right: 6px; transform: translateY(-50%); }
-      .radar-axis-tag.br { bottom: 8px; right: 10px; }
-      .radar-axis-tag.bl { bottom: 8px; left: 10px; }
-      .radar-axis-tag.left { top: 50%; left: 6px; transform: translateY(-50%); }
+      .radar-axis-tag.top { top: 0; left: 50%; transform: translateX(-50%); }
+      .radar-axis-tag.right { top: 50%; right: 0; transform: translateY(-50%); }
+      .radar-axis-tag.br { bottom: 0; right: 0; }
+      .radar-axis-tag.bl { bottom: 0; left: 0; }
+      .radar-axis-tag.left { top: 50%; left: 0; transform: translateY(-50%); }
       .radar-legend { margin-top: 8px; }
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -879,11 +878,10 @@
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="foot">
+		            </div>
+		          </div>
+		        </div>
+			        <div class="foot">
           <div class="brandline">
             <img src="{{ brand_mark_src }}" alt="2J" />
             <div class="fine">PDF Club · Informe final de temporada</div>
@@ -1015,9 +1013,9 @@
 	                                  <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
 	                                  <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
 	                                  <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                  {% if radar_data.labels %}
-	                                    {% for lbl in radar_data.labels %}
-	                                      <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
+	                                  {% if radar_data.axis_svg %}
+	                                    {% for ax in radar_data.axis_svg %}
+	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
 	                                    {% endfor %}
 	                                  {% endif %}
 	                                  {% if radar_data.path_d %}
@@ -1035,11 +1033,10 @@
 	                                  <span class="radar-axis-tag br">Calidad</span>
 	                                  <span class="radar-axis-tag bl">Importancia</span>
 	                                  <span class="radar-axis-tag left">Influencia</span>
-		            </div>
-		          </div>
-		          {% endif %}
-		        </div>
-		      </div>
+	                                </div>
+	                              </div>
+	                            </div>
+	                          </div>
 	                          <div class="radar-right">
 	                            <table class="radar-axes-table">
 	                              {% for row in radar_staff_axes_rows %}
@@ -1115,9 +1112,9 @@
 	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
 	                                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
 	                                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                                  {% if card_radar_data.labels_svg %}
-	                                    {% for lbl in card_radar_data.labels_svg %}
-	                                      <line x1="180" y1="180" x2="{{ lbl.x }}" y2="{{ lbl.y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
+	                                  {% if card_radar_data.axis_svg %}
+	                                    {% for ax in card_radar_data.axis_svg %}
+	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
 	                                    {% endfor %}
 	                                  {% endif %}
 	                                  {% if card_radar_data.polygon_points_svg %}
@@ -1186,10 +1183,11 @@
 	                <div class="mini-note">Distribución de acciones con zona válida.</div>
 	              </div>
 	            </div>
-	          </div>
-	        </div>
+		          </div>
+		        </div>
+		        {% endif %}
 
-	        <div class="foot">
+		        <div class="foot">
 	          <div class="brandline">
 	            <img src="{{ brand_mark_src }}" alt="2J" />
 	            <div class="fine">PDF Club · Informe final de temporada</div>

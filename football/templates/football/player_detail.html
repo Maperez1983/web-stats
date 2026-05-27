@@ -383,11 +383,35 @@
 	        display: grid;
 	        place-items: center;
 	      }
-	      .radar-figure svg {
+	      .radar-figure-wrap {
+	        position: relative;
 	        width: min(360px, 100%);
+	        aspect-ratio: 1 / 1;
+	      }
+	      .radar-figure svg {
+	        width: 100%;
 	        height: auto;
 	        display: block;
 	      }
+	      .radar-figure-wrap .radar-axis-tag {
+	        position: absolute;
+	        border-radius: 999px;
+	        border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
+	        background: var(--prod-panel-flat, rgba(15, 23, 42, 0.88));
+	        color: var(--prod-text, #f5f7fa);
+	        padding: 0.25rem 0.52rem;
+	        font-size: 0.66rem;
+	        font-weight: 950;
+	        line-height: 1.05;
+	        letter-spacing: 0.04em;
+	        white-space: nowrap;
+	        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+	      }
+	      .radar-figure-wrap .radar-axis-tag.top { top: 0.2rem; left: 50%; transform: translateX(-50%); }
+	      .radar-figure-wrap .radar-axis-tag.right { top: 50%; right: 0.2rem; transform: translateY(-50%); }
+	      .radar-figure-wrap .radar-axis-tag.br { right: 0.35rem; bottom: 0.45rem; }
+	      .radar-figure-wrap .radar-axis-tag.bl { left: 0.35rem; bottom: 0.45rem; }
+	      .radar-figure-wrap .radar-axis-tag.left { top: 50%; left: 0.2rem; transform: translateY(-50%); }
 	      .radar-legend h4 {
 	        margin: 0;
 	        font-size: 0.86rem;
@@ -1173,21 +1197,25 @@
               {% if card_radar_data and card_radar_data.polygon_points_svg %}
 	              <div class="radar-grid" style="margin-top:1.05rem;">
 	                <div class="radar-figure" aria-label="Radar mini tipo card">
-	                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar (card)" focusable="false">
-                      <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-                      <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
-                      {% if card_radar_data.axis_svg %}
-                        {% for ax in card_radar_data.axis_svg %}
-                          <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
-                        {% endfor %}
-                      {% endif %}
-                      <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
-                      {% if card_radar_data.axis_svg %}
-                        {% for ax in card_radar_data.axis_svg %}
-                          <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
-                        {% endfor %}
-                      {% endif %}
-	                  </svg>
+                    <div class="radar-figure-wrap">
+  	                  <svg viewBox="0 0 360 360" role="img" aria-label="Radar (card)" focusable="false">
+                        <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                        <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+                        {% if card_radar_data.axis_svg %}
+                          {% for ax in card_radar_data.axis_svg %}
+                            <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
+                          {% endfor %}
+                        {% endif %}
+                        <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+  	                  </svg>
+                      <div class="radar-axis-tags" aria-hidden="true">
+                        <span class="radar-axis-tag top">Acc/90</span>
+                        <span class="radar-axis-tag right">Éxito</span>
+                        <span class="radar-axis-tag br">Part.</span>
+                        <span class="radar-axis-tag bl">Importancia</span>
+                        <span class="radar-axis-tag left">Influencia</span>
+                      </div>
+                    </div>
 	                </div>
 		                <div class="radar-legend">
 		                  <h4>Radar (card)</h4>
