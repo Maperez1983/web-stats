@@ -26426,6 +26426,11 @@ def coach_rivals_page(request):
         _normalize_team_lookup_key(getattr(team, 'name', '') or '')
         for team in candidates
     }
+    existing_codes = {
+        str(getattr(team, 'external_id', '') or '').strip()
+        for team in candidates
+        if str(getattr(team, 'external_id', '') or '').strip()
+    }
     primary_keys = {
         _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
         _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
@@ -26438,19 +26443,54 @@ def coach_rivals_page(request):
         key = _normalize_team_lookup_key(full_name)
         if not full_name or not key or key in existing_keys or key in primary_keys:
             continue
-        candidates.append(SimpleNamespace(
-            id=0,
-            name=full_name,
-            short_name=full_name[:60],
-            display_name=full_name,
-            slug='',
-            crest_url=str(row.get('crest_url') or '').strip(),
-            crest_image=None,
-            external_id=str(row.get('team_code') or '').strip(),
-            home_stadium=str(row.get('location') or '').strip(),
-            group_id=getattr(primary_team, 'group_id', None),
-        ))
-        existing_keys.add(key)
+        team_code = str(row.get('team_code') or '').strip()
+        crest_url = str(row.get('crest_url') or '').strip()
+        home_stadium = str(row.get('location') or row.get('field') or row.get('stadium') or '').strip()
+        team_obj = None
+        if team_code and team_code not in existing_codes:
+            team_obj = Team.objects.filter(external_id=team_code).first()
+        if not team_obj:
+            team_obj = Team.objects.filter(
+                Q(name__iexact=full_name)
+                | Q(short_name__iexact=full_name)
+                | Q(slug__iexact=slugify(full_name))
+            ).first()
+        if not team_obj:
+            try:
+                team_obj = Team.objects.create(
+                    name=full_name[:150],
+                    slug=_unique_team_slug(full_name),
+                    short_name=full_name[:60],
+                    group=getattr(primary_team, 'group', None),
+                    external_id=team_code[:120] if team_code else '',
+                    crest_url=crest_url[:600] if crest_url else '',
+                    home_stadium=home_stadium[:200] if home_stadium else '',
+                    is_primary=False,
+                )
+            except Exception:
+                team_obj = None
+        elif getattr(primary_team, 'group_id', None) and not getattr(team_obj, 'group_id', None):
+            changed_fields = []
+            team_obj.group = primary_team.group
+            changed_fields.append('group')
+            if team_code and not str(getattr(team_obj, 'external_id', '') or '').strip():
+                team_obj.external_id = team_code[:120]
+                changed_fields.append('external_id')
+            if crest_url and not str(getattr(team_obj, 'crest_url', '') or '').strip():
+                team_obj.crest_url = crest_url[:600]
+                changed_fields.append('crest_url')
+            if home_stadium and not str(getattr(team_obj, 'home_stadium', '') or '').strip():
+                team_obj.home_stadium = home_stadium[:200]
+                changed_fields.append('home_stadium')
+            try:
+                team_obj.save(update_fields=changed_fields)
+            except Exception:
+                pass
+        if team_obj:
+            candidates.append(team_obj)
+            existing_keys.add(key)
+            if team_code:
+                existing_codes.add(team_code)
 
     team_ids = [int(getattr(team, 'id', 0) or 0) for team in candidates if int(getattr(team, 'id', 0) or 0)]
     snapshots_by_team_id = {}
