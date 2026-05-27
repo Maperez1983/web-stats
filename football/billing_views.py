@@ -11,9 +11,9 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-from . import views as core_views
 from .api_utils import api_error, api_ok
 from .models import StripeEventLog, Workspace
+from .workspace_subscription import is_subscription_active
 from . import workspace_context
 
 logger = logging.getLogger(__name__)
@@ -561,7 +561,7 @@ def billing_checkout_session_api(request):
             return api_error('Plan no disponible (missing price id).', status=500, code='plan_price_missing')
         line_items = [{'price': price_id, 'quantity': 1}]
 
-    if core_views._workspace_is_subscription_active(workspace):
+    if is_subscription_active(workspace):
         return api_ok({'already_active': True})
 
     try:

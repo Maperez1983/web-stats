@@ -83,6 +83,7 @@ from . import player_media
 from . import stats_services
 from . import task_library_services
 from . import team_media_services
+from . import workspace_subscription
 from . import workspace_context
 from . import workspace_ui
 from .dashboard_cache import (
@@ -3802,54 +3803,23 @@ def _single_club_fallback_enabled() -> bool:
 
 
 def _trial_days_default() -> int:
-    try:
-        value = int(str(os.getenv('TRIAL_DAYS', '7') or '7').strip())
-    except Exception:
-        value = 7
-    return max(1, min(value, 30))
+    return workspace_subscription.trial_days_default()
 
 
 def _workspace_trial_expires_at_default():
-    return timezone.now() + timedelta(days=_trial_days_default())
+    return workspace_subscription.trial_expires_at_default()
 
 
 def _workspace_is_subscription_active(workspace) -> bool:
-    if not workspace:
-        return False
-    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
-    return status in {'active'}
+    return workspace_subscription.is_subscription_active(workspace)
 
 
 def _workspace_is_trial_active(workspace) -> bool:
-    if not workspace:
-        return False
-    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
-    if status not in {'trial'}:
-        return False
-    expires_at = getattr(workspace, 'trial_expires_at', None)
-    if not expires_at:
-        return True
-    try:
-        return expires_at > timezone.now()
-    except Exception:
-        return False
+    return workspace_subscription.is_trial_active(workspace)
 
 
 def _workspace_requires_subscription(workspace) -> bool:
-    if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
-        return False
-    if _workspace_is_subscription_active(workspace):
-        return False
-    status = str(getattr(workspace, 'subscription_status', '') or '').strip().lower()
-    # Si no hay estado, lo tratamos como trial activo por compatibilidad.
-    if not status:
-        return False
-    if status == 'trial':
-        # Trial caducado => requiere suscripción.
-        return not _workspace_is_trial_active(workspace)
-    if _workspace_is_trial_active(workspace):
-        return False
-    return status in {'expired', 'past_due', 'canceled'}
+    return workspace_subscription.requires_subscription(workspace)
 
 
 def _paywall_response(request, *, workspace=None):
