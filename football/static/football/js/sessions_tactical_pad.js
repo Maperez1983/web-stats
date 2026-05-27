@@ -3883,17 +3883,11 @@
 					      artificial: 'Artificial',
 					      dry: 'Seco',
 					      wet: 'Mojado',
-					      coachboard: 'Tablero',
-					      whiteboard: 'Blanca',
-					      blackboard: 'Negra',
 					    };
-					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet', 'coachboard', 'whiteboard', 'blackboard'];
+					    const GRASS_STYLE_ORDER = ['classic', 'broadcast', 'realistic', 'pro', 'uefa_b', 'artificial', 'dry', 'wet'];
 					    const normalizeGrassStyleForMode = (value) => {
 					      const next = safeText(value, 'classic').toLowerCase();
 					      if (!GRASS_STYLE_ORDER.includes(next)) return 'classic';
-					      // En modo Táctica el usuario espera campo con césped. Evitamos que borradores
-					      // locales o estados antiguos restauren fondos de pizarra negra/blanca.
-					      if (isTacticsMode && ['coachboard', 'whiteboard', 'blackboard'].includes(next)) return 'classic';
 					      return next;
 					    };
 					    let pitchGrassStyle = normalizeGrassStyleForMode(grassStyleInput?.value);
