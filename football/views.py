@@ -455,43 +455,6 @@ def public_build_info(request):
     return resp
 
 @login_required
-@require_POST
-def workspace_sync_competition_api(request):
-    """
-    Sincroniza el contexto competitivo del workspace club actual (owner/admin).
-    Útil para onboarding/autoservicio sin depender de Platform.
-    """
-    workspace = _get_active_workspace(request)
-    if not workspace or workspace.kind != Workspace.KIND_CLUB:
-        return JsonResponse({'status': 'error', 'message': 'No hay workspace club activo.'}, status=400)
-    if not _can_manage_workspace(request.user, workspace):
-        return JsonResponse({'status': 'error', 'message': 'No autorizado.'}, status=403)
-    primary_team = _get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
-    if not primary_team:
-        return JsonResponse({'status': 'error', 'message': 'No hay equipo configurado.'}, status=400)
-
-    lock_key = f'workspace_sync_lock:{workspace.id}:{primary_team.id}'
-    if not cache.add(lock_key, '1', timeout=180):
-        return JsonResponse({'status': 'error', 'message': 'Ya hay una sincronización en curso.'}, status=429)
-    try:
-        context, sync_error = _sync_workspace_competition_context(workspace, primary_team=primary_team)
-        if sync_error:
-            return JsonResponse({'status': 'error', 'message': sync_error}, status=500)
-        return JsonResponse(
-            {
-                'status': 'success',
-                'message': 'Sincronización completada.',
-                'sync_status': str(getattr(context, 'sync_status', '') or '').strip(),
-                'last_sync_at': getattr(context, 'last_sync_at', None).isoformat() if getattr(context, 'last_sync_at', None) else '',
-            }
-        )
-    except Exception as exc:
-        return JsonResponse({'status': 'error', 'message': str(exc) or 'No se pudo sincronizar.'}, status=500)
-    finally:
-        cache.delete(lock_key)
-
-
-@login_required
 def system_diagnostics(request):
     """Diagnóstico (solo admin) para comprobar persistencia en Render.
 
