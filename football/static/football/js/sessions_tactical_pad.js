@@ -12951,11 +12951,20 @@
 				        try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
 				        simulationSavedUpdatedAt = Date.now();
 				        try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
+				        try { applyClipPro(clip); } catch (e) { /* ignore */ }
 				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
-				          renderSimulationSteps();
-				          void selectSimulationStep(simulationActiveIndex);
-				          syncSimUi();
-				          setStatus(`Clip cargado (Playbook): ${safeText(clip?.name, '')}`);
+				        try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
+				        try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				        renderSimulationSteps();
+				        void selectSimulationStep(simulationActiveIndex);
+				        try {
+				          if (simulationProEnabled) {
+				            renderSimulationAtTimeMs(0);
+				            syncSimProUi();
+				          }
+				        } catch (e) { /* ignore */ }
+				        syncSimUi();
+				        setStatus(`Clip cargado (Playbook): ${safeText(clip?.name, '')}`);
 				        });
 				      });
 				      Array.from(simClipsList.querySelectorAll('[data-playbook-delete]')).forEach((btn) => {
