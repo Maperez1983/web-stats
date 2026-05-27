@@ -5750,8 +5750,15 @@
 	        (child) => child?.type === 'rect' && Math.abs((Number(child.top) || 0) + 35) <= 5 && (Number(child.height) || 0) >= 16,
 	      );
 	      if (nameBg && typeof nameBg.set === 'function') {
-	        const width = Math.max(42, Math.min(110, (displayName.length * 6.4) + 14));
+	        const hasNumberBg = !!findTokenChild(group, 'token_number_bg');
+	        const width = hasNumberBg
+	          ? Math.max(62, Math.min(132, (displayName.length * 6.6) + 42))
+	          : Math.max(42, Math.min(110, (displayName.length * 6.4) + 14));
 	        nameBg.set('width', width);
+	        const numberBg = findTokenChild(group, 'token_number_bg');
+	        if (numberBg && typeof numberBg.set === 'function') numberBg.set('left', (-width / 2) + 13);
+	        if (numberText && typeof numberText.set === 'function') numberText.set('left', (-width / 2) + 13);
+	        if (nameText && typeof nameText.set === 'function' && hasNumberBg) nameText.set('left', 12);
 	      }
 
 	      const initialsText = findTokenChild(
@@ -17375,31 +17382,14 @@
 				            collarPath.data = { role: 'token_collar' };
 				            tokenParts.push(collarPath);
 				          }
-						          const tokenNumberFill = isTacticsMode ? contrastTextForFill(effectiveBase) : '#ffffff';
-						          const tokenNumberStroke = isTacticsMode
-						            ? (tokenNumberFill === '#000000' ? 'rgba(255,255,255,0.75)' : 'rgba(2,6,23,0.70)')
-						            : 'rgba(2,6,23,0.65)';
-						          const numberText = new fabric.Text(isGoalkeeper ? 'GK' : label, {
-						            originX: 'center',
-						            originY: 'center',
-						            left: 0,
-					            top: -2,
-				            fontSize: 14,
-				            fontWeight: '800',
-				            fill: tokenNumberFill,
-				            stroke: tokenNumberStroke,
-				            strokeWidth: 2,
-				            paintFirst: 'stroke',
-				            shadow: 'rgba(15,23,42,0.55) 0 1px 2px',
-				          });
-		          numberText.data = { role: 'token_number' };
-		          tokenParts.push(numberText);
+						          const jerseyNumber = isGoalkeeper ? 'GK' : label;
+						          const nameTagWidth = Math.max(62, Math.min(132, (displayName.length * 6.6) + 42));
 		          const nameBg = new fabric.Rect({
 		            originX: 'center',
 		            originY: 'center',
 		            left: 0,
 		            top: -34,
-		            width: Math.max(48, Math.min(120, (displayName.length * 6.6) + 18)),
+		            width: nameTagWidth,
 		            height: 18,
 		            rx: 8,
 		            ry: 8,
@@ -17412,10 +17402,39 @@
 		          });
 		          nameBg.data = { role: 'token_name_bg' };
 		          tokenParts.push(nameBg);
+		          const numberBg = new fabric.Rect({
+		            originX: 'center',
+		            originY: 'center',
+		            left: (-nameTagWidth / 2) + 13,
+		            top: -34,
+		            width: 22,
+		            height: 16,
+		            rx: 8,
+		            ry: 8,
+		            fill: 'rgba(244,180,0,0.96)',
+		            stroke: 'rgba(2,6,23,0.45)',
+		            strokeWidth: 1,
+		            selectable: false,
+		            evented: false,
+		          });
+		          numberBg.data = { role: 'token_number_bg' };
+		          tokenParts.push(numberBg);
+		          const numberText = new fabric.Text(jerseyNumber, {
+		            originX: 'center',
+		            originY: 'center',
+		            left: (-nameTagWidth / 2) + 13,
+		            top: -34,
+		            fontSize: 9,
+		            fontWeight: '800',
+		            fill: 'rgba(2,6,23,0.96)',
+		            shadow: '',
+		          });
+		          numberText.data = { role: 'token_number' };
+		          tokenParts.push(numberText);
 		          const nameText = new fabric.Text(displayName, {
 		            originX: 'center',
 		            originY: 'center',
-		            left: 0,
+		            left: 12,
 		            top: -34,
 		            fontSize: 10,
 		            fontWeight: '700',
@@ -19660,6 +19679,15 @@
 	        number.textContent = kind === 'goalkeeper_local' ? 'GK' : (player.number ? String(player.number).slice(0, 2) : 'J');
 
 		        if (style === 'jersey') {
+		          const inlineNumber = document.createElement('span');
+		          inlineNumber.className = 'token-number token-number-inline';
+		          inlineNumber.textContent = number.textContent;
+		          const inlineName = document.createElement('span');
+		          inlineName.textContent = name.textContent;
+		          name.textContent = '';
+		          name.classList.add('is-numbered');
+		          name.appendChild(inlineNumber);
+		          name.appendChild(inlineName);
 		          const clipId = `tpad-shirt-clip-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
 		          const gkGradId = `tpad-gk-grad-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
 		          badge.className = 'token-jersey';
@@ -19701,7 +19729,6 @@
 			              </svg>
 		            `.trim();
 		          }
-		          badge.appendChild(number);
 		        } else if (style === 'photo') {
 	          badge.className = 'token-photo';
 	          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
