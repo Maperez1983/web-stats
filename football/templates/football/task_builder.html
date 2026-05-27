@@ -7773,6 +7773,13 @@
 		          const key = markerKey || 'webstatsReady';
 		          el.addEventListener('click', async (ev) => {
 		            try {
+		              const editorReady = (() => {
+		                try { return (form?.dataset?.webstatsTpadReady === '1') || (window.__WEBSTATS_TPAD_READY === true); } catch (e) { return false; }
+		              })();
+		              if (editorReady) {
+		                try { el.dataset[key] = '1'; } catch (e) { /* ignore */ }
+		                return;
+		              }
 		              if (el.dataset?.[key] === '1') return;
 		              if (typeof ensureFn !== 'function') return;
 		              ev.preventDefault();
@@ -7792,7 +7799,6 @@
 		        hookClick('pitch-orientation-toggle-quick', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('pitch-orientation-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('pitch-grass-toggle', ensureEditorStack, 'webstatsEditorReady');
-		        hookClick('pitch-grass-select', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('pitch-zoom-out', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('pitch-zoom-in', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('pitch-zoom-reset', ensureEditorStack, 'webstatsEditorReady');

@@ -1,5 +1,20 @@
 (function () {
   const safeText = (value, fallback = '') => String(value || '').trim() || fallback;
+  try {
+    const proto = window.CanvasRenderingContext2D && window.CanvasRenderingContext2D.prototype;
+    const desc = proto ? Object.getOwnPropertyDescriptor(proto, 'textBaseline') : null;
+    if (desc && desc.configurable && typeof desc.set === 'function' && typeof desc.get === 'function' && !proto.__webstatsTextBaselinePatched) {
+      Object.defineProperty(proto, 'textBaseline', {
+        configurable: true,
+        enumerable: desc.enumerable,
+        get: desc.get,
+        set(value) {
+          desc.set.call(this, value === 'alphabetical' ? 'alphabetic' : value);
+        },
+      });
+      Object.defineProperty(proto, '__webstatsTextBaselinePatched', { value: true });
+    }
+  } catch (e) { /* ignore */ }
   const escapeHtml = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
