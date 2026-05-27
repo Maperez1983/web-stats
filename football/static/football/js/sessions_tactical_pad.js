@@ -1316,9 +1316,8 @@
 				      const storedLayout = safeText(window.localStorage.getItem(TACTICS_LAYOUT_KEY));
 				      if (storedLayout) applyTacticsLayout(storedLayout);
 				      else {
-				        // Por defecto, en pantallas anchas preferimos campo full-width para aprovechar espacio.
-				        const vwCss = Math.max(0, Number(window.innerWidth) || 0);
-				        if (vwCss >= 1200) applyTacticsLayout('top');
+				        // Por defecto mantenemos recursos a la derecha: reduce scroll vertical y deja los controles agrupados.
+				        applyTacticsLayout('split');
 				      }
 				    } catch (e) { /* ignore */ }
 				    try {
@@ -6552,6 +6551,28 @@
 				    let zoneSnapEnabled = false;
 				    try { zoneSnapEnabled = !!(canUseStorage && JSON.parse(window.localStorage.getItem(zonesSnapKey) || 'false')); } catch (e) { zoneSnapEnabled = false; }
 				    if (zonesSnapInput) zonesSnapInput.checked = !!zoneSnapEnabled;
+				    const BUILTIN_ZONE_TEMPLATES = [
+				      {
+				        id: '__builtin_lanes5',
+				        name: 'Base: 5 carriles',
+				        config: { lanes: true },
+				      },
+				      {
+				        id: '__builtin_lanes5_sectors3',
+				        name: 'Base: 5 carriles + 3 sectores',
+				        config: { lanes: true, sectors: true },
+				      },
+				      {
+				        id: '__builtin_lanes5_halfspaces',
+				        name: 'Base: 5 carriles + half-spaces',
+				        config: { lanes: true, halfspaces: true },
+				      },
+				      {
+				        id: '__builtin_grid_4x6',
+				        name: 'Base: rejilla 4 x 6',
+				        config: { grid: true, grid_rows: 4, grid_cols: 6 },
+				      },
+				    ];
 
 				    const zoneLikeKinds = (kind) => {
 				      const k = safeText(kind).toLowerCase();
@@ -6575,18 +6596,26 @@
 				        .filter((item) => zoneLikeKinds(item?.data?.kind));
 				      return json;
 				    };
-				    const hasActiveTacticalZoneOverlay = () => !!(
-				      tacticalLanesVisible
-				      || tacticalSectorsVisible
-				      || tacticalHalfspacesVisible
-				      || tacticalOffsideVisible
-				      || tacticalZone14Visible
-				      || tacticalGridVisible
+				    const hasTacticalZoneOverlayConfig = (config = {}) => !!(
+				      config.lanes
+				      || config.sectors
+				      || config.halfspaces
+				      || config.offside
+				      || config.zone14
+				      || config.grid
 				    );
-				    const serializeActiveTacticalZoneOverlay = () => {
+				    const hasActiveTacticalZoneOverlay = () => hasTacticalZoneOverlayConfig({
+				      lanes: tacticalLanesVisible,
+				      sectors: tacticalSectorsVisible,
+				      halfspaces: tacticalHalfspacesVisible,
+				      offside: tacticalOffsideVisible,
+				      zone14: tacticalZone14Visible,
+				      grid: tacticalGridVisible,
+				    });
+				    const serializeTacticalZoneOverlayConfig = (config = {}) => {
 				      const { w, h } = worldSize();
 				      if (!w || !h) return null;
-				      if (!hasActiveTacticalZoneOverlay()) return null;
+				      if (!hasTacticalZoneOverlayConfig(config)) return null;
 				      const tmpEl = document.createElement('canvas');
 				      tmpEl.width = Math.max(2, Math.round(w));
 				      tmpEl.height = Math.max(2, Math.round(h));
@@ -6628,31 +6657,31 @@
 				        try { rect.objectCaching = false; } catch (e) { /* ignore */ }
 				        tmp.add(rect);
 				      };
-				      if (tacticalLanesVisible) {
+				      if (config.lanes) {
 				        for (let i = 1; i <= 4; i += 1) addDivider('h', (h * i) / 5);
 				      }
-				      if (tacticalSectorsVisible) {
+				      if (config.sectors) {
 				        for (let i = 1; i <= 2; i += 1) addDivider('v', (w * i) / 3);
 				      }
-				      if (tacticalGridVisible) {
-				        const rows = clamp(Number.parseInt(String(tacticalGridRows || 4), 10) || 4, 2, 12);
-				        const cols = clamp(Number.parseInt(String(tacticalGridCols || 6), 10) || 6, 2, 12);
+				      if (config.grid) {
+				        const rows = clamp(Number.parseInt(String(config.grid_rows || 4), 10) || 4, 2, 12);
+				        const cols = clamp(Number.parseInt(String(config.grid_cols || 6), 10) || 6, 2, 12);
 				        for (let r = 1; r < rows; r += 1) addDivider('h', (h * r) / rows, { stroke: 'rgba(226,232,240,0.44)', strokeWidth: 1 });
 				        for (let c = 1; c < cols; c += 1) addDivider('v', (w * c) / cols, { stroke: 'rgba(226,232,240,0.44)', strokeWidth: 1 });
 				      }
-				      if (tacticalHalfspacesVisible) {
+				      if (config.halfspaces) {
 				        const laneH = h / 5;
 				        addZoneRect(0, laneH, w, laneH);
 				        addZoneRect(0, laneH * 3, w, laneH);
 				      }
-				      if (tacticalOffsideVisible) {
+				      if (config.offside) {
 				        const dx = 13 * (w / 105);
 				        if (dx > 0 && dx < (w / 2)) {
 				          addDivider('v', dx, { stroke: 'rgba(250,204,21,0.78)', strokeWidth: 3 });
 				          addDivider('v', w - dx, { stroke: 'rgba(250,204,21,0.78)', strokeWidth: 3 });
 				        }
 				      }
-				      if (tacticalZone14Visible) {
+				      if (config.zone14) {
 				        const sx = w / 105;
 				        const sy = h / 68;
 				        const penaltyDepth = 16.5 * sx;
@@ -6667,6 +6696,16 @@
 				      json.objects = (json.objects || []).filter((item) => zoneLikeKinds(item?.data?.kind));
 				      return json.objects.length ? json : null;
 				    };
+				    const serializeActiveTacticalZoneOverlay = () => serializeTacticalZoneOverlayConfig({
+				      lanes: tacticalLanesVisible,
+				      sectors: tacticalSectorsVisible,
+				      halfspaces: tacticalHalfspacesVisible,
+				      offside: tacticalOffsideVisible,
+				      zone14: tacticalZone14Visible,
+				      grid: tacticalGridVisible,
+				      grid_rows: tacticalGridRows,
+				      grid_cols: tacticalGridCols,
+				    });
 				    const clearZonesOnCanvas = () => {
 				      const targets = collectZoneObjectsForTemplate();
 				      if (!targets.length) {
@@ -6689,10 +6728,26 @@
 				      const templates = readZonesTemplates();
 				      const options = [
 				        { id: '__none__', name: '— (elige plantilla)' },
+				        ...BUILTIN_ZONE_TEMPLATES.map((t) => ({ id: safeText(t.id), name: safeText(t.name) })),
 				        ...templates.map((t) => ({ id: safeText(t.id), name: safeText(t.name) || safeText(t.id) })),
 				      ].filter((o) => o.id);
 				      zonesTemplateSelect.innerHTML = options.map((o) => `<option value="${o.id}">${o.name}</option>`).join('');
 				      try { zonesTemplateSelect.value = '__none__'; } catch (e) { /* ignore */ }
+				    };
+				    const resolveZonesTemplateById = (id) => {
+				      const wanted = safeText(id);
+				      const builtin = BUILTIN_ZONE_TEMPLATES.find((t) => safeText(t.id) === wanted);
+				      if (builtin) {
+				        const { w, h } = worldSize();
+				        return {
+				          id: safeText(builtin.id),
+				          name: safeText(builtin.name),
+				          sourceWidth: Math.round(w || 0),
+				          sourceHeight: Math.round(h || 0),
+				          json: serializeTacticalZoneOverlayConfig(builtin.config || {}),
+				        };
+				      }
+				      return readZonesTemplates().find((t) => safeText(t.id) === wanted) || null;
 				    };
 
 				    const loadZonesFromTemplate = async (template) => {
@@ -7125,8 +7180,7 @@
 				        setStatus('Elige una plantilla.', true);
 				        return;
 				      }
-				      const templates = readZonesTemplates();
-				      const chosen = templates.find((t) => safeText(t.id) === id);
+				      const chosen = resolveZonesTemplateById(id);
 				      if (!chosen) {
 				        setStatus('Plantilla no encontrada.', true);
 				        return;
@@ -15598,7 +15652,7 @@
 		      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
 		      try { scheduleLayoutRecalc('orientation_ui'); } catch (e) { /* ignore */ }
 	    };
-	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
+	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1800);
 	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
 	    // En iOS/Safari, el viewport puede variar mientras haces scroll (barras superior/inferior),
 	    // lo que provocaba que el cálculo "fit" encogiese/agrandase el campo dinámicamente.
@@ -15670,7 +15724,9 @@
 	      // Proporción del SVG (viewBox -2 -2 1054x684). En vertical, intercambiamos.
 	      const ratio = pitchOrientation === 'portrait' ? (684 / 1054) : (1054 / 684); // width / height
 	      const maxWByHeight = vh * ratio;
-	      const fitW = Math.floor(Math.max(320, Math.min(vw, maxWByHeight) - 2));
+	      const wideDesktopLandscape = !!(isTacticsModeNow && pitchOrientation !== 'portrait' && (Number(window.innerWidth) || 0) >= 1600);
+	      const fitBase = wideDesktopLandscape ? vw : Math.min(vw, maxWByHeight);
+	      const fitW = Math.floor(Math.max(320, fitBase - 2));
 	      setStageFitMaxWidth(fitW);
 	    };
 	    const writeStageFactor = (value) => {
