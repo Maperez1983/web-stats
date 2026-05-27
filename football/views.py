@@ -29599,80 +29599,10 @@ def _parse_pdf_session_header_fields(extracted_text):
 
 
 def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_id=None):
-    """
-    Convierte el texto del PDF de sesión a los campos estructurados de `[2J_SESSION]`.
-
-    Objetivo: que la ficha de sesión quede limpia, sin volcar el texto crudo como "Notas".
-    """
-    text = str(extracted_text or '').strip()
-    if not text:
-        fields = {'notes': ''}
-        if imported_doc_id:
-            fields['agenda_hidden'] = f'imported_doc_id:{int(imported_doc_id)}'
-        return fields
-
-    cleaned = _polish_spanish_text(_repair_joined_words_text(text), multiline=True)
-
-    # Materiales: bloque tras "Material de entrenamiento".
-    materials = ''
-    try:
-        m = re.search(r'(?is)material\s+de\s+entrenamiento\s*(.+?)(?:\n\s*\n|(?:tarea\s*1\b)|$)', cleaned)
-        if m:
-            materials = m.group(1).strip()
-            materials = re.split(r'(?i)\btarea\s*1\b', materials, maxsplit=1)[0].strip()
-            materials = re.sub(r'\n{3,}', '\n\n', materials).strip()
-            if len(materials) > 800:
-                materials = materials[:800].strip()
-    except Exception:
-        materials = ''
-
-    # Objetivo: primera línea "larga" posterior a materiales, que suele llevar la idea + minutos.
-    objective = ''
-    try:
-        tail = cleaned
-        pos = cleaned.lower().find('material de entrenamiento')
-        if pos >= 0:
-            tail = cleaned[pos + len('material de entrenamiento'):]
-        lines = [ln.strip() for ln in tail.splitlines() if ln.strip()]
-        for ln in lines[:40]:
-            if len(ln) < 12:
-                continue
-            folded = _normalize_folded_text(ln)
-            if not folded:
-                continue
-            if any(tok in folded for tok in ('microciclo', 'mesociclo', 'fecha', 'hora', 'temporada', 'periodo', 'materialdeentrenamiento')):
-                continue
-            if re.search(r'\b\d{1,3}\s*(?:min|mins|minutos|[\'’`´])\b', ln, re.IGNORECASE):
-                objective = ln[:8000].strip()
-                break
-    except Exception:
-        objective = ''
-
-    # Nota: para sesiones importadas desde PDF, NO volcamos texto crudo a los campos visibles del plan
-    # (calentamiento/activación/principal/vuelta a la calma). Si lo hacemos, la salida PDF "club"
-    # deja de parecerse al formato estándar de sesiones creadas en el sistema. Guardamos el texto
-    # íntegro en `agenda_hidden` y mantenemos la ficha limpia.
-    cooldown = ''
-
-    fields = {
-        'warmup': '',
-        'activation': '',
-        'main': '',
-        'cooldown': cooldown,
-        'objective': objective,
-        'success_criteria': '',
-        'rpe_target': '',
-        'player_count': '',
-        'location': '',
-        'materials': materials,
-        'absences': '',
-        'agenda_hidden': cleaned[:8000].strip(),
-        'notes': '',
-    }
-    if imported_doc_id:
-        fields['agenda_hidden'] = (f'imported_doc_id:{int(imported_doc_id)}\n\n' + fields['agenda_hidden']).strip()
-    return fields
-
+    return session_import_services.suggest_session_plan_fields_from_pdf_text(
+        extracted_text,
+        imported_doc_id=imported_doc_id,
+    )
 
 def _analyze_preview_image_bytes(raw_bytes):
     return task_library_services.analyze_preview_image_bytes(raw_bytes)
@@ -30656,77 +30586,7 @@ def _analysis_needs_review(analysis):
 
 
 def _apply_analysis_to_task(task, analysis):
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    confidence = _analysis_confidence_scores(analysis)
-    summary_clean = _sanitize_task_text((analysis.get('summary') or '')[:900], multiline=True, max_len=900)
-    task_sheet_raw = analysis.get('task_sheet') if isinstance(analysis.get('task_sheet'), dict) else {}
-    description_plain = _sanitize_task_text(task_sheet_raw.get('description') or '', multiline=True, max_len=1200)
-    players_plain = _sanitize_task_text(task_sheet_raw.get('players') or '', multiline=False, max_len=120)
-    space_plain = _sanitize_task_text(task_sheet_raw.get('space') or '', multiline=False, max_len=120)
-    dimensions_plain = _sanitize_task_text(task_sheet_raw.get('dimensions') or '', multiline=False, max_len=120)
-    materials_plain = _sanitize_task_text(task_sheet_raw.get('materials') or '', multiline=False, max_len=300)
-
-    description_html_raw = str(task_sheet_raw.get('description_html') or '').strip()
-    coaching_html_raw = str(task_sheet_raw.get('coaching_html') or '').strip()
-    rules_html_raw = str(task_sheet_raw.get('rules_html') or '').strip()
-
-    description_html_clean = _sanitize_task_rich_html(description_html_raw) if description_html_raw else _rich_html_from_plain_text(description_plain)
-    coaching_html_clean = _sanitize_task_rich_html(coaching_html_raw) if coaching_html_raw else _rich_html_from_plain_text(str(analysis.get('coaching_points') or ''))
-    rules_html_clean = _sanitize_task_rich_html(rules_html_raw) if rules_html_raw else _rich_html_from_plain_text(str(analysis.get('confrontation_rules') or ''))
-
-    task_sheet_clean = {
-        'description': description_plain,
-        'description_html': description_html_clean,
-        'coaching_html': coaching_html_clean,
-        'rules_html': rules_html_clean,
-        'players': players_plain,
-        'space': space_plain,
-        'dimensions': dimensions_plain,
-        'materials': materials_plain,
-    }
-    upload_date = _task_upload_date(task)
-    reference_date = _coerce_reference_date(analysis.get('reference_date'))
-    if not reference_date:
-        text_for_date = '\n'.join(
-            [
-                str(analysis.get('title') or ''),
-                str(analysis.get('objective') or ''),
-                str(analysis.get('coaching_points') or ''),
-                str(analysis.get('confrontation_rules') or ''),
-                str(analysis.get('summary') or ''),
-                str(task_sheet_clean.get('description') or ''),
-            ]
-        )
-        reference_date = _detect_reference_date_in_text(text_for_date)
-    reference_date_iso = ''
-    if reference_date and reference_date != upload_date:
-        reference_date_iso = reference_date.isoformat()
-
-    meta['analysis'] = {
-        'work_contexts': analysis.get('work_contexts') or [],
-        'objective_tags': analysis.get('objective_tags') or [],
-        'detected_materials': analysis.get('detected_materials') or [],
-        'exercise_types': analysis.get('exercise_types') or [],
-        'phase_tags': analysis.get('phase_tags') or [],
-        'players_count_estimate': analysis.get('players_count_estimate') or None,
-        'players_band': analysis.get('players_band') or '',
-        'duration_band': analysis.get('duration_band') or '',
-        'quality_score': analysis.get('quality_score') or 0,
-        'confidence': confidence,
-        'needs_review': _analysis_needs_review(analysis),
-        'pdf_template': analysis.get('pdf_template') or 'generic',
-        'summary': summary_clean,
-        'task_sheet': task_sheet_clean,
-        'reference_date': reference_date_iso,
-        'reference_date_source': 'content' if reference_date_iso else '',
-        'analyzed_at': timezone.now().isoformat(),
-        'parser_version': TASK_PDF_PARSE_VERSION,
-    }
-    layout['meta'] = meta
-    task.tactical_layout = layout
-    task.save(update_fields=['tactical_layout'])
-
+    return session_import_services.apply_analysis_to_task(task, analysis)
 
 def _infer_blueprint_goal_from_pdf_analysis(task, analysis) -> str:
     """
@@ -31752,89 +31612,10 @@ def _split_pdf_into_task_sections(pdf_text):
 
 
 def _extract_tasks_from_pdf_text(pdf_text, fallback_title='Tarea desde PDF'):
-    sections = _split_pdf_into_task_sections(pdf_text)
-    analyses = []
-    for idx, section in enumerate(sections, start=1):
-        analysis = _suggest_task_from_pdf(section)
-        title = (analysis.get('title') or '').strip()
-        if not title or title.lower() == 'tarea desde pdf':
-            if len(sections) > 1:
-                title = f'{fallback_title} · Tarea {idx}'
-            else:
-                title = fallback_title
-            analysis['title'] = title[:160]
-        analyses.append(
-            {
-                'analysis': analysis,
-                'raw_text': section[:2500],
-                'segment_index': idx,
-                'segment_total': len(sections),
-            }
-        )
-    return analyses
-
+    return session_import_services.extract_tasks_from_pdf_text(pdf_text, fallback_title=fallback_title)
 
 def _suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block):
-    """
-    PDFs de "sesión" suelen contener varios bloques (condicionante/activación/principal 1/principal 2).
-    Cuando detectamos ese patrón, devolvemos un listado de bloques por segmento para crear 1 tarea por bloque.
-    """
-    if not isinstance(parsed_tasks, list) or len(parsed_tasks) < 2:
-        return None
-    try:
-        segments = []
-        for item in parsed_tasks:
-            if not isinstance(item, dict):
-                continue
-            analysis = item.get('analysis') if isinstance(item.get('analysis'), dict) else {}
-            raw_text = str(item.get('raw_text') or '')
-            joined = ' '.join(
-                part for part in [
-                    raw_text,
-                    str(analysis.get('title') or ''),
-                    str(analysis.get('objective') or ''),
-                    str(analysis.get('summary') or ''),
-                ] if part
-            )
-            segments.append(_normalize_folded_text(joined))
-    except Exception:
-        return None
-    if len(segments) < 2:
-        return None
-
-    # Heurística: solo activamos "auto-bloques" si hay señales claras de sesión.
-    is_sessionish = any('microciclo' in seg or 'mesociclo' in seg or 'materialdeentrenamiento' in seg for seg in segments[:2])
-    has_activation_ball = any(('activacion' in seg and 'balon' in seg) for seg in segments[:3])
-    has_conditioning = any(any(tok in seg for tok in ('acondicionamiento', 'trabajofisico', 'fuerza', 'metabol')) for seg in segments[:3])
-    if not (is_sessionish or (has_activation_ball and has_conditioning)):
-        return None
-
-    blocks = []
-    main_blocks = [SessionTask.BLOCK_MAIN_1, SessionTask.BLOCK_MAIN_2]
-    next_main = 0
-    for seg in segments:
-        if any(tok in seg for tok in ('estiramientos', 'vueltaalacalma', 'partefinal', 'parte final', 'recuperacion', 'recuperación')):
-            blocks.append(SessionTask.BLOCK_RECOVERY)
-            continue
-        if any(tok in seg for tok in ('acondicionamiento', 'trabajofisico', 'circuitofuerza', 'intermitente', 'metabol')):
-            blocks.append(SessionTask.BLOCK_CONDITIONING)
-            continue
-        if 'activacion' in seg and ('balon' in seg or 'pases' in seg or 'rueda' in seg):
-            blocks.append(SessionTask.BLOCK_ACTIVATION)
-            continue
-        if 'abp' in seg or 'balonparado' in seg or 'balónparado' in seg or 'corner' in seg or 'córner' in seg:
-            blocks.append(SessionTask.BLOCK_SET_PIECES)
-            continue
-        if next_main < len(main_blocks):
-            blocks.append(main_blocks[next_main])
-            next_main += 1
-            continue
-        blocks.append(fallback_block)
-
-    if len(set(blocks)) < 2:
-        return None
-    return blocks
-
+    return session_import_services.suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block)
 
 def _parse_bulk_tasks_text(raw_text, default_block, default_minutes):
     """

@@ -21,6 +21,7 @@ from .library_repositories import (
 )
 from .models import SessionTask, TrainingMicrocycle
 from .session_plan_fields import serialize_session_plan_fields
+from . import session_task_pdf_parser
 from .task_library_services import (
     _split_joined_upper_token,
     analyze_preview_image_bytes,
@@ -50,7 +51,7 @@ def _views_func(name):
 
 
 def apply_analysis_to_task(*args, **kwargs):
-    return _views_func('_apply_analysis_to_task')(*args, **kwargs)
+    return session_task_pdf_parser._apply_analysis_to_task(*args, **kwargs)
 
 
 def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
@@ -584,7 +585,7 @@ def default_task_preview_payload():
 
 
 def extract_tasks_from_pdf_text(*args, **kwargs):
-    return _views_func('_extract_tasks_from_pdf_text')(*args, **kwargs)
+    return session_task_pdf_parser._extract_tasks_from_pdf_text(*args, **kwargs)
 
 
 def get_or_create_inbox_microcycle(*args, **kwargs):
@@ -714,11 +715,72 @@ def parse_pdf_session_header_fields(*args, **kwargs):
 
 
 def suggest_blocks_for_session_pdf_segments(*args, **kwargs):
-    return _views_func('_suggest_blocks_for_session_pdf_segments')(*args, **kwargs)
+    return session_task_pdf_parser._suggest_blocks_for_session_pdf_segments(*args, **kwargs)
 
 
 def suggest_session_plan_fields_from_pdf_text(*args, **kwargs):
-    return _views_func('_suggest_session_plan_fields_from_pdf_text')(*args, **kwargs)
+    extracted_text = args[0] if args else kwargs.get('extracted_text')
+    imported_doc_id = kwargs.get('imported_doc_id')
+    text = str(extracted_text or '').strip()
+    if not text:
+        fields = {'notes': ''}
+        if imported_doc_id:
+            fields['agenda_hidden'] = f'imported_doc_id:{int(imported_doc_id)}'
+        return fields
+
+    cleaned = polish_spanish_text(repair_joined_words_text(text), multiline=True)
+
+    materials = ''
+    try:
+        match = re.search(r'(?is)material\s+de\s+entrenamiento\s*(.+?)(?:\n\s*\n|(?:tarea\s*1\b)|$)', cleaned)
+        if match:
+            materials = match.group(1).strip()
+            materials = re.split(r'(?i)\btarea\s*1\b', materials, maxsplit=1)[0].strip()
+            materials = re.sub(r'\n{3,}', '\n\n', materials).strip()
+            if len(materials) > 800:
+                materials = materials[:800].strip()
+    except Exception:
+        materials = ''
+
+    objective = ''
+    try:
+        tail = cleaned
+        pos = cleaned.lower().find('material de entrenamiento')
+        if pos >= 0:
+            tail = cleaned[pos + len('material de entrenamiento'):]
+        lines = [ln.strip() for ln in tail.splitlines() if ln.strip()]
+        for line in lines[:40]:
+            if len(line) < 12:
+                continue
+            folded = session_task_pdf_parser._normalize_folded_text(line)
+            if not folded:
+                continue
+            if any(tok in folded for tok in ('microciclo', 'mesociclo', 'fecha', 'hora', 'temporada', 'periodo', 'materialdeentrenamiento')):
+                continue
+            if re.search(r'\b\d{1,3}\s*(?:min|mins|minutos|[\'’`´])\b', line, re.IGNORECASE):
+                objective = line[:8000].strip()
+                break
+    except Exception:
+        objective = ''
+
+    fields = {
+        'warmup': '',
+        'activation': '',
+        'main': '',
+        'cooldown': '',
+        'objective': objective,
+        'success_criteria': '',
+        'rpe_target': '',
+        'player_count': '',
+        'location': '',
+        'materials': materials,
+        'absences': '',
+        'agenda_hidden': cleaned[:8000].strip(),
+        'notes': '',
+    }
+    if imported_doc_id:
+        fields['agenda_hidden'] = (f'imported_doc_id:{int(imported_doc_id)}\n\n' + fields['agenda_hidden']).strip()
+    return fields
 
 
 def get_or_create_library_session_with_repository(*args, **kwargs):
