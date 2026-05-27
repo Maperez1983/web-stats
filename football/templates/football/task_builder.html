@@ -240,7 +240,7 @@
         overflow-x: hidden;
         display: flex;
         flex-direction: column;
-        padding: clamp(0.55rem, 1vw, 1rem);
+        padding: clamp(0.25rem, 0.55vw, 0.7rem);
       }
       body.tactics-mode .builder {
         flex: 1 1 auto;
@@ -255,6 +255,7 @@
         flex-direction: column;
         min-height: 0;
         overflow-x: hidden;
+        padding: clamp(0.25rem, 0.55vw, 0.65rem);
       }
       /* Táctica: el aviso "Borrador local recuperado" no debe ocupar altura ni empujar el layout.
          Se muestra como toast flotante (y el JS lo auto-oculta). */
@@ -330,7 +331,7 @@
         /* En desktop suele quedar “aire” arriba cuando el fit reduce el stage; preferimos anclar el campo arriba. */
         align-items: flex-start;
         justify-content: center;
-        padding-top: 0.35rem;
+        padding-top: 0.1rem;
       }
       /* En táctica, el tamaño del campo lo gestiona el layoutManager (JS) para que quepa en una sola vista. */
       body.tactics-mode .pitch-stage {
@@ -2656,12 +2657,12 @@
         overflow: hidden;
         display: grid;
         grid-auto-flow: row;
-        grid-template-columns: minmax(0, 1fr) clamp(300px, 22vw, 340px);
+        grid-template-columns: minmax(0, 1fr) clamp(370px, 19vw, 400px);
         grid-template-areas: "main side";
-        gap: 0.65rem;
+        gap: 0.5rem;
       }
       body.tactics-mode.pitch-orientation-portrait .pitch-layout {
-        grid-template-columns: minmax(0, 1fr) clamp(292px, 19vw, 320px);
+        grid-template-columns: minmax(0, 1fr) clamp(340px, 18vw, 380px);
         gap: 0.6rem;
       }
       body.tactics-mode.tactics-layout-top .pitch-layout {
@@ -3925,10 +3926,13 @@
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.45rem;
+        overflow: visible;
       }
       body.tactics-mode .resource-strip.resource-strip-primary button.tool-icon {
+        min-width: 0;
+        flex: 1 1 auto;
         width: 100%;
-        height: 58px;
+        height: 54px;
         border-radius: 16px;
         flex-direction: column;
         gap: 0.18rem;
@@ -3942,6 +3946,11 @@
         font-size: 0.64rem;
         line-height: 1;
         color: rgba(226, 232, 240, 0.78);
+      }
+      @media (max-width: 1760px) {
+        body.tactics-mode .resource-strip.resource-strip-primary {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
       }
       .selection-header {
         display: grid;

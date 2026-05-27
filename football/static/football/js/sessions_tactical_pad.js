@@ -2847,7 +2847,14 @@
 		      sash: 'banda',
 		    };
 		    let tokenGlobalStyle = 'disk';
-		    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
+		    let tokenGlobalStyleStored = false;
+		    try {
+		      const storedTokenStyle = window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY);
+		      if (safeText(storedTokenStyle).trim()) {
+		        tokenGlobalStyleStored = true;
+		        tokenGlobalStyle = normalizeTokenStyle(storedTokenStyle);
+		      }
+		    } catch (e) { /* ignore */ }
 		    // Color de fichas (para nuevos jugadores colocados en la pizarra).
 		    // En Táctica: 2 colores (local / rival) para que el entrenador no tenga que recolorear cada ficha.
 			    const tokenTeamName = safeText(document.querySelector('.tpad-stand-name')?.textContent || '');
@@ -2998,7 +3005,46 @@
 		    let kit2dEditorDataUrl = '';
 		    let kit2dClubDataUrl = '';
 		    let kit2dEditorImageEl = null;
+		    const kit2dEditorDataUrlsBySlot = { home: '', away: '', gk: '' };
+		    const kit2dEditorImagesBySlot = { home: null, away: null, gk: null };
 		    let kit2dPrefLoadStarted = false;
+		    const kit2dSlotForTokenKind = (kind) => {
+		      if (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') return 'gk';
+		      if (kind === 'player_rival' || kind === 'player_away') return 'away';
+		      return 'home';
+		    };
+		    const kit2dDataUrlForTokenKind = (kind) => {
+		      const slot = kit2dSlotForTokenKind(kind);
+		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrl || '';
+		    };
+		    const kit2dImageForTokenKind = (kind) => {
+		      const slot = kit2dSlotForTokenKind(kind);
+		      return kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
+		    };
+		    const applyKit2dDefaultTokenStyle = () => {
+		      if (!tokenGlobalStyleStored || tokenGlobalStyle === 'disk') {
+		        tokenGlobalStyle = 'jersey';
+		        tokenGlobalStyleStored = true;
+		        try { window.localStorage?.setItem(TOKEN_STYLE_STORAGE_KEY, tokenGlobalStyle); } catch (e) { /* ignore */ }
+		        try { syncTokenGlobalStyleUi(); } catch (e) { /* ignore */ }
+		      }
+		    };
+		    const loadKit2dSlotImage = (slot, url) => {
+		      if (!url) return;
+		      try {
+		        const img = new Image();
+		        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
+		        img.onload = () => {
+		          kit2dEditorImagesBySlot[slot] = img;
+		          if (slot === 'home' || !kit2dEditorImageEl) kit2dEditorImageEl = img;
+		          applyKit2dDefaultTokenStyle();
+		          try { runWhenIdle(() => { try { renderPlayerBank(); } catch (e) { /* ignore */ } }, 120); } catch (e) { /* ignore */ }
+		          try { if (canvas && typeof canvas.requestRenderAll === 'function') canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+		        };
+		        img.onerror = () => { /* ignore */ };
+		        img.src = url;
+		      } catch (e) { /* ignore */ }
+		    };
 		    const loadKit2dTokensPreference = async () => {
 		      if (kit2dPrefLoadStarted) return;
 		      kit2dPrefLoadStarted = true;
@@ -3012,22 +3058,18 @@
 		        if (!value || typeof value !== 'object') return;
 		        const editor = safeText(value.editor_data_url || value.editor_png_data_url || value.editor_png || value.editor || '');
 		        const club = safeText(value.club_data_url || value.club_png_data_url || value.club_png || value.club || '');
-		        if (editor.startsWith('data:image/') || editor.startsWith('/') || editor.startsWith('http')) kit2dEditorDataUrl = editor;
+		        const homeEditor = safeText(value.home_editor_data_url || editor);
+		        const awayEditor = safeText(value.away_editor_data_url || value.alternate_editor_data_url || '');
+		        const gkEditor = safeText(value.gk_editor_data_url || value.goalkeeper_editor_data_url || '');
+		        if (homeEditor.startsWith('data:image/') || homeEditor.startsWith('/') || homeEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.home = homeEditor;
+		        if (awayEditor.startsWith('data:image/') || awayEditor.startsWith('/') || awayEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.away = awayEditor;
+		        if (gkEditor.startsWith('data:image/') || gkEditor.startsWith('/') || gkEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.gk = gkEditor;
+		        kit2dEditorDataUrl = kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrlsBySlot.away || kit2dEditorDataUrlsBySlot.gk || '';
 		        if (club.startsWith('data:image/') || club.startsWith('/') || club.startsWith('http')) kit2dClubDataUrl = club;
 		        if (!kit2dEditorDataUrl) return;
-		        try {
-		          const img = new Image();
-		          try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
-		          img.onload = () => {
-		            kit2dEditorImageEl = img;
-		            // Refresca el banco para que el token se vea (sin bloquear el arranque).
-		            try { runWhenIdle(() => { try { renderPlayerBank(); } catch (e) { /* ignore */ } }, 120); } catch (e) { /* ignore */ }
-		            // Si hay objetos en canvas usando estilo "jersey", al menos repintamos.
-		            try { if (canvas && typeof canvas.requestRenderAll === 'function') canvas.requestRenderAll(); } catch (e) { /* ignore */ }
-		          };
-		          img.onerror = () => { /* ignore */ };
-		          img.src = kit2dEditorDataUrl;
-		        } catch (e) { /* ignore */ }
+		        loadKit2dSlotImage('home', kit2dEditorDataUrlsBySlot.home);
+		        loadKit2dSlotImage('away', kit2dEditorDataUrlsBySlot.away);
+		        loadKit2dSlotImage('gk', kit2dEditorDataUrlsBySlot.gk);
 		      } catch (e) {
 		        // ignore
 		      }
@@ -15485,7 +15527,8 @@
 	        if (!isTacticsModeNow) return (layoutVh < 720 ? 220 : 420);
 	        const vwCss = Math.max(0, Number(window.innerWidth) || 0);
 	        if (layoutVh < 720) return 200;
-	        if (vwCss >= 1024) return 260; // desktop: evita dejar demasiado “aire” arriba
+	        if (vwCss >= 1600) return 0; // desktop ancho: prioriza ancho de campo aunque la página tenga scroll vertical
+	        if (vwCss >= 1024) return 180; // desktop: evita dejar demasiado “aire” arriba
 	        return 320; // tablet/móvil: el topbar ocupa más
 	      })();
 	      const topCandidate = Math.min(topRaw, headerCap);
@@ -17246,13 +17289,14 @@
 		          nameText.data = { role: 'token_name' };
 			          tokenParts.push(nameText);
 				        } else if (style === 'jersey') {
-				          const canUseKit2d = !isGoalkeeper && kit2dEditorImageEl && (kit2dEditorImageEl.naturalWidth || kit2dEditorImageEl.width);
+				          const kit2dImageEl = kit2dImageForTokenKind(kind);
+				          const canUseKit2d = kit2dImageEl && (kit2dImageEl.naturalWidth || kit2dImageEl.width);
 				          if (canUseKit2d) {
-				            const naturalW = Number(kit2dEditorImageEl.naturalWidth || kit2dEditorImageEl.width || 1);
-				            const naturalH = Number(kit2dEditorImageEl.naturalHeight || kit2dEditorImageEl.height || 1);
+				            const naturalW = Number(kit2dImageEl.naturalWidth || kit2dImageEl.width || 1);
+				            const naturalH = Number(kit2dImageEl.naturalHeight || kit2dImageEl.height || 1);
 				            const desired = 54; // similar al SVG (56px) usado en el banco.
 				            const baseScale = desired / Math.max(1, Math.max(naturalW, naturalH));
-				            const imgObj = new fabric.Image(kit2dEditorImageEl, {
+				            const imgObj = new fabric.Image(kit2dImageEl, {
 				              left: 0,
 				              top: 0,
 				              originX: 'center',
@@ -19620,10 +19664,11 @@
 		          const gkGradId = `tpad-gk-grad-${String(player.id || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'x'}`;
 		          badge.className = 'token-jersey';
 		          if (kind === 'goalkeeper_local') badge.classList.add('is-goalkeeper');
-		          const useKit2d = kind !== 'goalkeeper_local' && !!kit2dEditorDataUrl;
+		          const kit2dBadgeUrl = kit2dDataUrlForTokenKind(kind);
+		          const useKit2d = !!kit2dBadgeUrl;
 		          if (useKit2d) {
 		            badge.classList.add('is-kit2d');
-		            badge.innerHTML = `<img class="token-jersey-img" src="${escapeHtml(kit2dEditorDataUrl)}" alt="" aria-hidden="true" />`;
+		            badge.innerHTML = `<img class="token-jersey-img" src="${escapeHtml(kit2dBadgeUrl)}" alt="" aria-hidden="true" />`;
 		          } else {
 		            badge.innerHTML = `
 		              <svg class="token-jersey-svg" viewBox="-26 -30 52 60" aria-hidden="true" focusable="false">
