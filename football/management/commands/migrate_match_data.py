@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from football.dashboard_cache import invalidate_team_dashboard_caches
 from football.models import (
     ConvocationRecord,
     Match,
@@ -15,7 +16,6 @@ from football.models import (
     RivalConvocationRecord,
     Team,
 )
-from football.views import _invalidate_team_dashboard_caches
 
 
 class Command(BaseCommand):
@@ -180,7 +180,7 @@ class Command(BaseCommand):
                 from_match.save(update_fields=from_match_update_fields)
 
             if team:
-                _invalidate_team_dashboard_caches(team)
+                invalidate_team_dashboard_caches(team)
 
         self.stdout.write(
             self.style.SUCCESS(

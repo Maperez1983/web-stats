@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.utils import timezone
 
+from .dashboard_cache import invalidate_team_dashboard_caches
 from .models import Match, Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
 
 
@@ -27,7 +28,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _parse_payload_date = core_views._parse_payload_date
     build_match_payload = core_views.build_match_payload
     _build_workspace_schedule_payload = core_views._build_workspace_schedule_payload
-    _invalidate_team_dashboard_caches = core_views._invalidate_team_dashboard_caches
 
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
@@ -220,7 +220,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     snapshot.schedule_payload = schedule_payload or []
     snapshot.save()
     if primary_team:
-        _invalidate_team_dashboard_caches(primary_team)
+        invalidate_team_dashboard_caches(primary_team)
 
     context.group = primary_team.group
     context.season = getattr(primary_team.group, 'season', None)
@@ -231,4 +231,3 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         context.external_team_name = str(primary_team.name or '').strip()
     context.save(update_fields=['group', 'season', 'last_sync_at', 'sync_status', 'sync_error', 'external_team_name', 'updated_at'])
     return context, ''
-

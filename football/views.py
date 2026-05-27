@@ -64,7 +64,17 @@ from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
 from . import workspace_context
+from .dashboard_cache import (
+    dashboard_cache_key,
+    invalidate_team_dashboard_caches,
+    player_dashboard_cache_key,
+    player_dashboard_cache_key_scoped,
+    player_metrics_cache_key,
+    team_metrics_cache_key,
+)
+from .event_signatures import event_signature, event_signature_canon_text, is_manual_event_source
 from .ops_logging import log_exception
+from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 
 try:
     from PIL import Image, ImageFilter, ImageOps
@@ -9270,64 +9280,25 @@ def _next_match_payload_is_reliable(payload):
 
 
 def _dashboard_cache_key(team_id):
-    return f'{DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
+    return dashboard_cache_key(team_id)
 
 def _team_metrics_cache_key(team_id):
-    return f'football:team_metrics:{team_id}'
+    return team_metrics_cache_key(team_id)
 
 def _player_metrics_cache_key(team_id):
-    return f'football:player_metrics:{team_id}'
+    return player_metrics_cache_key(team_id)
 
 
 def _player_dashboard_cache_key(team_id):
-    return f'{PLAYER_DASHBOARD_CACHE_KEY_PREFIX}:{team_id}'
+    return player_dashboard_cache_key(team_id)
 
 
 def _player_dashboard_cache_key_scoped(team_id, season_id=None):
-    """
-    Cache key para `compute_player_dashboard()`.
-
-    Incluimos season_id para evitar mezclar temporadas cuando un equipo reutiliza el mismo `Team.id`
-    (ej. cierre de temporada / nueva temporada con la misma base).
-    """
-    base = _player_dashboard_cache_key(team_id)
-    if season_id:
-        return f'{base}:s{int(season_id)}'
-    return base
+    return player_dashboard_cache_key_scoped(team_id, season_id=season_id)
 
 
 def _invalidate_team_dashboard_caches(primary_team):
-    if not primary_team or not getattr(primary_team, 'id', None):
-        return
-    # `compute_player_dashboard()` cachea por scope (liga/torneo/amistoso/all) añadiendo sufijo.
-    # Si no invalidamos esas claves, las estadísticas del equipo se quedan "pegadas" tras registrar acciones.
-    base_player_key_legacy = _player_dashboard_cache_key(primary_team.id)
-    season_id = None
-    try:
-        season_id = int(getattr(getattr(primary_team, 'group', None), 'season_id', 0) or 0) or None
-    except Exception:
-        season_id = None
-    base_player_key = _player_dashboard_cache_key_scoped(primary_team.id, season_id=season_id)
-    scoped_player_keys = []
-    for base in {base_player_key_legacy, base_player_key}:
-        scoped_player_keys.extend(
-            [
-                f'{base}:{Match.CONTEXT_LEAGUE}',
-                f'{base}:{Match.CONTEXT_TOURNAMENT}',
-                f'{base}:{Match.CONTEXT_FRIENDLY}',
-                f'{base}:all',
-            ]
-        )
-    cache.delete_many(
-        [
-            _dashboard_cache_key(primary_team.id),
-            base_player_key_legacy,
-            base_player_key,
-            *scoped_player_keys,
-            _team_metrics_cache_key(primary_team.id),
-            _player_metrics_cache_key(primary_team.id),
-        ]
-    )
+    return invalidate_team_dashboard_caches(primary_team)
 
 
 def _upsert_match_from_next_match_payload(primary_team, payload):
@@ -26054,120 +26025,11 @@ def _build_session_pdf_context(request, team, session, pdf_style='uefa'):
 
 
 def _parse_session_plan_fields(raw_content):
-    content = str(raw_content or '')
-    defaults = {
-        'warmup': '',
-        'activation': '',
-        'main': '',
-        'cooldown': '',
-        'objective': '',
-        'success_criteria': '',
-        'rpe_target': '',
-        'player_count': '',
-        'location': '',
-        'materials': '',
-        'absences': '',
-        'agenda_hidden': '',
-        'confirmed_at': '',
-        'confirmed_by': '',
-        'performed_repo_copied': '',
-        'notes': content.strip(),
-    }
-    if not content.strip():
-        return defaults
-    marker = '[2J_SESSION]'
-    if marker not in content:
-        return defaults
-    _, payload = content.split(marker, 1)
-    parsed = defaults.copy()
-    parsed.update(
-        {
-            'warmup': '',
-            'activation': '',
-            'main': '',
-            'cooldown': '',
-            'objective': '',
-            'success_criteria': '',
-            'rpe_target': '',
-            'player_count': '',
-            'location': '',
-            'materials': '',
-            'absences': '',
-            'agenda_hidden': '',
-            'confirmed_at': '',
-            'confirmed_by': '',
-            'performed_repo_copied': '',
-            'notes': '',
-        }
-    )
-    current_key = None
-    free_lines = []
-    allowed_keys = {
-        'warmup',
-        'activation',
-        'main',
-        'cooldown',
-        'objective',
-        'success_criteria',
-        'rpe_target',
-        'player_count',
-        'location',
-        'materials',
-        'absences',
-        'agenda_hidden',
-        'confirmed_at',
-        'confirmed_by',
-        'performed_repo_copied',
-        'notes',
-    }
-    for raw_line in payload.splitlines():
-        line = raw_line.rstrip()
-        if not line.strip():
-            if current_key:
-                parsed[current_key] = (parsed.get(current_key, '') + '\n').strip('\n')
-            continue
-        if ':' in line:
-            key, value = line.split(':', 1)
-            normalized = key.strip().lower()
-            if normalized in allowed_keys:
-                current_key = normalized
-                parsed[current_key] = value.strip()
-                continue
-        if current_key:
-            parsed[current_key] = '\n'.join(filter(None, [parsed.get(current_key, '').strip(), line.strip()])).strip()
-        else:
-            free_lines.append(line.strip())
-    if free_lines and not parsed.get('notes'):
-        parsed['notes'] = '\n'.join(free_lines).strip()
-    return parsed
+    return parse_session_plan_fields(raw_content)
 
 
 def _serialize_session_plan_fields(fields):
-    keys = [
-        'warmup',
-        'activation',
-        'main',
-        'cooldown',
-        'objective',
-        'success_criteria',
-        'rpe_target',
-        'player_count',
-        'location',
-        'materials',
-        'absences',
-        'agenda_hidden',
-        'confirmed_at',
-        'confirmed_by',
-        'performed_repo_copied',
-        'notes',
-    ]
-    clean = {key: str((fields or {}).get(key) or '').strip() for key in keys}
-    if not any(clean.values()):
-        return ''
-    lines = ['[2J_SESSION]']
-    for key in keys:
-        lines.append(f'{key}:{clean[key]}')
-    return '\n'.join(lines).strip()
+    return serialize_session_plan_fields(fields)
 
 
 def _parse_microcycle_plan_fields(raw_notes):
@@ -60307,8 +60169,7 @@ def preferred_event_source_by_match(primary_team, scope=None):
 
 
 def _is_manual_event_source(source_file):
-    normalized = (source_file or '').strip().lower()
-    return normalized == 'admin-manual' or 'manual' in normalized
+    return is_manual_event_source(source_file)
 
 
 def _event_matches_stats_source(event, preferred_sources=None):
@@ -60452,49 +60313,12 @@ def compute_team_metrics_for_match(match, primary_team=None):
 
 
 def _event_signature(event):
-    def canon(value):
-        return _event_signature_canon_text(value)
-
-    if _is_manual_event_source(getattr(event, 'source_file', '')):
-        return ('manual-event', getattr(event, 'id', None))
-
-    # Registro en vivo: no deduplicar por (minuto, tipo) porque en fútbol puede haber
-    # varias acciones iguales dentro del mismo minuto. El endpoint ya evita dobles clicks.
-    if (getattr(event, 'source_file', '') or '').strip() == 'registro-acciones':
-        return ('registro-acciones', getattr(event, 'id', None))
-
-    # "Acción realizada" for dashboard cards:
-    # keep one action per player/match/minute/type.
-    # If minute is missing, retain more fields to avoid over-collapsing.
-    minute = event.minute
-    action_type = canon(event.event_type)
-    if minute is not None:
-        return (
-            event.match_id,
-            event.player_id,
-            minute,
-            action_type,
-        )
-    return (
-        event.match_id,
-        event.player_id,
-        minute,
-        action_type,
-        canon(event.result),
-        canon(event.zone),
-        canon(event.tercio),
-        canon(event.observation),
-    )
+    return event_signature(event)
 
 
 @lru_cache(maxsize=8192)
 def _event_signature_canon_text(value):
-    text = ' '.join(str(value or '').split())
-    if not text:
-        return ''
-    text = unicodedata.normalize('NFKD', text)
-    text = ''.join(ch for ch in text if not unicodedata.combining(ch))
-    return text.lower().strip()
+    return event_signature_canon_text(value)
 
 
 def _match_action_dedupe_signature(event):

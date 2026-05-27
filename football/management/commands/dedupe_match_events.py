@@ -4,8 +4,8 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from football.event_signatures import event_signature
 from football.models import Match, MatchEvent, Team
-from football.views import _event_signature
 
 
 class Command(BaseCommand):
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         fallback_epoch = timezone.now()
 
         for event in events:
-            signature = _event_signature(event)
+            signature = event_signature(event)
             created_at = event.created_at or fallback_epoch
             previous_times = by_signature[signature]
             if any(abs(created_at - ts) <= window for ts in previous_times):

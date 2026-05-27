@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand
 
 from football.models import Team, TrainingSession
+from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 
 
 class Command(BaseCommand):
@@ -28,9 +29,6 @@ class Command(BaseCommand):
         clear_absences = bool(options.get("clear_absences"))
         verbosity = int(options.get("verbosity") or 1)
 
-        # Reutiliza helpers del sistema para mantener el formato consistente.
-        from football.views import _parse_session_plan_fields, _serialize_session_plan_fields  # noqa: WPS433
-
         team = Team.objects.filter(id=team_id).first() if team_id else Team.objects.filter(is_primary=True).order_by("id").first()
         if not team:
             self.stdout.write(self.style.ERROR("No se encontró equipo. Usa --team-id."))
@@ -55,7 +53,7 @@ class Command(BaseCommand):
 
         for session in qs:
             scanned += 1
-            fields = _parse_session_plan_fields(getattr(session, "content", "") or "")
+            fields = parse_session_plan_fields(getattr(session, "content", "") or "")
 
             agenda_hidden = str(fields.get("agenda_hidden") or "")
             looks_imported = "imported_doc_id:" in agenda_hidden
@@ -102,7 +100,7 @@ class Command(BaseCommand):
                 )
 
             if not dry_run:
-                session.content = _serialize_session_plan_fields(fields)
+                session.content = serialize_session_plan_fields(fields)
                 session.save(update_fields=["content"])
             changed += 1
 
