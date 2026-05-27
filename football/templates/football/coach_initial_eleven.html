@@ -591,20 +591,24 @@
         filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.38));
         pointer-events: none;
       }
-      .token-kit2d-num {
-        position: absolute;
-        right: -1px;
-        bottom: -1px;
-        min-width: 18px;
-        height: 18px;
+      .token-name-row {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        min-width: 0;
+      }
+      .token-name-num {
+        flex: 0 0 auto;
+        min-width: 20px;
+        height: 20px;
         border-radius: 999px;
-        display: grid;
+        display: inline-grid;
         place-items: center;
-        padding: 0 0.2rem;
+        padding: 0 0.28rem;
         background: rgba(244, 180, 0, 0.96);
         color: rgba(2, 6, 23, 0.96);
-        border: 1px solid rgba(2, 6, 23, 0.72);
-        font-size: 0.58rem;
+        border: 1px solid rgba(2, 6, 23, 0.68);
+        font-size: 0.62rem;
         font-weight: 950;
       }
 
@@ -1394,7 +1398,6 @@
           const kitHtml = kitSafe ? `
             <span class="token-kit2d" aria-hidden="true">
               <img class="token-kit2d-img" src='${kitSafe}' alt="" loading="lazy" />
-              <span class="token-kit2d-num">${num === '--' ? '--' : num}</span>
             </span>
           ` : '';
           const photoHtml = (!kitSafe && photoSafe) ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
@@ -1403,7 +1406,10 @@
               ${photoHtml}
               ${kitHtml || `<span class="token-num">${num === '--' ? '--' : num}</span>`}
               <span>
-                <span class="token-name">${String(player.name || '').toUpperCase()}</span>
+                <span class="token-name-row">
+                  ${kitSafe ? `<span class="token-name-num">${num === '--' ? '--' : num}</span>` : ''}
+                  <span class="token-name">${String(player.name || '').toUpperCase()}</span>
+                </span>
                 <span class="token-role">${role.toUpperCase()}</span>
               </span>
             </div>
