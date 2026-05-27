@@ -1250,9 +1250,9 @@
         background: rgba(148,163,184,0.9);
       }
       body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_local"] .dot,
-      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_local"] .dot { background: rgba(34, 197, 94, 0.95); }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_local"] .dot { background: var(--tpad-token-local, rgba(34, 197, 94, 0.95)); }
       body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="player_rival"] .dot,
-      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_rival"] .dot { background: rgba(239, 68, 68, 0.95); }
+      body.tactics-mode .tactics-quickbar .tactics-chip[data-tactics-tool="goalkeeper_rival"] .dot { background: var(--tpad-token-rival, rgba(239, 68, 68, 0.95)); }
       body.tactics-mode .tactics-quickbar .tactics-chip.is-active {
         background: rgba(34, 211, 238, 0.14);
         border-color: rgba(34, 211, 238, 0.38);

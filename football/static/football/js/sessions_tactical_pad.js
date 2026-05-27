@@ -78,11 +78,30 @@
       return rgb ? rgbToHex(rgb.r, rgb.g, rgb.b) : fallback;
     }
     const rgbaMatch = color.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    if (rgbaMatch) {
-      return rgbToHex(rgbaMatch[1], rgbaMatch[2], rgbaMatch[3]);
-    }
-    return fallback;
-  };
+	    if (rgbaMatch) {
+	      return rgbToHex(rgbaMatch[1], rgbaMatch[2], rgbaMatch[3]);
+	    }
+	    const hslMatch = color.match(/hsla?\(\s*([0-9.]+)(?:deg)?\s*,\s*([0-9.]+)%\s*,\s*([0-9.]+)%/i);
+	    if (hslMatch) {
+	      const h = (((Number(hslMatch[1]) || 0) % 360) + 360) % 360;
+	      const s = clamp((Number(hslMatch[2]) || 0) / 100, 0, 1);
+	      const l = clamp((Number(hslMatch[3]) || 0) / 100, 0, 1);
+	      const c = (1 - Math.abs((2 * l) - 1)) * s;
+	      const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+	      const m = l - (c / 2);
+	      let rp = 0;
+	      let gp = 0;
+	      let bp = 0;
+	      if (h < 60) [rp, gp, bp] = [c, x, 0];
+	      else if (h < 120) [rp, gp, bp] = [x, c, 0];
+	      else if (h < 180) [rp, gp, bp] = [0, c, x];
+	      else if (h < 240) [rp, gp, bp] = [0, x, c];
+	      else if (h < 300) [rp, gp, bp] = [x, 0, c];
+	      else [rp, gp, bp] = [c, 0, x];
+	      return rgbToHex(Math.round((rp + m) * 255), Math.round((gp + m) * 255), Math.round((bp + m) * 255));
+	    }
+	    return fallback;
+	  };
   const darkenHex = (hex, factor = 0.35) => {
     const rgb = hexToRgb(hex);
     if (!rgb) return hex;
@@ -2827,39 +2846,64 @@
 		    try { tokenGlobalStyle = normalizeTokenStyle(window.localStorage?.getItem(TOKEN_STYLE_STORAGE_KEY)); } catch (e) { /* ignore */ }
 		    // Color de fichas (para nuevos jugadores colocados en la pizarra).
 		    // En Táctica: 2 colores (local / rival) para que el entrenador no tenga que recolorear cada ficha.
-		    const TOKEN_COLORS_STORAGE_KEY = 'webstats:tpad:token-colors-v2';
-		    const TOKEN_COLOR_STORAGE_KEY_LEGACY = 'webstats:tpad:token-color-v1';
-		    const tokenGlobalColorLocalInput = document.getElementById('task-token-global-color-local') || document.getElementById('task-token-global-color');
-		    const tokenGlobalColorLocalHexInput = document.getElementById('task-token-global-color-local-hex') || document.getElementById('task-token-global-color-hex');
-		    const tokenGlobalColorRivalInput = document.getElementById('task-token-global-color-rival');
-		    const tokenGlobalColorRivalHexInput = document.getElementById('task-token-global-color-rival-hex');
-		    let tokenGlobalColorLocal = '#0f7a35';
-		    let tokenGlobalColorRival = '#ef4444';
-		    try {
-		      const stored = window.localStorage?.getItem(TOKEN_COLORS_STORAGE_KEY);
-		      const parsed = stored ? JSON.parse(stored) : null;
+			    const tokenTeamName = safeText(document.querySelector('.tpad-stand-name')?.textContent || '');
+			    const tokenTeamKey = tokenTeamName
+			      .toLowerCase()
+			      .normalize('NFD')
+			      .replace(/[\u0300-\u036f]/g, '')
+			      .replace(/[^a-z0-9]+/g, '-')
+			      .replace(/^-+|-+$/g, '')
+			      .slice(0, 80) || 'global';
+			    const TOKEN_COLORS_STORAGE_KEY = `webstats:tpad:token-colors-v3:${isTacticsMode ? tokenTeamKey : 'global'}`;
+			    const TOKEN_COLOR_STORAGE_KEY_LEGACY = 'webstats:tpad:token-color-v1';
+			    const tokenGlobalColorLocalInput = document.getElementById('task-token-global-color-local') || document.getElementById('task-token-global-color');
+			    const tokenGlobalColorLocalHexInput = document.getElementById('task-token-global-color-local-hex') || document.getElementById('task-token-global-color-hex');
+			    const tokenGlobalColorRivalInput = document.getElementById('task-token-global-color-rival');
+			    const tokenGlobalColorRivalHexInput = document.getElementById('task-token-global-color-rival-hex');
+			    const tokenTeamDefaultColors = (() => {
+			      const lower = tokenTeamName
+			        .toLowerCase()
+			        .normalize('NFD')
+			        .replace(/[\u0300-\u036f]/g, '');
+			      if (lower.includes('malaga')) return { local: '#6ecff6', base: '#ffffff', rival: '#ef4444' };
+			      const stadium = document.querySelector('.tpad-stadium');
+			      const styles = stadium && window.getComputedStyle ? window.getComputedStyle(stadium) : null;
+			      const local = parseColorToHex(styles?.getPropertyValue('--tpad-team-primary'), '') || '#0f7a35';
+			      const base = parseColorToHex(styles?.getPropertyValue('--tpad-team-secondary'), '') || '#ffffff';
+			      return { local, base, rival: '#ef4444' };
+			    })();
+			    let tokenGlobalColorLocal = tokenTeamDefaultColors.local;
+			    let tokenGlobalColorLocalBase = tokenTeamDefaultColors.base;
+			    let tokenGlobalColorRival = tokenTeamDefaultColors.rival;
+			    try {
+			      const stored = window.localStorage?.getItem(TOKEN_COLORS_STORAGE_KEY);
+			      const parsed = stored ? JSON.parse(stored) : null;
 		      if (parsed && typeof parsed === 'object') {
-		        const local = parseColorToHex(parsed.local, '');
-		        const rival = parseColorToHex(parsed.rival, '');
-		        if (local) tokenGlobalColorLocal = local;
-		        if (rival) tokenGlobalColorRival = rival;
-		      } else {
-		        // Backward compat: si existía el color único, lo aplicamos al local.
-		        const legacy = parseColorToHex(window.localStorage?.getItem(TOKEN_COLOR_STORAGE_KEY_LEGACY), '');
-		        if (legacy) tokenGlobalColorLocal = legacy;
+			        const local = parseColorToHex(parsed.local, '');
+			        const rival = parseColorToHex(parsed.rival, '');
+			        const base = parseColorToHex(parsed.base, '');
+			        if (local) tokenGlobalColorLocal = local;
+			        if (rival) tokenGlobalColorRival = rival;
+			        if (base) tokenGlobalColorLocalBase = base;
+			      } else if (!isTacticsMode) {
+			        // Backward compat: si existía el color único, lo aplicamos al local.
+			        const legacy = parseColorToHex(window.localStorage?.getItem(TOKEN_COLOR_STORAGE_KEY_LEGACY), '');
+			        if (legacy) tokenGlobalColorLocal = legacy;
 		      }
 		    } catch (e) { /* ignore */ }
-		    const persistTokenColors = () => {
-		      try {
-		        window.localStorage?.setItem(TOKEN_COLORS_STORAGE_KEY, JSON.stringify({ local: tokenGlobalColorLocal, rival: tokenGlobalColorRival }));
-		      } catch (e) { /* ignore */ }
-		    };
-		    const syncTokenColorsUi = () => {
-		      try { if (tokenGlobalColorLocalInput) tokenGlobalColorLocalInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
-		      try { if (tokenGlobalColorLocalHexInput) tokenGlobalColorLocalHexInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
-		      try { if (tokenGlobalColorRivalInput) tokenGlobalColorRivalInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
-		      try { if (tokenGlobalColorRivalHexInput) tokenGlobalColorRivalHexInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
-		    };
+			    const persistTokenColors = () => {
+			      try {
+			        window.localStorage?.setItem(TOKEN_COLORS_STORAGE_KEY, JSON.stringify({ local: tokenGlobalColorLocal, base: tokenGlobalColorLocalBase, rival: tokenGlobalColorRival }));
+			      } catch (e) { /* ignore */ }
+			    };
+			    const syncTokenColorsUi = () => {
+			      try { if (tokenGlobalColorLocalInput) tokenGlobalColorLocalInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
+			      try { if (tokenGlobalColorLocalHexInput) tokenGlobalColorLocalHexInput.value = tokenGlobalColorLocal; } catch (e) { /* ignore */ }
+			      try { if (tokenGlobalColorRivalInput) tokenGlobalColorRivalInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
+			      try { if (tokenGlobalColorRivalHexInput) tokenGlobalColorRivalHexInput.value = tokenGlobalColorRival; } catch (e) { /* ignore */ }
+			      try { document.body.style.setProperty('--tpad-token-local', tokenGlobalColorLocal); } catch (e) { /* ignore */ }
+			      try { document.body.style.setProperty('--tpad-token-rival', tokenGlobalColorRival); } catch (e) { /* ignore */ }
+			    };
 		    const setTokenColorLocal = (value, { persist = true } = {}) => {
 		      const parsed = parseColorToHex(value, '') || '';
 		      if (!parsed) return false;
@@ -4087,7 +4131,7 @@
 		      }
 			      const hideTokenSelectionChrome = !locked && kind === 'token' && isTacticsMode;
 			      object.set({
-			        hasControls: hideTokenSelectionChrome ? false : !locked,
+			        hasControls: !locked,
 			        hasBorders: hideTokenSelectionChrome ? false : true,
 			        transparentCorners: false,
 			        cornerStyle: 'circle',
@@ -16909,7 +16953,7 @@
 		      let baseRadius = 22;
 		      const style = normalizeTokenStyle(options?.style || player?.token_style || tokenGlobalStyle);
 			      const pattern = normalizeTokenPattern(options?.pattern || player?.token_pattern || (isTacticsMode ? 'solid' : 'striped'));
-      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : '#ffffff';
+	      const defaultBase = kind === 'player_away' ? (isTacticsMode ? tokenGlobalColorLocal : '#facc15') : (isTacticsMode ? tokenGlobalColorLocalBase : '#ffffff');
       const defaultStripe = isTacticsMode
         ? ((kind === 'player_rival' || kind === 'goalkeeper_rival') ? tokenGlobalColorRival : tokenGlobalColorLocal)
         : (kind === 'player_local' ? '#0f7a35' : palette.fill);
