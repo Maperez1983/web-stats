@@ -31860,64 +31860,7 @@ def _task_analysis_needs_refresh(task):
 
 
 def _refresh_task_from_pdf_analysis(task):
-    if not task or not getattr(task, 'task_pdf', None):
-        return False
-    try:
-        extracted_text = _extract_pdf_text(task.task_pdf, max_chars=60000)
-        parsed_tasks = _extract_tasks_from_pdf_text(extracted_text, fallback_title=task.title or 'Tarea desde PDF')
-        selected = None
-        if parsed_tasks:
-            meta = task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {}
-            segment_index = _parse_int(meta.get('pdf_segment_index')) or 1
-            segment_index = max(1, min(segment_index, len(parsed_tasks)))
-            selected = parsed_tasks[segment_index - 1]
-        if not selected:
-            selected = {'analysis': _suggest_task_from_pdf(extracted_text), 'raw_text': extracted_text[:2500]}
-        analysis = selected.get('analysis') or {}
-        task.title = _sanitize_task_text(
-            str(analysis.get('title') or task.title or 'Tarea desde PDF'),
-            multiline=False,
-            max_len=160,
-        )
-        task.duration_minutes = max(5, min((_parse_int(analysis.get('minutes')) or task.duration_minutes or 15), 90))
-        task.objective = _sanitize_task_text(
-            str(analysis.get('objective') or task.objective or ''),
-            multiline=True,
-            max_len=8000,
-        )
-        task.coaching_points = _sanitize_task_text(
-            str(analysis.get('coaching_points') or task.coaching_points or ''),
-            multiline=True,
-        )
-        task.confrontation_rules = _sanitize_task_text(
-            str(analysis.get('confrontation_rules') or task.confrontation_rules or ''),
-            multiline=True,
-        )
-        layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-        layout = dict(layout)
-        meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        meta = dict(meta)
-        raw_excerpt = str(selected.get('raw_text') or extracted_text or '')[:1200]
-        if raw_excerpt:
-            meta['pdf_segment_excerpt'] = raw_excerpt
-        layout['meta'] = meta
-        task.tactical_layout = layout
-        task.save(
-            update_fields=[
-                'title',
-                'duration_minutes',
-                'objective',
-                'coaching_points',
-                'confrontation_rules',
-                'tactical_layout',
-            ]
-        )
-        _apply_analysis_to_task(task, analysis)
-        if not task.task_preview_image:
-            _ensure_library_task_preview(task, force=False, prefer_render=True)
-        return True
-    except Exception:
-        return False
+    return task_library_services.refresh_task_from_pdf_analysis(task)
 
 
 def _update_library_task_from_post(task, post_data, scope_key=None):
