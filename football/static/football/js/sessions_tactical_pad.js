@@ -12999,7 +12999,10 @@
 				        const id = Number(btn.getAttribute('data-playbook-load') || 0);
 				        const clip = (playbookClips || []).find((it) => Number(it?.id) === id);
 				        const steps = Array.isArray(clip?.steps) ? clip.steps : [];
-				        if (!steps.length) return;
+				        if (!steps.length) {
+				          setStatus('No se puede cargar: esta táctica no tiene pasos guardados.', true);
+				          return;
+				        }
 				        playbookActiveClip = clip || null;
 				        if (simulationPlaying) stopSimulationPlayback();
 				        try { simulationSavedSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSavedSteps = steps.slice(); }
@@ -13007,10 +13010,25 @@
 				        try { simulationSteps = JSON.parse(JSON.stringify(steps)); } catch (e) { simulationSteps = steps.slice(); }
 				        try { applyClipPro(clip); } catch (e) { /* ignore */ }
 				        simulationActiveIndex = clamp(0, 0, Math.max(0, simulationSteps.length - 1));
-				        try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
-				        try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				        const shouldOpenSimulator = steps.length > 1 || !!(clip?.pro && typeof clip.pro === 'object');
+				        try {
+				          if (isTacticsMode) {
+				            setTacticsToolsOpen(false);
+				            setTacticsPanelOpen(true);
+				          }
+				        } catch (e) { /* ignore */ }
+				        if (shouldOpenSimulator) {
+				          try { if (!isSimulating) enterSimulation(); } catch (e) { /* ignore */ }
+				          try { setSimPopoverOpen(true); } catch (e) { /* ignore */ }
+				          try { window.setTimeout(() => simPopover?.scrollIntoView?.({ block: 'nearest' }), 60); } catch (e) { /* ignore */ }
+				        }
 				        renderSimulationSteps();
-				        void selectSimulationStep(simulationActiveIndex);
+				        void selectSimulationStep(simulationActiveIndex).then(() => {
+				          try { applyStageSizeUi({ noFit: true }); } catch (e) { /* ignore */ }
+				          try { fitCanvas(!useViewportMapping); } catch (e) { /* ignore */ }
+				          try { canvas.calcOffset(); } catch (e) { /* ignore */ }
+				          try { canvas.requestRenderAll(); } catch (e) { /* ignore */ }
+				        });
 				        try {
 				          if (simulationProEnabled) {
 				            renderSimulationAtTimeMs(0);
@@ -13018,7 +13036,7 @@
 				          }
 				        } catch (e) { /* ignore */ }
 				        syncSimUi();
-				        setStatus(`Clip cargado (Playbook): ${safeText(clip?.name, '')}`);
+				        setStatus(`${shouldOpenSimulator ? 'Clip' : 'Táctica'} cargado (Playbook): ${safeText(clip?.name, '')}`);
 				        });
 				      });
 				      Array.from(simClipsList.querySelectorAll('[data-playbook-delete]')).forEach((btn) => {
