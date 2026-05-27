@@ -4085,18 +4085,19 @@
 		      if (kind && kind.startsWith('arrow')) {
 		        normalizeArrowHead(object);
 		      }
-		      object.set({
-		        hasControls: !locked,
-		        hasBorders: true,
-		        transparentCorners: false,
-		        cornerStyle: 'circle',
-		        cornerColor: '#22d3ee',
-		        borderColor: '#67e8f9',
-		        cornerStrokeColor: '#071320',
-		        padding: isBackground ? (backgroundEdit ? 14 : 10) : 8,
-		        cornerSize: isBackground ? (backgroundEdit ? 30 : 22) : 18,
-		        lockScalingFlip: true,
-		      });
+			      const hideTokenSelectionChrome = !locked && kind === 'token' && isTacticsMode;
+			      object.set({
+			        hasControls: hideTokenSelectionChrome ? false : !locked,
+			        hasBorders: hideTokenSelectionChrome ? false : true,
+			        transparentCorners: false,
+			        cornerStyle: 'circle',
+			        cornerColor: '#22d3ee',
+			        borderColor: '#67e8f9',
+			        cornerStrokeColor: '#071320',
+			        padding: hideTokenSelectionChrome ? 0 : (isBackground ? (backgroundEdit ? 14 : 10) : 8),
+			        cornerSize: isBackground ? (backgroundEdit ? 30 : 22) : 18,
+			        lockScalingFlip: true,
+			      });
 		      try {
 		        // Fabric 5: en pantallas táctiles aumenta el área de agarre.
 		        if (typeof object.touchCornerSize !== 'undefined') {
