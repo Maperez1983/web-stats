@@ -122,9 +122,77 @@
       .player-sub { color: var(--muted); margin-top: 0.15rem; }
       .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.16); color: var(--muted); font-size: 0.85rem; }
       .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+      .rating-panel {
+        margin-top: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.16);
+        border-radius: 16px;
+        background: rgba(2,6,23,0.28);
+        padding: 0.9rem;
+      }
+      .rating-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 1rem;
+        align-items: start;
+      }
+      .rating-group {
+        border-top: 1px solid rgba(255,255,255,0.12);
+        padding-top: 0.75rem;
+        margin-top: 0.75rem;
+      }
+      .rating-group:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+      .rating-group-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.55rem;
+      }
+      .rating-group-title { font-weight: 800; }
+      .rating-average { color: var(--muted); font-size: 0.9rem; }
+      .rating-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+      }
+      .rating-field label {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.88rem;
+        color: rgba(226,232,240,0.9);
+      }
+      .rating-field select { padding: 0.55rem 0.7rem; border-radius: 10px; }
+      .radar-card {
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 16px;
+        padding: 0.75rem;
+        background: rgba(2,6,23,0.35);
+      }
+      .radar-card canvas {
+        width: 100%;
+        aspect-ratio: 1;
+        display: block;
+      }
+      .scoreline {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.55rem;
+        margin-bottom: 0.75rem;
+      }
+      .scorebox {
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 14px;
+        padding: 0.65rem;
+        background: rgba(2,6,23,0.24);
+      }
+      .scorebox strong { display: block; font-size: 1.25rem; }
+      .scorebox span { color: var(--muted); font-size: 0.82rem; }
       @media (max-width: 720px) {
         .grid { grid-template-columns: 1fr; }
         .steps { grid-template-columns: 1fr; }
+        .rating-layout { grid-template-columns: 1fr; }
+        .rating-fields { grid-template-columns: 1fr; }
+        .scoreline { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -438,6 +506,55 @@
                 <textarea id="id_q_availability" name="q_availability" placeholder="Ej: solo lunes-miércoles, exámenes, horario...">{{ q_membership.questionnaire.availability_notes|default:'' }}</textarea>
               </div>
 
+              <div class="rating-panel">
+                <div class="rating-layout">
+                  <div>
+                    <div class="scoreline">
+                      <div class="scorebox">
+                        <strong data-rating-overall>{{ q_rating_summary.overall_display }}</strong>
+                        <span>Media global / 5</span>
+                      </div>
+                      <div class="scorebox">
+                        <strong style="font-size:0.96rem;" data-rating-category>{{ q_rating_summary.category|default:"Sin categoría" }}</strong>
+                        <span>Referencia de categoría</span>
+                      </div>
+                    </div>
+
+                    {% for group in q_rating_summary.groups %}
+                      <div class="rating-group" data-rating-group="{{ group.label }}">
+                        <div class="rating-group-head">
+                          <div class="rating-group-title">{{ group.label }}</div>
+                          <div class="rating-average">Media <span data-group-average>{{ group.average_display }}</span> / 5</div>
+                        </div>
+                        <div class="rating-fields">
+                          {% for item in group.items %}
+                            <div class="rating-field">
+                              <label for="id_q_rating_{{ item.key }}">{{ item.label }}</label>
+                              <select id="id_q_rating_{{ item.key }}" name="q_rating_{{ item.key }}" data-rating-input>
+                                <option value="" {% if item.value == None %}selected{% endif %}>Sin valorar</option>
+                                {% for option in item.options %}
+                                  <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.value }}</option>
+                                {% endfor %}
+                              </select>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+
+                  <div class="radar-card">
+                    <canvas
+                      id="season-radar"
+                      width="280"
+                      height="280"
+                      data-labels="{{ q_rating_summary.chart_labels|join:'|' }}"
+                      data-values="{{ q_rating_summary.chart_values|join:'|' }}"
+                    ></canvas>
+                  </div>
+                </div>
+              </div>
+
               <div class="actions">
                 <button class="btn btn-ghost" type="submit" name="action" value="questionnaire_prev" {% if q_idx == 0 %}disabled{% endif %}>Anterior</button>
                 <button class="btn btn-primary" type="submit" name="action" value="questionnaire_save">Guardar</button>
@@ -458,5 +575,134 @@
         {% endif %}
       </div>
     </div>
+    <script>
+      (function () {
+        var canvas = document.getElementById('season-radar');
+        if (!canvas || !canvas.getContext) return;
+        var labels = String(canvas.dataset.labels || '').split('|').filter(Boolean);
+        var values = String(canvas.dataset.values || '').split('|').map(function (value) {
+          var parsed = parseFloat(value);
+          return Number.isFinite(parsed) ? Math.max(0, Math.min(5, parsed)) : 0;
+        });
+        if (!labels.length) return;
+
+        function categoryForAverage(value) {
+          if (!Number.isFinite(value)) return 'Sin categoría';
+          if (value >= 4.5) return 'Categoría superior / jugador diferencial';
+          if (value >= 3.8) return 'Categoría alta';
+          if (value >= 3.0) return 'Categoría actual consolidada';
+          if (value >= 2.2) return 'Categoría actual con plan de mejora';
+          return 'Categoría de desarrollo';
+        }
+
+        function draw() {
+          var ctx = canvas.getContext('2d');
+          var dpr = window.devicePixelRatio || 1;
+          var cssSize = Math.max(220, Math.round(canvas.getBoundingClientRect().width || 280));
+          canvas.width = cssSize * dpr;
+          canvas.height = cssSize * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.clearRect(0, 0, cssSize, cssSize);
+
+          var cx = cssSize / 2;
+          var cy = cssSize / 2;
+          var radius = Math.max(70, (cssSize / 2) - 42);
+          var count = labels.length;
+          var start = -Math.PI / 2;
+
+          ctx.lineWidth = 1;
+          ctx.font = '12px Avenir Next, Segoe UI, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
+          for (var level = 1; level <= 5; level += 1) {
+            ctx.beginPath();
+            for (var i = 0; i < count; i += 1) {
+              var angle = start + (Math.PI * 2 * i / count);
+              var r = radius * level / 5;
+              var x = cx + Math.cos(angle) * r;
+              var y = cy + Math.sin(angle) * r;
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = level === 5 ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.12)';
+            ctx.stroke();
+          }
+
+          for (var axis = 0; axis < count; axis += 1) {
+            var axisAngle = start + (Math.PI * 2 * axis / count);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(axisAngle) * radius, cy + Math.sin(axisAngle) * radius);
+            ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+            ctx.stroke();
+
+            var lx = cx + Math.cos(axisAngle) * (radius + 24);
+            var ly = cy + Math.sin(axisAngle) * (radius + 24);
+            ctx.fillStyle = 'rgba(238,242,255,0.88)';
+            ctx.fillText(labels[axis], lx, ly);
+          }
+
+          ctx.beginPath();
+          values.forEach(function (value, index) {
+            var angle = start + (Math.PI * 2 * index / count);
+            var r = radius * value / 5;
+            var x = cx + Math.cos(angle) * r;
+            var y = cy + Math.sin(angle) * r;
+            if (index === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(244,180,0,0.22)';
+          ctx.strokeStyle = 'rgba(244,180,0,0.92)';
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+
+          values.forEach(function (value, index) {
+            var angle = start + (Math.PI * 2 * index / count);
+            var r = radius * value / 5;
+            var x = cx + Math.cos(angle) * r;
+            var y = cy + Math.sin(angle) * r;
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#f4b400';
+            ctx.fill();
+          });
+        }
+
+        function recalcFromInputs() {
+          var groupNodes = Array.prototype.slice.call(document.querySelectorAll('[data-rating-group]'));
+          var allValues = [];
+          values = groupNodes.map(function (groupNode, index) {
+            var groupValues = Array.prototype.slice.call(groupNode.querySelectorAll('[data-rating-input]')).map(function (select) {
+              var parsed = parseInt(select.value, 10);
+              return Number.isFinite(parsed) ? Math.max(0, Math.min(5, parsed)) : null;
+            }).filter(function (value) {
+              return value !== null;
+            });
+            Array.prototype.push.apply(allValues, groupValues);
+            var avg = groupValues.length ? groupValues.reduce(function (acc, value) { return acc + value; }, 0) / groupValues.length : 0;
+            var avgNode = groupNode.querySelector('[data-group-average]');
+            if (avgNode) avgNode.textContent = groupValues.length ? avg.toFixed(2) : '-';
+            if (!labels[index]) labels[index] = String(groupNode.dataset.ratingGroup || '');
+            return avg;
+          });
+          var overallNode = document.querySelector('[data-rating-overall]');
+          var categoryNode = document.querySelector('[data-rating-category]');
+          var overall = allValues.length ? allValues.reduce(function (acc, value) { return acc + value; }, 0) / allValues.length : NaN;
+          if (overallNode) overallNode.textContent = Number.isFinite(overall) ? overall.toFixed(2) : '-';
+          if (categoryNode) categoryNode.textContent = categoryForAverage(overall);
+          draw();
+        }
+
+        draw();
+        Array.prototype.slice.call(document.querySelectorAll('[data-rating-input]')).forEach(function (select) {
+          select.addEventListener('change', recalcFromInputs);
+        });
+        window.addEventListener('resize', draw);
+      }());
+    </script>
   </body>
 </html>
