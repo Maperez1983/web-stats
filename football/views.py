@@ -26308,6 +26308,7 @@ def coach_cards_page(request):
                 {'label': '11 inicial', 'link': 'initial-eleven'},
                 {'label': 'Edición anual (partidos)', 'link': 'coach-matches'},
                 {'label': 'Torneos', 'link': 'coach-tournaments'},
+                {'label': 'Rivales', 'link': 'coach-rivals'},
                 {'label': 'Rival (convocatoria)', 'link': 'coach-rival'},
                 {'label': 'Registro de acciones', 'link': 'match-action-page'},
             ],
@@ -26332,14 +26333,29 @@ def coach_cards_page(request):
             ],
         },
         {
+            'key': 'rival',
+            'title': 'Rival',
+            'description': 'Fichas de rivales de la liga: estadio, plantilla, informes, vídeos y acceso rápido para partido.',
+            'link': 'coach-rivals',
+            'member_name': ' · '.join(
+                list(members_by_role.get(AppUserRole.ROLE_COACH) or [])
+                + list(members_by_role.get(AppUserRole.ROLE_ANALYST) or [])
+                or ['Sin asignar']
+            ),
+            'items': [
+                {'label': 'Cards de rivales', 'link': 'coach-rivals'},
+                {'label': 'Preparar rival del partido', 'link': 'coach-rival'},
+            ],
+        },
+        {
             'key': 'analysis',
-            'title': 'Análisis',
-            'description': 'Scouting, rival e informes para el trabajo técnico del staff sin duplicar módulos en otras áreas.',
+            'title': 'Video Studio',
+            'description': 'Vídeo, cortes, clips e informes audiovisuales del staff.',
             'link': 'analysis',
             'member_name': ' · '.join(members_by_role.get(AppUserRole.ROLE_ANALYST) or members_by_role.get(AppUserRole.ROLE_COACH) or ['Sin asignar']),
             'items': [
-                {'label': 'Análisis rival', 'link': 'analysis'},
-                {'label': 'Informes y scouting', 'link': 'analysis'},
+                {'label': 'Vídeos', 'link': 'analysis'},
+                {'label': 'Video Studio', 'link': 'analysis'},
             ],
         },
     ]
@@ -26356,6 +26372,174 @@ def coach_cards_page(request):
             'active_area': active_area,
             'active_card': active_card,
             'staff_count': sum(1 for value in members_by_role.values() for _ in value),
+        },
+    )
+
+
+@login_required
+def coach_rivals_page(request):
+    forbidden = _forbid_if_no_coach_access(request.user)
+    if forbidden:
+        return forbidden
+    forbidden = _forbid_if_workspace_module_disabled(request, 'coach_overview', label='rivales')
+    if forbidden:
+        return forbidden
+    workspace = _get_active_workspace(request)
+    primary_team = _get_primary_team_for_request(request)
+    if not primary_team:
+        raise Http404('Equipo principal no configurado')
+
+    standings_rows = []
+    try:
+        standings_rows = _resolve_standings_for_team(primary_team, snapshot=load_universo_snapshot()) or []
+    except Exception:
+        standings_rows = []
+
+    standings_by_key = {}
+    for row in standings_rows:
+        if not isinstance(row, dict):
+            continue
+        full_name = str(row.get('full_name') or row.get('team') or '').strip()
+        key = _normalize_team_lookup_key(full_name)
+        if key:
+            standings_by_key[key] = row
+        code = str(row.get('team_code') or '').strip()
+        if code:
+            standings_by_key[_normalize_team_lookup_key(code)] = row
+
+    candidate_qs = Team.objects.filter(is_primary=False)
+    if getattr(primary_team, 'group_id', None):
+        candidate_qs = candidate_qs.filter(group_id=primary_team.group_id)
+    candidates = list(candidate_qs.order_by('name').only(
+        'id',
+        'name',
+        'short_name',
+        'slug',
+        'crest_url',
+        'crest_image',
+        'external_id',
+        'home_stadium',
+        'group_id',
+    ))
+
+    existing_keys = {
+        _normalize_team_lookup_key(getattr(team, 'name', '') or '')
+        for team in candidates
+    }
+    primary_keys = {
+        _normalize_team_lookup_key(getattr(primary_team, 'name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'display_name', '') or ''),
+        _normalize_team_lookup_key(getattr(primary_team, 'short_name', '') or ''),
+    }
+    for row in standings_rows:
+        if not isinstance(row, dict):
+            continue
+        full_name = str(row.get('full_name') or row.get('team') or '').strip()
+        key = _normalize_team_lookup_key(full_name)
+        if not full_name or not key or key in existing_keys or key in primary_keys:
+            continue
+        candidates.append(SimpleNamespace(
+            id=0,
+            name=full_name,
+            short_name=full_name[:60],
+            display_name=full_name,
+            slug='',
+            crest_url=str(row.get('crest_url') or '').strip(),
+            crest_image=None,
+            external_id=str(row.get('team_code') or '').strip(),
+            home_stadium=str(row.get('location') or '').strip(),
+            group_id=getattr(primary_team, 'group_id', None),
+        ))
+        existing_keys.add(key)
+
+    team_ids = [int(getattr(team, 'id', 0) or 0) for team in candidates if int(getattr(team, 'id', 0) or 0)]
+    snapshots_by_team_id = {}
+    reports_by_team_id = {}
+    videos_by_team_id = {}
+    if team_ids:
+        try:
+            snapshots = list(TeamRosterSnapshot.objects.filter(team_id__in=team_ids).order_by('team_id', '-updated_at', '-id'))
+            for snapshot in snapshots:
+                tid = int(getattr(snapshot, 'team_id', 0) or 0)
+                if tid and tid not in snapshots_by_team_id:
+                    snapshots_by_team_id[tid] = snapshot
+        except Exception:
+            snapshots_by_team_id = {}
+        try:
+            report_rows = (
+                RivalAnalysisReport.objects
+                .filter(team=primary_team, rival_team_id__in=team_ids)
+                .values('rival_team_id')
+                .annotate(total=Count('id'), ready=Count('id', filter=Q(status=RivalAnalysisReport.STATUS_READY)))
+            )
+            for row in report_rows:
+                reports_by_team_id[int(row.get('rival_team_id') or 0)] = {
+                    'total': int(row.get('total') or 0),
+                    'ready': int(row.get('ready') or 0),
+                }
+        except Exception:
+            reports_by_team_id = {}
+        try:
+            video_rows = (
+                RivalVideo.objects
+                .filter(
+                    Q(team=primary_team) | Q(team__isnull=True, folder__team=primary_team),
+                    rival_team_id__in=team_ids,
+                )
+                .values('rival_team_id')
+                .annotate(total=Count('id'))
+            )
+            for row in video_rows:
+                videos_by_team_id[int(row.get('rival_team_id') or 0)] = int(row.get('total') or 0)
+        except Exception:
+            videos_by_team_id = {}
+
+    rival_cards = []
+    for team in candidates:
+        label = str(getattr(team, 'display_name', '') or getattr(team, 'short_name', '') or getattr(team, 'name', '') or '').strip()
+        if not label:
+            continue
+        keys = [
+            _normalize_team_lookup_key(getattr(team, 'external_id', '') or ''),
+            _normalize_team_lookup_key(getattr(team, 'name', '') or ''),
+            _normalize_team_lookup_key(getattr(team, 'short_name', '') or ''),
+            _normalize_team_lookup_key(label),
+        ]
+        standing = next((standings_by_key.get(key) for key in keys if key and standings_by_key.get(key)), {}) or {}
+        team_id = int(getattr(team, 'id', 0) or 0)
+        snapshot = snapshots_by_team_id.get(team_id)
+        roster_payload = snapshot.roster_payload if snapshot and isinstance(snapshot.roster_payload, list) else []
+        reports = reports_by_team_id.get(team_id, {'total': 0, 'ready': 0})
+        try:
+            crest_image_url = getattr(getattr(team, 'crest_image', None), 'url', '') or ''
+        except Exception:
+            crest_image_url = ''
+        rival_cards.append({
+            'id': team_id,
+            'name': str(getattr(team, 'name', '') or label).strip(),
+            'display_name': label,
+            'crest_url': crest_image_url or str(getattr(team, 'crest_url', '') or standing.get('crest_url') or '').strip(),
+            'kit2d_url': _kit2d_url_for_team_name(label, workspace=workspace, primary_team=primary_team, own_kit2d_url=_workspace_home_kit2d_url(workspace)),
+            'home_stadium': str(getattr(team, 'home_stadium', '') or standing.get('location') or '').strip(),
+            'rank': _safe_int(standing.get('rank'), default=0) or '',
+            'points': _safe_int(standing.get('points'), default=0) if standing else '',
+            'played': _safe_int(standing.get('played'), default=0) if standing else '',
+            'snapshot_count': len(roster_payload) if roster_payload else 0,
+            'snapshot_updated': snapshot.updated_at if snapshot else None,
+            'reports_ready': int(reports.get('ready') or 0),
+            'reports_total': int(reports.get('total') or 0),
+            'videos_count': videos_by_team_id.get(team_id, 0),
+            'profile_url': reverse('coach-rival-profile', args=[team_id]) if team_id else '',
+        })
+    rival_cards.sort(key=lambda item: (not item.get('rank'), int(item.get('rank') or 999), item.get('display_name') or ''))
+
+    return render(
+        request,
+        'football/coach_rivals.html',
+        {
+            'team_name': primary_team.display_name,
+            'rival_cards': rival_cards,
+            'standings_count': len(standings_rows or []),
         },
     )
 
@@ -40462,9 +40646,9 @@ def analysis_page(request):
     if forbidden:
         return forbidden
     primary_team = _get_primary_team_for_request(request)
-    active_tab = str(request.GET.get('tab') or '').strip().lower() or 'reports'
+    active_tab = str(request.GET.get('tab') or '').strip().lower() or 'videos'
     if active_tab not in {'reports', 'videos', 'studio', 'insights', 'rivals'}:
-        active_tab = 'reports'
+        active_tab = 'videos'
     def _tab_link(tab_name):
         params = request.GET.copy()
         params['tab'] = tab_name
@@ -41901,7 +42085,9 @@ def analysis_rival_profile_page(request, rival_id):
         raise Http404('Rival no encontrado')
 
     active_tab = str(request.GET.get('tab') or '').strip().lower() or 'roster'
-    if active_tab not in {'roster', 'reports', 'videos'}:
+    if active_tab in {'reports', 'videos'}:
+        active_tab = 'analysis'
+    if active_tab not in {'roster', 'analysis'}:
         active_tab = 'roster'
 
     message = ''

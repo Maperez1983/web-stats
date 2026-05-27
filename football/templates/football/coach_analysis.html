@@ -526,11 +526,8 @@
 		          <p>{{ description }}</p>
 		        {% endif %}
 			        <nav class="tab-nav" aria-label="Secciones análisis">
-			          <a class="{% if active_tab == 'reports' %}is-active{% endif %}" href="{{ tab_link_reports }}">Informes</a>
 			          <a class="{% if active_tab == 'videos' %}is-active{% endif %}" href="{{ tab_link_videos }}">Vídeos</a>
 				          <a class="{% if active_tab == 'studio' %}is-active{% endif %}" href="{{ tab_link_studio }}">Editor</a>
-			          <a class="{% if active_tab == 'insights' %}is-active{% endif %}" href="{{ tab_link_insights }}">Insights</a>
-			          <a class="{% if active_tab == 'rivals' %}is-active{% endif %}" href="{{ tab_link_rivals }}">Rivales</a>
 			        </nav>
 
 		        {% if active_tab != 'videos' %}

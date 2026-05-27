@@ -229,6 +229,7 @@
       {% endif %}
       {% if can_access_staff|default:False and workspace_module_access.match_actions|default:True %}
       <a href="{% url 'reports-hub' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Informes (PDF)</a>
+      <a href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Rivales</a>
       {% endif %}
       {% if can_access_staff|default:False %}
       <a href="{% url 'staff-directory' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">Staff</a>

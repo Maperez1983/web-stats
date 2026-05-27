@@ -241,7 +241,7 @@
   <body>
     <div class="topbar">
       <div class="crumbs">
-        <a class="pill" href="{% url 'analysis' %}?tab=rivals">← Rivales</a>
+        <a class="pill" href="{% url 'coach-rivals' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">← Rivales</a>
         <span class="meta" style="opacity:0.7;">/</span>
         <span class="pill">{{ rival.name|default:"Rival" }}</span>
       </div>
@@ -279,9 +279,8 @@
         </div>
 
         <nav class="tabs" aria-label="Secciones">
-          <a class="tab {% if active_tab == 'roster' %}is-active{% endif %}" href="?tab=roster">Plantilla</a>
-          <a class="tab {% if active_tab == 'reports' %}is-active{% endif %}" href="?tab=reports">Informes</a>
-          <a class="tab {% if active_tab == 'videos' %}is-active{% endif %}" href="?tab=videos">Vídeos</a>
+          <a class="tab {% if active_tab == 'roster' %}is-active{% endif %}" href="?tab=roster{% if active_team %}&team={{ active_team.id }}{% endif %}">Plantilla</a>
+          <a class="tab {% if active_tab == 'analysis' %}is-active{% endif %}" href="?tab=analysis{% if active_team %}&team={{ active_team.id }}{% endif %}">Análisis</a>
         </nav>
 
         {% if message or error %}
@@ -360,12 +359,12 @@
               <div class="meta" style="margin-top:0.75rem;">No hay jugadores cargados todavía. Usa “Actualizar / cachear”.</div>
             {% endif %}
           </section>
-        {% elif active_tab == 'reports' %}
+        {% else %}
           <section class="panel">
             <div class="row">
               <div>
-                <h2>Informes (staff)</h2>
-                <div class="meta">Bloques manuales + documentos (PDF/JPG/PNG) asociados.</div>
+                <h2>Análisis</h2>
+                <div class="meta">Informes, documentos y vídeos asociados a este rival.</div>
               </div>
               <div class="actions">
                 <a class="button" href="{% url 'analysis' %}?tab=reports&team_id={{ rival.id }}">Crear / editar</a>
@@ -410,15 +409,11 @@
             {% else %}
               <div class="meta" style="margin-top:0.65rem;">No hay documentos subidos vinculados a este rival.</div>
             {% endif %}
-          </section>
-        {% else %}
-          <section class="panel">
+
+            <h3 style="margin:1.1rem 0 0.35rem;font-size:0.95rem;opacity:0.9;">Vídeos</h3>
             <div class="row">
-              <div>
-                <h2>Vídeos (staff)</h2>
-                <div class="meta">Bandeja de vídeos y acceso al Video Studio.</div>
-              </div>
-              <div class="actions">
+              <div class="meta">Bandeja de vídeos y acceso al Video Studio.</div>
+              <div class="actions" style="margin-left:auto;">
                 <a class="button" href="{% url 'analysis' %}?tab=videos&team_id={{ rival.id }}">Gestionar</a>
                 <a class="button ghost" href="{% url 'analysis-video-inbox' %}">Inbox</a>
               </div>
