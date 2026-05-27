@@ -569,6 +569,11 @@
 
         <div class="notice" style="margin-top:1rem;">
           <strong>Equipaciones:</strong> colores para fichas, pizarra y PDFs (1ª, 2ª y portero).
+          <span style="display:block;margin-top:0.35rem;">
+            Para usar una camiseta real en formato kit 2D tipo FM, genera el PNG desde
+            <a href="{% url 'kit2d-generator' %}" style="color:inherit;text-decoration:underline;font-weight:800;">Kit 2D</a>
+            y después selecciona el estilo “Camiseta” en la pizarra.
+          </span>
         </div>
         <form method="post" style="margin-top:0.8rem;">
           {% csrf_token %}
@@ -631,6 +636,7 @@
 
           <div class="actions">
             <button class="btn btn-primary" type="submit">Guardar equipaciones</button>
+            <a class="btn btn-ghost" href="{% url 'kit2d-generator' %}">Crear kit 2D FM</a>
             <a class="btn btn-ghost" href="{% url 'dashboard-home' %}">Ver Home</a>
           </div>
         </form>
