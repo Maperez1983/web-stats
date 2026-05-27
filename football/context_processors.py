@@ -7,7 +7,7 @@ from pathlib import Path
 from django.core.cache import cache
 from django.urls import reverse
 
-from . import permissions, workspace_context
+from . import permissions, workspace_context, workspace_ui
 
 
 @lru_cache(maxsize=1)
@@ -306,21 +306,6 @@ def workspace_access(request):
     - flags de acceso por módulo (según módulos activos + permisos del miembro)
     """
     try:
-        # Import perezoso para evitar dependencias circulares en import-time.
-        from football.views import (  # noqa: WPS433 (lazy import)
-            _get_active_workspace,
-            _get_active_team_for_request,
-            _workspace_team_links,
-            _workspace_team_links_for_user,
-            _build_active_workspace_badge,
-            _workspace_entry_url,
-            _workspace_default_modules,
-            _workspace_has_module_for_user,
-            _can_access_platform,
-            _available_workspaces_for_user,
-            _can_manage_workspace,
-            _is_admin_user,
-        )
         from football.models import Workspace, WorkspaceMembership  # noqa: WPS433 (lazy import)
     except Exception:
         return {}
@@ -328,12 +313,12 @@ def workspace_access(request):
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
         return {}
 
-    workspace = _get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     # Platform admins: si no hay workspace activo (por diseño), pero el sistema solo tiene
     # un cliente club, lo fijamos para que la navegación (Admin/Categorías) sea consistente.
     if not workspace:
         try:
-            is_admin_user = bool(_is_admin_user(request.user))
+            is_admin_user = bool(workspace_context.is_admin_user(request.user))
         except Exception:
             is_admin_user = False
         if is_admin_user:
@@ -349,19 +334,19 @@ def workspace_access(request):
                         request.session['active_workspace_id'] = workspace.id
             except Exception:
                 pass
-    active_team = _get_active_team_for_request(request)
+    active_team = workspace_context.get_active_team_for_request(request)
     active_team_query = ''
     try:
         if active_team and getattr(active_team, 'id', None):
             active_team_query = f'?team={int(active_team.id)}'
     except Exception:
         active_team_query = ''
-    badge = _build_active_workspace_badge(request)
-    entry_url = _workspace_entry_url(workspace, user=request.user) if workspace else ''
+    badge = workspace_ui.build_active_workspace_badge(request)
+    entry_url = workspace_ui.workspace_entry_url(workspace, user=request.user) if workspace else ''
     try:
         from django.urls import reverse  # noqa: WPS433 (lazy import)
         club_dashboard_url = reverse('dashboard-home')
-        if _can_access_platform(request.user):
+        if workspace_context.can_access_platform(request.user):
             club_dashboard_url = f'{club_dashboard_url}?home=club'
     except Exception:
         club_dashboard_url = ''
@@ -369,8 +354,8 @@ def workspace_access(request):
     is_admin = False
     can_access_staff = False
     try:
-        can_manage = bool(_can_manage_workspace(request.user, workspace)) if workspace else False
-        is_admin = bool(_is_admin_user(request.user))
+        can_manage = bool(workspace_context.can_manage_workspace(request.user, workspace)) if workspace else False
+        is_admin = bool(workspace_context.is_admin_user(request.user))
         # Staff (cuerpo técnico) debe ser accesible para perfiles técnicos aunque el workspace o el menú varíen.
         # Usamos la misma lógica que el backend para permitir/denegar el acceso.
         can_access_staff = bool(permissions.can_access_coach_workspace(request.user))
@@ -416,7 +401,7 @@ def workspace_access(request):
     module_access = {}
     try:
         kind = workspace.kind if workspace else Workspace.KIND_CLUB
-        defaults = _workspace_default_modules(kind)
+        defaults = permissions.workspace_default_modules(kind)
         enabled_modules = getattr(workspace, 'enabled_modules', None)
         enabled_modules = enabled_modules if isinstance(enabled_modules, dict) else {}
 
@@ -434,7 +419,7 @@ def workspace_access(request):
         user_is_platform = False
         user_is_owner = False
         try:
-            user_is_platform = bool(_can_access_platform(request.user))
+            user_is_platform = bool(workspace_context.can_access_platform(request.user))
         except Exception:
             user_is_platform = False
         try:
@@ -471,7 +456,7 @@ def workspace_access(request):
     team_options = []
     try:
         if workspace and workspace.kind == Workspace.KIND_CLUB:
-            links = _workspace_team_links_for_user(workspace, request.user)
+            links = workspace_context.workspace_team_links_for_user(workspace, request.user)
             for link in links:
                 team = getattr(link, 'team', None)
                 if not team:
@@ -508,7 +493,7 @@ def workspace_access(request):
             workspace_options = cached_ws
         else:
             candidates = list(
-                _available_workspaces_for_user(request.user)
+                workspace_context.available_workspaces_for_user(request.user)
                 .only('id', 'name', 'kind')
                 .order_by('kind', 'name', 'id')[:12]
             )

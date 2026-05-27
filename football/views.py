@@ -63,7 +63,9 @@ from .preview_render import render_html_selector_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
+from . import stats_services
 from . import workspace_context
+from . import workspace_ui
 from .dashboard_cache import (
     dashboard_cache_key,
     invalidate_team_dashboard_caches,
@@ -4565,25 +4567,7 @@ def _resolve_player_for_request_scope(request, player_id):
 
 
 def _build_active_workspace_badge(request):
-    workspace = _get_active_workspace(request)
-    if not workspace:
-        return None
-    subtitle = ''
-    if workspace.kind == Workspace.KIND_CLUB:
-        active_team = _get_active_team_for_request(request)
-        if active_team:
-            subtitle = active_team.display_name or active_team.name
-        elif workspace.primary_team_id:
-            subtitle = workspace.primary_team.display_name or workspace.primary_team.name
-    elif workspace.kind == Workspace.KIND_TASK_STUDIO and workspace.owner_user_id:
-        subtitle = workspace.owner_user.get_username()
-    return {
-        'id': workspace.id,
-        'name': workspace.name,
-        'kind': workspace.kind,
-        'kind_label': workspace.get_kind_display(),
-        'subtitle': subtitle,
-    }
+    return workspace_ui.build_active_workspace_badge(request)
 
 
 def _should_use_team_cover_image(request, workspace, team) -> bool:
@@ -6033,28 +6017,7 @@ def _forbid_if_task_studio_module_disabled(request, owner, module_key, label='m�
 
 
 def _workspace_entry_url(workspace, *, user=None):
-    if not workspace:
-        return reverse('platform-overview')
-    if workspace.kind == Workspace.KIND_TASK_STUDIO:
-        # Task Studio está descontinuado: evita NoReverseMatch y re-envía a la matriz.
-        return reverse('platform-overview')
-    # Entrada por defecto al club: la Portada (dashboard). "Cuerpo técnico" es un área,
-    # no el home principal, para evitar que existan "dos home" según el contexto.
-    candidates = [
-        ('dashboard', reverse('dashboard-home')),
-        ('coach_overview', reverse('coach-detail')),
-        ('players', reverse('player-dashboard')),
-        ('convocation', reverse('convocation')),
-        ('match_actions', reverse('match-action-page')),
-        ('sessions', reverse('sessions')),
-        ('analysis', reverse('analysis')),
-        ('abp_board', reverse('coach-abp-board')),
-        ('manual_stats', reverse('manual-player-stats')),
-    ]
-    for module_key, url in candidates:
-        if _workspace_has_module_for_user(workspace, module_key, user=user):
-            return url
-    return reverse('platform-workspace-detail', args=[workspace.id])
+    return workspace_ui.workspace_entry_url(workspace, user=user)
 
 
 def _workspace_membership_for_user(workspace, user):
@@ -59681,55 +59644,7 @@ def build_match_payload(match, primary_team, status):
 
 
 def preferred_event_source_by_match(primary_team, scope=None):
-    """
-    Choose one authoritative source per match to avoid cross-source double counting.
-    Priority:
-    1) Any `registro-acciones` events for that match.
-    2) Otherwise, most frequent non-empty source_file.
-    """
-    if not primary_team:
-        return {}
-    scope_value = str(scope or '').strip().lower()
-    if scope_value not in {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY, 'all', ''}:
-        scope_value = ''
-    team_events = (
-        MatchEvent.objects
-        .filter(player__team=primary_team)
-        .filter(
-            Q(source_file='registro-acciones')
-            | ~Q(system='touch-field')
-        )
-    )
-    if scope_value and scope_value != 'all':
-        if scope_value == Match.CONTEXT_LEAGUE:
-            # Compatibilidad: partidos legacy pueden venir con `context=''` y se consideran Liga.
-            team_events = team_events.filter(Q(match__context=Match.CONTEXT_LEAGUE) | Q(match__context=''))
-        else:
-            team_events = team_events.filter(match__context=scope_value)
-    preferred = {}
-    registro_match_ids = set(
-        team_events.filter(source_file='registro-acciones')
-        .values_list('match_id', flat=True)
-        .distinct()
-    )
-    for match_id in registro_match_ids:
-        preferred[match_id] = 'registro-acciones'
-
-    fallback_rows = (
-        team_events.exclude(source_file__isnull=True)
-        .exclude(source_file__exact='')
-        .values('match_id', 'source_file')
-        .annotate(c=Count('id'))
-        .order_by('match_id', '-c', 'source_file')
-    )
-    seen = set(preferred.keys())
-    for row in fallback_rows:
-        match_id = row['match_id']
-        if match_id in seen:
-            continue
-        preferred[match_id] = row['source_file']
-        seen.add(match_id)
-    return preferred
+    return stats_services.preferred_event_source_by_match(primary_team, scope=scope)
 
 
 def _is_manual_event_source(source_file):
@@ -59737,34 +59652,11 @@ def _is_manual_event_source(source_file):
 
 
 def _event_matches_stats_source(event, preferred_sources=None):
-    if not preferred_sources:
-        return True
-    preferred_source = preferred_sources.get(getattr(event, 'match_id', None))
-    if not preferred_source:
-        return True
-    current_source = (getattr(event, 'source_file', '') or '').strip()
-    return current_source == preferred_source or _is_manual_event_source(current_source)
+    return stats_services.event_matches_stats_source(event, preferred_sources=preferred_sources)
 
 
 def _filter_stats_events(rows, preferred_sources=None):
-    seen_signatures = set()
-    filtered = []
-    for event in rows:
-        if not _event_matches_stats_source(event, preferred_sources):
-            continue
-        signature = _event_signature(event)
-        # Si el Match está duplicado (mismo fixture con IDs distintos), normalizamos la firma
-        # al Match canónico para evitar que acciones importadas se cuenten por duplicado.
-        try:
-            if isinstance(signature, tuple) and signature and isinstance(signature[0], int):
-                signature = (_canonical_match_id(signature[0]), *signature[1:])
-        except Exception:
-            pass
-        if signature in seen_signatures:
-            continue
-        seen_signatures.add(signature)
-        filtered.append(event)
-    return filtered
+    return stats_services.filter_stats_events(rows, preferred_sources=preferred_sources)
 
 
 def _build_zone_inference_profiles(events):
