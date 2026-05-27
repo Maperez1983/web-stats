@@ -1036,13 +1036,13 @@
           reader.onload = function () {
             var img = new Image();
             img.onload = function () {
-              var clubDataUrl = renderKit2dDataUrl(img, 96);
-              var editorDataUrl = renderKit2dDataUrl(img, 44);
+              var clubDataUrl = renderKit2dDataUrl(img, 128);
+              var editorDataUrl = renderKit2dDataUrl(img, 64);
               kit2dPrepared[slot] = {
                 club_data_url: clubDataUrl,
                 editor_data_url: editorDataUrl,
-                club_size: 96,
-                editor_size: 44,
+                club_size: 128,
+                editor_size: 64,
                 source: 'upload',
                 file_name: file.name || '',
                 saved_at: new Date().toISOString()
@@ -1082,8 +1082,8 @@
             value.club_data_url = value.home_club_data_url;
             value.editor_data_url = value.home_editor_data_url;
           }
-          value.club_size = 96;
-          value.editor_size = 44;
+          value.club_size = 128;
+          value.editor_size = 64;
           value.source = 'upload';
           value.saved_at = new Date().toISOString();
           return value;

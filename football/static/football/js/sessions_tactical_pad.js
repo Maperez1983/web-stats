@@ -3007,6 +3007,8 @@
 		    let kit2dEditorImageEl = null;
 		    const kit2dEditorDataUrlsBySlot = { home: '', away: '', gk: '' };
 		    const kit2dEditorImagesBySlot = { home: null, away: null, gk: null };
+		    const kit2dCanvasDataUrlsBySlot = { home: '', away: '', gk: '' };
+		    const kit2dCanvasImagesBySlot = { home: null, away: null, gk: null };
 		    let kit2dPrefLoadStarted = false;
 		    const kit2dSlotForTokenKind = (kind) => {
 		      if (kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') return 'gk';
@@ -3015,11 +3017,11 @@
 		    };
 		    const kit2dDataUrlForTokenKind = (kind) => {
 		      const slot = kit2dSlotForTokenKind(kind);
-		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrl || '';
+		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot.home || kit2dEditorDataUrl || '';
 		    };
 		    const kit2dImageForTokenKind = (kind) => {
 		      const slot = kit2dSlotForTokenKind(kind);
-		      return kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
+		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
 		      if (!tokenGlobalStyleStored || tokenGlobalStyle === 'disk') {
@@ -3029,13 +3031,14 @@
 		        try { syncTokenGlobalStyleUi(); } catch (e) { /* ignore */ }
 		      }
 		    };
-		    const loadKit2dSlotImage = (slot, url) => {
+		    const loadKit2dSlotImage = (slot, url, target = 'editor') => {
 		      if (!url) return;
 		      try {
 		        const img = new Image();
 		        try { img.crossOrigin = 'anonymous'; } catch (e) { /* ignore */ }
 		        img.onload = () => {
-		          kit2dEditorImagesBySlot[slot] = img;
+		          if (target === 'canvas') kit2dCanvasImagesBySlot[slot] = img;
+		          else kit2dEditorImagesBySlot[slot] = img;
 		          if (slot === 'home' || !kit2dEditorImageEl) kit2dEditorImageEl = img;
 		          applyKit2dDefaultTokenStyle();
 		          try { runWhenIdle(() => { try { renderPlayerBank(); } catch (e) { /* ignore */ } }, 120); } catch (e) { /* ignore */ }
@@ -3061,15 +3064,24 @@
 		        const homeEditor = safeText(value.home_editor_data_url || editor);
 		        const awayEditor = safeText(value.away_editor_data_url || value.alternate_editor_data_url || '');
 		        const gkEditor = safeText(value.gk_editor_data_url || value.goalkeeper_editor_data_url || '');
+		        const homeCanvas = safeText(value.home_club_data_url || club || homeEditor);
+		        const awayCanvas = safeText(value.away_club_data_url || awayEditor);
+		        const gkCanvas = safeText(value.gk_club_data_url || value.goalkeeper_club_data_url || gkEditor);
 		        if (homeEditor.startsWith('data:image/') || homeEditor.startsWith('/') || homeEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.home = homeEditor;
 		        if (awayEditor.startsWith('data:image/') || awayEditor.startsWith('/') || awayEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.away = awayEditor;
 		        if (gkEditor.startsWith('data:image/') || gkEditor.startsWith('/') || gkEditor.startsWith('http')) kit2dEditorDataUrlsBySlot.gk = gkEditor;
-		        kit2dEditorDataUrl = kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrlsBySlot.away || kit2dEditorDataUrlsBySlot.gk || '';
+		        if (homeCanvas.startsWith('data:image/') || homeCanvas.startsWith('/') || homeCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.home = homeCanvas;
+		        if (awayCanvas.startsWith('data:image/') || awayCanvas.startsWith('/') || awayCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.away = awayCanvas;
+		        if (gkCanvas.startsWith('data:image/') || gkCanvas.startsWith('/') || gkCanvas.startsWith('http')) kit2dCanvasDataUrlsBySlot.gk = gkCanvas;
+		        kit2dEditorDataUrl = kit2dEditorDataUrlsBySlot.home || kit2dEditorDataUrlsBySlot.away || kit2dEditorDataUrlsBySlot.gk || kit2dCanvasDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot.away || kit2dCanvasDataUrlsBySlot.gk || '';
 		        if (club.startsWith('data:image/') || club.startsWith('/') || club.startsWith('http')) kit2dClubDataUrl = club;
 		        if (!kit2dEditorDataUrl) return;
 		        loadKit2dSlotImage('home', kit2dEditorDataUrlsBySlot.home);
 		        loadKit2dSlotImage('away', kit2dEditorDataUrlsBySlot.away);
 		        loadKit2dSlotImage('gk', kit2dEditorDataUrlsBySlot.gk);
+		        loadKit2dSlotImage('home', kit2dCanvasDataUrlsBySlot.home, 'canvas');
+		        loadKit2dSlotImage('away', kit2dCanvasDataUrlsBySlot.away, 'canvas');
+		        loadKit2dSlotImage('gk', kit2dCanvasDataUrlsBySlot.gk, 'canvas');
 		      } catch (e) {
 		        // ignore
 		      }
