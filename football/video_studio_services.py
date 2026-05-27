@@ -4,9 +4,9 @@ import threading
 
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.utils.module_loading import import_string
 
 from .models import RivalVideo, Team, VideoClip, VideoTimelineEvent, Workspace, WorkspacePreference
+from .task_library_services import sanitize_task_text
 
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,183 @@ def median(values):
 
 
 def apply_autocut_suggestions(**kwargs):
-    return import_string('football.views._video_studio_apply_autocut_suggestions')(**kwargs)
+    video = kwargs.get('video')
+    scope_team = kwargs.get('scope_team')
+    owner_user = kwargs.get('owner_user')
+    created_by = str(kwargs.get('created_by') or '')[:80]
+    profile = kwargs.get('profile') or 'balanced'
+    include_kinds = kwargs.get('include_kinds')
+    max_moments = kwargs.get('max_moments', 18)
+    min_gap_s = kwargs.get('min_gap_s', 25.0)
+    pre_s = kwargs.get('pre_s', 8.0)
+    post_s = kwargs.get('post_s', 8.0)
+    max_scan_s = kwargs.get('max_scan_s')
+    replace = kwargs.get('replace', True)
+
+    if not video or not getattr(video, 'id', None):
+        return {'ok': False, 'error': 'Vídeo no encontrado.'}
+    if not getattr(video, 'video', None):
+        return {'ok': False, 'error': 'AutoCut requiere MP4 subido (no YouTube).'}
+    try:
+        video_path = str(video.video.path or '').strip()
+    except Exception:
+        video_path = ''
+    if not video_path:
+        return {'ok': False, 'error': 'No se pudo resolver el archivo del vídeo en servidor.'}
+
+    try:
+        max_moments = int(max_moments or 18)
+    except Exception:
+        max_moments = 18
+    max_moments = max(4, min(max_moments, 40))
+    try:
+        min_gap_s = float(min_gap_s or 25.0)
+    except Exception:
+        min_gap_s = 25.0
+    min_gap_s = max(8.0, min(min_gap_s, 90.0))
+    try:
+        pre_s = float(pre_s or 8.0)
+    except Exception:
+        pre_s = 8.0
+    try:
+        post_s = float(post_s or 8.0)
+    except Exception:
+        post_s = 8.0
+    pre_s = max(0.0, min(pre_s, 60.0))
+    post_s = max(0.0, min(post_s, 60.0))
+    if max_scan_s is not None:
+        try:
+            max_scan_s = float(max_scan_s)
+        except Exception:
+            max_scan_s = None
+    if max_scan_s is not None:
+        max_scan_s = max(60.0, min(float(max_scan_s), 140.0 * 60.0))
+
+    from football.video_autocut import suggest_autocuts  # noqa: WPS433
+
+    try:
+        result = suggest_autocuts(
+            video_path,
+            profile=str(profile or 'balanced'),
+            include_kinds=include_kinds,
+            max_moments=int(max_moments),
+            min_gap_s=float(min_gap_s),
+            pre_s=float(pre_s),
+            post_s=float(post_s),
+            max_seconds_scan=max_scan_s,
+            refine=True,
+        )
+    except Exception:
+        return {'ok': False, 'error': 'No se pudo analizar el vídeo (AutoCut).'}
+
+    moments = result.get('moments') if isinstance(result, dict) else None
+    if not isinstance(moments, list) or not moments:
+        return {'ok': True, 'created_events': 0, 'created_clips': 0, 'moments': []}
+
+    if replace:
+        try:
+            VideoTimelineEvent.objects.filter(
+                video=video,
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                payload__autocut=True,
+            ).delete()
+        except Exception:
+            pass
+        try:
+            VideoClip.objects.filter(
+                video=video,
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                collection='AutoCut',
+            ).delete()
+        except Exception:
+            pass
+
+    ev_objs = []
+    clip_objs = []
+    valid_kinds = {k for k, _ in VideoTimelineEvent.KIND_CHOICES}
+    for moment in moments[: max_moments * 2]:
+        try:
+            t = float(moment.get('time_s') or 0.0)
+            kind = str(moment.get('kind') or VideoTimelineEvent.KIND_TAG).strip() or VideoTimelineEvent.KIND_TAG
+            label = sanitize_task_text(str(moment.get('label') or '').strip(), multiline=False, max_len=160) or 'Auto · Momento'
+            score = float(moment.get('score') or 0.0)
+            clip_in_s = float(moment.get('clip_in_s') or max(0.0, t - float(pre_s)))
+            clip_out_s = float(moment.get('clip_out_s') or (t + float(post_s)))
+        except Exception:
+            continue
+        payload = moment.get('meta') if isinstance(moment.get('meta'), dict) else {}
+        payload = dict(payload) if isinstance(payload, dict) else {}
+        payload['autocut'] = True
+        payload['score'] = float(score)
+        ev_objs.append(
+            VideoTimelineEvent(
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                video=video,
+                time_ms=int(max(0.0, t) * 1000.0),
+                kind=kind if kind in valid_kinds else VideoTimelineEvent.KIND_TAG,
+                label=label[:160],
+                color='#22d3ee',
+                payload=payload,
+                created_by=created_by,
+            )
+        )
+        tags = ['autocut', kind]
+        try:
+            principle = str(payload.get('principle') or '').strip().lower()
+        except Exception:
+            principle = ''
+        if principle:
+            tags.append(f'principle:{principle}'[:80])
+        clip_objs.append(
+            VideoClip(
+                team=scope_team if scope_team else None,
+                owner_user=owner_user if owner_user else None,
+                video=video,
+                title=label[:180],
+                collection='AutoCut',
+                in_ms=int(max(0.0, clip_in_s) * 1000.0),
+                out_ms=int(max(0.0, max(clip_in_s + 0.2, clip_out_s)) * 1000.0),
+                tags=tags,
+                notes='',
+                overlay={},
+                created_by=created_by,
+            )
+        )
+
+    created_events = 0
+    created_clips = 0
+    try:
+        if ev_objs:
+            VideoTimelineEvent.objects.bulk_create(ev_objs[: max_moments], ignore_conflicts=False)
+            created_events = min(len(ev_objs), int(max_moments))
+    except Exception:
+        for obj in ev_objs[: max_moments]:
+            try:
+                obj.save()
+                created_events += 1
+            except Exception:
+                pass
+    try:
+        if clip_objs:
+            VideoClip.objects.bulk_create(clip_objs[: max_moments], ignore_conflicts=False)
+            created_clips = min(len(clip_objs), int(max_moments))
+    except Exception:
+        for obj in clip_objs[: max_moments]:
+            try:
+                obj.save()
+                created_clips += 1
+            except Exception:
+                pass
+
+    return {
+        'ok': True,
+        'created_events': int(created_events),
+        'created_clips': int(created_clips),
+        'moments': moments[: max_moments],
+    }
 
 
 def schedule_autocut_after_upload(*, video_id: int, team_id=None, owner_user_id=None, workspace_id=None, created_by: str = '') -> None:
