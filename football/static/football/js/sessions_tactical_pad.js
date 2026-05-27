@@ -2035,6 +2035,7 @@
 				    const formationApplyBtn = document.getElementById('task-formation-apply');
 				    const formationApplySelectedBtn = document.getElementById('task-formation-apply-selected');
 				    const overlaysPopover = document.getElementById('task-overlays-popover');
+				    const overlaysPopoverHome = overlaysPopover ? { parent: overlaysPopover.parentElement, next: overlaysPopover.nextSibling } : null;
 				    const overlaysCloseBtn = document.getElementById('task-overlays-close');
 				    const overlaySnapInput = document.getElementById('task-overlay-snap');
 				    const overlayLanesInput = document.getElementById('task-overlay-lanes');
@@ -6166,8 +6167,55 @@
 				    };
 			    const closeFormationPopover = () => setFormationPopoverOpen(false);
 
-					    const setOverlaysPopoverOpen = (open) => {
+					    const restoreOverlaysPopoverHome = () => {
+					      if (!overlaysPopover || !overlaysPopoverHome?.parent) return;
+					      try {
+					        if (overlaysPopover.parentElement !== overlaysPopoverHome.parent) {
+					          if (overlaysPopoverHome.next && overlaysPopoverHome.next.parentNode === overlaysPopoverHome.parent) {
+					            overlaysPopoverHome.parent.insertBefore(overlaysPopover, overlaysPopoverHome.next);
+					          } else {
+					            overlaysPopoverHome.parent.appendChild(overlaysPopover);
+					          }
+					        }
+					      } catch (e) { /* ignore */ }
+					    };
+					    const positionOverlaysPopoverByAnchor = (anchor) => {
+					      if (!overlaysPopover || !anchor || !anchor.getBoundingClientRect) return false;
+					      try {
+					        document.body.appendChild(overlaysPopover);
+					        const rect = anchor.getBoundingClientRect();
+					        const margin = 10;
+					        const width = Math.min(360, Math.max(290, window.innerWidth - 24));
+					        const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left));
+					        const top = Math.max(12, Math.min(window.innerHeight - 80, rect.bottom + margin));
+					        overlaysPopover.style.position = 'fixed';
+					        overlaysPopover.style.left = `${Math.round(left)}px`;
+					        overlaysPopover.style.right = 'auto';
+					        overlaysPopover.style.top = `${Math.round(top)}px`;
+					        overlaysPopover.style.bottom = 'auto';
+					        overlaysPopover.style.width = `${Math.round(width)}px`;
+					        overlaysPopover.style.maxHeight = 'min(72vh, 620px)';
+					        overlaysPopover.style.overflow = 'auto';
+					        overlaysPopover.style.zIndex = '2600';
+					        overlaysPopover.dataset.tacticsAnchor = '1';
+					        return true;
+					      } catch (e) {
+					        return false;
+					      }
+					    };
+					    const clearOverlaysPopoverAnchor = () => {
 					      if (!overlaysPopover) return;
+					      try { delete overlaysPopover.dataset.tacticsAnchor; } catch (e) { /* ignore */ }
+					      ['position', 'left', 'right', 'top', 'bottom', 'width', 'maxHeight', 'overflow', 'zIndex'].forEach((prop) => {
+					        try { overlaysPopover.style[prop] = ''; } catch (e) { /* ignore */ }
+					      });
+					      restoreOverlaysPopoverHome();
+					    };
+					    const setOverlaysPopoverOpen = (open, options = {}) => {
+					      if (!overlaysPopover) return;
+					      if (open && options.anchor) positionOverlaysPopoverByAnchor(options.anchor);
+					      else if (!open) clearOverlaysPopoverAnchor();
+					      else restoreOverlaysPopoverHome();
 					      overlaysPopover.hidden = !open;
 					      try { __scheduleBackdropSync(); } catch (e) { /* ignore */ }
 					    };
@@ -6635,12 +6683,12 @@
 			      }, 0);
 			    };
 
-				    const openOverlaysPopover = () => {
+				    const openOverlaysPopover = (anchor = null) => {
 				      setCommandMenuOpen(false);
 				      closePatternPopover();
 				      closeFormationPopover();
 				      try { syncTacticalOverlaysUi(); } catch (e) { /* ignore */ }
-				      setOverlaysPopoverOpen(true);
+				      setOverlaysPopoverOpen(true, { anchor });
 				    };
 				    // Exponer un helper global: en modo "Táctica" algunos usuarios no ven el botón de "Más acciones (⋯)"
 				    // dependiendo del layout/zoom. Esto permite abrir Overlays desde un botón dedicado en la barra superior.
