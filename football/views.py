@@ -64,7 +64,6 @@ from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .access_policy import can_manage_workspace as policy_can_manage_workspace
 from .access_policy import can_view_workspace as policy_can_view_workspace
 from .access_policy import workspace_membership_for_user as policy_workspace_membership_for_user
-from .api_utils import api_error, api_ok
 from .ops_logging import log_exception
 
 try:
@@ -454,59 +453,6 @@ def public_build_info(request):
     )
     resp['Access-Control-Allow-Origin'] = '*'
     return resp
-
-
-
-@login_required
-@require_POST
-def workspace_set_active_team(request):
-    """
-    Cambia el equipo/categoría activo del workspace club (persistido en sesión).
-
-    Importante:
-    - No modifica `workspace.primary_team` (equipo "principal" legacy del cliente).
-    - Valida que el equipo pertenezca al workspace mediante WorkspaceTeam.
-    """
-    workspace = _get_active_workspace(request)
-    next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
-    if not workspace or workspace.kind != Workspace.KIND_CLUB:
-        return redirect(next_url)
-
-    team_id = _parse_int(request.POST.get('team_id') or request.POST.get('team') or request.POST.get('active_team_id'))
-    if not team_id:
-        return redirect(next_url)
-
-    links = _workspace_team_links_for_user(workspace, request.user)
-    allowed_team_ids = {int(link.team_id) for link in links if getattr(link, 'team_id', None)}
-    if int(team_id) not in allowed_team_ids:
-        return redirect(next_url)
-
-    mapping = request.session.get('active_team_by_workspace')
-    if not isinstance(mapping, dict):
-        mapping = {}
-    mapping[str(workspace.id)] = int(team_id)
-    request.session['active_team_by_workspace'] = mapping
-    return redirect(next_url)
-
-
-@login_required
-@require_POST
-def workspace_set_active_workspace(request):
-    """
-    Fija el workspace activo en sesión para usuarios no-Platform (y también Platform).
-    Esto evita mezclar datos (p.ej. caer al equipo global Benagalbón cuando no hay contexto).
-    """
-    desired_id = _parse_int(request.POST.get('workspace_id') or request.POST.get('workspace') or 0)
-    next_url = (request.POST.get('next') or '').strip() or request.META.get('HTTP_REFERER') or reverse('dashboard-home')
-    if not desired_id:
-        return redirect(next_url)
-    available = _available_workspaces_for_user(request.user)
-    workspace = available.filter(id=desired_id, is_active=True).first()
-    if not workspace:
-        return redirect(next_url)
-    request.session['active_workspace_id'] = workspace.id
-    return redirect(next_url)
-
 
 @login_required
 @require_POST
@@ -6944,59 +6890,6 @@ def _workspace_membership_for_user(workspace, user):
 
 def _can_view_workspace(user, workspace):
     return policy_can_view_workspace(user, workspace, platform_access=_can_access_platform(user))
-
-
-def _workspace_pref_key(raw_key: str) -> str:
-    key = str(raw_key or '').strip()
-    key = re.sub(r'[^a-zA-Z0-9_\-:\.]+', '', key)
-    return key[:80]
-
-
-@login_required
-def workspace_preference_get_api(request):
-    workspace = _get_active_workspace(request)
-    if not workspace:
-        return api_error('Workspace no configurado.', status=400, code='workspace_missing')
-    if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
-        return api_error('No autorizado.', status=403, code='forbidden')
-    key = _workspace_pref_key(request.GET.get('key') or '')
-    if not key:
-        return api_error('key requerido.', status=400, code='key_required')
-    pref = WorkspacePreference.objects.filter(workspace=workspace, key=key).first()
-    return api_ok({'key': key, 'value': pref.value if pref else None, 'updated_at': pref.updated_at if pref else None})
-
-
-@login_required
-@require_POST
-def workspace_preference_set_api(request):
-    workspace = _get_active_workspace(request)
-    if not workspace:
-        return api_error('Workspace no configurado.', status=400, code='workspace_missing')
-    if not _can_view_workspace(request.user, workspace) and not _can_access_platform(request.user):
-        return api_error('No autorizado.', status=403, code='forbidden')
-    try:
-        data = json.loads((request.body or b'{}').decode('utf-8') or '{}')
-    except Exception:
-        data = {}
-    key = _workspace_pref_key(data.get('key') or '')
-    if not key:
-        return api_error('key requerido.', status=400, code='key_required')
-    value = data.get('value')
-    if value is None:
-        value = {}
-    # Guardrail tamaño.
-    try:
-        raw_size = len(json.dumps(value, ensure_ascii=False).encode('utf-8'))
-    except Exception:
-        raw_size = 0
-    if raw_size > 150_000:
-        return api_error('Preferencia demasiado grande.', status=400, code='payload_too_large')
-    obj, _ = WorkspacePreference.objects.update_or_create(
-        workspace=workspace,
-        key=key,
-        defaults={'value': value},
-    )
-    return api_ok({'key': key, 'updated_at': obj.updated_at})
 
 
 def _can_manage_workspace(user, workspace):

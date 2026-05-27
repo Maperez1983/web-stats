@@ -24,7 +24,8 @@ class Command(BaseCommand):
             'football.tests.CriticalPagesSmokeTests',
             'football.tests.SessionsAssignTaskSmokeTests',
             'football.tests.MatchdayQuickButtonsTests',
-            'football.tests.MatchActionsVideoAutoLinkTests',
+            'football.tests.MatchActionWorkflowTests',
+            'football.tests.WorkspaceActiveSelectionTests',
         ]
         if not fast:
             labels.append('football.tests.LoginNextRedirectTests')

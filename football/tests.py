@@ -451,6 +451,34 @@ class DashboardPlatformAutoselectWorkspaceTests(TestCase):
         self.assertEqual(int(payload.get('team', {}).get('id') or 0), team1.id)
 
 
+class WorkspaceActiveSelectionTests(TestCase):
+    def test_workspace_and_team_selection_persist_in_session(self):
+        user = get_user_model().objects.create_user(username='workspace-switcher', password='pass-1234')
+        team = Team.objects.create(name='Equipo switch', slug='equipo-switch', short_name='SW', is_primary=True)
+        workspace = Workspace.objects.create(
+            name='Club switch',
+            slug='club-switch',
+            kind=Workspace.KIND_CLUB,
+            is_active=True,
+            primary_team=team,
+            owner_user=user,
+            enabled_modules={},
+            subscription_status='trial',
+        )
+        WorkspaceMembership.objects.create(workspace=workspace, user=user, role=WorkspaceMembership.ROLE_OWNER)
+        WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
+
+        self.client.force_login(user)
+        response = self.client.post(reverse('workspace-active'), {'workspace_id': workspace.id}, secure=True)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(int(self.client.session.get('active_workspace_id') or 0), workspace.id)
+
+        response = self.client.post(reverse('workspace-active-team'), {'team_id': team.id}, secure=True)
+        self.assertEqual(response.status_code, 302)
+        active_teams = self.client.session.get('active_team_by_workspace') or {}
+        self.assertEqual(int(active_teams.get(str(workspace.id)) or 0), team.id)
+
+
 class LoginNextRedirectTests(TestCase):
     def setUp(self):
         self.player_user = get_user_model().objects.create_user(

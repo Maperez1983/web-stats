@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import billing_views
 from . import season_wizard_views
+from . import workspace_views
 from . import kit2d_views
 from . import academy_views
 from . import pwa as pwa_views
@@ -32,10 +33,10 @@ urlpatterns = [
     path('api/billing/checkout/', billing_views.billing_checkout_session_api, name='billing-checkout-session'),
     path('api/billing/portal/', billing_views.billing_portal_session_api, name='billing-portal-session'),
     path('stripe/webhook/', billing_views.stripe_webhook, name='stripe-webhook'),
-    path('api/workspace/active/', views.workspace_set_active_workspace, name='workspace-active'),
-    path('api/workspace/active-team/', views.workspace_set_active_team, name='workspace-active-team'),
-    path('api/workspace/preferences/get/', views.workspace_preference_get_api, name='workspace-pref-get'),
-    path('api/workspace/preferences/set/', views.workspace_preference_set_api, name='workspace-pref-set'),
+    path('api/workspace/active/', workspace_views.workspace_set_active_workspace, name='workspace-active'),
+    path('api/workspace/active-team/', workspace_views.workspace_set_active_team, name='workspace-active-team'),
+    path('api/workspace/preferences/get/', workspace_views.workspace_preference_get_api, name='workspace-pref-get'),
+    path('api/workspace/preferences/set/', workspace_views.workspace_preference_set_api, name='workspace-pref-set'),
     path('api/kits/2d/generate/', kit2d_views.kit2d_generate_api, name='kit2d-generate-api'),
     path('tools/kit2d/', kit2d_views.kit2d_generator_page, name='kit2d-generator'),
     path('academia/', academy_views.academy_home_page, name='academy-home'),
