@@ -14,6 +14,7 @@ from .models import Match, Team, Workspace, WorkspaceCompetitionContext, Workspa
 from .query_helpers import _normalize_team_lookup_key
 from .team_media_services import sync_team_crest_from_sources
 from .universo_client import fetch_universo_live_classification
+from .universo_snapshot_services import load_universo_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _universo_payload_matches_category = core_views._universo_payload_matches_category
     _serialize_universo_live_classification = core_views._serialize_universo_live_classification
     _resolve_standings_for_team = core_views._resolve_standings_for_team
-    load_universo_snapshot = core_views.load_universo_snapshot
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload

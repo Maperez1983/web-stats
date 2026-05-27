@@ -7,6 +7,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 
 from football.query_helpers import _normalize_team_lookup_key
+from football.universo_snapshot_services import load_universo_snapshot
 
 
 def _env_path(var_name: str, default_path: Path) -> Path:
@@ -140,7 +141,7 @@ def build_team_crest_lookup(load_snapshot_func=None):
     except Exception:
         capture_mtime = None
     if load_snapshot_func is None:
-        from .views import load_universo_snapshot as load_snapshot_func
+        load_snapshot_func = load_universo_snapshot
     snapshot_memo = getattr(load_snapshot_func, '_memo', None)
     snapshot_mtime = snapshot_memo.get('mtime') if isinstance(snapshot_memo, dict) else None
     if isinstance(memo, dict) and memo.get('capture_mtime') == capture_mtime and memo.get('snapshot_mtime') == snapshot_mtime:
