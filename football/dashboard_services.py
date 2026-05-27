@@ -3,6 +3,12 @@ from .view_delegates import call_view
 
 
 SCRAPE_LOCK_KEY = "football:refresh_scraping_running"
+DASHBOARD_DELEGATED_VIEW_NAMES = (
+    'compute_player_dashboard',
+    'kpi_audit',
+    'player_dashboard_page',
+    'player_detail_page',
+)
 
 
 def compute_team_metrics_for_match(*args, **kwargs):

@@ -3,21 +3,25 @@ from django.http import JsonResponse
 
 from . import permissions, workspace_context
 from .models import TacticalPlaybookClip
-from .view_delegates import view_delegate
+from .view_delegates import install_view_delegates
 
 
-task_assistant_blueprints_api = view_delegate('task_assistant_blueprints_api')
-task_assistant_blueprint_save_api = view_delegate('task_assistant_blueprint_save_api')
-task_assistant_knowledge_api = view_delegate('task_assistant_knowledge_api')
-task_assistant_knowledge_upload_api = view_delegate('task_assistant_knowledge_upload_api')
-tactical_playbook_clips_api = view_delegate('tactical_playbook_clips_api')
-tactical_playbook_clip_save_api = view_delegate('tactical_playbook_clip_save_api')
-tactical_playbook_task_save_api = view_delegate('tactical_playbook_task_save_api')
-tactical_playbook_clip_delete_api = view_delegate('tactical_playbook_clip_delete_api')
-tactical_playbook_clip_favorite_api = view_delegate('tactical_playbook_clip_favorite_api')
-tactical_playbook_clip_share_create = view_delegate('tactical_playbook_clip_share_create')
-tactical_playbook_clip_clone_api = view_delegate('tactical_playbook_clip_clone_api')
-share_tactical_playbook_clip_page = view_delegate('share_tactical_playbook_clip_page')
+TACTICAL_DELEGATED_VIEW_NAMES = (
+    'task_assistant_blueprints_api',
+    'task_assistant_blueprint_save_api',
+    'task_assistant_knowledge_api',
+    'task_assistant_knowledge_upload_api',
+    'tactical_playbook_clips_api',
+    'tactical_playbook_clip_save_api',
+    'tactical_playbook_task_save_api',
+    'tactical_playbook_clip_delete_api',
+    'tactical_playbook_clip_favorite_api',
+    'tactical_playbook_clip_share_create',
+    'tactical_playbook_clip_clone_api',
+    'share_tactical_playbook_clip_page',
+)
+
+install_view_delegates(globals(), TACTICAL_DELEGATED_VIEW_NAMES)
 
 
 def _forbid_if_tactical_module_disabled(request):

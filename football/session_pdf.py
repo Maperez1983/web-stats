@@ -4,6 +4,12 @@ from .session_canvas_recreate import recreate_canvas_state_from_preview_image_by
 from .view_delegates import call_view
 
 
+SESSION_PDF_DELEGATED_VIEW_NAMES = (
+    'session_plan_pdf',
+    '_build_session_pdf_context',
+)
+
+
 def session_plan_pdf(request, session_id):
     return call_view('session_plan_pdf', request, session_id=session_id)
 
