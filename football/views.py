@@ -24384,127 +24384,9 @@ def _build_task_pdf_tokens_from_canvas_state(request, canvas_state, canvas_width
 
 
 def _normalize_task_pdf_meta(meta):
-    def _normalize_meta_key(raw_key):
-        text = str(raw_key or '').strip()
-        if not text:
-            return ''
-        text = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', text)
-        text = text.replace(' ', '_').replace('-', '_')
-        text = re.sub(r'[^a-zA-Z0-9_]', '', text)
-        text = re.sub(r'__+', '_', text).strip('_').lower()
-        return text
+    from . import session_pdf
 
-    def _normalize_meta_dict(raw_value):
-        if not isinstance(raw_value, dict):
-            return {}
-        normalized = {}
-        for key, value in raw_value.items():
-            normalized_key = _normalize_meta_key(key)
-            if not normalized_key:
-                continue
-            if isinstance(value, dict):
-                normalized_value = _normalize_meta_dict(value)
-            elif isinstance(value, list):
-                normalized_value = [
-                    _normalize_meta_dict(item) if isinstance(item, dict) else item
-                    for item in value
-                ]
-            else:
-                normalized_value = value
-            existing = normalized.get(normalized_key)
-            if existing in (None, '', [], {}) and normalized_value not in (None, '', [], {}):
-                normalized[normalized_key] = normalized_value
-            elif normalized_key not in normalized:
-                normalized[normalized_key] = normalized_value
-        return normalized
-
-    def _map_choice(value, mapping):
-        raw = str(value or '').strip()
-        if not raw:
-            return raw
-        if raw in mapping:
-            return mapping.get(raw, raw)
-        lowered = raw.lower()
-        if lowered in mapping:
-            return mapping.get(lowered, raw)
-        normalized = lowered.replace(' ', '_').replace('-', '_')
-        if normalized in mapping:
-            return mapping.get(normalized, raw)
-        normalized_key = _normalize_meta_key(raw)
-        if normalized_key in mapping:
-            return mapping.get(normalized_key, raw)
-        return raw
-
-    surface_map = {key: label for key, label in TASK_SURFACE_CHOICES}
-    pitch_map = {key: label for key, label in TASK_PITCH_FORMAT_CHOICES}
-    phase_map = {key: label for key, label in TASK_GAME_PHASE_CHOICES}
-    methodology_map = {key: label for key, label in TASK_METHODOLOGY_CHOICES}
-    complexity_map = {key: label for key, label in TASK_COMPLEXITY_CHOICES}
-    constraint_map = {key: label for key, label in TASK_CONSTRAINT_CHOICES}
-    strategy_map = {key: label for key, label in TASK_STRATEGY_CHOICES}
-    coordination_map = {key: label for key, label in TASK_COORDINATION_CHOICES}
-    coord_skills_map = {key: label for key, label in TASK_COORDINATION_SKILLS_CHOICES}
-    tactical_intent_map = {key: label for key, label in TASK_TACTICAL_INTENT_CHOICES}
-    dynamics_map = {key: label for key, label in TASK_DYNAMICS_CHOICES}
-    structure_map = {key: label for key, label in TASK_STRUCTURE_CHOICES}
-    meta = _normalize_meta_dict(meta or {})
-    # Compat: algunas importaciones/analíticas guardan claves en castellano.
-    # Unificamos para que el PDF siempre muestre etiquetas correctas.
-    key_aliases = {
-        'estrategia': 'strategy',
-        'dinamica': 'dynamics',
-        'situacion_de_juego': 'structure',
-        'situacion_juego': 'structure',
-        'habilidades_coordinativas': 'coordination_skills',
-        'habilidades_coordinativas_y': 'coordination_skills',
-        'intencion_accion_tactica': 'tactical_intent',
-        'intencion_accion': 'tactical_intent',
-        'coordinacion': 'coordination',
-        'complejidad': 'complexity',
-    }
-    for alias_key, canonical_key in key_aliases.items():
-        if alias_key in meta and canonical_key not in meta:
-            meta[canonical_key] = meta.get(alias_key)
-    if not meta:
-        return {}
-    if not meta.get('strategy') and meta.get('training_type'):
-        strategy_candidate = _map_choice(meta.get('training_type'), strategy_map)
-        training_type_key = str(meta.get('training_type') or '').strip().lower().replace(' ', '_').replace('-', '_')
-        if training_type_key in strategy_map or strategy_candidate in strategy_map.values():
-            meta['strategy'] = strategy_candidate
-    if meta.get('surface'):
-        meta['surface'] = _map_choice(meta.get('surface'), surface_map) or str(meta.get('surface'))
-    if meta.get('pitch_format'):
-        meta['pitch_format'] = _map_choice(meta.get('pitch_format'), pitch_map) or str(meta.get('pitch_format'))
-    if meta.get('game_phase'):
-        meta['game_phase'] = _map_choice(meta.get('game_phase'), phase_map) or str(meta.get('game_phase'))
-    if meta.get('methodology'):
-        meta['methodology'] = _map_choice(meta.get('methodology'), methodology_map) or str(meta.get('methodology'))
-    if meta.get('complexity'):
-        meta['complexity'] = _map_choice(meta.get('complexity'), complexity_map) or str(meta.get('complexity'))
-    if meta.get('strategy'):
-        meta['strategy'] = _map_choice(meta.get('strategy'), strategy_map) or str(meta.get('strategy'))
-    if meta.get('coordination'):
-        meta['coordination'] = _map_choice(meta.get('coordination'), coordination_map) or str(meta.get('coordination'))
-    if meta.get('coordination_skills'):
-        meta['coordination_skills'] = _map_choice(meta.get('coordination_skills'), coord_skills_map) or str(meta.get('coordination_skills'))
-    if meta.get('tactical_intent'):
-        meta['tactical_intent'] = _map_choice(meta.get('tactical_intent'), tactical_intent_map) or str(meta.get('tactical_intent'))
-    if meta.get('dynamics'):
-        meta['dynamics'] = _map_choice(meta.get('dynamics'), dynamics_map) or str(meta.get('dynamics'))
-    if meta.get('structure'):
-        meta['structure'] = _map_choice(meta.get('structure'), structure_map) or str(meta.get('structure'))
-    if isinstance(meta.get('constraints'), list):
-        meta['constraints'] = [_map_choice(v, constraint_map) or str(v) for v in meta.get('constraints')]
-    if isinstance(meta.get('category_tags'), str):
-        meta['category_tags'] = [item.strip() for item in str(meta.get('category_tags') or '').split(',') if item.strip()]
-    elif not isinstance(meta.get('category_tags'), list):
-        meta['category_tags'] = []
-    if isinstance(meta.get('assigned_player_names'), str):
-        meta['assigned_player_names'] = [item.strip() for item in str(meta.get('assigned_player_names') or '').split(',') if item.strip()]
-    elif not isinstance(meta.get('assigned_player_names'), list):
-        meta['assigned_player_names'] = []
-    return meta
+    return session_pdf._normalize_task_pdf_meta(meta)
 
 
 def _build_task_pdf_context(request, team, session, microcycle, task, tactical_layout, pdf_style='uefa', preview_url='', one_page: bool = False):
@@ -25044,49 +24926,9 @@ def _build_microcycle_week_slots(microcycle, session_rows):
 
 
 def _build_session_task_sheet(task):
-    meta = _normalize_task_pdf_meta(task.tactical_layout.get('meta') if isinstance(task.tactical_layout, dict) else {})
-    analysis_meta = meta.get('analysis') if isinstance(meta.get('analysis'), dict) else {}
-    task_sheet = analysis_meta.get('task_sheet') if isinstance(analysis_meta.get('task_sheet'), dict) else {}
-    source_template_id = _parse_int(meta.get('library_source_task_id')) or 0
-    is_template = str(meta.get('is_template') or '').strip().lower() in {'1', 'true', 'yes', 'on'}
-    origin_label = 'Plantilla' if is_template else ('Copia' if source_template_id else '')
-    contents = []
-    for value in [
-        meta.get('training_type'),
-        meta.get('game_phase'),
-        meta.get('principle'),
-        meta.get('subprinciple'),
-    ]:
-        text = str(value or '').strip()
-        if text:
-            contents.append(text)
-    return {
-        'title': str(task.title or '').strip() or f'Tarea {task.id}',
-        'block_label': task.get_block_display(),
-        'minutes': int(task.duration_minutes or 0),
-        'type_label': str(meta.get('training_type') or '').strip(),
-        'origin_label': origin_label,
-        'origin_template_id': int(source_template_id) if source_template_id else None,
-        'contents_label': ' · '.join(contents) or str(task.objective or '').strip() or '-',
-        'structure_label': ' · '.join(
-            part for part in [
-                str(meta.get('organization') or '').strip(),
-                str(meta.get('players_distribution') or '').strip(),
-                str(meta.get('player_count') or '').strip(),
-            ] if part
-        ) or '-',
-        'players_label': ', '.join(meta.get('assigned_player_names') or []) or str(meta.get('player_count') or '').strip() or '-',
-        'dimensions_label': str(task_sheet.get('dimensions') or meta.get('space') or '').strip() or '-',
-        'materials_label': str(task_sheet.get('materials') or meta.get('resources_summary') or '').strip() or '-',
-        'description': str(task_sheet.get('description') or '').strip(),
-        'rules': str(task.confrontation_rules or '').strip(),
-        'focus': str(task.coaching_points or '').strip(),
-        'variants': str(meta.get('progression') or '').strip(),
-        'success': str(meta.get('success_criteria') or '').strip(),
-        'coordination_label': str(meta.get('coordination') or '').strip(),
-        'coordination_skills_label': str(meta.get('coordination_skills') or meta.get('coordination_skills_label') or '').strip(),
-        'tactical_intent_label': str(meta.get('tactical_intent') or '').strip(),
-    }
+    from . import session_pdf
+
+    return session_pdf._build_session_task_sheet(task)
 
 
 @login_required
