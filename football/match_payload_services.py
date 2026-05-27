@@ -76,6 +76,21 @@ def payload_opponent_name(payload):
     return str(payload.get('rival') or '').strip()
 
 
+def next_match_payload_is_usable(payload):
+    if not isinstance(payload, dict):
+        return False
+    status = str(payload.get('status') or '').strip().lower()
+    if status != 'next':
+        return False
+    opponent_name = payload_opponent_name(payload).strip().lower()
+    if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
+        return False
+    round_value = str(payload.get('round') or '').strip()
+    if not round_value:
+        return False
+    return True
+
+
 def build_match_payload(match, primary_team, status):
     opponent = match.away_team if match.home_team == primary_team else match.home_team
     return normalize_next_match_payload({
@@ -92,6 +107,32 @@ def build_match_payload(match, primary_team, status):
         'status': status,
         'source': 'local-match',
     })
+
+
+def build_local_next_match_payload(primary_team):
+    if not primary_team:
+        return {}
+    today = timezone.localdate()
+    base_qs = (
+        Match.objects
+        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        .select_related('home_team', 'away_team')
+    )
+    scoped_qs = base_qs.filter(group=primary_team.group) if getattr(primary_team, 'group_id', None) else base_qs
+    match_obj = (
+        scoped_qs.filter(date__gte=today).order_by('date', 'id').first()
+        or base_qs.filter(date__gte=today).order_by('date', 'id').first()
+    )
+    if not match_obj:
+        match_obj = (
+            scoped_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
+            or base_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
+            or scoped_qs.order_by('-id').first()
+            or base_qs.order_by('-id').first()
+        )
+    if not match_obj:
+        return {}
+    return build_match_payload(match_obj, primary_team, status='next')
 
 
 def build_workspace_schedule_payload(primary_team, *, limit=8):

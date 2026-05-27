@@ -1,17 +1,15 @@
 import logging
 
-from django.db.models import Q
 from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
 from .match_payload_services import (
-    build_match_payload,
+    build_local_next_match_payload,
     build_workspace_schedule_payload,
     normalize_next_match_payload,
-    parse_payload_date as _parse_payload_date,
-    payload_opponent_name as _payload_opponent_name,
+    next_match_payload_is_usable,
 )
-from .models import Match, Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
+from .models import Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
 from .query_helpers import _normalize_team_lookup_key
 from .team_media_services import sync_team_crest_from_sources
 from .universo_client import fetch_universo_live_classification
@@ -142,19 +140,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     convocation_next = _build_next_match_from_convocation(primary_team)
     provider_next = _find_universo_next_match_for_context(context, primary_team)
     preferred_next = load_preferred_next_match_payload(primary_team=primary_team, competition_context=context)
-    def _next_ok_for_snapshot(payload):
-        if not isinstance(payload, dict):
-            return False
-        status = str(payload.get('status') or '').strip().lower()
-        if status != 'next':
-            return False
-        opponent_name = _payload_opponent_name(payload).strip().lower()
-        if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
-            return False
-        round_value = str(payload.get('round') or '').strip()
-        if not round_value:
-            return False
-        return True
     snapshot_next = {}
     try:
         universo_snapshot = load_universo_snapshot()
@@ -162,7 +147,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         if isinstance(universo_snapshot, dict):
             raw_snapshot_next = universo_snapshot.get('next_match') if isinstance(universo_snapshot.get('next_match'), dict) else {}
         normalized_snapshot_next = normalize_next_match_payload(raw_snapshot_next) if raw_snapshot_next else {}
-        if normalized_snapshot_next and _next_ok_for_snapshot(normalized_snapshot_next):
+        if normalized_snapshot_next and next_match_payload_is_usable(normalized_snapshot_next):
             # Validación ligera: aseguramos que el snapshot corresponde al equipo por nombre en standings.
             snapshot_rows = universo_snapshot.get('standings') if isinstance(universo_snapshot, dict) else []
             candidate_keys = {
@@ -190,34 +175,12 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         snapshot_next = {}
     # No hacer scraping/red desde este flujo: puede ejecutarse durante navegación y provocar timeouts.
     # Además, el snapshot de Platform debe ser estable aunque el "próximo" partido ya haya pasado (tests con fechas fijas).
-    def _db_next_for_snapshot():
-        today = timezone.localdate()
-        base_qs = (
-            Match.objects
-            .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
-            .select_related('home_team', 'away_team')
-        )
-        scoped_qs = base_qs.filter(group=primary_team.group) if getattr(primary_team, 'group_id', None) else base_qs
-        match_obj = (
-            scoped_qs.filter(date__gte=today).order_by('date', 'id').first()
-            or base_qs.filter(date__gte=today).order_by('date', 'id').first()
-        )
-        if not match_obj:
-            match_obj = (
-                scoped_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
-                or base_qs.exclude(date__isnull=True).order_by('-date', '-id').first()
-                or scoped_qs.order_by('-id').first()
-                or base_qs.order_by('-id').first()
-            )
-        if not match_obj:
-            return {}
-        return build_match_payload(match_obj, primary_team, status='next')
-    local_next = _db_next_for_snapshot() or {}
+    local_next = build_local_next_match_payload(primary_team) or {}
     next_match_payload = (
-        (convocation_next if _next_ok_for_snapshot(convocation_next) else {})
-        or (provider_next if _next_ok_for_snapshot(provider_next) else {})
-        or (preferred_next if _next_ok_for_snapshot(preferred_next) else {})
-        or (snapshot_next if _next_ok_for_snapshot(snapshot_next) else {})
+        (convocation_next if next_match_payload_is_usable(convocation_next) else {})
+        or (provider_next if next_match_payload_is_usable(provider_next) else {})
+        or (preferred_next if next_match_payload_is_usable(preferred_next) else {})
+        or (snapshot_next if next_match_payload_is_usable(snapshot_next) else {})
         or local_next
         or {}
     )

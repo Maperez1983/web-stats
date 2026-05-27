@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 
 from django.test import SimpleTestCase, TestCase
@@ -54,3 +54,23 @@ class WorkspaceSchedulePayloadTests(TestCase):
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]['status'], 'next')
         self.assertEqual(payload[0]['opponent']['name'], 'Rival')
+
+    def test_build_local_next_match_payload_falls_back_to_latest_match(self):
+        competition = Competition.objects.create(name='Liga Local', slug='liga-local')
+        season = Season.objects.create(competition=competition, name='2026/2027')
+        group = Group.objects.create(season=season, name='Grupo Local', slug='grupo-local')
+        team = Team.objects.create(name='Casa Local', slug='casa-local', group=group)
+        rival = Team.objects.create(name='Rival Local', slug='rival-local', group=group)
+        yesterday = timezone.localdate() - timedelta(days=1)
+        Match.objects.create(season=season, group=group, home_team=rival, away_team=team, date=yesterday, round='J0', location='Campo')
+
+        payload = match_payload_services.build_local_next_match_payload(team)
+
+        self.assertEqual(payload['status'], 'next')
+        self.assertFalse(payload['home'])
+        self.assertEqual(payload['opponent']['name'], 'Rival Local')
+
+    def test_next_match_payload_is_usable_rejects_missing_round_or_placeholder_opponent(self):
+        self.assertFalse(match_payload_services.next_match_payload_is_usable({'status': 'next', 'opponent': 'Rival FC'}))
+        self.assertFalse(match_payload_services.next_match_payload_is_usable({'status': 'next', 'round': 'J1', 'opponent': 'Rival por confirmar'}))
+        self.assertTrue(match_payload_services.next_match_payload_is_usable({'status': 'next', 'round': 'J1', 'opponent': 'Rival FC'}))
