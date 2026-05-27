@@ -1,9 +1,15 @@
+import logging
+
 from django.db.models import Q
 from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
 from .models import Match, Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
+from .query_helpers import _normalize_team_lookup_key
+from .team_media_services import sync_team_crest_from_sources
 from .universo_client import fetch_universo_live_classification
+
+logger = logging.getLogger(__name__)
 
 
 def sync_workspace_competition_context(workspace, primary_team=None):
@@ -11,7 +17,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
 
     _bootstrap_workspace_competition_context = core_views._bootstrap_workspace_competition_context
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
-    _sync_team_crest_from_sources = core_views._sync_team_crest_from_sources
     _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
     _build_universo_competition_catalog = core_views._build_universo_competition_catalog
     _ensure_universo_group_models_from_candidate = core_views._ensure_universo_group_models_from_candidate
@@ -24,7 +29,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
     normalize_next_match_payload = core_views.normalize_next_match_payload
     _payload_opponent_name = core_views._payload_opponent_name
-    _normalize_team_lookup_key = core_views._normalize_team_lookup_key
     _parse_payload_date = core_views._parse_payload_date
     build_match_payload = core_views.build_match_payload
     _build_workspace_schedule_payload = core_views._build_workspace_schedule_payload
@@ -43,7 +47,11 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         return context, context.sync_error
 
     context = _ensure_universo_context_binding(context, primary_team)
-    _sync_team_crest_from_sources(primary_team)
+    sync_team_crest_from_sources(
+        primary_team,
+        load_snapshot_func=load_universo_snapshot,
+        invalidate_func=invalidate_team_dashboard_caches,
+    )
     provider_key = str(getattr(context, 'provider', '') or '').strip().lower()
     # Universo: permitir sincronizar aunque el Team todavía no tenga Group en BD.
     # Usamos `external_group_key` para traer clasificación y crear Competition/Season/Group.
@@ -82,7 +90,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                         context=context,
                     )
             except Exception:
-                pass
+                logger.exception('No se pudo preparar grupo Universo para workspace %s', getattr(workspace, 'id', None))
 
     if not getattr(primary_team, 'group', None):
         context.sync_status = WorkspaceCompetitionContext.STATUS_ERROR
@@ -96,7 +104,11 @@ def sync_workspace_competition_context(workspace, primary_team=None):
 
     if getattr(primary_team, 'group_id', None):
         for team in Team.objects.filter(group=primary_team.group).only('id', 'name', 'short_name', 'external_id', 'crest_url', 'crest_image', 'is_primary'):
-            _sync_team_crest_from_sources(team)
+            sync_team_crest_from_sources(
+                team,
+                load_snapshot_func=load_universo_snapshot,
+                invalidate_func=invalidate_team_dashboard_caches,
+            )
     standings_payload = []
     if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
         group_key = str(getattr(context, 'external_group_key', '') or '').strip() or str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
@@ -118,6 +130,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                         )
                         standings_payload = _serialize_universo_live_classification(live_classification)
             except Exception:
+                logger.exception('No se pudo sincronizar clasificación Universo para workspace %s', getattr(workspace, 'id', None))
                 standings_payload = []
     if not standings_payload:
         standings_payload = _resolve_standings_for_team(
@@ -172,6 +185,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
             if snapshot_ok:
                 snapshot_next = normalized_snapshot_next
     except Exception:
+        logger.exception('No se pudo resolver próximo partido desde snapshot Universo para workspace %s', getattr(workspace, 'id', None))
         snapshot_next = {}
     # No hacer scraping/red desde este flujo: puede ejecutarse durante navegación y provocar timeouts.
     # Además, el snapshot de Platform debe ser estable aunque el "próximo" partido ya haya pasado (tests con fechas fijas).

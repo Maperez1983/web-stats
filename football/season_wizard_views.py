@@ -8,8 +8,9 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from . import views as core_views
+from . import task_library_services
 from . import workspace_context
+from .host_redirects import redirect_to_app_host_if_landing
 from .models import (
     Player,
     Team,
@@ -21,6 +22,7 @@ from .models import (
 )
 from .ops_logging import log_exception
 from .season_wizard import build_questionnaire_rating_summary, parse_questionnaire_ratings
+from .services import _parse_int
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ def club_season_wizard(request):
     2) Descargar informes PDF de jugadores 1 a 1
     3) Configurar nueva temporada + fases
     """
-    redirect_response = core_views._redirect_to_app_host_if_landing(request, path='/onboarding/season/')
+    redirect_response = redirect_to_app_host_if_landing(request, path='/onboarding/season/')
     if redirect_response:
         return redirect_response
 
@@ -160,7 +162,7 @@ def club_season_wizard(request):
 
             if action in {'reports_prev', 'reports_next', 'reports_skip'}:
                 state = dict(state or {})
-                idx = int(core_views._parse_int(state.get('player_idx')) or 0)
+                idx = int(_parse_int(state.get('player_idx')) or 0)
                 total = len(state.get('player_ids') or [])
                 if action == 'reports_prev':
                     idx = max(0, idx - 1)
@@ -175,8 +177,8 @@ def club_season_wizard(request):
 
             if action in {'questionnaire_prev', 'questionnaire_next', 'questionnaire_skip'}:
                 state = dict(state or {})
-                idx = int(core_views._parse_int(state.get('q_player_idx')) or 0)
-                ids = [int(pid) for pid in (state.get('q_player_ids') or []) if core_views._parse_int(pid)]
+                idx = int(_parse_int(state.get('q_player_idx')) or 0)
+                ids = [int(pid) for pid in (state.get('q_player_ids') or []) if _parse_int(pid)]
                 total = len(ids)
                 if action == 'questionnaire_prev':
                     idx = max(0, idx - 1)
@@ -188,10 +190,10 @@ def club_season_wizard(request):
 
             if action in {'questionnaire_save', 'questionnaire_save_next', 'questionnaire_finish'}:
                 state = dict(state or {})
-                season_id = int(core_views._parse_int(state.get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
+                season_id = int(_parse_int(state.get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
                 if not season_id:
                     raise ValueError('No hay temporada activa para guardar el cuestionario.')
-                membership_id = int(core_views._parse_int(request.POST.get('membership_id')) or 0)
+                membership_id = int(_parse_int(request.POST.get('membership_id')) or 0)
                 if not membership_id:
                     raise ValueError('Falta el jugador de temporada para guardar el cuestionario.')
                 membership = WorkspaceSeasonPlayer.objects.filter(id=int(membership_id), season_id=int(season_id)).select_related('player').first()
@@ -199,7 +201,7 @@ def club_season_wizard(request):
                     raise ValueError('No se encontró el jugador en la temporada seleccionada.')
 
                 def _clean_text(field, *, max_len=800):
-                    return core_views._sanitize_task_text((request.POST.get(field) or '').strip(), multiline=True, max_len=max_len)
+                    return task_library_services.sanitize_task_text((request.POST.get(field) or '').strip(), multiline=True, max_len=max_len)
 
                 role_pref = str(request.POST.get('q_role_pref') or '').strip()
                 if role_pref and role_pref not in {'titular', 'rotacion', 'revulsivo', 'desarrollo', 'otro'}:
@@ -207,7 +209,7 @@ def club_season_wizard(request):
                 foot = str(request.POST.get('q_foot') or '').strip()
                 if foot and foot not in {'der', 'izq', 'amb'}:
                     foot = ''
-                motivation = core_views._parse_int(request.POST.get('q_motivation'))
+                motivation = _parse_int(request.POST.get('q_motivation'))
                 if motivation is not None:
                     try:
                         motivation = max(1, min(5, int(motivation)))
@@ -241,8 +243,8 @@ def club_season_wizard(request):
                     return redirect(f"{reverse('club-onboarding')}?season_created=1")
 
                 if action == 'questionnaire_save_next':
-                    ids = [int(pid) for pid in (state.get('q_player_ids') or []) if core_views._parse_int(pid)]
-                    idx = int(core_views._parse_int(state.get('q_player_idx')) or 0)
+                    ids = [int(pid) for pid in (state.get('q_player_ids') or []) if _parse_int(pid)]
+                    idx = int(_parse_int(state.get('q_player_idx')) or 0)
                     total = len(ids)
                     idx = min(max(total - 1, 0), idx + 1) if total else 0
                     state['q_player_idx'] = idx
@@ -252,7 +254,7 @@ def club_season_wizard(request):
                 message = 'Cuestionario guardado.'
 
             if action == 'create_new_season':
-                season_label = core_views._sanitize_task_text((request.POST.get('season_label') or '').strip(), multiline=False, max_len=32)
+                season_label = task_library_services.sanitize_task_text((request.POST.get('season_label') or '').strip(), multiline=False, max_len=32)
                 start_date = _parse_date(request.POST.get('season_start_date'))
                 if not season_label:
                     raise ValueError('Etiqueta de temporada obligatoria.')
@@ -260,8 +262,8 @@ def club_season_wizard(request):
                     raise ValueError('Fecha de inicio obligatoria.')
 
                 reconvert_team = str(request.POST.get('reconvert_team') or '').strip().lower() in {'1', 'true', 'on', 'yes', 'si'}
-                team_name_new = core_views._sanitize_task_text((request.POST.get('team_name_new') or '').strip(), multiline=False, max_len=150)
-                team_category_new = core_views._sanitize_task_text((request.POST.get('team_category_new') or '').strip(), multiline=False, max_len=24)
+                team_name_new = task_library_services.sanitize_task_text((request.POST.get('team_name_new') or '').strip(), multiline=False, max_len=150)
+                team_category_new = task_library_services.sanitize_task_text((request.POST.get('team_category_new') or '').strip(), multiline=False, max_len=24)
                 team_game_format_new = str(request.POST.get('team_game_format_new') or '').strip().lower()
                 if team_game_format_new and team_game_format_new not in {Team.GAME_FORMAT_F7, Team.GAME_FORMAT_F11}:
                     team_game_format_new = ''
@@ -412,7 +414,7 @@ def club_season_wizard(request):
     # Estado para step reports.
     closed_season = None
     try:
-        closed_id = core_views._parse_int((state or {}).get('closed_season_id'))
+        closed_id = _parse_int((state or {}).get('closed_season_id'))
         if closed_id:
             closed_season = WorkspaceSeason.objects.filter(id=int(closed_id), workspace=workspace).first()
     except Exception:
@@ -426,8 +428,8 @@ def club_season_wizard(request):
         report_team_id = int(getattr(active_team, 'id', 0) or 0)
         if report_team_id and int(report_team_id) in teams_by_id:
             report_team = teams_by_id[int(report_team_id)]
-        player_ids = [int(pid) for pid in ((state or {}).get('player_ids') or []) if core_views._parse_int(pid)]
-        player_idx = int(core_views._parse_int((state or {}).get('player_idx')) or 0)
+        player_ids = [int(pid) for pid in ((state or {}).get('player_ids') or []) if _parse_int(pid)]
+        player_idx = int(_parse_int((state or {}).get('player_idx')) or 0)
         if player_ids:
             player_idx = max(0, min(player_idx, len(player_ids) - 1))
             current_player = Player.objects.filter(id=int(player_ids[player_idx])).first()
@@ -458,7 +460,7 @@ def club_season_wizard(request):
     q_membership = None
     q_rating_summary = build_questionnaire_rating_summary({})
     try:
-        q_season_id = int(core_views._parse_int((state or {}).get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
+        q_season_id = int(_parse_int((state or {}).get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
         if q_season_id:
             q_season = WorkspaceSeason.objects.filter(id=int(q_season_id), workspace=workspace).first()
         if q_season:
@@ -469,7 +471,7 @@ def club_season_wizard(request):
                 .order_by('player__number', 'player__name', 'player__id')
             )
             q_total = len(q_memberships)
-            ids_from_state = [int(pid) for pid in ((state or {}).get('q_player_ids') or []) if core_views._parse_int(pid)]
+            ids_from_state = [int(pid) for pid in ((state or {}).get('q_player_ids') or []) if _parse_int(pid)]
             if not ids_from_state:
                 ids_from_state = [int(m.player_id) for m in q_memberships if getattr(m, 'player_id', None)]
                 state = dict(state or {})
@@ -477,7 +479,7 @@ def club_season_wizard(request):
                 state['q_player_ids'] = ids_from_state
                 state['q_player_idx'] = 0
                 _save_state(state)
-            q_idx = int(core_views._parse_int((state or {}).get('q_player_idx')) or 0)
+            q_idx = int(_parse_int((state or {}).get('q_player_idx')) or 0)
             q_idx = max(0, min(q_idx, max(q_total - 1, 0))) if q_total else 0
             q_membership = q_memberships[q_idx] if q_total else None
             if q_membership:
