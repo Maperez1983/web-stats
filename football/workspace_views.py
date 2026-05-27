@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .api_utils import api_error, api_ok
+from .competition_sync import sync_workspace_competition_context
 from .models import Workspace, WorkspacePreference
 from .services import _parse_int
 from . import workspace_context
@@ -137,8 +138,7 @@ def workspace_sync_competition_api(request):
     if not cache.add(lock_key, '1', timeout=180):
         return JsonResponse({'status': 'error', 'message': 'Ya hay una sincronización en curso.'}, status=429)
     try:
-        from . import views as core_views
-        context, sync_error = core_views._sync_workspace_competition_context(workspace, primary_team=primary_team)
+        context, sync_error = sync_workspace_competition_context(workspace, primary_team=primary_team)
         if sync_error:
             return JsonResponse({'status': 'error', 'message': sync_error}, status=500)
         return JsonResponse(

@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 from . import views as core_views
 from .api_utils import api_error, api_ok
 from .models import StripeEventLog, Workspace
+from . import workspace_context
 
 logger = logging.getLogger(__name__)
 
@@ -403,20 +404,20 @@ def stripe_webhook(request):
 
 
 def _workspace_from_request_for_billing(request):
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
         return None, HttpResponse('Selecciona un club (workspace) para gestionar la suscripción.', status=400)
-    if not core_views._can_manage_workspace(request.user, workspace) and not core_views._can_access_platform(request.user):
+    if not workspace_context.can_manage_workspace(request.user, workspace) and not workspace_context.can_access_platform(request.user):
         return None, HttpResponse('No tienes permisos para gestionar la suscripción.', status=403)
     return workspace, None
 
 
 @login_required
 def billing_page(request):
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
         return HttpResponse('Selecciona un club (workspace) para ver la suscripción.', status=400)
-    if not core_views._can_manage_workspace(request.user, workspace) and not core_views._can_access_platform(request.user):
+    if not workspace_context.can_manage_workspace(request.user, workspace) and not workspace_context.can_access_platform(request.user):
         return HttpResponse('No tienes permisos para gestionar la suscripción.', status=403)
 
     manual_msg = ''

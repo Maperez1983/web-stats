@@ -1,0 +1,16 @@
+from .views import (
+    task_assistant_blueprints_api,
+    task_assistant_blueprint_save_api,
+    task_assistant_knowledge_api,
+    task_assistant_knowledge_upload_api,
+    tactical_playbook_clips_api,
+    tactical_playbook_clip_save_api,
+    tactical_playbook_task_save_api,
+    tactical_playbook_clip_delete_api,
+    tactical_playbook_clip_favorite_api,
+    tactical_playbook_clip_share_create,
+    tactical_playbook_clip_clone_api,
+    tactical_playbook_teams_api,
+    tactical_playbook_versions_api,
+    share_tactical_playbook_clip_page,
+)

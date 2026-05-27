@@ -9,6 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import views as core_views
+from . import workspace_context
 from .models import (
     Player,
     Team,
@@ -36,10 +37,10 @@ def club_season_wizard(request):
     if redirect_response:
         return redirect_response
 
-    workspace = core_views._get_active_workspace(request)
+    workspace = workspace_context.get_active_workspace(request)
     if not workspace or getattr(workspace, 'kind', None) != Workspace.KIND_CLUB:
         return HttpResponse('Selecciona un club (workspace) antes de cerrar la temporada.', status=400)
-    if not core_views._can_manage_workspace(request.user, workspace):
+    if not workspace_context.can_manage_workspace(request.user, workspace):
         return HttpResponse('No tienes permisos para cerrar la temporada de este club.', status=403)
 
     step = str(request.GET.get('step') or '').strip().lower() or 'close'
@@ -56,8 +57,8 @@ def club_season_wizard(request):
         active_club_season = None
 
     # Equipos visibles (para elegir a qué plantilla generar informes).
-    active_team = core_views._get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
-    team_links = core_views._workspace_team_links_for_user(workspace, request.user)
+    active_team = workspace_context.get_active_team_for_request(request) or getattr(workspace, 'primary_team', None)
+    team_links = workspace_context.workspace_team_links_for_user(workspace, request.user)
     teams = [link.team for link in team_links if getattr(link, 'team', None)]
     teams_by_id = {int(team.id): team for team in teams if getattr(team, 'id', None)}
     if active_team and int(getattr(active_team, 'id', 0) or 0) not in teams_by_id and teams:

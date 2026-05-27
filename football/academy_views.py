@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .event_taxonomy import normalize_label
+from . import workspace_context
 from .models import (
     AcademyAssignment,
     AcademyLesson,
@@ -76,10 +77,8 @@ def _forbid_if_academy_disabled(request):
 
 
 def _active_scope(request):
-    from football.views import _get_active_team_for_request, _get_active_workspace  # noqa: WPS433 (lazy import)
-
-    workspace = _get_active_workspace(request)
-    team = _get_active_team_for_request(request)
+    workspace = workspace_context.get_active_workspace(request)
+    team = workspace_context.get_active_team_for_request(request)
     return workspace, team
 
 
@@ -233,9 +232,7 @@ def academy_lesson_page(request, lesson_id: int):
     if not bool(getattr(lesson, "is_published", False)):
         # Para MVP: si no está publicada, solo permitir a admins/gestión.
         try:
-            from football.views import _can_access_platform  # noqa: WPS433 (lazy import)
-
-            if not _can_access_platform(request.user):
+            if not workspace_context.can_access_platform(request.user):
                 return HttpResponse("Lección no publicada.", status=404)
         except Exception:
             return HttpResponse("Lección no publicada.", status=404)
