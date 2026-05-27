@@ -42856,7 +42856,14 @@ def analysis_video_studio_page(request, video_id):
     try:
         _video_studio_seed_autoclip_workspace_prefs(request, scope_team=resolved_team)
     except Exception:
-        pass
+        log_exception(
+            logger,
+            'No se pudieron sembrar preferencias AutoClip para Video Studio.',
+            request,
+            team=resolved_team,
+            action='analysis_video_studio_page.seed_autoclip_prefs',
+            video_id=video_id,
+        )
 
     is_youtube = bool(
         getattr(video, 'source', '') == RivalVideo.SOURCE_YOUTUBE
@@ -42884,7 +42891,14 @@ def analysis_video_studio_page(request, video_id):
         resp['Pragma'] = 'no-cache'
         resp['Expires'] = '0'
     except Exception:
-        pass
+        log_exception(
+            logger,
+            'No se pudieron fijar cabeceras no-cache en Video Studio.',
+            request,
+            team=resolved_team,
+            action='analysis_video_studio_page.cache_headers',
+            video_id=video_id,
+        )
     return resp
 
 

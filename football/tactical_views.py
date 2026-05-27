@@ -3,30 +3,21 @@ from django.http import JsonResponse
 
 from . import permissions, workspace_context
 from .models import TacticalPlaybookClip
+from .view_delegates import view_delegate
 
 
-def _legacy_view(name):
-    def _wrapped(request, *args, **kwargs):
-        from . import views
-
-        view = getattr(views, name)
-        return view(request, *args, **kwargs)
-
-    return _wrapped
-
-
-task_assistant_blueprints_api = _legacy_view('task_assistant_blueprints_api')
-task_assistant_blueprint_save_api = _legacy_view('task_assistant_blueprint_save_api')
-task_assistant_knowledge_api = _legacy_view('task_assistant_knowledge_api')
-task_assistant_knowledge_upload_api = _legacy_view('task_assistant_knowledge_upload_api')
-tactical_playbook_clips_api = _legacy_view('tactical_playbook_clips_api')
-tactical_playbook_clip_save_api = _legacy_view('tactical_playbook_clip_save_api')
-tactical_playbook_task_save_api = _legacy_view('tactical_playbook_task_save_api')
-tactical_playbook_clip_delete_api = _legacy_view('tactical_playbook_clip_delete_api')
-tactical_playbook_clip_favorite_api = _legacy_view('tactical_playbook_clip_favorite_api')
-tactical_playbook_clip_share_create = _legacy_view('tactical_playbook_clip_share_create')
-tactical_playbook_clip_clone_api = _legacy_view('tactical_playbook_clip_clone_api')
-share_tactical_playbook_clip_page = _legacy_view('share_tactical_playbook_clip_page')
+task_assistant_blueprints_api = view_delegate('task_assistant_blueprints_api')
+task_assistant_blueprint_save_api = view_delegate('task_assistant_blueprint_save_api')
+task_assistant_knowledge_api = view_delegate('task_assistant_knowledge_api')
+task_assistant_knowledge_upload_api = view_delegate('task_assistant_knowledge_upload_api')
+tactical_playbook_clips_api = view_delegate('tactical_playbook_clips_api')
+tactical_playbook_clip_save_api = view_delegate('tactical_playbook_clip_save_api')
+tactical_playbook_task_save_api = view_delegate('tactical_playbook_task_save_api')
+tactical_playbook_clip_delete_api = view_delegate('tactical_playbook_clip_delete_api')
+tactical_playbook_clip_favorite_api = view_delegate('tactical_playbook_clip_favorite_api')
+tactical_playbook_clip_share_create = view_delegate('tactical_playbook_clip_share_create')
+tactical_playbook_clip_clone_api = view_delegate('tactical_playbook_clip_clone_api')
+share_tactical_playbook_clip_page = view_delegate('share_tactical_playbook_clip_page')
 
 
 def _forbid_if_tactical_module_disabled(request):
