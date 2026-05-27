@@ -20,9 +20,12 @@ body.prod-commercial {
 
   color: var(--ink);
   font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
+  font-size: var(--prod-font-size-base, 16px);
   /* Base weight: evitamos que toda la UI parezca "negrita" en iPad.
      Las jerarquías (títulos/botones/badges) se controlan con reglas específicas más abajo. */
-  font-weight: 500;
+  font-weight: var(--prod-font-weight, 500);
+  font-style: var(--prod-font-style, normal);
+  text-decoration: var(--prod-text-decoration, none);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: geometricPrecision;
@@ -151,7 +154,7 @@ body.prod-commercial {
   /* Density + typography tokens */
   --ui-btn-pad-y: 0.62rem;
   --ui-btn-pad-x: 0.95rem;
-  --ui-btn-fs: 0.78rem;
+  --ui-btn-fs: calc(0.78rem * var(--prod-font-size-scale, 1));
   --ui-btn-letter: 0.06em;
   --ui-chip-pad-y: 0.34rem;
   --ui-chip-pad-x: 0.7rem;

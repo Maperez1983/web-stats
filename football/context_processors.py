@@ -79,6 +79,10 @@ def brand_theme(request):
         "shadow":"medium",
         "system_image_mode":"home|system|both|none",
         "font":"plex|system|avenir|segoe|roboto|georgia|condensed",
+        "font_weight":"regular|medium|semibold|bold",
+        "font_style":"normal|italic",
+        "font_decoration":"none|underline",
+        "font_size":"compact|normal|large",
         "ui":"dark|light|hc",
         "bg_light":"#f4f7fb",
         "text_light":"#0f172a"
@@ -170,6 +174,10 @@ def brand_theme(request):
         'shadow': str(override.get('shadow') or default.get('shadow') or 'medium').strip().lower(),
         'system_image_mode': str(override.get('system_image_mode') or default.get('system_image_mode') or 'home').strip().lower(),
         'font': str(override.get('font') or default.get('font') or 'plex').strip().lower(),
+        'font_weight': str(override.get('font_weight') or default.get('font_weight') or 'medium').strip().lower(),
+        'font_style': str(override.get('font_style') or default.get('font_style') or 'normal').strip().lower(),
+        'font_decoration': str(override.get('font_decoration') or default.get('font_decoration') or 'none').strip().lower(),
+        'font_size': str(override.get('font_size') or default.get('font_size') or 'normal').strip().lower(),
         # Default del producto: oscuro (más consistente con la mayoría de pantallas).
         # El club/equipo puede forzar 'light' o 'hc' vía WorkspacePreference si lo desea.
         'ui': str(override.get('ui') or default.get('ui') or 'dark').strip().lower(),
@@ -194,6 +202,26 @@ def brand_theme(request):
     if theme['font'] not in font_values:
         theme['font'] = 'plex'
     font_ui, font_display = font_values[theme['font']]
+    font_weight_values = {
+        'regular': '400',
+        'medium': '500',
+        'semibold': '650',
+        'bold': '800',
+    }
+    font_size_values = {
+        'compact': ('15px', '0.94'),
+        'normal': ('16px', '1'),
+        'large': ('17px', '1.08'),
+    }
+    if theme['font_weight'] not in font_weight_values:
+        theme['font_weight'] = 'medium'
+    if theme['font_style'] not in {'normal', 'italic'}:
+        theme['font_style'] = 'normal'
+    if theme['font_decoration'] not in {'none', 'underline'}:
+        theme['font_decoration'] = 'none'
+    if theme['font_size'] not in font_size_values:
+        theme['font_size'] = 'normal'
+    font_size_base, font_size_scale = font_size_values[theme['font_size']]
 
     shadow_values = {
         'none': ('none', 'none'),
@@ -230,6 +258,11 @@ def brand_theme(request):
         '--prod-system-image': system_image_value,
         '--prod-font-ui': font_ui,
         '--prod-font-display': font_display,
+        '--prod-font-weight': font_weight_values[theme['font_weight']],
+        '--prod-font-style': theme['font_style'],
+        '--prod-text-decoration': theme['font_decoration'],
+        '--prod-font-size-base': font_size_base,
+        '--prod-font-size-scale': font_size_scale,
     }
     css_vars_light = {
         '--prod-bg': theme['bg_light'],
@@ -247,6 +280,11 @@ def brand_theme(request):
         '--prod-system-image': system_image_value,
         '--prod-font-ui': font_ui,
         '--prod-font-display': font_display,
+        '--prod-font-weight': font_weight_values[theme['font_weight']],
+        '--prod-font-style': theme['font_style'],
+        '--prod-text-decoration': theme['font_decoration'],
+        '--prod-font-size-base': font_size_base,
+        '--prod-font-size-scale': font_size_scale,
     }
     return {
         'brand_theme': {

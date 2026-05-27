@@ -11408,6 +11408,10 @@ def club_onboarding_page(request):
         'shadow': 'medium',
         'system_image_mode': 'home',
         'font': 'plex',
+        'font_weight': 'medium',
+        'font_style': 'normal',
+        'font_decoration': 'none',
+        'font_size': 'normal',
         'ui': 'dark',
         'bg_light': '#f4f7fb',
         'text_light': '#0f172a',
@@ -11434,6 +11438,10 @@ def club_onboarding_page(request):
                         'shadow': 'medium',
                         'system_image_mode': 'home',
                         'font': 'plex',
+                        'font_weight': 'medium',
+                        'font_style': 'normal',
+                        'font_decoration': 'none',
+                        'font_size': 'normal',
                         'ui': 'dark',
                         'bg_light': '#f2f0e9',
                         'text_light': '#0f172a',
@@ -11453,6 +11461,10 @@ def club_onboarding_page(request):
             theme_form['shadow'] = str(override.get('shadow') or default.get('shadow') or theme_form['shadow']).strip().lower() or theme_form['shadow']
             theme_form['system_image_mode'] = str(override.get('system_image_mode') or default.get('system_image_mode') or theme_form['system_image_mode']).strip().lower() or theme_form['system_image_mode']
             theme_form['font'] = str(override.get('font') or default.get('font') or theme_form['font']).strip().lower() or theme_form['font']
+            theme_form['font_weight'] = str(override.get('font_weight') or default.get('font_weight') or theme_form['font_weight']).strip().lower() or theme_form['font_weight']
+            theme_form['font_style'] = str(override.get('font_style') or default.get('font_style') or theme_form['font_style']).strip().lower() or theme_form['font_style']
+            theme_form['font_decoration'] = str(override.get('font_decoration') or default.get('font_decoration') or theme_form['font_decoration']).strip().lower() or theme_form['font_decoration']
+            theme_form['font_size'] = str(override.get('font_size') or default.get('font_size') or theme_form['font_size']).strip().lower() or theme_form['font_size']
             theme_form['ui'] = str(override.get('ui') or default.get('ui') or theme_form['ui']).strip().lower() or theme_form['ui']
             theme_form['bg_light'] = str(override.get('bg_light') or default.get('bg_light') or theme_form['bg_light']).strip() or theme_form['bg_light']
             theme_form['text_light'] = str(override.get('text_light') or default.get('text_light') or theme_form['text_light']).strip() or theme_form['text_light']
@@ -11606,6 +11618,18 @@ def club_onboarding_page(request):
                 font = str(request.POST.get('theme_font') or theme_form.get('font') or 'plex').strip().lower()
                 if font not in {'plex', 'system', 'avenir', 'segoe', 'roboto', 'georgia', 'condensed'}:
                     font = 'plex'
+                font_weight = str(request.POST.get('theme_font_weight') or theme_form.get('font_weight') or 'medium').strip().lower()
+                if font_weight not in {'regular', 'medium', 'semibold', 'bold'}:
+                    font_weight = 'medium'
+                font_style = str(request.POST.get('theme_font_style') or theme_form.get('font_style') or 'normal').strip().lower()
+                if font_style not in {'normal', 'italic'}:
+                    font_style = 'normal'
+                font_decoration = str(request.POST.get('theme_font_decoration') or theme_form.get('font_decoration') or 'none').strip().lower()
+                if font_decoration not in {'none', 'underline'}:
+                    font_decoration = 'none'
+                font_size = str(request.POST.get('theme_font_size') or theme_form.get('font_size') or 'normal').strip().lower()
+                if font_size not in {'compact', 'normal', 'large'}:
+                    font_size = 'normal'
                 ui = str(request.POST.get('theme_ui') or theme_form.get('ui') or 'dark').strip().lower()
                 if ui not in {'dark', 'light', 'hc'}:
                     ui = 'dark'
@@ -11632,6 +11656,10 @@ def club_onboarding_page(request):
                     'shadow': shadow,
                     'system_image_mode': system_image_mode,
                     'font': font,
+                    'font_weight': font_weight,
+                    'font_style': font_style,
+                    'font_decoration': font_decoration,
+                    'font_size': font_size,
                     'ui': ui,
                     'bg_light': bg_light,
                     'text_light': text_light,

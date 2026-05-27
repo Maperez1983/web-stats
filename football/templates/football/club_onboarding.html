@@ -704,6 +704,37 @@
                 <option value="condensed" {% if theme_form.font|default:'' == 'condensed' %}selected{% endif %}>Condensada</option>
               </select>
             </div>
+            <div>
+              <label for="id_theme_font_weight">Grosor</label>
+              <select id="id_theme_font_weight" name="theme_font_weight">
+                <option value="regular" {% if theme_form.font_weight|default:'' == 'regular' %}selected{% endif %}>Normal</option>
+                <option value="medium" {% if theme_form.font_weight|default:'medium' == 'medium' %}selected{% endif %}>Medio</option>
+                <option value="semibold" {% if theme_form.font_weight|default:'' == 'semibold' %}selected{% endif %}>Seminegrita</option>
+                <option value="bold" {% if theme_form.font_weight|default:'' == 'bold' %}selected{% endif %}>Negrita</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_theme_font_style">Estilo</label>
+              <select id="id_theme_font_style" name="theme_font_style">
+                <option value="normal" {% if theme_form.font_style|default:'normal' == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="italic" {% if theme_form.font_style|default:'' == 'italic' %}selected{% endif %}>Cursiva</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_theme_font_decoration">Subrayado</label>
+              <select id="id_theme_font_decoration" name="theme_font_decoration">
+                <option value="none" {% if theme_form.font_decoration|default:'none' == 'none' %}selected{% endif %}>Sin subrayado</option>
+                <option value="underline" {% if theme_form.font_decoration|default:'' == 'underline' %}selected{% endif %}>Subrayado</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_theme_font_size">Tamaño base</label>
+              <select id="id_theme_font_size" name="theme_font_size">
+                <option value="compact" {% if theme_form.font_size|default:'' == 'compact' %}selected{% endif %}>Compacto</option>
+                <option value="normal" {% if theme_form.font_size|default:'normal' == 'normal' %}selected{% endif %}>Normal</option>
+                <option value="large" {% if theme_form.font_size|default:'' == 'large' %}selected{% endif %}>Grande</option>
+              </select>
+            </div>
             <div style="grid-column: 1 / -1;">
               <label for="id_theme_ui">Tema por defecto</label>
               <select id="id_theme_ui" name="theme_ui">
@@ -837,7 +868,11 @@
           line: document.getElementById('id_theme_line'),
           shadow: document.getElementById('id_theme_shadow'),
           imageMode: document.getElementById('id_theme_system_image_mode'),
-          font: document.getElementById('id_theme_font')
+          font: document.getElementById('id_theme_font'),
+          fontWeight: document.getElementById('id_theme_font_weight'),
+          fontStyle: document.getElementById('id_theme_font_style'),
+          fontDecoration: document.getElementById('id_theme_font_decoration'),
+          fontSize: document.getElementById('id_theme_font_size')
         };
         var objectUrls = [];
         var currentCoverUrl = {% if cover_preview_url %}'{{ cover_preview_url|escapejs }}'{% else %}''{% endif %};
@@ -875,6 +910,19 @@
           return '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
         }
 
+        function previewWeight(value) {
+          if (value === 'regular') return '400';
+          if (value === 'semibold') return '650';
+          if (value === 'bold') return '800';
+          return '500';
+        }
+
+        function previewSize(value) {
+          if (value === 'compact') return '15px';
+          if (value === 'large') return '17px';
+          return '16px';
+        }
+
         function updateSystemPreview() {
           if (!systemPreview || !systemPanel || !systemButton) return;
           var bg = valueOf(colorFields.bg, '#08111d');
@@ -886,9 +934,17 @@
           var shadow = previewShadow(valueOf(colorFields.shadow, 'medium'));
           var mode = valueOf(colorFields.imageMode, 'home');
           var font = previewFont(valueOf(colorFields.font, 'plex'));
+          var fontWeight = previewWeight(valueOf(colorFields.fontWeight, 'medium'));
+          var fontStyle = valueOf(colorFields.fontStyle, 'normal') === 'italic' ? 'italic' : 'normal';
+          var fontDecoration = valueOf(colorFields.fontDecoration, 'none') === 'underline' ? 'underline' : 'none';
+          var fontSize = previewSize(valueOf(colorFields.fontSize, 'normal'));
           systemPreview.style.background = bg;
           systemPreview.style.color = text;
           systemPreview.style.fontFamily = font;
+          systemPreview.style.fontWeight = fontWeight;
+          systemPreview.style.fontStyle = fontStyle;
+          systemPreview.style.textDecoration = fontDecoration;
+          systemPreview.style.fontSize = fontSize;
           if ((mode === 'system' || mode === 'both') && currentCoverUrl) {
             systemPreview.style.backgroundImage = "linear-gradient(180deg, rgba(5,11,20,0.68), rgba(5,11,20,0.86)), url('" + currentCoverUrl + "')";
             systemPreview.style.backgroundSize = 'cover';

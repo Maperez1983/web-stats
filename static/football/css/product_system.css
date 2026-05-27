@@ -97,6 +97,10 @@ html {
 
 body {
   font-family: var(--prod-font-ui);
+  font-size: var(--prod-font-size-base, 16px);
+  font-weight: var(--prod-font-weight, 400);
+  font-style: var(--prod-font-style, normal);
+  text-decoration: var(--prod-text-decoration, none);
   background-color: var(--prod-bg);
   color: var(--prod-text);
 }

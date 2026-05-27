@@ -8835,6 +8835,10 @@ class ClubOnboardingImportTests(TestCase):
                 'theme_shadow': 'soft',
                 'theme_system_image_mode': 'both',
                 'theme_font': 'avenir',
+                'theme_font_weight': 'bold',
+                'theme_font_style': 'italic',
+                'theme_font_decoration': 'underline',
+                'theme_font_size': 'large',
                 'theme_ui': 'dark',
                 'theme_bg_light': '#f4f7fb',
                 'theme_text_light': '#0f172a',
@@ -8847,6 +8851,10 @@ class ClubOnboardingImportTests(TestCase):
         pref = WorkspacePreference.objects.get(workspace=workspace, key='brand_theme:v1')
         saved = pref.value['teams'][str(team.id)]
         self.assertEqual(saved['font'], 'avenir')
+        self.assertEqual(saved['font_weight'], 'bold')
+        self.assertEqual(saved['font_style'], 'italic')
+        self.assertEqual(saved['font_decoration'], 'underline')
+        self.assertEqual(saved['font_size'], 'large')
         self.assertEqual(saved['system_image_mode'], 'both')
 
 
