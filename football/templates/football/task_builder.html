@@ -847,6 +847,50 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      body.tactics-mode .topbar {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) auto;
+        align-items: center;
+        gap: 0.55rem 0.85rem;
+        margin-bottom: 0.5rem;
+      }
+      body.tactics-mode .topbar h1 {
+        font-size: 0.82rem;
+        letter-spacing: 0.1em;
+      }
+      body.tactics-mode .topbar .meta {
+        display: none;
+      }
+      body.tactics-mode .topbar .actions {
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.36rem;
+      }
+      body.tactics-mode .topbar .actions .button,
+      body.tactics-mode .topbar .actions button,
+      body.tactics-mode .topbar .actions .action-summary {
+        min-height: 36px;
+        padding: 0.46rem 0.68rem;
+        font-size: 0.66rem;
+        border-radius: 12px;
+        line-height: 1.05;
+      }
+      body.tactics-mode #tactics-save-task-top,
+      body.tactics-mode #tactics-save-task-system-top,
+      body.tactics-mode #tactics-save-clip-top,
+      body.tactics-mode #task-builder-help,
+      body.tactics-mode #task-builder-simple-toggle,
+      body.tactics-mode #task-builder-compact-toggle {
+        display: none;
+      }
+      @media (max-width: 1180px) {
+        body.tactics-mode .topbar {
+          grid-template-columns: 1fr;
+        }
+        body.tactics-mode .topbar .actions {
+          justify-content: flex-start;
+        }
+      }
       .meta {
         margin: 0.35rem 0 0;
         color: var(--muted);
@@ -5063,6 +5107,18 @@
 	                  </div>
 	                </div>
                 {% endif %}
+	                {% if tactics_mode %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">Guardar</div>
+	                  <div class="action-menu-row">
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar como tarea</button>
+	                    {% if request.user.is_superuser %}
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-task-system-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar tarea sistema</button>
+	                    {% endif %}
+	                    <button type="button" class="button" onclick="try{document.getElementById('tactics-save-clip-top')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guardar clip</button>
+	                  </div>
+	                </div>
+	                {% endif %}
 	                <div class="action-menu-group">
 	                  <div class="action-menu-title">Panel</div>
 	                  <div class="action-menu-row">
@@ -5080,6 +5136,16 @@
 		                    {% endif %}
 	                  </div>
 	                </div>
+	                {% if tactics_mode %}
+	                <div class="action-menu-group">
+	                  <div class="action-menu-title">Ayuda y vista</div>
+	                  <div class="action-menu-row">
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-help')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Ayuda</button>
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-simple-toggle')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Guía</button>
+	                    <button type="button" class="button" onclick="try{document.getElementById('task-builder-compact-toggle')?.click();document.getElementById('task-builder-actions-menu').open=false;}catch(e){};return false;">Vista compacta</button>
+	                  </div>
+	                </div>
+	                {% endif %}
                 {% if not tactics_mode and task and can_restore_original %}
                 <div class="action-menu-group">
                   <div class="action-menu-title">Seguridad</div>
