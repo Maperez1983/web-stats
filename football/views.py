@@ -29683,91 +29683,15 @@ def _is_preview_quality_low(raw_bytes):
 
 
 def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
-    if pdf_file is None:
-        return []
-    # Para PDFs multi-tarea, es muy frecuente que las imágenes embebidas vengan recortadas o con baja resolución.
-    # Si podemos renderizar, lo preferimos cuando hay más de una imagen solicitada.
-    try:
-        max_images_int = max(1, int(max_images or 1))
-    except Exception:
-        max_images_int = 1
-    should_render_first = bool(prefer_render) or (max_images_int > 1)
-    if should_render_first:
-        # Render via pdftoppm tends to be much sharper than embedded images
-        # (many PDFs embed ~800px thumbnails). Also support multi-task PDFs by
-        # returning up to `max_images`.
-        rendered_payloads = _render_pdf_previews_with_pdftoppm(
-            pdf_file,
-            max_images=max_images_int,
-            max_pages=10,
-            scale_to=3000,
-        )
-        if rendered_payloads:
-            return rendered_payloads
-    payloads = []
-    candidates = []
-    if PdfReader is not None:
-        try:
-            if hasattr(pdf_file, 'seek'):
-                pdf_file.seek(0)
-            reader = PdfReader(pdf_file)
-            seq = 0
-            for page_idx, page in enumerate(reader.pages):
-                images = getattr(page, 'images', []) or []
-                for image in images:
-                    seq += 1
-                    raw = getattr(image, 'data', b'') or b''
-                    if not raw:
-                        continue
-                    ext = str(getattr(image, 'name', 'img.bin') or 'img.bin').rsplit('.', 1)[-1].lower()
-                    if ext not in {'png', 'jpg', 'jpeg', 'webp'}:
-                        ext = 'png'
-                    metrics = _analyze_preview_image_bytes(raw)
-                    score = float(metrics.get('score') or 0.0) if metrics else 0.0
-                    candidates.append(
-                        {
-                            'raw': raw,
-                            'ext': ext,
-                            'score': score,
-                            'page_idx': page_idx,
-                            'seq': seq,
-                        }
-                    )
-        except Exception:
-            candidates = []
-    if candidates:
-        max_count = max(1, int(max_images_int or 1))
-        good_candidates = [item for item in candidates if float(item.get('score') or 0.0) >= 12.0]
-        if good_candidates:
-            # Keep original document order for multi-task PDFs once quality threshold is met.
-            selected = sorted(good_candidates, key=lambda item: (int(item.get('page_idx') or 0), int(item.get('seq') or 0)))
-        else:
-            # If every embedded image is poor, still try top-scored ones before falling back.
-            selected = sorted(candidates, key=lambda item: float(item.get('score') or 0.0), reverse=True)
-        for item in selected[:max_count]:
-            ext = str(item.get('ext') or 'jpg')
-            filename = f'task-preview-{uuid.uuid4().hex[:10]}.{ext}'
-            payloads.append((filename, ContentFile(item.get('raw') or b'')))
-        if payloads:
-            return payloads
-    if payloads:
-        return payloads
-
-    # Fallback: render first page when PDF uses vector drawings (no embedded images).
-    fallback_payloads = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=max_images_int)
-    if fallback_payloads:
-        return fallback_payloads
-
-    # Last fallback: generic field image so old tasks never stay without thumbnail.
-    default_payload = _default_task_preview_payload()
-    if default_payload:
-        return [default_payload]
-    return payloads
+    return session_import_services.extract_preview_images_from_pdf(
+        pdf_file,
+        max_images=max_images,
+        prefer_render=prefer_render,
+    )
 
 
 def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
-    payloads = _extract_preview_images_from_pdf(pdf_file, max_images=1, prefer_render=prefer_render)
-    return payloads[0] if payloads else None
+    return session_import_services.extract_preview_image_from_pdf(pdf_file, prefer_render=prefer_render)
 
 
 def _extract_pdf_graphic_assets_from_pdf(pdf_file, max_assets=60):
@@ -30008,302 +29932,24 @@ def _maybe_recreate_board_from_preview_bytes(task, preview_bytes):
 
 
 def _render_pdf_preview_with_pdftoppm(pdf_file):
-    previews = _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1)
-    return previews[0] if previews else None
+    return session_import_services.render_pdf_preview_with_pdftoppm(pdf_file)
 
 
 def _split_board_page_image_bytes(raw_bytes, max_images=3):
-    """
-    Intenta dividir una página que contiene varias pizarras/campos en varias imágenes recortadas.
-    Útil para PDFs donde hay varias tareas en la misma página (p.ej. "Tarea 1/2/3" con 3 campos).
-    Devuelve lista de JPEG bytes en orden visual (arriba->abajo, izquierda->derecha).
-    """
-    if not raw_bytes or Image is None:
-        return []
-    try:
-        max_images = max(1, int(max_images or 1))
-    except Exception:
-        max_images = 3
-    try:
-        with Image.open(io.BytesIO(raw_bytes)) as img:
-            img = img.convert('RGB')
-            w0, h0 = img.size
-            if w0 <= 0 or h0 <= 0:
-                return []
-            probe_max = 420
-            probe_scale = min(1.0, float(probe_max) / float(max(w0, h0)))
-            probe = img
-            if probe_scale < 1.0:
-                probe = img.resize(
-                    (max(1, int(round(w0 * probe_scale))), max(1, int(round(h0 * probe_scale)))),
-                    Image.BILINEAR,
-                )
-            w, h = probe.size
-            px = probe.load()
-            visited = bytearray(w * h)
-
-            def is_green(r, g, b):
-                return g > 70 and g > r + 14 and g > b + 14
-
-            components = []
-            for y in range(h):
-                row = y * w
-                for x in range(w):
-                    idx = row + x
-                    if visited[idx]:
-                        continue
-                    r, g, b = px[x, y]
-                    if not is_green(r, g, b):
-                        continue
-                    stack = [idx]
-                    visited[idx] = 1
-                    minx = maxx = x
-                    miny = maxy = y
-                    count = 0
-                    while stack:
-                        cur = stack.pop()
-                        cy, cx = divmod(cur, w)
-                        rr, gg, bb = px[cx, cy]
-                        if not is_green(rr, gg, bb):
-                            continue
-                        count += 1
-                        if cx < minx:
-                            minx = cx
-                        if cx > maxx:
-                            maxx = cx
-                        if cy < miny:
-                            miny = cy
-                        if cy > maxy:
-                            maxy = cy
-                        if cx > 0:
-                            n = cur - 1
-                            if not visited[n]:
-                                visited[n] = 1
-                                stack.append(n)
-                        if cx + 1 < w:
-                            n = cur + 1
-                            if not visited[n]:
-                                visited[n] = 1
-                                stack.append(n)
-                        if cy > 0:
-                            n = cur - w
-                            if not visited[n]:
-                                visited[n] = 1
-                                stack.append(n)
-                        if cy + 1 < h:
-                            n = cur + w
-                            if not visited[n]:
-                                visited[n] = 1
-                                stack.append(n)
-                    bw = (maxx - minx + 1)
-                    bh = (maxy - miny + 1)
-                    area = bw * bh
-                    # Filtra blobs pequeños (ruido)
-                    if count < 80 or area < int(0.012 * float(w * h)):
-                        continue
-                    aspect = float(bw) / float(max(1, bh))
-                    if aspect < 0.22 or aspect > 4.2:
-                        continue
-                    components.append({'minx': minx, 'miny': miny, 'maxx': maxx, 'maxy': maxy, 'area': area})
-
-            if not components:
-                return []
-            # Si pedimos varias imágenes, solo "dividimos" cuando haya varias componentes.
-            # Si pedimos 1, usamos la componente encontrada como auto-crop (mejora previews).
-            if len(components) < 2 and max_images > 1:
-                return []
-            # Orden visual: arriba->abajo, izquierda->derecha
-            components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
-            # Mantén solo las componentes grandes primero
-            components = sorted(components, key=lambda c: int(c['area']), reverse=True)[: max_images * 2]
-            components.sort(key=lambda c: (int(c['miny']), int(c['minx'])))
-
-            pad = int(round(0.02 * float(max(w, h))))
-            sx = 1.0 / probe_scale
-            crops = []
-            for comp in components[:max_images]:
-                minx = max(0, int((comp['minx'] - pad) * sx))
-                miny = max(0, int((comp['miny'] - pad) * sx))
-                maxx = min(w0, int((comp['maxx'] + 1 + pad) * sx))
-                maxy = min(h0, int((comp['maxy'] + 1 + pad) * sx))
-                if maxx <= minx + 40 or maxy <= miny + 40:
-                    continue
-                crop = img.crop((minx, miny, maxx, maxy))
-                buf = io.BytesIO()
-                crop.save(buf, format='JPEG', quality=86, optimize=True)
-                crops.append(buf.getvalue())
-            return crops
-    except Exception:
-        return []
+    return session_import_services.split_board_page_image_bytes(raw_bytes, max_images=max_images)
 
 
 def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=1700):
-    """
-    Renderiza páginas del PDF (vía pdftoppm) y devuelve las mejores previsualizaciones.
-    - Si el PDF incluye varias páginas, elegimos las más "gráficas" (ratio verde alto -> pizarra/campo).
-    - Devuelve lista de (filename, ContentFile).
-    """
-    if pdf_file is None:
-        return []
-    pdftoppm_bin = shutil.which('pdftoppm')
-    if not pdftoppm_bin:
-        return []
-    try:
-        max_images = max(1, int(max_images or 1))
-    except Exception:
-        max_images = 1
-    try:
-        max_pages = max(1, int(max_pages or 1))
-    except Exception:
-        max_pages = 10
-    try:
-        scale_to = int(scale_to or 1700)
-    except Exception:
-        scale_to = 1700
-    scale_to = max(900, min(scale_to, 3200))
-    try:
-        if hasattr(pdf_file, 'seek'):
-            pdf_file.seek(0)
-        pdf_bytes = pdf_file.read()
-        if not pdf_bytes:
-            return []
-        with tempfile.TemporaryDirectory(prefix='task-preview-') as tmpdir:
-            tmp_path = Path(tmpdir)
-            source_pdf = tmp_path / 'source.pdf'
-            output_base = tmp_path / 'preview'
-            source_pdf.write_bytes(pdf_bytes)
-            # Renderiza varias páginas. pdftoppm generará preview-1.jpg, preview-2.jpg, ...
-            subprocess.run(
-                [
-                    pdftoppm_bin,
-                    '-jpeg',
-                    '-f',
-                    '1',
-                    '-l',
-                    str(max_pages),
-                    '-scale-to',
-                    str(scale_to),
-                    str(source_pdf),
-                    str(output_base),
-                ],
-                check=True,
-                capture_output=True,
-                timeout=60,
-            )
-            rendered = []
-            for page_idx in range(1, max_pages + 1):
-                candidate_path = tmp_path / f'preview-{page_idx}.jpg'
-                if not candidate_path.exists():
-                    continue
-                raw = candidate_path.read_bytes()
-                if not raw:
-                    continue
-                metrics = _analyze_preview_image_bytes(raw) or {}
-                score = float(metrics.get('score') or 0.0)
-                green_ratio = float(metrics.get('green_ratio') or 0.0)
-                white_ratio = float(metrics.get('white_ratio') or 0.0)
-                rendered.append(
-                    {
-                        'page_idx': page_idx,
-                        'raw': raw,
-                        'score': score,
-                        'green_ratio': green_ratio,
-                        'white_ratio': white_ratio,
-                    }
-                )
-            if not rendered:
-                return []
-
-            # Selección:
-            # Preferimos páginas con "campo" (dominante verde). Esto evita elegir tablas grandes con poco verde.
-            board_pages = [
-                item
-                for item in rendered
-                if float(item.get('green_ratio') or 0.0) >= 0.06
-                and float(item.get('white_ratio') or 0.0) <= 0.82
-                and float(item.get('score') or 0.0) >= 16.0
-            ]
-            if board_pages:
-                # Mantiene orden de documento: útil cuando hay varias tareas/diagramas.
-                selected = sorted(board_pages, key=lambda item: int(item.get('page_idx') or 0))
-            else:
-                # Si no hay campo claro, caemos al score general.
-                good = [item for item in rendered if float(item.get('score') or 0.0) >= 12.0]
-                if good:
-                    selected = sorted(good, key=lambda item: int(item.get('page_idx') or 0))
-                else:
-                    selected = sorted(rendered, key=lambda item: float(item.get('score') or 0.0), reverse=True)
-
-            # Si se pidieron varias imágenes pero no tenemos suficientes páginas "de campo",
-            # intentamos recortar/dividir páginas con varios campos en múltiples previews.
-            if max_images > 1 and selected:
-                expanded = []
-                for item in selected:
-                    remaining = max_images - len(expanded)
-                    if remaining <= 0:
-                        break
-                    raw = item.get('raw') or b''
-                    page_idx = int(item.get('page_idx') or 1)
-                    # Si nos faltan previews, intenta dividir esta página en varias zonas verdes.
-                    if remaining > 1:
-                        split = _split_board_page_image_bytes(raw, max_images=min(remaining, 6))
-                        if split and len(split) > 1:
-                            for chunk in split[:remaining]:
-                                expanded.append({'page_idx': page_idx, 'raw': chunk, 'score': 0.0})
-                            continue
-                    # Caso normal: recorta al campo si se puede (mejora miniaturas y reconstrucción de pizarra).
-                    crop = _split_board_page_image_bytes(raw, max_images=1)
-                    if crop:
-                        raw = crop[0]
-                    expanded.append({'page_idx': page_idx, 'raw': raw, 'score': float(item.get('score') or 0.0)})
-                if expanded:
-                    selected = expanded
-
-            payloads = []
-            for item in selected[:max_images]:
-                raw = item.get('raw') or b''
-                if Image is not None and raw:
-                    try:
-                        with Image.open(io.BytesIO(raw)) as img:
-                            optimized = img.convert('RGB')
-                            # Mini-optimización para peso, manteniendo buena calidad.
-                            optimized.thumbnail((1700, 1200))
-                            buffer = io.BytesIO()
-                            optimized.save(buffer, format='JPEG', quality=82, optimize=True)
-                            raw = buffer.getvalue()
-                    except Exception:
-                        pass
-                filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
-                payloads.append((filename, ContentFile(raw)))
-            return payloads
-    except Exception:
-        return []
+    return session_import_services.render_pdf_previews_with_pdftoppm(
+        pdf_file,
+        max_images=max_images,
+        max_pages=max_pages,
+        scale_to=scale_to,
+    )
 
 
 def _default_task_preview_payload():
-    try:
-        fallback_candidates = [
-            Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol-fallback.jpg',
-            Path(settings.BASE_DIR) / 'static' / 'football' / 'campo-futbol.jpg',
-        ]
-        fallback_path = next((p for p in fallback_candidates if p.exists() and p.is_file()), None)
-        if not fallback_path:
-            return None
-        raw = fallback_path.read_bytes()
-        if Image is not None:
-            try:
-                with Image.open(io.BytesIO(raw)) as img:
-                    normalized = img.convert('RGB')
-                    normalized.thumbnail((1200, 850))
-                    buffer = io.BytesIO()
-                    normalized.save(buffer, format='JPEG', quality=74, optimize=True)
-                    raw = buffer.getvalue()
-            except Exception:
-                pass
-        filename = f'task-preview-{uuid.uuid4().hex[:10]}.jpg'
-        return filename, ContentFile(raw)
-    except Exception:
-        return None
+    return session_import_services.default_task_preview_payload()
 
 
 def _ensure_task_preview_image(task, prefer_render=False):
