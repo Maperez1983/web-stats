@@ -1,9 +1,11 @@
 from datetime import date
 from types import SimpleNamespace
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 
 from football import match_payload_services
+from football.models import Competition, Group, Match, Season, Team
 
 
 class MatchPayloadServicesTests(SimpleTestCase):
@@ -35,3 +37,20 @@ class MatchPayloadServicesTests(SimpleTestCase):
         self.assertTrue(payload['home'])
         self.assertEqual(payload['opponent']['name'], 'Rival')
         self.assertEqual(payload['date'], '2026-05-27')
+
+
+class WorkspaceSchedulePayloadTests(TestCase):
+    def test_build_workspace_schedule_payload_orders_and_marks_status(self):
+        competition = Competition.objects.create(name='Liga Payload', slug='liga-payload')
+        season = Season.objects.create(competition=competition, name='2026/2027')
+        group = Group.objects.create(season=season, name='Grupo Payload', slug='grupo-payload')
+        team = Team.objects.create(name='Casa', slug='casa', group=group)
+        rival = Team.objects.create(name='Rival', slug='rival', group=group)
+        today = timezone.localdate()
+        Match.objects.create(season=season, group=group, home_team=team, away_team=rival, date=today, round='J1', location='Campo')
+
+        payload = match_payload_services.build_workspace_schedule_payload(team)
+
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]['status'], 'next')
+        self.assertEqual(payload[0]['opponent']['name'], 'Rival')

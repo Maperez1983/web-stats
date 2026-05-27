@@ -6,6 +6,7 @@ from django.utils import timezone
 from .dashboard_cache import invalidate_team_dashboard_caches
 from .match_payload_services import (
     build_match_payload,
+    build_workspace_schedule_payload,
     normalize_next_match_payload,
     parse_payload_date as _parse_payload_date,
     payload_opponent_name as _payload_opponent_name,
@@ -33,8 +34,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
-    _build_workspace_schedule_payload = core_views._build_workspace_schedule_payload
-
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
     primary_team = primary_team or workspace.primary_team
@@ -222,7 +221,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         or local_next
         or {}
     )
-    schedule_payload = _build_workspace_schedule_payload(primary_team)
+    schedule_payload = build_workspace_schedule_payload(primary_team)
     snapshot, _ = WorkspaceCompetitionSnapshot.objects.get_or_create(
         context=context,
         defaults={'workspace': workspace},

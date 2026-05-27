@@ -1,5 +1,10 @@
 from datetime import datetime
 
+from django.db.models import Q
+from django.utils import timezone
+
+from .models import Match
+
 
 def normalize_next_match_payload(payload):
     if not isinstance(payload, dict):
@@ -87,3 +92,24 @@ def build_match_payload(match, primary_team, status):
         'status': status,
         'source': 'local-match',
     })
+
+
+def build_workspace_schedule_payload(primary_team, *, limit=8):
+    if not primary_team:
+        return []
+    matches = (
+        Match.objects
+        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
+        .select_related('home_team', 'away_team')
+        .order_by('date', 'id')[:limit]
+    )
+    payload = []
+    for match in matches:
+        payload.append(
+            build_match_payload(
+                match,
+                primary_team,
+                status='next' if match.date and match.date >= timezone.localdate() else 'latest',
+            )
+        )
+    return payload

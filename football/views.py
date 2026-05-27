@@ -4049,23 +4049,7 @@ def _bootstrap_workspace_competition_context(
 
 
 def _build_workspace_schedule_payload(primary_team):
-    if not primary_team:
-        return []
-    matches = (
-        Match.objects
-        .filter(Q(home_team=primary_team) | Q(away_team=primary_team))
-        .select_related('home_team', 'away_team')
-        .order_by('date', 'id')[:8]
-    )
-    payload = []
-    for match in matches:
-        match_payload = build_match_payload(
-            match,
-            primary_team,
-            status='next' if match.date and match.date >= timezone.localdate() else 'latest',
-        )
-        payload.append(match_payload)
-    return payload
+    return match_payload_services.build_workspace_schedule_payload(primary_team)
 
 
 def _expand_team_lookup_variants(raw_value):
