@@ -2536,12 +2536,31 @@
         inset: 0;
         width: 100% !important;
         height: 100% !important;
-        z-index: 2;
+        z-index: 3;
         background: transparent !important;
       }
       #task-pitch-surface {
-        z-index: 1;
+        z-index: 2;
         background: transparent;
+      }
+      .pitch-stage:not(.surface-ready)::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.9;
+        background:
+          linear-gradient(90deg, transparent calc(50% - 1px), rgba(248,250,252,0.72) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+          radial-gradient(circle at 50% 50%, transparent 0 9.8%, rgba(248,250,252,0.72) 10% 10.35%, transparent 10.7%),
+          radial-gradient(circle at 50% 50%, rgba(248,250,252,0.72) 0 0.28%, transparent 0.35%),
+          linear-gradient(90deg, rgba(248,250,252,0.72) 0 2px, transparent 2px calc(100% - 2px), rgba(248,250,252,0.72) calc(100% - 2px)),
+          linear-gradient(180deg, rgba(248,250,252,0.72) 0 2px, transparent 2px calc(100% - 2px), rgba(248,250,252,0.72) calc(100% - 2px)),
+          linear-gradient(90deg, transparent 0 6.2%, rgba(248,250,252,0.68) 6.2% calc(6.2% + 2px), transparent calc(6.2% + 2px) calc(93.8% - 2px), rgba(248,250,252,0.68) calc(93.8% - 2px) 93.8%, transparent 93.8%),
+          linear-gradient(180deg, transparent 0 22%, rgba(248,250,252,0.68) 22% calc(22% + 2px), transparent calc(22% + 2px) calc(78% - 2px), rgba(248,250,252,0.68) calc(78% - 2px) 78%, transparent 78%),
+          linear-gradient(90deg, transparent 0 18%, rgba(248,250,252,0.55) 18% calc(18% + 2px), transparent calc(18% + 2px) calc(82% - 2px), rgba(248,250,252,0.55) calc(82% - 2px) 82%, transparent 82%),
+          linear-gradient(180deg, transparent 0 36%, rgba(248,250,252,0.55) 36% calc(36% + 2px), transparent calc(36% + 2px) calc(64% - 2px), rgba(248,250,252,0.55) calc(64% - 2px) 64%, transparent 64%);
+        mix-blend-mode: screen;
       }
       .pitch-stage::before {
         content: "";
@@ -7769,6 +7788,17 @@
 
 		        // Editor: al abrir pizarra/simulador/recursos, garantizamos Fabric+TPad.
 		        // (Sin esto, iPad se queda "pensando" porque parsea 1MB de JS aunque no lo uses.)
+		        hookClick('surface-trigger', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-orientation-toggle-quick', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-orientation-toggle', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-grass-toggle', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-grass-select', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-zoom-out', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-zoom-in', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-zoom-reset', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-size-down', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-size-up', ensureEditorStack, 'webstatsEditorReady');
+		        hookClick('pitch-size-fit', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-toggle', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-sim-open', ensureEditorStack, 'webstatsEditorReady');
 		        hookClick('task-playbook-open-sim', ensureEditorStack, 'webstatsEditorReady');
@@ -7808,10 +7838,11 @@
 		          // Si ya hay una tarea cargada o estamos editando, precarga editor en background.
 		          const hasTaskId = !!String(form.dataset.taskId || '').trim();
               const isTacticsMode = String(form.dataset.tacticsMode || '').trim() === '1';
+		          const hasGraphicalSurface = !!document.querySelector('.pitch-stage, #task-pitch-surface');
 		          const wantsBoard = !!document.querySelector('#task-mode-tabs [data-task-mode=\"board\"].is-active,#task-mode-tabs [data-task-mode=\"both\"].is-active');
 		          // Nota: en esta página la pizarra es el modo por defecto; si el usuario está en "Pizarra",
 		          // precargamos siempre para que la superficie aparezca sin clicks extra.
-		          if (isTacticsMode || hasTaskId || wantsBoard) ensureEditorStack();
+		          if (isTacticsMode || hasGraphicalSurface || hasTaskId || wantsBoard) ensureEditorStack();
 		        }, 2200);
 
             // En Táctica, la pizarra es el producto: cargamos el editor inmediatamente para evitar

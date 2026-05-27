@@ -1088,6 +1088,8 @@
 				    const playbookOpenVideoBtn = document.getElementById('task-playbook-open-video');
 				    const playbookExportPackBtn = document.getElementById('task-playbook-export-pack');
 				    const tacticsSaveTopBtn = document.getElementById('tactics-save-top');
+				    const tacticsSaveTaskTopBtn = document.getElementById('tactics-save-task-top');
+				    const tacticsSaveSystemTaskTopBtn = document.getElementById('tactics-save-task-system-top');
 				    const tacticsSaveClipTopBtn = document.getElementById('tactics-save-clip-top');
 				    const simToScenariosBtn = document.getElementById('task-sim-to-scenarios');
 				    const simShareUrlInput = document.getElementById('task-sim-share-url');
@@ -15786,6 +15788,7 @@
 		        Array.from(root.childNodes).forEach((child) => {
 		          svgSurface.appendChild(svgSurface.ownerDocument.importNode(child, true));
 		        });
+		        try { stage?.classList?.add('surface-ready'); } catch (e) { /* ignore */ }
 		        syncStageAspectFromSvg();
 		      };
 
@@ -15834,6 +15837,7 @@
 		            if (pitchBox) svgSurface.setAttribute('data-pitch-box', pitchBox);
 		            else svgSurface.removeAttribute('data-pitch-box');
 		            svgSurface.innerHTML = inner;
+		            try { stage?.classList?.add('surface-ready'); } catch (e) { /* ignore */ }
 		            syncStageAspectFromSvg();
 		            return;
 		          }
