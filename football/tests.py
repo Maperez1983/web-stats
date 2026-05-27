@@ -6102,6 +6102,43 @@ class PlayerDashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         mocked_refresh.assert_not_called()
 
+    def test_player_dashboard_uses_active_club_season_dates(self):
+        workspace = Workspace.objects.create(
+            name='Club temporada',
+            slug='club-temporada',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+            is_active=True,
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace,
+            user=self.user,
+            role=WorkspaceMembership.ROLE_OWNER,
+        )
+        WorkspaceTeam.objects.create(workspace=workspace, team=self.team, is_default=True)
+        new_season = WorkspaceSeason.objects.create(
+            workspace=workspace,
+            label='2026/2027',
+            start_date=date(2026, 7, 1),
+            is_active=True,
+        )
+        workspace.active_season = new_season
+        workspace.save(update_fields=['active_season'])
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse('player-dashboard'),
+            {'workspace': workspace.id, 'team': self.team.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        player_row = next(
+            row for row in response.context['player_stats']
+            if int(row.get('player_id') or 0) == int(self.player.id)
+        )
+        self.assertEqual(player_row.get('total_actions'), 0)
+        self.assertEqual(player_row.get('pj'), 0)
+
     def test_compute_player_dashboard_reuses_cached_payload(self):
         first = compute_player_dashboard(self.team)
 

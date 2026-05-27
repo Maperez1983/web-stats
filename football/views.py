@@ -60077,6 +60077,17 @@ def compute_player_dashboard(
     cache_key = f'{cache_key_base}:{scope_value}'
     date_start = date_start if isinstance(date_start, date) else None
     date_end = date_end if isinstance(date_end, date) else None
+    if not date_start and not date_end and request is not None:
+        try:
+            workspace = _get_active_workspace(request)
+            active_club_season = getattr(workspace, 'active_season', None) if workspace and getattr(workspace, 'kind', None) == Workspace.KIND_CLUB else None
+            if active_club_season and bool(getattr(active_club_season, 'is_active', True)):
+                if getattr(active_club_season, 'start_date', None):
+                    date_start = active_club_season.start_date
+                if getattr(active_club_season, 'end_date', None):
+                    date_end = active_club_season.end_date
+        except Exception:
+            pass
     can_use_cache = (not bool(force_refresh)) and (not tournament_filter) and (not date_start) and (not date_end)
     # Evita KPIs desactualizados: si el equipo tiene acciones *recientes* pendientes (`touch-field`),
     # no usamos caché para que PJ/minutos y contadores reflejen lo recién registrado.
@@ -60162,7 +60173,7 @@ def compute_player_dashboard(
     )
     # Las estadísticas base (Universo/La Preferente + overrides manuales) solo aplican a Liga.
     # En Torneos/Amistosos, los KPI deben derivarse de acciones registradas para ese contexto.
-    use_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'}
+    use_base_stats = scope_value in {Match.CONTEXT_LEAGUE, 'all'} and not (date_start or date_end)
     # La caché de La Preferente es legacy y solo aplica al equipo principal.
     # En multicategoría, evitar mezclar stats base entre equipos.
     roster_cache = (
@@ -60369,6 +60380,8 @@ def compute_player_dashboard(
             manual_ids = (
                 PlayerStatistic.objects
                 .filter(player__team=primary_team, match__isnull=False, context='manual-match')
+                .filter(Q(match__date__gte=date_start) if date_start else Q())
+                .filter(Q(match__date__lte=date_end) if date_end else Q())
                 .values_list('match_id', flat=True)
                 .distinct()
             )
@@ -60603,6 +60616,10 @@ def compute_player_dashboard(
             live_events = live_events.filter(match__context=scope_value)
     if tournament_filter and scope_value == Match.CONTEXT_TOURNAMENT:
         live_events = live_events.filter(match__tournament_name=tournament_filter)
+    if date_start:
+        live_events = live_events.filter(match__date__gte=date_start)
+    if date_end:
+        live_events = live_events.filter(match__date__lte=date_end)
     live_events = (
         live_events
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
@@ -61156,6 +61173,10 @@ def compute_player_dashboard(
     player_stat_matches_qs = PlayerStatistic.objects.filter(player__team=primary_team, match__isnull=False)
     if season_obj:
         player_stat_matches_qs = player_stat_matches_qs.filter(season=season_obj)
+    if date_start:
+        player_stat_matches_qs = player_stat_matches_qs.filter(match__date__gte=date_start)
+    if date_end:
+        player_stat_matches_qs = player_stat_matches_qs.filter(match__date__lte=date_end)
     player_stat_matches = (
         player_stat_matches_qs
         .select_related('player', 'match', 'match__home_team', 'match__away_team')
