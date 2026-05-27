@@ -91,7 +91,7 @@ try:
     # No queremos contaminar logs ni penalizar arranque: suprimimos stderr durante el import.
     import contextlib
     import io as _io
-    with contextlib.redirect_stderr(_io.StringIO()):
+    with contextlib.redirect_stdout(_io.StringIO()), contextlib.redirect_stderr(_io.StringIO()):
         import weasyprint
 except Exception:  # pragma: no cover
     weasyprint = None
@@ -1539,6 +1539,7 @@ RFAF_LIVE_FETCH_ON_REQUEST = str(
     os.getenv('RFAF_LIVE_FETCH_ON_REQUEST', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
 UNIVERSO_API_TIMEOUT_SECONDS = max(1, int(os.getenv('UNIVERSO_API_TIMEOUT_SECONDS', '8') or 8))
+VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS = max(30, int(os.getenv('VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS', '240') or 240))
 UNIVERSO_EXTERNAL_IMAGES_ENABLED = str(
     os.getenv('UNIVERSO_EXTERNAL_IMAGES_ENABLED', '0')
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -4197,7 +4198,6 @@ def pdf_graphic_asset_file(request, asset_id):
     return response
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def pdf_graphic_asset_upload(request):
@@ -4476,7 +4476,6 @@ def pdf_graphic_asset_upload(request):
     return JsonResponse({'ok': True, 'saved': saved, 'skipped': skipped, 'errors': errors, 'warnings': warnings[:6]})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def pdf_graphic_asset_delete_api(request):
@@ -7617,7 +7616,6 @@ def workspace_preference_get_api(request):
     return JsonResponse({'ok': True, 'key': key, 'value': pref.value if pref else None, 'updated_at': pref.updated_at if pref else None})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def workspace_preference_set_api(request):
@@ -13547,6 +13545,122 @@ def club_season_wizard(request):
         except Exception:
             return None
 
+    questionnaire_rating_groups = [
+        {
+            'key': 'technical',
+            'label': 'Técnica',
+            'fields': [
+                ('ball_control', 'Control de balón'),
+                ('pass_control', 'Control de pase'),
+                ('pass_distance', 'Distancia de pase'),
+                ('coordination', 'Coordinación'),
+                ('dribbling', 'Regate'),
+            ],
+        },
+        {
+            'key': 'tactical',
+            'label': 'Táctica',
+            'fields': [
+                ('game_knowledge', 'Conocimiento del juego'),
+                ('order', 'Orden'),
+                ('positioning', 'Posicionamiento'),
+            ],
+        },
+        {
+            'key': 'physical',
+            'label': 'Físico',
+            'fields': [
+                ('striking', 'Golpeo'),
+                ('body_contact', 'Cuerpeo'),
+                ('endurance', 'Resistencia'),
+                ('speed', 'Velocidad'),
+            ],
+        },
+        {
+            'key': 'attitude',
+            'label': 'Actitud',
+            'fields': [
+                ('behavior', 'Comportamiento'),
+                ('bravery', 'Valentía'),
+                ('extroversion', 'Extroversión'),
+                ('obedience', 'Obediencia'),
+            ],
+        },
+    ]
+
+    def _questionnaire_category_for_average(avg):
+        try:
+            value = float(avg)
+        except Exception:
+            return ''
+        if value >= 4.5:
+            return 'Categoría superior / jugador diferencial'
+        if value >= 3.8:
+            return 'Categoría alta'
+        if value >= 3.0:
+            return 'Categoría actual consolidada'
+        if value >= 2.2:
+            return 'Categoría actual con plan de mejora'
+        return 'Categoría de desarrollo'
+
+    def _parse_rating_0_5(field):
+        raw = str(request.POST.get(field) or '').strip()
+        if raw == '':
+            return None
+        try:
+            return max(0, min(5, int(raw)))
+        except Exception:
+            return None
+
+    def _build_questionnaire_rating_summary(questionnaire):
+        data = questionnaire if isinstance(questionnaire, dict) else {}
+        ratings = data.get('ratings') if isinstance(data.get('ratings'), dict) else {}
+        groups = []
+        group_values = []
+        all_values = []
+        for group in questionnaire_rating_groups:
+            items = []
+            values = []
+            for field_key, field_label in group['fields']:
+                raw_value = ratings.get(field_key)
+                value = None
+                try:
+                    if raw_value is not None and str(raw_value).strip() != '':
+                        value = max(0, min(5, int(raw_value)))
+                except Exception:
+                    value = None
+                if value is not None:
+                    values.append(value)
+                    all_values.append(value)
+                items.append({
+                    'key': field_key,
+                    'label': field_label,
+                    'value': value,
+                    'options': [
+                        {'value': score, 'selected': value == score}
+                        for score in range(0, 6)
+                    ],
+                })
+            avg = round(sum(values) / len(values), 2) if values else None
+            if avg is not None:
+                group_values.append(avg)
+            groups.append({
+                'key': group['key'],
+                'label': group['label'],
+                'items': items,
+                'average': avg,
+                'average_display': f'{avg:.2f}' if avg is not None else '-',
+            })
+        overall = round(sum(all_values) / len(all_values), 2) if all_values else None
+        return {
+            'groups': groups,
+            'overall': overall,
+            'overall_display': f'{overall:.2f}' if overall is not None else '-',
+            'category': _questionnaire_category_for_average(overall),
+            'chart_labels': [group['label'] for group in groups],
+            'chart_values': [float(group['average'] or 0) for group in groups],
+        }
+
     def _get_state_map():
         raw = request.session.get('season_wizard_state:v1') if hasattr(request, 'session') else None
         return raw if isinstance(raw, dict) else {}
@@ -13689,6 +13803,14 @@ def club_season_wizard(request):
                         motivation = None
 
                 questionnaire = dict(getattr(membership, 'questionnaire', None) or {})
+                ratings = {}
+                for group in questionnaire_rating_groups:
+                    for field_key, _field_label in group['fields']:
+                        value = _parse_rating_0_5(f'q_rating_{field_key}')
+                        if value is not None:
+                            ratings[field_key] = int(value)
+
+                rating_summary = _build_questionnaire_rating_summary({'ratings': ratings})
                 questionnaire.update({
                     'role_pref': role_pref,
                     'position_secondary': _clean_text('q_position_secondary', max_len=120),
@@ -13698,9 +13820,12 @@ def club_season_wizard(request):
                     'improve': _clean_text('q_improve', max_len=700),
                     'objective_main': _clean_text('q_objective_main', max_len=700),
                     'availability_notes': _clean_text('q_availability', max_len=500),
+                    'ratings': ratings,
+                    'ratings_average': rating_summary['overall'],
+                    'ratings_category': rating_summary['category'],
                 })
                 questionnaire = {k: v for k, v in questionnaire.items() if v not in (None, '', [])}
-                membership.questionnaire_v = int(getattr(membership, 'questionnaire_v', 1) or 1)
+                membership.questionnaire_v = max(2, int(getattr(membership, 'questionnaire_v', 1) or 1))
                 membership.questionnaire = questionnaire
                 membership.questionnaire_completed_at = timezone.now()
                 membership.save(update_fields=['questionnaire_v', 'questionnaire', 'questionnaire_completed_at', 'updated_at'])
@@ -13924,6 +14049,7 @@ def club_season_wizard(request):
     q_idx = 0
     q_total = 0
     q_membership = None
+    q_rating_summary = _build_questionnaire_rating_summary({})
     try:
         q_season_id = int(_parse_int((state or {}).get('new_season_id')) or 0) or int(getattr(getattr(workspace, 'active_season', None), 'id', 0) or 0)
         if q_season_id:
@@ -13947,12 +14073,15 @@ def club_season_wizard(request):
             q_idx = int(_parse_int((state or {}).get('q_player_idx')) or 0)
             q_idx = max(0, min(q_idx, max(q_total - 1, 0))) if q_total else 0
             q_membership = q_memberships[q_idx] if q_total else None
+            if q_membership:
+                q_rating_summary = _build_questionnaire_rating_summary(getattr(q_membership, 'questionnaire', None) or {})
     except Exception:
         q_season = None
         q_memberships = []
         q_idx = 0
         q_total = 0
         q_membership = None
+        q_rating_summary = _build_questionnaire_rating_summary({})
 
     return render(
         request,
@@ -13972,6 +14101,7 @@ def club_season_wizard(request):
             'season_form': season_form,
             'q_season': q_season,
             'q_membership': q_membership,
+            'q_rating_summary': q_rating_summary,
             'q_idx': q_idx,
             'q_total': q_total,
             'error': error,
@@ -20572,7 +20702,7 @@ def match_action_page(request):
             edit_match_url = reverse('match-editor', args=[int(active_match.id)]) + f'?team={int(primary_team.id)}'
         except Exception:
             edit_match_url = ''
-    return render(
+    response = render(
         request,
         'football/match_actions.html',
         {
@@ -20618,6 +20748,15 @@ def match_action_page(request):
             'edit_match_url': edit_match_url,
         },
     )
+    try:
+        charset = str(getattr(response, 'charset', '') or 'utf-8')
+        content = response.content.decode(charset, 'ignore')
+        content = re.sub(r'>[ \t\r\n]+<', '><', content)
+        response.content = content.encode(charset)
+        response['Content-Length'] = str(len(response.content or b''))
+    except Exception:
+        pass
+    return response
 
 
 @login_required
@@ -20655,7 +20794,6 @@ def match_video_links_api(request):
     return JsonResponse({'ok': True, 'match_id': int(match_id) if match_id else None, 'links': []})
 
 
-@csrf_exempt
 @login_required
 def match_video_marker_api(request):
     """
@@ -24337,7 +24475,6 @@ def match_staff_report_page(request):
     return render(request, 'football/match_staff_report.html', context)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def match_postmatch_pro_to_blueprints_api(request):
@@ -24722,7 +24859,6 @@ def kpi_explorer_options_api(request):
     return JsonResponse({'ok': True, 'derived': _kpi_explorer_derived_metrics(), 'stats': stats, 'dimensions': dims})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def kpi_explorer_query_api(request):
@@ -24789,7 +24925,6 @@ def kpi_explorer_query_api(request):
     return JsonResponse({'ok': True, 'stats': stats, 'dimensions': dims, 'results': out})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def kpi_explorer_sources_api(request):
@@ -24918,7 +25053,6 @@ def kpi_explorer_sources_api(request):
     return JsonResponse({'ok': True, 'kind': kind, 'key': key, 'count': len(rows), 'events': rows})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def kpi_explorer_pdf_api(request):
@@ -43278,7 +43412,6 @@ def _save_task_studio_entry(request, owner, existing_task=None):
     return task
 
 
-@csrf_exempt
 @login_required
 def session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=None):
     if not _can_access_sessions_workspace(request.user):
@@ -43888,7 +44021,6 @@ def sessions_confirmed_players_api(request):
     return JsonResponse({'ok': True, 'session_id': int(session_obj.id), 'confirmed_player_ids': confirmed_player_ids})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def session_task_pdf_preview(request):
@@ -44515,7 +44647,6 @@ def task_studio_roster_page(request):
     return JsonResponse({'ok': True, 'player_id': player.id})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def task_studio_task_create(request):
@@ -44576,7 +44707,6 @@ def task_studio_task_duplicate(request, task_id):
     return redirect(url)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def task_studio_task_pdf_preview(request):
@@ -45500,13 +45630,11 @@ def coach_model_of_play_page(request):
     )
 
 
-@csrf_exempt
 @login_required
 def sessions_task_create_page(request):
     return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador')
 
 
-@csrf_exempt
 @login_required
 def sessions_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='coach', scope_title='Sesiones · Entrenador', task_id=task_id)
@@ -45521,13 +45649,11 @@ def sessions_goalkeeper_page(request):
     return response
 
 
-@csrf_exempt
 @login_required
 def sessions_goalkeeper_task_create_page(request):
     return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros')
 
 
-@csrf_exempt
 @login_required
 def sessions_goalkeeper_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='goalkeeper', scope_title='Sesiones · Porteros', task_id=task_id)
@@ -45542,13 +45668,11 @@ def sessions_fitness_page(request):
     return response
 
 
-@csrf_exempt
 @login_required
 def sessions_fitness_task_create_page(request):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica')
 
 
-@csrf_exempt
 @login_required
 def sessions_fitness_task_edit_page(request, task_id):
     return session_task_builder_page(request, scope_key='fitness', scope_title='Sesiones · Preparacion fisica', task_id=task_id)
@@ -50121,7 +50245,6 @@ def analysis_video_report_item_tactical_page(request, item_id):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_report_item_tactical_video_upload_api(request, item_id):
@@ -50177,7 +50300,6 @@ def analysis_video_report_item_tactical_video_upload_api(request, item_id):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_report_export_pptx(request, report_id):
@@ -50429,7 +50551,6 @@ def analysis_video_inbox_recipients_api(request):
     return JsonResponse({'ok': True, 'items': items})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_inbox_send_api(request):
@@ -50552,7 +50673,6 @@ def analysis_video_inbox_send_api(request):
     return JsonResponse({'ok': True, 'created': int(created), 'thread_key': thread_key})
 
 
-@csrf_exempt
 @login_required
 def analysis_video_inbox_comments_api(request):
     forbidden = _forbid_if_no_coach_access(request.user)
@@ -50673,7 +50793,6 @@ def analysis_video_inbox_comments_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_rival_video_chunk_init_api(request):
@@ -50743,7 +50862,6 @@ def analysis_rival_video_chunk_init_api(request):
     return JsonResponse({'ok': True, 'upload_id': upload_id})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_rival_video_chunk_put_api(request):
@@ -50790,7 +50908,6 @@ def analysis_rival_video_chunk_put_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_rival_video_chunk_finish_api(request):
@@ -51775,7 +51892,6 @@ def _video_studio_ocr_dorsal_candidates(*, video_path: str, time_s: float, roi: 
     }
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_ocr_dorsal_api(request):
@@ -51915,7 +52031,6 @@ def analysis_video_studio_ocr_dorsal_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_frame_capture_api(request):
@@ -52018,7 +52133,6 @@ def analysis_video_studio_frame_capture_api(request):
         return JsonResponse({'ok': False, 'error': 'No se pudo capturar frame.'}, status=400)
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_track_players_api(request):
@@ -52170,8 +52284,11 @@ def analysis_video_studio_track_players_api(request):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'No se pudo iniciar FFmpeg.'}, status=400)
 
+    started_at = time.monotonic()
     try:
         while True:
+            if time.monotonic() - started_at > VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS:
+                return JsonResponse({'ok': False, 'error': 'FFmpeg agotó el tiempo máximo de seguimiento.'}, status=504)
             chunk = proc.stdout.read(frame_bytes) if proc.stdout else b''
             if not chunk or len(chunk) < frame_bytes:
                 break
@@ -52390,7 +52507,6 @@ def analysis_video_studio_music_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_music_upload_api(request):
@@ -52451,7 +52567,6 @@ def analysis_video_studio_music_upload_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_music_delete_api(request):
@@ -52492,7 +52607,6 @@ def analysis_video_studio_music_delete_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_voiceover_upload_api(request):
@@ -52553,7 +52667,6 @@ def analysis_video_studio_voiceover_upload_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_voiceover_delete_api(request):
@@ -52598,7 +52711,6 @@ def analysis_video_studio_voiceover_delete_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_clip_save_api(request):
@@ -52742,7 +52854,6 @@ def analysis_video_studio_clip_save_api(request):
     return JsonResponse({'ok': True, 'id': int(obj.id)})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_clip_delete_api(request):
@@ -52785,7 +52896,6 @@ def analysis_video_studio_clip_delete_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_assign_api(request):
@@ -52847,7 +52957,6 @@ def analysis_video_studio_assign_api(request):
     return JsonResponse({'ok': True, 'video_id': int(video.id), 'team_id': int(target_team.id), 'folder_id': int(folder.id) if folder else 0})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_video_trim_api(request):
@@ -53017,7 +53126,6 @@ def analysis_video_studio_timeline_export_api(request):
     return JsonResponse({'ok': True, 'meta': meta, 'items': payload})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_timeline_import_api(request):
@@ -53143,7 +53251,6 @@ def analysis_video_studio_timeline_import_api(request):
     return JsonResponse({'ok': True, 'created': int(created), 'mode': mode})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_timeline_clear_api(request):
@@ -53178,7 +53285,6 @@ def analysis_video_studio_timeline_clear_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 def analysis_video_studio_review_api(request):
     """
@@ -53372,7 +53478,6 @@ def analysis_video_studio_share_links_api(request):
     return JsonResponse({'ok': True, 'items': items})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_timeline_save_api(request):
@@ -53455,7 +53560,6 @@ def analysis_video_studio_timeline_save_api(request):
     return JsonResponse({'ok': True, 'id': int(obj.id)})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_timeline_delete_api(request):
@@ -53498,7 +53602,6 @@ def analysis_video_studio_timeline_delete_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_report_pdf_api(request):
@@ -53808,7 +53911,6 @@ def _video_ai_openai(*, video, clips, timeline, context_hint: str = ''):
     return parsed, model
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_ai_api(request):
@@ -53926,7 +54028,6 @@ def analysis_video_studio_ai_api(request):
     return JsonResponse({'ok': True, 'cached': False, 'provider': provider, 'model': model_used, 'payload': payload, 'error': error})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_pdf_api(request):
@@ -54121,7 +54222,6 @@ def analysis_video_studio_export_pdf_api(request):
     return response
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_package_api(request):
@@ -54508,7 +54608,7 @@ def _video_studio_try_transcode_export_to_mp4(uploaded_file):
             '+faststart',
             out_path,
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
 
         from django.core.files import File  # noqa: WPS433 (lazy import)
         handle = open(out_path, 'rb')
@@ -54578,7 +54678,7 @@ def _video_studio_cut_source_to_mp4(*, source_path: str, start_s: float, end_s: 
             '+faststart',
             out_path,
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
 
         from django.core.files import File  # noqa: WPS433
         handle = open(out_path, 'rb')
@@ -54715,7 +54815,7 @@ def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tup
                 '+faststart',
                 part_path,
             ]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
             part_paths.append(part_path)
 
         if not part_paths:
@@ -54749,7 +54849,7 @@ def _video_studio_concat_segments_to_mp4(*, source_path: str, segments: list[tup
             '+faststart',
             out_path,
         ]
-        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
 
         from django.core.files import File  # noqa: WPS433
         handle = open(out_path, 'rb')
@@ -54857,6 +54957,7 @@ def _video_studio_render_timeline_items_to_mp4(
                     check=False,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS,
                 )  # noqa: S603
                 out = (proc.stdout or b'').decode('utf-8', errors='ignore').strip()
                 return max(0.0, float(out or 0.0))
@@ -54975,7 +55076,7 @@ def _video_studio_render_timeline_items_to_mp4(
                     part_path,
                 ]
 
-                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+                subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
                 part_paths.append(part_path)
                 part_durs.append(_ffprobe_duration_seconds(part_path))
 
@@ -55060,7 +55161,7 @@ def _video_studio_render_timeline_items_to_mp4(
             if include_audio:
                 cmd += ['-c:a', 'aac', '-b:a', '128k']
             cmd += ['-movflags', '+faststart', out_path]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
         else:
             # Concat rápido sin re-encode.
             list_file = tempfile.NamedTemporaryFile(
@@ -55092,7 +55193,7 @@ def _video_studio_render_timeline_items_to_mp4(
                 '+faststart',
                 out_path,
             ]
-            subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+            subprocess.run(cmd_concat, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
 
         from django.core.files import File  # noqa: WPS433
 
@@ -55136,6 +55237,7 @@ def _video_studio_mp4_has_audio(mp4_path: str) -> bool:
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS,
         )  # noqa: S603
         out = (proc.stdout or b'').decode('utf-8', errors='ignore').strip()
         return bool(out)
@@ -55235,7 +55337,7 @@ def _video_studio_mix_voiceover_to_mp4(
             '+faststart',
             out_path,
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
         return out_path
 
     # Con voz en off y/o música.
@@ -55335,20 +55437,19 @@ def _video_studio_mix_voiceover_to_mp4(
     ]
 
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
     except Exception:
         if include_video_audio and has_audio and wants_ducking and fallback_fc:
             # Fallback si el build de FFmpeg no incluye sidechaincompress.
             cmd2 = list(cmd)
             ix = cmd2.index('-filter_complex')
             cmd2[ix + 1] = fallback_fc
-            subprocess.run(cmd2, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa: S603
+            subprocess.run(cmd2, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=VIDEO_STUDIO_FFMPEG_TIMEOUT_SECONDS)  # noqa: S603
         else:
             raise
     return out_path
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_server_api(request):
@@ -55820,7 +55921,6 @@ def _video_studio_schedule_autocut_after_upload(*, video_id: int, team_id=None, 
         _start()
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_autocut_api(request):
@@ -56061,7 +56161,6 @@ def analysis_video_studio_autocut_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_server_playlist_api(request):
@@ -56755,7 +56854,6 @@ def _video_studio_export_job_start_async(job_id: int):
         _video_studio_export_job_process(int(job_id))
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_job_create_api(request):
@@ -56879,7 +56977,6 @@ def analysis_video_studio_export_job_status_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_export_job_cancel_api(request):
@@ -57036,7 +57133,6 @@ def analysis_video_studio_export_upload_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_project_save_api(request):
@@ -57102,7 +57198,6 @@ def analysis_video_studio_project_save_api(request):
     return JsonResponse({'ok': True, 'id': int(obj.id)})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_video_studio_project_delete_api(request):
@@ -57332,7 +57427,6 @@ def analysis_rival_form_api(request):
     return JsonResponse({'ok': True, 'available': True, **payload_out})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def analysis_rival_report_to_blueprints_api(request):
@@ -57865,12 +57959,29 @@ def player_detail_page(request, player_id):
             'field_zones': [],
             'matches': [],
             'duel_summary': {'won': 0, 'total': 0},
+            'aerial_duel_summary': {'won': 0, 'total': 0},
             'passes': {'completed': 0, 'attempts': 0, 'key_completed': 0, 'accuracy': 0},
             'shots': {'on_target': 0, 'attempts': 0, 'accuracy': 0, 'per_goal': None},
             'importance_score': 0,
             'influence_score': 0,
             'successes_per90': 0,
             'decisive_actions_per90': 0,
+            'participation_pct': 0,
+            'participation_matches_pct': 0,
+            'availability_pct': 0,
+            'starter_pct': 0,
+            'competition_total_rounds': 0,
+            'actions_per90': 0,
+            'profile': '',
+            'key_passes_completed': 0,
+            'pass_attempts': 0,
+            'passes_completed': 0,
+            'shot_attempts': 0,
+            'shots_on_target': 0,
+            'duels_won': 0,
+            'duels_total': 0,
+            'aerial_duels_won': 0,
+            'aerial_duels_total': 0,
         }
         # Asegura claves de asistencia (si se adjuntaron a `matches`) para que la UI no falle.
         try:
@@ -61105,7 +61216,6 @@ def player_match_stats_page(request, player_id, match_id):
     )
 
 
-@csrf_exempt
 @authenticated_write
 @require_POST
 def refresh_scraping(request):
@@ -65271,7 +65381,6 @@ def task_assistant_blueprints_api(request):
     return JsonResponse({'ok': True, 'items': payload_items})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def task_assistant_blueprint_save_api(request):
@@ -65510,7 +65619,6 @@ def tactical_playbook_clips_api(request):
     return JsonResponse({'ok': True, 'items': payload})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def tactical_playbook_clip_save_api(request):
@@ -65717,7 +65825,6 @@ def tactical_playbook_clip_save_api(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def tactical_playbook_task_save_api(request):
@@ -65904,7 +66011,6 @@ def tactical_playbook_task_save_api(request):
     return JsonResponse({'ok': True, 'id': int(created_task.id), 'url': url})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def tactical_playbook_clip_delete_api(request):
@@ -65982,7 +66088,6 @@ def tactical_playbook_clip_delete_api(request):
     return JsonResponse({'ok': True})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def tactical_playbook_clip_favorite_api(request):
@@ -66179,7 +66284,6 @@ def share_tactical_playbook_clip_page(request, token):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def tactical_playbook_clip_clone_api(request):
@@ -67731,7 +67835,6 @@ def platform_assistant_page(request):
     )
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def system_setting_set_api(request):
@@ -67750,7 +67853,6 @@ def system_setting_set_api(request):
     return JsonResponse({'ok': True, 'key': obj.key, 'value': obj.value})
 
 
-@csrf_exempt
 @login_required
 @require_POST
 def task_assistant_knowledge_upload_api(request):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import io
 from pathlib import Path
 
 from django.conf import settings
@@ -9,9 +11,13 @@ from django.db import connection
 def _dependency_status():
     checks = {}
     try:
-        import weasyprint  # noqa: F401
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            import weasyprint
+            pdf_prefix = weasyprint.HTML(string='<p>ok</p>').write_pdf()[:4]
+        if pdf_prefix != b'%PDF':
+            raise RuntimeError('PDF smoke did not return a PDF header')
 
-        checks['weasyprint'] = {'ok': True, 'detail': 'available'}
+        checks['weasyprint'] = {'ok': True, 'detail': 'available; pdf render ok'}
     except Exception as exc:
         checks['weasyprint'] = {'ok': False, 'detail': str(exc)}
 

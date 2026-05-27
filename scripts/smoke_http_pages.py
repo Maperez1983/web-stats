@@ -61,10 +61,10 @@ def _urls(team_id: int) -> list[str]:
         f"/coach/sesiones/?{qs}&tab=import",
         f"/coach/plantilla/?{qs}",
         f"/convocatoria/?{qs}",
-        f"/11-inicial/?{qs}",
+        f"/coach/11-inicial/?{qs}",
         f"/registro-acciones/?{qs}",
-        f"/analysis/?{qs}",
-        f"/kpi/explorer/?{qs}",
+        f"/coach/analisis/?{qs}",
+        f"/coach/kpis/?{qs}",
     ]
 
 
@@ -102,7 +102,7 @@ def main() -> int:
             failed.append((url, 599))
             continue
         status = int(getattr(resp, "status_code", 0) or 0)
-        ok = status < 500
+        ok = status < 400
         print(f"[smoke] {status} {url}")
         if not ok:
             failed.append((url, status))
@@ -121,7 +121,7 @@ def main() -> int:
             url = f"/coach/sesiones/sesion/{int(session.id)}/?team={int(team_id)}"
             resp = client.get(url)
             status = int(getattr(resp, "status_code", 0) or 0)
-            ok = status < 500
+            ok = status < 400
             print(f"[smoke] {status} {url}")
             if not ok:
                 failed.append((url, status))
@@ -130,7 +130,7 @@ def main() -> int:
         failed.append(("/coach/sesiones/sesion/<id>", 599))
 
     if failed:
-        print("[smoke] FAIL (500+):", file=sys.stderr)
+        print("[smoke] FAIL (400+):", file=sys.stderr)
         for url, status in failed:
             print(f"  - {status} {url}", file=sys.stderr)
         return 1

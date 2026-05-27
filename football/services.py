@@ -1,6 +1,8 @@
 import csv
+import ipaddress
 import os
 import re
+import socket
 import time
 import unicodedata
 from io import BytesIO, StringIO
@@ -35,6 +37,39 @@ ROSTER_REFRESH_SECONDS = int(getattr(settings, 'PREFERENTE_ROSTER_REFRESH_SECOND
 _PREFERENTE_SESSION: Optional[requests.Session] = None
 
 
+def _validate_external_fetch_url(url: str, *, allowed_hosts: Optional[set[str]] = None) -> str:
+    raw = str(url or '').strip()
+    parsed = urlparse(raw)
+    if parsed.scheme not in {'http', 'https'}:
+        raise ValueError('URL externa no permitida: esquema inválido.')
+    host = str(parsed.hostname or '').strip().lower()
+    if not host:
+        raise ValueError('URL externa no permitida: host vacío.')
+    if allowed_hosts and host not in allowed_hosts:
+        raise ValueError('URL externa no permitida: host fuera de allowlist.')
+
+    def _reject_ip(value: str) -> None:
+        try:
+            ip = ipaddress.ip_address(value)
+        except ValueError:
+            return
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+            raise ValueError('URL externa no permitida: IP privada o reservada.')
+
+    _reject_ip(host)
+    if not allowed_hosts:
+        try:
+            infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+        except socket.gaierror as exc:
+            raise ValueError('URL externa no permitida: host no resoluble.') from exc
+        for info in infos:
+            try:
+                _reject_ip(str(info[4][0]))
+            except (IndexError, TypeError):
+                continue
+    return raw
+
+
 def _get_preferente_session() -> requests.Session:
     global _PREFERENTE_SESSION
     if _PREFERENTE_SESSION is None:
@@ -64,6 +99,10 @@ def _fetch_preferente_response(team_url: str, timeout: int = 25) -> requests.Res
     """
     Mantiene una sesión (cookies) entre peticiones para reducir bloqueos (403) en producción.
     """
+    team_url = _validate_external_fetch_url(
+        team_url,
+        allowed_hosts={'lapreferente.com', 'www.lapreferente.com'},
+    )
     session = _get_preferente_session()
 
     # Si no tenemos cookies aún, calentamos sesión con la home.
@@ -407,12 +446,14 @@ def _parse_png_rows(content):
 
 
 def fetch_official_rows(url):
+    url = _validate_external_fetch_url(url)
     response = requests.get(url, headers={'User-Agent': USER_AGENT}, timeout=15)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
     download_href = _find_download_link(soup)
     if download_href:
         file_url = urljoin(url, download_href)
+        file_url = _validate_external_fetch_url(file_url)
         file_response = requests.get(file_url, headers={'User-Agent': USER_AGENT}, timeout=15)
         file_response.raise_for_status()
         ext = urlparse(file_url).path.lower()

@@ -241,6 +241,20 @@ class AnalysisVideoReportPdfExportTests(TestCase):
 
 
 class PreferenteRosterJsonFallbackTests(SimpleTestCase):
+    def test_preferente_fetch_rejects_non_preferente_hosts(self):
+        from football import services as football_services
+
+        with self.assertRaises(ValueError):
+            football_services._fetch_preferente_response('https://example.com/equipo')
+
+    def test_official_rows_rejects_private_network_urls_before_request(self):
+        from football import services as football_services
+
+        with patch.object(football_services.requests, 'get') as mocked_get:
+            with self.assertRaises(ValueError):
+                football_services.fetch_official_rows('http://127.0.0.1:8000/admin/')
+        mocked_get.assert_not_called()
+
     def test_preferente_json_fallback_handles_request_exception(self):
         from football import services as football_services
 

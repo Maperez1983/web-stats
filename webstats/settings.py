@@ -530,16 +530,6 @@ elif not DEBUG:
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-import dj_database_url
-database_url = os.getenv('DATABASE_URL', '').strip()
-if database_url:
-    DATABASES['default'] = dj_database_url.parse(database_url, conn_max_age=600)
-else:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-
 ALLOW_SQLITE_IN_PROD = os.getenv('ALLOW_SQLITE_IN_PROD', 'false').lower() == 'true'
 if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' and not ALLOW_SQLITE_IN_PROD:
     raise ImproperlyConfigured(

@@ -15,7 +15,7 @@ Artefactos y cómo reproducirlos: `audits/2026-05-14/README.md`.
 
 Superficie HTTP:
 - `surface_urlpatterns.json`: **261** rutas detectadas (webstats+football).
-- Endpoints con `csrf_exempt`: **61** (ver `csrf_exempt_endpoints.md`).
+- Endpoints con `csrf_exempt`: **1** tras hardening (ver `csrf_exempt_endpoints.md`).
 
 SAST / CVEs:
 - Bandit: **882** issues (mayoría LOW; ver `bandit.txt` / `bandit.json` + `security_tool_summary.md`).
@@ -28,16 +28,13 @@ SAST / CVEs:
 
 1) `DATABASES` se define dos veces en `webstats/settings.py`
 - Impacto: overrides silenciosos; riesgo de perder opciones (p. ej. `ssl_require`, `conn_max_age`) y divergencia entre “lo que crees” y “lo que corre”.
-- Acción: unificar en un solo bloque (y mantener chequeo `ALLOW_SQLITE_IN_PROD` en un único lugar).
+- Estado: corregido; queda un único bloque de configuración de BD.
 
 ### P1 (alto impacto, corregir pronto)
 
-2) `csrf_exempt` demasiado extendido (61 endpoints)
-- Aunque muchos endpoints además tienen `login_required`, la postura es frágil ante cambios de cookies/SameSite, navegadores embebidos, y futuros refactors.
-- Acción:
-  - mantener `csrf_exempt` solo en webhooks externos (Stripe),
-  - exigir CSRF en APIs internas (cookie + header `X-CSRFToken`),
-  - si hay clientes sin cookies, usar tokens explícitos por workspace/usuario.
+2) `csrf_exempt` demasiado extendido
+- Estado: corregido para endpoints internos; solo queda el webhook externo de Stripe.
+- Acción restante: si aparecen clientes sin cookies, usar tokens explícitos por workspace/usuario.
 
 3) Dependencias Python con vulnerabilidades conocidas (pip-audit)
 - Paquetes con mayor impacto por volumen de findings: `pypdf`, `django`, `urllib3`, `pillow`, `requests`, `weasyprint`, `yt-dlp`.
@@ -70,15 +67,12 @@ SAST / CVEs:
 
 ## 3) Recomendación de roadmap (orden sugerido)
 
-1) Parchar `webstats/settings.py` (unificar DB) + test de arranque.
-2) Reducir `csrf_exempt` y normalizar CSRF en frontend (cambios controlados).
-3) Upgrade de dependencias con CVEs (empezar por `django`/`requests`/`urllib3`/`pypdf`).
-4) Hardening de FFmpeg/subprocess + límites y colas para trabajos pesados.
-5) Allowlist SSRF para scraping/URLs externas.
-6) Política de datos (retención, exportación, auditoría de accesos).
+1) Upgrade de dependencias con CVEs (empezar por `django`/`requests`/`urllib3`/`pypdf`).
+2) Completar hardening de trabajos pesados con colas si el uso crece.
+3) Mantener allowlists de scraping/URLs externas al añadir nuevos proveedores.
+4) Política de datos (retención, exportación, auditoría de accesos).
 
 ## 4) Notas de interpretación (para no “sobre-reaccionar”)
 
 - Bandit reporta muchos issues LOW (p. ej. `try/except/pass`), útiles como señal de “zonas a revisar”, pero no equivalen 1:1 a vulnerabilidades explotables.
 - pip-audit sí es accionable: cada finding corresponde a un advisory conocido, pero hay que validar si aplica a tu uso real (y si es transitive/direct).
-
