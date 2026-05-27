@@ -204,9 +204,37 @@
         gap: 0.55rem;
         flex-wrap: wrap;
       }
+      .identity-form {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+        gap: 0.65rem;
+        align-items: end;
+      }
+      .identity-form label {
+        display: block;
+        margin-bottom: 0.25rem;
+        opacity: 0.76;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .identity-form input {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(2, 6, 23, 0.48);
+        color: #f8fafc;
+        padding: 0.72rem 0.78rem;
+        font: inherit;
+        font-weight: 700;
+      }
       @media (max-width: 820px) {
         .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .roster-list { grid-template-columns: 1fr; }
+        .identity-form { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -262,6 +290,19 @@
             {% if error %}<div class="alert bad"><div class="t">Revisar</div><div class="meta">{{ error }}</div></div>{% endif %}
           </div>
         {% endif %}
+        <form class="identity-form" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="form_action" value="save_identity" />
+          <div>
+            <label for="shortNameInput">Nombre corto</label>
+            <input id="shortNameInput" name="short_name" value="{{ rival.short_name|default:'' }}" placeholder="{{ rival.name|default:'Rival' }}" />
+          </div>
+          <div>
+            <label for="homeStadiumInput">Estadio / campo habitual</label>
+            <input id="homeStadiumInput" name="home_stadium" value="{{ rival.home_stadium|default:'' }}" placeholder="Ej. Campo municipal..." />
+          </div>
+          <button class="button" type="submit">Guardar ficha</button>
+        </form>
       </section>
 
       <div class="content">

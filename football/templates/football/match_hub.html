@@ -432,7 +432,7 @@
 	              <select id="opponentSelect" name="opponent_team_id">
 	                <option value="">Selecciona rival…</option>
 	                {% for opt in opponent_options %}
-	                  <option value="{{ opt.id }}">{{ opt.label }}</option>
+	                  <option value="{{ opt.id }}" data-location="{{ opt.location|default:''|escape }}">{{ opt.label }}</option>
 	                {% endfor %}
 	              </select>
 	              <div style="height:0.45rem;"></div>
@@ -492,6 +492,7 @@
 	        const cancel = document.getElementById('createMatchCancel');
 	        const contextSelect = document.getElementById('contextSelect');
 	        const opponentSelect = document.getElementById('opponentSelect');
+	        const homeAwaySelect = document.getElementById('homeAwaySelect');
 	        const tournamentName = document.getElementById('tournamentName');
 	        const tournamentStage = document.getElementById('tournamentStage');
 	        if (!btn || !modal || !cancel || !contextSelect) return;
@@ -524,10 +525,16 @@
 	            if (!value) return;
 	            const opt = opponentSelect.options[opponentSelect.selectedIndex];
 	            const input = document.getElementById('opponentInput');
+	            const locationInput = document.getElementById('locationInput');
 	            if (input && opt) input.value = (opt.textContent || '').trim();
+	            if (locationInput && homeAwaySelect && String(homeAwaySelect.value || '') === 'away') {
+	              const rivalLocation = String(opt?.dataset?.location || '').trim();
+	              if (rivalLocation) locationInput.value = rivalLocation;
+	            }
 	          } catch (e) {}
 	        };
 	        if (opponentSelect) opponentSelect.addEventListener('change', syncOpponentFromSelect);
+	        if (homeAwaySelect) homeAwaySelect.addEventListener('change', syncOpponentFromSelect);
 	        modal.addEventListener('click', (event) => {
 	          if (event.target === modal) close();
 	        });

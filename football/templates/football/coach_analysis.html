@@ -1233,7 +1233,7 @@
                   Liga detectada: {{ rivals_library|length }} equipos (desde clasificación).
                 </div>
                 <div style="overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px;">
-                  <table class="standings-table" style="margin:0; min-width:820px;">
+                  <table class="standings-table" style="margin:0; min-width:940px;">
                     <thead>
                       <tr>
                         <th>Pos</th>
@@ -1241,6 +1241,7 @@
                         <th>En sistema</th>
                         <th>Plantilla</th>
                         <th>Scouting</th>
+                        <th>Estadio</th>
                         <th>Jug.</th>
                         <th>Actualizado</th>
                         <th>Fuente</th>
@@ -1277,6 +1278,7 @@
                         <td class="meta">
                           I {{ row.reports_ready_count|default:0 }} · V {{ row.videos_count|default:0 }}
                         </td>
+                        <td class="meta">{{ row.home_stadium|default:"-" }}</td>
                         <td class="meta">{{ row.snapshot_count|default:"-" }}</td>
                         <td class="meta">{{ row.snapshot_updated|default:"-" }}</td>
                         <td class="meta">{{ row.snapshot_provider|default:"-" }}</td>

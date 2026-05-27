@@ -23003,6 +23003,8 @@ def convocation_page(request):
     )
     if recent_home_match and recent_home_match.location:
         home_location = recent_home_match.location.strip()
+    if str(getattr(primary_team, 'home_stadium', '') or '').strip():
+        home_location = str(primary_team.home_stadium or '').strip()
 
     team_fields = gather_team_fields_for_group(primary_team.group)
     field_map = {
@@ -23025,7 +23027,7 @@ def convocation_page(request):
             {
                 'name': team.name,
                 'short_name': team.display_name,
-                'location': field_map.get(key, ''),
+                'location': str(getattr(team, 'home_stadium', '') or '').strip() or field_map.get(key, ''),
                 'crest_url': resolve_team_crest_url(request, team, fallback_static=None, sync=True),
             }
         )
@@ -40888,6 +40890,7 @@ def analysis_page(request):
                             continue
                         team_code = str(row.get('team_code') or '').strip()
                         crest_url = str(row.get('crest_url') or '').strip()
+                        home_stadium = str(row.get('location') or row.get('field') or row.get('stadium') or '').strip()
                         team_obj = None
                         if team_code:
                             team_obj = Team.objects.filter(external_id=team_code).first()
@@ -40904,6 +40907,7 @@ def analysis_page(request):
                                     slug=_unique_team_slug(full_name),
                                     external_id=team_code[:120] if team_code else '',
                                     crest_url=crest_url[:600] if crest_url else '',
+                                    home_stadium=home_stadium[:200] if home_stadium else '',
                                     is_primary=False,
                                 )
                                 created += 1
@@ -40918,9 +40922,12 @@ def analysis_page(request):
                             if crest_url and not (team_obj.crest_url or '').strip():
                                 team_obj.crest_url = crest_url[:600]
                                 changed = True
+                            if home_stadium and not (team_obj.home_stadium or '').strip():
+                                team_obj.home_stadium = home_stadium[:200]
+                                changed = True
                             if changed:
                                 try:
-                                    team_obj.save(update_fields=['external_id', 'crest_url'])
+                                    team_obj.save(update_fields=['external_id', 'crest_url', 'home_stadium'])
                                     updated += 1
                                 except Exception:
                                     pass
@@ -41060,6 +41067,7 @@ def analysis_page(request):
                             continue
                         team_code = str(row.get('team_code') or '').strip()
                         crest_url = str(row.get('crest_url') or '').strip()
+                        home_stadium = str(row.get('location') or row.get('field') or row.get('stadium') or '').strip()
 
                         team_obj = None
                         if team_code:
@@ -41075,6 +41083,7 @@ def analysis_page(request):
                                 group=getattr(primary_team, 'group', None),
                                 external_id=team_code[:120] if team_code else '',
                                 crest_url=crest_url[:600] if crest_url else '',
+                                home_stadium=home_stadium[:200] if home_stadium else '',
                                 is_primary=False,
                             )
                             created += 1
@@ -41088,6 +41097,9 @@ def analysis_page(request):
                                 team_obj.crest_url = crest_url[:600]
                                 changed_fields.append('crest_url')
                                 crest_updated += 1
+                            if home_stadium and not (team_obj.home_stadium or '').strip():
+                                team_obj.home_stadium = home_stadium[:200]
+                                changed_fields.append('home_stadium')
                             if changed_fields:
                                 try:
                                     team_obj.save(update_fields=changed_fields)
@@ -41501,7 +41513,7 @@ def analysis_page(request):
                 candidate_qs = candidate_qs.filter(group_id=primary_team.group_id)
             elif code_rows:
                 candidate_qs = candidate_qs.filter(external_id__in=code_rows)
-            candidate_teams = list(candidate_qs.only('id', 'name', 'short_name', 'slug', 'crest_url', 'external_id', 'group_id'))
+            candidate_teams = list(candidate_qs.only('id', 'name', 'short_name', 'slug', 'crest_url', 'external_id', 'group_id', 'home_stadium'))
             for t in candidate_teams:
                 keys = {
                     _normalize_team_lookup_key(getattr(t, 'external_id', '') or ''),
@@ -41578,6 +41590,7 @@ def analysis_page(request):
                     'full_name': full_name,
                     'team_code': team_code,
                     'crest_url': str(row.get('crest_url') or getattr(team_obj, 'crest_url', '') or '').strip(),
+                    'home_stadium': str(getattr(team_obj, 'home_stadium', '') or row.get('location') or '').strip(),
                     'played': _safe_int(row.get('played'), default=0),
                     'points': _safe_int(row.get('points'), default=0),
                     'goals_for': _safe_int(row.get('goals_for'), default=0),
@@ -41994,7 +42007,25 @@ def analysis_rival_profile_page(request, rival_id):
 
     if request.method == 'POST':
         form_action = str(request.POST.get('form_action') or '').strip().lower()
-        if form_action == 'refresh_roster':
+        if form_action == 'save_identity':
+            home_stadium = str(request.POST.get('home_stadium') or '').strip()[:200]
+            short_name = str(request.POST.get('short_name') or '').strip()[:60]
+            changed_fields = []
+            if str(getattr(rival, 'home_stadium', '') or '').strip() != home_stadium:
+                rival.home_stadium = home_stadium
+                changed_fields.append('home_stadium')
+            if short_name and str(getattr(rival, 'short_name', '') or '').strip() != short_name:
+                rival.short_name = short_name
+                changed_fields.append('short_name')
+            if changed_fields:
+                try:
+                    rival.save(update_fields=changed_fields)
+                    message = 'Ficha del rival actualizada.'
+                except Exception:
+                    error = 'No se pudo guardar la ficha del rival.'
+            else:
+                message = 'Ficha del rival sin cambios.'
+        elif form_action == 'refresh_roster':
             roster_rows = []
             roster_provider = ''
             source_url = ''
@@ -54561,7 +54592,11 @@ def match_editor_page(request, match_id):
             label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
             if not label:
                 label = f'Equipo #{int(t.id)}'
-            opponent_options.append({'id': int(t.id), 'label': label})
+            opponent_options.append({
+                'id': int(t.id),
+                'label': label,
+                'location': str(getattr(t, 'home_stadium', '') or '').strip(),
+            })
         # Asegura que el rival actual siempre aparece, aunque no esté en el grupo (torneos / amistosos).
         if opponent_team and int(opponent_team.id) != int(primary_team.id):
             if not any(int(opt.get('id') or 0) == int(opponent_team.id) for opt in opponent_options):
@@ -54593,7 +54628,11 @@ def match_editor_page(request, match_id):
                         label = str(getattr(t, 'display_name', '') or getattr(t, 'short_name', '') or getattr(t, 'name', '') or '').strip()
                         if not label:
                             label = f'Equipo #{int(t.id)}'
-                        opponent_options.append({'id': int(t.id), 'label': label})
+                        opponent_options.append({
+                            'id': int(t.id),
+                            'label': label,
+                            'location': str(getattr(t, 'home_stadium', '') or '').strip(),
+                        })
             except Exception:
                 pass
     except Exception:
@@ -55929,6 +55968,21 @@ def gather_team_fields_for_group(group):
         return []
     seen = set()
     fields = []
+    try:
+        teams = Team.objects.filter(group=group).exclude(home_stadium__exact='').order_by('name')
+        for team in teams:
+            if not team or team.id in seen:
+                continue
+            seen.add(team.id)
+            fields.append(
+                {
+                    'team_slug': team.slug,
+                    'team_name': team.name,
+                    'location': str(team.home_stadium or '').strip(),
+                }
+            )
+    except Exception:
+        pass
     matches = (
         Match.objects.filter(group=group, home_team__isnull=False)
         .exclude(location__isnull=True)
@@ -58137,6 +58191,11 @@ def match_hub_create_match(request):
             short_name=opponent_name[:24],
             group=primary_team.group,
         )
+    if not location_value:
+        if home_away == 'away':
+            location_value = str(getattr(rival_team, 'home_stadium', '') or '').strip()
+        elif home_away == 'home':
+            location_value = str(getattr(primary_team, 'home_stadium', '') or '').strip()
     season_obj = resolve_stats_season(primary_team) or getattr(getattr(primary_team, 'group', None), 'season', None)
     if not season_obj:
         return HttpResponse('No hay temporada activa para asignar el partido.', status=400)
