@@ -643,25 +643,40 @@
 
         <div class="brand-preview" style="margin-top:0.8rem;">
           <div class="brand-preview-head">
-            Cargar kit 2D ya hecho
+            Cargar kits 2D ya hechos
           </div>
-          <div class="brand-preview-body" style="display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:1rem;">
-            <div>
-              <label for="id_kit2d_direct_file">PNG de camiseta</label>
-              <input id="id_kit2d_direct_file" type="file" accept="image/png,image/webp,image/*" />
-              <p id="kit2d-direct-status" style="margin:0.45rem 0 0;color:rgba(226,232,240,0.76);font-size:0.9rem;">
-                Sube un kit 2D con fondo transparente si es posible. Se usará al elegir el estilo “Camiseta”.
-              </p>
-              <div class="actions" style="margin-top:0.7rem;">
-                <button class="btn btn-primary" type="button" id="kit2d-direct-save" disabled>Guardar kit 2D cargado</button>
+          <div class="brand-preview-body" style="display:block;">
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0.75rem;">
+              <div>
+                <label for="id_kit2d_home_file">1ª equipación</label>
+                <input id="id_kit2d_home_file" data-kit2d-slot="home" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-home-preview" alt="Vista previa 1ª equipación" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-home-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
+              </div>
+              <div>
+                <label for="id_kit2d_away_file">2ª equipación</label>
+                <input id="id_kit2d_away_file" data-kit2d-slot="away" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-away-preview" alt="Vista previa 2ª equipación" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-away-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
+              </div>
+              <div>
+                <label for="id_kit2d_gk_file">Portero</label>
+                <input id="id_kit2d_gk_file" data-kit2d-slot="gk" type="file" accept="image/png,image/webp,image/*" />
+                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
+                  <img id="kit2d-gk-preview" alt="Vista previa portero" style="display:none;max-width:96px;max-height:96px;" />
+                  <span id="kit2d-gk-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                </div>
               </div>
             </div>
-            <div style="display:grid;justify-items:center;gap:0.35rem;min-width:118px;">
-              <div style="width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                <img id="kit2d-direct-preview" alt="Vista previa kit 2D" style="display:none;max-width:96px;max-height:96px;" />
-                <span id="kit2d-direct-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
-              </div>
-              <span style="font-size:0.78rem;color:rgba(226,232,240,0.66);">Vista 96px</span>
+            <p id="kit2d-direct-status" style="margin:0.75rem 0 0;color:rgba(226,232,240,0.76);font-size:0.9rem;">
+              Sube PNGs con fondo transparente si es posible. La 1ª se usa para local, la 2ª para rival/alternativa y portero para los guardametas.
+            </p>
+            <div class="actions" style="margin-top:0.7rem;">
+              <button class="btn btn-primary" type="button" id="kit2d-direct-save" disabled>Guardar kits 2D cargados</button>
             </div>
           </div>
         </div>
@@ -907,12 +922,11 @@
         };
         var objectUrls = [];
         var currentCoverUrl = {% if cover_preview_url %}'{{ cover_preview_url|escapejs }}'{% else %}''{% endif %};
-        var kit2dFileInput = document.getElementById('id_kit2d_direct_file');
-        var kit2dPreview = document.getElementById('kit2d-direct-preview');
-        var kit2dEmpty = document.getElementById('kit2d-direct-empty');
+        var kit2dFileInputs = Array.prototype.slice.call(document.querySelectorAll('input[data-kit2d-slot]') || []);
         var kit2dSave = document.getElementById('kit2d-direct-save');
         var kit2dStatus = document.getElementById('kit2d-direct-status');
-        var kit2dPrepared = null;
+        var kit2dExistingValue = {};
+        var kit2dPrepared = {};
 
         function rememberUrl(url) {
           objectUrls.push(url);
@@ -988,10 +1002,33 @@
           return canvas.toDataURL('image/png');
         }
 
-        function prepareKit2dUpload(file) {
+        function kit2dSlotLabel(slot) {
+          if (slot === 'away') return '2ª equipación';
+          if (slot === 'gk') return 'portero';
+          return '1ª equipación';
+        }
+
+        function setKit2dPreview(slot, dataUrl) {
+          var preview = document.getElementById('kit2d-' + slot + '-preview');
+          var empty = document.getElementById('kit2d-' + slot + '-empty');
+          if (preview && dataUrl) {
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+          }
+          if (empty && dataUrl) empty.style.display = 'none';
+        }
+
+        function hasPreparedKit2d() {
+          return Object.keys(kit2dPrepared || {}).some(function (slot) {
+            return !!(kit2dPrepared[slot] && kit2dPrepared[slot].editor_data_url);
+          });
+        }
+
+        function prepareKit2dUpload(file, slot) {
+          slot = slot === 'away' || slot === 'gk' ? slot : 'home';
           if (!file || !String(file.type || '').startsWith('image/')) {
-            kit2dPrepared = null;
-            if (kit2dSave) kit2dSave.disabled = true;
+            delete kit2dPrepared[slot];
+            if (kit2dSave) kit2dSave.disabled = !hasPreparedKit2d();
             setKit2dStatus('Selecciona una imagen PNG/WebP/JPG válida.', true);
             return;
           }
@@ -1001,7 +1038,7 @@
             img.onload = function () {
               var clubDataUrl = renderKit2dDataUrl(img, 96);
               var editorDataUrl = renderKit2dDataUrl(img, 44);
-              kit2dPrepared = {
+              kit2dPrepared[slot] = {
                 club_data_url: clubDataUrl,
                 editor_data_url: editorDataUrl,
                 club_size: 96,
@@ -1010,33 +1047,65 @@
                 file_name: file.name || '',
                 saved_at: new Date().toISOString()
               };
-              if (kit2dPreview) {
-                kit2dPreview.src = clubDataUrl;
-                kit2dPreview.style.display = 'block';
-              }
-              if (kit2dEmpty) kit2dEmpty.style.display = 'none';
+              setKit2dPreview(slot, clubDataUrl);
               if (kit2dSave) kit2dSave.disabled = false;
-              setKit2dStatus('Kit cargado. Revisa la vista previa y pulsa guardar.', false);
+              setKit2dStatus(kit2dSlotLabel(slot) + ' cargada. Revisa la vista previa y pulsa guardar.', false);
             };
             img.onerror = function () {
-              kit2dPrepared = null;
-              if (kit2dSave) kit2dSave.disabled = true;
+              delete kit2dPrepared[slot];
+              if (kit2dSave) kit2dSave.disabled = !hasPreparedKit2d();
               setKit2dStatus('No se pudo leer esa imagen. Prueba con un PNG transparente.', true);
             };
             img.src = reader.result;
           };
           reader.onerror = function () {
-            kit2dPrepared = null;
-            if (kit2dSave) kit2dSave.disabled = true;
+            delete kit2dPrepared[slot];
+            if (kit2dSave) kit2dSave.disabled = !hasPreparedKit2d();
             setKit2dStatus('No se pudo cargar el archivo seleccionado.', true);
           };
           reader.readAsDataURL(file);
         }
 
+        function buildKit2dPreferenceValue() {
+          var value = Object.assign({}, kit2dExistingValue || {});
+          ['home', 'away', 'gk'].forEach(function (slot) {
+            var prepared = kit2dPrepared[slot];
+            if (!prepared || !prepared.editor_data_url) return;
+            value[slot + '_club_data_url'] = prepared.club_data_url;
+            value[slot + '_editor_data_url'] = prepared.editor_data_url;
+            value[slot + '_file_name'] = prepared.file_name || '';
+          });
+          if (kit2dPrepared.home && kit2dPrepared.home.editor_data_url) {
+            value.club_data_url = kit2dPrepared.home.club_data_url;
+            value.editor_data_url = kit2dPrepared.home.editor_data_url;
+          } else if (!value.club_data_url && value.home_club_data_url) {
+            value.club_data_url = value.home_club_data_url;
+            value.editor_data_url = value.home_editor_data_url;
+          }
+          value.club_size = 96;
+          value.editor_size = 44;
+          value.source = 'upload';
+          value.saved_at = new Date().toISOString();
+          return value;
+        }
+
+        function loadExistingKit2dPreference() {
+          fetch('/api/workspace/preferences/get/?key=kit2d.tokens', { credentials: 'same-origin' })
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (data) {
+              var value = data && data.ok && data.value && typeof data.value === 'object' ? data.value : {};
+              kit2dExistingValue = value || {};
+              setKit2dPreview('home', value.home_club_data_url || value.club_data_url || '');
+              setKit2dPreview('away', value.away_club_data_url || '');
+              setKit2dPreview('gk', value.gk_club_data_url || '');
+            })
+            .catch(function () {});
+        }
+
         function saveKit2dUpload() {
-          if (!kit2dPrepared || !kit2dSave) return;
+          if (!hasPreparedKit2d() || !kit2dSave) return;
           kit2dSave.disabled = true;
-          setKit2dStatus('Guardando kit 2D...', false);
+          setKit2dStatus('Guardando kits 2D...', false);
           fetch('/api/workspace/preferences/set/', {
             method: 'POST',
             credentials: 'same-origin',
@@ -1046,7 +1115,7 @@
             },
             body: JSON.stringify({
               key: 'kit2d.tokens',
-              value: kit2dPrepared
+              value: buildKit2dPreferenceValue()
             })
           })
             .then(function (response) {
@@ -1055,7 +1124,9 @@
             })
             .then(function (data) {
               if (!data || data.ok === false) throw new Error(data && data.error ? data.error : 'save_failed');
-              setKit2dStatus('Kit 2D guardado. En la pizarra o tareas selecciona el estilo “Camiseta”.', false);
+              kit2dExistingValue = buildKit2dPreferenceValue();
+              kit2dPrepared = {};
+              setKit2dStatus('Kits 2D guardados. En la pizarra, tareas y 11 inicial se usará la camiseta correspondiente.', false);
             })
             .catch(function () {
               setKit2dStatus('No se pudo guardar el kit 2D. Vuelve a intentarlo.', true);
@@ -1142,10 +1213,13 @@
           });
         }
 
-        if (kit2dFileInput) {
-          kit2dFileInput.addEventListener('change', function () {
-            prepareKit2dUpload(kit2dFileInput.files && kit2dFileInput.files[0]);
+        if (kit2dFileInputs.length) {
+          kit2dFileInputs.forEach(function (input) {
+            input.addEventListener('change', function () {
+              prepareKit2dUpload(input.files && input.files[0], input.dataset.kit2dSlot);
+            });
           });
+          loadExistingKit2dPreference();
         }
 
         if (kit2dSave) {

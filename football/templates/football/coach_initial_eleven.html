@@ -572,6 +572,41 @@
       .token--def { border-color: rgba(34, 211, 238, 0.34); }
       .token--mid { border-color: rgba(244, 180, 0, 0.34); }
       .token--fwd { border-color: rgba(134, 239, 172, 0.28); }
+      .token.has-kit2d {
+        grid-template-columns: 46px minmax(0, 1fr);
+        min-width: 142px;
+        padding: 0.2rem 0.42rem 0.2rem 0.22rem;
+      }
+      .token-kit2d {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        position: relative;
+      }
+      .token-kit2d-img {
+        max-width: 44px;
+        max-height: 44px;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.38));
+        pointer-events: none;
+      }
+      .token-kit2d-num {
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        min-width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        padding: 0 0.2rem;
+        background: rgba(244, 180, 0, 0.96);
+        color: rgba(2, 6, 23, 0.96);
+        border: 1px solid rgba(2, 6, 23, 0.72);
+        font-size: 0.58rem;
+        font-weight: 950;
+      }
 
       .broadcast-l3 {
         position: absolute;
@@ -897,12 +932,43 @@
       const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value
         || document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1]
         || '';
+      const KIT2D_PREF_KEY = 'kit2d.tokens';
+      let lineupKit2dDataUrl = '';
+      const lineupKit2dDataUrls = { home: '', away: '', gk: '' };
 
       const STARTERS_REQUIRED = Number('{{ starters_limit|default:11 }}') || 11;
       const presentationToggleBtn = document.getElementById('presentation-toggle');
       presentationToggleBtn?.addEventListener('click', () => {
         document.body.classList.toggle('is-presentation');
       });
+      async function loadLineupKit2dPreference() {
+        try {
+          const response = await fetch(`/api/workspace/preferences/get/?key=${encodeURIComponent(KIT2D_PREF_KEY)}`, {
+            credentials: 'same-origin',
+          });
+          const payload = await response.json().catch(() => null);
+          if (!payload || !payload.ok || !payload.value || typeof payload.value !== 'object') return;
+          const value = payload.value;
+          const validUrl = (url) => url && (url.startsWith('data:image/') || url.startsWith('/') || url.startsWith('http'));
+          const homeUrl = String(value.home_club_data_url || value.club_data_url || value.home_editor_data_url || value.editor_data_url || '').trim();
+          const awayUrl = String(value.away_club_data_url || value.away_editor_data_url || '').trim();
+          const gkUrl = String(value.gk_club_data_url || value.gk_editor_data_url || value.goalkeeper_club_data_url || '').trim();
+          if (validUrl(homeUrl)) lineupKit2dDataUrls.home = homeUrl;
+          if (validUrl(awayUrl)) lineupKit2dDataUrls.away = awayUrl;
+          if (validUrl(gkUrl)) lineupKit2dDataUrls.gk = gkUrl;
+          lineupKit2dDataUrl = lineupKit2dDataUrls.home || lineupKit2dDataUrls.away || lineupKit2dDataUrls.gk || '';
+          if (!lineupKit2dDataUrl) return;
+          renderField();
+        } catch (_) {
+          // El 11 inicial sigue funcionando con el token normal si no hay kit guardado.
+        }
+      }
+      loadLineupKit2dPreference();
+      function kit2dUrlForLineupRole(role) {
+        const normalized = String(role || '').toLowerCase();
+        if (normalized === 'gk') return lineupKit2dDataUrls.gk || lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
+        return lineupKit2dDataUrls.home || lineupKit2dDataUrl || '';
+      }
       const formationsF11 = {
         '4-3-3': [
           { label: 'POR', x: 50, y: 90, role: 'gk' },
@@ -1323,11 +1389,19 @@
           const role = String(player.role || roleFromPosition(player.position) || 'mid');
           const photoRaw = String(player.photo || '').trim();
           const photoSafe = photoRaw ? photoRaw.replace(/'/g, '%27') : '';
-          const photoHtml = photoSafe ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
+          const kitRaw = kit2dUrlForLineupRole(role);
+          const kitSafe = kitRaw ? kitRaw.replace(/'/g, '%27') : '';
+          const kitHtml = kitSafe ? `
+            <span class="token-kit2d" aria-hidden="true">
+              <img class="token-kit2d-img" src='${kitSafe}' alt="" loading="lazy" />
+              <span class="token-kit2d-num">${num === '--' ? '--' : num}</span>
+            </span>
+          ` : '';
+          const photoHtml = (!kitSafe && photoSafe) ? `<img class="token-photo" src='${photoSafe}' alt="" loading="lazy" />` : '';
           wrap.innerHTML = `
-            <div class="token token--${role}">
+            <div class="token token--${role}${kitSafe ? ' has-kit2d' : ''}">
               ${photoHtml}
-              <span class="token-num">${num === '--' ? '--' : num}</span>
+              ${kitHtml || `<span class="token-num">${num === '--' ? '--' : num}</span>`}
               <span>
                 <span class="token-name">${String(player.name || '').toUpperCase()}</span>
                 <span class="token-role">${role.toUpperCase()}</span>
