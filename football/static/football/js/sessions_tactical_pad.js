@@ -15250,10 +15250,13 @@
 		      if (orientationLabel) orientationLabel.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
 		      if (orientationLabelQuick) orientationLabelQuick.textContent = ORIENTATION_LABEL[pitchOrientation] === 'vertical' ? 'Vertical' : 'Horizontal';
 		      stage.classList.toggle('is-portrait', pitchOrientation === 'portrait');
-	      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
-	      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
-	      orientationToggleQuick?.classList.toggle('is-active', pitchOrientation === 'portrait');
-	      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+		      viewportEl?.classList.toggle('is-portrait', pitchOrientation === 'portrait');
+		      document.body.classList.toggle('pitch-orientation-portrait', pitchOrientation === 'portrait');
+		      document.body.classList.toggle('pitch-orientation-landscape', pitchOrientation !== 'portrait');
+		      orientationToggle?.classList.toggle('is-active', pitchOrientation === 'portrait');
+		      orientationToggleQuick?.classList.toggle('is-active', pitchOrientation === 'portrait');
+		      try { applyStageFitConstraint(); } catch (e) { /* ignore */ }
+		      try { scheduleLayoutRecalc('orientation_ui'); } catch (e) { /* ignore */ }
 	    };
 	    const stageBaseMaxWidth = () => (pitchOrientation === 'portrait' ? 560 : 1500);
 	    const getStageFactor = () => (pitchOrientation === 'portrait' ? stageFactorPortrait : stageFactorLandscape);
