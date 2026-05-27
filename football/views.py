@@ -11674,6 +11674,13 @@ def club_onboarding_page(request):
                     key='brand_theme:v1',
                     defaults={'value': raw},
                 )
+                try:
+                    cache.delete_many([
+                        f'ctx:brand_theme:v1:w{int(workspace.id)}:t0',
+                        f'ctx:brand_theme:v1:w{int(workspace.id)}:t{int(primary_team.id)}',
+                    ])
+                except Exception:
+                    pass
                 theme_form.update(theme_payload)
                 success = 'Identidad corporativa guardada.'
             except Exception as exc:

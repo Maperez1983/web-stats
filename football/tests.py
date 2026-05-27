@@ -8819,6 +8819,10 @@ class ClubOnboardingImportTests(TestCase):
         )
         WorkspaceTeam.objects.create(workspace=workspace, team=team, is_default=True)
         self.client.force_login(self.user)
+        team_cache_key = f'ctx:brand_theme:v1:w{int(workspace.id)}:t{int(team.id)}'
+        default_cache_key = f'ctx:brand_theme:v1:w{int(workspace.id)}:t0'
+        cache.set(team_cache_key, {'stale': True}, 60)
+        cache.set(default_cache_key, {'stale': True}, 60)
 
         response = self.client.post(
             reverse('club-onboarding'),
@@ -8856,6 +8860,13 @@ class ClubOnboardingImportTests(TestCase):
         self.assertEqual(saved['font_decoration'], 'underline')
         self.assertEqual(saved['font_size'], 'large')
         self.assertEqual(saved['system_image_mode'], 'both')
+        refreshed_cache = cache.get(team_cache_key)
+        self.assertNotEqual(refreshed_cache, {'stale': True})
+        self.assertEqual(
+            refreshed_cache['teams'][str(team.id)]['font'],
+            'avenir',
+        )
+        self.assertIsNone(cache.get(default_cache_key))
 
 
 class SessionPlanFieldsSerializationTests(TestCase):
