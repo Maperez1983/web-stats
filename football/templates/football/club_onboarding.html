@@ -146,6 +146,75 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
       }
+      .page-preview {
+        position: relative;
+        min-height: 260px;
+        border-radius: 20px;
+        border: 1px solid rgba(255,255,255,0.16);
+        overflow: hidden;
+        background:
+          linear-gradient(135deg, rgba(8,19,32,0.84), rgba(8,19,32,0.42)),
+          var(--preview-cover, linear-gradient(135deg, rgba(47,125,50,0.42), rgba(244,180,0,0.28)));
+        background-size: cover;
+        background-position: center;
+        box-shadow: 0 22px 56px rgba(0,0,0,0.28);
+      }
+      .page-preview::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(2,6,23,0.08), rgba(2,6,23,0.62));
+        pointer-events: none;
+      }
+      .page-preview-content {
+        position: relative;
+        z-index: 1;
+        min-height: 260px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 1rem;
+      }
+      .page-preview-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+      }
+      .page-preview-crest {
+        width: 66px;
+        height: 66px;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(2,6,23,0.36);
+        object-fit: contain;
+        padding: 0.35rem;
+      }
+      .page-preview-badge {
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(2,6,23,0.38);
+        color: rgba(245,247,250,0.94);
+        padding: 0.35rem 0.65rem;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .page-preview-title {
+        margin: 0;
+        color: rgba(245,247,250,0.98);
+        font-size: clamp(1.25rem, 1rem + 1.2vw, 1.85rem);
+        line-height: 1.05;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-shadow: 0 3px 14px rgba(0,0,0,0.38);
+      }
+      .page-preview-subtitle {
+        margin: 0.35rem 0 0;
+        color: rgba(226,232,240,0.88);
+        max-width: 560px;
+      }
       .actions {
         margin-top: 1rem;
         display: flex;
@@ -418,7 +487,7 @@
         </div>
 
         <div class="notice" style="margin-top:1rem;">
-          <strong>Escudo y portada:</strong> personaliza la identidad visual del club (se verá en la Home y exportaciones).
+          <strong>Escudo e imagen de página:</strong> personaliza la identidad visual del club. La imagen de página se usa como portada de Home y vista de equipo.
         </div>
         <form method="post" enctype="multipart/form-data" style="margin-top:0.8rem;">
           {% csrf_token %}
@@ -441,23 +510,53 @@
               </div>
             </div>
             <div>
-              <label for="id_cover_image">Portada (foto equipo)</label>
+              <label for="id_cover_image">Imagen de página / portada</label>
               <input id="id_cover_image" type="file" name="cover_image" accept="image/*" />
+              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Recomendado: foto horizontal del equipo o instalación. Se previsualiza abajo antes de guardar.</p>
               <div style="margin-top:0.55rem;">
                 {% if cover_preview_url %}
                   <img
                     src="{{ cover_preview_url }}"
                     alt="Portada actual"
+                    id="cover-inline-preview"
                     style="width:100%;height:160px;border-radius:18px;border:1px solid rgba(255,255,255,0.16);object-fit:cover;background:rgba(0,0,0,0.22);"
                   />
                 {% else %}
-                  <div style="width:100%;height:160px;border-radius:18px;border:1px dashed rgba(255,255,255,0.16);background:rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;color:rgba(226,232,240,0.7);">
+                  <div id="cover-inline-empty" style="width:100%;height:160px;border-radius:18px;border:1px dashed rgba(255,255,255,0.16);background:rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;color:rgba(226,232,240,0.7);">
                     Sin portada subida
                   </div>
                 {% endif %}
                 <label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.55rem;text-transform:none;letter-spacing:0;font-size:0.88rem;color:rgba(226,232,240,0.86);">
                   <input type="checkbox" name="clear_cover" /> Quitar portada
                 </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="brand-preview" style="margin-top:0.8rem;">
+            <div class="brand-preview-head" style="background: linear-gradient(135deg, {{ theme_form.secondary|default:'#f4b400' }}, {{ theme_form.primary|default:'#2f7d32' }});">
+              Vista previa de página
+            </div>
+            <div class="brand-preview-body" style="display:block;">
+              <div
+                class="page-preview"
+                id="page-cover-preview"
+                {% if cover_preview_url %}style="--preview-cover: url('{{ cover_preview_url }}');"{% endif %}
+              >
+                <div class="page-preview-content">
+                  <div class="page-preview-top">
+                    {% if crest_preview_url %}
+                      <img class="page-preview-crest" id="page-crest-preview" src="{{ crest_preview_url }}" alt="Escudo" />
+                    {% else %}
+                      <div class="page-preview-crest" id="page-crest-empty"></div>
+                    {% endif %}
+                    <span class="page-preview-badge">Home</span>
+                  </div>
+                  <div>
+                    <h2 class="page-preview-title">{{ primary_team.display_name|default:primary_team.name|default:form.team_name|default:workspace.name }}</h2>
+                    <p class="page-preview-subtitle">Así se verá la portada principal del equipo con la imagen y el escudo seleccionados.</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -559,6 +658,52 @@
               <label for="id_theme_text">Texto</label>
               <input id="id_theme_text" type="color" name="theme_text" value="{{ theme_form.text|default:'#f5f7fa' }}" />
             </div>
+            <div>
+              <label for="id_theme_button_bg">Fondo botones</label>
+              <input id="id_theme_button_bg" type="color" name="theme_button_bg" value="{{ theme_form.button_bg|default:'#0f172a' }}" />
+            </div>
+            <div>
+              <label for="id_theme_button_text">Texto botones</label>
+              <input id="id_theme_button_text" type="color" name="theme_button_text" value="{{ theme_form.button_text|default:'#f5f7fa' }}" />
+            </div>
+            <div>
+              <label for="id_theme_panel_flat">Fondo paneles / tarjetas</label>
+              <input id="id_theme_panel_flat" type="color" name="theme_panel_flat" value="{{ theme_form.panel_flat|default:'#0e1727' }}" />
+            </div>
+            <div>
+              <label for="id_theme_line">Bordes / líneas</label>
+              <input id="id_theme_line" type="color" name="theme_line" value="{{ theme_form.line|default:'#90a1b9' }}" />
+            </div>
+            <div>
+              <label for="id_theme_shadow">Sombreado</label>
+              <select id="id_theme_shadow" name="theme_shadow">
+                <option value="none" {% if theme_form.shadow|default:'' == 'none' %}selected{% endif %}>Sin sombra</option>
+                <option value="soft" {% if theme_form.shadow|default:'' == 'soft' %}selected{% endif %}>Suave</option>
+                <option value="medium" {% if theme_form.shadow|default:'medium' == 'medium' %}selected{% endif %}>Medio</option>
+                <option value="strong" {% if theme_form.shadow|default:'' == 'strong' %}selected{% endif %}>Fuerte</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_theme_system_image_mode">Uso de imagen de página</label>
+              <select id="id_theme_system_image_mode" name="theme_system_image_mode">
+                <option value="home" {% if theme_form.system_image_mode|default:'home' == 'home' %}selected{% endif %}>Solo Home / portada</option>
+                <option value="system" {% if theme_form.system_image_mode|default:'' == 'system' %}selected{% endif %}>Fondo del sistema</option>
+                <option value="both" {% if theme_form.system_image_mode|default:'' == 'both' %}selected{% endif %}>Home y fondo del sistema</option>
+                <option value="none" {% if theme_form.system_image_mode|default:'' == 'none' %}selected{% endif %}>No usar imagen</option>
+              </select>
+            </div>
+            <div>
+              <label for="id_theme_font">Tipo de letra</label>
+              <select id="id_theme_font" name="theme_font">
+                <option value="plex" {% if theme_form.font|default:'plex' == 'plex' %}selected{% endif %}>IBM Plex Sans</option>
+                <option value="system" {% if theme_form.font|default:'' == 'system' %}selected{% endif %}>Sistema / Apple</option>
+                <option value="avenir" {% if theme_form.font|default:'' == 'avenir' %}selected{% endif %}>Avenir Next</option>
+                <option value="segoe" {% if theme_form.font|default:'' == 'segoe' %}selected{% endif %}>Segoe UI</option>
+                <option value="roboto" {% if theme_form.font|default:'' == 'roboto' %}selected{% endif %}>Roboto</option>
+                <option value="georgia" {% if theme_form.font|default:'' == 'georgia' %}selected{% endif %}>Georgia</option>
+                <option value="condensed" {% if theme_form.font|default:'' == 'condensed' %}selected{% endif %}>Condensada</option>
+              </select>
+            </div>
             <div style="grid-column: 1 / -1;">
               <label for="id_theme_ui">Tema por defecto</label>
               <select id="id_theme_ui" name="theme_ui">
@@ -586,12 +731,28 @@
               class="brand-preview-head"
               style="background: linear-gradient(135deg, {{ theme_form.secondary|default:'#f4b400' }}, {{ theme_form.primary|default:'#2f7d32' }});"
             >Previsualización</div>
-            <div class="brand-preview-body">
-              <span class="chip">Primario <code style="margin-left:0.25rem;">{{ theme_form.primary|default:'#2f7d32' }}</code></span>
-              <span class="chip">Sec <code style="margin-left:0.25rem;">{{ theme_form.secondary|default:'#f4b400' }}</code></span>
-              <span class="chip">Fondo <code style="margin-left:0.25rem;">{{ theme_form.bg|default:'#08111d' }}</code></span>
-              <span class="chip">Texto <code style="margin-left:0.25rem;">{{ theme_form.text|default:'#f5f7fa' }}</code></span>
-              <span class="chip">Claro <code style="margin-left:0.25rem;">{{ theme_form.bg_light|default:'#f4f7fb' }}</code></span>
+            <div
+              class="brand-preview-body"
+              id="system-theme-preview"
+              style="display:block;background:{{ theme_form.bg|default:'#08111d' }};color:{{ theme_form.text|default:'#f5f7fa' }};"
+            >
+              <div
+                style="border:1px solid {{ theme_form.line|default:'#90a1b9' }};background:{{ theme_form.panel_flat|default:'#0e1727' }};border-radius:18px;padding:0.9rem;box-shadow:0 16px 36px rgba(0,0,0,0.24);"
+                id="system-panel-preview"
+              >
+                <div style="font-weight:900;letter-spacing:0.1em;text-transform:uppercase;">Panel del sistema</div>
+                <p style="margin:0.35rem 0 0;color:inherit;opacity:0.82;">Botones, fondos, bordes y sombras se verán así en las pantallas del producto.</p>
+                <div style="margin-top:0.75rem;display:flex;gap:0.55rem;flex-wrap:wrap;">
+                  <span class="chip">Primario <code style="margin-left:0.25rem;">{{ theme_form.primary|default:'#2f7d32' }}</code></span>
+                  <span class="chip">Fondo <code style="margin-left:0.25rem;">{{ theme_form.bg|default:'#08111d' }}</code></span>
+                  <button
+                    type="button"
+                    class="btn"
+                    id="system-button-preview"
+                    style="background:{{ theme_form.button_bg|default:'#0f172a' }};color:{{ theme_form.button_text|default:'#f5f7fa' }};border:1px solid {{ theme_form.line|default:'#90a1b9' }};"
+                  >Botón</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -653,5 +814,144 @@
         </div>
       </div>
     </div>
+    <script>
+      (function () {
+        var coverInput = document.getElementById('id_cover_image');
+        var crestInput = document.getElementById('id_crest_image');
+        var pageCover = document.getElementById('page-cover-preview');
+        var inlineCover = document.getElementById('cover-inline-preview');
+        var inlineEmpty = document.getElementById('cover-inline-empty');
+        var pageCrest = document.getElementById('page-crest-preview');
+        var pageCrestEmpty = document.getElementById('page-crest-empty');
+        var systemPreview = document.getElementById('system-theme-preview');
+        var systemPanel = document.getElementById('system-panel-preview');
+        var systemButton = document.getElementById('system-button-preview');
+        var colorFields = {
+          primary: document.getElementById('id_theme_primary'),
+          secondary: document.getElementById('id_theme_secondary'),
+          bg: document.getElementById('id_theme_bg'),
+          text: document.getElementById('id_theme_text'),
+          buttonBg: document.getElementById('id_theme_button_bg'),
+          buttonText: document.getElementById('id_theme_button_text'),
+          panel: document.getElementById('id_theme_panel_flat'),
+          line: document.getElementById('id_theme_line'),
+          shadow: document.getElementById('id_theme_shadow'),
+          imageMode: document.getElementById('id_theme_system_image_mode'),
+          font: document.getElementById('id_theme_font')
+        };
+        var objectUrls = [];
+        var currentCoverUrl = {% if cover_preview_url %}'{{ cover_preview_url|escapejs }}'{% else %}''{% endif %};
+
+        function rememberUrl(url) {
+          objectUrls.push(url);
+          return url;
+        }
+
+        function firstImageUrl(input) {
+          if (!input || !input.files || !input.files.length) return '';
+          var file = input.files[0];
+          if (!file || !String(file.type || '').startsWith('image/')) return '';
+          return rememberUrl(URL.createObjectURL(file));
+        }
+
+        function valueOf(field, fallback) {
+          return field && field.value ? field.value : fallback;
+        }
+
+        function previewShadow(value) {
+          if (value === 'none') return 'none';
+          if (value === 'soft') return '0 8px 20px rgba(0,0,0,0.12)';
+          if (value === 'strong') return '0 22px 56px rgba(0,0,0,0.34)';
+          return '0 16px 36px rgba(0,0,0,0.24)';
+        }
+
+        function previewFont(value) {
+          if (value === 'system') return 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+          if (value === 'avenir') return '"Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif';
+          if (value === 'segoe') return '"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif';
+          if (value === 'roboto') return 'Roboto, "Helvetica Neue", Arial, system-ui, sans-serif';
+          if (value === 'georgia') return 'Georgia, "Times New Roman", serif';
+          if (value === 'condensed') return '"Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif';
+          return '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+        }
+
+        function updateSystemPreview() {
+          if (!systemPreview || !systemPanel || !systemButton) return;
+          var bg = valueOf(colorFields.bg, '#08111d');
+          var text = valueOf(colorFields.text, '#f5f7fa');
+          var line = valueOf(colorFields.line, '#90a1b9');
+          var panel = valueOf(colorFields.panel, '#0e1727');
+          var buttonBg = valueOf(colorFields.buttonBg, '#0f172a');
+          var buttonText = valueOf(colorFields.buttonText, '#f5f7fa');
+          var shadow = previewShadow(valueOf(colorFields.shadow, 'medium'));
+          var mode = valueOf(colorFields.imageMode, 'home');
+          var font = previewFont(valueOf(colorFields.font, 'plex'));
+          systemPreview.style.background = bg;
+          systemPreview.style.color = text;
+          systemPreview.style.fontFamily = font;
+          if ((mode === 'system' || mode === 'both') && currentCoverUrl) {
+            systemPreview.style.backgroundImage = "linear-gradient(180deg, rgba(5,11,20,0.68), rgba(5,11,20,0.86)), url('" + currentCoverUrl + "')";
+            systemPreview.style.backgroundSize = 'cover';
+            systemPreview.style.backgroundPosition = 'center';
+          } else {
+            systemPreview.style.backgroundImage = '';
+          }
+          systemPanel.style.borderColor = line;
+          systemPanel.style.background = panel;
+          systemPanel.style.boxShadow = shadow;
+          systemButton.style.borderColor = line;
+          systemButton.style.background = buttonBg;
+          systemButton.style.color = buttonText;
+        }
+
+        Object.keys(colorFields).forEach(function (key) {
+          var field = colorFields[key];
+          if (!field) return;
+          field.addEventListener('input', updateSystemPreview);
+          field.addEventListener('change', updateSystemPreview);
+        });
+        updateSystemPreview();
+
+        if (coverInput && pageCover) {
+          coverInput.addEventListener('change', function () {
+            var url = firstImageUrl(coverInput);
+            if (!url) return;
+            currentCoverUrl = url;
+            pageCover.style.setProperty('--preview-cover', "url('" + url + "')");
+            if (inlineCover) {
+              inlineCover.src = url;
+            } else if (inlineEmpty) {
+              inlineEmpty.style.background = "url('" + url + "') center/cover no-repeat";
+              inlineEmpty.textContent = '';
+            }
+            updateSystemPreview();
+          });
+        }
+
+        if (crestInput) {
+          crestInput.addEventListener('change', function () {
+            var url = firstImageUrl(crestInput);
+            if (!url) return;
+            if (pageCrest) {
+              pageCrest.src = url;
+            } else if (pageCrestEmpty) {
+              var img = document.createElement('img');
+              img.className = 'page-preview-crest';
+              img.id = 'page-crest-preview';
+              img.alt = 'Escudo';
+              img.src = url;
+              pageCrestEmpty.replaceWith(img);
+              pageCrest = img;
+            }
+          });
+        }
+
+        window.addEventListener('pagehide', function () {
+          objectUrls.forEach(function (url) {
+            try { URL.revokeObjectURL(url); } catch (e) {}
+          });
+        });
+      }());
+    </script>
   </body>
 </html>

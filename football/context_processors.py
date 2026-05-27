@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from django.core.cache import cache
+from django.urls import reverse
 
 
 @lru_cache(maxsize=1)
@@ -71,6 +72,13 @@ def brand_theme(request):
         "secondary":"#f4b400",
         "bg":"#08111d",
         "text":"#f5f7fa",
+        "button_text":"#f5f7fa",
+        "button_bg":"#0f172a",
+        "panel_flat":"#0e1727",
+        "line":"rgba(144, 161, 185, 0.22)",
+        "shadow":"medium",
+        "system_image_mode":"home|system|both|none",
+        "font":"plex|system|avenir|segoe|roboto|georgia|condensed",
         "ui":"dark|light|hc",
         "bg_light":"#f4f7fb",
         "text_light":"#0f172a"
@@ -153,10 +161,15 @@ def brand_theme(request):
         'secondary': _color(override.get('secondary') or default.get('secondary'), '#f4b400'),
         'bg': _color(override.get('bg') or default.get('bg'), '#08111d'),
         'text': _color(override.get('text') or default.get('text'), '#f5f7fa'),
+        'button_text': _color(override.get('button_text') or default.get('button_text'), '#f5f7fa'),
+        'button_bg': _color(override.get('button_bg') or default.get('button_bg'), 'rgba(15, 23, 42, 0.62)'),
         'muted': _color(override.get('muted') or default.get('muted'), 'rgba(226, 232, 240, 0.74)'),
         'line': _color(override.get('line') or default.get('line'), 'rgba(144, 161, 185, 0.22)'),
         'panel_flat': _color(override.get('panel_flat') or default.get('panel_flat'), 'rgba(14, 23, 39, 0.96)'),
         'info': _color(override.get('info') or default.get('info'), '#22d3ee'),
+        'shadow': str(override.get('shadow') or default.get('shadow') or 'medium').strip().lower(),
+        'system_image_mode': str(override.get('system_image_mode') or default.get('system_image_mode') or 'home').strip().lower(),
+        'font': str(override.get('font') or default.get('font') or 'plex').strip().lower(),
         # Default del producto: oscuro (más consistente con la mayoría de pantallas).
         # El club/equipo puede forzar 'light' o 'hc' vía WorkspacePreference si lo desea.
         'ui': str(override.get('ui') or default.get('ui') or 'dark').strip().lower(),
@@ -165,25 +178,75 @@ def brand_theme(request):
     }
     if theme['ui'] not in {'dark', 'light', 'hc'}:
         theme['ui'] = 'dark'
+    if theme['shadow'] not in {'none', 'soft', 'medium', 'strong'}:
+        theme['shadow'] = 'medium'
+    if theme['system_image_mode'] not in {'home', 'system', 'both', 'none'}:
+        theme['system_image_mode'] = 'home'
+    font_values = {
+        'plex': ('"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif', '"IBM Plex Sans", system-ui, sans-serif'),
+        'system': ('system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'),
+        'avenir': ('"Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif', '"Avenir Next", Avenir, system-ui, sans-serif'),
+        'segoe': ('"Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif', '"Segoe UI", system-ui, sans-serif'),
+        'roboto': ('Roboto, "Helvetica Neue", Arial, system-ui, sans-serif', 'Roboto, "Helvetica Neue", Arial, sans-serif'),
+        'georgia': ('Georgia, "Times New Roman", serif', 'Georgia, "Times New Roman", serif'),
+        'condensed': ('"Arial Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif', '"Arial Narrow", "Roboto Condensed", Arial, sans-serif'),
+    }
+    if theme['font'] not in font_values:
+        theme['font'] = 'plex'
+    font_ui, font_display = font_values[theme['font']]
+
+    shadow_values = {
+        'none': ('none', 'none'),
+        'soft': ('0 10px 28px rgba(0, 0, 0, 0.16)', '0 8px 20px rgba(0, 0, 0, 0.12)'),
+        'medium': ('0 24px 64px rgba(0, 0, 0, 0.34)', '0 16px 36px rgba(0, 0, 0, 0.24)'),
+        'strong': ('0 32px 90px rgba(0, 0, 0, 0.48)', '0 22px 56px rgba(0, 0, 0, 0.34)'),
+    }
+    shadow_lg, shadow_md = shadow_values.get(theme['shadow'], shadow_values['medium'])
+
+    system_image_value = 'none'
+    try:
+        if theme['system_image_mode'] in {'system', 'both'} and team and getattr(team, 'cover_image', None):
+            updated_at = getattr(team, 'cover_updated_at', None)
+            version = str(int(updated_at.timestamp())) if updated_at else '1'
+            cover_url = f'{reverse("team-cover-image-file", args=[int(team.id)])}?v={version}&w=1800&h=1200&q=76'
+            system_image_value = f'url("{cover_url}")'
+    except Exception:
+        system_image_value = 'none'
 
     css_vars = {
         '--prod-primary': theme['primary'],
         '--prod-secondary': theme['secondary'],
         '--prod-bg': theme['bg'],
         '--prod-text': theme['text'],
+        '--prod-button-text': theme['button_text'],
+        '--prod-button-bg': theme['button_bg'],
         '--prod-muted': theme['muted'],
         '--prod-line': theme['line'],
         '--prod-panel-flat': theme['panel_flat'],
+        '--prod-panel': theme['panel_flat'],
         '--prod-info': theme['info'],
+        '--prod-shadow-lg': shadow_lg,
+        '--prod-shadow-md': shadow_md,
+        '--prod-system-image': system_image_value,
+        '--prod-font-ui': font_ui,
+        '--prod-font-display': font_display,
     }
     css_vars_light = {
         '--prod-bg': theme['bg_light'],
         '--prod-text': theme['text_light'],
+        '--prod-button-text': theme['button_text'],
+        '--prod-button-bg': theme['button_bg'],
         # En tema claro, el muted debe oscurecerse para ser legible.
         '--prod-muted': 'rgba(15, 23, 42, 0.72)',
         '--prod-muted-soft': 'rgba(15, 23, 42, 0.82)',
-        '--prod-line': 'rgba(15, 23, 42, 0.14)',
-        '--prod-panel-flat': 'rgba(255, 255, 255, 0.92)',
+        '--prod-line': theme['line'],
+        '--prod-panel-flat': theme['panel_flat'],
+        '--prod-panel': theme['panel_flat'],
+        '--prod-shadow-lg': shadow_lg,
+        '--prod-shadow-md': shadow_md,
+        '--prod-system-image': system_image_value,
+        '--prod-font-ui': font_ui,
+        '--prod-font-display': font_display,
     }
     return {
         'brand_theme': {

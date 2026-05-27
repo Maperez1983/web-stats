@@ -12429,6 +12429,13 @@ def club_onboarding_page(request):
         'secondary': '#f4b400',
         'bg': '#08111d',
         'text': '#f5f7fa',
+        'button_text': '#f5f7fa',
+        'button_bg': '#0f172a',
+        'panel_flat': '#0e1727',
+        'line': '#90a1b9',
+        'shadow': 'medium',
+        'system_image_mode': 'home',
+        'font': 'plex',
         'ui': 'dark',
         'bg_light': '#f4f7fb',
         'text_light': '#0f172a',
@@ -12448,6 +12455,13 @@ def club_onboarding_page(request):
                         'secondary': '#0e6f67',
                         'bg': '#08111d',
                         'text': '#f5f7fa',
+                        'button_text': '#f5f7fa',
+                        'button_bg': '#0f172a',
+                        'panel_flat': '#0e1727',
+                        'line': '#90a1b9',
+                        'shadow': 'medium',
+                        'system_image_mode': 'home',
+                        'font': 'plex',
                         'ui': 'dark',
                         'bg_light': '#f2f0e9',
                         'text_light': '#0f172a',
@@ -12460,6 +12474,13 @@ def club_onboarding_page(request):
             theme_form['secondary'] = str(override.get('secondary') or default.get('secondary') or theme_form['secondary']).strip() or theme_form['secondary']
             theme_form['bg'] = str(override.get('bg') or default.get('bg') or theme_form['bg']).strip() or theme_form['bg']
             theme_form['text'] = str(override.get('text') or default.get('text') or theme_form['text']).strip() or theme_form['text']
+            theme_form['button_text'] = str(override.get('button_text') or default.get('button_text') or theme_form['button_text']).strip() or theme_form['button_text']
+            theme_form['button_bg'] = str(override.get('button_bg') or default.get('button_bg') or theme_form['button_bg']).strip() or theme_form['button_bg']
+            theme_form['panel_flat'] = str(override.get('panel_flat') or default.get('panel_flat') or theme_form['panel_flat']).strip() or theme_form['panel_flat']
+            theme_form['line'] = str(override.get('line') or default.get('line') or theme_form['line']).strip() or theme_form['line']
+            theme_form['shadow'] = str(override.get('shadow') or default.get('shadow') or theme_form['shadow']).strip().lower() or theme_form['shadow']
+            theme_form['system_image_mode'] = str(override.get('system_image_mode') or default.get('system_image_mode') or theme_form['system_image_mode']).strip().lower() or theme_form['system_image_mode']
+            theme_form['font'] = str(override.get('font') or default.get('font') or theme_form['font']).strip().lower() or theme_form['font']
             theme_form['ui'] = str(override.get('ui') or default.get('ui') or theme_form['ui']).strip().lower() or theme_form['ui']
             theme_form['bg_light'] = str(override.get('bg_light') or default.get('bg_light') or theme_form['bg_light']).strip() or theme_form['bg_light']
             theme_form['text_light'] = str(override.get('text_light') or default.get('text_light') or theme_form['text_light']).strip() or theme_form['text_light']
@@ -12600,6 +12621,19 @@ def club_onboarding_page(request):
                 secondary = _clean_hex(request.POST.get('theme_secondary'), theme_form.get('secondary') or '#f4b400')
                 bg = _clean_hex(request.POST.get('theme_bg'), theme_form.get('bg') or '#08111d')
                 text = _clean_hex(request.POST.get('theme_text'), theme_form.get('text') or '#f5f7fa')
+                button_text = _clean_hex(request.POST.get('theme_button_text'), theme_form.get('button_text') or '#f5f7fa')
+                button_bg = _clean_hex(request.POST.get('theme_button_bg'), theme_form.get('button_bg') or '#0f172a')
+                panel_flat = _clean_hex(request.POST.get('theme_panel_flat'), theme_form.get('panel_flat') or '#0e1727')
+                line = _clean_hex(request.POST.get('theme_line'), theme_form.get('line') or '#90a1b9')
+                shadow = str(request.POST.get('theme_shadow') or theme_form.get('shadow') or 'medium').strip().lower()
+                if shadow not in {'none', 'soft', 'medium', 'strong'}:
+                    shadow = 'medium'
+                system_image_mode = str(request.POST.get('theme_system_image_mode') or theme_form.get('system_image_mode') or 'home').strip().lower()
+                if system_image_mode not in {'home', 'system', 'both', 'none'}:
+                    system_image_mode = 'home'
+                font = str(request.POST.get('theme_font') or theme_form.get('font') or 'plex').strip().lower()
+                if font not in {'plex', 'system', 'avenir', 'segoe', 'roboto', 'georgia', 'condensed'}:
+                    font = 'plex'
                 ui = str(request.POST.get('theme_ui') or theme_form.get('ui') or 'dark').strip().lower()
                 if ui not in {'dark', 'light', 'hc'}:
                     ui = 'dark'
@@ -12614,9 +12648,25 @@ def club_onboarding_page(request):
                 teams = raw.get('teams') if isinstance(raw.get('teams'), dict) else {}
                 default = dict(default)
                 teams = dict(teams)
+                theme_payload = {
+                    'primary': primary,
+                    'secondary': secondary,
+                    'bg': bg,
+                    'text': text,
+                    'button_text': button_text,
+                    'button_bg': button_bg,
+                    'panel_flat': panel_flat,
+                    'line': line,
+                    'shadow': shadow,
+                    'system_image_mode': system_image_mode,
+                    'font': font,
+                    'ui': ui,
+                    'bg_light': bg_light,
+                    'text_light': text_light,
+                }
                 if use_as_default:
-                    default.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light})
-                teams[str(int(primary_team.id))] = {'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light}
+                    default.update(theme_payload)
+                teams[str(int(primary_team.id))] = theme_payload
                 raw['default'] = default
                 raw['teams'] = teams
                 WorkspacePreference.objects.update_or_create(
@@ -12624,7 +12674,7 @@ def club_onboarding_page(request):
                     key='brand_theme:v1',
                     defaults={'value': raw},
                 )
-                theme_form.update({'primary': primary, 'secondary': secondary, 'bg': bg, 'text': text, 'ui': ui, 'bg_light': bg_light, 'text_light': text_light})
+                theme_form.update(theme_payload)
                 success = 'Identidad corporativa guardada.'
             except Exception as exc:
                 error = str(exc) or 'No se pudo guardar el tema.'
