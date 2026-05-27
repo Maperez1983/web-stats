@@ -539,7 +539,12 @@
           <a href="{% url 'convocation-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-convocation">Generar PDF</a>
           <a href="{% url 'convocation-referee-pdf' %}?team={{ primary_team_id }}{% if active_match_id %}&match_id={{ active_match_id }}{% endif %}" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" id="pdf-referee">Ficha árbitro PDF</a>
           <button id="share-convocation-pdf" class="button {% if not can_generate_convocation_pdf %}is-disabled{% endif %}" type="button">Compartir PDF</button>
+          <button id="copy-convocation-whatsapp" class="button {% if not convocation_whatsapp_text %}is-disabled{% endif %}" type="button">Copiar WhatsApp</button>
           <span id="convocation-message" class="status"></span>
+        </div>
+        <div style="margin-top:0.85rem;">
+          <label for="convocation-whatsapp-text" style="display:block;font-weight:900;letter-spacing:0.04em;text-transform:uppercase;color:var(--muted);font-size:0.78rem;margin-bottom:0.35rem;">Mensaje WhatsApp</label>
+          <textarea id="convocation-whatsapp-text" readonly rows="7" style="width:100%;resize:vertical;border-radius:16px;border:1px solid rgba(148,163,184,0.22);background:rgba(2,6,23,0.42);color:var(--text);padding:0.85rem;font:inherit;line-height:1.45;">{{ convocation_whatsapp_text }}</textarea>
         </div>
         {% if has_pending_convocation %}
         <p class="pending-note">Próximo partido guardado. La convocatoria sigue pendiente y el PDF se activará cuando cierres la lista.</p>
@@ -1006,6 +1011,8 @@
       const pdfButton = document.querySelector('#pdf-convocation');
       const refereePdfButton = document.querySelector('#pdf-referee');
       const sharePdfButton = document.querySelector('#share-convocation-pdf');
+      const whatsappButton = document.querySelector('#copy-convocation-whatsapp');
+      const whatsappText = document.querySelector('#convocation-whatsapp-text');
 
       const updatePdfState = () => {
         const enabled = selectedSet.size > 0;
@@ -1021,7 +1028,30 @@
         if (sharePdfButton) {
           sharePdfButton.title = enabled ? '' : 'El enlace se activa al guardar una lista con jugadores convocados.';
         }
+        if (whatsappButton) {
+          const hasText = Boolean(String(whatsappText?.value || '').trim());
+          whatsappButton.classList.toggle('is-disabled', !hasText);
+          whatsappButton.title = hasText ? '' : 'Guarda la convocatoria para generar el mensaje.';
+        }
       };
+
+      whatsappButton?.addEventListener('click', async () => {
+        const text = String(whatsappText?.value || '').trim();
+        if (!text || whatsappButton.classList.contains('is-disabled')) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          showMessage('Mensaje de WhatsApp copiado.', 'ok');
+        } catch (error) {
+          try {
+            whatsappText?.focus();
+            whatsappText?.select();
+            document.execCommand('copy');
+            showMessage('Mensaje de WhatsApp copiado.', 'ok');
+          } catch (fallbackError) {
+            showMessage('No se pudo copiar. Selecciona el texto manualmente.', 'warn');
+          }
+        }
+      });
 
       const saveConvocation = async () => {
         normalizeRoles();
@@ -1054,6 +1084,9 @@
         if (!response.ok) {
           showMessage(payload.error || 'No se pudo guardar la convocatoria.', 'error');
           return;
+        }
+        if (whatsappText && typeof payload.whatsapp_text === 'string') {
+          whatsappText.value = payload.whatsapp_text;
         }
         updatePdfState();
         if (payload.pending_convocation) {

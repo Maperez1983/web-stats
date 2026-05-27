@@ -4257,6 +4257,37 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(record.captain_id, self.player.id)
         self.assertEqual(record.goalkeeper_id, self.player.id)
 
+    def test_save_convocation_returns_whatsapp_message(self):
+        second_player = Player.objects.create(team=self.team, name='Francisco', number=9, position='DC')
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse('convocation-save'),
+            data=json.dumps(
+                {
+                    'players': [self.player.id, second_player.id],
+                    'match_info': {
+                        'opponent': 'Francisco',
+                        'round': 'Castejón',
+                        'date': '2026-05-29',
+                        'time': '18:30',
+                        'location': 'Caña Chaqueta',
+                    },
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        text = response.json().get('whatsapp_text') or ''
+        self.assertIn('⚽️Benagalbon - Francisco', text)
+        self.assertIn('📅Castejón 29/05/2026', text)
+        self.assertIn('🕢18:30h', text)
+        self.assertIn('📍Convocatoria: 17:45h', text)
+        self.assertIn('🏟️Estadio: Caña Chaqueta', text)
+        self.assertIn('1. Martinez', text)
+        self.assertIn('2. Francisco', text)
+
     def test_player_detail_shows_pending_convocation_alert(self):
         self.client.force_login(self.user)
         ConvocationRecord.objects.create(

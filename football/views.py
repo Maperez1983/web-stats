@@ -8730,6 +8730,59 @@ def _build_next_match_from_convocation(primary_team):
     return normalize_next_match_payload(payload)
 
 
+def _build_convocation_whatsapp_text(record, primary_team):
+    if not record or not primary_team:
+        return ''
+    team_name = str(getattr(primary_team, 'display_name', '') or getattr(primary_team, 'name', '') or '').strip()
+    opponent = str(getattr(record, 'opponent_name', '') or '').strip()
+    if not opponent and getattr(record, 'match', None):
+        try:
+            match = record.match
+            opponent_team = match.away_team if match.home_team_id == primary_team.id else match.home_team
+            opponent = str(getattr(opponent_team, 'display_name', '') or getattr(opponent_team, 'name', '') or '').strip()
+        except Exception:
+            opponent = ''
+    opponent = opponent or 'Rival por confirmar'
+
+    date_label = record.match_date.strftime('%d/%m/%Y') if getattr(record, 'match_date', None) else ''
+    time_label = record.match_time.strftime('%H:%M') if getattr(record, 'match_time', None) else ''
+    call_time_label = ''
+    if getattr(record, 'match_time', None):
+        try:
+            call_dt = datetime.combine(date.today(), record.match_time) - timedelta(minutes=45)
+            call_time_label = call_dt.strftime('%H:%M')
+        except Exception:
+            call_time_label = ''
+    round_label = str(getattr(record, 'round', '') or '').strip()
+    location = str(getattr(record, 'location', '') or '').strip()
+
+    lines = [f'⚽️{team_name} - {opponent}'.strip()]
+    date_bits = ' '.join([part for part in [round_label, date_label] if part]).strip()
+    match_line = ''
+    if date_bits:
+        match_line = f'📅{date_bits}'
+    if time_label:
+        match_line = f'{match_line}       🕢{time_label}h'.strip()
+    if match_line:
+        lines.append(match_line)
+    if call_time_label:
+        lines.append(f'📍Convocatoria: {call_time_label}h')
+    if location:
+        lines.append(f'🏟️Estadio: {location}')
+    lines.append('👤Jugadores:')
+
+    players = []
+    try:
+        players = list(record.players.order_by('number', 'name', 'id'))
+    except Exception:
+        players = []
+    for idx, player in enumerate(players, start=1):
+        name = str(getattr(player, 'name', '') or '').strip()
+        if name:
+            lines.append(f'{idx}. {name}')
+    return '\n'.join(lines).strip()
+
+
 def _build_coach_rival_summary(primary_team):
     next_match_payload = load_preferred_next_match_payload(primary_team=primary_team)
     if not next_match_payload and primary_team and primary_team.group:
@@ -23170,6 +23223,7 @@ def convocation_page(request):
             'has_saved_convocation': bool(convocation_record and selected_player_ids),
             'has_pending_convocation': bool(convocation_record and not selected_player_ids),
             'can_generate_convocation_pdf': bool(convocation_record and selected_player_ids),
+            'convocation_whatsapp_text': _build_convocation_whatsapp_text(convocation_record, primary_team) if convocation_record else '',
             'opponent_options_json': json.dumps(opponent_options, ensure_ascii=False),
             'home_location_label': home_location,
         },
@@ -23370,6 +23424,7 @@ def save_convocation(request):
         record.save(update_fields=['captain', 'goalkeeper'])
     _invalidate_team_dashboard_caches(primary_team)
     pending = players.count() == 0
+    whatsapp_text = _build_convocation_whatsapp_text(record, primary_team)
     return JsonResponse(
         {
             'saved': True,
@@ -23378,6 +23433,7 @@ def save_convocation(request):
             'match_id': target_match.id if target_match else None,
             'injury_warning_count': len(injured_players),
             'injury_warning_players': injured_players[:8],
+            'whatsapp_text': whatsapp_text,
         }
     )
 
