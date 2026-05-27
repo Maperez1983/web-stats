@@ -43,7 +43,7 @@ from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
 from football.task_library import filter_task_library, prepare_task_library
 from football.stats_audit import run_stats_audit
-from football.views import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
+from football.dashboard_services import SCRAPE_LOCK_KEY, compute_player_cards_for_match, compute_player_dashboard, compute_player_metrics, compute_team_metrics_for_match
 from django.test import override_settings
 from unittest.mock import patch
 import requests

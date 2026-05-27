@@ -35,7 +35,7 @@ from football.models import (
     WorkspaceTeam,
     WorkspaceMembership,
 )
-from football.views import compute_player_dashboard, kpi_audit, player_dashboard_page, player_detail_page
+from football.dashboard_services import compute_player_dashboard, kpi_audit, player_dashboard_page, player_detail_page
 
 
 def _make_request(user, *, path='/', method='get', session_data=None, query_string=''):

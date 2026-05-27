@@ -79,6 +79,7 @@ from .dashboard_cache import (
 from .event_signatures import event_signature, event_signature_canon_text, is_manual_event_source
 from .ops_logging import log_exception
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
+from . import session_import_services
 from . import universo_client
 from .ai_trainer import ai_trainer_index_task, ai_trainer_tokenize, normalize_ai_trainer_text
 from .library_repositories import (
@@ -1335,76 +1336,15 @@ def _extract_ig_task_fields_from_caption_images(uploaded_images) -> dict:
 
 
 def _get_or_create_inbox_microcycle(team):
-    if not team:
-        return None
-    try:
-        obj = TrainingMicrocycle.objects.filter(team=team, week_start=INBOX_MICROCYCLE_WEEK_START).first()
-        if obj:
-            changed = False
-            if getattr(obj, 'week_end', None) != INBOX_MICROCYCLE_WEEK_END:
-                obj.week_end = INBOX_MICROCYCLE_WEEK_END
-                changed = True
-            if str(getattr(obj, 'title', '') or '').strip() != INBOX_MICROCYCLE_TITLE:
-                obj.title = INBOX_MICROCYCLE_TITLE
-                changed = True
-            if changed:
-                try:
-                    obj.save(update_fields=['title', 'week_end', 'updated_at'])
-                except Exception:
-                    obj.save()
-            return obj
-        return TrainingMicrocycle.objects.create(
-            team=team,
-            title=INBOX_MICROCYCLE_TITLE,
-            objective='',
-            week_start=INBOX_MICROCYCLE_WEEK_START,
-            week_end=INBOX_MICROCYCLE_WEEK_END,
-            status=TrainingMicrocycle.STATUS_DRAFT,
-            notes='(Sistema) Bandeja de sesiones sueltas.',
-        )
-    except Exception:
-        return None
+    return session_import_services.get_or_create_inbox_microcycle(team)
 
 
 def _week_bounds_for_date(value):
-    if not value:
-        return None, None
-    try:
-        weekday = int(value.weekday())
-    except Exception:
-        return None, None
-    week_start = value - timedelta(days=weekday)
-    week_end = week_start + timedelta(days=6)
-    return week_start, week_end
+    return session_import_services.week_bounds_for_date(value)
 
 
 def _get_or_create_week_microcycle(team, session_date, *, title_hint=''):
-    """
-    Crea (si hace falta) un microciclo semanal real para una fecha.
-
-    Importante: evita meter sesiones importadas siempre en la bandeja "Sesiones sueltas",
-    para que se comporten igual que una sesión creada manualmente.
-    """
-    if not team or not session_date:
-        return None
-    week_start, week_end = _week_bounds_for_date(session_date)
-    if not week_start or not week_end:
-        return None
-    try:
-        existing = TrainingMicrocycle.objects.filter(team=team, week_start=week_start).first()
-        if existing:
-            return existing
-        return TrainingMicrocycle.objects.create(
-            team=team,
-            title=str(title_hint or 'Microciclo semanal').strip()[:140] or 'Microciclo semanal',
-            objective='',
-            week_start=week_start,
-            week_end=week_end,
-            status=TrainingMicrocycle.STATUS_DRAFT,
-            notes='(Sistema) Microciclo creado automáticamente desde sesión importada.',
-        )
-    except Exception:
-        return None
+    return session_import_services.get_or_create_week_microcycle(team, session_date, title_hint=title_hint)
 TASK_SURFACE_CHOICES = [
     ('natural_grass', 'Hierba natural'),
     ('hybrid_grass', 'Hierba híbrida'),
@@ -29972,61 +29912,7 @@ def _extract_pdf_text(pdf_file, max_chars=12000):
 
 
 def _parse_pdf_session_header_fields(extracted_text):
-    """
-    Extrae metadatos de cabecera típicos en PDFs de sesión (fecha, hora, micro/mesociclo, MD, nº sesión).
-    """
-    text = str(extracted_text or '')
-    if not text.strip():
-        return {}
-    cleaned = _polish_spanish_text(_repair_joined_words_text(text), multiline=True)
-    out = {}
-    try:
-        m = re.search(r'(?i)\bfecha\s*:\s*(\d{2}/\d{2}/\d{4})\b', cleaned)
-        if m:
-            out['date'] = datetime.strptime(m.group(1), '%d/%m/%Y').date()
-    except Exception:
-        pass
-    try:
-        m = re.search(r'(?i)\bhora\s*:\s*(\d{1,2})\s*[:h]\s*(\d{2})\b', cleaned)
-        if m:
-            hh = int(m.group(1))
-            mm = int(m.group(2))
-            if 0 <= hh <= 23 and 0 <= mm <= 59:
-                out['time'] = time(hh, mm)
-    except Exception:
-        pass
-    try:
-        m = re.search(r'(?i)\bmicro[\s\-]*ciclo\s*:\s*(?:n[º°o]\s*)?0*(\d{1,3})\b', cleaned)
-        if m:
-            out['microcycle_number'] = int(m.group(1))
-    except Exception:
-        pass
-    try:
-        m = re.search(r'(?i)\bmeso[\s\-]*ciclo\s*:\s*(?:n[º°o]\s*)?0*(\d{1,3})\b', cleaned)
-        if m:
-            out['mesocycle_number'] = int(m.group(1))
-    except Exception:
-        pass
-    try:
-        m = re.search(r'(?i)\bmd\s*:\s*([+\-]?\s*\d{1,2})\b', cleaned)
-        if m:
-            raw = m.group(1).replace(' ', '')
-            out['md'] = int(raw)
-        # Variante común: "MD: -4 Nº127" (sin la palabra "Sesión").
-        m = re.search(r'(?i)\bmd\s*:\s*([+\-]?\s*\d{1,2})\s*(?:n[º°o]\s*)?0*(\d{1,4})\b', cleaned)
-        if m:
-            raw = m.group(1).replace(' ', '')
-            out['md'] = int(raw)
-            out['session_number'] = int(m.group(2))
-    except Exception:
-        pass
-    try:
-        m = re.search(r'(?i)\b(?:sesion|sesión)\s*(?:n[º°o]\s*)?0*(\d{1,4})\b', cleaned)
-        if m:
-            out['session_number'] = int(m.group(1))
-    except Exception:
-        pass
-    return out
+    return session_import_services.parse_pdf_session_header_fields(extracted_text)
 
 
 def _suggest_session_plan_fields_from_pdf_text(extracted_text, *, imported_doc_id=None):
@@ -34749,7 +34635,7 @@ def _sessions_tab_from_action(action):
 
 
 def _next_session_task_order(session):
-    return (SessionTask.objects.filter(session=session, deleted_at__isnull=True).aggregate(Max('order')).get('order__max') or 0) + 1
+    return session_import_services.next_session_task_order(session)
 
 
 def _clone_session_task_to_session(source_task, target_session, note=''):

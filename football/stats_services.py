@@ -1,4 +1,5 @@
 from django.db.models import Count, Q
+from django.utils.module_loading import import_string
 
 from .event_signatures import event_signature, is_manual_event_source
 from .models import Match, MatchEvent
@@ -92,9 +93,7 @@ def filter_stats_events(rows, preferred_sources=None):
 
 
 def compute_player_cards(primary_team, *, force_refresh=False, scope=None, tournament_name=None):
-    from .views import compute_player_cards as view_compute_player_cards
-
-    return view_compute_player_cards(
+    return import_string('football.views.compute_player_cards')(
         primary_team,
         force_refresh=force_refresh,
         scope=scope,
