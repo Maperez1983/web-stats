@@ -63,7 +63,9 @@ from .preview_render import render_html_selector_png, render_task_preview_png
 from .drills import DRILL_CATALOG, drill_cards, normalize_drill_ids
 from .competition_sync import sync_workspace_competition_context
 from . import permissions
+from . import player_documents
 from . import stats_services
+from . import task_library_services
 from . import workspace_context
 from . import workspace_ui
 from .dashboard_cache import (
@@ -2142,86 +2144,11 @@ def _player_photo_storage_candidates(player):
 
 
 def _player_license_storage_candidates(player):
-    if not player:
-        return []
-    base_name = f'player-licenses/player-{player.id}'
-    return [
-        f'{base_name}.pdf',
-        f'{base_name}.jpg',
-        f'{base_name}.jpeg',
-        f'{base_name}.png',
-        f'{base_name}.webp',
-    ]
+    return player_documents.player_license_storage_candidates(player)
 
 
 def save_player_license(player, uploaded_license):
-    """
-    Guarda una licencia federativa del jugador (PDF o imagen).
-
-    - Usa nombre determinista `player-licenses/player-{id}.*`.
-    - Limpia versiones previas (extensiones distintas).
-    - Normaliza imágenes a JPEG cuando Pillow está disponible.
-    """
-    if not player or not uploaded_license:
-        return ''
-    try:
-        storage = storages['default']
-        if isinstance(storage, FileSystemStorage):
-            storage = FileSystemStorage(location=getattr(settings, 'MEDIA_ROOT', None), base_url=getattr(settings, 'MEDIA_URL', '/media/'))
-
-        raw_name = str(getattr(uploaded_license, 'name', '') or '')
-        extension = Path(raw_name).suffix.lower()
-        content_type = str(getattr(uploaded_license, 'content_type', '') or '').lower()
-        is_pdf = extension == '.pdf' or content_type == 'application/pdf'
-
-        if hasattr(uploaded_license, 'seek'):
-            uploaded_license.seek(0)
-        raw_bytes = uploaded_license.read()
-        if not raw_bytes:
-            return ''
-
-        target_ext = '.pdf' if is_pdf else (extension if extension in {'.jpg', '.jpeg', '.png', '.webp'} else '.jpg')
-        if is_pdf:
-            content = ContentFile(raw_bytes)
-            target_ext = '.pdf'
-        else:
-            if Image is None:
-                if target_ext not in {'.jpg', '.jpeg', '.png', '.webp'}:
-                    return ''
-                content = ContentFile(raw_bytes)
-            else:
-                try:
-                    with Image.open(io.BytesIO(raw_bytes)) as img:
-                        if ImageOps is not None:
-                            try:
-                                img = ImageOps.exif_transpose(img)
-                            except Exception:
-                                pass
-                        if img.mode in ('RGBA', 'LA', 'P'):
-                            converted = img.convert('RGBA')
-                            background = Image.new('RGBA', converted.size, (255, 255, 255, 255))
-                            background.alpha_composite(converted)
-                            normalized = background.convert('RGB')
-                        else:
-                            normalized = img.convert('RGB')
-                        buffer = io.BytesIO()
-                        normalized.save(buffer, format='JPEG', optimize=True, quality=82)
-                        content = ContentFile(buffer.getvalue())
-                        target_ext = '.jpg'
-                except Exception:
-                    return ''
-
-        target_name = f'player-licenses/player-{player.id}{target_ext}'
-        for candidate in _player_license_storage_candidates(player):
-            try:
-                if storage.exists(candidate):
-                    storage.delete(candidate)
-            except Exception:
-                logger.exception('No se pudo limpiar una licencia previa del jugador %s', player.id)
-        return storage.save(target_name, content)
-    except Exception:
-        logger.exception('No se pudo guardar la licencia del jugador %s', getattr(player, 'id', None))
-        return ''
+    return player_documents.save_player_license(player, uploaded_license)
 
 
 def resolve_player_license_url(request, player):
@@ -30186,21 +30113,7 @@ def _analyze_preview_image_bytes(raw_bytes):
 
 
 def _is_preview_quality_low(raw_bytes):
-    metrics = _analyze_preview_image_bytes(raw_bytes)
-    if not metrics:
-        return False
-    score = float(metrics.get('score') or 0.0)
-    area = int(metrics.get('area') or 0)
-    white_ratio = float(metrics.get('white_ratio') or 0.0)
-    green_ratio = float(metrics.get('green_ratio') or 0.0)
-    # Typical bad previews: tiny crops, white text snippets, or non-graphic chunks.
-    if area < 260 * 170:
-        return True
-    if score < 10.0:
-        return True
-    if white_ratio > 0.72 and green_ratio < 0.08:
-        return True
-    return False
+    return task_library_services.is_preview_quality_low(raw_bytes)
 
 
 def _extract_preview_images_from_pdf(pdf_file, max_images=8, prefer_render=False):
@@ -31555,28 +31468,7 @@ def _ensure_task_preview_image(task, prefer_render=False):
 
 
 def _task_preview_needs_refresh(task):
-    if not task:
-        return False
-    preview_name = str(getattr(task, 'task_preview_image', '') or '').strip()
-    if not preview_name:
-        return True
-    try:
-        if not default_storage.exists(preview_name):
-            return True
-    except Exception:
-        return True
-    cache_key = f'football:preview-quality:{preview_name}'
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return bool(cached)
-    try:
-        with default_storage.open(preview_name, 'rb') as handle:
-            raw = handle.read()
-        needs_refresh = _is_preview_quality_low(raw)
-    except Exception:
-        needs_refresh = True
-    cache.set(cache_key, bool(needs_refresh), 60 * 60 * 6)
-    return bool(needs_refresh)
+    return task_library_services.task_preview_needs_refresh(task)
 
 
 def _ensure_library_task_preview(task, force=False, prefer_render=False):
@@ -33741,10 +33633,7 @@ def _persist_detected_resources_library(task_items, scope_key='coach'):
 
 
 def _task_scope_for_item(task):
-    layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
-    meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-    scope = str(meta.get('scope') or '').strip()
-    return scope or 'coach'
+    return task_library_services.task_scope_for_item(task)
 
 
 def _get_or_create_library_session(team, scope_key):
