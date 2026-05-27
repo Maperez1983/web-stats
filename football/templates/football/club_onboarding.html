@@ -654,6 +654,7 @@
                   <img id="kit2d-home-preview" alt="Vista previa 1ª equipación" style="display:none;max-width:96px;max-height:96px;" />
                   <span id="kit2d-home-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
                 </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="home" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
               </div>
               <div>
                 <label for="id_kit2d_away_file">2ª equipación</label>
@@ -662,6 +663,7 @@
                   <img id="kit2d-away-preview" alt="Vista previa 2ª equipación" style="display:none;max-width:96px;max-height:96px;" />
                   <span id="kit2d-away-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
                 </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="away" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
               </div>
               <div>
                 <label for="id_kit2d_gk_file">Portero</label>
@@ -674,6 +676,7 @@
                   <input id="id_kit2d_gk_recolor" type="color" value="{{ kit_form.gk_main|default:'#1d4ed8' }}" aria-label="Color kit portero generado" />
                   <button class="btn btn-ghost" type="button" id="kit2d-gk-generate" style="padding:0.45rem 0.6rem;">Generar desde 1ª</button>
                 </div>
+                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
               </div>
             </div>
             <p id="kit2d-direct-status" style="margin:0.75rem 0 0;color:rgba(226,232,240,0.76);font-size:0.9rem;">
@@ -931,6 +934,7 @@
         var kit2dStatus = document.getElementById('kit2d-direct-status');
         var kit2dGkGenerate = document.getElementById('kit2d-gk-generate');
         var kit2dGkRecolor = document.getElementById('id_kit2d_gk_recolor');
+        var kit2dTemplateButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-kit2d-template-slot]') || []);
         var kit2dExistingValue = {};
         var kit2dPrepared = {};
 
@@ -1060,6 +1064,97 @@
           return canvas.toDataURL('image/png');
         }
 
+        function addTemplateJerseyPath(ctx, size) {
+          var s = size / 128;
+          ctx.beginPath();
+          ctx.moveTo(33 * s, 32 * s);
+          ctx.bezierCurveTo(33 * s, 22 * s, 39 * s, 18 * s, 47 * s, 18 * s);
+          ctx.lineTo(54 * s, 18 * s);
+          ctx.bezierCurveTo(57 * s, 25 * s, 71 * s, 25 * s, 74 * s, 18 * s);
+          ctx.lineTo(82 * s, 18 * s);
+          ctx.bezierCurveTo(90 * s, 18 * s, 96 * s, 22 * s, 96 * s, 32 * s);
+          ctx.lineTo(111 * s, 43 * s);
+          ctx.lineTo(101 * s, 62 * s);
+          ctx.lineTo(93 * s, 58 * s);
+          ctx.lineTo(93 * s, 108 * s);
+          ctx.bezierCurveTo(93 * s, 113 * s, 89 * s, 116 * s, 84 * s, 116 * s);
+          ctx.lineTo(44 * s, 116 * s);
+          ctx.bezierCurveTo(39 * s, 116 * s, 35 * s, 113 * s, 35 * s, 108 * s);
+          ctx.lineTo(35 * s, 58 * s);
+          ctx.lineTo(27 * s, 62 * s);
+          ctx.lineTo(17 * s, 43 * s);
+          ctx.closePath();
+        }
+
+        function renderTemplateKit2dDataUrl(size, mainColor, trimColor, slot) {
+          var canvas = document.createElement('canvas');
+          var ctx = canvas.getContext('2d');
+          var s = size / 128;
+          canvas.width = size;
+          canvas.height = size;
+          ctx.clearRect(0, 0, size, size);
+          ctx.save();
+          addTemplateJerseyPath(ctx, size);
+          ctx.clip();
+          ctx.fillStyle = mainColor;
+          ctx.fillRect(0, 0, size, size);
+          if (slot === 'home') {
+            var stripeW = 10 * s;
+            for (var x = 24 * s; x < 104 * s; x += stripeW * 2) {
+              ctx.fillStyle = trimColor;
+              ctx.fillRect(x, 0, stripeW, size);
+            }
+          } else {
+            ctx.fillStyle = trimColor;
+            ctx.globalAlpha = 0.88;
+            ctx.fillRect(28 * s, 50 * s, 72 * s, 10 * s);
+            ctx.fillRect(56 * s, 18 * s, 16 * s, 98 * s);
+            ctx.globalAlpha = 1;
+          }
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fillRect(0, 18 * s, size, 22 * s);
+          ctx.restore();
+          ctx.save();
+          ctx.lineWidth = Math.max(2, 3 * s);
+          ctx.strokeStyle = 'rgba(255,255,255,0.90)';
+          addTemplateJerseyPath(ctx, size);
+          ctx.stroke();
+          ctx.restore();
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(51 * s, 18 * s);
+          ctx.bezierCurveTo(55 * s, 34 * s, 73 * s, 34 * s, 77 * s, 18 * s);
+          ctx.lineTo(70 * s, 18 * s);
+          ctx.bezierCurveTo(67 * s, 26 * s, 61 * s, 26 * s, 58 * s, 18 * s);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(15,23,42,0.28)';
+          ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+          ctx.lineWidth = Math.max(1, 1.5 * s);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          return canvas.toDataURL('image/png');
+        }
+
+        function kit2dColorsForSlot(slot) {
+          if (slot === 'away') {
+            return {
+              main: (document.getElementById('id_kit_away_main') || {}).value || '#0b1220',
+              trim: (document.getElementById('id_kit_away_trim') || {}).value || '#f4b400'
+            };
+          }
+          if (slot === 'gk') {
+            return {
+              main: (document.getElementById('id_kit_gk_main') || {}).value || '#1d4ed8',
+              trim: (document.getElementById('id_kit_gk_trim') || {}).value || '#ffffff'
+            };
+          }
+          return {
+            main: (document.getElementById('id_kit_home_main') || {}).value || '#06814d',
+            trim: (document.getElementById('id_kit_home_trim') || {}).value || '#ffffff'
+          };
+        }
+
         function kit2dSlotLabel(slot) {
           if (slot === 'away') return '2ª equipación';
           if (slot === 'gk') return 'portero';
@@ -1154,6 +1249,27 @@
           }, function () {
             setKit2dStatus('No se pudo generar el kit de portero desde la 1ª equipación.', true);
           });
+        }
+
+        function generateTemplateKit(slot) {
+          slot = slot === 'away' || slot === 'gk' ? slot : 'home';
+          var colors = kit2dColorsForSlot(slot);
+          var clubDataUrl = renderTemplateKit2dDataUrl(128, colors.main, colors.trim, slot);
+          var editorDataUrl = renderTemplateKit2dDataUrl(64, colors.main, colors.trim, slot);
+          kit2dPrepared[slot] = {
+            club_data_url: clubDataUrl,
+            editor_data_url: editorDataUrl,
+            club_size: 128,
+            editor_size: 64,
+            source: 'generated_template',
+            file_name: 'kit_' + slot + '_colores.png',
+            main_color: colors.main,
+            trim_color: colors.trim,
+            saved_at: new Date().toISOString()
+          };
+          setKit2dPreview(slot, clubDataUrl);
+          if (kit2dSave) kit2dSave.disabled = false;
+          setKit2dStatus(kit2dSlotLabel(slot) + ' generada con colores. Pulsa guardar para aplicarla.', false);
         }
 
         function buildKit2dPreferenceValue() {
@@ -1318,6 +1434,14 @@
 
         if (kit2dGkGenerate) {
           kit2dGkGenerate.addEventListener('click', generateGoalkeeperKitFromHome);
+        }
+
+        if (kit2dTemplateButtons.length) {
+          kit2dTemplateButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+              generateTemplateKit(button.dataset.kit2dTemplateSlot);
+            });
+          });
         }
 
         window.addEventListener('pagehide', function () {
