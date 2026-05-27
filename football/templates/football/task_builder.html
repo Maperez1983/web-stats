@@ -417,7 +417,10 @@
 		      body.tactics-mode .tpad-stadium .pitch-stage,
 		      body.stadium-mode .tpad-stadium .pitch-stage {
 	        position: relative;
-	        background: rgba(2, 6, 23, 0.18);
+	        /* Fallback visible si el SVG del césped tarda o falla: nunca debe verse como una losa negra. */
+	        background:
+	          linear-gradient(90deg, rgba(255,255,255,0.055) 0 8.33%, rgba(0,0,0,0.045) 8.33% 16.66%),
+	          linear-gradient(180deg, #5f8f42, #557f3c);
 	        box-shadow:
 	          0 18px 55px rgba(0,0,0,0.52),
 	          inset 0 1px 0 rgba(255,255,255,0.10),
