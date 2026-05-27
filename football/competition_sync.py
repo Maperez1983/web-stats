@@ -4,6 +4,12 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .dashboard_cache import invalidate_team_dashboard_caches
+from .match_payload_services import (
+    build_match_payload,
+    normalize_next_match_payload,
+    parse_payload_date as _parse_payload_date,
+    payload_opponent_name as _payload_opponent_name,
+)
 from .models import Match, Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
 from .query_helpers import _normalize_team_lookup_key
 from .team_media_services import sync_team_crest_from_sources
@@ -27,10 +33,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
-    normalize_next_match_payload = core_views.normalize_next_match_payload
-    _payload_opponent_name = core_views._payload_opponent_name
-    _parse_payload_date = core_views._parse_payload_date
-    build_match_payload = core_views.build_match_payload
     _build_workspace_schedule_payload = core_views._build_workspace_schedule_payload
 
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
