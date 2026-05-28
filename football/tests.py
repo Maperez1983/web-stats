@@ -39,6 +39,7 @@ from football.manual_stats import get_manual_player_base_overrides, save_manual_
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
 from football import session_pdf, team_media_services
+from football import dashboard_pending_services
 from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.models import AppUserRole
 from football.services import find_roster_entry
@@ -177,7 +178,7 @@ class PendingCardsRivalReportTests(TestCase):
         return None
 
     def test_pending_card_appears_when_no_reports_exist(self):
-        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        cards = dashboard_pending_services.build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
         card = self._pending_card(cards, 'Informe rival pendiente')
         self.assertIsNotNone(card)
         self.assertIn('No hay un informe rival listo', str(card.get('description') or ''))
@@ -185,7 +186,7 @@ class PendingCardsRivalReportTests(TestCase):
     def test_pending_card_mentions_export_when_report_exists_but_no_pptx(self):
         folder = AnalystVideoFolder.objects.create(team=self.primary_team, rival_team=self.rival_team, name='J01')
         AnalysisVideoReport.objects.create(team=self.primary_team, folder=folder, title='Informe CD Rival')
-        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        cards = dashboard_pending_services.build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
         card = self._pending_card(cards, 'Informe rival pendiente')
         self.assertIsNotNone(card)
         self.assertIn('falta exportar el PPTX', str(card.get('description') or ''))
@@ -194,7 +195,7 @@ class PendingCardsRivalReportTests(TestCase):
         folder = AnalystVideoFolder.objects.create(team=self.primary_team, rival_team=self.rival_team, name='J01')
         report = AnalysisVideoReport.objects.create(team=self.primary_team, folder=folder, title='Informe CD Rival')
         report.pptx_file.save('informe-cd-rival.pptx', SimpleUploadedFile('informe-cd-rival.pptx', b'pptx-bytes'), save=True)
-        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        cards = dashboard_pending_services.build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
         card = self._pending_card(cards, 'Informe rival pendiente')
         self.assertIsNone(card)
 
@@ -205,7 +206,7 @@ class PendingCardsRivalReportTests(TestCase):
             rival_name='CD Rival',
             status=RivalAnalysisReport.STATUS_READY,
         )
-        cards = football_views._build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
+        cards = dashboard_pending_services.build_team_pending_cards(self.primary_team, weekly_brief=self._brief_for('CD Rival'))
         card = self._pending_card(cards, 'Informe rival pendiente')
         self.assertIsNone(card)
 
