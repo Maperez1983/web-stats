@@ -338,11 +338,11 @@
         width: 100%;
         height: auto;
       }
-      .perf-grid { display: table; width: 100%; table-layout: fixed; }
-      .perf-grid-row { display: table-row; }
-      .perf-grid-left, .perf-grid-right { display: table-cell; vertical-align: top; }
-      .perf-grid-left { width: 58%; padding-right: 10px; }
-      .perf-grid-right { width: 42%; }
+      .perf-grid { display: block; width: 100%; }
+      .perf-grid-row { display: block; }
+      .perf-grid-left, .perf-grid-right { display: block; width: 100%; }
+      .perf-grid-left { padding-right: 0; }
+      .perf-grid-right { margin-top: 10px; }
       .perf-title {
         font-size: 10px;
         font-weight: 900;
@@ -495,14 +495,29 @@
       .radar-left { display: table-cell; width: 45%; vertical-align: middle; padding-right: 12px; }
       .radar-right { display: table-cell; width: 55%; vertical-align: middle; padding-left: 12px; }
       .radar-figure { text-align: center; }
-      .radar-figure-wrap { position: relative; width: 300px; height: 300px; margin: 2px auto 0; overflow: visible; }
+      .radar-figure-wrap { position: relative; width: 360px; height: 360px; margin: 2px auto 0; overflow: visible; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
       .radar-figure svg {
         display: block;
-        width: 300px;
-        height: 300px;
+        width: 360px;
+        height: 360px;
         max-width: 100%;
       }
+      .radar-html-label {
+        position: absolute;
+        z-index: 2;
+        color: rgba(226,232,240,0.92);
+        font-size: 12px;
+        font-weight: 1000;
+        line-height: 1;
+        white-space: nowrap;
+        text-shadow: 0 2px 3px rgba(2,6,23,0.95);
+      }
+      .radar-html-label.top { top: 20px; left: 50%; transform: translateX(-50%); }
+      .radar-html-label.right { top: 47%; right: 12px; transform: translateY(-50%); }
+      .radar-html-label.br { right: 30px; bottom: 32px; }
+      .radar-html-label.bl { left: 30px; bottom: 32px; }
+      .radar-html-label.left { top: 47%; left: 12px; transform: translateY(-50%); }
       .radar-legend { margin-top: 8px; }
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -1015,12 +1030,12 @@
 	                                      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(226,232,240,0.20)" stroke-width="1"></circle>
 	                                    {% endfor %}
 	                                  {% endif %}
-	                                  {% if radar_data.axis_svg %}
-	                                    {% for ax in radar_data.axis_svg %}
-	                                      <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
-	                                    {% endfor %}
-	                                  {% endif %}
 	                                </svg>
+	                                <span class="radar-html-label top">Compromiso</span>
+	                                <span class="radar-html-label right">Esfuerzo</span>
+	                                <span class="radar-html-label br">Calidad</span>
+	                                <span class="radar-html-label bl">Importancia</span>
+	                                <span class="radar-html-label left">Influencia</span>
 	                              </div>
 	                            </div>
 	                          </div>
@@ -1107,12 +1122,12 @@
 	                                  {% if card_radar_data.polygon_points_svg %}
 	                                    <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
 	                                  {% endif %}
-	                                  {% if card_radar_data.axis_svg %}
-	                                    {% for ax in card_radar_data.axis_svg %}
-	                                      <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
-	                                    {% endfor %}
-	                                  {% endif %}
 	                                </svg>
+	                                <span class="radar-html-label top">Acc/90</span>
+	                                <span class="radar-html-label right">Éxito</span>
+	                                <span class="radar-html-label br">Part.</span>
+	                                <span class="radar-html-label bl">Importancia</span>
+	                                <span class="radar-html-label left">Influencia</span>
 	                              </div>
 	                            </div>
 	                          </div>
