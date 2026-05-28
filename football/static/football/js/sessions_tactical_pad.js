@@ -22370,12 +22370,12 @@
 	    const buildCompositeCanvas = async (options = {}) => {
 	      const sourceWidth = Math.round(canvas.getWidth());
 	      const sourceHeight = Math.round(canvas.getHeight());
-	      const maxWidth = clamp(Number(options.maxWidth) || sourceWidth, 320, 4096);
+	      const maxWidth = clamp(Number(options.maxWidth) || sourceWidth, 320, 8192);
 	      const ratio = clamp(maxWidth / Math.max(1, sourceWidth), 0.25, 4);
 	      const output = document.createElement('canvas');
 	      let outputWidth = Math.max(320, Math.round(sourceWidth * ratio));
 	      let outputHeight = Math.max(180, Math.round(sourceHeight * ratio));
-	      const maxArea = 16000000;
+	      const maxArea = clamp(Number(options.maxArea) || 16000000, 1000000, 32000000);
 	      const area = outputWidth * outputHeight;
 	      if (area > maxArea) {
 	        const areaScale = Math.sqrt(maxArea / Math.max(1, area));
@@ -22482,20 +22482,21 @@
 	      .replace(/"/g, '&quot;')
 	      .replace(/'/g, '&#39;');
 
-	    const exportCurrentPng = async (maxWidth) => {
+	    const exportCurrentPng = async (maxWidth, options = {}) => {
 	      const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
-	      const composite = await buildCompositeCanvas({ maxWidth });
+	      const composite = await buildCompositeCanvas({ maxWidth, maxArea: options.maxArea });
 	      if (!composite) {
 	        setStatus('No se pudo generar la imagen.', true);
 	        return;
 	      }
-	      const blob = await canvasToBlob(composite, 'image/png', 0.92);
+	      const blob = await canvasToBlob(composite, 'image/png', 0.98);
 	      if (!blob) {
 	        setStatus('No se pudo generar el PNG.', true);
 	        return;
 	      }
-	      downloadBlob(blob, `${title}.png`);
-	      setStatus('PNG descargado.');
+	      const suffix = safeText(options.suffix);
+	      downloadBlob(blob, `${title}${suffix ? `_${suffix}` : ''}.png`);
+	      setStatus(options.status || 'PNG descargado.');
 	    };
 
 			    const exportStateJson = () => {
@@ -23542,6 +23543,7 @@
               const tacticsFormationClear = document.getElementById('tactics-formation-clear');
               const tacticsFormationNumbers = document.getElementById('tactics-formation-numbers');
               const tacticsExportPngBtn = document.getElementById('tactics-export-png');
+              const tacticsExportImageHqBtn = document.getElementById('tactics-export-image-hq');
               const tacticsExportPdfBtn = document.getElementById('tactics-export-pdf');
               const tacticsQuickRecentsEl = document.getElementById('tactics-quick-recents');
               const TACTICS_INTERACTIVE_KEY = 'webstats:tpad:tactics-interactive-v1';
@@ -24381,6 +24383,24 @@
                 exportInFlight = true;
                 (async () => {
                   try { await exportCurrentPng(4096); } catch (e) { /* ignore */ }
+                  exportInFlight = false;
+                })();
+              });
+              tacticsExportImageHqBtn?.addEventListener('click', (event) => {
+                event.preventDefault();
+                if (exportInFlight || isSimulating) return;
+                exportInFlight = true;
+                (async () => {
+                  try {
+                    setStatus('Generando imagen HQ…');
+                    await exportCurrentPng(8192, {
+                      maxArea: 32000000,
+                      suffix: 'campo_hq',
+                      status: 'Imagen HQ descargada.',
+                    });
+                  } catch (e) {
+                    setStatus('No se pudo generar la imagen HQ.', true);
+                  }
                   exportInFlight = false;
                 })();
               });
