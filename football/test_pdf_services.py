@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from django.test import RequestFactory, SimpleTestCase
 
-from football import pdf_services
+from football import healthchecks, pdf_services
 
 
 class PdfServicesTests(SimpleTestCase):
@@ -54,3 +54,13 @@ class PdfServicesTests(SimpleTestCase):
         self.assertEqual(response['Content-Type'], 'application/pdf')
         self.assertEqual(response['Cache-Control'], 'no-store, max-age=0')
         self.assertEqual(response['Content-Disposition'], 'inline; filename="demo.pdf"')
+
+
+class HealthcheckPdfDependencyTests(SimpleTestCase):
+    def test_weasyprint_status_reports_pydyf_incompatibility(self):
+        with patch.object(healthchecks.pdf_services, 'weasyprint', SimpleNamespace()):
+            with patch.object(healthchecks.pdf_services, 'pydyf_compat_status', return_value=(False, '0.11.0')):
+                status = healthchecks._dependency_status()
+
+        self.assertFalse(status['weasyprint']['ok'])
+        self.assertIn('pydyf incompatible (0.11.0)', status['weasyprint']['detail'])

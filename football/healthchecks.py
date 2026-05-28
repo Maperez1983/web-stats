@@ -7,19 +7,28 @@ from pathlib import Path
 from django.conf import settings
 from django.db import connection
 
+from football import pdf_services
+
+
+def _weasyprint_status():
+    if not pdf_services.weasyprint:
+        return {'ok': False, 'detail': 'weasyprint not available'}
+    pydyf_ok, pydyf_version = pdf_services.pydyf_compat_status()
+    if not pydyf_ok:
+        return {'ok': False, 'detail': f'pydyf incompatible ({pydyf_version})'}
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            pdf_prefix = pdf_services.weasyprint.HTML(string='<p>ok</p>').write_pdf()[:4]
+        if pdf_prefix != b'%PDF':
+            raise RuntimeError('PDF smoke did not return a PDF header')
+        return {'ok': True, 'detail': 'available; pdf render ok'}
+    except Exception as exc:
+        return {'ok': False, 'detail': str(exc)}
+
 
 def _dependency_status():
     checks = {}
-    try:
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            import weasyprint
-            pdf_prefix = weasyprint.HTML(string='<p>ok</p>').write_pdf()[:4]
-        if pdf_prefix != b'%PDF':
-            raise RuntimeError('PDF smoke did not return a PDF header')
-
-        checks['weasyprint'] = {'ok': True, 'detail': 'available; pdf render ok'}
-    except Exception as exc:
-        checks['weasyprint'] = {'ok': False, 'detail': str(exc)}
+    checks['weasyprint'] = _weasyprint_status()
 
     try:
         import pytesseract  # noqa: F401
