@@ -38,7 +38,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
-from football import next_match_services, team_media_services, workspace_context
+from football import dashboard_services, next_match_services, team_media_services, workspace_context
 from football import dashboard_pending_services
 from football.session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from football.models import AppUserRole
@@ -1743,7 +1743,7 @@ class TeamMatchQuerysetIsolationTests(TestCase):
             source_file='registro-acciones',
         )
 
-        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        rows = dashboard_services.compute_player_dashboard(self.team_pre, force_refresh=True)
         detail = next((row for row in rows if row.get('player_id') == player.id), {})
         match_ids = {int(item.get('match_id') or 0) for item in (detail.get('matches') or [])}
 
@@ -1789,7 +1789,7 @@ class TeamMatchQuerysetIsolationTests(TestCase):
             source_file='registro-acciones',
         )
 
-        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        rows = dashboard_services.compute_player_dashboard(self.team_pre, force_refresh=True)
         detail = next((row for row in rows if row.get('player_id') == player.id), {})
         matches_payload = detail.get('matches') or []
         self.assertEqual(len(matches_payload), 1)
@@ -1833,7 +1833,7 @@ class TeamMatchQuerysetIsolationTests(TestCase):
             source_file='registro-acciones',
         )
 
-        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        rows = dashboard_services.compute_player_dashboard(self.team_pre, force_refresh=True)
         detail = next((row for row in rows if row.get('player_id') == player.id), {})
         matches_payload = detail.get('matches') or []
         self.assertEqual(len(matches_payload), 1)
@@ -1869,7 +1869,7 @@ class TeamMatchQuerysetIsolationTests(TestCase):
             system='touch-field',
             source_file='registro-acciones',
         )
-        rows = football_views.compute_player_dashboard(self.team_pre, force_refresh=True)
+        rows = dashboard_services.compute_player_dashboard(self.team_pre, force_refresh=True)
         detail = next((row for row in rows if row.get('player_id') == player.id), {})
         matches_payload = detail.get('matches') or []
         self.assertEqual(len(matches_payload), 1)
