@@ -4574,6 +4574,42 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['has_pending_lineup'])
         self.assertJSONEqual(response.context['lineup_seed_json'], {'starters': [], 'bench': []})
+        self.assertIsInstance(response.context['lineup_seed'], dict)
+
+    @patch('football.views.resolve_player_photo_url', side_effect=RuntimeError('storage unavailable'))
+    def test_initial_eleven_page_tolerates_photo_resolution_errors(self, _mock_photo):
+        self.client.force_login(self.user)
+        record = ConvocationRecord.objects.create(
+            team=self.team,
+            round='J24',
+            opponent_name='Alhaurín de la Torre',
+            match_date=date(2026, 3, 29),
+            is_current=True,
+            lineup_data={'starters': [{'id': str(self.player.id), 'x_pct': 50, 'y_pct': 90}], 'bench': []},
+        )
+        record.players.add(self.player)
+
+        response = self.client.get(reverse('initial-eleven'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            response.context['lineup_seed_json'],
+            {
+                'starters': [
+                    {
+                        'id': str(self.player.id),
+                        'name': 'MARTINEZ',
+                        'number': '--',
+                        'position': 'MC',
+                        'photo': '',
+                        'x_pct': 50.0,
+                        'y_pct': 90.0,
+                    },
+                ],
+                'bench': [],
+                '_meta': {'orientation': 'tb'},
+            },
+        )
 
     @patch('football.views._build_pdf_response_or_html_fallback')
     def test_convocation_pdf_accepts_team_param_without_active_workspace(self, mock_pdf):

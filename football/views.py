@@ -15558,7 +15558,7 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
                 'name': (player.name or '').upper(),
                 'number': player.number if player.number is not None else '--',
                 'position': player.position or '',
-                'photo': resolve_player_photo_url(None, player),
+                'photo': _safe_resolve_player_photo_url(None, player),
             }
             try:
                 slot_index = row.get('slot_index')
@@ -15646,6 +15646,42 @@ def _normalize_lineup_payload_with_limit(payload, allowed_players, *, starters_l
     except Exception:
         pass
     return base
+
+
+def _safe_resolve_player_photo_url(request, player) -> str:
+    try:
+        return resolve_player_photo_url(request, player) or ''
+    except Exception:
+        try:
+            logger.exception('No se pudo preparar la foto del jugador %s para 11 inicial.', getattr(player, 'id', ''))
+        except Exception:
+            pass
+        return ''
+
+
+def _safe_lineup_script_payload(payload, fallback=None):
+    fallback = fallback if isinstance(fallback, dict) else {'starters': [], 'bench': []}
+
+    def _clean(value):
+        if isinstance(value, dict):
+            return {str(key): _clean(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [_clean(item) for item in value]
+        if isinstance(value, tuple):
+            return [_clean(item) for item in value]
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        try:
+            return str(value)
+        except Exception:
+            return ''
+
+    try:
+        cleaned = _clean(payload)
+        json.dumps(cleaned, ensure_ascii=False)
+        return cleaned
+    except Exception:
+        return fallback
 
 
 def _normalize_rival_lineup_payload_with_limit(payload, allowed_rows, *, starters_limit=11):
@@ -27400,9 +27436,12 @@ def initial_eleven_page(request):
             match=target_match,
             fallback_to_latest=False if target_match else True,
         )
-    convocation_players = list(convocation_record.players.order_by('number', 'name')) if convocation_record else []
+    try:
+        convocation_players = list(convocation_record.players.order_by('number', 'name')) if convocation_record else []
+    except Exception:
+        convocation_players = []
     for player in convocation_players:
-        player.photo_url = resolve_player_photo_url(request, player)
+        player.photo_url = _safe_resolve_player_photo_url(request, player)
 
     lineup_seed = {'starters': [], 'bench': []}
     has_pending_lineup = False
@@ -27410,11 +27449,18 @@ def initial_eleven_page(request):
     if convocation_record:
         stored = convocation_record.lineup_data if isinstance(convocation_record.lineup_data, dict) else {}
         stored_meta = stored.get('_meta') if isinstance(stored.get('_meta'), dict) else {}
-        normalized = _normalize_lineup_payload_with_limit(stored, convocation_players, starters_limit=starters_limit)
-        if stored_meta:
-            normalized['_meta'] = stored_meta
-        # UI del editor de 11 inicial usa orientación vertical (ataque arriba). Asegura TB.
-        normalized = _ensure_lineup_orientation(normalized, target='tb')
+        try:
+            normalized = _normalize_lineup_payload_with_limit(stored, convocation_players, starters_limit=starters_limit)
+            if stored_meta:
+                normalized['_meta'] = _safe_lineup_script_payload(stored_meta, fallback={})
+            # UI del editor de 11 inicial usa orientación vertical (ataque arriba). Asegura TB.
+            normalized = _ensure_lineup_orientation(normalized, target='tb')
+        except Exception:
+            try:
+                logger.exception('No se pudo normalizar la alineación inicial del partido %s.', selected_match_id or '')
+            except Exception:
+                pass
+            normalized = {'starters': [], 'bench': []}
         if normalized['starters'] or normalized['bench']:
             lineup_seed = normalized
         else:
@@ -27514,18 +27560,33 @@ def initial_eleven_page(request):
     except Exception:
         lineup_grass_style = 'classic'
 
+    lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
+    rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
+    try:
+        team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) or ''
+    except Exception:
+        team_crest_url = ''
+    try:
+        rival_crest_url = (
+            _absolute_universo_url(
+                _resolve_rival_identity(
+                    getattr(convocation_record, 'opponent_name', '') or 'Rival por confirmar'
+                )[1]
+            )
+            if convocation_record
+            else ''
+        )
+    except Exception:
+        rival_crest_url = ''
+
     return render(
         request,
         'football/coach_initial_eleven.html',
         {
             'team_name': primary_team.display_name,
             'starters_limit': starters_limit,
-            'team_crest_url': resolve_team_crest_url(request, primary_team, sync=True),
-            'rival_crest_url': _absolute_universo_url(
-                _resolve_rival_identity(
-                    getattr(convocation_record, 'opponent_name', '') or 'Rival por confirmar'
-                )[1]
-            ) if convocation_record else '',
+            'team_crest_url': team_crest_url,
+            'rival_crest_url': rival_crest_url,
             'match_id': int(target_match.id) if target_match and getattr(target_match, 'id', None) else None,
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,
@@ -27534,8 +27595,10 @@ def initial_eleven_page(request):
             'rival_team_kit2d_url': rival_team_kit2d_url,
             'convocation_record': convocation_record,
             'convocation_players': convocation_players,
-            'lineup_seed_json': json.dumps(lineup_seed, ensure_ascii=False),
-            'rival_lineup_seed_json': json.dumps(rival_lineup_seed, ensure_ascii=False),
+            'lineup_seed': lineup_seed_payload,
+            'rival_lineup_seed': rival_lineup_seed_payload,
+            'lineup_seed_json': json.dumps(lineup_seed_payload, ensure_ascii=False),
+            'rival_lineup_seed_json': json.dumps(rival_lineup_seed_payload, ensure_ascii=False),
             'has_pending_convocation': has_pending_convocation,
             'has_pending_lineup': has_pending_lineup,
             'lineup_pitch_preset': lineup_pitch_preset,

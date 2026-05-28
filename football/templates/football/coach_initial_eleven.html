@@ -1005,8 +1005,8 @@
         </article>
       </section>
     </main>
-    {{ lineup_seed_json|json_script:"lineup-seed-data" }}
-    {{ rival_lineup_seed_json|default:"{}"|json_script:"rival-lineup-seed-data" }}
+    {{ lineup_seed|json_script:"lineup-seed-data" }}
+    {{ rival_lineup_seed|json_script:"rival-lineup-seed-data" }}
     <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
       const saveUrlBase = '{% url "match-lineup-save" %}';
