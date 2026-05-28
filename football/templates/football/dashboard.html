@@ -595,6 +595,7 @@
         background: rgba(255, 255, 255, 0.04);
         padding: 0.7rem 0.75rem;
         color: var(--paper-ink);
+        min-height: 74px;
       }
       .quick-action strong {
         display: block;
@@ -618,9 +619,41 @@
       .quick-action.is-muted {
         opacity: 0.92;
       }
+      .quick-action.is-config {
+        grid-column: 1 / -1;
+        border-color: rgba(34, 211, 238, 0.42);
+        background: linear-gradient(135deg, rgba(34, 211, 238, 0.12), rgba(15, 23, 42, 0.22));
+      }
       .quick-action.is-disabled {
         opacity: 0.55;
         pointer-events: none;
+      }
+      .quick-actions-more {
+        margin-top: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 14px;
+        background: rgba(2, 6, 23, 0.18);
+        padding: 0.6rem;
+      }
+      .quick-actions-more summary {
+        cursor: pointer;
+        color: rgba(248,250,252,0.86);
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        list-style: none;
+      }
+      .quick-actions-more summary::-webkit-details-marker {
+        display: none;
+      }
+      .quick-actions-more summary::after {
+        content: "+";
+        float: right;
+        color: rgba(34, 211, 238, 0.92);
+      }
+      .quick-actions-more[open] summary::after {
+        content: "-";
       }
       .next-match-opponent {
         display: flex;
@@ -1373,17 +1406,15 @@
 	                    {% endif %}
 
                     {% if can_manage_workspace %}
-                    <a class="quick-action is-muted" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
+                    <a class="quick-action is-config" href="{% url 'club-onboarding' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
                       <strong>Configuración</strong>
                       <span>Branding · competición · módulos</span>
                     </a>
                     {% endif %}
                   </div>
 
-                  <details style="margin-top:0.7rem;">
-                    <summary style="cursor:pointer; color:rgba(248,250,252,0.86); font-weight:900; letter-spacing:0.08em; text-transform:uppercase; font-size:0.72rem;">
-                      Atajos (opcional)
-                    </summary>
+                  <details class="quick-actions-more">
+                    <summary>Atajos opcionales</summary>
                     <div class="quick-actions-grid" style="margin-top:0.7rem;">
                       {% if workspace_module_access.match_actions|default:True %}
                       <a class="quick-action is-muted" href="{% url 'match-action-page' %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
