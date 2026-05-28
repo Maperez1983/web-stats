@@ -246,6 +246,65 @@ class ManualOverridesAndKpiConsistencyTests(TestCase):
         self.assertEqual(int(row_a.get('pt') or 0), 29)
         self.assertEqual(int(row_a.get('minutes') or 0), 2465)
 
+    def test_manual_match_stats_override_stale_base_for_same_player(self):
+        competition = Competition.objects.create(name='Comp B', slug='comp-b', level=1, region='test')
+        season = Season.objects.create(
+            competition=competition,
+            name='2025/2026',
+            start_date=date(2025, 9, 1),
+            end_date=date(2026, 6, 30),
+            is_current=True,
+        )
+        group = Group.objects.create(season=season, name='Grupo B', slug='grupo-b')
+        team = Team.objects.create(name='Benagalbon Pre', slug='benagalbon-pre-kpi', group=group, is_primary=False)
+        opponent = Team.objects.create(name='Rival B', slug='rival-b-kpi', group=group, is_primary=False)
+        player = Player.objects.create(team=team, name='Gonzalo Test', number=9)
+
+        # Base antigua/consolidada: reproduce el síntoma visto en Gonzalo.
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_pj', value=5)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_pt', value=5)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_minutes', value=230)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_goals', value=6)
+        PlayerStatistic.objects.create(player=player, season=season, match=None, context='manual-base', name='manual_assists', value=12)
+
+        expected = {'pj': 0, 'minutes': 0, 'goals': 0, 'assists': 0}
+        for idx, values in enumerate(
+            (
+                {'minutes': 45, 'goals': 2, 'assists': 1},
+                {'minutes': 40, 'goals': 3, 'assists': 2},
+                {'minutes': 35, 'goals': 1, 'assists': 4},
+            ),
+            start=1,
+        ):
+            match = Match.objects.create(
+                season=season,
+                group=group,
+                round=f'Jornada {idx}',
+                context=Match.CONTEXT_LEAGUE,
+                date=date(2026, 1, idx),
+                home_team=team,
+                away_team=opponent,
+                home_score=idx,
+                away_score=0,
+                result=f'{idx}-0',
+            )
+            PlayerStatistic.objects.create(player=player, season=season, match=match, context='manual-match', name='manual_minutes', value=values['minutes'])
+            PlayerStatistic.objects.create(player=player, season=season, match=match, context='manual-match', name='manual_goals', value=values['goals'])
+            PlayerStatistic.objects.create(player=player, season=season, match=match, context='manual-match', name='manual_assists', value=values['assists'])
+            expected['pj'] += 1
+            expected['minutes'] += values['minutes']
+            expected['goals'] += values['goals']
+            expected['assists'] += values['assists']
+
+        rows = compute_player_dashboard(team, force_refresh=True, scope=Match.CONTEXT_LEAGUE)
+        row = next((item for item in rows if int(item.get('player_id') or 0) == player.id), None)
+        self.assertIsNotNone(row)
+        self.assertEqual(int(row.get('pj') or 0), expected['pj'])
+        self.assertEqual(int(row.get('minutes') or 0), expected['minutes'])
+        self.assertEqual(int(row.get('goals') or 0), expected['goals'])
+        self.assertEqual(int(row.get('assists') or 0), expected['assists'])
+        self.assertEqual(len([m for m in row.get('matches', []) if m.get('played')]), expected['pj'])
+
 
 class AnalysisVideoReportPdfExportTests(TestCase):
     def setUp(self):

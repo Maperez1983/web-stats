@@ -55926,6 +55926,7 @@ def compute_player_dashboard(
     # Overrides manuales por partido (minutos/goles/asistencias). Importante en cantera/cambios ilimitados.
     # Nota: estas overrides (manual-match) deben prevalecer solo para el jugador que las tenga.
     manual_by_player_match = {}
+    manual_match_player_ids = set()
     try:
         manual_match_qs = PlayerStatistic.objects.filter(
             player__team=primary_team,
@@ -55944,6 +55945,7 @@ def compute_player_dashboard(
             name = str(row.get('name') or '').strip()
             if not pid or not mid or not name:
                 continue
+            manual_match_player_ids.add(int(pid))
             manual_by_player_match.setdefault(int(pid), {}).setdefault(int(mid), {})[name] = row.get('value')
 
         for pid, match_map in manual_by_player_match.items():
@@ -56033,16 +56035,15 @@ def compute_player_dashboard(
                 stats['minutes'] = int(
                     sum(max(0, _parse_int(m.get('minutes')) or 0) for m in played_entries)
                 )
-                # Goles/asistencias: si hay overrides por partido, la tabla por partido es la fuente de verdad.
-                # Respetamos locks anuales cuando existan.
-                if not stats.get('goals_locked'):
-                    stats['goals'] = int(
-                        sum(max(0, _parse_int(m.get('goals')) or 0) for m in played_entries)
-                    )
-                if not stats.get('assists_locked'):
-                    stats['assists'] = int(
-                        sum(max(0, _parse_int(m.get('assists')) or 0) for m in played_entries)
-                    )
+                # Si existe ficha por partido, esa tabla es la fuente de verdad para
+                # cards, ficha, PDFs e informes. No dejamos que una base anual antigua
+                # bloquee goles/asistencias de cantera.
+                stats['goals'] = int(
+                    sum(max(0, _parse_int(m.get('goals')) or 0) for m in played_entries)
+                )
+                stats['assists'] = int(
+                    sum(max(0, _parse_int(m.get('assists')) or 0) for m in played_entries)
+                )
                 stats['pc'] = max(int(stats.get('pc', 0) or 0), int(stats.get('pj', 0) or 0))
                 try:
                     stats['pt'] = min(int(stats.get('pt', 0) or 0), int(stats.get('pj', 0) or 0))
@@ -56171,7 +56172,7 @@ def compute_player_dashboard(
             pid = 0
         if pid:
             manual_entry = manual_entry_by_player_id.get(pid, {}) if isinstance(manual_entry_by_player_id, dict) else {}
-            if isinstance(manual_entry, dict) and manual_entry:
+            if isinstance(manual_entry, dict) and manual_entry and pid not in manual_match_player_ids:
                 for key in ('pj', 'pt', 'minutes', 'goals', 'assists', 'yellow_cards', 'red_cards'):
                     if key in manual_entry and manual_entry.get(key) is not None:
                         stats[key] = manual_entry.get(key)

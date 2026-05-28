@@ -5635,8 +5635,16 @@
 	        if (cone && typeof cone.set === 'function') cone.set('angle', next);
 	      } catch (e) { /* ignore */ }
 	      try {
+	        const keep = {
+	          left: group.left,
+	          top: group.top,
+	          originX: group.originX,
+	          originY: group.originY,
+	        };
 	        if (typeof group._calcBounds === 'function') group._calcBounds();
 	        if (typeof group._updateObjectsCoords === 'function') group._updateObjectsCoords();
+	        group.set(keep);
+	        group.setCoords();
 	      } catch (e) { /* ignore */ }
 	      return true;
 	    };
@@ -22453,8 +22461,7 @@
 			        // - figuras de fondo (zonas/porterías) cuando NO están en modo edición
 			        if (!isBase && !isBg) return;
 			      }
-			      const raw = canvas.getPointer(event.e);
-			      const base = { x: Number(raw?.x) || 0, y: Number(raw?.y) || 0 };
+			      const base = pointerFromStageEvent(event.e);
 			      const e = event?.e;
 			      const isMod = !!(e && (e.ctrlKey || e.metaKey));
 			      const snapGrid = shouldSnapToGridForEvent(e);
