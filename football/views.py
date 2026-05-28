@@ -58299,49 +58299,7 @@ def _extract_image_text_via_tesseract(image_bytes: bytes) -> str:
 
 
 def _assistant__open_pil_rgb_from_bytes(image_bytes: bytes):
-    """
-    Abre una imagen en RGB desde bytes (incl. HEIC) con fallback a ImageMagick si PIL no puede.
-    """
-    if not image_bytes or Image is None:
-        return None
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-    except Exception:
-        # Fallback HEIC/HEIF: algunos ficheros de iOS pueden fallar con PIL incluso con opener.
-        # Si hay ImageMagick disponible, convertimos a PNG en memoria y reintentamos.
-        try:
-            if shutil.which('magick') is not None:
-                proc = subprocess.run(
-                    ['magick', 'heic:-', 'png:-'],
-                    input=image_bytes,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=25,
-                    check=False,
-                )
-            else:
-                proc = None
-        except Exception:
-            proc = None
-        if not (proc and proc.returncode == 0 and proc.stdout):
-            return None
-        try:
-            img = Image.open(io.BytesIO(proc.stdout))
-        except Exception:
-            return None
-    try:
-        if ImageOps is not None:
-            try:
-                img = ImageOps.exif_transpose(img)
-            except Exception:
-                pass
-        img = img.convert('RGB')
-    except Exception:
-        try:
-            img = img.convert('RGB')
-        except Exception:
-            return None
-    return img
+    return session_import_services.open_pil_rgb_from_bytes(image_bytes)
 
 
 def _assistant__pitch_diagram_score(image_bytes: bytes) -> float:

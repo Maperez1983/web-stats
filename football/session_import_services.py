@@ -109,7 +109,7 @@ def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
 def extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     if not image_bytes or Image is None or pytesseract is None:
         return ''
-    img = _open_pil_rgb_from_bytes(image_bytes)
+    img = open_pil_rgb_from_bytes(image_bytes)
     if img is None:
         return ''
     try:
@@ -157,7 +157,9 @@ def extract_image_text_via_tesseract(image_bytes: bytes) -> str:
     return best_text.strip()
 
 
-def _open_pil_rgb_from_bytes(image_bytes: bytes):
+def open_pil_rgb_from_bytes(image_bytes: bytes):
+    if not image_bytes or Image is None:
+        return None
     try:
         img = Image.open(io.BytesIO(image_bytes))
     except Exception:
@@ -190,6 +192,10 @@ def _open_pil_rgb_from_bytes(image_bytes: bytes):
         return img.convert('RGB')
     except Exception:
         return None
+
+
+def _open_pil_rgb_from_bytes(image_bytes: bytes):
+    return open_pil_rgb_from_bytes(image_bytes)
 
 
 def _prepare_image_for_ocr(img):
