@@ -5898,6 +5898,34 @@
 		      };
 		    };
 
+		    const tokenCenterPoint = (tokenGroup) => {
+		      let center = null;
+		      try {
+		        if (tokenGroup && typeof tokenGroup.setCoords === 'function') tokenGroup.setCoords();
+		        if (tokenGroup && typeof tokenGroup.getCenterPoint === 'function') center = tokenGroup.getCenterPoint();
+		      } catch (e) { center = null; }
+		      const x = Number(center?.x);
+		      const y = Number(center?.y);
+		      if (Number.isFinite(x) && Number.isFinite(y)) return new fabric.Point(x, y);
+		      const left = Number(tokenGroup?.left);
+		      const top = Number(tokenGroup?.top);
+		      if (Number.isFinite(left) && Number.isFinite(top)) return new fabric.Point(left, top);
+		      const { w, h } = worldSize();
+		      return new fabric.Point((Number(w) || canvas.getWidth() || 0) / 2, (Number(h) || canvas.getHeight() || 0) / 2);
+		    };
+
+		    const keepTokenAtCenter = (tokenGroup, center) => {
+		      if (!tokenGroup || !center) return;
+		      try {
+		        if (typeof tokenGroup.setPositionByOrigin === 'function') {
+		          tokenGroup.setPositionByOrigin(center, 'center', 'center');
+		        } else {
+		          tokenGroup.set({ left: center.x, top: center.y, originX: 'center', originY: 'center' });
+		        }
+		        tokenGroup.setCoords();
+		      } catch (e) { /* ignore */ }
+		    };
+
 		    const setActiveTokenStyle = (rawStyle) => {
 		      const active = activeInspectableObject();
 		      if (!active || !isTokenGroup(active)) return;
@@ -5907,7 +5935,7 @@
 		      }
 		      const nextStyle = normalizeTokenStyle(rawStyle);
 		      const tokenKind = safeText(active?.data?.token_kind);
-		      const center = active.getCenterPoint ? active.getCenterPoint() : { x: Number(active.left) || 0, y: Number(active.top) || 0 };
+		      const center = tokenCenterPoint(active);
 		      const player = resolvePlayerForToken(active);
 		      const palette = {
 		        base: safeText(active?.data?.token_base_color) || '#ffffff',
@@ -5930,11 +5958,14 @@
 		      canvas.remove(active);
 		      canvas.insertAt(fresh, index >= 0 ? index : objects.length, false);
 		      fresh.set({
+		        originX: 'center',
+		        originY: 'center',
 		        angle: Number(active.angle) || 0,
 		        scaleX: clampScale(Number(active.scaleX) || 1),
 		        scaleY: clampScale(Number(active.scaleY) || 1),
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
+		      keepTokenAtCenter(fresh, center);
 		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm') };
 		      // Respeta orientación corporal.
 		      try {
@@ -5951,6 +5982,7 @@
 		      // Respeta nombre/dorsal editados manualmente.
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
 		      applyTokenPalette(fresh, palette);
+		      keepTokenAtCenter(fresh, center);
 		      canvas.setActiveObject(fresh);
 		      commitObjectChange(`Token: ${nextStyle === 'disk' ? 'chapa' : (nextStyle === 'jersey' ? 'camiseta' : 'foto')}.`);
 		    };
@@ -5965,7 +5997,7 @@
 		      const nextSlot = normalizeKit2dSlot(rawSlot);
 		      if (!nextSlot) return;
 		      const tokenKind = safeText(active?.data?.token_kind);
-		      const center = active.getCenterPoint ? active.getCenterPoint() : { x: Number(active.left) || 0, y: Number(active.top) || 0 };
+		      const center = tokenCenterPoint(active);
 		      const player = resolvePlayerForToken(active);
 		      const options = {
 		        style: normalizeTokenStyle(active?.data?.token_style || 'jersey'),
@@ -5988,11 +6020,14 @@
 		      canvas.remove(active);
 		      canvas.insertAt(fresh, index >= 0 ? index : objects.length, false);
 		      fresh.set({
+		        originX: 'center',
+		        originY: 'center',
 		        angle: Number(active.angle) || 0,
 		        scaleX: clampScale(Number(active.scaleX) || 1),
 		        scaleY: clampScale(Number(active.scaleY) || 1),
 		        opacity: active.opacity == null ? 1 : active.opacity,
 		      });
+		      keepTokenAtCenter(fresh, center);
 		      fresh.data = { ...(fresh.data || {}), layer_uid: safeText(prevData.layer_uid), locked: prevData.locked, token_size: safeText(prevData.token_size, 'm'), token_kit_slot: nextSlot };
 		      try {
 		        fresh.data.facing_deg = normalizeAngle(prevData?.facing_deg, normalizeAngle(active?.data?.facing_deg, 0));
@@ -6004,6 +6039,7 @@
 		        setTokenFov(fresh, { visible: !!fresh.data.fov_visible, widthDeg: fresh.data.fov_width_deg });
 		      } catch (e) { /* ignore */ }
 		      updateTokenAppearance(fresh, { name: safeText(prevData.playerName), number: safeText(prevData.playerNumber) });
+		      keepTokenAtCenter(fresh, center);
 		      canvas.setActiveObject(fresh);
 		      commitObjectChange(`Camiseta: ${tokenKitSlotLabel(nextSlot)}.`);
 		    };
