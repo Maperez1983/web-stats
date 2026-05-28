@@ -17566,6 +17566,8 @@
 			              scaleX: scale,
 			              scaleY: scale,
 			            });
+			            try { photo.objectCaching = false; } catch (e) { /* ignore */ }
+			            try { photo.noScaleCache = true; } catch (e) { /* ignore */ }
 			            photo.clipPath = new fabric.Circle({
 			              radius,
 			              originX: 'center',
@@ -22283,12 +22285,26 @@
 	      const sourceWidth = Math.round(canvas.getWidth());
 	      const sourceHeight = Math.round(canvas.getHeight());
 	      const maxWidth = clamp(Number(options.maxWidth) || sourceWidth, 320, 4096);
-	      const ratio = sourceWidth > maxWidth ? (maxWidth / sourceWidth) : 1;
+	      const ratio = clamp(maxWidth / Math.max(1, sourceWidth), 0.25, 4);
 	      const output = document.createElement('canvas');
-	      output.width = Math.max(320, Math.round(sourceWidth * ratio));
-	      output.height = Math.max(180, Math.round(sourceHeight * ratio));
+	      let outputWidth = Math.max(320, Math.round(sourceWidth * ratio));
+	      let outputHeight = Math.max(180, Math.round(sourceHeight * ratio));
+	      const maxArea = 16000000;
+	      const area = outputWidth * outputHeight;
+	      if (area > maxArea) {
+	        const areaScale = Math.sqrt(maxArea / Math.max(1, area));
+	        outputWidth = Math.max(320, Math.round(outputWidth * areaScale));
+	        outputHeight = Math.max(180, Math.round(outputHeight * areaScale));
+	      }
+	      const exportRatio = outputWidth / Math.max(1, sourceWidth);
+	      output.width = outputWidth;
+	      output.height = outputHeight;
 	      const context = output.getContext('2d');
 	      if (!context) return null;
+	      try {
+	        context.imageSmoothingEnabled = true;
+	        context.imageSmoothingQuality = 'high';
+	      } catch (error) { /* ignore */ }
 	      context.fillStyle = '#ffffff';
 	      context.fillRect(0, 0, output.width, output.height);
 	      const svgMarkup = new XMLSerializer().serializeToString(svgSurface);
@@ -22306,7 +22322,30 @@
 	      } catch (error) {
 	        // ignore
 	      }
-	      context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+	      let overlayImage = null;
+	      try {
+	        const overlayUrl = canvas.toDataURL({
+	          format: 'png',
+	          multiplier: exportRatio,
+	          enableRetinaScaling: false,
+	        });
+	        if (overlayUrl && overlayUrl.startsWith('data:image/')) {
+	          overlayImage = new Image();
+	          await new Promise((resolve) => {
+	            overlayImage.onload = resolve;
+	            overlayImage.onerror = resolve;
+	            overlayImage.src = overlayUrl;
+	          });
+	        }
+	      } catch (error) {
+	        overlayImage = null;
+	      }
+	      try {
+	        if (overlayImage) context.drawImage(overlayImage, 0, 0, output.width, output.height);
+	        else context.drawImage(canvas.lowerCanvasEl, 0, 0, output.width, output.height);
+	      } catch (error) {
+	        // ignore
+	      }
 	      return output;
 	    };
 
@@ -24244,7 +24283,7 @@
                 if (exportInFlight || isSimulating) return;
                 exportInFlight = true;
                 (async () => {
-                  try { await exportCurrentPng(1280); } catch (e) { /* ignore */ }
+                  try { await exportCurrentPng(4096); } catch (e) { /* ignore */ }
                   exportInFlight = false;
                 })();
               });
@@ -24645,7 +24684,7 @@
 	      stopPlayback(true);
 	      try {
 	        setStatus('Generando PNG (HD)…');
-	        await exportCurrentPng(1280);
+	        await exportCurrentPng(4096);
 	      } finally {
 	        exportInFlight = false;
 	        refreshLivePreview();
@@ -24665,7 +24704,7 @@
 	        persistActiveStepSnapshot();
 	        if (!timeline.length) {
 	          setStatus('No hay pasos. Descargando PNG actual…');
-	          await exportCurrentPng(1280);
+	          await exportCurrentPng(4096);
 	          return;
 	        }
 	        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
@@ -24673,7 +24712,7 @@
 	          const step = timeline[i];
 	          setStatus(`Exportando PNG ${i + 1}/${timeline.length}…`);
 	          await loadCanvasSnapshotAsync(step.canvas_state, { sourceWidth: parseIntSafe(step.canvas_width), sourceHeight: parseIntSafe(step.canvas_height) });
-	          const composite = await buildCompositeCanvas({ maxWidth: 1280 });
+	          const composite = await buildCompositeCanvas({ maxWidth: 4096 });
 	          if (!composite) continue;
 	          const blob = await canvasToBlob(composite, 'image/png', 0.92);
 	          if (blob) downloadBlob(blob, `${title}_paso_${String(i + 1).padStart(2, '0')}.png`);
