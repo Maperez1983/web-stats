@@ -127,14 +127,20 @@
         text-transform: none;
       }
       .pro-actions-row {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
         gap: 0.5rem;
         margin-top: 0.75rem;
       }
       .pro-actions-row .toolbar-pill {
+        width: 100%;
+        min-height: 42px;
         padding: 0.75rem 0.95rem;
         font-size: 0.8rem;
+      }
+      .pro-actions-row .pro-chips {
+        grid-column: 1 / -1;
+        min-width: 0;
       }
       .pro-result-row {
         display: flex;
@@ -1302,17 +1308,20 @@
         font-size: 0.8rem;
       }
       .live-register-toolbar {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 0.75rem;
         align-items: center;
         justify-content: space-between;
-        flex-wrap: wrap;
         margin-top: 0.9rem;
       }
       .live-register-toolbar .toolbar-group {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, auto));
         gap: 0.75rem;
-        flex-wrap: wrap;
+      }
+      .live-register-toolbar .toolbar-group:last-child {
+        justify-content: end;
       }
       .toolbar-pill {
         border: 1px solid rgba(148, 163, 184, 0.2);
@@ -1322,6 +1331,9 @@
         padding: 0.8rem 1rem;
         font-weight: 700;
         cursor: pointer;
+        min-height: 42px;
+        text-align: center;
+        white-space: nowrap;
       }
       .toolbar-pill.is-active {
         border-color: rgba(34, 197, 94, 0.5);
@@ -2703,7 +2715,13 @@
         }
         .closure-actions,
         .live-register-toolbar .toolbar-group {
-          flex-direction: column;
+          grid-template-columns: 1fr;
+        }
+        .live-register-toolbar {
+          grid-template-columns: 1fr;
+        }
+        .live-register-toolbar .toolbar-group:last-child {
+          justify-content: stretch;
         }
         .closure-actions button,
         .toolbar-pill {
