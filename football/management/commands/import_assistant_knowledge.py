@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.utils import OperationalError
 from django.utils import timezone
 
-from football import session_import_services
+from football import assistant_blueprint_services, session_import_services
 from football.models import AssistantKnowledgeDocument, Team
 
 
@@ -98,13 +98,6 @@ class Command(BaseCommand):
         if not paths:
             raise CommandError("No se encontraron ficheros soportados (.pdf/.txt/.md/.png/.jpg/.jpeg/.webp) en la ruta indicada.")
 
-        football_views = None
-        if not skip_blueprints:
-            try:
-                from football import views as football_views  # noqa: WPS433
-            except Exception as exc:
-                raise CommandError(f"No se pudo importar football.views: {exc}") from exc
-
         extracted = 0
         saved = 0
         skipped = 0
@@ -183,9 +176,7 @@ class Command(BaseCommand):
 
                 if not skip_blueprints:
                     try:
-                        if football_views is None:
-                            from football import views as football_views  # noqa: WPS433
-                        res = football_views._assistant_create_blueprints_from_document(team, doc)  # type: ignore[attr-defined]
+                        res = assistant_blueprint_services.create_blueprints_from_document(team, doc)
                         bp_created += int(res.get("created", 0) or 0)
                         bp_updated += int(res.get("updated", 0) or 0)
                     except Exception:

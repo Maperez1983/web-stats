@@ -1,6 +1,7 @@
 import html
 import re
 import unicodedata
+from pathlib import Path
 
 from .models import SessionTask, TaskBlueprint
 from . import task_library_services
@@ -508,3 +509,257 @@ def create_idea_blueprints_from_document(team, doc):
             updated += 1
 
     return {'created': created, 'updated': updated, 'skipped': 0}
+
+
+def create_blueprints_from_document(
+    team,
+    doc,
+    pitch_diagram_score_func=None,
+    canvas_state_func=None,
+):
+    text = str(getattr(doc, 'extracted_text', '') or '')
+    if not text.strip():
+        return {'created': 0, 'updated': 0, 'skipped': 0}
+
+    lower_title = str(getattr(doc, 'title', '') or '').lower()
+    mime = str(getattr(doc, 'mime_type', '') or '').lower()
+    is_image = bool(
+        mime.startswith('image/')
+        or lower_title.endswith('.png')
+        or lower_title.endswith('.jpg')
+        or lower_title.endswith('.jpeg')
+        or lower_title.endswith('.heic')
+        or lower_title.endswith('.webp')
+    )
+
+    if is_image:
+        raw_bytes = _read_document_file_bytes(doc)
+        diagram_bytes = b''
+        if raw_bytes and pitch_diagram_score_func is not None:
+            try:
+                if float(pitch_diagram_score_func(raw_bytes) or 0.0) >= 0.28:
+                    diagram_bytes = raw_bytes
+            except Exception:
+                diagram_bytes = b''
+        result = create_task_sheet_blueprint_from_document(
+            team,
+            doc,
+            text,
+            diagram_bytes=diagram_bytes,
+            diagram_doc_id=int(getattr(doc, 'id', 0) or 0),
+            pitch_diagram_score_func=pitch_diagram_score_func,
+            canvas_state_func=canvas_state_func,
+        )
+        if int(result.get('created', 0) or 0) or int(result.get('updated', 0) or 0):
+            return {
+                'created': int(result.get('created', 0) or 0),
+                'updated': int(result.get('updated', 0) or 0),
+                'skipped': 0,
+            }
+
+    return create_idea_blueprints_from_document(team, doc)
+
+
+def create_task_sheet_blueprint_from_document(
+    team,
+    doc,
+    text: str,
+    diagram_bytes: bytes = b'',
+    diagram_doc_id: int = 0,
+    pitch_diagram_score_func=None,
+    canvas_state_func=None,
+):
+    def first_match(patterns: list[str], raw: str) -> str:
+        for pattern in patterns:
+            try:
+                match = re.search(pattern, raw, flags=re.IGNORECASE)
+            except Exception:
+                match = None
+            if match:
+                try:
+                    return str(match.group(1) or '').strip()
+                except Exception:
+                    return ''
+        return ''
+
+    sections = extract_task_sheet_sections(text)
+    title = str(sections.get('title') or '').strip()
+    if not title or len(title) < 6:
+        return {'created': 0, 'updated': 0}
+
+    raw_lines = sections.get('raw_lines') or []
+    desc_lines = sections.get('desc') or []
+    beh_lines = sections.get('behaviors') or []
+    cons_lines = sections.get('considerations') or []
+    struct_lines = sections.get('structural') or []
+    prov_lines = sections.get('provocation') or []
+    cont_lines = sections.get('continuation') or []
+    info_lines = sections.get('info') or []
+
+    raw_all = str(text or '')
+    raw_norm = normalize_ocr_line(raw_all)
+
+    if not desc_lines and raw_lines:
+        title_norm = normalize_ocr_line(title)
+        idx_title = None
+        for idx, line in enumerate(raw_lines[:120]):
+            if title_norm and normalize_ocr_line(str(line or '')) == title_norm:
+                idx_title = idx
+                break
+        if idx_title is None:
+            idx_title = 0
+        try:
+            desc_lines = [str(v or '').strip() for v in raw_lines[idx_title + 1: idx_title + 20] if str(v or '').strip()]
+        except Exception:
+            desc_lines = []
+
+    players_raw = first_match(
+        [
+            r'jugadores\s*[:\-]?\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*[a-z]{0,3})',
+            r'jugadores\s*[:\-]?\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*p)',
+        ],
+        raw_norm,
+    )
+    space_raw = first_match([r'espacio\s*[:\-]?\s*([0-9]{1,3}\s*[xX]\s*[0-9]{1,3})'], raw_all)
+    series_raw = first_match([r'series\s*[:\-]?\s*([0-9]{1,2}\s*[xX]\s*[0-9]{1,2}\s*(\(\s*[0-9]{1,2}\s*\))?)'], raw_all)
+    duration_raw = first_match([r'duraci[oó]n\s*[:\-]?\s*([0-9]{1,3})'], raw_all)
+
+    try:
+        joined_info = ' \n'.join([str(v or '') for v in info_lines[:40]])
+    except Exception:
+        joined_info = ''
+    if not players_raw:
+        players_raw = first_match([r'jugadores\s*([0-9]{1,2}\s*\+\s*[0-9]{1,2}\s*[a-z]{0,3})'], joined_info)
+    if not space_raw:
+        space_raw = first_match([r'espacio\s*([0-9]{1,3}\s*[xX]\s*[0-9]{1,3})'], joined_info)
+    if not series_raw:
+        series_raw = first_match([r'series\s*([0-9]{1,2}\s*[xX]\s*[0-9]{1,2}\s*(\(\s*[0-9]{1,2}\s*\))?)'], joined_info)
+    if not duration_raw:
+        duration_raw = first_match([r'duraci[oó]n\s*([0-9]{1,3})'], joined_info)
+
+    sanitize = task_library_services.sanitize_task_text
+    player_count = sanitize(players_raw, multiline=False, max_len=40) if players_raw else ''
+    dimensions = sanitize(space_raw.replace('X', 'x').replace(' ', ''), multiline=False, max_len=24) if space_raw else ''
+    series = sanitize(series_raw.replace('X', 'x').replace(' ', ''), multiline=False, max_len=40) if series_raw else ''
+    try:
+        minutes_val = int(re.sub(r'[^0-9]+', '', duration_raw or '') or 0)
+    except Exception:
+        minutes_val = 0
+    minutes_val = minutes_val if 3 <= minutes_val <= 180 else 12
+
+    objective_bullets = extract_assistant_bullets('\n'.join(beh_lines))
+    if not objective_bullets and 'objetivo' in raw_norm:
+        objective_bullets = extract_assistant_bullets(raw_all)
+    objective_src = ' · '.join(objective_bullets[:2]).strip() or ' '.join(beh_lines[:2]).strip() or ' '.join(desc_lines[:2]).strip() or title
+    objective = sanitize(objective_src, multiline=False, max_len=8000)
+
+    coaching_items = []
+    coaching_items.extend(split_assistant_sentences(' '.join(cons_lines), limit=8))
+    coaching_items.extend(split_assistant_sentences(' '.join(beh_lines), limit=6))
+    coaching_items = coaching_items[:10]
+
+    description_items = []
+    description_items.extend(split_assistant_sentences(' '.join(desc_lines), limit=12))
+    if not description_items:
+        description_items.extend(split_assistant_sentences(' '.join(struct_lines), limit=10))
+    description_items = description_items[:12]
+
+    rules_items = []
+    rules_items.extend(split_assistant_sentences(' '.join(prov_lines), limit=10))
+    rules_items.extend(split_assistant_sentences(' '.join(cont_lines), limit=10))
+    if not rules_items:
+        rules_items.extend(split_assistant_sentences(' '.join(struct_lines), limit=10))
+    rules_items = rules_items[:12]
+
+    text_for_infer = '\n'.join([title] + list(desc_lines[:40]) + list(beh_lines[:30]) + list(cons_lines[:30]) + list(struct_lines[:30]))
+    category = guess_category_from_text(text_for_infer or text)
+    goal_key = infer_goal_key_from_text(text_for_infer or text, category_hint=category)
+    training_type = {
+        TaskBlueprint.CATEGORY_FINISH: 'Finalización',
+        TaskBlueprint.CATEGORY_BUILD: 'Inicio y progresión',
+        TaskBlueprint.CATEGORY_PRESS: 'Presión y recuperación',
+        TaskBlueprint.CATEGORY_TRANSITION: 'Transiciones',
+        TaskBlueprint.CATEGORY_GK: 'Porteros',
+        TaskBlueprint.CATEGORY_PHYSICAL: 'Condicionante físico',
+    }.get(category, 'Otros')
+
+    stem = Path(str(getattr(doc, 'title', '') or '')).stem.strip()
+    stem = sanitize(stem, multiline=False, max_len=40)
+    name = f'{stem} · {title}' if stem else title
+    name = sanitize(f'{name} · ficha (doc {int(doc.id)})', multiline=False, max_len=160)
+    if not name:
+        return {'created': 0, 'updated': 0}
+
+    tpl = {
+        'title': title,
+        'objective': objective,
+        'minutes': minutes_val,
+        'block': SessionTask.BLOCK_MAIN_2 if category == TaskBlueprint.CATEGORY_FINISH else SessionTask.BLOCK_MAIN_1,
+        'training_type': training_type,
+        **({'player_count': player_count} if player_count else {}),
+        **({'dimensions': f'{dimensions} m' if dimensions and not dimensions.lower().endswith('m') else dimensions} if dimensions else {}),
+        **({'series': series} if series else {}),
+        'description_html': assistant_html_list(description_items),
+        'coaching_html': assistant_html_list(coaching_items),
+        'rules_html': assistant_html_list(rules_items),
+        'source_name': 'Foto (OCR)',
+    }
+
+    diagram_doc_id_clean = int(diagram_doc_id or 0)
+    if diagram_bytes and pitch_diagram_score_func is not None and canvas_state_func is not None:
+        try:
+            if float(pitch_diagram_score_func(diagram_bytes) or 0.0) >= 0.28:
+                canvas_state, canvas_w, canvas_h = canvas_state_func(diagram_bytes)
+                if canvas_state and canvas_w and canvas_h:
+                    tpl['canvas_state'] = canvas_state
+                    tpl['canvas_width'] = int(canvas_w)
+                    tpl['canvas_height'] = int(canvas_h)
+                    tpl['source_name'] = 'Foto (OCR + diagrama)'
+                    if diagram_doc_id_clean <= 0:
+                        diagram_doc_id_clean = int(getattr(doc, 'id', 0) or 0)
+        except Exception:
+            pass
+
+    payload = {
+        'tpl': tpl,
+        'meta': {
+            'v': 1,
+            'goal': goal_key or 'auto',
+            'subphase': 'auto',
+            'approach': 'auto',
+            'source_doc_id': int(doc.id),
+            'kind': 'task_sheet',
+            **({'diagram_doc_id': diagram_doc_id_clean} if int(diagram_doc_id_clean or 0) > 0 else {}),
+        },
+    }
+    try:
+        _, was_created = TaskBlueprint.objects.update_or_create(
+            team=team,
+            name=name,
+            defaults={
+                'category': category,
+                'description': sanitize(f'Generado por OCR desde: {doc.title}', multiline=False, max_len=220),
+                'payload': payload,
+                'created_by': 'assistant_docs_ocr',
+            },
+        )
+    except Exception:
+        return {'created': 0, 'updated': 0}
+    return {'created': 1 if was_created else 0, 'updated': 0 if was_created else 1}
+
+
+def _read_document_file_bytes(doc) -> bytes:
+    try:
+        file_obj = getattr(doc, 'file', None)
+        if not file_obj:
+            return b''
+        try:
+            file_obj.open('rb')
+        except Exception:
+            pass
+        try:
+            return file_obj.read() or b''
+        except Exception:
+            return b''
+    except Exception:
+        return b''

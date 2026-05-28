@@ -94,3 +94,33 @@ class AssistantBlueprintCreationTests(TestCase):
         self.assertEqual(blueprint.category, TaskBlueprint.CATEGORY_PRESS)
         self.assertEqual(blueprint.created_by, 'assistant_docs')
         self.assertEqual(blueprint.payload['meta']['goal'], 'pressing')
+
+    def test_create_task_sheet_blueprint_from_document_creates_ocr_blueprint(self):
+        team = Team.objects.create(name='OCR Team', slug='ocr-team')
+        doc = AssistantKnowledgeDocument.objects.create(
+            team=team,
+            title='ficha-finalizacion.png',
+            file='assistant-knowledge/ficha-finalizacion.png',
+            sha256='sheet123',
+            mime_type='image/png',
+            extracted_text="""
+            3c3 + porteros
+            Descripción
+            Jugar en espacio reducido y finalizar tras pase atrás.
+            Objetivos
+            Atacar área con ventaja.
+            Consideraciones
+            Ajustar distancia entre líneas.
+            """,
+        )
+
+        result = assistant_blueprint_services.create_task_sheet_blueprint_from_document(
+            team,
+            doc,
+            doc.extracted_text,
+        )
+
+        self.assertEqual(result, {'created': 1, 'updated': 0})
+        blueprint = TaskBlueprint.objects.get(team=team)
+        self.assertEqual(blueprint.created_by, 'assistant_docs_ocr')
+        self.assertEqual(blueprint.payload['meta']['kind'], 'task_sheet')

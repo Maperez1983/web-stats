@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.utils import OperationalError
 from django.utils import timezone
 
-from football import session_import_services
+from football import assistant_blueprint_services, session_import_services
 from football.models import AssistantKnowledgeDocument, TaskBlueprint, Team
 
 
@@ -40,11 +40,6 @@ class Command(BaseCommand):
         purge = bool(options.get("purge"))
         max_docs = int(options.get("max_docs") or 0) or 250
         reextract = bool(options.get("reextract"))
-
-        try:
-            from football import views as football_views  # noqa: WPS433
-        except Exception as exc:
-            raise CommandError(f"No se pudo importar football.views: {exc}") from exc
 
         try:
             docs = list(
@@ -117,7 +112,7 @@ class Command(BaseCommand):
                                 doc.extracted_text = extracted_text[:500_000]
                                 doc.extracted_at = timezone.now()
                                 doc.save(update_fields=["extracted_text", "extracted_at"])
-                    res = football_views._assistant_create_blueprints_from_document(team, doc)  # type: ignore[attr-defined]
+                    res = assistant_blueprint_services.create_blueprints_from_document(team, doc)
                     created += int(res.get("created", 0) or 0)
                     updated += int(res.get("updated", 0) or 0)
             except Exception:
