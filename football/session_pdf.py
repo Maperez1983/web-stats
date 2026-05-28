@@ -22,7 +22,7 @@ from .services import _parse_int
 from .session_plan_fields import parse_session_plan_fields, serialize_session_plan_fields
 from .session_import_services import (
     extract_pdf_text as import_extract_pdf_text,
-    extract_preview_image_from_pdf as import_extract_preview_image_from_pdf,
+    extract_preview_image_from_pdf,
 )
 from .session_canvas_recreate import recreate_canvas_state_from_preview_image_bytes
 from .task_library_services import coerce_json_dict, extract_canvas_state_for_preview
@@ -96,10 +96,6 @@ def _build_pdf_nav_urls(request):
     return {'platform_url': platform_url, 'pdf_return_url': platform_url}
 
 
-def _coerce_json_dict(value):
-    return coerce_json_dict(value)
-
-
 def _decode_canvas_data_url(data_url):
     value = str(data_url or '').strip()
     if not value or ';base64,' not in value:
@@ -121,14 +117,6 @@ def _decode_canvas_data_url(data_url):
     if not raw_bytes:
         return None, None
     return raw_bytes, extension
-
-
-def _extract_canvas_state_for_preview(task):
-    return extract_canvas_state_for_preview(task)
-
-
-def _extract_preview_image_from_pdf(pdf_file, prefer_render=False):
-    return import_extract_preview_image_from_pdf(pdf_file, prefer_render=prefer_render)
 
 
 def _file_field_as_data_url(file_field):
@@ -213,10 +201,6 @@ def _normalize_folded_text(value):
         return ''
     normalized = unicodedata.normalize('NFKD', raw)
     return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
-def _parse_session_plan_fields(raw_content):
-    return parse_session_plan_fields(raw_content)
 
 
 def _file_as_data_uri(file_path):
@@ -315,12 +299,6 @@ def _task_drills_for_pdf(meta):
             }
         )
     return cards
-
-
-
-def _team_pdf_palette(team_obj, style_key='uefa'):
-    return team_pdf_palette(team_obj, style_key=style_key)
-
 
 def _normalize_task_pdf_meta(meta):
     def _normalize_meta_key(raw_key):
@@ -552,7 +530,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         )
     )
     total_task_minutes = sum(int(getattr(task, 'duration_minutes', 0) or 0) for task in tasks)
-    session_plan_fields = _parse_session_plan_fields(getattr(session, 'content', ''))
+    session_plan_fields = parse_session_plan_fields(getattr(session, 'content', ''))
     coach_name = (
         request.user.get_full_name().strip()
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
@@ -760,11 +738,11 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
             return _autocrop_preview_data_url(preview)
         layout = task.tactical_layout if isinstance(task.tactical_layout, dict) else {}
         if isinstance(layout, str):
-            layout = _coerce_json_dict(layout) or {}
+            layout = coerce_json_dict(layout) or {}
         if not isinstance(layout, dict):
             layout = {}
         meta = layout.get('meta') if isinstance(layout.get('meta'), dict) else {}
-        canvas_state, canvas_width, canvas_height = _extract_canvas_state_for_preview(task)
+        canvas_state, canvas_width, canvas_height = extract_canvas_state_for_preview(task)
         # 2) Render server-side desde canvas_state (más robusto que depender de ficheros).
         if canvas_state and isinstance(canvas_state, dict) and canvas_state.get('objects'):
             try:
@@ -795,7 +773,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         pdf_field = getattr(task, 'task_pdf', None)
         if pdf_field:
             try:
-                payload = _extract_preview_image_from_pdf(pdf_field, prefer_render=True)
+                payload = extract_preview_image_from_pdf(pdf_field, prefer_render=True)
                 if payload:
                     name, content = payload
                     try:
@@ -977,7 +955,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         'tasks_count': len(tasks),
         'task_minutes_total': total_task_minutes,
         'pdf_style': pdf_style,
-        'pdf_palette': _team_pdf_palette(team, pdf_style),
+        'pdf_palette': team_pdf_palette(team, pdf_style),
         'coach_name': coach_name,
         'logo_url': team_logo_url if pdf_style in {'club', 'hybrid'} else uefa_badge_url,
         'brand_mark_url': brand_mark_data_url or request.build_absolute_uri(static('football/images/2j-mark.svg')),
