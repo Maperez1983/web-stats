@@ -7652,6 +7652,7 @@ class StaffUserLinkingTests(TestCase):
         self.assertEqual(response_club.status_code, 200)
         self.assertContains(response_club, 'Planificación de sesión')
         self.assertContains(response_club, 'Formato Club')
+        self.assertNotContains(response_club, '<div class="page-break"></div>')
 
     @patch('football.views.weasyprint', None)
     def test_session_task_pdf_preview_renders_without_saving_task(self):

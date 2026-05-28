@@ -136,12 +136,17 @@
       .task-sheet-card {
         border: 1px solid var(--border);
         background: #fff;
-        padding: 12px;
-        margin-bottom: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
         border-radius: 10px;
+        page-break-inside: auto;
+        break-inside: auto;
       }
       .task-sheet-card:last-child {
         margin-bottom: 0;
+      }
+      .session-task-separator {
+        height: 8px;
       }
       .task-sheet-grid {
         width: 100%;
@@ -191,8 +196,9 @@
 	        height: auto;
 	        display: block;
 	      }
-	      .task-sheet-card {
+	      .task-graphic {
 	        page-break-inside: avoid;
+	        break-inside: avoid;
 	      }
 
 	      /* UEFA (RFEF) layout, inspirado en plantilla oficial */
@@ -315,13 +321,13 @@
 	      }
 		      .rfef-page {
 		        background: #ffffff;
-		        break-inside: avoid;
-		        page-break-inside: avoid;
+		        break-inside: auto;
+		        page-break-inside: auto;
 		      }
 		      .rfef-section {
 		        margin-top: 8px;
-		        break-inside: avoid;
-		        page-break-inside: avoid;
+		        break-inside: auto;
+		        page-break-inside: auto;
 		      }
 		      .rfef-section-title {
 		        background: #e10613;
@@ -348,8 +354,8 @@
 		        padding: 5px 7px;
 		        vertical-align: top;
 		        font-size: 9.6px;
-		        break-inside: avoid;
-		        page-break-inside: avoid;
+		        break-inside: auto;
+		        page-break-inside: auto;
 		      }
 		      .rfef-label {
 		        width: 22%;
@@ -362,8 +368,8 @@
 		        min-height: 26px;
 		        line-height: 1.4;
 		        white-space: pre-line;
-		        break-inside: avoid;
-		        page-break-inside: avoid;
+		        break-inside: auto;
+		        page-break-inside: auto;
 		      }
 		      .rfef-box.rfef-graphic {
 		        padding: 0;
@@ -694,7 +700,7 @@
 	          {% endif %}
 	        </div>
 
-	        {% if task_cards %}<div class="page-break"></div>{% endif %}
+	        {% if task_cards %}<div class="session-task-separator"></div>{% endif %}
 	        <div class="section-title {% if pdf_style == 'club' %}club{% else %}uefa{% endif %}">
 	          Tareas de la sesión
 	        </div>
