@@ -273,11 +273,6 @@
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
-      body.tactics-mode #task-builder-draft-alert .button {
-        padding: 0.45rem 0.7rem;
-        border-radius: 999px;
-        font-size: 0.85rem;
-      }
       /* Táctica: pantalla completa (sin scroll del documento, todo en una vista). */
       body.tactics-mode.tactics-fullscreen {
         /* Importante: no bloqueamos el scroll global. Aunque el objetivo sea “1 vista”,
@@ -5207,9 +5202,8 @@
       {% endif %}
       {% if feedback and not saved_task_info %}<div class="alert ok">{{ feedback }}</div>{% endif %}
       {% if error %}<div class="alert err">{{ error }}</div>{% endif %}
-      <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem; flex-wrap:wrap;">
+      <div class="alert warn" id="task-builder-draft-alert" hidden style="display:flex; align-items:center; justify-content:center; gap:0.75rem; flex-wrap:wrap;">
         <span id="task-builder-draft-text"></span>
-        <button type="button" class="button" id="task-builder-draft-clear">Borrar borrador</button>
       </div>
 				      <form
 					        method="post"
