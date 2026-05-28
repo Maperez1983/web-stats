@@ -25,16 +25,16 @@
           radial-gradient(circle at 10% -10%, rgba(70, 211, 255, 0.18), transparent 40%),
           radial-gradient(circle at 90% 0%, rgba(255, 191, 69, 0.15), transparent 35%),
           linear-gradient(180deg, #03070f 0%, #081120 55%, #0a1427 100%);
-        padding: 1rem;
+        padding: clamp(0.75rem, 1.6vw, 1.2rem);
       }
       .page {
-        max-width: 900px;
+        max-width: 1180px;
         margin: 0 auto;
       }
       .topline {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        justify-content: space-between;
         gap: 0.75rem;
         margin: 0 auto 0.9rem;
       }
@@ -69,9 +69,9 @@
       }
       .card {
         border: 1px solid var(--line);
-        border-radius: 20px;
+        border-radius: 18px;
         background: var(--panel);
-        padding: 1rem;
+        padding: clamp(0.85rem, 1.5vw, 1.15rem);
         backdrop-filter: blur(4px);
       }
       h1 {
@@ -84,11 +84,24 @@
       .grid {
         margin-top: 1rem;
         display: grid;
-        gap: 0.9rem;
-        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      @media (min-width: 1020px) {
+        .grid {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
       }
       @media (max-width: 740px) {
         .grid { grid-template-columns: 1fr; }
+      }
+      .field-span-full { grid-column: 1 / -1; }
+      .field-span-half { grid-column: span 2; }
+      .field-help {
+        margin: 0.35rem 0 0;
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.9rem;
+        line-height: 1.35;
       }
       label {
         display: block;
@@ -217,11 +230,15 @@
       }
       .actions {
         margin-top: 1rem;
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, max-content));
         gap: 0.6rem;
-        flex-wrap: wrap;
+        align-items: center;
       }
       .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: none;
         border-radius: 999px;
         padding: 0.7rem 1rem;
@@ -229,6 +246,9 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
+        min-height: 42px;
+        text-align: center;
+        text-decoration: none;
       }
       .btn-primary {
         background: linear-gradient(135deg, var(--amber), var(--pitch));
@@ -298,8 +318,8 @@
         gap: 0.45rem;
       }
       .step {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 0.75rem;
         align-items: center;
         border-radius: 12px;
@@ -340,6 +360,100 @@
         font-weight: 800;
       }
       .step a:hover { text-decoration: underline; }
+      .season-status-row {
+        margin-top: 0.8rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.65rem;
+        align-items: center;
+      }
+      .kit-color-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+      }
+      .kit2d-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .kit2d-card {
+        min-width: 0;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        background: rgba(2, 6, 23, 0.18);
+        padding: 0.75rem;
+      }
+      .kit2d-preview {
+        margin-top: 0.45rem;
+        width: 96px;
+        height: 96px;
+        border: 1px solid rgba(226, 232, 240, 0.25);
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.45);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .kit2d-preview img {
+        display: none;
+        max-width: 96px;
+        max-height: 96px;
+      }
+      .kit2d-empty {
+        color: rgba(226, 232, 240, 0.58);
+        font-size: 0.78rem;
+        text-align: center;
+        padding: 0.35rem;
+      }
+      .kit2d-gk-tools {
+        margin-top: 0.55rem;
+        display: grid;
+        grid-template-columns: auto repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .kit2d-small-btn {
+        margin-top: 0.55rem;
+        padding: 0.45rem 0.6rem;
+      }
+      @media (max-width: 720px) {
+        .topline {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+        .logout-btn,
+        .actions .btn {
+          width: 100%;
+        }
+        .actions {
+          grid-template-columns: 1fr;
+        }
+        .step {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+        .field-span-half {
+          grid-column: 1 / -1;
+        }
+        .season-status-row {
+          grid-template-columns: 1fr;
+        }
+        .kit-color-row,
+        .kit2d-gk-tools {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 980px) {
+        .kit2d-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 640px) {
+        .kit2d-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body class="prod-commercial">
@@ -419,15 +533,15 @@
         <form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
           {% csrf_token %}
           <div class="grid">
-            <div>
+            <div class="field-span-half">
               <label for="id_workspace_name">Nombre del club</label>
               <input id="id_workspace_name" type="text" name="workspace_name" value="{{ form.workspace_name|default:'' }}" required />
             </div>
-            <div>
+            <div class="field-span-half">
               <label for="id_team_name">Nombre del equipo</label>
               <input id="id_team_name" type="text" name="team_name" value="{{ form.team_name|default:'' }}" required />
             </div>
-            <div>
+            <div class="field-span-half">
               <label for="id_provider">Proveedor</label>
               <select id="id_provider" name="provider">
                 {% for key, label in provider_choices %}
@@ -435,26 +549,26 @@
                 {% endfor %}
               </select>
             </div>
-            <div>
+            <div class="field-span-half">
               <label for="id_group_key">ID de grupo (Universo)</label>
               <input id="id_group_key" type="text" name="external_group_key" value="{{ form.external_group_key|default:'' }}" placeholder="Ej: 45030656" />
-              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Si lo dejas en blanco, intentamos buscar el equipo en Universo por nombre (y te pedimos elegir si hay varias coincidencias).</p>
+              <p class="field-help">Si lo dejas en blanco, intentamos buscar el equipo en Universo por nombre (y te pedimos elegir si hay varias coincidencias).</p>
             </div>
-            <div style="grid-column: 1 / -1;">
+            <div class="field-span-full">
               <label for="id_team_url">URL de equipo (Universo, opcional)</label>
               <input id="id_team_url" type="url" name="external_source_url" value="{{ form.external_source_url|default:'' }}" placeholder="https://www.universorfaf.es/team/..." />
             </div>
-            <div style="grid-column: 1 / -1;">
+            <div class="field-span-full">
               <label for="id_preferente_url">URL del equipo en LaPreferente (opcional, recomendado si no hay token de Universo)</label>
               <input id="id_preferente_url" type="url" name="preferente_url" value="{{ form.preferente_url|default:'' }}" placeholder="https://www.lapreferente.com/?IDequipo=..." />
-              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Si lo dejas en blanco, intentamos localizarla automáticamente por el nombre del equipo.</p>
+              <p class="field-help">Si lo dejas en blanco, intentamos localizarla automáticamente por el nombre del equipo.</p>
             </div>
-            <div style="grid-column: 1 / -1;">
+            <div class="field-span-full">
               <label for="id_roster_excel">Importar plantilla (Excel, opcional)</label>
               <input id="id_roster_excel" type="file" name="roster_excel" accept=".xlsx,.xlsm,.xls" />
-              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Columnas recomendadas: <code>nombre</code>, <code>dorsal</code>, <code>posicion</code>.</p>
+              <p class="field-help">Columnas recomendadas: <code>nombre</code>, <code>dorsal</code>, <code>posicion</code>.</p>
             </div>
-            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+            <div class="field is-checkbox field-span-full">
               <label><input type="checkbox" name="replace_roster" {% if form.replace_roster %}checked{% endif %} /> Reemplazar plantilla (desactiva jugadores que no estén en el Excel/roster importado)</label>
             </div>
           </div>
@@ -473,7 +587,7 @@
           <strong>Temporada del club:</strong> al iniciar una nueva temporada, todo lo anterior queda como histórico.
           Solo se hereda la plantilla como <em>pendiente de confirmar</em> (el staff la va validando conforme avanza el año).
         </div>
-        <div style="margin-top:0.8rem; display:flex; gap:0.65rem; align-items:center; flex-wrap:wrap;">
+        <div class="season-status-row">
           {% if active_club_season %}
             <p style="margin:0;color:rgba(226,232,240,0.92);">
               Temporada activa: <strong>{{ active_club_season.label }}</strong>
@@ -581,7 +695,7 @@
           <div class="grid">
             <div>
               <label style="margin-bottom:0.15rem;">1ª equipación</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+              <div class="kit-color-row">
                 <div>
                   <label for="id_kit_home_main">Principal</label>
                   <input id="id_kit_home_main" type="color" name="kit_home_main" value="{{ kit_form.home_main|default:'#06814d' }}" />
@@ -594,7 +708,7 @@
             </div>
             <div>
               <label style="margin-bottom:0.15rem;">2ª equipación</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+              <div class="kit-color-row">
                 <div>
                   <label for="id_kit_away_main">Principal</label>
                   <input id="id_kit_away_main" type="color" name="kit_away_main" value="{{ kit_form.away_main|default:'#0b1220' }}" />
@@ -607,7 +721,7 @@
             </div>
             <div>
               <label style="margin-bottom:0.15rem;">Portero</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;">
+              <div class="kit-color-row">
                 <div>
                   <label for="id_kit_gk_main">Principal</label>
                   <input id="id_kit_gk_main" type="color" name="kit_gk_main" value="{{ kit_form.gk_main|default:'#7c2d12' }}" />
@@ -618,7 +732,7 @@
                 </div>
               </div>
             </div>
-            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+            <div class="field is-checkbox field-span-full">
               <label><input type="checkbox" name="kit_use_as_default" /> Usar también como default del club (para otros equipos)</label>
             </div>
           </div>
@@ -646,78 +760,78 @@
             Cargar kits 2D ya hechos
           </div>
           <div class="brand-preview-body" style="display:block;">
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0.75rem;">
-              <div>
+            <div class="kit2d-grid">
+              <div class="kit2d-card">
                 <label for="id_kit2d_home_file">1ª equipación</label>
                 <input id="id_kit2d_home_file" data-kit2d-slot="home" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-home-preview" alt="Vista previa 1ª equipación" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-home-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-home-preview" alt="Vista previa 1ª equipación" />
+                  <span id="kit2d-home-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="home" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="home">Generar con colores</button>
               </div>
-              <div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_away_file">2ª equipación</label>
                 <input id="id_kit2d_away_file" data-kit2d-slot="away" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-away-preview" alt="Vista previa 2ª equipación" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-away-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-away-preview" alt="Vista previa 2ª equipación" />
+                  <span id="kit2d-away-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="away" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="away">Generar con colores</button>
               </div>
-              <div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_third_file">3ª equipación</label>
                 <input id="id_kit2d_third_file" data-kit2d-slot="third" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-third-preview" alt="Vista previa 3ª equipación" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-third-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-third-preview" alt="Vista previa 3ª equipación" />
+                  <span id="kit2d-third-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="third" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="third">Generar con colores</button>
               </div>
-              <div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_gk_file">Portero 1</label>
                 <input id="id_kit2d_gk_file" data-kit2d-slot="gk" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-gk-preview" alt="Vista previa portero 1" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-gk-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-gk-preview" alt="Vista previa portero 1" />
+                  <span id="kit2d-gk-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
+                <div class="kit2d-gk-tools">
                   <input id="id_kit2d_gk_recolor" type="color" value="{{ kit_form.gk_main|default:'#1d4ed8' }}" aria-label="Color kit portero generado" />
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="home">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="away">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk" data-kit2d-gk-source="third">Desde 3ª</button>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="gk">Generar con colores</button>
               </div>
-              <div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_gk2_file">Portero 2</label>
                 <input id="id_kit2d_gk2_file" data-kit2d-slot="gk2" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-gk2-preview" alt="Vista previa portero 2" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-gk2-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-gk2-preview" alt="Vista previa portero 2" />
+                  <span id="kit2d-gk2-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
+                <div class="kit2d-gk-tools">
                   <input id="id_kit2d_gk2_recolor" type="color" value="{{ kit_form.away_main|default:'#f4b400' }}" aria-label="Color kit portero 2 generado" />
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="home">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="away">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk2" data-kit2d-gk-source="third">Desde 3ª</button>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk2" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="gk2">Generar con colores</button>
               </div>
-              <div>
+              <div class="kit2d-card">
                 <label for="id_kit2d_gk3_file">Portero 3</label>
                 <input id="id_kit2d_gk3_file" data-kit2d-slot="gk3" type="file" accept="image/png,image/webp,image/*" />
-                <div style="margin-top:0.45rem;width:96px;height:96px;border:1px solid rgba(226,232,240,0.25);border-radius:14px;background:rgba(15,23,42,0.45);display:grid;place-items:center;overflow:hidden;">
-                  <img id="kit2d-gk3-preview" alt="Vista previa portero 3" style="display:none;max-width:96px;max-height:96px;" />
-                  <span id="kit2d-gk3-empty" style="color:rgba(226,232,240,0.58);font-size:0.78rem;text-align:center;padding:0.35rem;">Sin kit</span>
+                <div class="kit2d-preview">
+                  <img id="kit2d-gk3-preview" alt="Vista previa portero 3" />
+                  <span id="kit2d-gk3-empty" class="kit2d-empty">Sin kit</span>
                 </div>
-                <div style="margin-top:0.55rem;display:grid;grid-template-columns:auto repeat(3,1fr);gap:0.45rem;align-items:center;">
+                <div class="kit2d-gk-tools">
                   <input id="id_kit2d_gk3_recolor" type="color" value="{{ kit_form.home_trim|default:'#ffffff' }}" aria-label="Color kit portero 3 generado" />
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="home" style="padding:0.45rem 0.6rem;">Desde 1ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="away" style="padding:0.45rem 0.6rem;">Desde 2ª</button>
-                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="third" style="padding:0.45rem 0.6rem;">Desde 3ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="home">Desde 1ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="away">Desde 2ª</button>
+                  <button class="btn btn-ghost" type="button" data-kit2d-gk-target="gk3" data-kit2d-gk-source="third">Desde 3ª</button>
                 </div>
-                <button class="btn btn-ghost" type="button" data-kit2d-template-slot="gk3" style="margin-top:0.55rem;padding:0.45rem 0.6rem;">Generar con colores</button>
+                <button class="btn btn-ghost kit2d-small-btn" type="button" data-kit2d-template-slot="gk3">Generar con colores</button>
               </div>
             </div>
             <p id="kit2d-direct-status" style="margin:0.75rem 0 0;color:rgba(226,232,240,0.76);font-size:0.9rem;">
@@ -829,14 +943,14 @@
                 <option value="large" {% if theme_form.font_size|default:'' == 'large' %}selected{% endif %}>Grande</option>
               </select>
             </div>
-            <div style="grid-column: 1 / -1;">
+            <div class="field-span-full">
               <label for="id_theme_ui">Tema por defecto</label>
               <select id="id_theme_ui" name="theme_ui">
                 <option value="dark" {% if theme_form.ui|default:'dark' == 'dark' %}selected{% endif %}>🌙 Oscuro (recomendado)</option>
                 <option value="light" {% if theme_form.ui|default:'' == 'light' %}selected{% endif %}>📰 Presentación (claro)</option>
                 <option value="hc" {% if theme_form.ui|default:'' == 'hc' %}selected{% endif %}>🔆 Alto contraste</option>
               </select>
-              <p style="margin:0.35rem 0 0;color:rgba(226,232,240,0.76);">Puedes alternarlo en cualquier momento desde Menú → Tema (o en la Home con 📰).</p>
+              <p class="field-help">Puedes alternarlo en cualquier momento desde Menú → Tema (o en la Home con 📰).</p>
             </div>
             <div>
               <label for="id_theme_bg_light">Fondo claro (presentación)</label>
@@ -846,7 +960,7 @@
               <label for="id_theme_text_light">Texto en claro</label>
               <input id="id_theme_text_light" type="color" name="theme_text_light" value="{{ theme_form.text_light|default:'#0f172a' }}" />
             </div>
-            <div class="field is-checkbox" style="grid-column: 1 / -1;">
+            <div class="field is-checkbox field-span-full">
               <label><input type="checkbox" name="theme_use_as_default" /> Usar también como default del club (para otros equipos)</label>
             </div>
           </div>

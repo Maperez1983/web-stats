@@ -27,10 +27,10 @@
         background: transparent;
         font-family: var(--prod-font-ui, "Avenir Next", "Inter", "Segoe UI", sans-serif);
       }
-      .page { max-width: 1660px; margin: 0 auto; padding: 1.25rem; }
+      .page { max-width: 1660px; margin: 0 auto; padding: clamp(0.8rem, 1.4vw, 1.25rem); }
       .top {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 1rem;
         margin-bottom: 1rem;
@@ -46,6 +46,13 @@
         box-shadow: 0 18px 46px rgba(2, 6, 23, 0.34);
       }
       .top h1 { margin: 0; font-size: 1.1rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      .top-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, auto));
+        gap: 0.55rem;
+        align-items: center;
+        justify-content: end;
+      }
       .button {
         display: inline-flex; text-decoration: none; align-items: center; justify-content: center;
         border: 1px solid var(--line); border-radius: 999px; padding: 0.55rem 1rem;
@@ -144,9 +151,12 @@
       }
       .tabs {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.45rem;
         margin: 0 0 0.9rem;
+        overflow-x: auto;
+        scrollbar-gutter: stable;
+        -webkit-overflow-scrolling: touch;
       }
       .tab-link {
         display: inline-flex;
@@ -161,6 +171,8 @@
         font-size: 0.71rem;
         color: rgba(226, 232, 240, 0.92);
         background: rgba(255, 255, 255, 0.06);
+        white-space: nowrap;
+        min-height: 36px;
       }
       .tab-link.is-active {
         border-color: rgba(244, 180, 0, 0.34);
@@ -1541,6 +1553,19 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
+      @media (max-width: 720px) {
+        .top {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+        .top-actions {
+          grid-template-columns: 1fr;
+          justify-content: stretch;
+        }
+        .top-actions .button {
+          width: 100%;
+        }
+      }
       @media (max-width: 720px) { .summary-grid, .workflow-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
       @media (max-width: 520px) { .summary-grid { grid-template-columns: 1fr; } }
       @media (max-width: 520px) {
@@ -1606,7 +1631,7 @@
       {% include 'football/includes/dragon_nav.html' %}
 		      <div class="top" id="planner-top">
 		        <h1>{{ scope_title|default:"Sesiones" }} · Planificación</h1>
-            <div style="display:flex; gap:0.55rem; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
+            <div class="top-actions">
               <button type="button" class="button primary" id="planner-save-top" disabled title="Guardar (sección activa)">Guardar</button>
               {% if request.user.is_staff or request.user.is_superuser %}
               <a href="{% url 'platform-overview' %}" class="button">Platform</a>

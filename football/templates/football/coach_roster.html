@@ -17,43 +17,55 @@
         color: var(--prod-text, #f5f7fa);
       }
       .page {
-        max-width: 980px;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 1.3rem;
+        padding: clamp(0.85rem, 1.6vw, 1.35rem);
       }
       .top {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
         gap: 1rem;
       }
+      .top > div { min-width: 0; }
       h1 {
         margin: 0;
         letter-spacing: 0.09em;
         text-transform: uppercase;
-        font-size: 1.3rem;
+        font-size: clamp(1rem, 0.82rem + 0.7vw, 1.28rem);
+        line-height: 1.15;
       }
       .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
-        border-radius: 10px;
+        border-radius: 999px;
         padding: 0.55rem 0.85rem;
         border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
         color: var(--prod-text, #f5f7fa);
+        white-space: nowrap;
       }
       .panel {
         margin-top: 1rem;
-        border-radius: 16px;
+        border-radius: 18px;
         border: 1px solid var(--prod-line, rgba(144, 161, 185, 0.28));
         background: var(--prod-panel-flat, rgba(18, 30, 50, 0.94));
-        padding: 1rem;
+        padding: clamp(0.8rem, 1.3vw, 1rem);
       }
       .tabs {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         gap: 0.5rem;
         margin-bottom: 0.9rem;
+        overflow-x: auto;
+        scrollbar-gutter: stable;
+        -webkit-overflow-scrolling: touch;
       }
       .tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.55rem 0.85rem;
@@ -63,12 +75,15 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         background: rgba(2, 6, 23, 0.08);
+        white-space: nowrap;
+        min-height: 36px;
       }
       .tab.is-active {
         border-color: rgba(34, 211, 238, 0.55);
         box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.18);
         background: rgba(34, 211, 238, 0.12);
       }
+      .tab-refresh { margin-left: auto; }
       .alert {
         margin: 0 0 0.85rem;
         padding: 0.6rem 0.7rem;
@@ -472,23 +487,46 @@
         background: rgba(56, 189, 248, 0.08);
       }
       .scope-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, max-content));
         align-items: center;
-        justify-content: space-between;
         gap: 0.7rem;
         margin: 0 0 0.9rem;
-        flex-wrap: wrap;
       }
-      .scope-row .label {
+      .scope-field {
+        display: grid;
+        grid-template-columns: auto minmax(160px, 260px);
+        gap: 0.55rem;
+        align-items: center;
+      }
+      .scope-field .label {
         font-size: 0.72rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: rgba(148, 163, 184, 0.95);
         font-weight: 800;
       }
-      .scope-row select {
-        width: auto;
-        min-width: 240px;
+      .scope-field select {
+        width: 100%;
+        min-width: 0;
+      }
+      .roster-toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 360px);
+        justify-content: end;
+        gap: 0.55rem;
+        margin: 0 0 0.85rem;
+      }
+      .roster-toolbar input { min-width: 0; }
+      .roster-table-wrap {
+        margin-top: 1rem;
+        overflow-x: auto;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+      }
+      .roster-table-wrap table {
+        margin-top: 0;
+        min-width: 780px;
       }
       @media (max-width: 540px) {
         .broadcast-kpi {
@@ -506,9 +544,26 @@
         .grid {
           grid-template-columns: 1fr;
         }
-        .scope-row select {
+        .scope-row {
+          grid-template-columns: 1fr;
+        }
+        .scope-field {
+          grid-template-columns: 1fr;
+        }
+        .scope-field select {
           width: 100%;
           min-width: 0;
+        }
+        .tab-refresh { margin-left: 0; }
+      }
+      @media (max-width: 640px) {
+        .top {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+        .button { width: 100%; }
+        .roster-toolbar {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -561,7 +616,7 @@
           <a class="tab {% if active_tab == 'stats' %}is-active{% endif %}" href="{{ tab_link_stats }}">Estadísticas</a>
           <a class="tab {% if active_tab == 'manage' %}is-active{% endif %}" href="{{ tab_link_manage }}">Alta y plantilla</a>
           {% if active_tab == 'stats' %}
-            <a class="tab" style="margin-left:auto;" href="{{ tab_link_refresh }}">Actualizar</a>
+            <a class="tab tab-refresh" href="{{ tab_link_refresh }}">Actualizar</a>
           {% endif %}
         </nav>
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
@@ -569,25 +624,29 @@
 
         {% if active_tab == 'stats' %}
           <div class="scope-row">
-            <span class="label">Ámbito</span>
-            <select id="scopeSelect" aria-label="Ámbito estadísticas">
-              <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
-              <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
-              <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
-              <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Globales</option>
-            </select>
-            {% if scope_value == 'tournament' %}
-              <span class="label" style="margin-left:0.9rem;">Torneo</span>
-              <select id="tournamentSelect" aria-label="Torneo">
-                <option value="">Todos</option>
-                {% for name in tournament_options %}
-                  <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
-                {% endfor %}
+            <label class="scope-field">
+              <span class="label">Ámbito</span>
+              <select id="scopeSelect" aria-label="Ámbito estadísticas">
+                <option value="league" {% if scope_value == 'league' %}selected{% endif %}>Liga</option>
+                <option value="tournament" {% if scope_value == 'tournament' %}selected{% endif %}>Torneos</option>
+                <option value="friendly" {% if scope_value == 'friendly' %}selected{% endif %}>Amistosos</option>
+                <option value="all" {% if scope_value == 'all' %}selected{% endif %}>Globales</option>
               </select>
+            </label>
+            {% if scope_value == 'tournament' %}
+              <label class="scope-field">
+                <span class="label">Torneo</span>
+                <select id="tournamentSelect" aria-label="Torneo">
+                  <option value="">Todos</option>
+                  {% for name in tournament_options %}
+                    <option value="{{ name }}" {% if tournament_filter == name %}selected{% endif %}>{{ name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
             {% endif %}
           </div>
-          <div style="display:flex; gap:0.55rem; align-items:center; justify-content:flex-end; margin: 0 0 0.85rem; flex-wrap: wrap;">
-            <input id="playerSearch" type="search" placeholder="Buscar jugador" style="min-width: 240px;" />
+          <div class="roster-toolbar">
+            <input id="playerSearch" type="search" placeholder="Buscar jugador" />
           </div>
 
           <div class="grid" id="playersGrid">
@@ -871,6 +930,7 @@
           <button class="primary" type="submit">Guardar jugador</button>
         </form>
 
+        <div class="roster-table-wrap">
         <table>
           <thead>
             <tr>
@@ -941,6 +1001,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% endif %}
       </section>
     </main>
