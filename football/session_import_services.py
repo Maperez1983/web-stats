@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 import uuid
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -42,9 +43,11 @@ from .task_library_services import (
 logger = logging.getLogger(__name__)
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageFilter, ImageOps
 except Exception:  # pragma: no cover
     Image = None
+    ImageFilter = None
+    ImageOps = None
 
 try:
     import pytesseract
@@ -101,6 +104,158 @@ def extract_pdf_text_via_pdftotext(pdf_bytes: bytes) -> str:
         if chunk:
             out.append(chunk)
     return '\n'.join(out).strip()
+
+
+def extract_image_text_via_tesseract(image_bytes: bytes) -> str:
+    if not image_bytes or Image is None or pytesseract is None:
+        return ''
+    img = _open_pil_rgb_from_bytes(image_bytes)
+    if img is None:
+        return ''
+    try:
+        img = _prepare_image_for_ocr(img)
+    except Exception:
+        pass
+
+    configs = ['--psm 6', '--psm 4']
+    langs = ['spa', 'spa+eng']
+    variants = _image_ocr_variants(img)
+    best_text = ''
+    best_score = 0
+    boost_keywords = (
+        'descripcion',
+        'reglas',
+        'consideraciones',
+        'condicionantes',
+        'portero',
+        'finaliza',
+        'remate',
+        'duelo',
+    )
+    for var_img in variants:
+        for cfg in configs:
+            for lang in langs:
+                try:
+                    text = pytesseract.image_to_string(var_img, lang=lang, config=cfg) or ''
+                except Exception:
+                    text = ''
+                cleaned = str(text or '').strip()
+                if len(cleaned) < 40:
+                    continue
+                alpha = sum(1 for ch in cleaned if ch.isalpha())
+                alpha_ratio = alpha / max(1, len(cleaned))
+                if alpha < 25 or alpha_ratio < 0.22:
+                    continue
+                low = _normalize_ocr_text(cleaned)
+                hits = sum(1 for keyword in boost_keywords if keyword in low)
+                score = int(alpha * 2.2 + len(cleaned) * 0.35 + (hits * 420))
+                if score > best_score:
+                    best_score = score
+                    best_text = cleaned
+                if best_score >= 2200 and hits >= 2 and len(best_text) >= 400:
+                    return best_text.strip()
+    return best_text.strip()
+
+
+def _open_pil_rgb_from_bytes(image_bytes: bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        proc = None
+        try:
+            if shutil.which('magick') is not None:
+                proc = subprocess.run(
+                    ['magick', 'heic:-', 'png:-'],
+                    input=image_bytes,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=25,
+                    check=False,
+                )
+        except Exception:
+            proc = None
+        if proc and proc.returncode == 0 and proc.stdout:
+            try:
+                img = Image.open(io.BytesIO(proc.stdout))
+            except Exception:
+                return None
+        else:
+            return None
+    try:
+        if ImageOps is not None:
+            try:
+                img = ImageOps.exif_transpose(img)
+            except Exception:
+                pass
+        return img.convert('RGB')
+    except Exception:
+        return None
+
+
+def _prepare_image_for_ocr(img):
+    try:
+        max_side = max(int(img.size[0]), int(img.size[1]))
+    except Exception:
+        max_side = 0
+    target_side = 1800
+    if max_side and max_side < target_side:
+        scale = float(target_side) / float(max_side)
+        new_w = max(320, int(round(img.size[0] * scale)))
+        new_h = max(240, int(round(img.size[1] * scale)))
+        try:
+            resample = getattr(Image, 'Resampling', Image).LANCZOS
+        except Exception:
+            resample = getattr(Image, 'LANCZOS', 1)
+        try:
+            return img.resize((new_w, new_h), resample=resample)
+        except Exception:
+            return img
+    return img
+
+
+def _image_ocr_variants(img):
+    variants = [img]
+    if ImageOps is not None:
+        try:
+            gray = ImageOps.grayscale(img)
+            try:
+                gray = ImageOps.autocontrast(gray)
+            except Exception:
+                pass
+            variants.append(gray)
+            if ImageFilter is not None:
+                try:
+                    variants.append(gray.filter(ImageFilter.SHARPEN))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    rotated_variants = []
+    for variant in variants:
+        rotated_variants.append(variant)
+        try:
+            rotated_variants.append(variant.rotate(90, expand=True))
+            rotated_variants.append(variant.rotate(270, expand=True))
+        except Exception:
+            pass
+    if len(rotated_variants) > 4:
+        try:
+            rotated_variants = rotated_variants[-4:]
+        except Exception:
+            pass
+    return rotated_variants
+
+
+def _normalize_ocr_text(value):
+    raw = str(value or '')
+    try:
+        raw = ''.join(
+            ch for ch in unicodedata.normalize('NFKD', raw)
+            if unicodedata.category(ch) != 'Mn'
+        )
+    except Exception:
+        pass
+    return raw.casefold()
 
 
 def extract_pdf_text(pdf_file, max_chars=12000):

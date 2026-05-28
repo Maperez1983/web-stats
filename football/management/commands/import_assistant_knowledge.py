@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.utils import OperationalError
 from django.utils import timezone
 
+from football import session_import_services
 from football.models import AssistantKnowledgeDocument, Team
 
 
@@ -97,11 +98,12 @@ class Command(BaseCommand):
         if not paths:
             raise CommandError("No se encontraron ficheros soportados (.pdf/.txt/.md/.png/.jpg/.jpeg/.webp) en la ruta indicada.")
 
-        # Importamos utilidades desde `views` para reutilizar exactamente la misma lógica de extracción y blueprints.
-        try:
-            from football import views as football_views  # noqa: WPS433
-        except Exception as exc:
-            raise CommandError(f"No se pudo importar football.views: {exc}") from exc
+        football_views = None
+        if not skip_blueprints:
+            try:
+                from football import views as football_views  # noqa: WPS433
+            except Exception as exc:
+                raise CommandError(f"No se pudo importar football.views: {exc}") from exc
 
         extracted = 0
         saved = 0
@@ -154,9 +156,9 @@ class Command(BaseCommand):
             if not skip_extract:
                 try:
                     if is_pdf:
-                        extracted_text = football_views._extract_pdf_text_via_pdftotext(raw)  # type: ignore[attr-defined]
+                        extracted_text = session_import_services.extract_pdf_text_via_pdftotext(raw)
                     elif is_image:
-                        extracted_text = football_views._extract_image_text_via_tesseract(raw)  # type: ignore[attr-defined]
+                        extracted_text = session_import_services.extract_image_text_via_tesseract(raw)
                     else:
                         extracted_text = raw.decode("utf-8", errors="ignore")
                 except Exception:
@@ -181,6 +183,8 @@ class Command(BaseCommand):
 
                 if not skip_blueprints:
                     try:
+                        if football_views is None:
+                            from football import views as football_views  # noqa: WPS433
                         res = football_views._assistant_create_blueprints_from_document(team, doc)  # type: ignore[attr-defined]
                         bp_created += int(res.get("created", 0) or 0)
                         bp_updated += int(res.get("updated", 0) or 0)

@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.utils import OperationalError
+from django.utils import timezone
 
+from football import session_import_services
 from football.models import AssistantKnowledgeDocument, TaskBlueprint, Team
 
 
@@ -103,9 +105,9 @@ class Command(BaseCommand):
                             extracted_text = ""
                             try:
                                 if is_pdf:
-                                    extracted_text = football_views._extract_pdf_text_via_pdftotext(raw)  # type: ignore[attr-defined]
+                                    extracted_text = session_import_services.extract_pdf_text_via_pdftotext(raw)
                                 elif is_image:
-                                    extracted_text = football_views._extract_image_text_via_tesseract(raw)  # type: ignore[attr-defined]
+                                    extracted_text = session_import_services.extract_image_text_via_tesseract(raw)
                                 else:
                                     extracted_text = raw.decode("utf-8", errors="ignore")
                             except Exception:
@@ -113,7 +115,7 @@ class Command(BaseCommand):
                             min_len = 120 if is_pdf else (40 if is_image else 30)
                             if extracted_text and len(extracted_text.strip()) >= min_len:
                                 doc.extracted_text = extracted_text[:500_000]
-                                doc.extracted_at = football_views.timezone.now()  # type: ignore[attr-defined]
+                                doc.extracted_at = timezone.now()
                                 doc.save(update_fields=["extracted_text", "extracted_at"])
                     res = football_views._assistant_create_blueprints_from_document(team, doc)  # type: ignore[attr-defined]
                     created += int(res.get("created", 0) or 0)

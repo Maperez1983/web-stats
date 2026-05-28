@@ -14,6 +14,7 @@ node_modules/
 staticfiles/
 media/
 artifacts/
+outputs/
 playwright-report/
 data/input/rfaf_storage_state.json
 data/debug/
