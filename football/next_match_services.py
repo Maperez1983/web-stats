@@ -1,9 +1,13 @@
-from datetime import datetime
+import json
+import os
+from datetime import datetime, timedelta
+from pathlib import Path
 
+from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
-from .match_payload_services import normalize_next_match_payload, parse_payload_date
+from .match_payload_services import normalize_next_match_payload, parse_payload_date, payload_opponent_name
 from .models import Team, WorkspaceCompetitionContext
 from .query_helpers import _normalize_team_lookup_key, get_current_convocation_record
 from .team_media_services import (
@@ -16,6 +20,23 @@ from .universo_client import fetch_universo_live_results
 from .universo_context_services import context_team_lookup_keys
 from .universo_group_services import expand_team_lookup_variants
 from .universo_snapshot_services import load_universo_snapshot
+from .workspace_context import single_club_fallback_enabled
+
+
+def _env_path(var_name: str, default_path: Path) -> Path:
+    raw = str(os.getenv(var_name, '') or '').strip()
+    if raw:
+        try:
+            return Path(raw).expanduser()
+        except Exception:
+            return default_path
+    return default_path
+
+
+NEXT_MATCH_CACHE = _env_path(
+    'NEXT_MATCH_CACHE_PATH',
+    Path(settings.BASE_DIR) / 'data' / 'input' / 'rfaf-next-match.json',
+)
 
 
 def build_universo_standings_lookup(snapshot):
@@ -310,3 +331,121 @@ def _first(row, *keys):
         if value not in (None, ''):
             return value
     return ''
+
+
+def load_preferred_next_match_payload(
+    primary_team=None,
+    competition_context=None,
+    *,
+    bind_context=True,
+    bind_context_func=None,
+    find_provider_func=None,
+    load_cached_func=None,
+    snapshot_supports_team_func=None,
+):
+    competition_context = competition_context or (
+        WorkspaceCompetitionContext.objects
+        .filter(Q(team=primary_team) | Q(workspace__primary_team=primary_team))
+        .select_related('workspace', 'team', 'group')
+        .first()
+        if primary_team else None
+    )
+    provider_key = (
+        str(getattr(competition_context, 'provider', '') or '').strip().lower()
+        if competition_context else ''
+    )
+    if provider_key and provider_key != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
+        return None
+    if not competition_context:
+        if not primary_team:
+            return None
+        if not (single_club_fallback_enabled() and bool(getattr(primary_team, 'is_primary', False))):
+            return None
+    if bind_context:
+        if bind_context_func:
+            competition_context = bind_context_func(competition_context, primary_team)
+        else:
+            from .universo_context_services import ensure_universo_context_binding
+
+            competition_context = ensure_universo_context_binding(competition_context, primary_team)
+    find_provider_func = find_provider_func or find_universo_next_match_for_context
+    provider_next = find_provider_func(competition_context, primary_team)
+    if next_match_payload_is_reliable(provider_next):
+        return provider_next
+    try:
+        snapshot = getattr(competition_context, 'snapshot', None)
+        if snapshot and isinstance(snapshot.next_match_payload, dict):
+            snapshot_next = normalize_next_match_payload(dict(snapshot.next_match_payload))
+            if next_match_payload_is_reliable(snapshot_next):
+                return snapshot_next
+    except Exception:
+        pass
+
+    snapshot = load_universo_snapshot()
+    if snapshot_supports_team_func:
+        can_use_external = snapshot_supports_team_func(snapshot, primary_team) if primary_team else False
+    else:
+        from .standings_services import universo_snapshot_supports_team
+
+        can_use_external = universo_snapshot_supports_team(snapshot, primary_team) if primary_team else False
+    if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
+        snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
+        if next_match_payload_is_reliable(snapshot_next):
+            return snapshot_next
+
+    load_cached_func = load_cached_func or load_cached_next_match
+    cached_next = load_cached_func() if can_use_external else None
+    if isinstance(cached_next, dict):
+        normalized_cached_next = normalize_next_match_payload(cached_next)
+        if next_match_payload_is_reliable(normalized_cached_next):
+            return normalized_cached_next
+    return None
+
+
+def load_cached_next_match(cache_path=None):
+    cache_path = Path(cache_path) if cache_path else NEXT_MATCH_CACHE
+    if not cache_path.exists():
+        return None
+    try:
+        with cache_path.open(encoding='utf-8') as handle:
+            payload = json.load(handle)
+            if isinstance(payload, dict):
+                payload = normalize_next_match_payload(payload)
+                payload.setdefault('status', 'next')
+                status = (payload.get('status') or '').lower()
+                source = str(payload.get('source') or '').strip().lower()
+                date_raw = payload.get('date')
+                if date_raw:
+                    payload_date = parse_payload_date(date_raw)
+                    today = timezone.localdate()
+                    if payload_date:
+                        if status == 'next' and payload_date < today:
+                            return None
+                        if status == 'latest' and payload_date < (today - timedelta(days=3)):
+                            return None
+                    elif status == 'next':
+                        return None
+                elif status == 'next' and source in {'', 'local-match'}:
+                    return None
+                return payload
+    except Exception:
+        return None
+    return None
+
+
+def next_match_payload_is_reliable(payload):
+    if not isinstance(payload, dict):
+        return False
+    status = str(payload.get('status') or '').strip().lower()
+    if status != 'next':
+        return False
+    source = str(payload.get('source') or '').strip().lower()
+    opponent_name = payload_opponent_name(payload).strip().lower()
+    if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
+        return False
+    payload_date = parse_payload_date(payload.get('date'))
+    if payload_date and payload_date < timezone.localdate():
+        return False
+    if not payload_date and source in {'', 'local-match'}:
+        return False
+    return True

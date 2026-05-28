@@ -5172,37 +5172,7 @@ def authenticated_write(view_func):
 
 
 def load_cached_next_match():
-    if not NEXT_MATCH_CACHE.exists():
-        return None
-    try:
-        with NEXT_MATCH_CACHE.open(encoding="utf-8") as handle:
-            payload = json.load(handle)
-            if isinstance(payload, dict):
-                payload = normalize_next_match_payload(payload)
-                payload.setdefault("status", "next")
-                status = (payload.get('status') or '').lower()
-                source = str(payload.get('source') or '').strip().lower()
-                date_raw = payload.get('date')
-                if date_raw:
-                    payload_date = _parse_payload_date(date_raw)
-                    today = timezone.localdate()
-                    if payload_date:
-                        if status == 'next' and payload_date < today:
-                            return None
-                        if status == 'latest' and payload_date < (today - timedelta(days=3)):
-                            return None
-                    elif status == 'next':
-                        # If we cannot parse the date, avoid surfacing stale "next match" payloads.
-                        return None
-                else:
-                    # Permitimos "próximo partido" sin fecha cuando el origen es una agenda (RFAF/Universo live).
-                    # Ejemplo: partidos suspendidos/aplazados en la jornada con fecha pasada.
-                    if status == 'next' and source in {'', 'local-match'}:
-                        return None
-                return payload
-    except Exception:
-        return None
-    return None
+    return next_match_services.load_cached_next_match(NEXT_MATCH_CACHE)
 
 
 def normalize_next_match_payload(payload):
@@ -7098,52 +7068,15 @@ def _resolve_rival_identity(rival_name, preferred_opponent=None):
 
 
 def load_preferred_next_match_payload(primary_team=None, competition_context=None, *, bind_context=True):
-    competition_context = competition_context or (
-        WorkspaceCompetitionContext.objects
-        .filter(Q(team=primary_team) | Q(workspace__primary_team=primary_team))
-        .select_related('workspace', 'team', 'group')
-        .first()
-        if primary_team else None
+    return next_match_services.load_preferred_next_match_payload(
+        primary_team=primary_team,
+        competition_context=competition_context,
+        bind_context=bind_context,
+        bind_context_func=_ensure_universo_context_binding,
+        find_provider_func=_find_universo_next_match_for_context,
+        load_cached_func=load_cached_next_match,
+        snapshot_supports_team_func=_universo_snapshot_supports_team,
     )
-    provider_key = str(getattr(competition_context, 'provider', '') or '').strip().lower() if competition_context else ''
-    # Si el contexto existe pero NO es Universo, evitamos usar snapshots/cachés globales
-    # (puede mezclar categorías con mismo nombre de club).
-    if provider_key and provider_key != WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
-        return None
-    # Producto comercial/multi-equipo: si no hay contexto competitivo por equipo, no usar
-    # snapshots/cachés globales salvo en modo legacy monoclub (equipo primario).
-    if not competition_context:
-        if not primary_team:
-            return None
-        if not (_single_club_fallback_enabled() and bool(getattr(primary_team, 'is_primary', False))):
-            return None
-    if bind_context:
-        competition_context = _ensure_universo_context_binding(competition_context, primary_team)
-    provider_next = _find_universo_next_match_for_context(competition_context, primary_team)
-    if _next_match_payload_is_reliable(provider_next):
-        return provider_next
-    try:
-        snapshot = getattr(competition_context, 'snapshot', None)
-        if snapshot and isinstance(snapshot.next_match_payload, dict):
-            snapshot_next = normalize_next_match_payload(dict(snapshot.next_match_payload))
-            if _next_match_payload_is_reliable(snapshot_next):
-                return snapshot_next
-    except Exception:
-        pass
-    # Fallback global sólo en modo legacy monoclub (equipo primario).
-    snapshot = load_universo_snapshot()
-    can_use_external = _universo_snapshot_supports_team(snapshot, primary_team) if primary_team else False
-    if can_use_external and isinstance(snapshot, dict) and isinstance(snapshot.get('next_match'), dict):
-        snapshot_next = normalize_next_match_payload(snapshot.get('next_match'))
-        if _next_match_payload_is_reliable(snapshot_next):
-            return snapshot_next
-
-    cached_next = load_cached_next_match() if can_use_external else None
-    if isinstance(cached_next, dict):
-        normalized_cached_next = normalize_next_match_payload(cached_next)
-        if _next_match_payload_is_reliable(normalized_cached_next):
-            return normalized_cached_next
-    return None
 
 
 def _build_next_match_from_convocation(primary_team):
@@ -7267,21 +7200,7 @@ def _build_coach_rival_summary(primary_team):
 
 
 def _next_match_payload_is_reliable(payload):
-    if not isinstance(payload, dict):
-        return False
-    status = str(payload.get('status') or '').strip().lower()
-    if status != 'next':
-        return False
-    source = str(payload.get('source') or '').strip().lower()
-    opponent_name = _payload_opponent_name(payload).strip().lower()
-    if not opponent_name or opponent_name in {'rival por confirmar', 'rival desconocido'}:
-        return False
-    payload_date = _parse_payload_date(payload.get('date'))
-    if payload_date and payload_date < timezone.localdate():
-        return False
-    if not payload_date and source in {'', 'local-match'}:
-        return False
-    return True
+    return next_match_services.next_match_payload_is_reliable(payload)
 
 
 def _dashboard_cache_key(team_id):

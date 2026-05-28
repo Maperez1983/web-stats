@@ -10,7 +10,11 @@ from .match_payload_services import (
     next_match_payload_is_usable,
 )
 from .models import Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
-from .next_match_services import build_next_match_from_convocation, find_universo_next_match_for_context
+from .next_match_services import (
+    build_next_match_from_convocation,
+    find_universo_next_match_for_context,
+    load_preferred_next_match_payload,
+)
 from .query_helpers import _normalize_team_lookup_key
 from .standings_services import resolve_standings_for_team
 from .team_media_services import sync_team_crest_from_sources
@@ -32,9 +36,6 @@ logger = logging.getLogger(__name__)
 
 
 def sync_workspace_competition_context(workspace, primary_team=None):
-    from . import views as core_views
-
-    load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
     primary_team = primary_team or workspace.primary_team

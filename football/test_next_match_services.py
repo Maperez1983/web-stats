@@ -1,4 +1,7 @@
+import json
+import tempfile
 from datetime import time, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -170,3 +173,64 @@ class NextMatchServicesTests(TestCase):
             result = next_match_services.find_universo_next_match_for_context(context, self.team)
 
         self.assertEqual(result, {})
+
+    def test_load_cached_next_match_rejects_stale_next_match(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / 'next.json'
+            cache_path.write_text(
+                json.dumps(
+                    {
+                        'round': 'J1',
+                        'date': (timezone.localdate() - timedelta(days=1)).isoformat(),
+                        'opponent': {'name': 'Rival Next'},
+                        'status': 'next',
+                    }
+                ),
+                encoding='utf-8',
+            )
+
+            payload = next_match_services.load_cached_next_match(cache_path)
+
+        self.assertIsNone(payload)
+
+    def test_load_preferred_next_match_payload_uses_provider_first(self):
+        workspace = Workspace.objects.create(
+            name='Cliente Preferred',
+            slug='cliente-preferred',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=self.team,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name='Equipo Next',
+        )
+        future_date = (timezone.localdate() + timedelta(days=5)).isoformat()
+
+        payload = next_match_services.load_preferred_next_match_payload(
+            primary_team=self.team,
+            competition_context=context,
+            bind_context=False,
+            find_provider_func=lambda _context, _team: {
+                'round': 'J20',
+                'date': future_date,
+                'opponent': {'name': 'Rival Preferred'},
+                'status': 'next',
+                'source': 'universo-live',
+            },
+        )
+
+        self.assertEqual(payload['opponent']['name'], 'Rival Preferred')
+        self.assertEqual(payload['source'], 'universo-live')
+
+    def test_next_match_payload_is_reliable_rejects_placeholder(self):
+        payload = {
+            'round': 'J1',
+            'date': (timezone.localdate() + timedelta(days=5)).isoformat(),
+            'opponent': {'name': 'Rival por confirmar'},
+            'status': 'next',
+        }
+
+        self.assertFalse(next_match_services.next_match_payload_is_reliable(payload))
