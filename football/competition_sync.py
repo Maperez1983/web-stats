@@ -20,6 +20,7 @@ from .universo_competition_services import (
     serialize_universo_live_classification,
     universo_payload_matches_category,
 )
+from .universo_context_services import ensure_universo_context_binding
 from .universo_group_services import (
     ensure_universo_group_models_from_candidate,
     ensure_universo_group_models_from_live,
@@ -33,7 +34,6 @@ logger = logging.getLogger(__name__)
 def sync_workspace_competition_context(workspace, primary_team=None):
     from . import views as core_views
 
-    _ensure_universo_context_binding = core_views._ensure_universo_context_binding
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
@@ -49,7 +49,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
         context.save(update_fields=['sync_status', 'sync_error', 'last_sync_at', 'updated_at'])
         return context, context.sync_error
 
-    context = _ensure_universo_context_binding(context, primary_team)
+    context = ensure_universo_context_binding(context, primary_team)
     sync_team_crest_from_sources(
         primary_team,
         load_snapshot_func=load_universo_snapshot,
