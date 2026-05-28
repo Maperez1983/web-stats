@@ -43,6 +43,32 @@ class AssistantBlueprintServicesTests(SimpleTestCase):
 
         self.assertEqual(html, '<ul><li>Presionar &lt;alto&gt;</li></ul>')
 
+    def test_extract_task_sheet_sections_derives_title_and_sections(self):
+        text = """
+        Capitulo 2
+        3c3 + porteros
+        Descripción
+        Jugar en espacio reducido y finalizar tras pase atrás.
+        Objetivos
+        Atacar área con ventaja.
+        Consideraciones
+        Ajustar distancia entre líneas.
+        """
+
+        sections = assistant_blueprint_services.extract_task_sheet_sections(text)
+
+        self.assertEqual(sections['title'], '3 c 3+porteros')
+        self.assertEqual(sections['desc'], ['Jugar en espacio reducido y finalizar tras pase atrás.'])
+        self.assertEqual(sections['behaviors'], ['Atacar área con ventaja.'])
+
+    def test_infer_goal_key_uses_category_fallback(self):
+        goal_key = assistant_blueprint_services.infer_goal_key_from_text(
+            'Circular y fijar al rival.',
+            category_hint='build_up',
+        )
+
+        self.assertEqual(goal_key, 'build_up')
+
 
 class AssistantBlueprintCreationTests(TestCase):
     def test_create_idea_blueprints_from_document_creates_matching_blueprint(self):

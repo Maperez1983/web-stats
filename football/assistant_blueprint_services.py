@@ -1,5 +1,6 @@
 import html
 import re
+import unicodedata
 
 from .models import SessionTask, TaskBlueprint
 from . import task_library_services
@@ -156,6 +157,294 @@ def assistant_html_list(items):
     if not safe:
         return ''
     return '<ul>' + ''.join(f'<li>{item}</li>' for item in safe[:10]) + '</ul>'
+
+
+def strip_accents(value: str) -> str:
+    try:
+        txt = str(value or '')
+    except Exception:
+        txt = ''
+    if not txt:
+        return ''
+    try:
+        norm = unicodedata.normalize('NFKD', txt)
+    except Exception:
+        return txt
+    out = []
+    for ch in norm:
+        try:
+            if unicodedata.category(ch) == 'Mn':
+                continue
+        except Exception:
+            pass
+        out.append(ch)
+    return ''.join(out)
+
+
+def normalize_ocr_line(value: str) -> str:
+    try:
+        raw = str(value or '')
+    except Exception:
+        raw = ''
+    raw = strip_accents(raw).casefold()
+    raw = (
+        raw.replace('¢', 'c')
+        .replace('©', 'c')
+        .replace('ç', 'c')
+        .replace('€', 'e')
+        .replace('®', 'r')
+        .replace('“', '"')
+        .replace('”', '"')
+        .replace('’', "'")
+    )
+    raw = re.sub(r'\s+', ' ', raw).strip()
+    raw = re.sub(r'[\|·•]+', ' ', raw).strip()
+    return raw
+
+
+def split_assistant_sentences(text: str, limit: int = 12):
+    out = []
+    try:
+        raw = str(text or '')
+    except Exception:
+        raw = ''
+    raw = re.sub(r'\s+', ' ', raw).strip()
+    if not raw:
+        return out
+    parts = re.split(r'(?<=[\.\;\:])\s+|\s+\-\s+|\s+\u2022\s+|\s+\•\s+', raw)
+    for part in parts:
+        item = str(part or '').strip(' -\t\r\n')
+        if not item:
+            continue
+        item = re.sub(r'\s+', ' ', item).strip()
+        if len(item) < 6 or len(item) > 220:
+            continue
+        out.append(item)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def derive_compact_task_title(text: str) -> str:
+    low = normalize_ocr_line(text)
+    if not low:
+        return ''
+    match = re.search(r'\b(\d{1,2})\s*(c|vs)\s*(\d{1,2})\b', low)
+    if not match:
+        match = re.search(r'\b(\d{1,2})c(\d{1,2})\b', low)
+    if not match:
+        match = re.search(r'\b(\d{1,2})\s+(\d{1,2})\s+en\s+espacio\b', low)
+    if not match:
+        return ''
+    try:
+        first = int(match.group(1))
+        if match.lastindex and match.lastindex >= 3 and match.group(3):
+            second = int(match.group(3))
+        else:
+            second = int(match.group(2))
+    except Exception:
+        return ''
+
+    try:
+        start = max(0, int(match.start()) - 40)
+        end = min(len(low), int(match.end()) + 120)
+        ctx = low[start:end]
+    except Exception:
+        ctx = low
+
+    plus_num = None
+    try:
+        plus_match = re.search(r'\+\s*(\d{1,2})\b', ctx)
+        if plus_match:
+            plus_num = int(plus_match.group(1))
+    except Exception:
+        plus_num = None
+
+    suffix = ''
+    if plus_num:
+        suffix += f'+{plus_num}'
+    if 'portero' in ctx or 'porteros' in ctx:
+        suffix += '+porteros'
+    if ('comodin' in ctx or 'comodines' in ctx or 'comodi' in ctx) and '+comod' not in suffix:
+        suffix += '+comodines'
+
+    out = (f'{first}c{second}' + suffix).strip('+')
+    out = re.sub(r'[^0-9a-z\+]+', '', out)
+    return out[:32]
+
+
+def derive_task_theme(text: str) -> str:
+    low = normalize_ocr_line(text)
+    if not low:
+        return ''
+    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
+        return 'Finalización'
+    if any(k in low for k in ('salida', 'progresion', 'organiza', 'inicio', 'construccion')):
+        return 'Salida / progresión'
+    if 'posesion' in low or 'conserva' in low:
+        return 'Posesión'
+    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion', 'perdida')):
+        return 'Presión / recuperación'
+    if 'transicion' in low:
+        return 'Transición'
+    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
+        return 'Condicionante físico'
+    return ''
+
+
+def extract_task_sheet_sections(text: str):
+    lines = []
+    try:
+        raw_lines = str(text or '').splitlines()
+    except Exception:
+        raw_lines = []
+    for raw in raw_lines:
+        item = str(raw or '').strip()
+        if not item:
+            continue
+        item = re.sub(r'\s+', ' ', item).strip()
+        if len(item) < 2:
+            continue
+        if normalize_ocr_line(item).startswith('capitulo '):
+            continue
+        lines.append(item)
+    if not lines:
+        return {}
+
+    headings = {
+        'desc': [('descripcion',), ('desarrollo',), ('consigna',), ('explicacion',), ('reglas',)],
+        'behaviors': [('tipo de comportamientos',), ('comportamientos preferenciados',), ('objetivos',)],
+        'bio': [('caracteristicas',), ('bio',), ('condicionales',)],
+        'considerations': [('consideraciones',), ('variantes',), ('consejos',)],
+        'structural': [('condicionantes estructurales',), ('condicionantes', 'estructurales')],
+        'provocation': [('reglas de provocacion',), ('reglas provocacion',)],
+        'continuation': [('reglas de continuacion',), ('reglas continuacion',)],
+        'info': [('jugadores',), ('espacio',), ('series',), ('duracion',), ('duracion',)],
+    }
+    indexes = {}
+    norm_lines = [normalize_ocr_line(item) for item in lines]
+    for key, variants in headings.items():
+        for idx, low in enumerate(norm_lines):
+            for words in variants:
+                if all(word in low for word in words):
+                    indexes[key] = idx
+                    break
+            if key in indexes:
+                break
+
+    compact = derive_compact_task_title('\n'.join(lines[:60]))
+    theme = derive_task_theme('\n'.join(lines[:120]))
+    if compact and theme:
+        title = f'{compact} · {theme}'
+    elif compact:
+        title = compact
+    else:
+        title = ''
+        for idx, item in enumerate(lines[:18]):
+            letters = [ch for ch in item if ch.isalpha()]
+            if len(letters) < 8:
+                continue
+            upper_ratio = sum(1 for ch in letters if ch.isupper()) / max(1, len(letters))
+            low = normalize_ocr_line(item)
+            if upper_ratio >= 0.78 or any(k in low for k in ('partido condicionado', 'tarea', 'ejercicio')):
+                title = item
+                if idx + 1 < len(lines):
+                    nxt = str(lines[idx + 1] or '').strip()
+                    nxt_low = normalize_ocr_line(nxt)
+                    if nxt and len(nxt) <= 90 and (
+                        nxt_low.startswith('para ')
+                        or nxt_low.startswith('para trabajar')
+                        or nxt_low.startswith('objetivo')
+                    ):
+                        title = f'{title} · {nxt}'
+                break
+        if not title:
+            for item in lines[:12]:
+                low = normalize_ocr_line(item)
+                if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
+                    title = item
+                    break
+        if not title:
+            title = lines[0]
+    title = task_library_services.sanitize_task_text(title, multiline=False, max_len=90)
+
+    def grab(start_key, end_keys):
+        if start_key not in indexes:
+            return []
+        start = int(indexes[start_key]) + 1
+        ends = [int(indexes[key]) for key in end_keys if key in indexes and int(indexes[key]) > int(indexes[start_key])]
+        end = min(ends) if ends else len(lines)
+        chunk = [value for value in lines[start:end] if value.strip()]
+        if chunk and normalize_ocr_line(chunk[0]) == normalize_ocr_line(title):
+            chunk = chunk[1:]
+        return chunk
+
+    return {
+        'title': title,
+        'desc': grab('desc', ['behaviors', 'bio', 'considerations', 'structural']),
+        'behaviors': grab('behaviors', ['bio', 'considerations', 'structural']),
+        'bio': grab('bio', ['considerations', 'structural']),
+        'considerations': grab('considerations', ['structural']),
+        'structural': grab('structural', []),
+        'provocation': grab('provocation', ['continuation', 'behaviors', 'considerations', 'info', 'structural']),
+        'continuation': grab('continuation', ['behaviors', 'considerations', 'info', 'structural']),
+        'info': grab('info', ['behaviors', 'considerations']),
+        'raw_lines': lines[:220],
+    }
+
+
+def guess_category_from_text(text: str) -> str:
+    low = normalize_ocr_line(text)
+    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
+        return TaskBlueprint.CATEGORY_FINISH
+    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion')):
+        return TaskBlueprint.CATEGORY_PRESS
+    if 'transicion' in low:
+        return TaskBlueprint.CATEGORY_TRANSITION
+    if any(k in low for k in ('salida', 'progresion', 'construccion', 'inicio y progresion')):
+        return TaskBlueprint.CATEGORY_BUILD
+    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
+        return TaskBlueprint.CATEGORY_PHYSICAL
+    if 'portero' in low:
+        return TaskBlueprint.CATEGORY_GK
+    return TaskBlueprint.CATEGORY_OTHER
+
+
+def infer_goal_key_from_text(text: str, category_hint: str = '') -> str:
+    haystack = normalize_ocr_line(text or '')
+    best_key = ''
+    best_score = 0
+    for goal_key, spec in (assistant_goal_specs() or {}).items():
+        hits = 0
+        for keyword in spec.get('keywords') or []:
+            normalized_keyword = normalize_ocr_line(str(keyword or ''))
+            if normalized_keyword and normalized_keyword in haystack:
+                hits += 1
+        score = hits * 100
+        try:
+            if category_hint and str(spec.get('category') or '') == str(category_hint):
+                score += 30
+        except Exception:
+            pass
+        if score > best_score:
+            best_score = score
+            best_key = goal_key
+
+    if best_score < 200:
+        category = str(category_hint or '').strip()
+        if category == TaskBlueprint.CATEGORY_BUILD:
+            return 'build_up'
+        if category == TaskBlueprint.CATEGORY_PRESS:
+            return 'pressing'
+        if category == TaskBlueprint.CATEGORY_TRANSITION:
+            return 'transition_atd'
+        if category == TaskBlueprint.CATEGORY_ABP:
+            return 'set_pieces'
+        if category == TaskBlueprint.CATEGORY_PHYSICAL:
+            return 'warmup'
+        return 'auto'
+
+    return best_key or 'auto'
 
 
 def create_idea_blueprints_from_document(team, doc):

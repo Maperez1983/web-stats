@@ -58598,328 +58598,35 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
 
 
 def _assistant__strip_accents(s: str) -> str:
-    try:
-        import unicodedata
-    except Exception:
-        unicodedata = None
-    try:
-        txt = str(s or '')
-    except Exception:
-        txt = ''
-    if not txt:
-        return ''
-    if unicodedata is None:
-        return txt
-    try:
-        norm = unicodedata.normalize('NFKD', txt)
-    except Exception:
-        return txt
-    out = []
-    for ch in norm:
-        try:
-            if unicodedata.category(ch) == 'Mn':
-                continue
-        except Exception:
-            pass
-        out.append(ch)
-    return ''.join(out)
+    return assistant_blueprint_services.strip_accents(s)
 
 
 def _assistant__norm_line(s: str) -> str:
-    try:
-        raw = str(s or '')
-    except Exception:
-        raw = ''
-    raw = _assistant__strip_accents(raw).casefold()
-    # Normaliza símbolos frecuentes en OCR de PDFs/libros.
-    raw = (
-        raw.replace('¢', 'c')
-        .replace('©', 'c')
-        .replace('ç', 'c')
-        .replace('€', 'e')
-        .replace('®', 'r')
-        .replace('“', '"')
-        .replace('”', '"')
-        .replace('’', "'")
-    )
-    raw = re.sub(r'\s+', ' ', raw).strip()
-    raw = re.sub(r'[\|·•]+', ' ', raw).strip()
-    return raw
+    return assistant_blueprint_services.normalize_ocr_line(s)
 
 
 def _assistant__split_sentences(text: str, limit: int = 12):
-    out = []
-    try:
-        raw = str(text or '')
-    except Exception:
-        raw = ''
-    raw = re.sub(r'\s+', ' ', raw).strip()
-    if not raw:
-        return out
-    parts = re.split(r'(?<=[\.\;\:])\s+|\s+\-\s+|\s+\u2022\s+|\s+\•\s+', raw)
-    for p in parts:
-        s = str(p or '').strip(' -\t\r\n')
-        if not s:
-            continue
-        s = re.sub(r'\s+', ' ', s).strip()
-        if len(s) < 6 or len(s) > 220:
-            continue
-        out.append(s)
-        if len(out) >= limit:
-            break
-    return out
+    return assistant_blueprint_services.split_assistant_sentences(text, limit=limit)
 
 
 def _assistant__derive_compact_task_title(text: str) -> str:
-    """
-    Intenta extraer un título compacto tipo "3c3+porteros" desde OCR ruidoso.
-    """
-    low = _assistant__norm_line(text)
-    if not low:
-        return ''
-    # Primer patrón tipo "3 c 3", "3vs3", etc.
-    m = re.search(r'\b(\d{1,2})\s*(c|vs)\s*(\d{1,2})\b', low)
-    if not m:
-        # A veces OCR junta: "3c3"
-        m = re.search(r'\b(\d{1,2})c(\d{1,2})\b', low)
-    if not m:
-        # OCR a veces pierde la "c": "11 11 en espacio reducido"
-        m = re.search(r'\b(\d{1,2})\s+(\d{1,2})\s+en\s+espacio\b', low)
-    if not m:
-        return ''
-    try:
-        a = int(m.group(1))
-        if m.lastindex and m.lastindex >= 3 and m.group(3):
-            b = int(m.group(3))
-        else:
-            b = int(m.group(2))
-    except Exception:
-        return ''
-    base = f'{a}c{b}'
-
-    # Captura contexto alrededor para detectar "+ N", "portero", "comodin".
-    try:
-        start = max(0, int(m.start()) - 40)
-        end = min(len(low), int(m.end()) + 120)
-        ctx = low[start:end]
-    except Exception:
-        ctx = low
-
-    # "+ 2" (comodines, etc.)
-    plus_num = None
-    try:
-        m2 = re.search(r'\+\s*(\d{1,2})\b', ctx)
-        if m2:
-            plus_num = int(m2.group(1))
-    except Exception:
-        plus_num = None
-
-    has_goalkeepers = 'portero' in ctx or 'porteros' in ctx
-    has_comodin = 'comodin' in ctx or 'comodines' in ctx or 'comodi' in ctx
-
-    suffix = ''
-    if plus_num:
-        suffix += f'+{plus_num}'
-    if has_goalkeepers:
-        suffix += '+porteros'
-    if has_comodin and '+comod' not in suffix:
-        suffix += '+comodines'
-
-    out = (base + suffix).strip('+')
-    out = re.sub(r'[^0-9a-z\+]+', '', out)
-    return out[:32]
+    return assistant_blueprint_services.derive_compact_task_title(text)
 
 
 def _assistant__derive_task_theme(text: str) -> str:
-    low = _assistant__norm_line(text)
-    if not low:
-        return ''
-    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
-        return 'Finalización'
-    if any(k in low for k in ('salida', 'progresion', 'organiza', 'inicio', 'construccion')):
-        return 'Salida / progresión'
-    if 'posesion' in low or 'conserva' in low:
-        return 'Posesión'
-    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion', 'perdida')):
-        return 'Presión / recuperación'
-    if 'transicion' in low:
-        return 'Transición'
-    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
-        return 'Condicionante físico'
-    return ''
+    return assistant_blueprint_services.derive_task_theme(text)
 
 
 def _assistant__extract_task_sheet_sections(text: str):
-    """
-    Heurística para fichas tipo tabla: intenta localizar secciones comunes.
-    Devuelve dict con keys: title, desc, behaviors, bio, considerations, structural.
-    """
-    lines = []
-    try:
-        raw_lines = str(text or '').splitlines()
-    except Exception:
-        raw_lines = []
-    for raw in raw_lines:
-        s = str(raw or '').strip()
-        if not s:
-            continue
-        s = re.sub(r'\s+', ' ', s).strip()
-        if len(s) < 2:
-            continue
-        # Quitamos "Capitulo ..." típico de libros
-        if _assistant__norm_line(s).startswith('capitulo '):
-            continue
-        lines.append(s)
-    if not lines:
-        return {}
-
-    headings = {
-        # Fichas "libro/temario" (tablas).
-        'desc': [('descripcion',), ('desarrollo',), ('consigna',), ('explicacion',), ('reglas',)],
-        'behaviors': [('tipo de comportamientos',), ('comportamientos preferenciados',), ('objetivos',)],
-        'bio': [('caracteristicas',), ('bio',), ('condicionales',)],
-        'considerations': [('consideraciones',), ('variantes',), ('consejos',)],
-        'structural': [('condicionantes estructurales',), ('condicionantes', 'estructurales')],
-        # Tarjetas tipo RRSS / "partido condicionado".
-        'provocation': [('reglas de provocacion',), ('reglas provocacion',)],
-        'continuation': [('reglas de continuacion',), ('reglas continuacion',)],
-        'info': [('jugadores',), ('espacio',), ('series',), ('duracion',), ('duracion',)],
-    }
-    # Índices por sección (la primera ocurrencia).
-    idxs = {}
-    norm_lines = [_assistant__norm_line(s) for s in lines]
-    for key, variants in headings.items():
-        for i, low in enumerate(norm_lines):
-            for words in variants:
-                if all(w in low for w in words):
-                    idxs[key] = i
-                    break
-            if key in idxs:
-                break
-
-    # Title: prioriza "XcY" y heurísticas para tarjetas de RRSS (títulos en mayúsculas).
-    compact = _assistant__derive_compact_task_title('\n'.join(lines[:60]))
-    theme = _assistant__derive_task_theme('\n'.join(lines[:120]))
-    if compact and theme:
-        title = f'{compact} · {theme}'
-    elif compact:
-        title = compact
-    else:
-        title = ''
-        # 1) Busca un título claramente en mayúsculas (típico de carruseles RRSS).
-        for i, s in enumerate(lines[:18]):
-            letters = [ch for ch in s if ch.isalpha()]
-            if len(letters) < 8:
-                continue
-            upper_ratio = sum(1 for ch in letters if ch.isupper()) / max(1, len(letters))
-            low = _assistant__norm_line(s)
-            if upper_ratio >= 0.78 or any(k in low for k in ('partido condicionado', 'tarea', 'ejercicio')):
-                title = s
-                # Si la siguiente línea parece subtítulo ("para trabajar ..."), la añadimos.
-                if i + 1 < len(lines):
-                    nxt = str(lines[i + 1] or '').strip()
-                    nxt_low = _assistant__norm_line(nxt)
-                    if nxt and len(nxt) <= 90 and (nxt_low.startswith('para ') or nxt_low.startswith('para trabajar') or nxt_low.startswith('objetivo')):
-                        title = f'{title} · {nxt}'
-                break
-        # 2) Fallback: primera línea con pinta de tarea.
-        if not title:
-            for s in lines[:12]:
-                low = _assistant__norm_line(s)
-                if re.search(r'\b\d+\s*(c|vs)\s*\d+\b', low) or 'portero' in low or 'mini' in low:
-                    title = s
-                    break
-        if not title:
-            title = lines[0]
-    title = _sanitize_task_text(title, multiline=False, max_len=90)
-
-    # Extrae secciones por rangos de líneas.
-    def grab(start_key, end_keys):
-        if start_key not in idxs:
-            return []
-        start = int(idxs[start_key]) + 1
-        ends = [int(idxs[k]) for k in end_keys if k in idxs and int(idxs[k]) > int(idxs[start_key])]
-        end = min(ends) if ends else len(lines)
-        chunk = [v for v in lines[start:end] if v.strip()]
-        # Evita que se meta el mismo título si OCR lo repite
-        if chunk and _assistant__norm_line(chunk[0]) == _assistant__norm_line(title):
-            chunk = chunk[1:]
-        return chunk
-
-    return {
-        'title': title,
-        'desc': grab('desc', ['behaviors', 'bio', 'considerations', 'structural']),
-        'behaviors': grab('behaviors', ['bio', 'considerations', 'structural']),
-        'bio': grab('bio', ['considerations', 'structural']),
-        'considerations': grab('considerations', ['structural']),
-        'structural': grab('structural', []),
-        'provocation': grab('provocation', ['continuation', 'behaviors', 'considerations', 'info', 'structural']),
-        'continuation': grab('continuation', ['behaviors', 'considerations', 'info', 'structural']),
-        'info': grab('info', ['behaviors', 'considerations']),
-        'raw_lines': lines[:220],
-    }
+    return assistant_blueprint_services.extract_task_sheet_sections(text)
 
 
 def _assistant__guess_category_from_text(text: str) -> str:
-    low = _assistant__norm_line(text)
-    if any(k in low for k in ('finalizacion', 'remate', 'gol', 'porteria', 'tiro', 'disparo')):
-        return TaskBlueprint.CATEGORY_FINISH
-    if any(k in low for k in ('presion', 'recuperacion', 'robo', 'intercepcion')):
-        return TaskBlueprint.CATEGORY_PRESS
-    if 'transicion' in low:
-        return TaskBlueprint.CATEGORY_TRANSITION
-    if any(k in low for k in ('salida', 'progresion', 'construccion', 'inicio y progresion')):
-        return TaskBlueprint.CATEGORY_BUILD
-    if any(k in low for k in ('condicionante', 'fuerza', 'resistencia', 'velocidad', 'potencia')):
-        return TaskBlueprint.CATEGORY_PHYSICAL
-    if 'portero' in low:
-        return TaskBlueprint.CATEGORY_GK
-    return TaskBlueprint.CATEGORY_OTHER
+    return assistant_blueprint_services.guess_category_from_text(text)
 
 
 def _assistant__infer_goal_key_from_text(text: str, category_hint: str = '') -> str:
-    """
-    Intenta mapear una ficha OCR a un `goal` del recomendador Smart.
-
-    Nota: es conservador. Si no hay señales suficientes devuelve 'auto'.
-    """
-    haystack = _assistant__norm_line(text or '')
-    specs = _assistant_goal_specs()
-    best_key = ''
-    best_score = 0
-    for goal_key, spec in (specs or {}).items():
-        kws = spec.get('keywords') or []
-        hits = 0
-        for kw in kws:
-            k = _assistant__norm_line(str(kw or ''))
-            if k and k in haystack:
-                hits += 1
-        score = hits * 100
-        try:
-            if category_hint and str(spec.get('category') or '') == str(category_hint):
-                score += 30
-        except Exception:
-            pass
-        if score > best_score:
-            best_score = score
-            best_key = goal_key
-
-    # Si no hay hits suficientes, fallback por categoría (solo equivalencias claras).
-    if best_score < 200:
-        cat = str(category_hint or '').strip()
-        if cat == TaskBlueprint.CATEGORY_BUILD:
-            return 'build_up'
-        if cat == TaskBlueprint.CATEGORY_PRESS:
-            return 'pressing'
-        if cat == TaskBlueprint.CATEGORY_TRANSITION:
-            return 'transition_atd'
-        if cat == TaskBlueprint.CATEGORY_ABP:
-            return 'set_pieces'
-        if cat == TaskBlueprint.CATEGORY_PHYSICAL:
-            return 'warmup'
-        return 'auto'
-
-    return best_key or 'auto'
+    return assistant_blueprint_services.infer_goal_key_from_text(text, category_hint=category_hint)
 
 
 def _assistant_create_blueprint_from_task_sheet(
