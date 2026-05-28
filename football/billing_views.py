@@ -78,6 +78,7 @@ def _stripe_init():
         stripe.api_key = _stripe_secret_key()
         return True
     except Exception:
+        logger.exception('No se pudo inicializar Stripe.')
         return False
 
 
