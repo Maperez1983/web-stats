@@ -318,28 +318,6 @@ def _task_drills_for_pdf(meta):
 
 
 
-def _team_color_seed(team):
-    base = str(getattr(team, 'slug', '') or getattr(team, 'name', '') or '').strip().lower()
-    if not base:
-        base = str(getattr(team, 'id', '') or 'team')
-    total = 0
-    for ch in base:
-        total = (total * 31 + ord(ch)) % 360
-    return total
-
-
-def _team_initials(label):
-    text = ' '.join(str(label or '').split()).strip()
-    if not text:
-        return '??'
-    tokens = [tok for tok in re.split(r'[^A-Za-z0-9]+', text) if tok]
-    if not tokens:
-        return (text[:2] if len(text) >= 2 else text).upper()
-    if len(tokens) == 1:
-        return (tokens[0][:2] if len(tokens[0]) >= 2 else tokens[0]).upper()
-    return (tokens[0][0] + tokens[1][0]).upper()
-
-
 def _team_pdf_palette(team_obj, style_key='uefa'):
     return team_pdf_palette(team_obj, style_key=style_key)
 
