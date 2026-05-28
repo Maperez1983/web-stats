@@ -18,6 +18,7 @@ from .universo_competition_services import (
     universo_payload_matches_category,
 )
 from .universo_snapshot_services import load_universo_snapshot
+from .workspace_competition_context_services import bootstrap_workspace_competition_context
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,6 @@ logger = logging.getLogger(__name__)
 def sync_workspace_competition_context(workspace, primary_team=None):
     from . import views as core_views
 
-    _bootstrap_workspace_competition_context = core_views._bootstrap_workspace_competition_context
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
     _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
     _build_universo_competition_catalog = core_views._build_universo_competition_catalog
@@ -37,7 +37,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     if not workspace or workspace.kind != Workspace.KIND_CLUB:
         return None, 'Este cliente no admite contexto competitivo.'
     primary_team = primary_team or workspace.primary_team
-    context = _bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
+    context = bootstrap_workspace_competition_context(workspace, primary_team=primary_team)
     if not context:
         return None, 'No se pudo preparar el contexto competitivo.'
     if not primary_team:
