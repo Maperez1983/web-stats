@@ -12,28 +12,16 @@ from django.urls import Resolver404, resolve, reverse
 from django.utils.html import escape
 
 from .models import AppUserRole
+from .workspace_context import can_access_platform as workspace_can_access_platform
+from .workspace_context import get_user_role as workspace_get_user_role
 
 
 def _get_user_role(user):
-    if not user or not getattr(user, "is_authenticated", False):
-        return None
-    role_obj = getattr(user, "app_role", None)
-    role = str(getattr(role_obj, "role", "") or "").strip() or None
-    legacy_map = {
-        "admin": AppUserRole.ROLE_ADMIN,
-        "player": AppUserRole.ROLE_PLAYER,
-    }
-    normalized_role = legacy_map.get(role, role)
-    if normalized_role:
-        return normalized_role
-    if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
-        return AppUserRole.ROLE_ADMIN
-    return None
+    return workspace_get_user_role(user)
 
 
 def _can_access_platform(user):
-    role = _get_user_role(user)
-    return bool(user and getattr(user, "is_authenticated", False) and (getattr(user, "is_superuser", False) or getattr(user, "is_staff", False) or role == AppUserRole.ROLE_ADMIN))
+    return workspace_can_access_platform(user)
 
 
 def _split_csv(raw: str) -> list[str]:
