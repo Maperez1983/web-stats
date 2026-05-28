@@ -5,7 +5,16 @@ from django.test import TestCase
 from django.utils import timezone
 
 from football import next_match_services
-from football.models import Competition, ConvocationRecord, Group, Match, Season, Team
+from football.models import (
+    Competition,
+    ConvocationRecord,
+    Group,
+    Match,
+    Season,
+    Team,
+    Workspace,
+    WorkspaceCompetitionContext,
+)
 
 
 class NextMatchServicesTests(TestCase):
@@ -85,3 +94,79 @@ class NextMatchServicesTests(TestCase):
         payload = next_match_services.build_next_match_from_convocation(self.team)
 
         self.assertIsNone(payload)
+
+    def test_find_universo_next_match_for_context_returns_future_live_match(self):
+        workspace = Workspace.objects.create(
+            name='Cliente Next Live',
+            slug='cliente-next-live',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=self.team,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name='Equipo Next',
+            external_team_key='111',
+        )
+        future_date = (timezone.localdate() + timedelta(days=7)).strftime('%d/%m/%Y')
+        payload = {
+            'jornada': '12',
+            'fecha_jornada': future_date,
+            'nombre_jornada': 'Jornada 12',
+            'listado_jornadas': [{'jornadas': [{'codjornada': '12'}]}],
+            'partidos': [
+                {
+                    'Nombre_equipo_local': 'Equipo Next',
+                    'Nombre_equipo_visitante': 'Rival Next',
+                    'CodEquipo_local': '111',
+                    'CodEquipo_visitante': '222',
+                    'fecha': future_date,
+                    'hora': '18:00',
+                    'campojuego': 'Campo Universo',
+                }
+            ],
+        }
+
+        with patch('football.next_match_services.fetch_universo_live_results', return_value=payload):
+            result = next_match_services.find_universo_next_match_for_context(context, self.team)
+
+        self.assertEqual(result['round'], 'Jornada 12')
+        self.assertEqual(result['opponent']['name'], 'Rival Next')
+        self.assertEqual(result['opponent']['team_code'], '222')
+        self.assertTrue(result['home'])
+        self.assertEqual(result['source'], 'universo-live')
+
+    def test_find_universo_next_match_for_context_ignores_past_live_match(self):
+        workspace = Workspace.objects.create(
+            name='Cliente Next Past',
+            slug='cliente-next-past',
+            kind=Workspace.KIND_CLUB,
+            primary_team=self.team,
+        )
+        context = WorkspaceCompetitionContext.objects.create(
+            workspace=workspace,
+            team=self.team,
+            provider=WorkspaceCompetitionContext.PROVIDER_UNIVERSO,
+            external_group_key='45030656',
+            external_team_name='Equipo Next',
+        )
+        past_date = (timezone.localdate() - timedelta(days=1)).strftime('%d/%m/%Y')
+        payload = {
+            'jornada': '1',
+            'fecha_jornada': past_date,
+            'listado_jornadas': [{'jornadas': [{'codjornada': '1'}]}],
+            'partidos': [
+                {
+                    'Nombre_equipo_local': 'Equipo Next',
+                    'Nombre_equipo_visitante': 'Rival Next',
+                    'fecha': past_date,
+                }
+            ],
+        }
+
+        with patch('football.next_match_services.fetch_universo_live_results', return_value=payload):
+            result = next_match_services.find_universo_next_match_for_context(context, self.team)
+
+        self.assertEqual(result, {})

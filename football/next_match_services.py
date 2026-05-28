@@ -1,8 +1,10 @@
+from datetime import datetime
+
 from django.db.models import Q
 from django.utils import timezone
 
-from .match_payload_services import normalize_next_match_payload
-from .models import Team
+from .match_payload_services import normalize_next_match_payload, parse_payload_date
+from .models import Team, WorkspaceCompetitionContext
 from .query_helpers import _normalize_team_lookup_key, get_current_convocation_record
 from .team_media_services import (
     absolute_universo_url,
@@ -10,6 +12,9 @@ from .team_media_services import (
     resolve_team_crest_url,
     sanitize_universo_external_image,
 )
+from .universo_client import fetch_universo_live_results
+from .universo_context_services import context_team_lookup_keys
+from .universo_group_services import expand_team_lookup_variants
 from .universo_snapshot_services import load_universo_snapshot
 
 
@@ -137,3 +142,171 @@ def build_next_match_from_convocation(primary_team):
         'source': 'convocation-manual',
     }
     return normalize_next_match_payload(payload)
+
+
+def find_universo_next_match_for_context(context, primary_team):
+    if (
+        not context
+        or str(getattr(context, 'provider', '') or '').strip()
+        != WorkspaceCompetitionContext.PROVIDER_UNIVERSO
+    ):
+        return {}
+    group_key = str(getattr(context, 'external_group_key', '') or '').strip()
+    if not group_key:
+        group_key = str(getattr(getattr(primary_team, 'group', None), 'external_id', '') or '').strip()
+    if not group_key:
+        return {}
+    team_keys = context_team_lookup_keys(context, primary_team)
+    if not team_keys:
+        return {}
+
+    today = timezone.localdate()
+    current_payload = fetch_universo_live_results(group_key)
+    if not current_payload:
+        return {}
+    rounds = _round_ids_to_check(current_payload)
+    for round_id in rounds:
+        current_round = str(current_payload.get('jornada') or '').strip()
+        payload = (
+            current_payload
+            if round_id == current_round
+            else fetch_universo_live_results(group_key, round_id)
+        )
+        if not payload:
+            continue
+        fallback_date = str(payload.get('fecha_jornada') or '').strip()
+        fallback_round = str(payload.get('nombre_jornada') or payload.get('jornada') or round_id).strip()
+        for row in payload.get('partidos') or []:
+            if not isinstance(row, dict):
+                continue
+            candidate = _payload_from_universo_result_row(
+                row,
+                team_keys=team_keys,
+                fallback_date=fallback_date,
+                fallback_round=fallback_round,
+            )
+            if not candidate:
+                continue
+            payload_date = parse_payload_date(candidate.get('date'))
+            if payload_date and payload_date >= today:
+                return candidate
+    return {}
+
+
+def _round_ids_to_check(current_payload):
+    rounds = []
+    current_round = str(current_payload.get('jornada') or '').strip()
+    if current_round:
+        rounds.append(current_round)
+    for bucket in current_payload.get('listado_jornadas') or []:
+        if not isinstance(bucket, dict):
+            continue
+        for row in bucket.get('jornadas') or []:
+            if not isinstance(row, dict):
+                continue
+            round_id = str(row.get('codjornada') or '').strip()
+            if round_id and round_id not in rounds:
+                rounds.append(round_id)
+
+    numeric_rounds = [rid for rid in rounds if str(rid).isdigit()]
+    if numeric_rounds:
+        ordered_unique = sorted({rid for rid in numeric_rounds}, key=lambda value: int(value))
+        start_index = 0
+        if current_round.isdigit() and current_round in ordered_unique:
+            start_index = ordered_unique.index(current_round)
+        return ordered_unique[start_index:start_index + 6]
+    return rounds[:6]
+
+
+def _payload_from_universo_result_row(row, *, team_keys, fallback_date='', fallback_round=''):
+    home_name = str(
+        _first(row, 'Nombre_equipo_local', 'nombre_equipo_local', 'equipo_local', 'local') or ''
+    ).strip()
+    away_name = str(
+        _first(
+            row,
+            'Nombre_equipo_visitante',
+            'nombre_equipo_visitante',
+            'equipo_visitante',
+            'visitante',
+            'away',
+        )
+        or ''
+    ).strip()
+    home_keys = expand_team_lookup_variants(home_name)
+    away_keys = expand_team_lookup_variants(away_name)
+    home_code = str(
+        _first(row, 'CodEquipo_local', 'cod_equipo_local', 'CodEquipoLocal', 'code_local') or ''
+    ).strip().lower()
+    away_code = str(
+        _first(row, 'CodEquipo_visitante', 'cod_equipo_visitante', 'CodEquipoVisitante', 'code_away') or ''
+    ).strip().lower()
+    if home_code:
+        home_keys.add(home_code)
+    if away_code:
+        away_keys.add(away_code)
+    if team_keys & home_keys:
+        opponent_name = away_name
+        home_flag = True
+        crest_url = absolute_universo_url(
+            _first(row, 'url_img_visitante', 'url_img_visit', 'escudo_visitante', 'crest_away')
+        )
+        team_code = str(_first(row, 'CodEquipo_visitante', 'cod_equipo_visitante', 'code_away') or '').strip()
+    elif team_keys & away_keys:
+        opponent_name = home_name
+        home_flag = False
+        crest_url = absolute_universo_url(
+            _first(row, 'url_img_local', 'url_img_loc', 'escudo_local', 'crest_home')
+        )
+        team_code = str(_first(row, 'CodEquipo_local', 'cod_equipo_local', 'code_local') or '').strip()
+    else:
+        return {}
+    raw_date = str(
+        _first(row, 'fecha', 'Fecha', 'date', 'fecha_partido', 'fechaPartido') or fallback_date or ''
+    ).strip()
+    date_iso = _parse_universo_result_date(raw_date)
+    return normalize_next_match_payload(
+        {
+            'round': str(
+                _first(row, 'nombre_jornada', 'NombreJornada', 'jornada', 'round') or fallback_round or ''
+            ).strip(),
+            'date': date_iso,
+            'time': str(_first(row, 'hora', 'Hora', 'time', 'horario') or '').strip(),
+            'location': str(_first(row, 'campojuego', 'CampoJuego', 'campo', 'location') or '').strip(),
+            'opponent': {
+                'name': opponent_name or 'Rival por confirmar',
+                'full_name': opponent_name or 'Rival por confirmar',
+                'crest_url': crest_url,
+                'team_code': team_code,
+            },
+            'home': home_flag,
+            'status': 'next',
+            'source': 'universo-live',
+        }
+    )
+
+
+def _parse_universo_result_date(raw_date):
+    value = str(raw_date or '').strip()
+    if 'T' in value:
+        value = value.split('T', 1)[0].strip()
+    if ' ' in value:
+        value = value.split(' ', 1)[0].strip()
+    if not value:
+        return None
+    for fmt in ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d', '%Y/%m/%d'):
+        try:
+            return datetime.strptime(value, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
+
+
+def _first(row, *keys):
+    for key in keys:
+        if not key:
+            continue
+        value = row.get(key)
+        if value not in (None, ''):
+            return value
+    return ''
