@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import base64
 import html
@@ -13,6 +14,9 @@ from football.query_helpers import _normalize_team_lookup_key
 from football.universo_snapshot_services import load_universo_snapshot
 
 
+logger = logging.getLogger(__name__)
+
+
 def _env_path(var_name: str, default_path: Path) -> Path:
     raw = str(os.getenv(var_name, '') or '').strip()
     if raw:
@@ -21,6 +25,14 @@ def _env_path(var_name: str, default_path: Path) -> Path:
         except Exception:
             return default_path
     return default_path
+
+
+def _read_json_file(path: Path, *, fallback=None):
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except Exception as exc:
+        logger.debug('No se pudo leer JSON de %s: %s', path, exc)
+        return fallback
 
 
 UNIVERSO_CAPTURE_PATH = _env_path(
@@ -71,9 +83,8 @@ def build_universo_capture_team_lookup():
         cached_lookup = memo.get('lookup')
         if isinstance(cached_lookup, dict):
             return cached_lookup
-    try:
-        payload = json.loads(capture_path.read_text(encoding='utf-8'))
-    except Exception:
+    payload = _read_json_file(capture_path)
+    if not isinstance(payload, dict):
         return lookup
     items = payload.get('items') if isinstance(payload, dict) else None
     if not isinstance(items, list):
@@ -152,10 +163,7 @@ def build_team_crest_lookup(load_snapshot_func=None):
         if isinstance(cached_lookup, dict):
             return cached_lookup
     if capture_path.exists():
-        try:
-            payload = json.loads(capture_path.read_text(encoding='utf-8'))
-        except Exception:
-            payload = {}
+        payload = _read_json_file(capture_path, fallback={})
         items = payload.get('items') if isinstance(payload, dict) else []
         for item in items or []:
             if not isinstance(item, dict):
