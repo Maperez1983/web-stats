@@ -58834,21 +58834,14 @@ def task_assistant_knowledge_upload_api(request):
 
     def _is_image_upload(upload_obj) -> bool:
         try:
-            name = str(getattr(upload_obj, 'name', '') or '').lower()
+            name = str(getattr(upload_obj, 'name', '') or '')
         except Exception:
             name = ''
         try:
-            mime_guess = str(getattr(upload_obj, 'content_type', '') or '').lower()
+            mime_guess = str(getattr(upload_obj, 'content_type', '') or '')
         except Exception:
             mime_guess = ''
-        return bool(
-            (mime_guess.startswith('image/'))
-            or name.endswith('.png')
-            or name.endswith('.jpg')
-            or name.endswith('.jpeg')
-            or name.endswith('.heic')
-            or name.endswith('.webp')
-        )
+        return session_import_services.is_assistant_image_document(name, mime_guess)
 
     # Si se suben varias imágenes de golpe (carrusel RRSS), combinamos el OCR y generamos 1 plantilla unificada
     # para evitar que salgan varias plantillas parciales (título en una, reglas en otra, etc.).
@@ -58885,15 +58878,8 @@ def task_assistant_knowledge_upload_api(request):
             # Extract ahora (PDF/TXT/MD).
             text = ''
             lower_title = title.lower()
-            is_pdf = bool(lower_title.endswith('.pdf') or mime == 'application/pdf')
-            is_image = bool(
-                mime.startswith('image/')
-                or lower_title.endswith('.png')
-                or lower_title.endswith('.jpg')
-                or lower_title.endswith('.jpeg')
-                or lower_title.endswith('.heic')
-                or lower_title.endswith('.webp')
-            )
+            is_pdf = session_import_services.is_assistant_pdf_document(title, mime)
+            is_image = session_import_services.is_assistant_image_document(title, mime)
             if is_pdf:
                 text = _extract_pdf_text_via_pdftotext(raw)
             elif lower_title.endswith('.txt') or lower_title.endswith('.md') or mime.startswith('text/'):

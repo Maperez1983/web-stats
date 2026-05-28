@@ -4,6 +4,7 @@ import unicodedata
 from pathlib import Path
 
 from .models import SessionTask, TaskBlueprint
+from . import session_import_services
 from . import task_library_services
 
 
@@ -521,16 +522,9 @@ def create_blueprints_from_document(
     if not text.strip():
         return {'created': 0, 'updated': 0, 'skipped': 0}
 
-    lower_title = str(getattr(doc, 'title', '') or '').lower()
-    mime = str(getattr(doc, 'mime_type', '') or '').lower()
-    is_image = bool(
-        mime.startswith('image/')
-        or lower_title.endswith('.png')
-        or lower_title.endswith('.jpg')
-        or lower_title.endswith('.jpeg')
-        or lower_title.endswith('.heic')
-        or lower_title.endswith('.webp')
-    )
+    title = str(getattr(doc, 'title', '') or '')
+    mime = str(getattr(doc, 'mime_type', '') or '')
+    is_image = session_import_services.is_assistant_image_document(title, mime)
 
     if is_image:
         raw_bytes = _read_document_file_bytes(doc)

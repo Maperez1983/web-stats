@@ -124,3 +124,25 @@ class AssistantBlueprintCreationTests(TestCase):
         blueprint = TaskBlueprint.objects.get(team=team)
         self.assertEqual(blueprint.created_by, 'assistant_docs_ocr')
         self.assertEqual(blueprint.payload['meta']['kind'], 'task_sheet')
+
+    def test_create_blueprints_from_document_treats_heif_as_image(self):
+        team = Team.objects.create(name='HEIF Team', slug='heif-team')
+        doc = AssistantKnowledgeDocument.objects.create(
+            team=team,
+            title='ficha-finalizacion.heif',
+            file='assistant-knowledge/ficha-finalizacion.heif',
+            sha256='sheet-heif',
+            mime_type='',
+            extracted_text="""
+            3c3 + porteros
+            Descripción
+            Jugar en espacio reducido y finalizar tras pase atrás.
+            Objetivos
+            Atacar área con ventaja.
+            """,
+        )
+
+        result = assistant_blueprint_services.create_blueprints_from_document(team, doc)
+
+        self.assertEqual(result, {'created': 1, 'updated': 0, 'skipped': 0})
+        self.assertEqual(TaskBlueprint.objects.get(team=team).created_by, 'assistant_docs_ocr')
