@@ -16873,6 +16873,7 @@
 			      if (isBackgroundShape(object)) {
 			        setStatus('Fondo añadido en modo edición. Ajusta tamaño/posición y pulsa Esc (o selecciona otro elemento) para volver a modo “pasar a través”.');
 			      }
+		      return object;
 			    };
 
 					    const buildPdfAssetObject = (assetId, left, top, options = {}) => {
@@ -22551,10 +22552,21 @@
 	        };
 	      }
 
-	      addObject(objectAtPointer(pendingFactory, pointer));
-	      if (pendingKind) lastPlacedByKind.set(pendingKind, { x: pointer.x, y: pointer.y, ts: Date.now() });
+	      const placedKind = safeText(pendingKind);
+	      const placedObject = addObject(objectAtPointer(pendingFactory, pointer));
+	      if (placedKind) lastPlacedByKind.set(placedKind, { x: pointer.x, y: pointer.y, ts: Date.now() });
 	      if (!isShift) clearPendingPlacement();
-	      setStatus(isShift ? 'Elemento colocado. Sigue colocando (Shift activo).' : 'Elemento colocado.');
+	      if (placedKind === 'text' && placedObject && typeof placedObject.enterEditing === 'function') {
+	        try {
+	          canvas.setActiveObject(placedObject);
+	          placedObject.enterEditing();
+	          placedObject.selectAll?.();
+	          canvas.requestRenderAll();
+	        } catch (error) { /* ignore */ }
+	        setStatus('Texto colocado. Escribe directamente y pulsa Esc para terminar.');
+	      } else {
+	        setStatus(isShift ? 'Elemento colocado. Sigue colocando (Shift activo).' : 'Elemento colocado.');
+	      }
 	    });
 	    canvas.on('mouse:down', (event) => {
 	      const e = event?.e;
