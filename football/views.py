@@ -5947,84 +5947,12 @@ def _team_color_seed(team):
     return total
 
 
-def _fold_team_identity(value):
-    text = str(value or '').strip().lower()
-    if not text:
-        return ''
-    normalized = unicodedata.normalize('NFKD', text)
-    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
 def _is_malaga_team(team):
-    if not team:
-        return False
-    labels = (
-        getattr(team, 'slug', ''),
-        getattr(team, 'name', ''),
-        getattr(team, 'display_name', ''),
-        getattr(team, 'short_name', ''),
-    )
-    return any('malaga' in _fold_team_identity(label) for label in labels)
-
-
-def _hsl_to_hex(hue, saturation=0.68, lightness=0.38):
-    try:
-        h = (float(hue or 0) % 360.0) / 60.0
-        s = max(0.0, min(float(saturation), 1.0))
-        l = max(0.0, min(float(lightness), 1.0))
-        c = (1.0 - abs((2.0 * l) - 1.0)) * s
-        x = c * (1.0 - abs((h % 2.0) - 1.0))
-        m = l - (c / 2.0)
-        r1, g1, b1 = (0.0, 0.0, 0.0)
-        if 0 <= h < 1:
-            r1, g1, b1 = c, x, 0
-        elif 1 <= h < 2:
-            r1, g1, b1 = x, c, 0
-        elif 2 <= h < 3:
-            r1, g1, b1 = 0, c, x
-        elif 3 <= h < 4:
-            r1, g1, b1 = 0, x, c
-        elif 4 <= h < 5:
-            r1, g1, b1 = x, 0, c
-        else:
-            r1, g1, b1 = c, 0, x
-        return '#%02x%02x%02x' % (
-            int(round((r1 + m) * 255)),
-            int(round((g1 + m) * 255)),
-            int(round((b1 + m) * 255)),
-        )
-    except Exception:
-        return '#102734'
+    return team_media_services.is_malaga_team(team)
 
 
 def _team_fallback_crest_data_uri(team, fallback_label=''):
-    label = (
-        str(getattr(team, 'display_name', '') or '').strip()
-        or str(getattr(team, 'name', '') or '').strip()
-        or str(fallback_label or '').strip()
-        or 'Equipo'
-    )
-    initials = _team_initials(label)
-    if _is_malaga_team(team):
-        primary = '#6bc4e8'
-        accent = '#004b93'
-    else:
-        hue = _team_color_seed(team)
-        primary = _hsl_to_hex(hue, 0.68, 0.42)
-        accent = _hsl_to_hex((hue + 35) % 360, 0.72, 0.32)
-    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="{primary}"/>
-      <stop offset="100%" stop-color="{accent}"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
-  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.18)" stroke="rgba(255,255,255,0.40)" stroke-width="2"/>
-  <text x="80" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="900" fill="rgba(255,255,255,0.94)" letter-spacing="2">{html.escape(initials)}</text>
-</svg>"""
-    encoded = base64.b64encode(svg.encode('utf-8')).decode('ascii')
-    return f'data:image/svg+xml;base64,{encoded}'
+    return team_media_services.team_fallback_crest_data_uri(team, fallback_label=fallback_label)
 
 
 @login_required
@@ -22721,57 +22649,7 @@ def _task_pdf_lines(value):
 
 
 def _team_pdf_palette(team_obj, style_key='uefa'):
-    primary = _normalize_hex_color(getattr(team_obj, 'primary_color', ''), '#0f7a35')
-    secondary = _normalize_hex_color(getattr(team_obj, 'secondary_color', ''), '#facc15')
-    accent = _normalize_hex_color(getattr(team_obj, 'accent_color', ''), '#102734')
-    if style_key in {'club', 'hybrid'}:
-        if _is_benagalbon_team(team_obj):
-            # Paleta corporativa C.D. Benagalbón (derivada de recursos oficiales: dragón + escudo).
-            # - Primary: verde/teal del dragón (≈ #007050)
-            # - Secondary: verde del escudo (≈ #008048)
-            # - Accent: versión más oscura para degradados/contrastes
-            return {
-                'primary': '#007050',
-                'secondary': '#008048',
-                'accent': '#063b31',
-                'panel': '#eff7f4',
-                'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
-                'ink': '#0b1f1a',
-                'muted': '#3b5a54',
-            }
-        if _is_malaga_team(team_obj):
-            return {
-                'primary': '#6bc4e8',
-                'secondary': '#ffffff',
-                'accent': '#004b93',
-                'panel': '#eef8fc',
-                'sheet': '#f5fbff' if style_key == 'hybrid' else '#ffffff',
-                'ink': '#082f49',
-                'muted': '#436074',
-            }
-        if primary == '#0f7a35' and secondary in {'#facc15', '#f8fafc'}:
-            hue = _team_color_seed(team_obj)
-            primary = _hsl_to_hex(hue, 0.68, 0.38)
-            secondary = _hsl_to_hex((hue + 35) % 360, 0.70, 0.48)
-            accent = _hsl_to_hex((hue + 210) % 360, 0.62, 0.24)
-        return {
-            'primary': primary,
-            'secondary': secondary,
-            'accent': accent,
-            'panel': '#f5fbf6',
-            'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
-            'ink': '#102734',
-            'muted': '#51606f',
-        }
-    return {
-        'primary': '#0e7490',
-        'secondary': '#dbeafe',
-        'accent': '#102734',
-        'panel': '#f8fafc',
-        'sheet': '#ffffff',
-        'ink': '#111827',
-        'muted': '#64748b',
-    }
+    return team_media_services.team_pdf_palette(team_obj, style_key=style_key)
 
 
 def _build_task_pdf_tokens(request, tactical_layout):
@@ -37029,6 +36907,12 @@ def _task_studio_identity(request, owner):
     profile = _task_studio_profile_for_user(owner)
     team_name = str(profile.club_name or profile.document_name or profile.display_name or owner.get_full_name() or owner.get_username()).strip() or owner.get_username()
     coach_name = str(profile.document_name or profile.display_name or owner.get_full_name() or owner.get_username()).strip() or 'Entrenador'
+    team_stub = SimpleNamespace(
+        name=team_name,
+        primary_color=str(profile.primary_color or '#0f7a35').strip() or '#0f7a35',
+        secondary_color=str(profile.secondary_color or '#f8fafc').strip() or '#f8fafc',
+        accent_color=str(profile.accent_color or '#102734').strip() or '#102734',
+    )
     crest_url = ''
     if getattr(profile, 'crest_image', None):
         try:
@@ -37036,13 +36920,7 @@ def _task_studio_identity(request, owner):
         except Exception:
             crest_url = ''
     if not crest_url:
-        crest_url = request.build_absolute_uri(static('football/images/cdb-logo.png'))
-    team_stub = SimpleNamespace(
-        name=team_name,
-        primary_color=str(profile.primary_color or '#0f7a35').strip() or '#0f7a35',
-        secondary_color=str(profile.secondary_color or '#f8fafc').strip() or '#f8fafc',
-        accent_color=str(profile.accent_color or '#102734').strip() or '#102734',
-    )
+        crest_url = _team_fallback_crest_data_uri(team_stub, fallback_label=team_name)
     return profile, team_stub, coach_name, crest_url
 
 

@@ -38,7 +38,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
-from football import team_media_services
+from football import session_pdf, team_media_services
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -94,6 +94,10 @@ class TeamMediaServicesTests(TestCase):
         palette = football_views._team_pdf_palette(team, 'club')
         self.assertEqual(palette['primary'], '#6bc4e8')
         self.assertEqual(palette['accent'], '#004b93')
+
+    def test_session_pdf_palette_uses_same_club_identity(self):
+        team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
+        self.assertEqual(session_pdf._team_pdf_palette(team, 'club'), football_views._team_pdf_palette(team, 'club'))
 
     def test_non_benagalbon_fallback_crest_is_team_specific(self):
         team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)

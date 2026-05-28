@@ -1,5 +1,4 @@
 import base64
-import html
 import re
 import unicodedata
 from pathlib import Path
@@ -14,7 +13,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from . import task_choices, workspace_context
-from .team_media_services import resolve_team_crest_url
+from .team_media_services import resolve_team_crest_url, team_fallback_crest_data_uri, team_pdf_palette
 from .drills import drill_cards, normalize_drill_ids
 from . import pdf_services, session_access_services
 from .models import SessionTask, Team, TrainingSession, TrainingSessionAttendance
@@ -342,38 +341,7 @@ def _team_initials(label):
 
 
 def _team_pdf_palette(team_obj, style_key='uefa'):
-    primary = str(getattr(team_obj, 'primary_color', '') or '').strip() or '#0f7a35'
-    secondary = str(getattr(team_obj, 'secondary_color', '') or '').strip() or '#facc15'
-    accent = str(getattr(team_obj, 'accent_color', '') or '').strip() or '#102734'
-    if style_key in {'club', 'hybrid'}:
-        if _is_benagalbon_team(team_obj):
-            return {
-                'primary': '#007050',
-                'secondary': '#008048',
-                'accent': '#063b31',
-                'panel': '#eff7f4',
-                'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
-                'ink': '#0b1f1a',
-                'muted': '#3b5a54',
-            }
-        return {
-            'primary': primary,
-            'secondary': secondary,
-            'accent': accent,
-            'panel': '#f5fbf6',
-            'sheet': '#f6f7f5' if style_key == 'hybrid' else '#ffffff',
-            'ink': '#102734',
-            'muted': '#51606f',
-        }
-    return {
-        'primary': '#0e7490',
-        'secondary': '#dbeafe',
-        'accent': '#102734',
-        'panel': '#f8fafc',
-        'sheet': '#ffffff',
-        'ink': '#111827',
-        'muted': '#64748b',
-    }
+    return team_pdf_palette(team_obj, style_key=style_key)
 
 
 def _normalize_task_pdf_meta(meta):
@@ -653,20 +621,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
             team_logo_url = ''
     if not team_logo_url:
         try:
-            hue = _team_color_seed(team)
-            initials = _team_initials(getattr(team, 'display_name', '') or getattr(team, 'name', '') or '')
-            crest_svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="hsl({hue}, 70%, 42%)"/>
-      <stop offset="100%" stop-color="hsl({(hue + 35) % 360}, 74%, 36%)"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="160" height="160" rx="32" fill="url(#g)"/>
-  <rect x="10" y="10" width="140" height="140" rx="28" fill="rgba(2, 6, 23, 0.25)" stroke="rgba(255,255,255,0.26)" stroke-width="2"/>
-  <text x="80" y="92" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="56" font-weight="800" fill="rgba(255,255,255,0.92)" letter-spacing="2">{html.escape(str(initials or '').strip())}</text>
-</svg>"""
-            team_logo_url = "data:image/svg+xml;base64," + base64.b64encode(crest_svg.encode("utf-8")).decode("ascii")
+            team_logo_url = team_fallback_crest_data_uri(team, fallback_label=getattr(team, 'display_name', '') or getattr(team, 'name', ''))
         except Exception:
             team_logo_url = ''
     def _static_data_url(static_path: str, mime: str) -> str:
