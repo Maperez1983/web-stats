@@ -2,6 +2,7 @@ import html
 import re
 
 from .models import SessionTask, TaskBlueprint
+from . import task_library_services
 
 
 def assistant_goal_specs():
@@ -155,3 +156,66 @@ def assistant_html_list(items):
     if not safe:
         return ''
     return '<ul>' + ''.join(f'<li>{item}</li>' for item in safe[:10]) + '</ul>'
+
+
+def create_idea_blueprints_from_document(team, doc):
+    created = 0
+    updated = 0
+    text = str(getattr(doc, 'extracted_text', '') or '')
+    bullets = extract_assistant_bullets(text)
+    if not bullets:
+        return {'created': 0, 'updated': 0, 'skipped': 0}
+
+    for goal_key, spec in assistant_goal_specs().items():
+        picked = pick_assistant_bullets_for_goal(bullets, spec.get('keywords') or [])
+        if not picked:
+            continue
+        label = str(spec.get('label') or goal_key).strip()
+        name = f'{doc.title} · {label} · ideas'
+        name = task_library_services.sanitize_task_text(name, multiline=False, max_len=160)
+        if not name:
+            continue
+        tpl = {
+            'title': f'{label} · ideas clave',
+            'objective': picked[0][:8000] if picked else '',
+            'minutes': 12,
+            'block': str(spec.get('block') or SessionTask.BLOCK_MAIN_1),
+            'training_type': label,
+            'coaching_html': assistant_html_list(picked),
+            'rules_html': '',
+            'source_name': 'Documento del equipo',
+        }
+        payload = {
+            'tpl': tpl,
+            'meta': {
+                'v': 1,
+                'goal': goal_key,
+                'subphase': 'auto',
+                'approach': 'auto',
+                'source_doc_id': int(doc.id),
+            },
+        }
+        category = str(spec.get('category') or TaskBlueprint.CATEGORY_OTHER)
+        try:
+            _, was_created = TaskBlueprint.objects.update_or_create(
+                team=team,
+                name=name,
+                defaults={
+                    'category': category,
+                    'description': task_library_services.sanitize_task_text(
+                        f'Generado desde documento: {doc.title}',
+                        multiline=False,
+                        max_len=220,
+                    ),
+                    'payload': payload,
+                    'created_by': 'assistant_docs',
+                },
+            )
+        except Exception:
+            continue
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+
+    return {'created': created, 'updated': updated, 'skipped': 0}

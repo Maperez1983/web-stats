@@ -58672,8 +58672,6 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
     """
     Convierte el texto extraído en 0..N TaskBlueprints (solo si hay bullets suficientes).
     """
-    created = 0
-    updated = 0
     text = str(getattr(doc, 'extracted_text', '') or '')
     if not text.strip():
         return {'created': 0, 'updated': 0, 'skipped': 0}
@@ -58718,60 +58716,7 @@ def _assistant_create_blueprints_from_document(team, doc: AssistantKnowledgeDocu
         if int(res.get('created', 0) or 0) or int(res.get('updated', 0) or 0):
             return {'created': int(res.get('created', 0) or 0), 'updated': int(res.get('updated', 0) or 0), 'skipped': 0}
 
-    bullets = _assistant_extract_bullets(text)
-    if bullets:
-        specs = _assistant_goal_specs()
-        for goal_key, spec in specs.items():
-            picked = _assistant_pick_bullets_for_goal(bullets, spec.get('keywords') or [])
-            if not picked:
-                continue
-            label = str(spec.get('label') or goal_key).strip()
-            name = f'{doc.title} · {label} · ideas'
-            name = _sanitize_task_text(name, multiline=False, max_len=160)
-            if not name:
-                continue
-            coaching_html = _assistant_html_list(picked)
-            objective = picked[0][:8000] if picked else ''
-            tpl = {
-                'title': f'{label} · ideas clave',
-                'objective': objective,
-                'minutes': 12,
-                'block': str(spec.get('block') or SessionTask.BLOCK_MAIN_1),
-                'training_type': label,
-                'coaching_html': coaching_html,
-                'rules_html': '',
-                'source_name': 'Documento del equipo',
-            }
-            payload = {
-                'tpl': tpl,
-                'meta': {
-                    'v': 1,
-                    'goal': goal_key,
-                    'subphase': 'auto',
-                    'approach': 'auto',
-                    'source_doc_id': int(doc.id),
-                },
-            }
-            category = str(spec.get('category') or TaskBlueprint.CATEGORY_OTHER)
-            try:
-                obj, was_created = TaskBlueprint.objects.update_or_create(
-                    team=team,
-                    name=name,
-                    defaults={
-                        'category': category,
-                        'description': _sanitize_task_text(f'Generado desde documento: {doc.title}', multiline=False, max_len=220),
-                        'payload': payload,
-                        'created_by': 'assistant_docs',
-                    },
-                )
-            except Exception:
-                continue
-            if was_created:
-                created += 1
-            else:
-                updated += 1
-
-    return {'created': created, 'updated': updated, 'skipped': 0}
+    return assistant_blueprint_services.create_idea_blueprints_from_document(team, doc)
 
 
 def _assistant__strip_accents(s: str) -> str:
