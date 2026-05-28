@@ -4945,6 +4945,21 @@ class PlayerDetailStatsFallbackTests(TestCase):
         self.assertNotContains(response, 'type="file"', html=False)
         self.assertNotContains(response, 'Guardar comunicación')
 
+    def test_player_detail_uses_players_team_crest(self):
+        team = self.player.team
+        team.name = 'Málaga Club de Fútbol'
+        team.slug = 'malaga-cf-detail-crest'
+        team.short_name = ''
+        team.save(update_fields=['name', 'slug', 'short_name'])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('player-detail', args=[self.player.id]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'Escudo {team.display_name}')
+        self.assertContains(response, reverse('team-crest-svg', args=[team.id]))
+        self.assertNotContains(response, 'football/images/cdb-logo.png')
+
     @patch('football.views.compute_player_dashboard')
     @override_settings(MEDIA_URL='/media-test/')
     def test_player_pdf_html_uses_player_team_branding(self, mocked_dashboard):

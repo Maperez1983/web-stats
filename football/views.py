@@ -50481,6 +50481,10 @@ def player_detail_page(request, player_id):
         has_manual_sanction = is_manual_sanction_active(player)
         player_photo_url = resolve_player_photo_url(request, player)
         player_license_url = resolve_player_license_url(request, player)
+        try:
+            player_team_crest_url = resolve_team_crest_url(request, player.team, fallback_static=None, sync=True)
+        except Exception:
+            player_team_crest_url = ''
         convocation_pending = bool(current_convocation and not current_convocation.players.exists())
         fines_summary = {
             'registered_fines': 0,
@@ -50753,6 +50757,7 @@ def player_detail_page(request, player_id):
                 'active_match': active_match,
                 'player_photo_url': player_photo_url,
                 'player_license_url': player_license_url,
+                'player_team_crest_url': player_team_crest_url,
                 'general_kpis': general_kpis,
                 'team_points': team_points,
                 'team_rank': team_rank,
