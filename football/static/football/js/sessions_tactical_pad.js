@@ -3029,12 +3029,15 @@
 		      if (kind === 'player_rival' || kind === 'player_away') return 'away';
 		      return 'home';
 		    };
+		    const isRivalTokenKind = (kind) => kind === 'player_rival' || kind === 'goalkeeper_rival';
 		    const kit2dDataUrlForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
+		      if (isRivalTokenKind(kind)) return kit2dEditorDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot[slot] || '';
 		      return kit2dEditorDataUrlsBySlot[slot] || kit2dEditorDataUrlsBySlot.home || kit2dCanvasDataUrlsBySlot[slot] || kit2dCanvasDataUrlsBySlot.home || kit2dEditorDataUrl || '';
 		    };
 		    const kit2dImageForTokenKind = (kind, overrideSlot = '') => {
 		      const slot = kit2dSlotForTokenKind(kind, overrideSlot);
+		      if (isRivalTokenKind(kind)) return kit2dCanvasImagesBySlot[slot] || kit2dEditorImagesBySlot[slot] || null;
 		      return kit2dCanvasImagesBySlot[slot] || kit2dCanvasImagesBySlot.home || kit2dEditorImagesBySlot[slot] || kit2dEditorImagesBySlot.home || kit2dEditorImageEl;
 		    };
 		    const applyKit2dDefaultTokenStyle = () => {
@@ -4813,7 +4816,7 @@
 	      setObjectData(group, { token_base_color: baseHex, token_stripe_color: stripeHex, token_pattern: pattern });
 
 	      // Tokens sin franjas: la base es el color del disco/camiseta.
-	      if (!tokenHasStripeRoles(group) || tokenKind === 'player_away' || tokenKind === 'player_rival') {
+	      if (!tokenHasStripeRoles(group) || tokenKind === 'player_away') {
 	        applyTokenColor(group, baseHex);
 	        setObjectData(group, { token_base_color: baseHex });
 	        return true;
@@ -17676,7 +17679,7 @@
 		      const effectiveBase = pattern === 'solid' ? stripeColor : baseColor;
 		      // Estilo "chapa" (igual que en la plantilla de abajo): disco con dorsal centrado y nombre simple.
 		      // Evitamos el "jersey" y los cartuchos para que dentro del campo se vea igual que fuera.
-      if (kind === 'player_local' || kind === 'player_away' || kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') {
+      if (kind === 'player_local' || kind === 'player_away' || kind === 'player_rival' || kind === 'goalkeeper_local' || kind === 'goalkeeper_rival') {
 		        const radius = 22;
 		        baseRadius = radius;
 		        const isAway = kind === 'player_away';
