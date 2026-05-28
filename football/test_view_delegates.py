@@ -19,6 +19,7 @@ class ViewDelegateTests(SimpleTestCase):
     def test_dashboard_delegates_resolve_existing_views(self):
         for name in dashboard_services.DASHBOARD_DELEGATED_VIEW_NAMES:
             self.assertIs(resolve_view(name), getattr(views, name))
+            self.assertTrue(callable(getattr(dashboard_services, name)))
 
     def test_session_pdf_delegates_resolve_existing_views(self):
         for name in session_pdf.SESSION_PDF_DELEGATED_VIEW_NAMES:
