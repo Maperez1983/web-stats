@@ -9,6 +9,35 @@ from .models import AppUserRole, Team, Workspace, WorkspaceMembership, Workspace
 from .services import _parse_int
 
 
+_REQUEST_CACHE_MISSING = object()
+
+
+def _request_cache_get(request, attr_name):
+    try:
+        if request is not None and hasattr(request, attr_name):
+            return getattr(request, attr_name)
+    except Exception:
+        pass
+    return _REQUEST_CACHE_MISSING
+
+
+def _request_cache_set(request, attr_name, value):
+    try:
+        if request is not None:
+            setattr(request, attr_name, value)
+    except Exception:
+        pass
+    return value
+
+
+def _cache_active_workspace(request, workspace):
+    return _request_cache_set(request, "_cached_active_workspace", workspace)
+
+
+def _cache_active_team(request, team):
+    return _request_cache_set(request, "_cached_active_team", team)
+
+
 def get_user_role(user):
     if not user or not user.is_authenticated:
         return None
@@ -49,18 +78,11 @@ def single_club_fallback_enabled() -> bool:
 
 
 def get_active_workspace(request):
-    try:
-        if request is not None and hasattr(request, "_cached_active_workspace"):
-            return getattr(request, "_cached_active_workspace")
-    except Exception:
-        pass
+    cached = _request_cache_get(request, "_cached_active_workspace")
+    if cached is not _REQUEST_CACHE_MISSING:
+        return cached
     if not request or not getattr(request, 'user', None) or not request.user.is_authenticated:
-        try:
-            if request is not None:
-                setattr(request, "_cached_active_workspace", None)
-        except Exception:
-            pass
-        return None
+        return _cache_active_workspace(request, None)
     available_qs = available_workspaces_for_user(request.user)
     workspace_id = _parse_int(request.GET.get('workspace') or request.POST.get('workspace'))
     if not workspace_id:
@@ -69,11 +91,7 @@ def get_active_workspace(request):
         workspace = available_qs.filter(id=workspace_id).first()
         if workspace:
             request.session['active_workspace_id'] = workspace.id
-            try:
-                setattr(request, "_cached_active_workspace", workspace)
-            except Exception:
-                pass
-            return workspace
+            return _cache_active_workspace(request, workspace)
         request.session.pop('active_workspace_id', None)
     if can_access_platform(request.user):
         try:
@@ -90,11 +108,7 @@ def get_active_workspace(request):
                 )
                 if preferred:
                     request.session['active_workspace_id'] = preferred.id
-                    try:
-                        setattr(request, "_cached_active_workspace", preferred)
-                    except Exception:
-                        pass
-                    return preferred
+                    return _cache_active_workspace(request, preferred)
             except Exception:
                 pass
         try:
@@ -106,11 +120,7 @@ def get_active_workspace(request):
             if len(club_ws) == 1:
                 workspace = club_ws[0]
                 request.session['active_workspace_id'] = workspace.id
-                try:
-                    setattr(request, "_cached_active_workspace", workspace)
-                except Exception:
-                    pass
-                return workspace
+                return _cache_active_workspace(request, workspace)
         except Exception:
             pass
         if single_club_fallback_enabled():
@@ -123,18 +133,10 @@ def get_active_workspace(request):
                 if len(club_ws) == 1:
                     workspace = club_ws[0]
                     request.session['active_workspace_id'] = workspace.id
-                    try:
-                        setattr(request, "_cached_active_workspace", workspace)
-                    except Exception:
-                        pass
-                    return workspace
+                    return _cache_active_workspace(request, workspace)
             except Exception:
                 pass
-        try:
-            setattr(request, "_cached_active_workspace", None)
-        except Exception:
-            pass
-        return None
+        return _cache_active_workspace(request, None)
 
     if single_club_fallback_enabled():
         try:
@@ -154,11 +156,7 @@ def get_active_workspace(request):
     fallback_workspace = available_qs.order_by('kind', 'name', 'id').first()
     if fallback_workspace:
         request.session['active_workspace_id'] = fallback_workspace.id
-        try:
-            setattr(request, "_cached_active_workspace", fallback_workspace)
-        except Exception:
-            pass
-        return fallback_workspace
+        return _cache_active_workspace(request, fallback_workspace)
     if single_club_fallback_enabled():
         role = get_user_role(request.user)
         if role in {AppUserRole.ROLE_PLAYER, AppUserRole.ROLE_COACH, AppUserRole.ROLE_FITNESS, AppUserRole.ROLE_GOALKEEPER, AppUserRole.ROLE_ANALYST}:
@@ -174,16 +172,8 @@ def get_active_workspace(request):
                 except Exception:
                     pass
                 request.session['active_workspace_id'] = workspace.id
-                try:
-                    setattr(request, "_cached_active_workspace", workspace)
-                except Exception:
-                    pass
-                return workspace
-    try:
-        setattr(request, "_cached_active_workspace", None)
-    except Exception:
-        pass
-    return None
+                return _cache_active_workspace(request, workspace)
+    return _cache_active_workspace(request, None)
 
 
 def workspace_team_links(workspace):
@@ -301,11 +291,9 @@ def team_from_request_param(request):
 
 
 def get_active_team_for_request(request):
-    try:
-        if request is not None and hasattr(request, "_cached_active_team"):
-            return getattr(request, "_cached_active_team")
-    except Exception:
-        pass
+    cached = _request_cache_get(request, "_cached_active_team")
+    if cached is not _REQUEST_CACHE_MISSING:
+        return cached
     workspace = get_active_workspace(request)
     if not workspace and request and hasattr(request, 'session') and getattr(request, 'user', None) and request.user.is_authenticated:
         try:
@@ -315,11 +303,7 @@ def get_active_team_for_request(request):
         if remembered_team_id:
             remembered_team = Team.objects.filter(id=int(remembered_team_id)).first()
             if remembered_team and user_can_access_team(request, remembered_team):
-                try:
-                    setattr(request, "_cached_active_team", remembered_team)
-                except Exception:
-                    pass
-                return remembered_team
+                return _cache_active_team(request, remembered_team)
 
     if workspace and workspace.kind == Workspace.KIND_CLUB:
         links = workspace_team_links_for_user(workspace, request.user)
@@ -353,11 +337,7 @@ def get_active_team_for_request(request):
                 except Exception:
                     pass
             team = team_lookup[int(desired_team_id)]
-            try:
-                setattr(request, "_cached_active_team", team)
-            except Exception:
-                pass
-            return team
+            return _cache_active_team(request, team)
         try:
             if request and getattr(request, 'user', None) and request.user.is_authenticated and workspace:
                 preferred_team_id = (
@@ -368,35 +348,19 @@ def get_active_team_for_request(request):
                 )
                 if preferred_team_id and int(preferred_team_id) in team_lookup:
                     team = team_lookup[int(preferred_team_id)]
-                    try:
-                        setattr(request, "_cached_active_team", team)
-                    except Exception:
-                        pass
-                    return team
+                    return _cache_active_team(request, team)
         except Exception:
             pass
         default_link = next((link for link in links if getattr(link, 'is_default', False)), None)
         if default_link and getattr(default_link, 'team', None):
             team = default_link.team
-            try:
-                setattr(request, "_cached_active_team", team)
-            except Exception:
-                pass
-            return team
+            return _cache_active_team(request, team)
         if getattr(workspace, 'primary_team_id', None):
             team = workspace.primary_team
-            try:
-                setattr(request, "_cached_active_team", team)
-            except Exception:
-                pass
-            return team
+            return _cache_active_team(request, team)
         first_link = links[0].team if links else None
         if first_link:
-            try:
-                setattr(request, "_cached_active_team", first_link)
-            except Exception:
-                pass
-            return first_link
+            return _cache_active_team(request, first_link)
         return None
 
     if request and getattr(request, 'user', None) and request.user.is_authenticated and not can_access_platform(request.user):
@@ -410,11 +374,7 @@ def get_active_team_for_request(request):
                     request.session['active_team_id'] = int(explicit_team.id)
             except Exception:
                 pass
-            try:
-                setattr(request, "_cached_active_team", explicit_team)
-            except Exception:
-                pass
-            return explicit_team
+            return _cache_active_team(request, explicit_team)
         remembered_team_id = None
         try:
             if hasattr(request, 'session'):
@@ -440,11 +400,7 @@ def get_active_team_for_request(request):
         if remembered_team_id and int(remembered_team_id) in team_ids:
             team = Team.objects.filter(id=int(remembered_team_id)).first()
             if team:
-                try:
-                    setattr(request, "_cached_active_team", team)
-                except Exception:
-                    pass
-                return team
+                return _cache_active_team(request, team)
         if len(team_ids) == 1:
             team = Team.objects.filter(id=next(iter(team_ids))).first()
             if team:
@@ -453,11 +409,7 @@ def get_active_team_for_request(request):
                         request.session['active_team_id'] = int(team.id)
                 except Exception:
                     pass
-                try:
-                    setattr(request, "_cached_active_team", team)
-                except Exception:
-                    pass
-            return team
+            return _cache_active_team(request, team)
         if team_ids:
             try:
                 fallback_team_id = max(int(tid) for tid in team_ids if tid)
@@ -471,25 +423,13 @@ def get_active_team_for_request(request):
                             request.session['active_team_id'] = int(team.id)
                     except Exception:
                         pass
-                    try:
-                        setattr(request, "_cached_active_team", team)
-                    except Exception:
-                        pass
-                    return team
+                    return _cache_active_team(request, team)
         if single_club_fallback_enabled():
             team = Team.objects.filter(is_primary=True).first()
-            try:
-                setattr(request, "_cached_active_team", team)
-            except Exception:
-                pass
-            return team
+            return _cache_active_team(request, team)
         return None
     team = Team.objects.filter(is_primary=True).first() if single_club_fallback_enabled() else None
-    try:
-        setattr(request, "_cached_active_team", team)
-    except Exception:
-        pass
-    return team
+    return _cache_active_team(request, team)
 
 
 def workspace_membership_for_user(workspace, user):

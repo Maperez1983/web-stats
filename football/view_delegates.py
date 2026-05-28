@@ -9,8 +9,8 @@ def call_view(name, *args, **kwargs):
 
 
 def view_delegate(name):
-    def _wrapped(request, *args, **kwargs):
-        return call_view(name, request, *args, **kwargs)
+    def _wrapped(*args, **kwargs):
+        return call_view(name, *args, **kwargs)
 
     _wrapped.__name__ = name
     _wrapped.__qualname__ = name

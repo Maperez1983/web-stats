@@ -1,7 +1,8 @@
 from django.test import SimpleTestCase
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from football import dashboard_services, session_pdf, tactical_views, team_media_services, video_studio_views, views
+from football import dashboard_services, session_pdf, tactical_views, team_media_services, video_studio_views, view_delegates, views
 from football.view_delegates import resolve_view, view_delegate
 
 
@@ -29,6 +30,17 @@ class ViewDelegateTests(SimpleTestCase):
         delegated = view_delegate('kpi_audit')
         self.assertEqual(delegated.__name__, 'kpi_audit')
         self.assertEqual(delegated.__qualname__, 'kpi_audit')
+
+    def test_delegate_accepts_service_style_keyword_request(self):
+        def fake_view(*args, **kwargs):
+            return args, kwargs
+
+        with patch.object(view_delegates, 'resolve_view', return_value=fake_view):
+            delegated = view_delegate('compute_player_dashboard')
+            args, kwargs = delegated('team', request='request', force_refresh=True)
+
+        self.assertEqual(args, ('team',))
+        self.assertEqual(kwargs, {'request': 'request', 'force_refresh': True})
 
     def test_session_pdf_folded_text_normalizes_accents(self):
         self.assertEqual(session_pdf._normalize_folded_text('Presión tras pérdida'), 'presion tras perdida')
