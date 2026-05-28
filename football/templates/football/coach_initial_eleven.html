@@ -1015,6 +1015,7 @@
     </main>
     {{ lineup_seed|json_script:"lineup-seed-data" }}
     {{ rival_lineup_seed|json_script:"rival-lineup-seed-data" }}
+    <script src="{% static 'football/js/pitch_surface_preview.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script src="{% static 'football/js/pitch_surface.js' %}{% if static_build_id %}?v={{ static_build_id|urlencode }}{% endif %}"></script>
     <script>
       const saveUrlBase = '{% url "match-lineup-save" %}';
@@ -1423,7 +1424,20 @@
           const preset = String(field.dataset.pitchPreset || 'full_pitch');
           const grass = String(field.dataset.grassStyle || 'classic');
           const orientation = String(field.dataset.orientation || 'portrait');
-          if (window.WebstatsPitchSurface && typeof window.WebstatsPitchSurface.applyToSvg === 'function') {
+          if (window.WebstatsPitchPreview && typeof window.WebstatsPitchPreview.buildPitchSvg === 'function') {
+            const markup = window.WebstatsPitchPreview.buildPitchSvg(preset, orientation, grass);
+            const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
+            const root = parsed.documentElement;
+            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svg.setAttribute('viewBox', root.getAttribute('viewBox') || '-30 -30 740 1110');
+            svg.setAttribute('preserveAspectRatio', root.getAttribute('preserveAspectRatio') || 'xMidYMid slice');
+            const pitchBox = root.getAttribute('data-pitch-box') || '';
+            if (pitchBox) svg.setAttribute('data-pitch-box', pitchBox);
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+            Array.from(root.childNodes || []).forEach((child) => {
+              svg.appendChild(svg.ownerDocument.importNode(child, true));
+            });
+          } else if (window.WebstatsPitchSurface && typeof window.WebstatsPitchSurface.applyToSvg === 'function') {
             window.WebstatsPitchSurface.applyToSvg(svg, preset, orientation, grass);
           }
         } catch (e) { /* ignore */ }
