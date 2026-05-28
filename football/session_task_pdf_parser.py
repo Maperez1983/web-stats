@@ -208,16 +208,9 @@ def _split_joined_alpha_token(token):
     return ' '.join(words).strip()
 
 
-def _repair_joined_words_text(value):
-    return task_library_services.repair_joined_words_text(value)
-
-
-def _polish_spanish_text(value, multiline=True, max_len=None):
-    return task_library_services.polish_spanish_text(value, multiline=multiline, max_len=max_len)
-
-
-def _sanitize_task_text(value, multiline=True, max_len=None):
-    return task_library_services.sanitize_task_text(value, multiline=multiline, max_len=max_len)
+_repair_joined_words_text = task_library_services.repair_joined_words_text
+_polish_spanish_text = task_library_services.polish_spanish_text
+_sanitize_task_text = task_library_services.sanitize_task_text
 
 
 _RICH_ALLOWED_TAGS = {
@@ -300,8 +293,7 @@ def _rich_html_from_plain_text(value, max_len=6000):
     return html.escape(raw).replace('\n', '<br>')
 
 
-def _text_has_quality_issues(value):
-    return task_library_services.text_has_quality_issues(value)
+_text_has_quality_issues = task_library_services.text_has_quality_issues
 
 
 MONTHS_ES = {
@@ -1628,4 +1620,3 @@ def _suggest_blocks_for_session_pdf_segments(parsed_tasks, fallback_block):
     if len(set(blocks)) < 2:
         return None
     return blocks
-
