@@ -27495,10 +27495,6 @@ def initial_eleven_page(request):
         return _initial_eleven_page_impl(request)
     except Exception:
         logger.exception('11 inicial falló al cargar.')
-        if _is_admin_user(getattr(request, 'user', None)) and str(request.GET.get('xi_debug') or '').strip() == 'trace':
-            import traceback
-
-            return HttpResponse(traceback.format_exc(), content_type='text/plain; charset=utf-8', status=500)
         return HttpResponse('No se pudo cargar 11 inicial para este partido.', status=500)
 
 

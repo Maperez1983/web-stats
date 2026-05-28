@@ -4643,16 +4643,6 @@ class ConvocationWorkflowTests(TestCase):
             },
         )
 
-    @patch('football.views._initial_eleven_page_impl', side_effect=RuntimeError('boom trace'))
-    def test_initial_eleven_debug_trace_is_not_exposed_to_non_admin(self, _mock_impl):
-        self.client.force_login(self.user)
-
-        response = self.client.get(reverse('initial-eleven') + '?xi_debug=trace')
-
-        self.assertEqual(response.status_code, 500)
-        self.assertContains(response, 'No se pudo cargar 11 inicial para este partido.', status_code=500)
-        self.assertNotContains(response, 'boom trace', status_code=500)
-
     def test_initial_eleven_page_handles_match_without_convocation(self):
         self.client.force_login(self.user)
         rival = Team.objects.create(name='Rival sin convocatoria', slug='rival-sin-convocatoria', group=self.team.group)
