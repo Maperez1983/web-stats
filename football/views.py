@@ -24435,7 +24435,7 @@ def session_task_pdf(request, task_id):
             embedded = _embedded_preview_bytes_from_task(task)
             if embedded:
                 raw, mime = embedded
-                preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=2200, max_height=1500, quality=78)
+                preview_url = _image_bytes_as_small_data_uri(raw, mime_type=mime or 'image/jpeg', max_width=3200, max_height=2400, quality=88)
     except Exception:
         preview_url = ''
     context = _build_task_pdf_context(
@@ -27745,7 +27745,7 @@ def _split_board_page_image_bytes(raw_bytes, max_images=3):
     return session_import_services.split_board_page_image_bytes(raw_bytes, max_images=max_images)
 
 
-def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=1700):
+def _render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=3200):
     return session_import_services.render_pdf_previews_with_pdftoppm(
         pdf_file,
         max_images=max_images,

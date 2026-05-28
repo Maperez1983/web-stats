@@ -20970,7 +20970,7 @@
 
 				      await syncHiddenBuilderFields({
 				        // PNG para mantener líneas nítidas y sin artefactos JPEG en el PDF.
-				        previewOptions: { maxSide: 2600, mime: 'image/png', quality: 0.98 },
+				        previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
 				        applyLivePreview: false,
 				      });
       // actionUrl puede incluir query (?user=... o ?workspace=...). Si concatenamos "?style="
@@ -24803,7 +24803,7 @@
 		        const title = fileSafeSlug(form.querySelector('[name="draw_task_title"]')?.value);
 		        const stepTitle = safeText(simulationSteps[simulationActiveIndex]?.title, `paso_${simulationActiveIndex + 1}`);
 		        setStatus('Generando PNG del paso…');
-		        const dataUrl = await buildPreviewData({ maxWidth: 1600, mime: 'image/png', quality: 0.92 });
+		        const dataUrl = await buildPreviewData({ maxWidth: 4096, mime: 'image/png', quality: 0.92 });
 		        const blob = await dataUrlToBlob(dataUrl);
 		        if (!blob) {
 		          setStatus('No se pudo generar el PNG del paso.', true);
@@ -24833,7 +24833,7 @@
 		          setStatus(`Exportando PNG ${i + 1}/${simulationSteps.length}…`);
 		          await selectSimulationStep(i);
 		          const stepTitle = safeText(step?.title, `paso_${i + 1}`);
-		          const dataUrl = await buildPreviewData({ maxWidth: 1600, mime: 'image/png', quality: 0.92 });
+		          const dataUrl = await buildPreviewData({ maxWidth: 4096, mime: 'image/png', quality: 0.92 });
 		          const blob = await dataUrlToBlob(dataUrl);
 		          if (blob) {
 		            downloadBlob(blob, `${title}_sim_${String(i + 1).padStart(2, '0')}_${fileSafeSlug(stepTitle)}.png`);
@@ -24871,7 +24871,7 @@
 		          const step = simulationSteps[i];
 		          setStatus(`Pack: render ${i + 1}/${count}…`);
 		          await selectSimulationStep(i);
-		          const img = await buildPreviewData({ maxWidth: 1600, mime: 'image/jpeg', quality: 0.88 });
+		          const img = await buildPreviewData({ maxWidth: 3200, mime: 'image/jpeg', quality: 0.9 });
 		          slides.push({
 		            i,
 		            title: safeText(step?.title, `Paso ${i + 1}`),
@@ -25934,7 +25934,7 @@
 						      // Enviar preview HD al guardar (se usa también en la card y en el PDF).
 						      // Usamos PNG para evitar artefactos en líneas/flechas dentro del PDF.
 						      await syncHiddenBuilderFields({
-						        previewOptions: { maxSide: 2600, mime: 'image/png', quality: 0.98 },
+						        previewOptions: { maxSide: 4096, mime: 'image/png', quality: 0.98 },
 						        applyLivePreview: false,
 						      });
 			      form.dataset.previewReady = '1';

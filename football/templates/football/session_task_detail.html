@@ -1445,6 +1445,8 @@
           try {
             saveBtn.disabled = true;
             setStatus('Guardando gráfico...');
+            const sourceSide = Math.max(1, canvas.getWidth(), canvas.getHeight());
+            const previewMultiplier = Math.max(1, Math.min(4, 4096 / sourceSide));
             const payload = {
               canvas_state: canvas.toJSON(),
               canvas_width: canvas.getWidth(),
@@ -1452,7 +1454,7 @@
               preview_data: canvas.toDataURL({
                 format: 'png',
                 quality: 1,
-                multiplier: 1,
+                multiplier: previewMultiplier,
               }),
             };
             const response = await fetch("{% url 'session-task-graphic-save' task.id %}", {

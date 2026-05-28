@@ -515,7 +515,7 @@ def extract_preview_image_from_pdf(pdf_file, prefer_render=False):
 
 
 def render_pdf_preview_with_pdftoppm(pdf_file):
-    previews = render_pdf_previews_with_pdftoppm(pdf_file, max_images=1)
+    previews = render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, scale_to=3200)
     return previews[0] if previews else None
 
 
@@ -634,7 +634,7 @@ def split_board_page_image_bytes(raw_bytes, max_images=3):
         return []
 
 
-def render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=1700):
+def render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scale_to=3200):
     if pdf_file is None:
         return []
     pdftoppm_bin = shutil.which('pdftoppm')
@@ -649,10 +649,10 @@ def render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scal
     except Exception:
         max_pages = 10
     try:
-        scale_to = int(scale_to or 1700)
+        scale_to = int(scale_to or 3200)
     except Exception:
-        scale_to = 1700
-    scale_to = max(900, min(scale_to, 3200))
+        scale_to = 3200
+    scale_to = max(900, min(scale_to, 4096))
     try:
         if hasattr(pdf_file, 'seek'):
             pdf_file.seek(0)
@@ -749,9 +749,9 @@ def render_pdf_previews_with_pdftoppm(pdf_file, max_images=1, max_pages=10, scal
                     try:
                         with Image.open(io.BytesIO(raw)) as img:
                             optimized = img.convert('RGB')
-                            optimized.thumbnail((1700, 1200))
+                            optimized.thumbnail((3200, 2400))
                             buffer = io.BytesIO()
-                            optimized.save(buffer, format='JPEG', quality=82, optimize=True)
+                            optimized.save(buffer, format='JPEG', quality=90, optimize=True)
                             raw = buffer.getvalue()
                     except Exception:
                         pass
