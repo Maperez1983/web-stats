@@ -949,14 +949,21 @@
 		      .action-menu[open] .action-menu-body {
 		        position: fixed;
 		        top: calc(14px + env(safe-area-inset-top));
-		        left: calc(12px + env(safe-area-inset-left));
 		        right: calc(12px + env(safe-area-inset-right));
-		        width: auto;
+		        left: auto;
+		        width: min(540px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
 		        /* iOS Safari: `dvh` cambia durante el scroll (barras UI). Usamos `svh` para que el panel no “respire”. */
 		        max-height: calc(100vh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 		        max-height: calc(100svh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 		        overflow: auto;
 		        z-index: 1600;
+		      }
+		      @media (max-width: 760px) {
+		        .action-menu[open] .action-menu-body {
+		          left: calc(12px + env(safe-area-inset-left));
+		          right: calc(12px + env(safe-area-inset-right));
+		          width: auto;
+		        }
 		      }
 	      /* Importante: `backdrop-filter` en `.topbar` (commercial.css) crea stacking context.
 	         Subimos el contenedor cuando Opciones está abierto para que el panel pueda quedar por encima del backdrop. */
