@@ -20,16 +20,16 @@
         font-family: "Avenir Next", "Segoe UI", sans-serif;
       }
       .shell {
-        max-width: 1160px;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 1.2rem;
+        padding: clamp(0.8rem, 1.6vw, 1.2rem);
       }
       .header {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
-        flex-wrap: wrap;
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 18px;
         padding: 0.9rem 1rem;
@@ -69,10 +69,14 @@
       .grid {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.85rem;
+        align-items: start;
       }
-      @media (max-width: 860px) {
+      @media (max-width: 1180px) {
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 760px) {
         .grid { grid-template-columns: 1fr; }
       }
       .card {
@@ -81,6 +85,10 @@
         background: rgba(7, 16, 30, 0.72);
         box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
         padding: 1rem;
+        display: grid;
+        grid-template-rows: auto auto auto 1fr;
+        gap: 0.68rem;
+        min-height: 220px;
       }
       .card h2 {
         margin: 0;
@@ -89,11 +97,12 @@
         text-transform: uppercase;
       }
       .card p {
-        margin: 0.55rem 0 0;
+        margin: 0;
         color: rgba(226, 232, 240, 0.74);
+        line-height: 1.42;
       }
       .status {
-        margin-top: 0.75rem;
+        margin-top: 0;
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
@@ -120,15 +129,24 @@
         color: #fff3cf;
       }
       .actions {
-        margin-top: 0.8rem;
+        margin-top: 0;
         display: flex;
         flex-wrap: wrap;
         gap: 0.55rem;
+      }
+      .header > .actions {
+        justify-content: flex-end;
+      }
+      .card > .actions {
+        align-self: end;
+        display: grid;
+        grid-template-columns: 1fr;
       }
       .btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        min-height: 36px;
         text-decoration: none;
         border-radius: 999px;
         padding: 0.55rem 0.85rem;
@@ -139,6 +157,8 @@
         letter-spacing: 0.14em;
         text-transform: uppercase;
         font-size: 0.7rem;
+        text-align: center;
+        white-space: nowrap;
       }
       .btn.primary {
         background: linear-gradient(135deg, rgba(244, 180, 0, 0.22), rgba(47, 125, 50, 0.18));
@@ -156,6 +176,7 @@
         margin-top: 0.9rem;
         border-top: 1px solid rgba(255, 255, 255, 0.12);
         padding-top: 0.9rem;
+        grid-row: auto;
       }
       .split h3 {
         margin: 0 0 0.55rem;
@@ -235,6 +256,29 @@
       .btn.danger {
         border-color: rgba(248, 113, 113, 0.35);
         background: rgba(127, 29, 29, 0.2);
+      }
+      @media (max-width: 760px) {
+        .header {
+          grid-template-columns: 1fr;
+        }
+        .header > .actions {
+          justify-content: stretch;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          width: 100%;
+        }
+        .header > .actions .pill,
+        .header > .actions .btn {
+          width: 100%;
+        }
+      }
+      @media (max-width: 520px) {
+        .header > .actions {
+          grid-template-columns: 1fr;
+        }
+        .btn {
+          width: 100%;
+        }
       }
     </style>
   </head>
