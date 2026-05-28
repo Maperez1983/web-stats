@@ -1122,6 +1122,30 @@ class CoachRivalsManagementTests(TestCase):
         self.assertContains(response, 'data:image/png;base64,')
         self.assertContains(response, 'Ubicación guardada')
 
+    def test_rival_profile_can_generate_kit_from_colors_without_file(self):
+        response = self.client.post(
+            reverse('coach-rival-profile', args=[self.rival.id]),
+            data={
+                'form_action': 'save_identity',
+                'short_name': 'RIV',
+                'home_stadium': 'Estadio Rival',
+                'use_kit2d_colors_home': 'on',
+                'kit2d_home_main_color': '#123456',
+                'kit2d_home_trim_color': '#fedcba',
+            },
+            secure=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        pref = WorkspacePreference.objects.get(
+            workspace=self.workspace,
+            key=f'rival_kit2d:{self.rival.id}',
+        )
+        self.assertEqual(pref.value.get('home_main_color'), '#123456')
+        self.assertEqual(pref.value.get('home_trim_color'), '#fedcba')
+        self.assertNotIn('home_club_data_url', pref.value)
+        response = self.client.get(reverse('coach-rivals'), secure=True)
+        self.assertContains(response, 'data:image/svg+xml;base64,')
+
 
 class SessionsAssignTaskSmokeTests(TestCase):
     def setUp(self):

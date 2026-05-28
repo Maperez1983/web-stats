@@ -5283,6 +5283,16 @@ RIVAL_KIT2D_SLOTS = (
 )
 
 
+def _clean_kit_hex(value, fallback):
+    raw = str(value or '').strip()
+    if re.fullmatch(r'#[0-9a-fA-F]{6}', raw):
+        return raw.lower()
+    fallback_raw = str(fallback or '').strip()
+    if re.fullmatch(r'#[0-9a-fA-F]{6}', fallback_raw):
+        return fallback_raw.lower()
+    return '#0f7a35'
+
+
 def _rival_kit2d_pref_key(team_id):
     try:
         return f'rival_kit2d:{int(team_id)}'
@@ -5315,6 +5325,10 @@ def _rival_kit2d_url(workspace, rival_team, slot='home'):
         url = _is_valid_kit2d_url(value.get(key))
         if url:
             return url
+    if value.get(f'{slot_key}_main_color') or value.get(f'{slot_key}_trim_color'):
+        main = _clean_kit_hex(value.get(f'{slot_key}_main_color'), '#0f7a35')
+        trim = _clean_kit_hex(value.get(f'{slot_key}_trim_color'), '#ffffff')
+        return _generated_template_kit2d_svg_url(main, trim, slot_key)
     return ''
 
 
@@ -5328,6 +5342,9 @@ def _rival_kit2d_slots_for_template(workspace, rival_team):
             'label': label,
             'url': url,
             'file_name': str(value.get(f'{slot}_file_name') or '').strip(),
+            'main_color': _clean_kit_hex(value.get(f'{slot}_main_color'), '#0f7a35'),
+            'trim_color': _clean_kit_hex(value.get(f'{slot}_trim_color'), '#ffffff'),
+            'is_generated': bool((not value.get(f'{slot}_club_data_url')) and (value.get(f'{slot}_main_color') or value.get(f'{slot}_trim_color'))),
         })
     return slots
 
@@ -5393,6 +5410,39 @@ def _team_stadium_maps_url(team):
     if query:
         return f'https://www.google.com/maps/search/?api=1&query={quote(query)}'
     return ''
+
+
+@lru_cache(maxsize=512)
+def _generated_template_kit2d_svg_url(main_color, trim_color, slot='home'):
+    main = _clean_kit_hex(main_color, '#0f7a35')
+    trim = _clean_kit_hex(trim_color, '#ffffff')
+    slot_key = str(slot or 'home').strip().lower()
+    stripe_markup = ''
+    if slot_key == 'home':
+        stripe_markup = ''.join(
+            f'<rect x="{x}" y="0" width="10" height="128" fill="{trim}" opacity=".92"/>'
+            for x in range(24, 104, 20)
+        )
+    else:
+        stripe_markup = (
+            f'<rect x="28" y="50" width="72" height="10" fill="{trim}" opacity=".88"/>'
+            f'<rect x="56" y="18" width="16" height="98" fill="{trim}" opacity=".88"/>'
+        )
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <clipPath id="shirt">
+      <path d="M33 32c0-10 6-14 14-14h7c3 7 17 7 20 0h8c8 0 14 4 14 14l15 11-10 19-8-4v50c0 5-4 8-9 8H44c-5 0-9-3-9-8V58l-8 4-10-19 16-11z"/>
+    </clipPath>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="7" stdDeviation="5" flood-color="#000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <path filter="url(#shadow)" d="M33 32c0-10 6-14 14-14h7c3 7 17 7 20 0h8c8 0 14 4 14 14l15 11-10 19-8-4v50c0 5-4 8-9 8H44c-5 0-9-3-9-8V58l-8 4-10-19 16-11z" fill="{main}"/>
+  <g clip-path="url(#shirt)">{stripe_markup}<rect x="0" y="18" width="128" height="22" fill="#fff" opacity=".12"/></g>
+  <path d="M51 18c4 12 22 12 26 0h-7c-3 8-9 8-12 0h-7z" fill="#0f172a" opacity=".28" stroke="#fff" stroke-opacity=".24" stroke-width="1.5"/>
+  <path d="M33 32c0-10 6-14 14-14h7c3 7 17 7 20 0h8c8 0 14 4 14 14l15 11-10 19-8-4v50c0 5-4 8-9 8H44c-5 0-9-3-9-8V58l-8 4-10-19 16-11z" fill="none" stroke="#fff" stroke-opacity=".88" stroke-width="3"/>
+</svg>"""
+    return 'data:image/svg+xml;base64,' + base64.b64encode(svg.encode('utf-8')).decode('ascii')
 
 
 @lru_cache(maxsize=512)
@@ -40786,10 +40836,22 @@ def analysis_rival_profile_page(request, rival_id):
                             f'{slot}_editor_data_url',
                             f'{slot}_data_url',
                             f'{slot}_file_name',
+                            f'{slot}_main_color',
+                            f'{slot}_trim_color',
                         ):
                             if key in kit_value:
                                 kit_value.pop(key, None)
                                 kit_changed = True
+                    use_generated_colors = str(request.POST.get(f'use_kit2d_colors_{slot}') or '').strip().lower() in {'1', 'true', 'yes', 'on', 'si'}
+                    if use_generated_colors or kit_value.get(f'{slot}_main_color') or kit_value.get(f'{slot}_trim_color'):
+                        main_color = _clean_kit_hex(request.POST.get(f'kit2d_{slot}_main_color'), kit_value.get(f'{slot}_main_color') or '#0f7a35')
+                        trim_color = _clean_kit_hex(request.POST.get(f'kit2d_{slot}_trim_color'), kit_value.get(f'{slot}_trim_color') or '#ffffff')
+                        if kit_value.get(f'{slot}_main_color') != main_color:
+                            kit_value[f'{slot}_main_color'] = main_color
+                            kit_changed = True
+                        if kit_value.get(f'{slot}_trim_color') != trim_color:
+                            kit_value[f'{slot}_trim_color'] = trim_color
+                            kit_changed = True
                     uploaded_kit = request.FILES.get(f'kit2d_{slot}')
                     if uploaded_kit:
                         data_url = _uploaded_image_as_data_url(uploaded_kit)
