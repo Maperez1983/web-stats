@@ -47,6 +47,7 @@
         display: table;
         width: 100%;
         border-bottom: 1px solid #d5dde7;
+        background: {{ pdf_palette.primary|default:"#0f7a35" }};
         background: var(--club-primary);
         color: #ffffff;
       }
@@ -97,6 +98,7 @@
         padding: 7px 10px;
         border: 1px solid rgba(11,18,32,0.10);
         border-radius: 10px;
+        background: {{ pdf_palette.primary|default:"#0f7a35" }};
         background: var(--club-primary);
         color: #ffffff;
         font-weight: 900;
@@ -640,13 +642,13 @@
       .lc-tick { fill: rgba(71,85,105,0.92); font-size: 9.4px; font-weight: 900; }
       .lc-xlab { fill: rgba(71,85,105,0.90); font-size: 9.2px; font-weight: 900; letter-spacing: 0.02em; }
       .lc-line { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-      .lc-line.minutes { stroke: var(--club-primary); }
-      .lc-line.goals { stroke: var(--club-primary); }
-      .lc-line.assists { stroke: var(--club-secondary); }
+      .lc-line.minutes { stroke: {{ pdf_palette.primary|default:"#0f7a35" }}; stroke: var(--club-primary); }
+      .lc-line.goals { stroke: {{ pdf_palette.primary|default:"#0f7a35" }}; stroke: var(--club-primary); }
+      .lc-line.assists { stroke: {{ pdf_palette.secondary|default:"#f4b400" }}; stroke: var(--club-secondary); }
       .lc-dot { stroke: rgba(11,18,32,0.20); stroke-width: 1; }
-      .lc-dot.minutes { fill: var(--club-primary); }
-      .lc-dot.goals { fill: var(--club-primary); }
-      .lc-dot.assists { fill: var(--club-secondary); }
+      .lc-dot.minutes { fill: {{ pdf_palette.primary|default:"#0f7a35" }}; fill: var(--club-primary); }
+      .lc-dot.goals { fill: {{ pdf_palette.primary|default:"#0f7a35" }}; fill: var(--club-primary); }
+      .lc-dot.assists { fill: {{ pdf_palette.secondary|default:"#f4b400" }}; fill: var(--club-secondary); }
       .lc-val { fill: rgba(11,18,32,0.78); font-size: 9.2px; font-weight: 1000; }
       .foot {
         margin-top: 10px;

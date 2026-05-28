@@ -5222,6 +5222,7 @@ class PlayerDetailStatsFallbackTests(TestCase):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, '--club-primary: #6bc4e8')
+                self.assertContains(response, 'background: #6bc4e8')
                 self.assertContains(response, 'Escudo Málaga Club de Fútbol')
                 self.assertContains(response, 'Málaga Club de Fútbol · Informe final de temporada')
                 self.assertContains(response, 'data:image/jpeg;base64,')
