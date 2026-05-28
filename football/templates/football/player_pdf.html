@@ -463,13 +463,14 @@
       .radar-mini-wrap { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(11,18,32,0.16); }
       .radar-mini-title { font-size: 10.5px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
 
-      /* Radar (PDF): formato tipo ficha (radar izq + resumen dcha), apilado uno debajo de otro. */
+      /* Radar (PDF): misma composición visual que la ficha del jugador. */
       .radar-stack { margin-top: 8px; }
       .radar-panel {
-        border: 1px solid var(--pdf-line);
+        border: 1px solid rgba(148,163,184,0.22);
         border-radius: 14px;
-        background: var(--pdf-card);
-        padding: 12px;
+        background: #111827;
+        color: #e2e8f0;
+        padding: 14px;
         break-inside: avoid;
         page-break-inside: avoid;
       }
@@ -480,54 +481,36 @@
         font-weight: 1000;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--pdf-ink);
+        color: #f8fafc;
       }
       .radar-panel-sub {
         margin-top: 6px;
-        color: var(--pdf-muted);
+        color: #aab4c6;
         font-size: 10.4px;
         font-weight: 900;
+        line-height: 1.35;
       }
       .radar-layout { display: table; width: 100%; table-layout: fixed; }
       .radar-layout-row { display: table-row; }
-      .radar-left { display: table-cell; width: 50%; vertical-align: top; padding-right: 14px; }
-      .radar-right { display: table-cell; width: 50%; vertical-align: top; padding-left: 14px; }
+      .radar-left { display: table-cell; width: 45%; vertical-align: middle; padding-right: 12px; }
+      .radar-right { display: table-cell; width: 55%; vertical-align: middle; padding-left: 12px; }
       .radar-figure { text-align: center; }
-      /* Deja margen para chips dentro del wrap (evita que invadan paneles de abajo). */
-      .radar-figure-wrap { position: relative; width: 320px; height: 320px; margin: 6px auto 0; overflow: hidden; }
+      .radar-figure-wrap { position: relative; width: 300px; height: 300px; margin: 2px auto 0; overflow: visible; }
       /* Mantén SIEMPRE el mismo tamaño en PDF (WeasyPrint no siempre respeta bien escalados relativos). */
       .radar-figure svg {
         display: block;
-        width: 320px;
-        height: 320px;
+        width: 300px;
+        height: 300px;
         max-width: 100%;
       }
-      .radar-axis-tags { position: absolute; inset: 0; pointer-events: none; }
-      .radar-axis-tag {
-        position: absolute;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.94);
-        border: 1px solid rgba(11,18,32,0.14);
-        color: rgba(11,18,32,0.82);
-        font-size: 9.2px;
-        font-weight: 1000;
-        white-space: nowrap;
-      }
-      /* Chips siempre dentro del wrap (sin valores negativos que se recortan / pisan). */
-      .radar-axis-tag.top { top: 0; left: 50%; transform: translateX(-50%); }
-      .radar-axis-tag.right { top: 50%; right: 0; transform: translateY(-50%); }
-      .radar-axis-tag.br { bottom: 0; right: 0; }
-      .radar-axis-tag.bl { bottom: 0; left: 0; }
-      .radar-axis-tag.left { top: 50%; left: 0; transform: translateY(-50%); }
       .radar-legend { margin-top: 8px; }
       .radar-axes { list-style: none; padding: 0; margin: 10px 0 0; }
       .radar-axis-row { display:flex; justify-content: space-between; align-items: baseline; gap: 10px; }
       .radar-axis-left { display:flex; align-items: baseline; gap: 8px; }
-      .radar-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(244,180,0,0.90); border: 1px solid rgba(11,18,32,0.18); flex: 0 0 auto; }
-      .radar-axis-label { font-weight: 1000; letter-spacing: 0.02em; }
-      .radar-axis-meta { color: var(--pdf-muted); font-weight: 900; }
-      .radar-axis-rank { color: rgba(47,125,50,0.95); font-weight: 1000; margin-left: 6px; }
+      .radar-dot { width: 10px; height: 10px; border-radius: 999px; background: rgba(244,180,0,0.92); border: 1px solid rgba(226,232,240,0.20); flex: 0 0 auto; }
+      .radar-axis-label { font-weight: 1000; letter-spacing: 0.06em; color: #f8fafc; }
+      .radar-axis-meta { color: #aab4c6; font-weight: 900; }
+      .radar-axis-rank { color: #aab4c6; font-weight: 1000; margin-left: 6px; }
 
       /* Lista de ejes estilo "ficha": dos columnas para lectura rápida */
       .radar-axes-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0 10px; margin-top: 10px; }
@@ -538,16 +521,16 @@
       .radar-sparks { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 10px; margin-top: 10px; }
       .radar-sparks td { vertical-align: top; padding: 0; }
       .radar-spark {
-        border: 1px solid var(--pdf-line);
+        border: 1px solid rgba(148,163,184,0.22);
         border-radius: 12px;
-        background: var(--pdf-panel);
+        background: rgba(15,23,42,0.38);
         padding: 10px;
       }
-      .radar-spark-title { font-size: 9.4px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pdf-muted); }
-      .radar-spark-meta { margin-top: 6px; display:flex; justify-content: space-between; color: var(--pdf-muted); font-size: 9.2px; font-weight: 900; }
+      .radar-spark-title { font-size: 9.4px; font-weight: 1000; letter-spacing: 0.08em; text-transform: uppercase; color: #aab4c6; }
+      .radar-spark-meta { margin-top: 6px; display:flex; justify-content: space-between; color: #aab4c6; font-size: 9.2px; font-weight: 900; }
       .radar-spark svg { margin-top: 8px; display:block; width: 100%; height: auto; }
 
-      .mini-note { margin-top: 8px; color: var(--pdf-muted); font-size: 10.2px; }
+      .mini-note { margin-top: 8px; color: #aab4c6; font-size: 10.2px; }
 
       .table {
         width: 100%;
@@ -1009,31 +992,35 @@
 	                            <div class="radar-figure">
 	                              <div class="radar-figure-wrap">
 	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar staff (percentiles)">
-	                                  <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                  <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                  <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
-	                                  <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(148,163,184,0.55)" stroke-width="1" />
+	                                  <defs>
+	                                    <linearGradient id="radarFillPdf" x1="0%" y1="0%" x2="100%" y2="100%">
+	                                      <stop offset="0%" stop-color="rgba(244,180,0,0.55)"></stop>
+	                                      <stop offset="100%" stop-color="rgba(47,125,50,0.45)"></stop>
+	                                    </linearGradient>
+	                                  </defs>
+	                                  <circle cx="180" cy="180" r="30" fill="none" stroke="rgba(226,232,240,0.16)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="60" fill="none" stroke="rgba(226,232,240,0.16)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="90" fill="none" stroke="rgba(226,232,240,0.16)" stroke-width="1" />
+	                                  <circle cx="180" cy="180" r="120" fill="none" stroke="rgba(226,232,240,0.16)" stroke-width="1" />
 	                                  {% if radar_data.axis_svg %}
 	                                    {% for ax in radar_data.axis_svg %}
-	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(148,163,184,0.38)" stroke-width="1" />
+	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1" />
 	                                    {% endfor %}
 	                                  {% endif %}
 	                                  {% if radar_data.path_d %}
-	                                    <path d="{{ radar_data.path_d }}" fill="rgba(244,180,0,0.28)" stroke="rgba(244,180,0,0.72)" stroke-width="2"></path>
+	                                    <path d="{{ radar_data.path_d }}" fill="url(#radarFillPdf)" stroke="rgba(244,180,0,0.72)" stroke-width="1.5"></path>
 	                                  {% endif %}
 	                                  {% if radar_data.points %}
 	                                    {% for pt in radar_data.points %}
-	                                      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(15,23,42,0.18)" stroke-width="1"></circle>
+	                                      <circle cx="{{ pt.x }}" cy="{{ pt.y }}" r="3.6" fill="rgba(244,180,0,0.92)" stroke="rgba(226,232,240,0.20)" stroke-width="1"></circle>
+	                                    {% endfor %}
+	                                  {% endif %}
+	                                  {% if radar_data.axis_svg %}
+	                                    {% for ax in radar_data.axis_svg %}
+	                                      <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
 	                                    {% endfor %}
 	                                  {% endif %}
 	                                </svg>
-	                                <div class="radar-axis-tags" aria-hidden="true">
-	                                  <span class="radar-axis-tag top">Compromiso</span>
-	                                  <span class="radar-axis-tag right">Esfuerzo</span>
-	                                  <span class="radar-axis-tag br">Calidad</span>
-	                                  <span class="radar-axis-tag bl">Importancia</span>
-	                                  <span class="radar-axis-tag left">Influencia</span>
-	                                </div>
 	                              </div>
 	                            </div>
 	                          </div>
@@ -1072,9 +1059,9 @@
 	                                      <div class="radar-spark-title">Acciones (últimos 6)</div>
 	                                      <svg viewBox="0 0 {{ radar_actions_spark.w }} {{ radar_actions_spark.h }}" role="img" aria-label="Acciones últimos 6">
 	                                        {% if radar_actions_spark.area_d %}
-	                                          <path d="{{ radar_actions_spark.area_d }}" fill="rgba(11,18,32,0.10)" stroke="none"></path>
+	                                          <path d="{{ radar_actions_spark.area_d }}" fill="rgba(244,180,0,0.16)" stroke="none"></path>
 	                                        {% endif %}
-	                                        <path d="{{ radar_actions_spark.path_d }}" fill="none" stroke="rgba(11,18,32,0.55)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+	                                        <path d="{{ radar_actions_spark.path_d }}" fill="none" stroke="rgba(226,232,240,0.28)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
 	                                      </svg>
 	                                      <div class="radar-spark-meta"><span>min 0</span><span>max {{ radar_actions_spark.y_max }}</span></div>
 	                                    </div>
@@ -1084,9 +1071,9 @@
 	                                      <div class="radar-spark-title">% Éxito (últimos 6)</div>
 	                                      <svg viewBox="0 0 {{ radar_success_spark.w }} {{ radar_success_spark.h }}" role="img" aria-label="% Éxito últimos 6">
 	                                        {% if radar_success_spark.area_d %}
-	                                          <path d="{{ radar_success_spark.area_d }}" fill="rgba(47,125,50,0.14)" stroke="none"></path>
+	                                          <path d="{{ radar_success_spark.area_d }}" fill="rgba(47,125,50,0.16)" stroke="none"></path>
 	                                        {% endif %}
-	                                        <path d="{{ radar_success_spark.path_d }}" fill="none" stroke="rgba(47,125,50,0.78)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+	                                        <path d="{{ radar_success_spark.path_d }}" fill="none" stroke="rgba(226,232,240,0.28)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
 	                                      </svg>
 	                                      <div class="radar-spark-meta"><span>min 0%</span><span>max {{ radar_success_spark.y_max }}%</span></div>
 	                                    </div>
@@ -1110,24 +1097,22 @@
 	                            <div class="radar-figure">
 	                              <div class="radar-figure-wrap">
 	                                <svg viewBox="0 0 360 360" role="img" aria-label="Radar comparativo (card)">
-	                                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
-	                                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(148,163,184,0.38)" stroke-width="1.2"></circle>
+	                                  <circle cx="180" cy="180" r="61.2" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
+	                                  <circle cx="180" cy="180" r="122.4" fill="none" stroke="rgba(226,232,240,0.32)" stroke-width="1.2"></circle>
 	                                  {% if card_radar_data.axis_svg %}
 	                                    {% for ax in card_radar_data.axis_svg %}
-	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(148,163,184,0.32)" stroke-width="1.1"></line>
+	                                      <line x1="180" y1="180" x2="{{ ax.axis_x }}" y2="{{ ax.axis_y }}" stroke="rgba(226,232,240,0.20)" stroke-width="1.1"></line>
 	                                    {% endfor %}
 	                                  {% endif %}
 	                                  {% if card_radar_data.polygon_points_svg %}
-	                                    <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.20)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                                    <polygon points="{{ card_radar_data.polygon_points_svg }}" fill="rgba(244,180,0,0.22)" stroke="rgba(244,180,0,0.92)" stroke-width="2"></polygon>
+	                                  {% endif %}
+	                                  {% if card_radar_data.axis_svg %}
+	                                    {% for ax in card_radar_data.axis_svg %}
+	                                      <text x="{{ ax.label_x }}" y="{{ ax.label_y }}" text-anchor="{{ ax.anchor }}" dominant-baseline="{{ ax.baseline }}" fill="rgba(226,232,240,0.86)" font-size="11" font-weight="900">{{ ax.text }}</text>
+	                                    {% endfor %}
 	                                  {% endif %}
 	                                </svg>
-	                                <div class="radar-axis-tags" aria-hidden="true">
-	                                  <span class="radar-axis-tag top">Acc/90</span>
-	                                  <span class="radar-axis-tag right">Éxito</span>
-	                                  <span class="radar-axis-tag br">Part.</span>
-	                                  <span class="radar-axis-tag bl">Importancia</span>
-	                                  <span class="radar-axis-tag left">Influencia</span>
-	                                </div>
 	                              </div>
 	                            </div>
 	                          </div>

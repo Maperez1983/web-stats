@@ -19892,10 +19892,63 @@ def _build_player_radar_data(detail_row, *, player_percentiles=None, attendance_
     if attendance_value > 0:
         commitment_bits.append(f"ENT {attendance_value:.0f}%")
 
+    def _row_dict(row, key):
+        value = row.get(key)
+        return value if isinstance(value, dict) else {}
+
+    def _row_attempts(row, key, fallback_key):
+        bucket = _row_dict(row, key)
+        return _num(bucket.get('attempts') or row.get(fallback_key) or 0)
+
+    def _row_completed(row, key, fallback_key):
+        bucket = _row_dict(row, key)
+        return _num(bucket.get('completed') or bucket.get('on_target') or row.get(fallback_key) or 0)
+
+    def _pct(part, total):
+        total = _num(total)
+        return (_num(part) / total) * 100.0 if total > 0 else 0.0
+
+    minutes = max(0.0, _num(detail_row.get('minutes')))
+    m90 = minutes / 90.0 if minutes > 0 else 0.0
+    goals = max(0.0, _num(detail_row.get('goals')))
+    assists = max(0.0, _num(detail_row.get('assists')))
+    key_passes = max(0.0, _num(detail_row.get('key_passes_completed') or detail_row.get('key_passes')))
+    saves = max(0.0, _num(detail_row.get('goalkeeper_saves') or detail_row.get('saves')))
+    ga90 = ((goals + assists) / m90) if m90 > 0 else 0.0
+    kp90 = (key_passes / m90) if m90 > 0 else 0.0
+    saves90 = (saves / m90) if m90 > 0 else 0.0
+    pass_attempts = _row_attempts(detail_row, 'passes', 'pass_attempts')
+    passes_completed = _row_completed(detail_row, 'passes', 'passes_completed')
+    shot_attempts = _row_attempts(detail_row, 'shots', 'shot_attempts')
+    shots_on_target = _row_completed(detail_row, 'shots', 'shots_on_target')
+    duels = _row_dict(detail_row, 'duel_summary')
+    aerial = _row_dict(detail_row, 'aerial_duel_summary')
+    duels_won = _num(duels.get('won') or detail_row.get('duels_won') or 0)
+    duels_total = _num(duels.get('total') or detail_row.get('duels_total') or 0)
+    aerial_won = _num(aerial.get('won') or detail_row.get('aerial_duels_won') or 0)
+    aerial_total = _num(aerial.get('total') or detail_row.get('aerial_duels_total') or 0)
+    pass_acc = _pct(passes_completed, pass_attempts)
+    shot_acc = _pct(shots_on_target, shot_attempts)
+    duel_rate = _pct(duels_won, duels_total)
+    aerial_rate = _pct(aerial_won, aerial_total)
+    bucket = _player_role_bucket(
+        detail_row.get('position') or detail_row.get('position_label') or '',
+        profile=detail_row.get('profile') or '',
+    )
+    quality_display = _fmt_pct(success_rate)
+    if bucket == 'fwd':
+        quality_display = f"G+A/90 {ga90:.1f} · Tiro {shot_acc:.0f}%"
+    elif bucket == 'mid':
+        quality_display = f"KP/90 {kp90:.1f} · Pase {pass_acc:.0f}%"
+    elif bucket == 'def':
+        quality_display = f"Duel {duel_rate:.0f}% · Aéreo {aerial_rate:.0f}%"
+    elif bucket == 'gk':
+        quality_display = f"Paradas/90 {saves90:.1f} · Pase {pass_acc:.0f}%"
+
     axes = [
         _mk('Compromiso', pcts.get('commitment', 0), ' · '.join(commitment_bits), pcts.get('commitment', 0)),
         _mk('Esfuerzo', pcts.get('actions_per90', 0), f"{actions_per90:.1f} A/90", pcts.get('actions_per90', 0)),
-        _mk('Calidad', pcts.get('quality', 0), f"Éx {success_rate:.0f}% · {actions_per90:.1f} A/90", pcts.get('quality', 0)),
+        _mk('Calidad', pcts.get('quality', 0), quality_display, pcts.get('quality', 0)),
         _mk('Importancia', pcts.get('importance_score', 0), f"{importance_score:.0f}", pcts.get('importance_score', 0)),
         _mk('Influencia', pcts.get('influence_score', 0), f"{influence_score:.0f}", pcts.get('influence_score', 0)),
     ]
