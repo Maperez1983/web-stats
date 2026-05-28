@@ -3708,9 +3708,39 @@ def _get_primary_team_for_request(request):
     # Robustez: acepta `?team=<id>` incluso si el usuario es plataforma o el contexto
     # del workspace no está fijado (evita 404/500 al navegar por enlaces sueltos).
     try:
-        return _team_from_request_param(request)
+        team = _team_from_request_param(request)
+        if team:
+            return team
     except Exception:
-        return None
+        pass
+    if request and getattr(request, 'user', None) and request.user.is_authenticated:
+        try:
+            link = (
+                WorkspaceTeam.objects
+                .select_related('workspace', 'team')
+                .filter(
+                    workspace__in=_available_workspaces_for_user(request.user),
+                    workspace__kind=Workspace.KIND_CLUB,
+                    workspace__is_active=True,
+                )
+                .order_by('-is_default', 'workspace__id', 'team__name', 'id')
+                .first()
+            )
+        except Exception:
+            link = None
+        if link and getattr(link, 'team', None):
+            try:
+                if hasattr(request, 'session'):
+                    request.session['active_workspace_id'] = int(link.workspace_id)
+                    mapping = request.session.get('active_team_by_workspace')
+                    if not isinstance(mapping, dict):
+                        mapping = {}
+                    mapping[str(link.workspace_id)] = int(link.team_id)
+                    request.session['active_team_by_workspace'] = mapping
+            except Exception:
+                pass
+            return link.team
+    return None
 
 
 def _get_player_team_for_request(request):
@@ -24796,6 +24826,7 @@ def coach_cards_page(request):
             'active_area': active_area,
             'active_card': active_card,
             'staff_count': sum(1 for value in members_by_role.values() for _ in value),
+            'active_team': primary_team,
         },
     )
 
@@ -25685,6 +25716,7 @@ def coach_role_trainer_page(request):
             'coach_player_match_options': coach_player_match_options,
             'coach_selected_player_match_id': _parse_int(request.GET.get('player_match')),
             'coach_player_view': coach_player_view,
+            'active_team': primary_team,
         },
     )
 

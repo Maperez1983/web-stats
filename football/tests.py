@@ -1070,7 +1070,16 @@ class CoachRivalsManagementTests(TestCase):
     def test_trainer_page_exposes_rivals_tab(self):
         response = self.client.get(reverse('coach-role-trainer'), secure=True)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse('coach-rivals'))
+        self.assertContains(response, f"{reverse('coach-rivals')}?team={self.team.id}")
+        self.assertContains(response, 'Rivales')
+
+    def test_rivals_page_falls_back_to_accessible_default_team_without_query(self):
+        session = self.client.session
+        session.pop('active_workspace_id', None)
+        session.pop('active_team_by_workspace', None)
+        session.save()
+        response = self.client.get(reverse('coach-rivals'), secure=True)
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Rivales')
 
     def test_rival_profile_saves_crest_and_kit2d_uploads(self):

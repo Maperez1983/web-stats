@@ -192,7 +192,7 @@
         {% if active_card.items %}
         <div class="grid" style="margin-top:1.2rem;">
           {% for item in active_card.items %}
-          <a class="mini-link" href="{% url item.link %}">
+          <a class="mini-link" href="{% url item.link %}{% if active_team %}?team={{ active_team.id }}{% endif %}">
             <span>{{ item.label }}</span>
             <span>Entrar</span>
           </a>
