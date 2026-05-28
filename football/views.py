@@ -27656,14 +27656,19 @@ def _initial_eleven_page_impl(request):
             'whiteboard',
             'blackboard',
         }
-        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'classic'
+        lineup_grass_style = requested_grass if requested_grass in allowed_grass else 'broadcast'
     except Exception:
-        lineup_grass_style = 'classic'
+        lineup_grass_style = 'broadcast'
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
     convocation_record_view = _safe_initial_eleven_convocation_view(convocation_record)
     convocation_player_cards = [_safe_initial_eleven_player_card(player) for player in convocation_players]
+    rival_display_name = (
+        str(rival_team_name or '').strip()
+        or (convocation_record_view or {}).get('opponent_name')
+        or 'Rival'
+    )
     try:
         team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) or ''
     except Exception:
@@ -27693,6 +27698,7 @@ def _initial_eleven_page_impl(request):
             'match_selector_options': match_selector_options,
             'selected_match_id': selected_match_id,
             'rival_team_name': rival_team_name,
+            'rival_display_name': rival_display_name,
             'rival_team_crest_url': rival_team_crest_url,
             'rival_team_kit2d_url': rival_team_kit2d_url,
             'convocation_record': convocation_record_view,

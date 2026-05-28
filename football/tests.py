@@ -4653,6 +4653,23 @@ class ConvocationWorkflowTests(TestCase):
         self.assertContains(response, 'No se pudo cargar 11 inicial para este partido.', status_code=500)
         self.assertNotContains(response, 'boom trace', status_code=500)
 
+    def test_initial_eleven_page_handles_match_without_convocation(self):
+        self.client.force_login(self.user)
+        rival = Team.objects.create(name='Rival sin convocatoria', slug='rival-sin-convocatoria', group=self.team.group)
+        match = Match.objects.create(
+            season=self.team.group.season,
+            group=self.team.group,
+            round='J25',
+            date=date(2026, 4, 5),
+            home_team=self.team,
+            away_team=rival,
+        )
+
+        response = self.client.get(f"{reverse('initial-eleven')}?match_id={match.id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['rival_display_name'], 'Rival')
+
     @patch('football.views._build_pdf_response_or_html_fallback')
     def test_convocation_pdf_accepts_team_param_without_active_workspace(self, mock_pdf):
         mock_pdf.return_value = HttpResponse('ok', status=200)
