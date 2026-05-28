@@ -91,17 +91,17 @@ class TeamMediaServicesTests(TestCase):
 
     def test_player_pdf_palette_uses_malaga_identity(self):
         team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
-        palette = football_views._team_pdf_palette(team, 'club')
+        palette = team_media_services.team_pdf_palette(team, 'club')
         self.assertEqual(palette['primary'], '#6bc4e8')
         self.assertEqual(palette['accent'], '#004b93')
 
     def test_session_pdf_palette_uses_same_club_identity(self):
         team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
-        self.assertEqual(session_pdf._team_pdf_palette(team, 'club'), football_views._team_pdf_palette(team, 'club'))
+        self.assertEqual(session_pdf._team_pdf_palette(team, 'club'), team_media_services.team_pdf_palette(team, 'club'))
 
     def test_non_benagalbon_fallback_crest_is_team_specific(self):
         team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
-        crest = football_views._team_fallback_crest_data_uri(team)
+        crest = team_media_services.team_fallback_crest_data_uri(team)
         self.assertTrue(crest.startswith('data:image/svg+xml;base64,'))
         self.assertNotIn('cdb-benagalbon', crest)
 
