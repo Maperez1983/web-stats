@@ -4471,6 +4471,38 @@ class ConvocationWorkflowTests(TestCase):
         self.assertEqual(record.players.count(), 0)
         self.assertEqual(record.opponent_name, 'Alhaurín de la Torre')
 
+    def test_save_convocation_can_create_away_match(self):
+        self.client.force_login(self.user)
+        rival = Team.objects.create(
+            name='Rival Visitante',
+            slug='rival-visitante-convocatoria',
+            group=self.team.group,
+            home_stadium='Campo Rival',
+        )
+        response = self.client.post(
+            reverse('convocation-save'),
+            data=json.dumps(
+                {
+                    'players': [],
+                    'match_info': {
+                        'opponent': rival.name,
+                        'round': 'J25',
+                        'date': '2026-04-05',
+                        'time': '12:00',
+                        'location': 'Campo Rival',
+                        'home_away': 'away',
+                    },
+                }
+            ),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        record = ConvocationRecord.objects.get(team=self.team, is_current=True)
+        self.assertIsNotNone(record.match)
+        self.assertEqual(record.match.home_team_id, rival.id)
+        self.assertEqual(record.match.away_team_id, self.team.id)
+
     def test_save_convocation_persists_captain_and_goalkeeper(self):
         self.client.force_login(self.user)
         response = self.client.post(

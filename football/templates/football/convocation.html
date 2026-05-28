@@ -108,7 +108,8 @@
         font-size: 0.88rem;
         letter-spacing: 0.05em;
       }
-      .match-grid input {
+      .match-grid input,
+      .match-grid select {
         border: 1px solid var(--line);
         border-radius: 10px;
         background: rgba(7, 16, 34, 0.72);
@@ -185,6 +186,7 @@
         align-items: center;
         gap: 0.65rem;
         color: var(--muted);
+        min-width: 0;
       }
       .match-versus img {
         width: 44px;
@@ -193,6 +195,12 @@
         object-fit: contain;
         background: rgba(255, 255, 255, 0.92);
         padding: 0.2rem;
+      }
+      .match-versus span {
+        min-width: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.12;
       }
       .control-bar {
         padding: 0.85rem 1.1rem;
@@ -575,6 +583,12 @@
 	            <select id="match-opponent-select"></select>
 	            <input id="match-opponent-manual" type="text" placeholder="Escribe rival manual..." style="display:none;margin-top:0.35rem;" />
 	          </label>
+	          <label>Condición
+	            <select id="match-home-away">
+	              <option value="home" {% if match_info.home_away != 'away' %}selected{% endif %}>Local</option>
+	              <option value="away" {% if match_info.home_away == 'away' %}selected{% endif %}>Visitante</option>
+	            </select>
+	          </label>
 		          <label>Tipo
 		            <div class="segmented" id="match-context-seg">
 		              {% for item in match_context_options %}
@@ -704,9 +718,11 @@
       const parsedHomeLocation = "{{ home_location_label|default:'ESTADIO CAÑA CHAQUETA'|escapejs }}";
       const parsedCurrentOpponent = "{{ match_info.opponent|default:''|escapejs }}";
       const parsedCurrentLocation = "{{ match_info.location|default:''|escapejs }}";
+      const parsedCurrentHomeAway = "{{ match_info.home_away|default:'home'|escapejs }}";
 
 	      const matchOpponentSelect = document.querySelector('#match-opponent-select');
 	      const matchOpponentManual = document.querySelector('#match-opponent-manual');
+	      const matchHomeAway = document.querySelector('#match-home-away');
 	      const matchRivalCrest = document.querySelector('#match-rival-crest');
 	      const matchRivalName = document.querySelector('#match-rival-name');
 		      const matchContext = document.querySelector('#match-context');
@@ -1039,6 +1055,7 @@
         }
 
         const currentValue = getLocationValue();
+        const homeAway = String(matchHomeAway?.value || parsedCurrentHomeAway || 'home').toLowerCase() === 'away' ? 'away' : 'home';
         matchLocationSelect.innerHTML = '';
         const baseOptions = [];
         const homeLabel = String(parsedHomeLocation || 'ESTADIO CAÑA CHAQUETA').trim();
@@ -1064,7 +1081,8 @@
         manualOption.textContent = 'Otro campo (manual)';
         matchLocationSelect.appendChild(manualOption);
 
-        const targetKey = normalizeKey(currentValue || parsedCurrentLocation);
+        const preferredLocation = homeAway === 'away' ? rivalLocation : homeLabel;
+        const targetKey = normalizeKey(currentValue || parsedCurrentLocation || preferredLocation);
         let matched = false;
         Array.from(matchLocationSelect.options).forEach((option) => {
           if (normalizeKey(option.value) === targetKey && targetKey) {
@@ -1143,6 +1161,7 @@
 	            date: matchDate?.value || '',
 	            time: matchTime?.value || '',
 	            location: getLocationValue(),
+	            home_away: String(matchHomeAway?.value || 'home').trim(),
 	            context: String(matchContext?.value || '').trim() || 'league',
 	            tournament_name: String(matchTournamentName?.value || '').trim(),
 	            tournament_stage: String(matchTournamentStage?.value || '').trim(),
@@ -1215,6 +1234,11 @@
       });
       matchOpponentManual?.addEventListener('input', refreshRivalIdentity);
       matchLocationSelect?.addEventListener('change', setManualVisibility);
+      matchHomeAway?.addEventListener('change', () => {
+        if (matchLocationSelect) matchLocationSelect.value = '';
+        if (matchLocationManual) matchLocationManual.value = '';
+        updateLocationOptions();
+      });
       matchContext?.addEventListener('change', syncContextVisibility);
 
       selectVisibleBtn?.addEventListener('click', () => {
@@ -1283,6 +1307,7 @@
 
       hydratePositionFilter();
       hydrateOpponentSelect();
+	      if (matchHomeAway) matchHomeAway.value = parsedCurrentHomeAway === 'away' ? 'away' : 'home';
 	      updateLocationOptions();
 	      setManualVisibility();
 	      syncContextSeg();

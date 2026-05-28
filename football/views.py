@@ -15684,6 +15684,68 @@ def _safe_lineup_script_payload(payload, fallback=None):
         return fallback
 
 
+def _safe_initial_eleven_match_option(match):
+    try:
+        match_id = int(getattr(match, 'id', 0) or 0)
+    except Exception:
+        match_id = 0
+    try:
+        home_team = getattr(match, 'home_team', None)
+        home_name = str(getattr(home_team, 'display_name', '') or getattr(home_team, 'name', '') or '-').strip() or '-'
+    except Exception:
+        home_name = '-'
+    try:
+        away_team = getattr(match, 'away_team', None)
+        away_name = str(getattr(away_team, 'display_name', '') or getattr(away_team, 'name', '') or '-').strip() or '-'
+    except Exception:
+        away_name = '-'
+    try:
+        match_date = getattr(match, 'date', None)
+    except Exception:
+        match_date = None
+    return {
+        'id': match_id,
+        'home_name': home_name,
+        'away_name': away_name,
+        'date': match_date,
+    }
+
+
+def _safe_initial_eleven_convocation_view(record):
+    if not record:
+        return None
+    try:
+        match_id = int(getattr(getattr(record, 'match', None), 'id', 0) or 0) or None
+    except Exception:
+        match_id = None
+    return {
+        'round': str(getattr(record, 'round', '') or '').strip(),
+        'match_date': getattr(record, 'match_date', None),
+        'match_time': getattr(record, 'match_time', None),
+        'location': str(getattr(record, 'location', '') or '').strip(),
+        'opponent_name': str(getattr(record, 'opponent_name', '') or '').strip(),
+        'match_id': match_id,
+    }
+
+
+def _safe_initial_eleven_player_card(player):
+    try:
+        player_id = int(getattr(player, 'id', 0) or 0)
+    except Exception:
+        player_id = 0
+    try:
+        number = getattr(player, 'number', None)
+    except Exception:
+        number = None
+    return {
+        'id': player_id,
+        'name': str(getattr(player, 'name', '') or '').strip(),
+        'number': number if number is not None else '--',
+        'position': str(getattr(player, 'position', '') or '').strip(),
+        'photo_url': str(getattr(player, 'photo_url', '') or '').strip(),
+    }
+
+
 def _normalize_rival_lineup_payload_with_limit(payload, allowed_rows, *, starters_limit=11):
     allowed = {}
     for row in (allowed_rows or []):
@@ -21547,6 +21609,7 @@ def convocation_page(request):
         'time': str(default_match_info.get('time') or '').strip() if isinstance(default_match_info, dict) else '',
         'location': str(default_match_info.get('location') or '').strip() if isinstance(default_match_info, dict) else '',
         'opponent': opponent_name,
+        'home_away': 'home',
         'context': scope_value,
         'tournament_name': '',
         'tournament_stage': '',
@@ -21564,6 +21627,10 @@ def convocation_page(request):
                 match_info['opponent'] = opponent_label
         except Exception:
             pass
+        if active_match.home_team_id == primary_team.id:
+            match_info['home_away'] = 'home'
+        elif active_match.away_team_id == primary_team.id:
+            match_info['home_away'] = 'away'
         if active_match.round:
             match_info['round'] = str(active_match.round or '').strip()
         if active_match.date:
@@ -21591,6 +21658,10 @@ def convocation_page(request):
         try:
             if convocation_record.match and getattr(convocation_record.match, 'context', None):
                 match_info['context'] = str(convocation_record.match.context or Match.CONTEXT_LEAGUE).strip().lower() or Match.CONTEXT_LEAGUE
+                if convocation_record.match.home_team_id == primary_team.id:
+                    match_info['home_away'] = 'home'
+                elif convocation_record.match.away_team_id == primary_team.id:
+                    match_info['home_away'] = 'away'
             if match_info.get('context') == Match.CONTEXT_TOURNAMENT and convocation_record.match:
                 match_info['tournament_name'] = str(getattr(convocation_record.match, 'tournament_name', '') or '').strip()
                 match_info['tournament_stage'] = str(getattr(convocation_record.match, 'tournament_stage', '') or '').strip()
@@ -21724,11 +21795,14 @@ def save_convocation(request):
     date_value_raw = str(match_info.get('date') or '').strip()
     time_value_raw = str(match_info.get('time') or '').strip()
     context_value = str(match_info.get('context') or '').strip().lower()
+    home_away = str(match_info.get('home_away') or 'home').strip().lower()
     tournament_name_value = str(match_info.get('tournament_name') or '').strip()
     tournament_stage_value = str(match_info.get('tournament_stage') or '').strip()
     allowed_contexts = {Match.CONTEXT_LEAGUE, Match.CONTEXT_TOURNAMENT, Match.CONTEXT_FRIENDLY}
     if context_value not in allowed_contexts:
         context_value = Match.CONTEXT_LEAGUE
+    if home_away not in {'home', 'away'}:
+        home_away = 'home'
 
     players = Player.objects.filter(team=primary_team, is_active=True, id__in=player_ids)
     # Convocatoria (partido): bloquea solo lesiones que impiden competir.
@@ -21828,14 +21902,26 @@ def save_convocation(request):
         if not season:
             season = Season.objects.filter(is_current=True).order_by('-start_date', '-id').first()
         if season:
+            rival_team = None
+            if opponent_value and normalize_label(opponent_value) != normalize_label(primary_team.name):
+                rival_team = Team.objects.filter(name__iexact=opponent_value).first()
+                if not rival_team:
+                    rival_team = Team.objects.create(
+                        name=opponent_value,
+                        slug=_unique_team_slug(opponent_value),
+                        short_name=opponent_value[:60],
+                        group=primary_team.group,
+                    )
+            home_team = primary_team if home_away == 'home' else rival_team
+            away_team = rival_team if home_away == 'home' else primary_team
             target_match = Match.objects.create(
                 season=season,
                 group=primary_team.group,
                 round=round_value,
                 date=parsed_match_date,
                 location=location_value,
-                home_team=primary_team,
-                away_team=None,
+                home_team=home_team,
+                away_team=away_team,
                 context=context_value,
                 tournament_name=(tournament_name_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
                 tournament_stage=(tournament_stage_value if context_value == Match.CONTEXT_TOURNAMENT else ''),
@@ -21851,6 +21937,7 @@ def save_convocation(request):
             {
                 'round': round_value,
                 'location': location_value,
+                'home_away': home_away,
                 'datetime': datetime_label,
                 'opponent': opponent_value,
                 'context': context_value,
@@ -27423,9 +27510,10 @@ def initial_eleven_page(request):
         return HttpResponse('Este club no tiene equipo/configuración. Completa el onboarding primero.', status=400)
     starters_limit = _required_starters_for_team(primary_team)
     target_match = _resolve_active_match_for_flow(request, primary_team)
-    match_selector_options = list(
-        _team_match_queryset(primary_team).order_by('-date', '-id')
+    raw_match_selector_options = list(
+        _team_match_queryset(primary_team).select_related('home_team', 'away_team').order_by('-date', '-id')
     )
+    match_selector_options = [_safe_initial_eleven_match_option(match) for match in raw_match_selector_options]
     selected_match_id = target_match.id if target_match and getattr(target_match, 'id', None) else None
     convocation_record = None
     if target_match:
@@ -27562,6 +27650,8 @@ def initial_eleven_page(request):
 
     lineup_seed_payload = _safe_lineup_script_payload(lineup_seed)
     rival_lineup_seed_payload = _safe_lineup_script_payload(rival_lineup_seed)
+    convocation_record_view = _safe_initial_eleven_convocation_view(convocation_record)
+    convocation_player_cards = [_safe_initial_eleven_player_card(player) for player in convocation_players]
     try:
         team_crest_url = resolve_team_crest_url(request, primary_team, sync=True) or ''
     except Exception:
@@ -27593,8 +27683,8 @@ def initial_eleven_page(request):
             'rival_team_name': rival_team_name,
             'rival_team_crest_url': rival_team_crest_url,
             'rival_team_kit2d_url': rival_team_kit2d_url,
-            'convocation_record': convocation_record,
-            'convocation_players': convocation_players,
+            'convocation_record': convocation_record_view,
+            'convocation_players': convocation_player_cards,
             'lineup_seed': lineup_seed_payload,
             'rival_lineup_seed': rival_lineup_seed_payload,
             'lineup_seed_json': json.dumps(lineup_seed_payload, ensure_ascii=False),
@@ -54405,6 +54495,7 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
     datetime_value = (match_info_payload.get('datetime') or '').strip()
     opponent_name = (match_info_payload.get('opponent') or '').strip()
     opponent_team_id_raw = match_info_payload.get('opponent_team_id')
+    home_away_value = str(match_info_payload.get('home_away') or '').strip().lower()
     context_value = (match_info_payload.get('context') or '').strip().lower()
     tournament_name_value = (match_info_payload.get('tournament_name') or '').strip()
     tournament_stage_value = (match_info_payload.get('tournament_stage') or '').strip()
@@ -54506,6 +54597,25 @@ def _apply_match_info_overrides(match, primary_team, match_info_payload):
             match.home_team = primary_team
             match.away_team = rival_team
             changed_fields.extend(['home_team', 'away_team'])
+
+    if primary_team and home_away_value in {'home', 'away'}:
+        if not rival_team:
+            try:
+                if match.home_team_id == primary_team.id:
+                    rival_team = match.away_team
+                elif match.away_team_id == primary_team.id:
+                    rival_team = match.home_team
+            except Exception:
+                rival_team = None
+        if rival_team and normalize_label(getattr(rival_team, 'name', '') or '') != normalize_label(primary_team.name):
+            desired_home = primary_team if home_away_value == 'home' else rival_team
+            desired_away = rival_team if home_away_value == 'home' else primary_team
+            if match.home_team_id != getattr(desired_home, 'id', None):
+                match.home_team = desired_home
+                changed_fields.append('home_team')
+            if match.away_team_id != getattr(desired_away, 'id', None):
+                match.away_team = desired_away
+                changed_fields.append('away_team')
 
     # Marcador final (en UI se trabaja como a favor / en contra, relativo al equipo principal).
     # Ojo: solo tocarlo si el cliente envía los campos (para no borrar valores por caches antiguos).
