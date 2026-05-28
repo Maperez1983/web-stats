@@ -38,6 +38,7 @@ from football.healthchecks import run_system_healthcheck
 from football.manual_stats import get_manual_player_base_overrides, save_manual_player_base_overrides, season_display_name
 from football.query_helpers import _team_match_queryset, get_active_injury_player_ids, get_current_convocation_record, is_injury_record_active, is_manual_sanction_active
 from football.injuries import categorize_time_loss, estimate_return_date, time_loss_days
+from football import team_media_services
 from football.models import AppUserRole
 from football.services import find_roster_entry
 from football.staff_briefing import build_weekly_staff_brief
@@ -77,6 +78,16 @@ class WriteEndpointAuthTests(TestCase):
         response = self.client.post(reverse('dashboard-refresh'))
         self.assertEqual(response.status_code, 429)
         cache.delete(SCRAPE_LOCK_KEY)
+
+
+class TeamMediaServicesTests(TestCase):
+    def test_benagalbon_detection_does_not_use_primary_flag(self):
+        team = Team(name='Málaga Club de Fútbol', slug='malaga-cf', is_primary=True)
+        self.assertFalse(team_media_services.is_benagalbon_team(team))
+
+    def test_benagalbon_detection_uses_team_identity(self):
+        team = Team(name='C.D. Benagalbón', slug='cd-benagalbon')
+        self.assertTrue(team_media_services.is_benagalbon_team(team))
 
     def test_dashboard_page_requires_login(self):
         response = self.client.get(reverse('dashboard-home'))

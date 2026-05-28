@@ -1,5 +1,6 @@
 import json
 import os
+import unicodedata
 from pathlib import Path
 
 from django.conf import settings
@@ -229,15 +230,24 @@ def sync_team_crest_from_sources(team, *, load_snapshot_func=None, invalidate_fu
     return resolved
 
 
+def _fold_team_label(value):
+    text = str(value or '').strip().lower()
+    if not text:
+        return ''
+    normalized = unicodedata.normalize('NFKD', text)
+    return ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
 def is_benagalbon_team(team):
     if not team:
         return False
-    if bool(getattr(team, 'is_primary', False)):
-        return True
-    slug = str(getattr(team, 'slug', '') or '').strip().lower()
-    name = str(getattr(team, 'name', '') or '').strip().lower()
-    short_name = str(getattr(team, 'short_name', '') or '').strip().lower()
-    return 'benagalbon' in slug or 'benagalbon' in name or 'benagalbon' in short_name
+    labels = (
+        getattr(team, 'slug', ''),
+        getattr(team, 'name', ''),
+        getattr(team, 'display_name', ''),
+        getattr(team, 'short_name', ''),
+    )
+    return any('benagalbon' in _fold_team_label(label) for label in labels)
 
 
 def resolve_team_crest_url(

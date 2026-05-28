@@ -612,7 +612,7 @@ def build_session_pdf_context(request, team, session, pdf_style='uefa'):
         if hasattr(request.user, 'get_full_name') and request.user.get_full_name().strip()
         else getattr(request.user, 'username', '') or 'Entrenador'
     )
-    primary_club_team = _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
+    primary_club_team = team or _get_primary_team_for_request(request) or Team.objects.filter(is_primary=True).first()
     club_logo_url = resolve_team_crest_url(request, primary_club_team, sync=True) if primary_club_team else ''
     # Para PDF "club" preferimos un escudo embebido (data URL) para evitar fallos de fetch/red en WeasyPrint.
     def _small_png_data_url(raw_bytes: bytes, *, max_side: int = 220) -> str:
