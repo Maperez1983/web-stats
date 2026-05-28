@@ -9,6 +9,7 @@ from . import video_studio_views
 from . import kit2d_views
 from . import academy_views
 from . import pwa as pwa_views
+from . import session_pdf
 
 urlpatterns = [
     path('manifest.webmanifest', pwa_views.pwa_manifest, name='pwa-manifest'),
@@ -266,7 +267,7 @@ urlpatterns = [
     path('coach/sesiones/sesion-importada/<int:doc_id>/archivo/', views.imported_session_file, name='imported-session-file'),
     path('coach/sesiones/sesion-importada/<int:doc_id>/preview/', views.imported_session_preview_file, name='imported-session-preview-file'),
     path('coach/sesiones/tarea/<int:task_id>/pdf/', views.session_task_pdf, name='session-task-pdf'),
-    path('coach/sesiones/sesion/<int:session_id>/pdf/', views.session_plan_pdf, name='session-plan-pdf'),
+    path('coach/sesiones/sesion/<int:session_id>/pdf/', session_pdf.session_plan_pdf, name='session-plan-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/', views.training_session_detail_page, name='training-session-detail'),
     path('coach/sesiones/microciclo/<int:microcycle_id>/presentacion/', views.microcycle_presentation_pdf, name='microcycle-presentation-pdf'),
     path('coach/sesiones/sesion/<int:session_id>/presentacion/', views.session_presentation_pdf, name='session-presentation-pdf'),
