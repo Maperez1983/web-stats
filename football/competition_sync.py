@@ -18,6 +18,10 @@ from .universo_competition_services import (
     serialize_universo_live_classification,
     universo_payload_matches_category,
 )
+from .universo_group_services import (
+    ensure_universo_group_models_from_candidate,
+    ensure_universo_group_models_from_live,
+)
 from .universo_snapshot_services import load_universo_snapshot
 from .workspace_competition_context_services import bootstrap_workspace_competition_context
 
@@ -28,8 +32,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     from . import views as core_views
 
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
-    _ensure_universo_group_models_from_live = core_views._ensure_universo_group_models_from_live
-    _ensure_universo_group_models_from_candidate = core_views._ensure_universo_group_models_from_candidate
     _resolve_standings_for_team = core_views._resolve_standings_for_team
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
@@ -62,7 +64,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
             try:
                 live_classification = fetch_universo_live_classification(group_key)
                 if isinstance(live_classification, dict) and live_classification.get('clasificacion'):
-                    _ensure_universo_group_models_from_live(
+                    ensure_universo_group_models_from_live(
                         group_key=group_key,
                         live_payload=live_classification,
                         primary_team=primary_team,
@@ -81,7 +83,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                     comp_code = str(found[0] or '').strip() if found else ''
                     group_meta = found[1] if found else {}
                     comp_meta = competitions.get(comp_code) or {}
-                    _ensure_universo_group_models_from_candidate(
+                    ensure_universo_group_models_from_candidate(
                         group_key=group_key,
                         competition_name=str(comp_meta.get('name') or '').strip(),
                         group_name=str(group_meta.get('group_name') or group_meta.get('name') or '').strip(),
@@ -123,7 +125,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                         live_classification = {}
                     else:
                         # Asegurar que Competition/Season/Group en BD reflejan la competición real del grupo.
-                        _ensure_universo_group_models_from_live(
+                        ensure_universo_group_models_from_live(
                             group_key=group_key,
                             live_payload=live_classification,
                             primary_team=primary_team,
