@@ -11,6 +11,7 @@ from .match_payload_services import (
 )
 from .models import Team, Workspace, WorkspaceCompetitionContext, WorkspaceCompetitionSnapshot
 from .query_helpers import _normalize_team_lookup_key
+from .standings_services import resolve_standings_for_team
 from .team_media_services import sync_team_crest_from_sources
 from .universo_catalog_services import build_universo_competition_catalog
 from .universo_client import fetch_universo_live_classification
@@ -32,7 +33,6 @@ def sync_workspace_competition_context(workspace, primary_team=None):
     from . import views as core_views
 
     _ensure_universo_context_binding = core_views._ensure_universo_context_binding
-    _resolve_standings_for_team = core_views._resolve_standings_for_team
     _build_next_match_from_convocation = core_views._build_next_match_from_convocation
     _find_universo_next_match_for_context = core_views._find_universo_next_match_for_context
     load_preferred_next_match_payload = core_views.load_preferred_next_match_payload
@@ -136,7 +136,7 @@ def sync_workspace_competition_context(workspace, primary_team=None):
                 logger.exception('No se pudo sincronizar clasificación Universo para workspace %s', getattr(workspace, 'id', None))
                 standings_payload = []
     if not standings_payload:
-        standings_payload = _resolve_standings_for_team(
+        standings_payload = resolve_standings_for_team(
             primary_team,
             snapshot=load_universo_snapshot(),
             provider=getattr(context, 'provider', None),

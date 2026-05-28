@@ -82,6 +82,7 @@ from . import match_payload_services
 from . import player_documents
 from . import player_media
 from . import pdf_services
+from . import standings_services
 from . import stats_services
 from . import task_library_services
 from . import team_media_services
@@ -356,19 +357,7 @@ def _team_standings_last_updated(group):
 
 
 def _latest_standings_group_for_team(primary_team):
-    if not primary_team:
-        return None
-    try:
-        standing = (
-            TeamStanding.objects
-            .select_related('group')
-            .filter(team=primary_team)
-            .order_by('-last_updated', '-played', '-id')
-            .first()
-        )
-        return standing.group if standing else None
-    except Exception:
-        return None
+    return standings_services.latest_standings_group_for_team(primary_team)
 
 
 def _refresh_rfaf_standings_inline(*, allow_fallback=False):
@@ -7274,68 +7263,11 @@ def _import_universo_competition_candidate(*, competition_key, group_key, team_k
 
 
 def _universo_snapshot_supports_team(snapshot, primary_team):
-    if not primary_team:
-        return True
-    # Producto comercial/multi-equipo: el snapshot "Universo" y el caché global de próximo rival
-    # solo deben usarse en modo legacy monoclub (opt-in). Si no, mezclan Senior/Prebenjamín.
-    if not _single_club_fallback_enabled():
-        return False
-    # Snapshot "Universo" es global y normalmente corresponde al equipo principal.
-    # Para evitar mezclar categorías/clubes con el mismo nombre (ej. Benagalbón Senior vs Prebenjamín),
-    # desactivamos su uso en equipos no primarios.
-    if not bool(getattr(primary_team, 'is_primary', False)):
-        return False
-    if not isinstance(snapshot, dict):
-        return False
-    rows = snapshot.get('standings')
-    candidate_keys = {
-        _normalize_team_lookup_key(primary_team.name),
-        _normalize_team_lookup_key(primary_team.display_name),
-    }
-    candidate_keys = {key for key in candidate_keys if key}
-    if isinstance(rows, list) and rows:
-        for row in rows:
-            if not isinstance(row, dict):
-                continue
-            row_keys = {
-                _normalize_team_lookup_key(row.get('team')),
-                _normalize_team_lookup_key(row.get('full_name')),
-            }
-            row_keys = {key for key in row_keys if key}
-            if candidate_keys & row_keys:
-                return True
-        return False
-    return bool(getattr(primary_team, 'is_primary', False))
+    return standings_services.universo_snapshot_supports_team(snapshot, primary_team)
 
 
 def _resolve_standings_for_team(primary_team, snapshot=None, provider=None):
-    if not primary_team or not getattr(primary_team, 'group', None):
-        return []
-    snapshot = snapshot if snapshot is not None else load_universo_snapshot()
-    provider_key = str(provider or '').strip().lower()
-    if provider_key == WorkspaceCompetitionContext.PROVIDER_UNIVERSO:
-        # Evita mezclar categorías: para equipos NO primarios, no usamos el snapshot global como fallback.
-        if not bool(getattr(primary_team, 'is_primary', False)):
-            return serialize_standings(primary_team.group)
-        if _universo_snapshot_supports_team(snapshot, primary_team):
-            universo_rows = _serialize_universo_standings(snapshot)
-            if universo_rows:
-                return universo_rows
-        return serialize_standings(primary_team.group)
-    # Manual/RFAF: prioriza siempre la BD (lo que importa el script de federación).
-    # Importante: evitamos el fallback al snapshot global porque puede mezclar categorías
-    # (ej. Senior vs Prebenjamín con mismo nombre de club).
-    group_for_db = _latest_standings_group_for_team(primary_team) or primary_team.group
-    db_rows = serialize_standings(group_for_db)
-    if db_rows:
-        return db_rows
-    # Compatibilidad: el equipo principal puede seguir usando el snapshot global como
-    # fallback si no hay clasificación en BD (por ejemplo en instalaciones recién montadas).
-    if bool(getattr(primary_team, 'is_primary', False)) and _universo_snapshot_supports_team(snapshot, primary_team):
-        universo_rows = _serialize_universo_standings(snapshot)
-        if universo_rows:
-            return universo_rows
-    return serialize_standings(primary_team.group)
+    return standings_services.resolve_standings_for_team(primary_team, snapshot=snapshot, provider=provider)
 
 
 def _build_rival_options_for_team(primary_team, *, cache_days: int = 14, max_items: int = 60):
@@ -7944,42 +7876,7 @@ def _serialize_universo_live_classification(payload):
 
 
 def _serialize_universo_standings(snapshot):
-    if not isinstance(snapshot, dict):
-        return []
-    rows = snapshot.get('standings')
-    if not isinstance(rows, list):
-        return []
-    crest_lookup = _build_team_crest_lookup()
-    normalized = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        team = str(row.get('team') or '').strip()
-        if not team:
-            continue
-        gf = _safe_int(row.get('goals_for'))
-        ga = _safe_int(row.get('goals_against'))
-        gd = row.get('goal_difference')
-        if gd in (None, ''):
-            gd = gf - ga
-        normalized.append(
-            {
-                'rank': _safe_int(row.get('position'), default=0),
-                'team': team,
-                'full_name': str(row.get('full_name') or team).strip() or team,
-                'crest_url': str(row.get('crest_url') or crest_lookup.get(_normalize_team_lookup_key(team)) or '').strip(),
-                'team_code': str(row.get('team_code') or '').strip(),
-                'played': _safe_int(row.get('played')),
-                'wins': _safe_int(row.get('wins')),
-                'draws': _safe_int(row.get('draws')),
-                'losses': _safe_int(row.get('losses')),
-                'goals_for': gf,
-                'goals_against': ga,
-                'goal_difference': _safe_int(gd),
-                'points': _safe_int(row.get('points')),
-            }
-        )
-    return sorted(normalized, key=lambda x: (x['rank'] <= 0, x['rank'], -x['points'], x['full_name']))
+    return standings_services.serialize_universo_standings(snapshot)
 
 
 def _is_demo_mode_for_request(request) -> bool:
@@ -54281,67 +54178,7 @@ def refresh_scraping(request):
 
 
 def serialize_standings(group):
-    standings = TeamStanding.objects.filter(group=group)
-    current_meta = standings.aggregate(total=Count('id'), latest=Max('last_updated'))
-
-    # Si hay grupos duplicados para misma temporada/nombre, priorizar el más reciente.
-    sibling_group = (
-        TeamStanding.objects.filter(
-            group__season=group.season,
-            group__name__iexact=group.name,
-        )
-        .values('group_id')
-        .annotate(total=Count('id'), latest=Max('last_updated'))
-        .order_by('-latest', '-total')
-        .first()
-    )
-    if sibling_group:
-        sibling_is_better = (
-            current_meta['total'] == 0
-            or (
-                sibling_group['group_id'] != group.id
-                and sibling_group['latest']
-                and (
-                    not current_meta['latest']
-                    or sibling_group['latest'] > current_meta['latest']
-                )
-            )
-        )
-        if sibling_is_better:
-            standings = TeamStanding.objects.filter(group_id=sibling_group['group_id'])
-
-    standings = standings.order_by('position')
-    # Importante (multi-categoría): si no hay clasificación para este grupo,
-    # devolvemos vacío. NO hacemos fallback a otros grupos porque mezcla categorías
-    # (ej. Prebenjamín viendo la clasificación del Senior).
-    crest_lookup = _build_team_crest_lookup()
-    return [
-        {
-            'rank': standing.position,
-            'team': standing.team.name.strip().upper(),
-            'full_name': standing.team.name.strip(),
-            'crest_url': resolve_team_crest_url(
-                None,
-                standing.team,
-                fallback_static='',
-                sync=False,
-            )
-            or _sanitize_universo_external_image(
-                _absolute_universo_url(
-                    getattr(standing.team, 'crest_url', '') or crest_lookup.get(_normalize_team_lookup_key(standing.team.name)) or ''
-                )
-            ),
-            'played': standing.played,
-            'wins': standing.wins,
-            'draws': standing.draws,
-            'losses': standing.losses,
-            'goals_for': standing.goals_for,
-            'goals_against': standing.goals_against,
-            'goal_difference': standing.goal_difference,
-            'points': standing.points,
-        }
-        for standing in standings
-    ]
+    return standings_services.serialize_standings(group)
 
 
 def get_next_match(primary_team, group, *, allow_external_fetch=None):
